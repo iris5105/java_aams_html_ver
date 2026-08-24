@@ -22,6 +22,9 @@ public class MenuDto {
     private String pgmUseYn; // PGM_USE_YN
     private Long sortOrder; // SORT_ORDER
     private String updId; // UPD_ID
+    private Integer treeLevel; // TREE_LEVEL
+    private String treeLine; // TREE_LINE
+    private Integer childCnt; // childCnt
 
     /**
      * Side Navigation display name format: PGM_GO + ' ' + PGM_ID (or PGM_NO)

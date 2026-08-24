@@ -21,7 +21,7 @@
          ORDER BY SORT_ORDER
     </select>
 
-    <!-- 2. Side Navigation Menu List (Oracle Hierarchical Query) -->
+    <!-- 2. Side Navigation Menu List -->
     <select id="selectSideMenuList" resultType="com.kfp.aams.dto.MenuDto">
         SELECT PGM_NO        AS pgmNo
              , PGM_ID        AS pgmId
@@ -30,13 +30,16 @@
              , PARENT_PGM    AS parentPgm
              , PGM_KIND_CODE AS pgmKindCode
              , SORT_ORDER    AS sortOrder
+             , TREE_LEVEL    AS treeLevel
+             , TREE_LINE     AS treeLine
           FROM FW_PGM_MST
-         WHERE CONNECT_BY_ISLEAF = 1
+         WHERE PGM_KIND_CODE IN ('M', 'P')
            AND MENU_USE_YN = 'Y'
            AND PGM_USE_YN = 'Y'
+           AND PARENT_PGM != '00000'
          START WITH PGM_NO = #{pgmNo}
-       CONNECT BY PRIOR PGM_NO = PARENT_PGM
-         ORDER SIBLINGS BY SORT_ORDER
+        CONNECT BY PRIOR PGM_NO = PARENT_PGM
+         ORDER SIBLINGS BY NVL(SORT_ORDER, 0)
     </select>
 
 </mapper>

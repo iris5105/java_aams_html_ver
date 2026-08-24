@@ -57,6 +57,13 @@ function loadSideMenu(pgmNo) {
         });
 }
 
+function toggleMenuGroup(headerEl) {
+    if (!headerEl) return;
+    const groupEl = headerEl.closest('.menu-group');
+    if (!groupEl) return;
+    groupEl.classList.toggle('collapsed');
+}
+
 function renderSideMenu(list) {
     const container = document.getElementById('sidebarMenuContainer');
     if (!container) return;
@@ -66,21 +73,84 @@ function renderSideMenu(list) {
         return;
     }
 
-    let html = '';
-    list.forEach(item => {
-        const go = item.pgmGo ? item.pgmGo.trim() : '';
-        const id = (item.pgmId && item.pgmId.trim()) ? item.pgmId.trim() : (item.pgmNo ? item.pgmNo.trim() : '');
-        const displayNm = go ? `${go} ${id}` : id;
+    // Count how many middle categories (중분류) exist in the list
+    const middleCategoryCount = list.filter(item => item.pgmKindCode === 'M' || item.treeLevel === 3).length;
+    const showGroupHeader = middleCategoryCount > 1; // Render group headers ONLY if there are multiple middle categories (> 1)
 
-        html += `
-            <div class="menu-item" data-pgm-no="${item.pgmNo || ''}">
-                <i class="fa-solid fa-file-code"></i> ${displayNm}
-            </div>
-        `;
+    let html = '';
+    let inGroup = false;
+    let groupIndex = 0;
+
+    list.forEach(item => {
+        // Skip Top Navigation Level (Level 2) in side menu
+        if (item.treeLevel === 2) {
+            return;
+        }
+
+        const go = item.pgmGo ? item.pgmGo.trim() : '';
+        const nm = (item.pgmNm && item.pgmNm.trim()) ? item.pgmNm.trim() : ((item.pgmNo && item.pgmNo.trim()) ? item.pgmNo.trim() : '');
+        const displayNm = item.displayNm || (go ? `${go} ${nm}` : nm);
+        const hasLineClass = (item.treeLine === 'Y' || item.treeLine === 'y') ? ' has-tree-line' : '';
+
+        // PGM_KIND_CODE === 'M' takes priority to be recognized as Middle Category (중분류)
+        const isMiddleCategory = (item.pgmKindCode === 'M') || (item.treeLevel === 3);
+
+        if (isMiddleCategory) {
+            if (showGroupHeader) {
+                if (inGroup) {
+                    html += `</div></div>`;
+                    inGroup = false;
+                }
+
+                groupIndex++;
+                // Expand ONLY the first middle category (groupIndex === 1), collapse the remaining (groupIndex > 1)
+                const collapsedClass = (groupIndex === 1) ? '' : ' collapsed';
+
+                html += `
+                    <div class="menu-group${collapsedClass}${hasLineClass}" data-pgm-no="${item.pgmNo || ''}">
+                        <div class="menu-group-header" onclick="toggleMenuGroup(this)">
+                            <div class="group-title-box">
+                                <i class="fa-solid fa-folder-open group-icon"></i>
+                                <span class="group-title">${displayNm}</span>
+                            </div>
+                            <i class="fa-solid fa-chevron-down toggle-icon"></i>
+                        </div>
+                        <div class="menu-group-children">
+                `;
+                inGroup = true;
+            }
+            // If showGroupHeader is false (middleCategoryCount <= 1), skip rendering the single group header
+        } else {
+            // Leaf screen menu item (PGM_KIND_CODE === 'P')
+            html += `
+                <div class="menu-item${hasLineClass}" data-pgm-no="${item.pgmNo || ''}">
+                    <i class="fa-solid fa-file-code"></i> <span>${displayNm}</span>
+                </div>
+            `;
+        }
     });
+
+    if (inGroup) {
+        html += `</div></div>`;
+    }
 
     container.innerHTML = html;
 }
+
+// Auto-load side menu for initial active top nav item on DOMContentLoaded
+document.addEventListener("DOMContentLoaded", function() {
+    const activeTopItem = document.querySelector('.top-nav-item.active');
+    if (activeTopItem) {
+        const pgmNo = activeTopItem.getAttribute('data-pgm-no');
+        if (pgmNo) {
+            loadSideMenu(pgmNo);
+        }
+    }
+    // Start token expiration monitoring if logged in
+    if (!window.location.pathname.includes('/login') && !window.location.pathname.includes('/w_login_aams')) {
+        startTokenMonitor();
+    }
+});
 
 /**
  * Common Date Formatter (YYYYMMDD -> YYYY-MM-DD or ISO datetime)
@@ -214,5 +284,109 @@ function selectCompany(corpGr) {
     .catch(err => {
         console.error('Error switching company:', err);
         alert('회사 변경 요청 중 오류가 발생했습니다.');
+    });
+}
+
+/**
+ * Access Token Expiration Monitor & Extension Module
+ */
+let tokenCheckInterval = null;
+let tokenCountdownInterval = null;
+let currentRemainingSeconds = 0;
+let isExtendModalOpen = false;
+
+function formatMMSS(sec) {
+    if (sec <= 0) return '00:00';
+    const m = Math.floor(sec / 60);
+    const s = Math.floor(sec % 60);
+    return String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+}
+
+function startTokenMonitor() {
+    checkTokenStatus();
+    if (tokenCheckInterval) clearInterval(tokenCheckInterval);
+    tokenCheckInterval = setInterval(checkTokenStatus, 10000);
+}
+
+function checkTokenStatus() {
+    safeFetchJson('/api/auth/token-status')
+        .then(data => {
+            if (!data || !data.success || data.expired) {
+                if (isExtendModalOpen) {
+                    closeTokenExtendModal();
+                    handleLogout();
+                }
+                return;
+            }
+
+            currentRemainingSeconds = data.remainingSeconds || 0;
+
+            // Warning threshold: 5 minutes (300 seconds) before expiration
+            if (currentRemainingSeconds <= 300 && currentRemainingSeconds > 0) {
+                openTokenExtendModal();
+            } else if (currentRemainingSeconds > 300) {
+                if (isExtendModalOpen) {
+                    closeTokenExtendModal();
+                }
+            }
+        });
+}
+
+function openTokenExtendModal() {
+    const modal = document.getElementById('tokenExtendModal');
+    if (!modal) return;
+
+    modal.style.display = 'flex';
+    isExtendModalOpen = true;
+
+    updateCountdownDisplay();
+    if (tokenCountdownInterval) clearInterval(tokenCountdownInterval);
+    tokenCountdownInterval = setInterval(() => {
+        currentRemainingSeconds--;
+        if (currentRemainingSeconds <= 0) {
+            clearInterval(tokenCountdownInterval);
+            closeTokenExtendModal();
+            handleLogout();
+            return;
+        }
+        updateCountdownDisplay();
+    }, 1000);
+}
+
+function updateCountdownDisplay() {
+    const elem = document.getElementById('tokenCountdown');
+    if (elem) {
+        elem.innerText = formatMMSS(currentRemainingSeconds);
+    }
+}
+
+function closeTokenExtendModal() {
+    const modal = document.getElementById('tokenExtendModal');
+    if (modal) modal.style.display = 'none';
+    isExtendModalOpen = false;
+    if (tokenCountdownInterval) {
+        clearInterval(tokenCountdownInterval);
+        tokenCountdownInterval = null;
+    }
+}
+
+function extendAccessToken() {
+    fetch('/api/auth/extend-token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data && data.success) {
+            closeTokenExtendModal();
+            currentRemainingSeconds = data.remainingSeconds || 3000;
+            startTokenMonitor();
+        } else {
+            alert(data.message || '토큰 연장에 실패했습니다.');
+        }
+    })
+    .catch(err => {
+        console.error('Token extension error:', err);
+        alert('토큰 연장 요청 중 오류가 발생했습니다.');
     });
 }
