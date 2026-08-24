@@ -33,14 +33,14 @@ public class JwtProvider {
     }
 
     /**
-     * Create Access Token with all UserDto claims
+     * Create Access Token with all UserDto claims and custom expiration duration
      */
-    public String createAccessToken(UserDto userDto) {
+    public String createAccessToken(UserDto userDto, long expireTimeMs) {
         if (userDto == null) {
             userDto = new UserDto();
         }
         Date now = new Date();
-        Date validity = new Date(now.getTime() + ACCESS_TOKEN_EXPIRE_TIME);
+        Date validity = new Date(now.getTime() + expireTimeMs);
 
         return Jwts.builder()
                 .subject(userDto.getUserId())
@@ -64,6 +64,13 @@ public class JwtProvider {
                 .expiration(validity)
                 .signWith(key)
                 .compact();
+    }
+
+    /**
+     * Create Access Token with default 30 minutes expiration
+     */
+    public String createAccessToken(UserDto userDto) {
+        return createAccessToken(userDto, ACCESS_TOKEN_EXPIRE_TIME);
     }
 
     /**
@@ -128,6 +135,20 @@ public class JwtProvider {
                 .build()
                 .parseSignedClaims(token)
                 .getPayload();
+    }
+
+    /**
+     * Get remaining expiration time in milliseconds for the token
+     */
+    public long getRemainingExpirationMillis(String token) {
+        try {
+            Claims claims = getClaims(token);
+            Date expiration = claims.getExpiration();
+            long remaining = expiration.getTime() - System.currentTimeMillis();
+            return Math.max(0L, remaining);
+        } catch (Exception e) {
+            return 0L;
+        }
     }
 
     public String getUserId(String token) {

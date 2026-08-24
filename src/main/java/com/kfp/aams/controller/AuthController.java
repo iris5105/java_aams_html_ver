@@ -234,4 +234,73 @@ public class AuthController {
                 .message("로그아웃 되었습니다.")
                 .build());
     }
+
+    /**
+     * Check current Access Token remaining expiration time
+     */
+    @GetMapping("/api/auth/token-status")
+    @ResponseBody
+    public ResponseEntity<?> getTokenStatus(HttpServletRequest request) {
+        String token = null;
+        if (request.getCookies() != null) {
+            for (Cookie c : request.getCookies()) {
+                if ("accessToken".equals(c.getName())) {
+                    token = c.getValue();
+                    break;
+                }
+            }
+        }
+
+        if (token == null || token.isBlank() || !jwtProvider.validateToken(token)) {
+            return ResponseEntity.ok(Map.of("success", false, "expired", true, "remainingSeconds", 0));
+        }
+
+        long remainingMillis = jwtProvider.getRemainingExpirationMillis(token);
+        long remainingSeconds = remainingMillis / 1000;
+
+        return ResponseEntity.ok(Map.of(
+                "success", true,
+                "expired", remainingSeconds <= 0,
+                "remainingSeconds", remainingSeconds
+        ));
+    }
+
+    /**
+     * Extend Access Token lifetime by an additional 50 minutes (3,000 seconds)
+     */
+    @PostMapping("/api/auth/extend-token")
+    @ResponseBody
+    public ResponseEntity<?> extendToken(@AuthenticationPrincipal UserPrincipal principal, HttpServletResponse response) {
+        if (principal == null || principal.getUserDto() == null) {
+            return ResponseEntity.status(401).body(Map.of("success", false, "message", "로그인이 필요합니다."));
+        }
+
+        // Extend Access Token by 50 minutes (50 * 60 * 1000L = 3,000,000 ms)
+        long extendMillis = 50 * 60 * 1000L;
+        int extendSeconds = 50 * 60;
+
+        UserDto userDto = principal.getUserDto();
+        String newAccessToken = jwtProvider.createAccessToken(userDto, extendMillis);
+
+        // Update Security Context
+        UserPrincipal updatedPrincipal = new UserPrincipal(userDto);
+        UsernamePasswordAuthenticationToken authentication =
+                new UsernamePasswordAuthenticationToken(updatedPrincipal, null, updatedPrincipal.getAuthorities());
+        SecurityContextHolder.getContext().setAuthentication(authentication);
+
+        // Set updated Access Token Cookie (50 mins = 3000s)
+        Cookie accessCookie = new Cookie("accessToken", newAccessToken);
+        accessCookie.setHttpOnly(true);
+        accessCookie.setPath("/");
+        accessCookie.setMaxAge(extendSeconds);
+        response.addCookie(accessCookie);
+
+        log.info("User {} extended Access Token lifetime by 50 minutes.", userDto.getUserId());
+
+        return ResponseEntity.ok(Map.of(
+                "success", true,
+                "message", "액세스 토큰이 50분 연장되었습니다.",
+                "remainingSeconds", extendSeconds
+        ));
+    }
 }
