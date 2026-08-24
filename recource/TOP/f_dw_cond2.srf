@@ -1,0 +1,231 @@
+﻿global type f_dw_cond2 from function_object
+end type
+
+forward prototypes
+global subroutine f_dw_cond2 (datawindow dw, string arg_dataobject, string arg_title, integer arg_dddw_position, integer arg_dddw_width, integer arg_dddw_width2, integer arg_dddw_width3, integer arg_rcd_width)
+end prototypes
+
+global subroutine f_dw_cond2 (datawindow dw, string arg_dataobject, string arg_title, integer arg_dddw_position, integer arg_dddw_width, integer arg_dddw_width2, integer arg_dddw_width3, integer arg_rcd_width);STRING   la_title []
+
+LONG	ll_width1 = 350, ll_width2 = 256, ll_width3 = 256, ll_width4 = 256, ll_width5 = 256, ll_x1, ll_x2, ll_x3, ll_x4, ll_x5, ll_col
+
+CHOOSE CASE arg_dataobject
+	CASE 'dc_ftymd'
+		ll_width1 = MAX (ll_width1, LenA (arg_title) * 32) ; ll_x1 = ll_width1 - 256
+		dw.object.ymd_t.width = ll_width1
+		dw.object.ymd_t.TEXT = arg_title
+		dw.object.fymd.x = pixelstounits (UnitsToPixels (357 + ll_x1, XUnitsToPixels!), XPixelsToUnits!)
+		dw.object.tymd.x = pixelstounits (UnitsToPixels (741 + ll_x1, XUnitsToPixels!), XPixelsToUnits!)
+		dw.object.p_d2_fymd__tymd.x = pixelstounits (UnitsToPixels (1120 + ll_x1, XUnitsToPixels!), XPixelsToUnits!)
+		dw.object.p_disabled_d2_fymd__tymd.x = dw.object.p_d2_fymd__tymd.x
+		dw.object.tag_text.x = pixelstounits (UnitsToPixels (1349 + ll_x1, XUnitsToPixels!), XPixelsToUnits!)
+	CASE 'dc_ftymd_dddw'
+		ll_col = f_get_array (arg_title, '@', la_title)
+		ll_width1 = MAX (ll_width1, LenA (la_title [1]) * 32) ; ll_x1 = ll_width1 - 256
+		ll_width2 = MAX (ll_width2, LenA (la_title [2]) * 32) ; ll_x2 = ll_width2 - 256
+		IF	arg_dddw_position=1	Then
+			dw.object.dddw_t.x = pixelstounits (UnitsToPixels (78, XUnitsToPixels!), XPixelsToUnits!)
+			dw.object.dddw_t.width = ll_width1
+			dw.object.dddw_t.TEXT = la_title [1]
+			dw.object.dddw.x = pixelstounits (UnitsToPixels (357 + ll_x1, XUnitsToPixels!), XPixelsToUnits!)
+			dw.object.dddw.width = arg_dddw_width
+			IF f_null (la_title [2]) Then
+				dw.object.ymd_t.width = ll_width2
+				dw.object.ymd_t.TEXT = la_title [2]
+				dw.object.fymd.x = pixelstounits (UnitsToPixels (1126 + ll_x2 + (arg_dddw_width - 649), XUnitsToPixels!), XPixelsToUnits!)
+				dw.object.tymd.x = pixelstounits (UnitsToPixels (1510 + ll_x2 + (arg_dddw_width - 649), XUnitsToPixels!), XPixelsToUnits!)
+				dw.object.p_d2_fymd__tymd.x = pixelstounits (UnitsToPixels (1890 + ll_x2 + (arg_dddw_width - 649), XUnitsToPixels!), XPixelsToUnits!)
+				dw.object.p_disabled_d2_fymd__tymd.x = dw.object.p_d2_fymd__tymd.x
+			Else
+				dw.object.ymd_t.x = pixelstounits (UnitsToPixels (1147 + ll_x1 + (arg_dddw_width - 649), XUnitsToPixels!), XPixelsToUnits!)
+				dw.object.ymd_t.width = ll_width2
+				dw.object.ymd_t.TEXT = la_title [2]
+				dw.object.fymd.x = pixelstounits (UnitsToPixels (1426 + ll_x1 + (arg_dddw_width - 649) + ll_x2, XUnitsToPixels!), XPixelsToUnits!)
+				dw.object.tymd.x = pixelstounits (UnitsToPixels (1810 + ll_x1 + (arg_dddw_width - 649) + ll_x2, XUnitsToPixels!), XPixelsToUnits!)
+				dw.object.p_d2_fymd__tymd.x = pixelstounits (UnitsToPixels (2190 + ll_x1 + (arg_dddw_width - 649) + ll_x2, XUnitsToPixels!), XPixelsToUnits!)
+				dw.object.p_disabled_d2_fymd__tymd.x = dw.object.p_d2_fymd__tymd.x
+			End IF
+		Else
+			dw.object.ymd_t.width = ll_width1
+			dw.object.ymd_t.TEXT = la_title [1]
+			dw.object.fymd.x = pixelstounits (UnitsToPixels (357 + ll_x1, XUnitsToPixels!), XPixelsToUnits!)
+			dw.object.tymd.x = pixelstounits (UnitsToPixels (741 + ll_x1, XUnitsToPixels!), XPixelsToUnits!)
+			dw.object.p_d2_fymd__tymd.x = pixelstounits (UnitsToPixels (1120 + ll_x1, XUnitsToPixels!), XPixelsToUnits!)
+			dw.object.p_disabled_d2_fymd__tymd.x = dw.object.p_d2_fymd__tymd.x
+			dw.object.dddw_t.x = pixelstounits (UnitsToPixels (1353 + ll_x1, XUnitsToPixels!), XPixelsToUnits!)
+			dw.object.dddw_t.width = ll_width2
+			dw.object.dddw_t.TEXT = la_title [2]
+			dw.object.dddw.x = pixelstounits (UnitsToPixels (1632 + ll_x1 + ll_x2, XUnitsToPixels!), XPixelsToUnits!)
+			dw.object.dddw.width = arg_dddw_width
+		End IF
+		dw.object.tag_text.x = pixelstounits (UnitsToPixels (2469 + ll_x1 + (arg_dddw_width - 649) + ll_x2, XUnitsToPixels!), XPixelsToUnits!)
+	CASE 'dc_ftymd_dddw2','dc_ftymd_dddw3'
+		ll_col = f_get_array (arg_title, '@', la_title)
+		ll_width1 = MAX (ll_width1, LenA (la_title [1]) * 32) ; ll_x1 = ll_width1 - 256
+		ll_width2 = MAX (ll_width2, LenA (la_title [2]) * 32) ; ll_x2 = ll_width2 - 256
+		IF	arg_dddw_position=1	Then
+			IF	f_null (la_title [1])	Then
+				dw.object.dddw_t.visible = false
+				dw.object.dddw.dddw.useasborder = 'no'
+				dw.object.dddw.border = '2'
+				dw.object.dddw.x = pixelstounits (UnitsToPixels (357, XUnitsToPixels!), XPixelsToUnits!)
+				dw.object.dddw.width = arg_dddw_width
+				dw.object.ymd_t.width = ll_width2
+				dw.object.ymd_t.TEXT = la_title [2]
+				dw.object.fymd.x = pixelstounits (UnitsToPixels (1042 + ll_x2 + (arg_dddw_width - 649), XUnitsToPixels!), XPixelsToUnits!)
+				dw.object.tymd.x = pixelstounits (UnitsToPixels (1426 + ll_x2 + (arg_dddw_width - 649), XUnitsToPixels!), XPixelsToUnits!)
+				dw.object.p_d2_fymd__tymd.x = pixelstounits (UnitsToPixels (1806 + ll_x2 + (arg_dddw_width - 649), XUnitsToPixels!), XPixelsToUnits!)
+				dw.object.p_disabled_d2_fymd__tymd.x = dw.object.p_d2_fymd__tymd.x
+				dw.object.p_dd_fymd.x = pixelstounits (UnitsToPixels (1426 + ll_x2 + (arg_dddw_width - 649), XUnitsToPixels!), XPixelsToUnits!)
+				dw.object.p_disabled_dd_fymd.x = dw.object.p_dd_fymd.x
+			Else
+				dw.object.dddw_t.x = pixelstounits (UnitsToPixels (78, XUnitsToPixels!), XPixelsToUnits!)
+				dw.object.dddw_t.width = ll_width2
+				dw.object.dddw_t.TEXT = la_title [2]
+				dw.object.dddw.x = pixelstounits (UnitsToPixels (357 + ll_x2, XUnitsToPixels!), XPixelsToUnits!)
+				dw.object.dddw.width = arg_dddw_width
+				dw.object.ymd_t.x = pixelstounits (UnitsToPixels (1166 + ll_x2 + (arg_dddw_width - 649), XUnitsToPixels!), XPixelsToUnits!)
+				dw.object.ymd_t.width = ll_width1
+				dw.object.ymd_t.TEXT = la_title [1]
+				dw.object.fymd.x = pixelstounits (UnitsToPixels (1445 + ll_x1 + ll_x2 + (arg_dddw_width - 649), XUnitsToPixels!), XPixelsToUnits!)
+				dw.object.fymd.x = pixelstounits (UnitsToPixels (1445 + ll_x1 + ll_x2 + (arg_dddw_width - 649), XUnitsToPixels!), XPixelsToUnits!)
+				dw.object.tymd.x = pixelstounits (UnitsToPixels (1829 + ll_x1 + ll_x2 + (arg_dddw_width - 649), XUnitsToPixels!), XPixelsToUnits!)
+				dw.object.tymd.x = pixelstounits (UnitsToPixels (1829 + ll_x1 + ll_x2 + (arg_dddw_width - 649), XUnitsToPixels!), XPixelsToUnits!)
+				dw.object.p_d2_fymd__tymd.x = pixelstounits (UnitsToPixels (2208 + ll_x1 + ll_x2 + (arg_dddw_width - 649), XUnitsToPixels!), XPixelsToUnits!)
+				dw.object.p_disabled_d2_fymd__tymd.x = dw.object.p_d2_fymd__tymd.x
+				dw.object.p_dd_fymd.x = pixelstounits (UnitsToPixels (1829 + ll_x1 + ll_x2 + (arg_dddw_width - 649), XUnitsToPixels!), XPixelsToUnits!)
+				dw.object.p_disabled_dd_fymd.x = dw.object.p_dd_fymd.x
+			End IF
+			ll_width3 = MAX (ll_width3, LenA (la_title [3]) * 32) ; ll_x3 = ll_width3 - 256
+			dw.object.dddw2_t.x = pixelstounits (UnitsToPixels (2432 + ll_x1 + (arg_dddw_width - 649) + ll_x2, XUnitsToPixels!), XPixelsToUnits!)
+			dw.object.dddw2_t.width = ll_width3
+			dw.object.dddw2_t.TEXT = la_title [3]
+			dw.object.dddw2.x = pixelstounits (UnitsToPixels (2711 + ll_x1 + (arg_dddw_width - 649) + ll_x2 + ll_x3, XUnitsToPixels!), XPixelsToUnits!)
+			dw.object.dddw2.width = arg_dddw_width2
+			IF	arg_dataobject='dc_ftymd_dddw2' THEN dw.object.tag_text.x = pixelstounits (UnitsToPixels (3461 + ll_x1 + (arg_dddw_width - 649) + ll_x2 + (arg_dddw_width2 - 649) + ll_x3, XUnitsToPixels!), XPixelsToUnits!)
+		Else
+			dw.object.ymd_t.x = pixelstounits (UnitsToPixels (78, XUnitsToPixels!), XPixelsToUnits!)
+			dw.object.ymd_t.width = ll_width1
+			dw.object.ymd_t.TEXT = la_title [1]
+			dw.object.fymd.x = pixelstounits (UnitsToPixels (357 + ll_x1, XUnitsToPixels!), XPixelsToUnits!)
+			dw.object.tymd.x = pixelstounits (UnitsToPixels (741 + ll_x1, XUnitsToPixels!), XPixelsToUnits!)
+			dw.object.p_d2_fymd__tymd.x = pixelstounits (UnitsToPixels (1120 + ll_x1, XUnitsToPixels!), XPixelsToUnits!)
+			dw.object.p_disabled_d2_fymd__tymd.x = dw.object.p_d2_fymd__tymd.x
+			dw.object.p_dd_fymd.x = pixelstounits (UnitsToPixels (741 + ll_x1, XUnitsToPixels!), XPixelsToUnits!)
+			dw.object.p_disabled_dd_fymd.x = dw.object.p_dd_fymd.x
+			IF	f_null (la_title [3])	Then
+				dw.object.dddw.dddw.useasborder = 'no'
+				dw.object.dddw.border = '2'
+				dw.object.dddw2_t.visible = false
+			Else
+				ll_width3 = MAX (ll_width3, LenA (la_title [3]) * 32) ; ll_x3 = ll_width3 - 256
+			End IF
+			dw.object.dddw_t.x = pixelstounits (UnitsToPixels (1349 + ll_x1, XUnitsToPixels!), XPixelsToUnits!)
+			dw.object.dddw_t.width = ll_width2
+			dw.object.dddw_t.TEXT = la_title [2]
+			dw.object.dddw.x = pixelstounits (UnitsToPixels (1627 + ll_x1 + ll_x2, XUnitsToPixels!), XPixelsToUnits!)
+			dw.object.dddw.width = arg_dddw_width
+			IF	f_null (la_title [3])	Then
+				dw.object.dddw2.x = pixelstounits (UnitsToPixels (2299 + ll_x1 + (arg_dddw_width - 649) + ll_x2, XUnitsToPixels!), XPixelsToUnits!)
+				dw.object.dddw2.width = arg_dddw_width2
+				IF	arg_dataobject='dc_ftymd_dddw2' THEN dw.object.tag_text.x = pixelstounits (UnitsToPixels (3049 + ll_x1 + (arg_dddw_width - 649) + ll_x2 + (arg_dddw_width2 - 649), XUnitsToPixels!), XPixelsToUnits!)
+			Else
+				dw.object.dddw2_t.x = pixelstounits (UnitsToPixels (2432 + ll_x1 + (arg_dddw_width - 649) + ll_x2, XUnitsToPixels!), XPixelsToUnits!)
+				dw.object.dddw2_t.width = ll_width3
+				dw.object.dddw2_t.TEXT = la_title [3]
+				dw.object.dddw2.x = pixelstounits (UnitsToPixels (2711 + ll_x1 + (arg_dddw_width - 649) + ll_x2 + ll_x3, XUnitsToPixels!), XPixelsToUnits!)
+				dw.object.dddw2.width = arg_dddw_width2
+				IF	arg_dataobject='dc_ftymd_dddw2' THEN dw.object.tag_text.x = pixelstounits (UnitsToPixels (3461 + ll_x1 + (arg_dddw_width - 649) + ll_x2 + (arg_dddw_width2 - 649) + ll_x3, XUnitsToPixels!), XPixelsToUnits!)
+			End IF
+		End IF
+		IF	arg_dataobject='dc_ftymd_dddw2'	Then
+			RETURN
+		End IF
+		IF	f_null (la_title [4])	Then
+			dw.object.dddw.dddw.useasborder = 'no'
+			dw.object.dddw.border = '2'
+			dw.object.dddw3_t.visible = false
+		Else
+			ll_width4 = MAX (ll_width4, LenA (la_title [4]) * 32) ; ll_x4 = ll_width4 - 256
+		End IF
+		IF	f_null (la_title [3]) And f_null (la_title [4])	Then
+			dw.object.dddw3.x = pixelstounits (UnitsToPixels (2976 + ll_x1 + (arg_dddw_width - 649) + (arg_dddw_width2 - 649), XUnitsToPixels!), XPixelsToUnits!)
+			dw.object.dddw3.width = arg_dddw_width3
+			dw.object.tag_text.x = pixelstounits (UnitsToPixels (3726 + ll_x1 + (arg_dddw_width2 - 649) + (arg_dddw_width2 - 649), XUnitsToPixels!), XPixelsToUnits!)
+		ElseIF f_null (la_title [4])	Then
+			dw.object.dddw3.x = pixelstounits (UnitsToPixels (3383 + ll_x1 + (arg_dddw_width - 649) + ll_x2 + (arg_dddw_width2 - 649) + ll_x3, XUnitsToPixels!), XPixelsToUnits!)
+			dw.object.dddw3.width = arg_dddw_width3
+			dw.object.tag_text.x = pixelstounits (UnitsToPixels (4133 + ll_x1 + (arg_dddw_width2 - 649) + ll_x2 + ll_x3 + (arg_dddw_width2 - 649) + (arg_dddw_width3 - 649), XUnitsToPixels!), XPixelsToUnits!)
+		Else
+			dw.object.dddw3_t.x = pixelstounits (UnitsToPixels (3502 + ll_x1 + (arg_dddw_width - 649) + ll_x2 + (arg_dddw_width2 - 649) + ll_x3, XUnitsToPixels!), XPixelsToUnits!)
+			dw.object.dddw3_t.width = ll_width4
+			dw.object.dddw3_t.TEXT = la_title [4]
+			dw.object.dddw3.x = pixelstounits (UnitsToPixels (3781 + ll_x1 + (arg_dddw_width - 649) + ll_x2 + (arg_dddw_width2 - 649) + ll_x3, XUnitsToPixels!), XPixelsToUnits!)
+			dw.object.dddw3.width = arg_dddw_width3
+			dw.object.tag_text.x = pixelstounits (UnitsToPixels (4530 + ll_x1 + (arg_dddw_width2 - 649) + ll_x2 + ll_x3 + (arg_dddw_width2 - 649) + ll_x4 + (arg_dddw_width3 - 649), XUnitsToPixels!), XPixelsToUnits!)
+		End IF
+	CASE 'dc_ftymd_dddw_xx'
+		ll_col = f_get_array (arg_title, '@', la_title)
+		ll_width1 = MAX (ll_width1, LenA (la_title [1]) * 32) ; ll_x1 = ll_width1 - 256
+		ll_width2 = MAX (ll_width2, LenA (la_title [2]) * 32) ; ll_x2 = ll_width2 - 256
+		ll_width3 = MAX (ll_width3, LenA (la_title [3]) * 32) ; ll_x3 = ll_width3 - 256
+		dw.object.ymd_t.width = ll_width1
+		dw.object.ymd_t.TEXT = la_title [1]
+		dw.object.fymd.x = pixelstounits (UnitsToPixels (357 + ll_x1, XUnitsToPixels!), XPixelsToUnits!)
+		dw.object.tymd.x = pixelstounits (UnitsToPixels (741 + ll_x1, XUnitsToPixels!), XPixelsToUnits!)
+		dw.object.p_d2_fymd__tymd.x = pixelstounits (UnitsToPixels (1120 + ll_x1, XUnitsToPixels!), XPixelsToUnits!)
+		dw.object.p_disabled_d2_fymd__tymd.x = dw.object.p_d2_fymd__tymd.x
+		dw.object.dddw_t.x = pixelstounits (UnitsToPixels (1349 + ll_x1, XUnitsToPixels!), XPixelsToUnits!)
+		dw.object.dddw_t.width = ll_width2
+		dw.object.dddw_t.TEXT = la_title [2]
+		dw.object.dddw.x = pixelstounits (UnitsToPixels (1627 + ll_x1 + ll_x2, XUnitsToPixels!), XPixelsToUnits!)
+		dw.object.dddw.width = arg_dddw_width
+		dw.object.rcd_t.x = pixelstounits (UnitsToPixels (2409 + ll_x1 + ll_x2 + (arg_dddw_width - 649), XUnitsToPixels!), XPixelsToUnits!)
+		dw.object.rcd_t.width = ll_width3
+		dw.object.rcd_t.TEXT = la_title [3]
+		dw.object.rcd.x = pixelstounits (UnitsToPixels (2688 + ll_x1 + ll_x2 + (arg_dddw_width - 649) + ll_x3, XUnitsToPixels!), XPixelsToUnits!)
+		dw.object.rcd.width = arg_rcd_width
+		dw.object.p_xx_rcd.x = pixelstounits (UnitsToPixels (3118 + ll_x1 + ll_x2 + (arg_dddw_width - 649) + ll_x3 + (arg_rcd_width - 402), XUnitsToPixels!), XPixelsToUnits!)
+		dw.object.p_disabled_xx_rcd.x = dw.object.p_xx_rcd.x
+		dw.object.xx_rcd.x = pixelstounits (UnitsToPixels (3227 + ll_x1 + ll_x2 + (arg_dddw_width - 649) + ll_x3 + (arg_rcd_width - 402), XUnitsToPixels!), XPixelsToUnits!)
+		dw.object.tag_text.x = pixelstounits (UnitsToPixels (4329 + ll_x1 + ll_x2 + (arg_dddw_width - 649) + ll_x3 + (arg_rcd_width - 402), XUnitsToPixels!), XPixelsToUnits!)
+	CASE 'dc_xx_ftymd'
+		ll_col = f_get_array (arg_title, '@', la_title)
+		ll_width1 = MAX (ll_width1, LenA (la_title [1]) * 32) ; ll_x1 = ll_width1 - 256
+		ll_width2 = MAX (ll_width2, LenA (la_title [2]) * 32) ; ll_x2 = ll_width2 - 256
+		IF	arg_dddw_position=1	Then
+			dw.object.rcd_t.width = ll_width1
+			dw.object.rcd_t.text = la_title [1]
+			dw.object.rcd.x = pixelstounits (UnitsToPixels (357 + ll_x1, XUnitsToPixels!), XPixelsToUnits!)
+			dw.object.rcd.width = arg_rcd_width
+			dw.object.p_xx_rcd.x = pixelstounits (UnitsToPixels (786 + ll_x1 + (arg_rcd_width - 402), XUnitsToPixels!), XPixelsToUnits!)
+			dw.object.p_disabled_xx_rcd.x = dw.object.p_xx_rcd.x
+			dw.object.xx_rcd.x = pixelstounits (UnitsToPixels (896 + ll_x1 + (arg_rcd_width - 402), XUnitsToPixels!), XPixelsToUnits!)
+			dw.object.ymd_t.x = pixelstounits (UnitsToPixels (2039 + ll_x1 + (arg_rcd_width - 402), XUnitsToPixels!), XPixelsToUnits!)
+			dw.object.ymd_t.TEXT = la_title [2]
+			dw.object.ymd_t.width = ll_width2
+			dw.object.fymd.x = pixelstounits (UnitsToPixels (2315 + ll_x1 + (arg_rcd_width - 402) + ll_x2, XUnitsToPixels!), XPixelsToUnits!)
+			dw.object.tymd.x = pixelstounits (UnitsToPixels (2697 + ll_x1 + (arg_rcd_width - 402) + ll_x2, XUnitsToPixels!), XPixelsToUnits!)
+			dw.object.p_d2_fymd__tymd.x = pixelstounits (UnitsToPixels (3077 + ll_x1 + (arg_rcd_width - 402) + ll_x2, XUnitsToPixels!), XPixelsToUnits!)
+			dw.object.p_disabled_d2_fymd__tymd.x = dw.object.p_d2_fymd__tymd.x
+		Else
+			dw.object.ymd_t.x = pixelstounits (UnitsToPixels (78, XUnitsToPixels!), XPixelsToUnits!)
+			dw.object.ymd_t.TEXT = la_title [1]
+			dw.object.ymd_t.width = ll_width1
+			dw.object.fymd.x = pixelstounits (UnitsToPixels (357 + ll_x1, XUnitsToPixels!), XPixelsToUnits!)
+			dw.object.tymd.x = pixelstounits (UnitsToPixels (736 + ll_x1, XUnitsToPixels!), XPixelsToUnits!)
+			dw.object.p_d2_fymd__tymd.x = pixelstounits (UnitsToPixels (1115 + ll_x1, XUnitsToPixels!), XPixelsToUnits!)
+			dw.object.p_disabled_d2_fymd__tymd.x = dw.object.p_d2_fymd__tymd.x
+			dw.object.rcd_t.x = pixelstounits (UnitsToPixels (1362 + ll_x1, XUnitsToPixels!), XPixelsToUnits!)
+			dw.object.rcd_t.width = ll_width2
+			dw.object.rcd_t.text = la_title [2]
+			dw.object.rcd.x = pixelstounits (UnitsToPixels (1641 + ll_x1 + ll_x2, XUnitsToPixels!), XPixelsToUnits!)
+			dw.object.rcd.width = arg_rcd_width
+			dw.object.p_xx_rcd.x = pixelstounits (UnitsToPixels (2071 + ll_x1 + ll_x2 + (arg_rcd_width - 402), XUnitsToPixels!), XPixelsToUnits!)
+			dw.object.p_disabled_xx_rcd.x = dw.object.p_xx_rcd.x
+			dw.object.xx_rcd.x = pixelstounits (UnitsToPixels (2181 + ll_x1 + ll_x2 + (arg_rcd_width - 402), XUnitsToPixels!), XPixelsToUnits!)
+		End IF
+		dw.object.tag_text.x = pixelstounits (UnitsToPixels (3314 + ll_x1 + ll_x2 + (arg_rcd_width - 402), XUnitsToPixels!), XPixelsToUnits!)
+END CHOOSE
+end subroutine
+

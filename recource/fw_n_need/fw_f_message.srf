@@ -1,0 +1,23 @@
+﻿global type fw_f_message from function_object
+end type
+
+forward prototypes
+global function integer fw_f_message (string as_gb, string as_arg1, string as_arg2)
+end prototypes
+
+global function integer fw_f_message (string as_gb, string as_arg1, string as_arg2);Choose Case as_gb
+	Case 'Q01'
+		 Return messagebox('Notice', '[ ' + as_arg1 + ' ]~r~n Do you want to update your changes?', Question!, YesNoCancel!, 2)
+	Case 'U01'
+		gw_mdi.setmicrohelp('Data update successful')
+	Case 'U02'
+	Case 'D01'
+		gw_mdi.setmicrohelp('Deletion of data completed')
+	Case 'D02'
+	Case 'F01'
+		gw_mdi.setmicrohelp('File download successful')
+End Choose
+
+Return 1
+end function
+

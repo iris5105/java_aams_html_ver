@@ -1,0 +1,246 @@
+﻿forward
+global type fw_m_mdibookmark from menu
+end type
+type m_xpmenu from menu within fw_m_mdibookmark
+end type
+type m_add_favorite from menu within m_xpmenu
+end type
+type m_xpmenu from menu within fw_m_mdibookmark
+m_add_favorite m_add_favorite
+end type
+type m_favorite from menu within fw_m_mdibookmark
+end type
+type m_del_favorite from menu within m_favorite
+end type
+type m_upd_favorite from menu within m_favorite
+end type
+type m_favorite from menu within fw_m_mdibookmark
+m_del_favorite m_del_favorite
+m_upd_favorite m_upd_favorite
+end type
+global type fw_m_mdibookmark from menu
+m_xpmenu m_xpmenu
+m_favorite m_favorite
+end type
+end forward
+
+global type fw_m_mdibookmark from menu
+m_xpmenu m_xpmenu
+m_favorite m_favorite
+end type
+global fw_m_mdibookmark fw_m_mdibookmark
+
+type variables
+userobject iuo_parent
+string is_pgm_no
+string is_pgm_nm
+
+end variables
+
+forward prototypes
+public subroutine of_setparent (userobject auo_parent, string as_pgm_no, string as_pgm_nm)
+end prototypes
+
+public subroutine of_setparent (userobject auo_parent, string as_pgm_no, string as_pgm_nm);is_pgm_no = as_pgm_no
+is_pgm_nm = as_pgm_nm
+
+iuo_parent = auo_parent
+
+end subroutine
+
+on fw_m_mdibookmark.create
+fw_m_mdibookmark=this
+call super::create
+this.text = "fw_m_bookmark"
+this.menutextcolor = 134217735
+this.menubackcolor = 134217732
+this.menuhighlightcolor = 134217741
+this.textsize = 8
+this.weight = 400
+this.facename = "Tahoma"
+this.titlebackcolor = 134217730
+this.bitmapbackcolor = 12632256
+this.menubitmaps = true
+this.titlegradient = true
+this.toolbartextcolor = 134217746
+this.toolbarbackcolor = 67108864
+this.toolbarhighlightcolor = 134217741
+this.toolbargradient = true
+this.bitmapgradient = true
+this.m_xpmenu=create m_xpmenu
+this.m_favorite=create m_favorite
+this.Item[UpperBound(this.Item)+1]=this.m_xpmenu
+this.Item[UpperBound(this.Item)+1]=this.m_favorite
+end on
+
+on fw_m_mdibookmark.destroy
+call super::destroy
+destroy(this.m_xpmenu)
+destroy(this.m_favorite)
+end on
+
+type m_xpmenu from menu within fw_m_mdibookmark
+m_add_favorite m_add_favorite
+end type
+
+on m_xpmenu.create
+call super::create
+this.text = "mainmenu"
+this.menutextcolor = 134217735
+this.menubackcolor = 134217732
+this.menuhighlightcolor = 134217741
+this.textsize = 8
+this.weight = 400
+this.facename = "Tahoma"
+this.titlebackcolor = 134217730
+this.bitmapbackcolor = 12632256
+this.menubitmaps = true
+this.titlegradient = true
+this.toolbartextcolor = 134217746
+this.toolbarbackcolor = 67108864
+this.toolbarhighlightcolor = 134217741
+this.toolbargradient = true
+this.bitmapgradient = true
+this.m_add_favorite=create m_add_favorite
+this.Item[UpperBound(this.Item)+1]=this.m_add_favorite
+end on
+
+on m_xpmenu.destroy
+call super::destroy
+destroy(this.m_add_favorite)
+end on
+
+type m_add_favorite from menu within m_xpmenu
+end type
+
+on m_add_favorite.create
+call super::create
+this.text = "즐겨찾기 추가"
+this.menutextcolor = 134217735
+this.menubackcolor = 134217732
+this.menuhighlightcolor = 134217741
+this.textsize = 8
+this.weight = 400
+this.facename = "Tahoma"
+this.titlebackcolor = 134217730
+this.bitmapbackcolor = 12632256
+this.menubitmaps = true
+this.titlegradient = true
+this.toolbartextcolor = 134217746
+this.toolbarbackcolor = 67108864
+this.toolbarhighlightcolor = 134217741
+this.toolbargradient = true
+this.bitmapgradient = true
+end on
+
+on m_add_favorite.destroy
+call super::destroy
+end on
+
+event clicked;if isvalid(iuo_parent) then
+	iuo_parent.dynamic of_add_favorite(is_pgm_no, is_pgm_nm)
+end if
+
+end event
+
+type m_favorite from menu within fw_m_mdibookmark
+m_del_favorite m_del_favorite
+m_upd_favorite m_upd_favorite
+end type
+
+on m_favorite.create
+call super::create
+this.text = "bookmark"
+this.menutextcolor = 134217735
+this.menubackcolor = 134217732
+this.menuhighlightcolor = 134217741
+this.textsize = 8
+this.weight = 400
+this.facename = "Tahoma"
+this.titlebackcolor = 134217730
+this.bitmapbackcolor = 12632256
+this.menubitmaps = true
+this.titlegradient = true
+this.toolbartextcolor = 134217746
+this.toolbarbackcolor = 67108864
+this.toolbarhighlightcolor = 134217741
+this.toolbargradient = true
+this.bitmapgradient = true
+this.m_del_favorite=create m_del_favorite
+this.m_upd_favorite=create m_upd_favorite
+this.Item[UpperBound(this.Item)+1]=this.m_del_favorite
+this.Item[UpperBound(this.Item)+1]=this.m_upd_favorite
+end on
+
+on m_favorite.destroy
+call super::destroy
+destroy(this.m_del_favorite)
+destroy(this.m_upd_favorite)
+end on
+
+type m_del_favorite from menu within m_favorite
+end type
+
+on m_del_favorite.create
+call super::create
+this.text = "즐겨찾기 삭제"
+this.menutextcolor = 134217735
+this.menubackcolor = 134217732
+this.menuhighlightcolor = 134217741
+this.textsize = 8
+this.weight = 400
+this.facename = "Tahoma"
+this.titlebackcolor = 134217730
+this.bitmapbackcolor = 12632256
+this.menubitmaps = true
+this.titlegradient = true
+this.toolbartextcolor = 134217746
+this.toolbarbackcolor = 67108864
+this.toolbarhighlightcolor = 134217741
+this.toolbargradient = true
+this.bitmapgradient = true
+end on
+
+on m_del_favorite.destroy
+call super::destroy
+end on
+
+event clicked;if isvalid(iuo_parent) then
+	iuo_parent.dynamic of_del_favorite(is_pgm_no, is_pgm_nm)
+end if
+
+end event
+
+type m_upd_favorite from menu within m_favorite
+end type
+
+on m_upd_favorite.create
+call super::create
+this.text = "즐겨찾기 이름변경"
+this.menutextcolor = 134217735
+this.menubackcolor = 134217732
+this.menuhighlightcolor = 134217741
+this.textsize = 8
+this.weight = 400
+this.facename = "Tahoma"
+this.titlebackcolor = 134217730
+this.bitmapbackcolor = 12632256
+this.menubitmaps = true
+this.titlegradient = true
+this.toolbartextcolor = 134217746
+this.toolbarbackcolor = 67108864
+this.toolbarhighlightcolor = 134217741
+this.toolbargradient = true
+this.bitmapgradient = true
+end on
+
+on m_upd_favorite.destroy
+call super::destroy
+end on
+
+event clicked;if isvalid(iuo_parent) then
+	iuo_parent.dynamic of_rename_favorite(is_pgm_no, is_pgm_nm)
+end if
+
+end event
+

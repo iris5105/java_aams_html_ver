@@ -1,0 +1,19 @@
+﻿global type f_replace from function_object
+end type
+
+forward prototypes
+global function string f_replace (string s, string s1, string s2)
+end prototypes
+
+global function string f_replace (string s, string s1, string s2);LONG	ll_pos
+
+ll_pos = PosA (s, s1, 1)
+
+DO WHILE ll_pos > 0
+	s = ReplaceA (s, ll_pos, LenA (s1), s2)
+	ll_pos = PosA (s, s1, ll_pos + LenA (s2))
+LOOP
+
+RETURN	s
+end function
+

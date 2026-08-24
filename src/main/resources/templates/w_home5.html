@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AAMS - US Portfolio Model (W_HOME5)</title>
+    <!-- Google Fonts Pretendard & Noto Sans KR -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js for Dual Axis Chart -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Unified Stylesheet -->
+    <link rel="stylesheet" th:href="@{/css/style.css}" href="/css/style.css">
+    <!-- Common & Specialized JavaScript Modules -->
+    <script th:src="@{/js/common.js}" src="/js/common.js"></script>
+    <script th:src="@{/js/home_chart.js}" src="/js/home_chart.js"></script>
+    <script th:src="@{/js/home_data.js}" src="/js/home_data.js"></script>
+</head>
+<body>
+
+    <!-- 1. Top Navigation Bar (Common Fragment) -->
+    <header th:replace="~{fragments/header :: topHeader}"></header>
+
+    <!-- App Body (Sidebar + 6 Panels) -->
+    <div class="app-body">
+
+        <!-- 2. Left Menu Tree Sidebar (Common Fragment) -->
+        <aside th:replace="~{fragments/sidebar :: leftSidebar}"></aside>
+
+        <!-- 3. Workspace (6 Panels 3x2 Grid) -->
+        <main class="workspace">
+
+            <!-- Card 1 (Top-Left): 공모기본정보 (dw_4 / d_home04) -->
+            <section class="pb-panel">
+                <div class="panel-header">
+                    <span class="panel-title"><i class="fa-solid fa-square-poll-vertical panel-title-badge"></i> 공모기본정보</span>
+                    <div class="panel-actions">
+                        <button class="panel-btn" title="새로고침" onclick="loadPublicStocks()"><i class="fa-solid fa-rotate"></i></button>
+                    </div>
+                </div>
+                <div class="panel-body">
+                    <table class="dw-table">
+                        <thead>
+                            <tr>
+                                <th>발행기관</th>
+                                <th>공모종목명</th>
+                                <th>공모일자</th>
+                                <th>청약증권사</th>
+                                <th>시작일자</th>
+                                <th>마감일자</th>
+                                <th><span>청약금</span><br/> <span>납입일</span></th>
+                                <th>상장일자</th>
+                                <th><span>수수료율</span><br/> <span>(%)</span></th>
+                                <th>상장예정종목코드</th>
+                                <th>상장예정종목명</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody-public-stocks">
+                            <tr th:each="item : ${publicStockList}">
+                                <td class="text-center" th:text="${item.balhCo}"></td>
+                                <td th:text="${item.jmNm}"></td>
+                                <td class="text-center date-col" th:text="${item.startYmd != null ? item.startYmd : item.ymd}"></td>
+                                <td th:text="${item.jgTrCoNm}"></td>
+                            </tr>
+                            <tr th:if="${publicStockList == null or #lists.isEmpty(publicStockList)}">
+                                <td colspan="4" class="text-center" style="color: #94a3b8; padding: 12px;">데이터 없음</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Card 2 (Top-Middle): 수요예측참여내역(최근1개월) (dw_5 / d_home05) -->
+            <section class="pb-panel">
+                <div class="panel-header">
+                    <span class="panel-title"><i class="fa-solid fa-chart-line panel-title-badge"></i> 수요예측참여내역(최근1개월)</span>
+                    <div class="panel-actions">
+                        <button class="panel-btn" onclick="loadSubscriptions()"><i class="fa-solid fa-rotate"></i></button>
+                    </div>
+                </div>
+                <div class="panel-body">
+                    <table class="dw-table">
+                        <thead>
+                            <tr>
+                                <th>종목명</th>
+                                <th>상장예정종목</th>
+                                <th>청약일</th>
+                                <th>청약수량</th>
+                                <th>청약단가</th>
+                                <th>청약금액</th>
+                                <th>매도제한</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody-subscriptions">
+                            <tr>
+                                <td colspan="4" class="text-center" style="color: #94a3b8; padding: 12px;">데이터 없음</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Card 3 (Top-Right): 시스템 개발 및 수정의뢰 현황 (dw_6 / d_home06) -->
+            <section class="pb-panel">
+                <div class="panel-header">
+                    <span class="panel-title"><i class="fa-solid fa-code-branch panel-title-badge"></i> 시스템 개발 및 수정의뢰 현황</span>
+                    <div class="panel-actions">
+                        <button class="panel-btn" onclick="loadProposals()"><i class="fa-solid fa-rotate"></i></button>
+                    </div>
+                </div>
+                <div class="panel-body">
+                    <table class="dw-table">
+                        <thead>
+                            <tr>
+                                <th>의뢰일시</th>
+                                <th>개발 의뢰내용</th>
+                                <th>완료일시</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody-proposals">
+                            <tr>
+                                <td colspan="3" class="text-center" style="color: #94a3b8; padding: 12px;">데이터 없음</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Card 4 (Bottom-Left): 당일거래현황 (dw_1 / d_home01) -->
+            <section class="pb-panel">
+                <div class="panel-header">
+                    <span class="panel-title"><i class="fa-solid fa-list-check panel-title-badge"></i> 당일거래현황</span>
+                    <div class="panel-actions">
+                        <button class="panel-btn" onclick="loadDayTr()"><i class="fa-solid fa-rotate"></i></button>
+                    </div>
+                </div>
+                <div class="panel-body">
+                    <table class="dw-table">
+                        <thead>
+                            <tr>
+                                <th>거래유형</th>
+                                <th>거래구분</th>
+                                <th class="text-right">건수</th>
+                                <th class="text-right">거래금액</th>
+                                <th class="text-center">**</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody-daytr">
+                            <tr th:each="item : ${dayTrList}">
+                                <td th:text="${item.jasanGb}"></td>
+                                <td class="text-center" th:text="${item.trCd}"></td>
+                                <td class="text-right" th:text="${#numbers.formatInteger(item.trCount, 0, 'COMMA')}"></td>
+                                <td class="text-right" th:text="${#numbers.formatDecimal(item.trAek, 0, 'COMMA', 0, 'POINT')}"></td>
+                                <td class="text-center" th:text="${item.fundCount}"></td>
+                            </tr>
+                            <tr th:if="${dayTrList == null or #lists.isEmpty(dayTrList)}">
+                                <td colspan="5" class="text-center" style="color: #94a3b8; padding: 12px;">데이터 없음</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Card 5 (Bottom-Middle): 당월결산계좌LIST | 당월이자(만기) (dw_2 / dw_3) -->
+            <section class="pb-panel">
+                <div class="panel-tabs">
+                    <div class="panel-tab-item active" onclick="switchSubTab('gyulTab', this)">당월결산계좌LIST</div>
+                    <div class="panel-tab-item" onclick="switchSubTab('rateTab', this)">당월이자(만기)</div>
+                </div>
+                <div class="panel-body">
+                    <!-- Tab 1: dw_2 -->
+                    <div id="gyulTab">
+                        <table class="dw-table">
+                            <thead>
+                                <tr>
+                                    <th>계약만료월</th>
+                                    <th>펀드코드</th>
+                                    <th>펀드명</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tbody-gyul">
+                                <tr th:each="item : ${gyulList}">
+                                    <td class="text-center date-col" th:text="${item.gyulYmd}"></td>
+                                    <td class="text-center" th:text="${item.fundCd}"></td>
+                                    <td th:text="${item.fundNm}"></td>
+                                </tr>
+                                <tr th:if="${gyulList == null or #lists.isEmpty(gyulList)}">
+                                    <td colspan="3" class="text-center" style="color: #94a3b8; padding: 12px;">데이터 없음</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <!-- Tab 2: dw_3 -->
+                    <div id="rateTab" style="display:none;">
+                        <table class="dw-table">
+                            <thead>
+                                <tr>
+                                    <th>종목코드</th>
+                                    <th>종목명</th>
+                                    <th>펀드명</th>
+                                    <th>이자수령일</th>
+                                    <th>계좌명</th>
+                                    <th>관리번호</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tbody-rate">
+                                <tr>
+                                    <td colspan="4" class="text-center" style="color: #94a3b8; padding: 12px;">데이터 없음</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Card 6 (Bottom-Right): 순자산 및 계좌현황 Chart (uo_cht1 / dw_cht9) -->
+            <section class="pb-panel">
+                <div class="panel-header">
+                    <span class="panel-title"><i class="fa-solid fa-chart-column panel-title-badge"></i> 순자산 및 계좌현황</span>
+                    <div class="panel-actions">
+                        <button class="panel-btn" title="차트 형태 설정 (관리자)" th:if="${adminYn == 'Y'}" onclick="openChartConfigModal()"><i class="fa-solid fa-gear"></i></button>
+                        <button class="panel-btn" title="새로고침" onclick="loadDualChart()"><i class="fa-solid fa-rotate"></i></button>
+                    </div>
+                </div>
+                <div class="panel-body">
+                    <div class="chart-box" style="position: relative;">
+                        <canvas id="dualChart"></canvas>
+                        <div id="dualChartNoData" style="display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; align-items: center; justify-content: center; color: #94a3b8; font-size: 13px; pointer-events: none;">데이터 없음</div>
+                    </div>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <!-- Page Initialization Script -->
+    <script th:inline="javascript">
+        window.currentCorpGr = /*[[${corpGr}]]*/ '';
+
+        document.addEventListener("DOMContentLoaded", function() {
+            initDualChart();
+            loadDualChart();
+
+            // Initial API fetch for all 6 sections
+            loadPublicStocks();
+            loadSubscriptions();
+            loadProposals();
+            loadDayTr();
+            loadGyulAccounts();
+            loadRateChanges();
+        });
+    </script>
+
+    <!-- Company Switch Modal Window (Common Fragment) -->
+    <div th:replace="~{fragments/company_modal :: companyModal}"></div>
+
+    <!-- Chart Configuration Modal Window (Admin Only Fragment) -->
+    <div th:replace="~{fragments/chart_modal :: chartConfigModal}"></div>
+</body>
+</html>

@@ -1,0 +1,19 @@
+﻿global type f_ksd_backymd from function_object
+end type
+
+forward prototypes
+global function datetime f_ksd_backymd ()
+end prototypes
+
+global function datetime f_ksd_backymd ();DateTime ldt_work
+
+SELECT  f_open_ymd (MAX(gijunga_ymd), '-')
+  INTO  :ldt_work
+FROM    szx0dt t1
+WHERE   corp_gr = :gaa.corp_gr;
+
+ldt_work = SQLCA.getitemdatetime (1)
+
+RETURN   ldt_work
+end function
+

@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.kfp.aams.mapper.MenuMapper">
+
+    <!-- 1. Header Top Menu List -->
+    <select id="selectTopMenuList" resultType="com.kfp.aams.dto.MenuDto">
+        SELECT PGM_NO        AS pgmNo
+             , PGM_ID        AS pgmId
+             , PGM_NM        AS pgmNm
+             , PGM_GO        AS pgmGo
+             , PARENT_PGM    AS parentPgm
+             , PGM_KIND_CODE AS pgmKindCode
+             , SORT_ORDER    AS sortOrder
+             , UPD_ID        AS updId
+          FROM FW_PGM_MST
+         WHERE PGM_KIND_CODE = 'M'
+           AND PARENT_PGM = '00000'
+           AND MENU_USE_YN = 'Y'
+           AND PGM_USE_YN = 'Y'
+         ORDER BY SORT_ORDER
+    </select>
+
+    <!-- 2. Side Navigation Menu List (Oracle Hierarchical Query) -->
+    <select id="selectSideMenuList" resultType="com.kfp.aams.dto.MenuDto">
+        SELECT PGM_NO        AS pgmNo
+             , PGM_ID        AS pgmId
+             , PGM_NM        AS pgmNm
+             , PGM_GO        AS pgmGo
+             , PARENT_PGM    AS parentPgm
+             , PGM_KIND_CODE AS pgmKindCode
+             , SORT_ORDER    AS sortOrder
+          FROM FW_PGM_MST
+         WHERE CONNECT_BY_ISLEAF = 1
+           AND MENU_USE_YN = 'Y'
+           AND PGM_USE_YN = 'Y'
+         START WITH PGM_NO = #{pgmNo}
+       CONNECT BY PRIOR PGM_NO = PARENT_PGM
+         ORDER SIBLINGS BY SORT_ORDER
+    </select>
+
+</mapper>

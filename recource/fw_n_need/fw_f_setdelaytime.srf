@@ -1,0 +1,17 @@
+﻿global type fw_f_setdelaytime from function_object
+end type
+
+forward prototypes
+global subroutine fw_f_setdelaytime (decimal adc_delaytime)
+end prototypes
+
+global subroutine fw_f_setdelaytime (decimal adc_delaytime);dec{2}	ldc_start, ldc_value
+adc_delaytime = round(adc_delaytime, 2)
+ldc_start = cpu()
+ldc_value = cpu() - ldc_start
+do until ldc_value > adc_delaytime
+	yield()	
+	ldc_value = cpu() - ldc_start
+loop
+end subroutine
+

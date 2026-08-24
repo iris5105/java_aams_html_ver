@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<!-- Company Switch Modal Window Fragment -->
+<div id="companyModal" class="company-modal-overlay" style="display: none;" onclick="if(event.target === this) closeCompanyModal();" th:fragment="companyModal">
+    <div class="company-modal-window">
+        <div class="company-modal-header">
+            <div class="company-modal-title">
+                <i class="fa-solid fa-building" style="color: #60a5fa;"></i>
+                <span>회사 변경</span>
+            </div>
+            <button class="company-modal-close" onclick="closeCompanyModal()">&times;</button>
+        </div>
+        <div class="company-modal-search">
+            <label for="companySearchInput">Custome</label>
+            <input type="text" id="companySearchInput" placeholder="회사명 또는 그룹코드 검색" oninput="filterCompanies()">
+        </div>
+        <div class="company-modal-body">
+            <div id="companyGrid" class="company-grid">
+                <!-- Loaded dynamically -->
+            </div>
+        </div>
+    </div>
+</div>
+</html>

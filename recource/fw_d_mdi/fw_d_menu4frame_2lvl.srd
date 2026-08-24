@@ -1,0 +1,98 @@
+﻿release 12.6;
+datawindow(units=0 timer_interval=0 color=12632256 brushmode=2 transparency=0 gradient.angle=0 gradient.color=0 gradient.focus=0 gradient.repetition.count=0 gradient.repetition.length=100 gradient.repetition.mode=0 gradient.scale=100 gradient.spread=100 gradient.transparency=0 picture.blur=0 picture.clip.bottom=0 picture.clip.left=0 picture.clip.right=0 picture.clip.top=0 picture.mode=0 picture.scale.x=100 picture.scale.y=100 picture.transparency=0 processing=8 HTMLDW=no print.printername="" print.documentname="" print.orientation = 0 print.margin.left = 110 print.margin.right = 110 print.margin.top = 96 print.margin.bottom = 96 print.paper.source = 0 print.paper.size = 0 print.canusedefaultprinter=yes print.prompt=no print.buttons=no print.preview.buttons=no print.cliptext=no print.overrideprintjob=no print.collate=yes print.background=no print.preview.background=no print.preview.outline=yes hidegrayline=yes showbackcoloronxp=no picture.file="" )
+header(height=4 color="553648127" transparency="0" gradient.color="8421504" gradient.transparency="0" gradient.angle="0" brushmode="0" gradient.repetition.mode="0" gradient.repetition.count="0" gradient.repetition.length="100" gradient.focus="0" gradient.scale="100" gradient.spread="100" )
+summary(height=0 color="536870912" transparency="0" gradient.color="8421504" gradient.transparency="0" gradient.angle="0" brushmode="0" gradient.repetition.mode="0" gradient.repetition.count="0" gradient.repetition.length="100" gradient.focus="0" gradient.scale="100" gradient.spread="100" )
+footer(height=0 color="536870912" transparency="0" gradient.color="8421504" gradient.transparency="0" gradient.angle="0" brushmode="0" gradient.repetition.mode="0" gradient.repetition.count="0" gradient.repetition.length="100" gradient.focus="0" gradient.scale="100" gradient.spread="100" )
+detail(height=124 color="553648127" transparency="0" gradient.color="8421504" gradient.transparency="0" gradient.angle="0" brushmode="0" gradient.repetition.mode="0" gradient.repetition.count="0" gradient.repetition.length="100" gradient.focus="0" gradient.scale="100" gradient.spread="100" )
+table(column=(type=char(16) updatewhereclause=yes name=pgm_no dbname="pgm_no" )
+ column=(type=char(50) updatewhereclause=yes name=pgm_id dbname="pgm_id" )
+ column=(type=char(4000) updatewhereclause=yes name=pgm_nm dbname="pgm_nm" )
+ column=(type=char(10) updatewhereclause=yes name=parameter1 dbname="parameter1" )
+ column=(type=char(10) updatewhereclause=yes name=parameter2 dbname="parameter2" )
+ column=(type=char(10) updatewhereclause=yes name=parameter3 dbname="parameter3" )
+ column=(type=char(1) updatewhereclause=yes name=pgm_kind_code dbname="pgm_kind_code" )
+ column=(type=char(200) updatewhereclause=yes name=pgm_icon_on dbname="pgm_icon_on" )
+ column=(type=char(200) updatewhereclause=yes name=pgm_icon_off dbname="pgm_icon_off" )
+ column=(type=decimal(0) updatewhereclause=yes name=sort_order dbname="sort_order" )
+ column=(type=char(16) updatewhereclause=yes name=pgm_no_lv1 dbname="pgm_no_lv1" )
+ column=(type=char(4000) updatewhereclause=yes name=pgm_nm_lv1 dbname="pgm_nm_lv1" )
+ column=(type=decimal(0) updatewhereclause=yes name=sort_order_lv1 dbname="sort_order_lv1" )
+ column=(type=number updatewhereclause=yes name=parent_row dbname="parent_row" )
+ column=(type=char(1) updatewhereclause=yes name=expanded_once dbname="expanded_once" )
+ column=(type=char(1) updatewhereclause=yes name=tree_line dbname="tree_line" )
+ retrieve="SELECT  s01.pgm_no
+      , s01.pgm_id
+      , s01.pgm_go || ' ' || s01.pgm_nm                          AS pgm_nm
+      , s01.parameter1
+      , s01.parameter2
+      , s01.parameter3
+      , s01.pgm_kind_code
+      , s01.pgm_icon_on
+      , s01.pgm_icon_off
+      , s01.sort_order
+      , s01.pgm_no_lv1
+      , s01.pgm_nm_lv1
+      , s01.sort_order_lv1
+      , MAX (s01.sort_order) OVER (partition by sort_order_lv1)  AS parent_row
+      , 'N'                                                      AS expanded_once
+      , s01.tree_line
+FROM  ( select DISTINCT
+               t2.pgm_no
+             , t2.pgm_id
+             , spf_fw_define_word_c1 (:as_sys_id, :as_lang_type, t2.pgm_nm)                                            AS pgm_nm
+             , spf_fw_define_word_c1 (:as_sys_id, :as_lang_type, t3.pgm_nm)                                            AS pgm_nm_lv1
+             , t2.parameter1                                                                                         AS parameter1
+             , t2.parameter2                                                                                         AS parameter2
+             , t2.parameter3                                                                                         AS parameter3
+             , t2.pgm_kind_code
+             , CASE WHEN t2.pgm_kind_code='P' And t2.pgm_icon is null THEN '..\img\mainframe\mdi4subicon\ico_check_hover.jpg'
+                                                                      ELSE t2.pgm_icon END                           AS pgm_icon_on
+             , CASE WHEN t2.pgm_kind_code='P' And t2.pgm_icon is null THEN '..\img\mainframe\mdi4subicon\ico_check.jpg'
+                                                                      ELSE REPLACE(t2.pgm_icon, '_hover.', '.') END  AS pgm_icon_off
+             , t2.sort_order                                                                                         AS sort_order
+             , NVL(t2.pgm_go,'....')                                                                                 AS pgm_go
+             , t3.pgm_no                                                                                             AS pgm_no_lv1
+             , t3.sort_order                                                                                         AS sort_order_lv1
+             , t2.tree_line
+          from fw_role_pgm t1
+             , fw_pgm_mst t2
+             , fw_pgm_mst t3
+        where  t1.sys_id        = :as_sys_id
+          and  t1.role_no       IN (:as_user_role)
+          and  (CASE t1.valid_dt_yn WHEN 'Y' THEN (CASE WHEN :as_today BETWEEN t1.valid_dt_from AND t1.valid_dt_to THEN 'true' ELSE 'false' END) ELSE 'true' END) = 'true'
+          and  t2.sys_id	= t1.sys_id
+          and  t2.pgm_no	= t1.pgm_no
+          and  t2.pgm_kind_code = 'P'
+          and  t2.pgm_use_yn    = 'Y'
+          and  t2.menu_use_yn   = 'Y'
+          and  t3.sys_id        = t2.sys_id
+          and  t3.pgm_no        = t2.parent_pgm
+          and  t3.pgm_kind_code = 'M'
+          and  t3.parent_pgm    = :as_parent_pgm ) s01
+ORDER BY  s01.sort_order_lv1 ASC , s01.sort_order ASC
+" arguments=(("as_sys_id", string),("as_lang_type", string),("as_user_role", stringlist),("as_parent_pgm", string),("as_today", string)) )
+group(level=1 header.height=148 trailer.height=0 by=("pgm_no_lv1" , "pgm_nm_lv1" ) header.color="553648127" header.transparency="0" header.gradient.color="8421504" header.gradient.transparency="0" header.gradient.angle="0" header.brushmode="0" header.gradient.repetition.mode="0" header.gradient.repetition.count="0" header.gradient.repetition.length="100" header.gradient.focus="0" header.gradient.scale="100" header.gradient.spread="100" trailer.color="536870912" trailer.transparency="0" trailer.gradient.color="8421504" trailer.gradient.transparency="0" trailer.gradient.angle="0" trailer.brushmode="0" trailer.gradient.repetition.mode="0" trailer.gradient.repetition.count="0" trailer.gradient.repetition.length="100" trailer.gradient.focus="0" trailer.gradient.scale="100" trailer.gradient.spread="100" )
+line(band=header x1="0" y1="0" x2="4101" y2="0"  name=l_1 visible="1" pen.style="0" pen.width="5" pen.color="22830172"  background.mode="2" background.color="1073741824" background.transparency="0" background.gradient.color="8421504" background.gradient.transparency="0" background.gradient.angle="0" background.brushmode="0" background.gradient.repetition.mode="0" background.gradient.repetition.count="0" background.gradient.repetition.length="100" background.gradient.focus="0" background.gradient.scale="100" background.gradient.spread="100" tooltip.backcolor="134217752" tooltip.delay.initial="0" tooltip.delay.visible="32000" tooltip.enabled="0" tooltip.hasclosebutton="0" tooltip.icon="0" tooltip.isbubble="0" tooltip.maxwidth="0" tooltip.textcolor="134217751" tooltip.transparency="0" )
+bitmap(band=header.1 filename="..\img\mainframe\u_xpmenu\tree_menu_bg.jpg" x="101" y="0" height="144" width="6011" border="0" tooltip.backcolor="134217752" tooltip.delay.initial="0" tooltip.delay.visible="32000" tooltip.enabled="0" tooltip.hasclosebutton="0" tooltip.icon="0" tooltip.isbubble="0" tooltip.maxwidth="0" tooltip.textcolor="134217751" tooltip.transparency="0"  name=p_group4bg_off visible="1~tIf(isExpanded(getrow(), 1), 0, 1)" transparency="0" )
+bitmap(band=header.1 filename="..\img\mainframe\u_xpmenu\tree_menu_bg_hover.jpg" x="101" y="0" height="144" width="6199" border="0" tooltip.backcolor="134217752" tooltip.delay.initial="0" tooltip.delay.visible="32000" tooltip.enabled="0" tooltip.hasclosebutton="0" tooltip.icon="0" tooltip.isbubble="0" tooltip.maxwidth="0" tooltip.textcolor="134217751" tooltip.transparency="0"  name=p_group4bg_on visible="1~tIf(isExpanded(getrow(), 1), 1, 0)" transparentcolor="9474192" transparency="0" )
+column(band=header.1 id=12 alignment="0" tabsequence=32766 border="0" color="31246516~tIf(isExpanded(getrow(), 1), rgb(45,45,45), rgb(220,220,220))" x="160" y="32" height="76" width="3232" format="[general]" html.valueishtml="0"  name=pgm_nm_lv1 visible="1" edit.limit=100 edit.case=any edit.focusrectangle=no edit.autoselect=yes edit.autohscroll=yes  font.face="맑은 고딕" font.height="-10" font.weight="400~tIf(isExpanded(getrow(), 1), 700, 400)"  font.family="2" font.pitch="2" font.charset="129" background.mode="1" background.color="536870912" background.transparency="0" background.gradient.color="8421504" background.gradient.transparency="0" background.gradient.angle="0" background.brushmode="0" background.gradient.repetition.mode="0" background.gradient.repetition.count="0" background.gradient.repetition.length="100" background.gradient.focus="0" background.gradient.scale="100" background.gradient.spread="100" tooltip.backcolor="134217752" tooltip.delay.initial="0" tooltip.delay.visible="32000" tooltip.enabled="0" tooltip.hasclosebutton="0" tooltip.icon="0" tooltip.isbubble="0" tooltip.maxwidth="0" tooltip.textcolor="134217751" tooltip.transparency="0" transparency="0" )
+bitmap(band=header.1 filename="..\img\mainframe\u_xpmenu\tree_btn_off.jpg" x="955" y="44" height="56" width="64" border="0" tooltip.backcolor="134217752" tooltip.delay.initial="0" tooltip.delay.visible="32000" tooltip.enabled="0" tooltip.hasclosebutton="0" tooltip.icon="0" tooltip.isbubble="0" tooltip.maxwidth="0" tooltip.textcolor="134217751" tooltip.transparency="0"  name=p_lvl1button visible="0~tIf(isExpanded(getrow(), 1), 0, 1)" transparency="0" )
+bitmap(band=header.1 filename="..\img\mainframe\u_xpmenu\tree_btn_on.jpg" x="955" y="44" height="56" width="64" border="0" tooltip.backcolor="134217752" tooltip.delay.initial="0" tooltip.delay.visible="32000" tooltip.enabled="0" tooltip.hasclosebutton="0" tooltip.icon="0" tooltip.isbubble="0" tooltip.maxwidth="0" tooltip.textcolor="134217751" tooltip.transparency="0"  name=p_lvl1right visible="0~tIf(isExpanded(getrow(), 1), 1, 0)" transparency="0" )
+compute(band=detail alignment="2" expression="0"border="0" color="19737901" x="736" y="264" height="60" width="105" format="[GENERAL]" html.valueishtml="0"  name=bgcolorrow visible="1"  font.face="맑은 고딕" font.height="-9" font.weight="400"  font.family="1" font.pitch="2" font.charset="129" background.mode="1" background.color="536870912" background.transparency="0" background.gradient.color="8421504" background.gradient.transparency="0" background.gradient.angle="0" background.brushmode="0" background.gradient.repetition.mode="0" background.gradient.repetition.count="0" background.gradient.repetition.length="100" background.gradient.focus="0" background.gradient.scale="100" background.gradient.spread="100" tooltip.backcolor="134217752" tooltip.delay.initial="0" tooltip.delay.visible="32000" tooltip.enabled="0" tooltip.hasclosebutton="0" tooltip.icon="0" tooltip.isbubble="0" tooltip.maxwidth="0" tooltip.textcolor="134217751" tooltip.transparency="0" transparency="0" )
+line(band=detail x1="0" y1="116" x2="4187" y2="116"  name=l_3 visible="1~tif (tree_line=~"Y~",1,0)" pen.style="0" pen.width="5" pen.color="10789024"  background.mode="2" background.color="12632256" background.transparency="0" background.gradient.color="8421504" background.gradient.transparency="0" background.gradient.angle="0" background.brushmode="0" background.gradient.repetition.mode="0" background.gradient.repetition.count="0" background.gradient.repetition.length="100" background.gradient.focus="0" background.gradient.scale="100" background.gradient.spread="100" tooltip.backcolor="134217752" tooltip.delay.initial="0" tooltip.delay.visible="32000" tooltip.enabled="0" tooltip.hasclosebutton="0" tooltip.icon="0" tooltip.isbubble="0" tooltip.maxwidth="0" tooltip.textcolor="134217751" tooltip.transparency="0" )
+column(band=detail id=3 alignment="0" tabsequence=32766 border="0" color="22830172~tIf(getrow()= bgcolorrow, rgb(130,214,76), rgb(192,192,192))" x="206" y="24" height="76" width="3232" format="[general]" html.valueishtml="0"  name=pgm_nm pointer="HyperLink!" visible="1" edit.limit=100 edit.case=any edit.focusrectangle=no edit.autoselect=yes  font.face="맑은 고딕" font.height="-10" font.weight="400~tIf(getrow()= bgcolorrow, 700, 400)"  font.family="2" font.pitch="2" font.charset="129" background.mode="1" background.color="536870912" background.transparency="0" background.gradient.color="8421504" background.gradient.transparency="0" background.gradient.angle="0" background.brushmode="0" background.gradient.repetition.mode="0" background.gradient.repetition.count="0" background.gradient.repetition.length="100" background.gradient.focus="0" background.gradient.scale="100" background.gradient.spread="100" tooltip.backcolor="134217752" tooltip.delay.initial="1" tooltip.delay.visible="32000" tooltip.enabled="1" tooltip.hasclosebutton="0" tooltip.icon="0" tooltip.isbubble="0" tooltip.maxwidth="0" tooltip.textcolor="134217751" tooltip.tip="" tooltip.transparency="0" transparency="0" )
+column(band=detail id=8 alignment="0" tabsequence=32766 border="0" color="31246516" x="91" y="12" height="88" width="110" format="[general]" html.valueishtml="0"  name=pgm_icon_on visible="0~tIf(getrow()= bgcolorrow, 1, 0)" bitmapname=yes edit.limit=0 edit.case=any edit.focusrectangle=no edit.autoselect=no  font.face="맑은 고딕" font.height="-10" font.weight="400"  font.family="2" font.pitch="2" font.charset="129" background.mode="1" background.color="536870912" background.transparency="0" background.gradient.color="8421504" background.gradient.transparency="0" background.gradient.angle="0" background.brushmode="0" background.gradient.repetition.mode="0" background.gradient.repetition.count="0" background.gradient.repetition.length="100" background.gradient.focus="0" background.gradient.scale="100" background.gradient.spread="100" tooltip.backcolor="134217752" tooltip.delay.initial="0" tooltip.delay.visible="32000" tooltip.enabled="0" tooltip.hasclosebutton="0" tooltip.icon="0" tooltip.isbubble="0" tooltip.maxwidth="0" tooltip.textcolor="134217751" tooltip.transparency="0" transparency="0" )
+column(band=detail id=9 alignment="0" tabsequence=32766 border="0" color="31246516" x="91" y="12" height="88" width="110" format="[general]" html.valueishtml="0"  name=pgm_icon_off visible="0~tIf(getrow()= bgcolorrow, 0, 1)" bitmapname=yes edit.limit=0 edit.case=any edit.focusrectangle=no edit.autoselect=no  font.face="맑은 고딕" font.height="-10" font.weight="400"  font.family="2" font.pitch="2" font.charset="129" background.mode="1" background.color="536870912" background.transparency="0" background.gradient.color="8421504" background.gradient.transparency="0" background.gradient.angle="0" background.brushmode="0" background.gradient.repetition.mode="0" background.gradient.repetition.count="0" background.gradient.repetition.length="100" background.gradient.focus="0" background.gradient.scale="100" background.gradient.spread="100" tooltip.backcolor="134217752" tooltip.delay.initial="0" tooltip.delay.visible="32000" tooltip.enabled="0" tooltip.hasclosebutton="0" tooltip.icon="0" tooltip.isbubble="0" tooltip.maxwidth="0" tooltip.textcolor="134217751" tooltip.transparency="0" transparency="0" )
+htmltable(border="1" )
+htmlgen(clientevents="1" clientvalidation="1" clientcomputedfields="1" clientformatting="0" clientscriptable="0" generatejavascript="1" encodeselflinkargs="1" netscapelayers="0" pagingmethod=0 generatedddwframes="1" )
+xhtmlgen() cssgen(sessionspecific="0" )
+xmlgen(inline="0" )
+xsltgen()
+jsgen()
+export.xml(headgroups="1" includewhitespace="0" metadatatype=0 savemetadata=0 )
+import.xml()
+export.pdf(method=0 distill.custompostscript="0" xslfop.print="0" )
+export.xhtml()
+tree(type=1 showconnectlines=no showleafnodeconnectLines=yes  indent=0 showtreenodeicon=yes defaultexpandtolevel=2 stateiconalignmode=0 selectnodebymouse=no rtollayout=no 
+level=(expandedtreenodeiconname="" collapsedtreenodeIconname="" expandedtreenodeicontranscolor="553648127" collapsedtreenodeicontranscolor="553648127" )
+) 

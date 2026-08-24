@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<!-- Chart Configuration Modal Window (Admin Only) Fragment -->
+<div id="chartConfigModal" class="company-modal-overlay" style="display: none;" onclick="if(event.target === this) closeChartConfigModal();" th:fragment="chartConfigModal">
+    <div class="company-modal-window" style="max-width: 500px;">
+        <div class="company-modal-header">
+            <div class="company-modal-title">
+                <i class="fa-solid fa-sliders" style="color: #60a5fa;"></i>
+                <span>차트 형태 및 Y축 범위 설정 (관리자)</span>
+            </div>
+            <button class="company-modal-close" onclick="closeChartConfigModal()">&times;</button>
+        </div>
+        <div class="company-modal-body" style="padding: 16px; color: #e2e8f0; font-size: 13px;">
+            <!-- Dataset 1: 순자산(억) -->
+            <div style="background: rgba(30, 41, 59, 0.7); border: 1px solid #334155; border-radius: 6px; padding: 12px; margin-bottom: 12px;">
+                <div style="font-weight: 600; color: #60a5fa; margin-bottom: 10px; display: flex; align-items: center; gap: 6px;">
+                    <i class="fa-solid fa-chart-line"></i> 순자산 (Left Axis - Y1)
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                    <div>
+                        <label style="display: block; font-size: 11px; color: #94a3b8; margin-bottom: 4px;">그래프 유형</label>
+                        <select id="cfgDs0Type" style="width: 100%; background: #0f172a; border: 1px solid #475569; color: #f8fafc; padding: 5px; border-radius: 4px; font-size: 12px;">
+                            <option value="line">꺾은선 (Line)</option>
+                            <option value="bar">막대 (Bar)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="display: block; font-size: 11px; color: #94a3b8; margin-bottom: 4px;">선/막대 색상</label>
+                        <input type="color" id="cfgDs0Color" value="#28303d" style="width: 100%; height: 29px; background: #0f172a; border: 1px solid #475569; border-radius: 4px; cursor: pointer; padding: 2px;">
+                    </div>
+                    <div>
+                        <label style="display: block; font-size: 11px; color: #94a3b8; margin-bottom: 4px;">선 스타일</label>
+                        <select id="cfgDs0Dash" style="width: 100%; background: #0f172a; border: 1px solid #475569; color: #f8fafc; padding: 5px; border-radius: 4px; font-size: 12px;">
+                            <option value="dashed">점선 (Dashed)</option>
+                            <option value="solid">실선 (Solid)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="display: block; font-size: 11px; color: #94a3b8; margin-bottom: 4px;">선 두께 (px)</label>
+                        <input type="number" id="cfgDs0Width" value="2" min="1" max="5" style="width: 100%; background: #0f172a; border: 1px solid #475569; color: #f8fafc; padding: 5px; border-radius: 4px; font-size: 12px;">
+                    </div>
+                    <div>
+                        <label style="display: block; font-size: 11px; color: #94a3b8; margin-bottom: 4px;">Y1 최소값 (Min)</label>
+                        <input type="number" id="cfgY1Min" placeholder="자동 (Auto)" step="any" style="width: 100%; background: #0f172a; border: 1px solid #475569; color: #f8fafc; padding: 5px; border-radius: 4px; font-size: 12px;">
+                    </div>
+                    <div>
+                        <label style="display: block; font-size: 11px; color: #94a3b8; margin-bottom: 4px;">Y1 최대값 (Max)</label>
+                        <input type="number" id="cfgY1Max" placeholder="자동 (Auto)" step="any" style="width: 100%; background: #0f172a; border: 1px solid #475569; color: #f8fafc; padding: 5px; border-radius: 4px; font-size: 12px;">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Dataset 2: 계좌수 -->
+            <div style="background: rgba(30, 41, 59, 0.7); border: 1px solid #334155; border-radius: 6px; padding: 12px;">
+                <div style="font-weight: 600; color: #38bdf8; margin-bottom: 10px; display: flex; align-items: center; gap: 6px;">
+                    <i class="fa-solid fa-chart-bar"></i> 계좌수 (Right Axis - Y2)
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                    <div>
+                        <label style="display: block; font-size: 11px; color: #94a3b8; margin-bottom: 4px;">그래프 유형</label>
+                        <select id="cfgDs1Type" style="width: 100%; background: #0f172a; border: 1px solid #475569; color: #f8fafc; padding: 5px; border-radius: 4px; font-size: 12px;">
+                            <option value="bar">막대 (Bar)</option>
+                            <option value="line">꺾은선 (Line)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="display: block; font-size: 11px; color: #94a3b8; margin-bottom: 4px;">색상</label>
+                        <input type="color" id="cfgDs1Color" value="#60a5fa" style="width: 100%; height: 29px; background: #0f172a; border: 1px solid #475569; border-radius: 4px; cursor: pointer; padding: 2px;">
+                    </div>
+                    <div>
+                        <label style="display: block; font-size: 11px; color: #94a3b8; margin-bottom: 4px;">Y2 최소값 (Min)</label>
+                        <input type="number" id="cfgY2Min" placeholder="자동 (Auto)" step="any" style="width: 100%; background: #0f172a; border: 1px solid #475569; color: #f8fafc; padding: 5px; border-radius: 4px; font-size: 12px;">
+                    </div>
+                    <div>
+                        <label style="display: block; font-size: 11px; color: #94a3b8; margin-bottom: 4px;">Y2 최대값 (Max)</label>
+                        <input type="number" id="cfgY2Max" placeholder="자동 (Auto)" step="any" style="width: 100%; background: #0f172a; border: 1px solid #475569; color: #f8fafc; padding: 5px; border-radius: 4px; font-size: 12px;">
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div style="padding: 12px 16px; border-top: 1px solid #334155; display: flex; justify-content: flex-end; gap: 8px; background: rgba(15, 23, 42, 0.5);">
+            <button onclick="closeChartConfigModal()" style="background: #334155; border: none; color: #cbd5e1; padding: 6px 14px; border-radius: 4px; font-size: 12px; cursor: pointer;">취소</button>
+            <button onclick="applyChartConfig()" style="background: #2563eb; border: none; color: #ffffff; padding: 6px 14px; border-radius: 4px; font-size: 12px; font-weight: 500; cursor: pointer;">적용하기</button>
+        </div>
+    </div>
+</div>
+</html>

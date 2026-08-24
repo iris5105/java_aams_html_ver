@@ -1,0 +1,45 @@
+﻿global type f_line from function_object
+end type
+
+forward prototypes
+global function integer f_line (string arg_line, ref string rs_val[])
+end prototypes
+
+global function integer f_line (string arg_line, ref string rs_val[]);LONG  ll = 1, lPos
+
+STRING   ls_varTmp, la_null []
+
+ls_varTmp = arg_line
+rs_val = la_null
+
+rs_val [ll] = ''
+DO WHILE TRUE
+   CHOOSE CASE LEFT (ls_varTmp,1)
+      CASE ','
+         rs_val [ll] = TRIM (rs_val [ll])
+         ll ++ ; rs_val [ll] = ''
+         ls_varTmp = MID (ls_varTmp,2)
+      CASE '"'
+         ls_varTmp = MID (ls_varTmp,2) ; lPos = POS (ls_varTmp, '"')
+         rs_val [ll] += LEFT (ls_varTmp, lPos - 1)
+         ls_varTmp = MID (ls_varTmp,lPos + 1)
+      CASE "'"
+         ls_varTmp = MID (ls_varTmp,2) ; lPos = POS (ls_varTmp, "'")
+         rs_val [ll] += LEFT (ls_varTmp, lPos - 1)
+         ls_varTmp = MID (ls_varTmp,lPos + 1)
+      CASE Else
+         lPos = POS (ls_varTmp, ',')
+         IF lPos=0   Then
+            rs_val [ll] += ls_varTmp
+            EXIT
+         End IF
+         rs_val [ll] += LEFT (ls_varTmp, lPos - 1)
+         ls_varTmp = MID (ls_varTmp,lPos)
+   END CHOOSE
+   IF f_null (ls_varTmp) THEN EXIT
+LOOP
+rs_val [ll] = TRIM (rs_val [ll])
+
+RETURN   upperbound (rs_val)
+end function
+

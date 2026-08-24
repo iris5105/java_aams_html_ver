@@ -1,0 +1,644 @@
+/* ==========================================
+   AAMS - US Portfolio Model Unified Stylesheet
+   File: style.css
+   ========================================== */
+
+/* ------------------------------------------
+   1. Common Reset & Base Styles
+   ------------------------------------------ */
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    font-family: 'Noto Sans KR', 'Malgun Gothic', sans-serif;
+}
+
+body {
+    background-color: #d9e0e7;
+    color: #333;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    font-size: 12px;
+}
+
+body, html {
+    width: 100%;
+    height: 100%;
+}
+
+/* ------------------------------------------
+   2. Header & Navigation (w_home5)
+   ------------------------------------------ */
+.top-header {
+    background-color: #1e252c;
+    color: #ffffff;
+    height: 38px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 16px;
+    font-size: 12px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+    z-index: 100;
+}
+
+.top-header-left {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.user-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(255,255,255,0.08);
+    padding: 4px 10px;
+    border-radius: 4px;
+}
+
+.user-info i {
+    color: #60a5fa;
+}
+
+.user-name {
+    font-weight: 600;
+    color: #f1f5f9;
+}
+
+.login-date {
+    color: #94a3b8;
+    font-size: 11px;
+}
+
+.top-nav {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+}
+
+.top-nav-item {
+    padding: 6px 12px;
+    color: #cbd5e1;
+    cursor: pointer;
+    border-radius: 3px;
+    transition: all 0.15s ease;
+    font-weight: 500;
+}
+
+.top-nav-item:hover, 
+.top-nav-item.active {
+    background-color: #3b82f6;
+    color: #ffffff;
+}
+
+.top-header-right {
+    font-size: 14px;
+    font-weight: 700;
+    color: #f8fafc;
+    letter-spacing: 0.5px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* ------------------------------------------
+   3. App Body & Sidebar Layout (w_home5)
+   ------------------------------------------ */
+.app-body {
+    display: flex;
+    flex: 1;
+    height: calc(100vh - 38px);
+    overflow: hidden;
+}
+
+.left-sidebar {
+    width: 250px;
+    background-color: #2b323b;
+    color: #e2e8f0;
+    display: flex;
+    flex-direction: column;
+    border-right: 1px solid #1e242b;
+    flex-shrink: 0;
+}
+
+.sidebar-search {
+    padding: 10px;
+    background-color: #232931;
+    border-bottom: 1px solid #333c48;
+}
+
+.search-input {
+    width: 100%;
+    padding: 6px 10px;
+    background-color: #1a1f26;
+    border: 1px solid #404b59;
+    color: #fff;
+    border-radius: 3px;
+    font-size: 11px;
+}
+
+.search-input::placeholder {
+    color: #64748b;
+}
+
+.sidebar-menu {
+    flex: 1;
+    overflow-y: auto;
+    padding: 6px 0;
+}
+
+.menu-item {
+    padding: 6px 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #cbd5e1;
+    cursor: pointer;
+    font-size: 11.5px;
+    transition: background 0.1s ease;
+}
+
+.menu-item:hover {
+    background-color: #3b82f6;
+    color: #ffffff;
+}
+
+.menu-item i {
+    font-size: 10px;
+    color: #94a3b8;
+    width: 14px;
+}
+
+.menu-item:hover i {
+    color: #fff;
+}
+
+.sidebar-footer {
+    padding: 12px 16px;
+    background-color: #1e242b;
+    border-top: 1px solid #333c48;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 800;
+    font-size: 15px;
+    color: #60a5fa;
+}
+
+/* ------------------------------------------
+   4. Dashboard Workspace & Panels (w_home5)
+   ------------------------------------------ */
+.workspace {
+    flex: 1;
+    padding: 12px;
+    background-color: #d9e0e7;
+    overflow-y: auto;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: repeat(2, 1fr);
+    gap: 12px;
+}
+
+.pb-panel {
+    background-color: #ffffff;
+    border: 1px solid #b0bec5;
+    border-radius: 4px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.panel-header {
+    background-color: #f1f5f9;
+    border-bottom: 1px solid #cbd5e1;
+    padding: 6px 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.panel-title {
+    font-size: 12px;
+    font-weight: 700;
+    color: #1e293b;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.panel-title-badge {
+    color: #2563eb;
+    font-size: 11px;
+}
+
+.panel-actions {
+    display: flex;
+    gap: 6px;
+}
+
+.panel-btn {
+    background: none;
+    border: none;
+    color: #64748b;
+    cursor: pointer;
+    font-size: 11px;
+    padding: 2px 4px;
+}
+
+.panel-btn:hover {
+    color: #1e293b;
+}
+
+.panel-body {
+    flex: 1;
+    overflow: auto;
+    padding: 0;
+    position: relative;
+}
+
+/* DataWindow Tables */
+.dw-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 11px;
+    background-color: #fff;
+}
+
+.dw-table th {
+    background-color: #e2e8f0;
+    color: #334155;
+    font-weight: 600;
+    padding: 5px 8px;
+    border: 1px solid #cbd5e1;
+    text-align: center;
+    white-space: nowrap;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.dw-table td {
+    padding: 5px 8px;
+    border: 1px solid #e2e8f0;
+    color: #1e293b;
+    white-space: nowrap;
+}
+
+.dw-table tr:nth-child(even) {
+    background-color: #f8fafc;
+}
+
+.dw-table tr:hover {
+    background-color: #eff6ff;
+}
+
+.text-center { text-align: center; }
+.text-right { text-align: right; }
+
+.date-col {
+    color: #2563eb;
+    font-weight: 500;
+}
+
+/* Tabbed Panels */
+.panel-tabs {
+    display: flex;
+    background-color: #e2e8f0;
+    border-bottom: 1px solid #cbd5e1;
+    padding-top: 4px;
+    padding-left: 4px;
+}
+
+.panel-tab-item {
+    padding: 5px 12px;
+    font-size: 11px;
+    font-weight: 600;
+    color: #64748b;
+    background-color: #cbd5e1;
+    border: 1px solid #94a3b8;
+    border-bottom: none;
+    border-radius: 3px 3px 0 0;
+    margin-right: 2px;
+    cursor: pointer;
+}
+
+.panel-tab-item.active {
+    background-color: #ffffff;
+    color: #1e293b;
+    border-bottom: 1px solid #ffffff;
+    margin-bottom: -1px;
+}
+
+/* Chart Canvas Area */
+.chart-box {
+    width: 100%;
+    height: 100%;
+    padding: 8px;
+    position: relative;
+}
+
+/* ------------------------------------------
+   5. Login Page Styles (w_login_aams)
+   ------------------------------------------ */
+.login-wrapper {
+    width: 100vw;
+    height: 100vh;
+    position: relative;
+    background: linear-gradient(135deg, rgba(20, 30, 48, 0.45), rgba(36, 59, 85, 0.45)),
+                url('https://images.unsplash.com/photo-1551288049-bebda4e38f71?q=80&w=2070&auto=format&fit=crop') no-repeat center center/cover;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding-right: 8%;
+}
+
+.win-close-btn {
+    position: absolute;
+    top: 16px;
+    right: 20px;
+    color: #ffffff;
+    font-size: 20px;
+    cursor: pointer;
+    z-index: 10;
+    transition: opacity 0.2s ease;
+}
+
+.win-close-btn:hover {
+    opacity: 0.7;
+}
+
+.login-card {
+    width: 440px;
+    height: 520px;
+    background: #ffffff;
+    border-radius: 18px;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.35);
+    padding: 48px 40px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: relative;
+    animation: fadeIn 0.4s ease-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(15px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.login-title-header {
+    font-size: 34px;
+    font-weight: 300;
+    color: #333333;
+    letter-spacing: -0.5px;
+    margin-bottom: 14px;
+}
+
+.system-badge {
+    background-color: #253452;
+    color: #ffffff;
+    font-family: 'Times New Roman', 'Playfair Display', Georgia, serif;
+    font-weight: 700;
+    font-size: 18px;
+    padding: 6px 20px;
+    border-radius: 2px;
+    letter-spacing: 0.2px;
+    margin-bottom: 48px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+}
+
+.login-form {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.input-group {
+    display: flex;
+    align-items: center;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    padding: 8px 12px;
+    background-color: #ffffff;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.input-group:focus-within {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
+.input-label {
+    font-size: 12px;
+    color: #64748b;
+    width: 65px;
+    flex-shrink: 0;
+    font-weight: 400;
+}
+
+.input-field {
+    border: none;
+    outline: none;
+    width: 100%;
+    font-size: 13px;
+    color: #1e293b;
+    background: transparent;
+}
+
+.btn-login {
+    margin-top: 14px;
+    width: 100%;
+    height: 42px;
+    border: 1.5px solid #3b82f6;
+    background-color: #ffffff;
+    color: #2563eb;
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 6px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn-login:hover {
+    background-color: #2563eb;
+    color: #ffffff;
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+}
+
+.btn-login:active {
+    transform: scale(0.99);
+}
+
+.error-msg {
+    color: #ef4444;
+    font-size: 11px;
+    margin-top: -6px;
+    text-align: center;
+    display: none;
+}
+
+/* Company Switch Modal Styles */
+.company-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(0, 0, 0, 0.65);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+    backdrop-filter: blur(2px);
+}
+
+.company-modal-window {
+    width: 540px;
+    max-width: 90vw;
+    max-height: 85vh;
+    background: #181938;
+    border: 1px solid #3730a3;
+    border-radius: 6px;
+    box-shadow: 0 16px 36px rgba(0, 0, 0, 0.6);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    color: #f1f5f9;
+}
+
+.company-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 16px;
+    background: #12132d;
+    border-bottom: 1px solid #2e2a72;
+}
+
+.company-modal-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 15px;
+    font-weight: 600;
+    color: #ffffff;
+}
+
+.company-modal-close {
+    background: none;
+    border: none;
+    color: #94a3b8;
+    font-size: 18px;
+    cursor: pointer;
+    padding: 2px 8px;
+    transition: color 0.2s;
+}
+
+.company-modal-close:hover {
+    color: #ffffff;
+}
+
+.company-modal-search {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 18px;
+    background: #1e1f47;
+    border-bottom: 1px solid #2e2a72;
+}
+
+.company-modal-search label {
+    font-size: 18px;
+    font-weight: 700;
+    color: #ffffff;
+    font-family: sans-serif;
+    letter-spacing: -0.5px;
+}
+
+.company-modal-search input {
+    flex: 1;
+    padding: 6px 12px;
+    font-size: 14px;
+    background: #ffffff;
+    color: #0f172a;
+    border: 1px solid #818cf8;
+    border-radius: 3px;
+    outline: none;
+}
+
+.company-modal-body {
+    padding: 16px;
+    overflow-y: auto;
+    max-height: 60vh;
+}
+
+.company-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+}
+
+.company-card {
+    background: #232552;
+    border: 1px solid #3730a3;
+    border-radius: 4px;
+    height: 90px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    padding: 8px;
+    transition: all 0.2s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.company-card:hover {
+    border-color: #818cf8;
+    background: #2c2f66;
+    box-shadow: 0 4px 14px rgba(99, 102, 241, 0.3);
+    transform: translateY(-2px);
+}
+
+.company-card.active {
+    border: 2px solid #60a5fa;
+    box-shadow: 0 0 12px rgba(96, 165, 250, 0.5);
+}
+
+.company-card img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+}
+
+.company-card-fallback {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    text-align: center;
+}
+
+.company-card-name {
+    font-size: 16px;
+    font-weight: 700;
+    color: #ffffff;
+}
+
+.company-card-code {
+    font-size: 12px;
+    color: #94a3b8;
+    margin-top: 2px;
+}
+

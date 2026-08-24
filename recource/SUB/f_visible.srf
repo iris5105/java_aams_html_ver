@@ -1,0 +1,62 @@
+﻿global type f_visible from function_object
+end type
+
+forward prototypes
+global subroutine f_visible (fw_u_dwo dw, boolean ag_true_false, string ag_target_column_list)
+end prototypes
+
+global subroutine f_visible (fw_u_dwo dw, boolean ag_true_false, string ag_target_column_list);STRING   ls_visible, ls_objList, ls_obj, ls_icon_name, ls_text, ls_protect
+
+ads_jTier   lds
+
+lds            = CREATE ads_jTier
+lds.dataobject = dw.dataobject
+
+ls_visible = IIF (ag_true_false, '.Visible="1"', '.Visible="0"')
+
+ls_objList = lds.DESCRIBE ('datawindow.Objects')
+DO
+   ls_obj = f_get_Token (ls_objList, '~t')
+   IF f_null (ls_obj) THEN EXIT
+   IF f_null (ag_target_column_list) OR PosA (ag_target_column_list, ls_obj)>0   Then
+      IF ag_true_false AND lds.DESCRIBE(ls_obj + '.type')='column'  Then
+         dw.Modify (ls_obj + ls_visible + '~t' + ls_obj + ".protect='" + lds.DESCRIBE(ls_obj + '.protect') + "'")
+      ELSE
+         dw.Modify (ls_obj + ls_visible + '~t' + ls_obj + ".protect=1")
+      END IF
+
+      //<임시> 오브젝트 visible처리시 아이콘과 디자인하는 부분 같이 처리====================
+      ls_text      = ''
+      ls_icon_name = ''
+      IF STRING(dw.DESCRIBE('p_dd_' + ls_obj + '.name'))<>'!' Then
+         ls_icon_name = 'p_dd_' + ls_obj
+      ELSEIF STRING(dw.DESCRIBE('p_xx_' + ls_obj + '.name'))<>'!' Then
+         ls_icon_name = 'p_xx_' + ls_obj
+      ELSEIF STRING(dw.DESCRIBE('p_mm_' + ls_obj + '.name'))<>'!' Then
+         ls_icon_name = 'p_mm_' + ls_obj
+      END IF
+      IF ls_icon_name>'' Then
+         IF ag_true_false Then
+            ls_protect = STRING (lds.DESCRIBE(ls_obj + '.protect'))  // 프로텍트 expression 가져오기
+            IF POS (ls_protect, '~t')>0 Then //프로텍트가 존재하면 실행
+               ls_protect = MID (ls_protect, POS(ls_protect, '~t') + 1)
+               ls_protect = LeftA (ls_protect, LenA (ls_protect) - 1)
+               ls_protect = lds.DESCRIBE ('Evaluate ("' + ls_protect + '", ' + STRING (dw.GETROW ( )) + ')')  // 프로텍트 실행결과 저장
+            END IF
+            ls_text = ls_icon_name + IIF (ag_true_false, IIF (ls_protect='0','.Visible=1','.Visible=0'), '.Visible=0')
+            ls_text += ' p_disabled_' + ls_obj + IIF (ag_true_false, IIF (ls_protect='0','.Visible=0','.Visible=1'), '.Visible=0')
+         ELSE
+            ls_text = ls_icon_name + ls_visible
+            ls_text += ' p_disabled_' + ls_obj + '.visible=0'
+         END IF
+      END IF
+      IF STRING(dw.DESCRIBE('com_' + ls_obj + '.name'))<>'!' THEN ls_text += ' com_' + ls_obj + ls_visible
+      IF STRING(dw.DESCRIBE(ls_obj + '_rect.name'))<>'!'     THEN ls_text = ls_obj + '_rect' + ls_visible + '~r~n' + ls_text // 디자인하는 부분 처리
+      dw.MODIFY (ls_text)
+      //===================================================================================
+   END IF
+LOOP WHILE TRUE
+
+DESTROY lds
+end subroutine
+

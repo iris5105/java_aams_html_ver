@@ -1,0 +1,66 @@
+﻿global type fw_f_getiehandlebyposition from function_object
+end type
+
+forward prototypes
+global subroutine fw_f_getiehandlebyposition (window aw_window)
+end prototypes
+
+global subroutine fw_f_getiehandlebyposition (window aw_window);If not Isvalid(gw_mdi) Then Return
+Long	ll_size_width, ll_size_height, ll_size_x, ll_size_y, ll_monitorgb
+Long	ll_xpos, ll_ypos, ll_add_xpos, ll_add_ypos
+Long	ll_a_xpos1, ll_a_xpos2, ll_a_ypos1, ll_a_ypos2
+
+ll_add_xpos = Round((gw_mdi.width - aw_window.width) / 2, 0)
+If gw_mdi.height - aw_window.height < 1 Then
+	ll_add_ypos = 0
+Else
+	ll_add_ypos = Round((gw_mdi.height - aw_window.height) / 2, 0)
+End If		
+Choose Case gnv_vari.getclienttype
+	Case 'PB'
+		//ll_xpos = gw_mdi.x + Round(gw_mdi.width *  (ll_a_xpos1 / ll_a_xpos2), 0)
+		//ll_ypos = gw_mdi.y + Round(gw_mdi.height *  (ll_a_ypos1 / ll_a_ypos2), 0)
+		ll_xpos = gw_mdi.x + ll_add_xpos
+		ll_ypos = gw_mdi.y + ll_add_ypos
+	Case 'WEB'
+		pf_s_point lstr_point
+		gnv_extfunc.ScreenToClient(gnv_vari.GetIEHandle, lstr_point)
+		ll_monitorgb	= gnv_extfunc.GetSystemMetrics(80)
+		lstr_point.xpos	= Pixelstounits(lstr_point.xpos, XPixelsToUnits!)
+		lstr_point.ypos	= Pixelstounits(lstr_point.ypos, YPixelsToUnits!)
+		ll_size_width	= gw_mdi.width
+		ll_size_height	= gw_mdi.height
+		//gw_mdi.dynamic setmicrohelp(string(lstr_point.xpos) + '/' + string(lstr_point.ypos))
+		Choose Case ll_monitorgb
+			Case 1
+				If lstr_point.xpos > 0 Then
+					ll_size_width -= lstr_point.xpos
+					ll_xpos = ll_size_width + ll_add_xpos //Round((ll_size_width * (ll_a_xpos1 / ll_a_xpos2)), 0)
+				Else
+					ll_xpos = abs(lstr_point.xpos) + ll_add_xpos //Round((ll_size_width * (ll_a_xpos1 / ll_a_xpos2)), 0)
+				End If
+			Case is > 1
+				If lstr_point.xpos > 0 Then
+					ll_xpos = (lstr_point.xpos * -1) + ll_add_xpos //Round((ll_size_width * (ll_a_xpos1 / ll_a_xpos2)), 0)
+				Else
+					ll_xpos = abs(lstr_point.xpos) + ll_add_xpos //Round((ll_size_width * (ll_a_xpos1 / ll_a_xpos2)), 0)
+				End If
+		End Choose
+		If lstr_point.ypos > 0 Then
+			ll_size_height -= lstr_point.ypos
+			ll_ypos = Round((ll_size_height * (ll_a_ypos1 / ll_a_ypos2)), 0)
+		Else
+			ll_ypos = abs(lstr_point.ypos) + ll_add_ypos //Round((ll_size_height * (ll_a_ypos1 / ll_a_ypos2)), 0)
+		End If
+End Choose
+
+aw_window.x = ll_xpos
+aw_window.y = ll_ypos
+
+//ll_monitorgb		= gnv_extfunc.GetSystemMetrics(80)
+//ll_size_width		= gnv_extfunc.GetSystemMetrics(0) //width
+//ll_size_height		= gnv_extfunc.GetSystemMetrics(1) //height
+//ll_size_width		= Pixelstounits(ll_size_width, XPixelsToUnits!)
+//ll_size_height		= Pixelstounits(ll_size_height, YPixelsToUnits!)
+end subroutine
+

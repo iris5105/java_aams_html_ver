@@ -1,0 +1,33 @@
+﻿global type f_getcodename from function_object
+end type
+
+forward prototypes
+global function string f_getcodename (transaction arg_trans, string arg_column, integer arg_seq, string arg_value, string arg_corp_gr)
+end prototypes
+
+global function string f_getcodename (transaction arg_trans, string arg_column, integer arg_seq, string arg_value, string arg_corp_gr);// WDSC01M에 등록된 코드명 찾기
+ads_jTier   ds_getCode
+
+STRING	ls_Select, ls_Syntax, ls_Error
+
+LONG	ll_rtn
+
+// 테이블에 등록되어 있는 코드찾기 정보를 가져온다.
+SELECT REPLACE(edit_Select,':arg_code', :arg_value)
+  INTO :ls_Select
+  FROM WDCS01M t1
+ WHERE column_nm  = :arg_column
+   AND column_seq = :arg_seq ;
+
+ls_Select = SQLCA.GETITEMSTRING (1)
+
+IF SQLCA.sqlcode ()=0   Then
+   ls_Select = f_replace (ls_Select, ':corp_gr', arg_corp_gr)
+   IF SQLCA.sql2ds (arg_column, ls_Select, ds_getCode, 'xml')=1   Then
+      RETURN string (ds_GetCode.Object.Data [1,1])
+   END IF
+END IF
+
+RETURN   arg_column
+end function
+

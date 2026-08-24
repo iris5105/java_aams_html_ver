@@ -1,0 +1,21 @@
+﻿global type f_n# from function_object
+end type
+
+forward prototypes
+global function string f_n# (decimal id_data, long il_length, long il_scale)
+end prototypes
+
+global function string f_n# (decimal id_data, long il_length, long il_scale);STRING   ls_data, ls_format
+
+IF il_scale>0 THEN
+	ls_format = '0.' + Fill ('0', il_scale)
+ELSE
+	ls_format = '0'
+END IF
+
+ls_data = string (id_data, ls_format)
+IF il_length > LEN (ls_data) THEN ls_data = RIGHT (Space(il_length) + ls_data, il_length)
+
+RETURN ls_data
+end function
+

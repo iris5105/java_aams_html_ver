@@ -1,0 +1,24 @@
+﻿global type pf_f_arraycontains from function_object
+end type
+
+forward prototypes
+global function boolean pf_f_arraycontains (readonly string as_array[], readonly string as_searchkey)
+end prototypes
+
+global function boolean pf_f_arraycontains (readonly string as_array[], readonly string as_searchkey);// 배열 내용 중 일치하는 항목이 있는지 확인합니다.
+// True: 배열에 searchkey 있음
+// False : 배열에 searchkey 없음
+
+long ll_arraycnt, i
+
+ll_arraycnt = upperbound(as_array)
+for i = 1 to ll_arraycnt
+	if as_array[i] = as_searchkey then
+		return true
+	end if
+next
+
+return false
+
+end function
+

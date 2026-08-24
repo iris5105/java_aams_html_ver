@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>US Portfolio Model - 로그인</title>
+    <!-- Fonts & Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
+    <!-- Unified Stylesheet -->
+    <link rel="stylesheet" th:href="@{/css/style.css}" href="/css/style.css">
+</head>
+<body>
+    <div class="login-wrapper">
+        <!-- Window Close Button 'X' -->
+        <div class="win-close-btn" onclick="window.close()"><i class="fa-solid fa-xmark"></i></div>
+
+        <!-- Floating Login Card Container -->
+        <div class="login-card">
+            <h1 class="login-title-header">Welcome to</h1>
+            <div class="system-badge" id="companyLogoContainer">
+                <img id="companyLogoImg" src="/img/company_logo/logo_2200.jpg" alt="Company Logo" style="max-height: 38px; vertical-align: middle;" onerror="this.src='/img/company_logo/logo_2200.jpg'">
+            </div>
+
+            <form class="login-form" id="loginForm" onsubmit="handleLogin(event)">
+                <div class="input-group">
+                    <span class="input-label">아이디</span>
+                    <input type="text" id="userId" class="input-field" required placeholder="아이디 입력">
+                </div>
+
+                <div class="input-group">
+                    <span class="input-label">비밀번호</span>
+                    <input type="password" id="password" class="input-field" placeholder="비밀번호 입력">
+                </div>
+
+                <div id="errorMsg" class="error-msg"></div>
+
+                <button type="submit" class="btn-login">로 그 인</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        function getCookie(name) {
+            const value = `; ${document.cookie}`;
+            const parts = value.split(`; ${name}=`);
+            if (parts.length === 2) return decodeURIComponent(parts.pop().split(';').shift());
+            return null;
+        }
+
+        let checkTimeout = null;
+
+        function checkUserRoleAndSetLogo() {
+            const userIdInput = document.getElementById('userId');
+            if (!userIdInput) return;
+            const userId = userIdInput.value.trim();
+            const logoImg = document.getElementById('companyLogoImg');
+            if (!logoImg) return;
+
+            if (!userId) {
+                const savedCorpGr = getCookie('savedCorpGr');
+                logoImg.src = savedCorpGr ? `/img/company_logo/logo_${savedCorpGr}.jpg` : '/img/company_logo/logo_2200.jpg';
+                return;
+            }
+
+            fetch(`/api/auth/check-user-info?userId=${encodeURIComponent(userId)}`)
+                .then(res => res.json())
+                .then(data => {
+                    if (data && data.exists) {
+                        const adminYn = (data.adminYn || '').toUpperCase();
+                        if (adminYn === 'Y') {
+                            const savedCorpGr = getCookie('savedCorpGr');
+                            if (savedCorpGr) {
+                                logoImg.src = `/img/company_logo/logo_${savedCorpGr}.jpg`;
+                            }
+                        } else if (data.corpGr) {
+                            logoImg.src = `/img/company_logo/logo_${data.corpGr}.jpg`;
+                        }
+                    }
+                })
+                .catch(err => console.error('Error checking user info:', err));
+        }
+
+        document.addEventListener("DOMContentLoaded", function() {
+            // Check savedEmail and savedCorpGr cookies
+            const savedEmail = getCookie('savedEmail');
+            if (savedEmail) {
+                document.getElementById('userId').value = savedEmail;
+            }
+
+            const savedCorpGr = getCookie('savedCorpGr');
+            const logoImg = document.getElementById('companyLogoImg');
+            if (logoImg) {
+                if (savedCorpGr) {
+                    logoImg.src = `/img/company_logo/logo_${savedCorpGr}.jpg`;
+                } else {
+                    logoImg.src = '/img/company_logo/logo_2200.jpg';
+                }
+            }
+
+            // Bind input and blur events on userId field
+            const userIdInput = document.getElementById('userId');
+            if (userIdInput) {
+                userIdInput.addEventListener('input', function() {
+                    clearTimeout(checkTimeout);
+                    checkTimeout = setTimeout(checkUserRoleAndSetLogo, 300);
+                });
+                userIdInput.addEventListener('blur', checkUserRoleAndSetLogo);
+            }
+
+            // Check if token expired parameter exists
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.has('expired')) {
+                alert('로그인 세션이 만료되었거나 토큰이 존재하지 않습니다. 로그인 화면으로 이동합니다.');
+                // Clean up URL parameter
+                window.history.replaceState({}, document.title, window.location.pathname);
+            }
+        });
+
+        function handleLogin(event) {
+            event.preventDefault();
+            const userId = document.getElementById('userId').value.trim();
+            const password = document.getElementById('password').value;
+            const errorMsg = document.getElementById('errorMsg');
+
+            if (!userId) {
+                alert('아이디를 입력해주세요.');
+                return;
+            }
+
+            fetch('/api/auth/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId, password })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    // Store tokens in localStorage as well
+                    localStorage.setItem('accessToken', data.accessToken);
+                    localStorage.setItem('refreshToken', data.refreshToken);
+                    localStorage.setItem('userId', data.userId);
+                    localStorage.setItem('corpGr', data.corpGr);
+
+                    // Redirect to W_HOME5
+                    window.location.href = '/w_home5';
+                } else {
+                    errorMsg.style.display = 'block';
+                    errorMsg.innerText = data.message || '로그인에 실패했습니다.';
+                    alert(data.message || '로그인에 실패했습니다.');
+                }
+            })
+            .catch(err => {
+                console.error('Login error:', err);
+                alert('로그인 처리 중 오류가 발생했습니다.');
+            });
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,63 @@
+﻿release 12.6;
+datawindow(units=0 timer_interval=0 color=1073741824 brushmode=0 transparency=0 gradient.angle=0 gradient.color=8421504 gradient.focus=0 gradient.repetition.count=0 gradient.repetition.length=100 gradient.repetition.mode=0 gradient.scale=100 gradient.spread=100 gradient.transparency=0 picture.blur=0 picture.clip.bottom=0 picture.clip.left=0 picture.clip.right=0 picture.clip.top=0 picture.mode=0 picture.scale.x=100 picture.scale.y=100 picture.transparency=0 processing=0 HTMLDW=no print.printername="" print.documentname="" print.orientation = 0 print.margin.left = 110 print.margin.right = 110 print.margin.top = 96 print.margin.bottom = 96 print.paper.source = 0 print.paper.size = 0 print.canusedefaultprinter=yes print.prompt=no print.buttons=no print.preview.buttons=no print.cliptext=no print.overrideprintjob=no print.collate=yes print.background=no print.preview.background=no print.preview.outline=yes hidegrayline=no showbackcoloronxp=no picture.file="" )
+header(height=0 color="536870912" transparency="0" gradient.color="8421504" gradient.transparency="0" gradient.angle="0" brushmode="0" gradient.repetition.mode="0" gradient.repetition.count="0" gradient.repetition.length="100" gradient.focus="0" gradient.scale="100" gradient.spread="100" )
+summary(height=0 color="536870912" transparency="0" gradient.color="8421504" gradient.transparency="0" gradient.angle="0" brushmode="0" gradient.repetition.mode="0" gradient.repetition.count="0" gradient.repetition.length="100" gradient.focus="0" gradient.scale="100" gradient.spread="100" )
+footer(height=0 color="536870912" transparency="0" gradient.color="8421504" gradient.transparency="0" gradient.angle="0" brushmode="0" gradient.repetition.mode="0" gradient.repetition.count="0" gradient.repetition.length="100" gradient.focus="0" gradient.scale="100" gradient.spread="100" )
+detail(height=140 color="536870912" transparency="0" gradient.color="8421504" gradient.transparency="0" gradient.angle="0" brushmode="0" gradient.repetition.mode="0" gradient.repetition.count="0" gradient.repetition.length="100" gradient.focus="0" gradient.scale="100" gradient.spread="100" )
+table(column=(type=char(12) updatewhereclause=yes key=yes name=sys_id dbname="FW_DOCU_MST.SYS_ID" )
+ column=(type=char(8) updatewhereclause=yes key=yes name=corp_gr dbname="FW_DOCU_MST.CORP_GR" )
+ column=(type=char(7) updatewhereclause=yes key=yes name=board_no dbname="FW_DOCU_MST.BOARD_NO" )
+ column=(type=decimal(0) updatewhereclause=yes key=yes name=docu_no dbname="FW_DOCU_MST.DOCU_NO" )
+ column=(type=char(500) updatewhereclause=yes name=docu_title dbname="FW_DOCU_MST.DOCU_TITLE" )
+ column=(type=decimal(0) updatewhereclause=yes name=tree_level dbname="FW_DOCU_MST.TREE_LEVEL" )
+ column=(type=datetime updatewhereclause=yes name=start_dtm dbname="FW_DOCU_MST.START_DTM" )
+ column=(type=datetime updatewhereclause=yes name=end_dtm dbname="FW_DOCU_MST.END_DTM" )
+ column=(type=char(5) updatewhereclause=yes name=memb_type dbname="FW_DOCU_MST.MEMB_TYPE" values="전체조회	all/부분조회	part/" )
+ column=(type=char(7) updatewhereclause=yes name=role_no dbname="FW_DOCU_MST.ROLE_NO" )
+ column=(type=char(1) updatewhereclause=yes name=hold_yn dbname="FW_DOCU_MST.HOLD_YN" values="공지허가	N/공지보류	Y/" )
+ column=(type=char(200) updatewhereclause=yes name=writer_name dbname="FW_DOCU_MST.WRITER_NAME" )
+ column=(type=char(16) updatewhereclause=yes name=linked_pgm_no dbname="FW_DOCU_MST.LINKED_PGM_NO" )
+ column=(type=char(20) updatewhereclause=yes name=reg_dt dbname="FW_DOCU_MST.REG_DT" )
+ column=(type=char(12) updatewhereclause=yes name=reg_id dbname="FW_DOCU_MST.REG_ID" )
+ column=(type=char(20) updatewhereclause=yes name=upd_dt dbname="FW_DOCU_MST.UPD_DT" )
+ column=(type=char(12) updatewhereclause=yes name=upd_id dbname="FW_DOCU_MST.UPD_ID" )
+ retrieve="SELECT  la.sys_id
+      , la.corp_gr
+      , la.board_no
+      , la.docu_no
+      , la.docu_title
+      , la.tree_level
+      , la.start_dtm
+      , la.end_dtm
+      , la.memb_type
+      , la.role_no
+      , la.hold_yn
+      , la.writer_name
+      , la.linked_pgm_no
+      , la.reg_dt
+      , la.reg_id
+      , la.upd_dt
+      , la.upd_id
+FROM    fw_docu_mst la
+WHERE   la.sys_id   = :as_sys_id
+  AND   la.corp_gr  LIKE :as_corp_gr
+  AND   la.board_no = :as_board_no
+  AND   la.docu_no  = :al_docu_no
+" update="fw_docu_mst" updatewhere=0 updatekeyinplace=no arguments=(("as_sys_id", string),("as_corp_gr", string),("as_board_no", string),("al_docu_no", number)) )
+column(band=detail id=12 alignment="2" tabsequence=32766 border="2" color="33554432" x="274" y="36" height="84" width="407" format="[general]" html.valueishtml="0"  name=writer_name visible="1" edit.limit=0 edit.case=any edit.focusrectangle=no edit.autoselect=no  font.face="맑은 고딕" font.height="-10" font.weight="400"  font.family="1" font.pitch="2" font.charset="129" background.mode="1" background.color="536870912" background.transparency="0" background.gradient.color="8421504" background.gradient.transparency="0" background.gradient.angle="0" background.brushmode="0" background.gradient.repetition.mode="0" background.gradient.repetition.count="0" background.gradient.repetition.length="100" background.gradient.focus="0" background.gradient.scale="100" background.gradient.spread="100" tooltip.backcolor="134217752" tooltip.delay.initial="0" tooltip.delay.visible="32000" tooltip.enabled="0" tooltip.hasclosebutton="0" tooltip.icon="0" tooltip.isbubble="0" tooltip.maxwidth="0" tooltip.textcolor="134217751" tooltip.transparency="0" transparency="0" )
+text(band=detail alignment="1" text="작성자" border="2" color="33554432" x="41" y="36" height="84" width="210" html.valueishtml="0"  name=writer_name_t visible="1"  font.face="맑은 고딕" font.height="-10" font.weight="400"  font.family="1" font.pitch="2" font.charset="129" background.mode="1" background.color="536870912" background.transparency="0" background.gradient.color="8421504" background.gradient.transparency="0" background.gradient.angle="0" background.brushmode="0" background.gradient.repetition.mode="0" background.gradient.repetition.count="0" background.gradient.repetition.length="100" background.gradient.focus="0" background.gradient.scale="100" background.gradient.spread="100" tooltip.backcolor="134217752" tooltip.delay.initial="0" tooltip.delay.visible="32000" tooltip.enabled="0" tooltip.hasclosebutton="0" tooltip.icon="0" tooltip.isbubble="0" tooltip.maxwidth="0" tooltip.textcolor="134217751" tooltip.transparency="0" transparency="0" )
+text(band=detail alignment="1" text="제 목" border="2" color="33554432" x="736" y="36" height="84" width="201" html.valueishtml="0"  name=docu_title_t visible="1"  font.face="맑은 고딕" font.height="-10" font.weight="400"  font.family="1" font.pitch="2" font.charset="129" background.mode="1" background.color="536870912" background.transparency="0" background.gradient.color="8421504" background.gradient.transparency="0" background.gradient.angle="0" background.brushmode="0" background.gradient.repetition.mode="0" background.gradient.repetition.count="0" background.gradient.repetition.length="100" background.gradient.focus="0" background.gradient.scale="100" background.gradient.spread="100" tooltip.backcolor="134217752" tooltip.delay.initial="0" tooltip.delay.visible="32000" tooltip.enabled="0" tooltip.hasclosebutton="0" tooltip.icon="0" tooltip.isbubble="0" tooltip.maxwidth="0" tooltip.textcolor="134217751" tooltip.transparency="0" transparency="0" )
+column(band=detail id=5 alignment="0" tabsequence=32766 border="2" color="33554432" x="960" y="36" height="84" width="1993" format=" [general]" html.valueishtml="0"  name=docu_title visible="1" edit.limit=200 edit.case=any edit.focusrectangle=no edit.autoselect=yes edit.autohscroll=yes  font.face="맑은 고딕" font.height="-10" font.weight="400"  font.family="1" font.pitch="2" font.charset="129" background.mode="1" background.color="536870912" background.transparency="0" background.gradient.color="8421504" background.gradient.transparency="0" background.gradient.angle="0" background.brushmode="0" background.gradient.repetition.mode="0" background.gradient.repetition.count="0" background.gradient.repetition.length="100" background.gradient.focus="0" background.gradient.scale="100" background.gradient.spread="100" tooltip.backcolor="134217752" tooltip.delay.initial="0" tooltip.delay.visible="32000" tooltip.enabled="0" tooltip.hasclosebutton="0" tooltip.icon="0" tooltip.isbubble="0" tooltip.maxwidth="0" tooltip.textcolor="134217751" tooltip.transparency="0" transparency="0" )
+text(band=detail alignment="1" text="일 시" border="2" color="33554432" x="3013" y="36" height="84" width="201" html.valueishtml="0"  name=t_1 visible="1"  font.face="맑은 고딕" font.height="-10" font.weight="400"  font.family="1" font.pitch="2" font.charset="129" background.mode="1" background.color="536870912" background.transparency="0" background.gradient.color="8421504" background.gradient.transparency="0" background.gradient.angle="0" background.brushmode="0" background.gradient.repetition.mode="0" background.gradient.repetition.count="0" background.gradient.repetition.length="100" background.gradient.focus="0" background.gradient.scale="100" background.gradient.spread="100" tooltip.backcolor="134217752" tooltip.delay.initial="0" tooltip.delay.visible="32000" tooltip.enabled="0" tooltip.hasclosebutton="0" tooltip.icon="0" tooltip.isbubble="0" tooltip.maxwidth="0" tooltip.textcolor="134217751" tooltip.transparency="0" transparency="0" )
+column(band=detail id=7 alignment="2" tabsequence=0 border="2" color="33554432" x="3237" y="36" height="84" width="343" format="yyyy.mm.dd" html.valueishtml="0"  name=start_dtm visible="1" edit.limit=0 edit.case=any edit.focusrectangle=no edit.autoselect=no  font.face="맑은 고딕" font.height="-10" font.weight="400"  font.family="3" font.pitch="2" font.charset="129" background.mode="1" background.color="536870912" background.transparency="0" background.gradient.color="8421504" background.gradient.transparency="0" background.gradient.angle="0" background.brushmode="0" background.gradient.repetition.mode="0" background.gradient.repetition.count="0" background.gradient.repetition.length="100" background.gradient.focus="0" background.gradient.scale="100" background.gradient.spread="100" tooltip.backcolor="134217752" tooltip.delay.initial="0" tooltip.delay.visible="32000" tooltip.enabled="0" tooltip.hasclosebutton="0" tooltip.icon="0" tooltip.isbubble="0" tooltip.maxwidth="0" tooltip.textcolor="134217751" tooltip.transparency="0" transparency="0" )
+htmltable(border="1" )
+htmlgen(clientevents="1" clientvalidation="1" clientcomputedfields="1" clientformatting="0" clientscriptable="0" generatejavascript="1" encodeselflinkargs="1" netscapelayers="0" pagingmethod=0 generatedddwframes="1" )
+xhtmlgen() cssgen(sessionspecific="0" )
+xmlgen(inline="0" )
+xsltgen()
+jsgen()
+export.xml(headgroups="1" includewhitespace="0" metadatatype=0 savemetadata=0 )
+import.xml()
+export.pdf(method=0 distill.custompostscript="0" xslfop.print="0" )
+export.xhtml()
+ 

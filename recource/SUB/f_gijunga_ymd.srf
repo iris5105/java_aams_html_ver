@@ -1,0 +1,33 @@
+﻿global type f_gijunga_ymd from function_object
+end type
+
+forward prototypes
+global function datetime f_gijunga_ymd (string arg_gubun)
+end prototypes
+
+global function datetime f_gijunga_ymd (string arg_gubun);DATETIME   ldt
+
+// 최종 기준가계산일
+
+IF arg_gubun='+'  Then
+   SELECT F_OPEN_YMD (gijunga_ymd, '+1') - 1
+     INTO :ldt
+     FROM SZX0AA t1
+    WHERE corp_gr = :gaa.corp_gr;
+
+ElseIF f_notnull (arg_gubun)  Then
+   SELECT F_OPEN_YMD (gijunga_ymd, :arg_gubun)
+     INTO :ldt
+     FROM SZX0AA t1
+    WHERE corp_gr = :gaa.corp_gr;
+Else
+   SELECT gijunga_ymd
+     INTO :ldt
+     FROM SZX0AA t1
+    WHERE corp_gr = :gaa.corp_gr;
+End IF
+ldt = SQLCA.getitemdatetime (1)
+
+RETURN   ldt
+end function
+

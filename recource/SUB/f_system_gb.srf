@@ -1,0 +1,35 @@
+﻿global type f_system_gb from function_object
+end type
+
+forward prototypes
+global function string f_system_gb (string ag_system, string ag_unyong)
+end prototypes
+
+global function string f_system_gb (string ag_system, string ag_unyong);String	ls_rtn
+
+IF	ag_unyong='B0907'	Then
+	ls_rtn = 'ALL'
+Else
+	CHOOSE CASE ag_system
+		CASE '1','5','AI','CP'
+			ls_rtn = 'AITAS'
+		CASE 'MG','AS','WE','FE','CF','OP'
+			ls_rtn = 'ALL'
+		CASE '2','BI'
+			ls_rtn = 'BIGS'
+		CASE '4','CM'
+			ls_rtn = 'CMS'
+		CASE '3','ET','NP'
+			ls_rtn = 'ETS'
+		CASE 'TR'
+			ls_rtn = 'ai Trader'
+		CASE 'FX'
+			ls_rtn = 'ETS-FX'
+		CASE ELSE
+			ls_rtn = '%'
+	END CHOOSE
+End IF
+
+RETURN	ls_rtn
+end function
+
