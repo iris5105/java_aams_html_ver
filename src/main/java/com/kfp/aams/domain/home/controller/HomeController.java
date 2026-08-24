@@ -1,9 +1,11 @@
-package com.kfp.aams.controller;
+package com.kfp.aams.domain.home.controller;
 
-import com.kfp.aams.dto.*;
+import com.kfp.aams.domain.auth.dto.*;
+import com.kfp.aams.domain.home.dto.*;
+import com.kfp.aams.domain.menu.dto.*;
 import com.kfp.aams.security.UserPrincipal;
-import com.kfp.aams.service.HomeService;
-import com.kfp.aams.service.MenuService;
+import com.kfp.aams.domain.home.service.HomeService;
+import com.kfp.aams.domain.menu.service.MenuService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Controller;

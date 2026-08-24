@@ -1,11 +1,11 @@
-package com.kfp.aams.repository;
+package com.kfp.aams.domain.home.repository;
 
-import com.kfp.aams.dto.CompanyDto;
-import com.kfp.aams.dto.DayTrDto;
-import com.kfp.aams.dto.ProposalDto;
-import com.kfp.aams.entity.QFwDayTr;
-import com.kfp.aams.entity.QProposal;
-import com.kfp.aams.entity.QSzx0aa;
+import com.kfp.aams.domain.home.dto.CompanyDto;
+import com.kfp.aams.domain.home.dto.DayTrDto;
+import com.kfp.aams.domain.home.dto.ProposalDto;
+import com.kfp.aams.domain.home.entity.QFwDayTr;
+import com.kfp.aams.domain.home.entity.QProposal;
+import com.kfp.aams.domain.home.entity.QSzx0aa;
 import com.kfp.aams.util.QueryDslUtils;
 import com.querydsl.core.types.Projections;
 import com.querydsl.core.types.dsl.StringTemplate;

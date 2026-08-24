@@ -1,4 +1,4 @@
-package com.kfp.aams.entity;
+package com.kfp.aams.domain.home.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;

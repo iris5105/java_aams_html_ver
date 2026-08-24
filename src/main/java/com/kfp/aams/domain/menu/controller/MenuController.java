@@ -1,7 +1,7 @@
-package com.kfp.aams.controller;
+package com.kfp.aams.domain.menu.controller;
 
-import com.kfp.aams.dto.MenuDto;
-import com.kfp.aams.service.MenuService;
+import com.kfp.aams.domain.menu.dto.MenuDto;
+import com.kfp.aams.domain.menu.service.MenuService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;

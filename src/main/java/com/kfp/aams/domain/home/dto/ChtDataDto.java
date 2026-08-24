@@ -1,4 +1,4 @@
-package com.kfp.aams.dto;
+package com.kfp.aams.domain.home.dto;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;

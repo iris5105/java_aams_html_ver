@@ -1,6 +1,6 @@
 package com.kfp.aams.security;
 
-import com.kfp.aams.dto.UserDto;
+import com.kfp.aams.domain.auth.dto.UserDto;
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
 import lombok.extern.slf4j.Slf4j;

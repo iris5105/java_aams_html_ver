@@ -1,4 +1,4 @@
-package com.kfp.aams.entity;
+package com.kfp.aams.domain.home.entity;
 
 import lombok.AllArgsConstructor;
 import lombok.EqualsAndHashCode;

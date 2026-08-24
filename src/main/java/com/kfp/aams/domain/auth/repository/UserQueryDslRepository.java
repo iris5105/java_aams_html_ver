@@ -1,9 +1,9 @@
-package com.kfp.aams.repository;
+package com.kfp.aams.domain.auth.repository;
 
-import com.kfp.aams.dto.UserDto;
-import com.kfp.aams.entity.QFwUserMst;
+import com.kfp.aams.domain.auth.dto.UserDto;
+import com.kfp.aams.domain.auth.entity.QFwUserMst;
+import com.kfp.aams.domain.home.entity.QSzx0aa;
 import com.kfp.aams.util.QueryDslUtils;
-import com.kfp.aams.entity.QSzx0aa;
 import com.querydsl.core.types.Projections;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import lombok.RequiredArgsConstructor;

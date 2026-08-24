@@ -1,6 +1,6 @@
-package com.kfp.aams.mapper;
+package com.kfp.aams.domain.menu.mapper;
 
-import com.kfp.aams.dto.MenuDto;
+import com.kfp.aams.domain.menu.dto.MenuDto;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import java.util.List;

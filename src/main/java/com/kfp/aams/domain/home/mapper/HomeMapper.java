@@ -1,6 +1,8 @@
-package com.kfp.aams.mapper;
+package com.kfp.aams.domain.home.mapper;
 
-import com.kfp.aams.dto.*;
+import com.kfp.aams.domain.auth.dto.*;
+import com.kfp.aams.domain.home.dto.*;
+import com.kfp.aams.domain.menu.dto.*;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import java.util.List;

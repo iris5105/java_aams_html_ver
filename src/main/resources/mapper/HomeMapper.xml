@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
-<mapper namespace="com.kfp.aams.mapper.HomeMapper">
+<mapper namespace="com.kfp.aams.domain.home.mapper.HomeMapper">
 
 
     <!-- d_home04: Multi-table Subquery (SJG1JC + SZX0AA) -->
     <!-- 1. 공모기본정보 -->
-    <select id="selectHome04List" resultType="com.kfp.aams.dto.PublicStockDto">
+    <select id="selectHome04List" resultType="com.kfp.aams.domain.home.dto.PublicStockDto">
         SELECT t1.JC_JOIN      AS jcJoin
              , t1.ymd          AS ymd
              , t1.CY_GB        AS cyGb
@@ -30,7 +30,7 @@
 
  <!-- d_home05: Multi-table JOIN (sjg1jc_tr + sjg1jc) -->
      <!-- 2. 수요예측참여내역(최근1개월) -->
-    <select id="selectHome05List" resultType="com.kfp.aams.dto.SubscriptionDto">
+    <select id="selectHome05List" resultType="com.kfp.aams.domain.home.dto.SubscriptionDto">
         SELECT tr.corp_gr            AS corpGr
              , tr.JC_JOIN            AS jcJoin
              , tr.jg_tr_co_cd        AS jgTrCoCd
@@ -70,7 +70,7 @@
 
     <!-- d_home02: Multi-table JOIN (SZM0GI + SZM0IA) -->
     <!--  4-1. 당월결산계산List-->
-    <select id="selectHome02List" resultType="com.kfp.aams.dto.GyulAccountDto">
+    <select id="selectHome02List" resultType="com.kfp.aams.domain.home.dto.GyulAccountDto">
         SELECT t1.af_gyul_ymd AS gyulYmd
              , t1.fund_cd     AS fundCd
              , ia.fund_nm     AS fundNm
@@ -85,7 +85,7 @@
     
  <!-- d_home03: Multi-table JOIN (SCM0CM + SCJ0IG + SCM0CJ + SZM0IA + SHM0HM + SHJ0IG + SHM0HJ) -->
     <!-- 4-2. 당월이자(만기) -->
-    <select id="selectHome03List" resultType="com.kfp.aams.dto.RateChangeDto">
+    <select id="selectHome03List" resultType="com.kfp.aams.domain.home.dto.RateChangeDto">
         SELECT DISTINCT 
                cj.jm_cd      AS jmCd
              , cj.cj_nm      AS cjNm
@@ -137,7 +137,7 @@
    
 
     <!-- d_home5_notice_1: Multi-table Subquery (fw_docu_mst + fw_docu_log) -->
-    <select id="selectHome5NoticeList" resultType="com.kfp.aams.dto.NoticeDto">
+    <select id="selectHome5NoticeList" resultType="com.kfp.aams.domain.home.dto.NoticeDto">
         SELECT la.sys_id        AS sysId
              , la.board_no      AS boardNo
              , la.docu_no       AS docuNo
@@ -157,7 +157,7 @@
     </select>
 
     <!-- 순자산 및 계좌현황 Chart (uo_cht1 / dw_cht9) -->
-    <select id="selectChtDataList" resultType="com.kfp.aams.dto.ChtDataDto">
+    <select id="selectChtDataList" resultType="com.kfp.aams.domain.home.dto.ChtDataDto">
         SELECT 'Y'                                                     AS chtYn
              , TO_CHAR(t1.ymd, 'MM') || '월 ' || TO_CHAR(t1.ymd, 'W') || '주' AS cv2Chtnm
              , NVL(t1.g90104, 0) / 100000000                           AS cv2Chtvalue001

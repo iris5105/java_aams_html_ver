@@ -1,9 +1,9 @@
-package com.kfp.aams.controller;
+package com.kfp.aams.domain.auth.controller;
 
-import com.kfp.aams.dto.LoginRequestDto;
-import com.kfp.aams.dto.LoginResponseDto;
-import com.kfp.aams.dto.UserDto;
-import com.kfp.aams.repository.UserQueryDslRepository;
+import com.kfp.aams.domain.auth.dto.LoginRequestDto;
+import com.kfp.aams.domain.auth.dto.LoginResponseDto;
+import com.kfp.aams.domain.auth.dto.UserDto;
+import com.kfp.aams.domain.auth.repository.UserQueryDslRepository;
 import com.kfp.aams.security.JwtProvider;
 import com.kfp.aams.security.UserPrincipal;
 import jakarta.servlet.http.Cookie;

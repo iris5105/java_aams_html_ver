@@ -1,6 +1,6 @@
 package com.kfp.aams.security;
 
-import com.kfp.aams.dto.UserDto;
+import com.kfp.aams.domain.auth.dto.UserDto;
 import lombok.Getter;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;

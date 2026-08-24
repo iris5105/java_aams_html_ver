@@ -1,7 +1,7 @@
-package com.kfp.aams.service;
+package com.kfp.aams.domain.menu.service;
 
-import com.kfp.aams.dto.MenuDto;
-import com.kfp.aams.mapper.MenuMapper;
+import com.kfp.aams.domain.menu.dto.MenuDto;
+import com.kfp.aams.domain.menu.mapper.MenuMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
