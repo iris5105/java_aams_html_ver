@@ -117,4 +117,25 @@ public class UserPrincipal implements UserDetails {
     public boolean isEnabled() {
         return true;
     }
+
+    public UserDto getUserDto() {
+        return UserDto.builder()
+                .userId(this.userId)
+                .userNm(this.userNm)
+                .outYmd(this.outYmd)
+                .deptCd(this.deptCd)
+                .deptNm(this.deptNm)
+                .inYmd(this.inYmd)
+                .corpGr(this.corpGr)
+                .adminYn(this.adminYn)
+                .managerYn(this.managerYn)
+                .watchmanYn(this.watchmanYn)
+                .bookmarkStart(this.bookmarkStart)
+                .lastConnect(this.lastConnect)
+                .encEMail(this.encEMail)
+                .companyName(this.companyName)
+                .hyunYmd(this.hyunYmd)
+                .customerGr(this.customerGr)
+                .build();
+    }
 }
