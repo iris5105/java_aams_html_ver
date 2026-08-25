@@ -1,0 +1,31 @@
+﻿global type f_ksd_gijunga_ymd from function_object
+end type
+
+forward prototypes
+global function datetime f_ksd_gijunga_ymd (string arg_gubun)
+end prototypes
+
+global function datetime f_ksd_gijunga_ymd (string arg_gubun);DateTime   ldt
+
+DATETIME ldt_f_value
+
+// 최종 기준가계산일
+SELECT  gijunga_ymd
+  INTO  :ldt
+FROM    szx0aa t1
+WHERE   corp_gr = :gaa.corp_gr;
+
+ldt = SQLCA.getitemdatetime (1)
+
+IF f_notnull (arg_gubun)   Then
+   SELECT  F_OPEN_YMD( :ldt, :arg_gubun)
+     INTO  :ldt_f_value
+   FROM    DUAL;
+   ldt_f_value = SQLCA.getitemdatetime (1)
+
+   ldt = ldt_f_value
+End IF
+
+RETURN   ldt
+end function
+

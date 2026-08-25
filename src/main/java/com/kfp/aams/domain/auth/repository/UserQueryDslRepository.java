@@ -37,7 +37,7 @@ public class UserQueryDslRepository {
                         user.managerYn.as("managerYn"),
                         user.watchmanYn.as("watchmanYn"),
                         user.bookmarkStart.as("bookmarkStart"),
-                        user.lastConnect.as("lastConnect"),
+                        QueryDslUtils.toChar(user.lastConnect, "yyyy-MM-dd HH:mm:ss").as("lastConnect"),
                         QueryDslUtils.toDecrypts(user.encEMail).as("encEMail"),
                         company.companyName.as("companyName"),
                         company.hyunYmd.as("hyunYmd"),

@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.kfp.aams.domain.common.mapper.DddwMapper">
+
+    <select id="selectWdddwctl" resultType="com.kfp.aams.domain.common.dto.WdddwctlDto">
+        SELECT DDDW_ID     AS dddwId
+             , SEQ         AS seq
+             , SQL_COLUMNS AS sqlColumns
+             , SQL_TABLES  AS sqlTables
+             , SQL_WHERE   AS sqlWhere
+             , SQL_REMARK  AS sqlRemark
+          FROM WDDDWCTL
+         WHERE (UPPER(DDDW_ID || '_' || TO_CHAR(SEQ)) = UPPER(#{dddwNm}))
+            OR (UPPER(DDDW_ID) = UPPER(#{dddwId}) <if test="seq != null">AND SEQ = #{seq}</if>)
+           AND ROWNUM = 1
+    </select>
+
+</mapper>

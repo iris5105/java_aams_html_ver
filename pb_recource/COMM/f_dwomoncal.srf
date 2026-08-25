@@ -1,0 +1,61 @@
+﻿global type f_dwomoncal from function_object
+end type
+
+forward prototypes
+global function integer f_dwomoncal (window aw_win, fw_u_dwo adw_target, long al_row, string as_col1, string as_col2)
+end prototypes
+
+global function integer f_dwomoncal (window aw_win, fw_u_dwo adw_target, long al_row, string as_col1, string as_col2);IF NOT IsValid(adw_target) OR al_row = 0 THEN RETURN -1
+
+BOOLEAN lb_tab1 = FALSE, lb_tab2 = FALSE
+STRING  ls_protect = ''
+
+IF f_notnull(as_col1) THEN	// 1. 첫 번째 컬럼(as_col1) 상태 체크
+	IF Dec(adw_target.Describe(as_col1 + '.tabsequence')) > 0 THEN lb_tab1 = TRUE
+	
+	ls_protect = adw_target.Describe(as_col1 + '.protect')
+	IF Pos(ls_protect, '~t') > 0 THEN
+		ls_protect = MID (ls_protect, POS (ls_protect, '~t') + 1)
+		ls_protect = LEFT (ls_protect, LEN (ls_protect) - 1)
+		ls_protect = adw_target.Describe('Evaluate("' + ls_protect + '", ' + String(al_row) + ')')
+		IF ls_protect = '0' THEN lb_tab1 = TRUE ELSE lb_tab1 = FALSE
+	END IF
+END IF
+
+IF f_notnull(as_col2) THEN	// 2. 두 번째 컬럼(as_col2) 상태 체크
+	IF Dec(adw_target.Describe(as_col2 + '.tabsequence')) > 0 THEN lb_tab2 = TRUE
+	
+	ls_protect = adw_target.Describe(as_col2 + '.protect')
+	IF Pos(ls_protect, '~t') > 0 THEN
+		ls_protect = MID (ls_protect, POS (ls_protect, '~t') + 1)
+		ls_protect = LEFT (ls_protect, LEN (ls_protect) - 1)
+		ls_protect = adw_target.Describe('Evaluate("' + ls_protect + '", ' + String(al_row) + ')')
+		IF ls_protect = '0' THEN lb_tab2 = TRUE ELSE lb_tab2 = FALSE
+	END IF
+END IF
+
+s_calendar lstr_calendar
+
+lstr_calendar.w_obj   = aw_win
+lstr_calendar.dw_obj1 = adw_target
+lstr_calendar.al_row  = al_row
+lstr_calendar.as_col1 = as_col1
+lstr_calendar.as_col2 = as_col2
+
+IF NOT lb_tab1 THEN
+	f_messageBox('ERR', '조회상태시 우측버튼 사용불가')
+	RETURN -1
+ELSEIF f_notnull(as_col2) AND NOT lb_tab2 THEN
+	f_messageBox('ERR', '조회상태시 우측버튼 사용불가')
+	RETURN -1
+END IF
+
+IF lb_tab1 AND lb_tab2 THEN
+	OpenWithParm(w_calendar4mon2, lstr_calendar) // 2개월 달력
+ELSE
+	OpenWithParm(w_calendar4mon1, lstr_calendar) // 1개월 달력
+END IF
+
+RETURN 1
+end function
+

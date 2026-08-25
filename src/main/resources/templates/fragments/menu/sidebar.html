@@ -3,18 +3,25 @@
 <!-- Left Menu Tree Sidebar Fragment -->
 <aside class="left-sidebar" th:fragment="leftSidebar">
     <div class="sidebar-search">
-        <input type="text" class="search-input" placeholder="화면 명칭 (번호)">
+        <input type="text" id="sidebarSearchInput" class="search-input" placeholder="화면 명칭 (번호)" oninput="filterSidebarMenu(this.value)">
     </div>
     <div class="sidebar-menu" id="sidebarMenuContainer">
         <th:block th:if="${sideMenuList != null and not #lists.isEmpty(sideMenuList)}">
-            <div th:each="item : ${sideMenuList}" class="menu-item" th:data-pgm-no="${item.pgmNo}">
-                <i class="fa-solid fa-file-code"></i>
-                <span th:text="${item.displayNm}"></span>
+            <div th:each="item : ${sideMenuList}" 
+                 class="tree-menu-item" 
+                 th:classappend="${activePgmNo != null and activePgmNo == item.pgmNo} ? 'active' : ''"
+                 th:data-pgm-no="${item.pgmNo}"
+                 th:data-pgm-id="${item.pgmId}"
+                 th:data-title="${item.displayNm}"
+                 th:data-breadcrumb="${item.fullpgm2 != null ? item.fullpgm2 : (item.fullpgm != null ? item.fullpgm : item.displayNm)}"
+                 onclick="onSidebarMenuClick(this)">
+                <i class="fa-regular fa-file-lines menu-icon"></i>
+                <span class="menu-label" th:text="${item.displayNm}"></span>
             </div>
         </th:block>
     </div>
     <div class="sidebar-footer">
-        <i class="fa-solid fa-cube"></i> AAMS System
+        <i class="fa-solid fa-cube"></i> AAMS Asset Management
     </div>
 </aside>
 </html>

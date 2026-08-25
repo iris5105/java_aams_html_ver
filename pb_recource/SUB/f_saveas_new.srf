@@ -1,0 +1,175 @@
+﻿global type f_saveas_new from function_object
+end type
+
+forward prototypes
+global subroutine f_saveas_new (fw_u_dwo ag_dw)
+end prototypes
+
+global subroutine f_saveas_new (fw_u_dwo ag_dw);STRING   ls_ColNm [], ls_Excel_Col [], ls_unvisible_col [], ls_undetail_col []
+STRING   setting, ls_col_nm, ls_coltype, ls_syntax,   ls_data, ls_col_style, ls_band, ls_title_nm, ls_db_name
+
+LONG	i, iColCnt, lRow, lMaxRow, j, k, li_undetail
+LONG  ll_X [], ll_Y [], ll_ID []
+
+ads_jTier   lds_excel
+
+iColCnt = integer (ag_dw.object.DataWindow.Column.Count)
+
+lMaxRow = ag_dw.rowcount ()
+IF ag_dw.describe ('DataWindow.Processing')<>'4'   Then
+   FOR  i = 1  TO  iColCnt
+      ls_col_nm = ag_dw.describe ('#' + string (i) + ".name")
+      setting = ag_dw.describe (ls_col_nm+".x")
+      ls_band = ag_dw.describe (ls_col_nm+".band")
+      IF setting<>'?' and ag_dw.describe ('#' + string (i) + ".visible")<>'0'   Then
+         IF ls_band='detail'   Then
+            j++
+            ll_X [j]  = long (setting)
+            ll_Y [j]  = long (ag_dw.describe (ls_col_nm+".y"))
+            ll_ID [j] = long (ag_dw.describe (ls_col_nm+".id"))
+            ls_ColNm [j] = ls_col_nm
+         Else
+            li_undetail++
+            ls_undetail_col [li_undetail] = ls_col_nm
+         End IF
+      Else
+         k++
+         ls_unvisible_col [k] = ls_col_nm
+      End IF
+   NEXT
+
+   //x좌표가 같으면 Y좌표로 Y좌표가 같으면 ID로
+   FOR  i = 1  TO  UpperBound (ls_ColNm)
+      k = 1
+      FOR  j = 1  TO  UpperBound (ls_ColNm)
+         IF ls_ColNm [i]<>ls_ColNm [j]   Then
+            IF ll_X [i]>ll_X [j]   Then
+               k++
+            ElseIF ll_X [i]=ll_X [j] THEN
+               IF ll_Y [i]>ll_Y [j]   Then
+                  k++
+               ElseIF ll_Y [i]=ll_Y [j] THEN
+                  IF ll_ID [i]>ll_ID [j] THEN k++
+               End IF
+            End IF
+         End IF
+      NEXT
+      ls_Excel_Col [k] = ls_ColNm [i]
+   NEXT
+
+//   IF gaa.login = 'yjs1992@hitel.net'	Then
+//		//detail이외의 컬럼 뒤에다 붙이기
+//		k = UpperBound (ls_Excel_Col)
+//		FOR  i = 1  TO  UpperBound (ls_undetail_col)
+//			k++
+//			ls_Excel_Col [k] = ls_undetail_col [i]
+//		NEXT
+//	   //unvisible 컬럼 뒤에다 붙이기
+//      k = UpperBound (ls_Excel_Col)
+//      FOR  i = 1  TO  UpperBound (ls_unvisible_col)
+//         k++
+//         ls_Excel_Col [k] = ls_unvisible_col [i]
+//      NEXT
+//   End IF
+
+	lds_excel = CREATE ads_jTier
+   FOR  i = 1  TO  UpperBound (ls_Excel_Col)
+      ls_coltype =  ag_dw.describe (ls_Excel_Col [i]+".coltype")
+      IF f_nvl (ag_dw.describe (ls_Excel_Col [i]+".tag"), ' ')<>'TIME'   Then
+         IF Left (ls_coltype,4)='date' THEN ls_coltype = 'char(10)'
+      End IF
+      IF Left (ls_coltype,7)='decimal' THEN ls_coltype = 'number'
+      ls_syntax += "column=(type="+ls_coltype+" updatewhereclause=no name="+ls_Excel_Col [i]+" dbname='"+ls_Excel_Col [i]+"')"
+      ls_title_nm = ag_dw.describe (ls_Excel_Col [i] + "_t.text")
+      IF TRIM (ls_title_nm)>'' And ls_title_nm<>'!'   Then
+      Else
+         ls_title_nm = ls_Excel_Col [i]
+      End IF
+      ls_db_name += ls_Excel_Col [i] + ".dbname = '" + ls_title_nm + "'"
+   NEXT
+   ls_syntax = "release 12.6; table("+ls_syntax+") "
+
+   lds_excel.CREATE (ls_syntax)
+   lds_excel.modify (ls_db_name) // Header title 인쇄
+   // 자료 SetItem
+   lds_excel.reset ()
+   FOR  lRow = 1  TO  lMaxRow
+      lds_excel.insertrow (0)
+      FOR  i = 1  TO  UpperBound (ls_Excel_Col)
+         CHOOSE CASE ag_dw.describe (ls_Excel_Col [i]+".coltype")
+            CASE 'datetime'
+               IF ag_dw.describe (ls_Excel_Col [i]+".tag")='TIME'   Then
+                  lds_excel.SetItem (lRow, ls_Excel_Col [i] , ag_dw.GetItemdatetime (lRow, ls_Excel_Col [i]))
+               Else
+                  ls_data = string (ag_dw.GetItemdatetime (lRow, ls_Excel_Col [i]), 'yyyy.mm.dd')
+                  lds_excel.SetItem (lRow, ls_Excel_Col [i], ls_data)
+               End IF
+            CASE 'date'
+               ls_data = string (ag_dw.GetItemdate (lRow, ls_Excel_Col [i]), 'yyyy.mm.dd')
+               lds_excel.SetItem (lRow, ls_Excel_Col [i], ls_data)
+            CASE Else
+               IF Left (ag_dw.describe (ls_Excel_Col [i]+".coltype"),7)='decimal'   Then
+                  lds_excel.SetItem (lRow, ls_Excel_Col [i], ag_dw.GetitemDecimal (lRow, ls_Excel_Col [i]))
+               ElseIF Left (ag_dw.describe (ls_Excel_Col [i]+".coltype"),6)='number' OR Left (ag_dw.describe (ls_Excel_Col [i]+".coltype"),4)='long' THEN
+                  lds_excel.SetItem (lRow, ls_Excel_Col [i], ag_dw.GetitemNumber (lRow, ls_Excel_Col [i]))
+               Else
+                  ls_col_style = ag_dw.describe (ls_Excel_Col [i]+".edit.style")
+                  IF ls_col_style='dddw' OR ls_col_style='ddlb'   Then
+                     ls_data = ag_dw.describe ("Evaluate('LookupDisplay(" + ls_Excel_Col [i]+ + ")' , " + string (lRow) + ")")
+                  Else
+                     ls_data = ag_dw.GetItemString (lRow, ls_Excel_Col [i])
+                  End IF
+                  lds_excel.SetItem (lRow, ls_Excel_Col [i], ls_data)
+               End IF
+         END CHOOSE
+      NEXT
+   NEXT
+
+   STRING   ls_path, ls_file
+
+   IF GetFileSaveName ("저장할 화일명 ", ls_path, ls_file, "xlsx", "Excel Files (*.xlsx), *.xlsx,CSV Files (*.csv),*.csv,Text Files (*.txt),*.txt", gaa.excel)=1   Then
+      CHOOSE CASE UPPER (Right (ls_path,3))
+         CASE 'TXT'
+            lds_excel.SaveAs (ls_path, Text!, TRUE)
+         CASE 'CSV'
+            lds_excel.SaveAs (ls_path, CSV!, TRUE)
+         CASE Else
+            lds_excel.SaveAs (gaa.temp + 'temp.xls', Excel5!, TRUE)
+      END CHOOSE
+      DESTROY lds_excel
+      ChangeDirectory (gnv_vari.basepath)
+   Else
+      DESTROY lds_excel
+      ChangeDirectory (gnv_vari.basepath)
+      RETURN
+   End IF
+
+   IF f_messageBox ('I002', '작업이 완료 되었습니다.~r파일을 여시겠습니까?')=2 THEN RETURN
+
+	IF	lower (right (ls_path,4))='xlsx'	Then
+		long	ll_rtn
+		oleobject	lole_excel
+		lole_excel = Create oleobject
+		ll_rtn = lole_excel.ConnectToNewObject("excel.application")
+		If ll_rtn = 0 Then
+			lole_excel.Application.DisplayAlerts = False
+			lole_excel.Application.WorkBooks.OpenText (gaa.temp + 'temp.xls')
+			lole_excel.ActiveWorkbook.Sheets(1).Cells.Select		// 전체 CELL 선택
+			lole_excel.Selection.Font.Name = "맑은 고딕"
+			lole_excel.Selection.Font.Size = 10
+			//lole_excel.Activesheet.Columns.NumberFormat= "@"		// 모든 셀 문자로 참고 "General"
+			lole_excel.ActiveSheet.Columns.AutoFit						// 자동으로 열 너비 조정	
+			lole_excel.ActiveWorkbook.sheets(1).Cells(1,1).select	// Cells(1,1)로 Focus 지정
+			lole_excel.Application.ActiveWorkbook.SaveAs (ls_path, 51)
+			lole_excel.Application.Workbooks.Close
+		Else
+			MessageBox('ConnectToNewObject Error',string(ll_rtn))
+		End If
+		lole_excel.DisconnectObject()
+		DESTROY lole_excel
+		FileDelete (gaa.temp + 'temp.xls')
+	End IF
+	ShellExecute (handle (gw_mdi), 'open', ls_path, '', '', 1)
+End IF
+end subroutine
+

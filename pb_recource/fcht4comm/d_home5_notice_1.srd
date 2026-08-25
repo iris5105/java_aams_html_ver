@@ -1,0 +1,72 @@
+﻿release 12.6;
+datawindow(units=0 timer_interval=0 color=67108864 brushmode=0 transparency=0 gradient.angle=0 gradient.color=8421504 gradient.focus=0 gradient.repetition.count=0 gradient.repetition.length=100 gradient.repetition.mode=0 gradient.scale=100 gradient.spread=100 gradient.transparency=0 picture.blur=0 picture.clip.bottom=0 picture.clip.left=0 picture.clip.right=0 picture.clip.top=0 picture.mode=0 picture.scale.x=100 picture.scale.y=100 picture.transparency=0 processing=1 HTMLDW=no print.printername="" print.documentname="" print.orientation = 0 print.margin.left = 110 print.margin.right = 110 print.margin.top = 96 print.margin.bottom = 96 print.paper.source = 0 print.paper.size = 0 print.canusedefaultprinter=yes print.prompt=no print.buttons=no print.preview.buttons=no print.cliptext=no print.overrideprintjob=no print.collate=yes print.background=no print.preview.background=no print.preview.outline=yes hidegrayline=no showbackcoloronxp=no picture.file="" grid.lines=0 selected.mouse=no )
+header(height=96 color="536870912" transparency="0" gradient.color="8421504" gradient.transparency="0" gradient.angle="0" brushmode="0" gradient.repetition.mode="0" gradient.repetition.count="0" gradient.repetition.length="100" gradient.focus="0" gradient.scale="100" gradient.spread="100" )
+summary(height=0 color="536870912" transparency="0" gradient.color="8421504" gradient.transparency="0" gradient.angle="0" brushmode="0" gradient.repetition.mode="0" gradient.repetition.count="0" gradient.repetition.length="100" gradient.focus="0" gradient.scale="100" gradient.spread="100" )
+footer(height=0 color="536870912" transparency="0" gradient.color="8421504" gradient.transparency="0" gradient.angle="0" brushmode="0" gradient.repetition.mode="0" gradient.repetition.count="0" gradient.repetition.length="100" gradient.focus="0" gradient.scale="100" gradient.spread="100" )
+detail(height=104 color="536870912" transparency="0" gradient.color="8421504" gradient.transparency="0" gradient.angle="0" brushmode="0" gradient.repetition.mode="0" gradient.repetition.count="0" gradient.repetition.length="100" gradient.focus="0" gradient.scale="100" gradient.spread="100" )
+table(column=(type=char(12) update=yes updatewhereclause=yes name=sys_id dbname="fw_docu_mst.sys_id" dbalias="la.sys_id" )
+ column=(type=char(7) update=yes updatewhereclause=yes name=board_no dbname="fw_docu_mst.board_no" dbalias="la.board_no" )
+ column=(type=decimal(0) update=yes updatewhereclause=yes name=docu_no dbname="fw_docu_mst.docu_no" dbalias="la.docu_no" )
+ column=(type=char(800) update=yes updatewhereclause=yes name=docu_title dbname="fw_docu_mst.docu_title" dbalias="la.docu_title" )
+ column=(type=decimal(0) update=yes updatewhereclause=yes name=tree_level dbname="fw_docu_mst.tree_level" dbalias="la.tree_level" )
+ column=(type=datetime update=yes updatewhereclause=yes name=start_dtm dbname="fw_docu_mst.start_dtm" dbalias="la.start_dtm" )
+ column=(type=datetime update=yes updatewhereclause=yes name=end_dtm dbname="fw_docu_mst.end_dtm" dbalias="la.end_dtm" )
+ column=(type=char(5) update=yes updatewhereclause=yes name=memb_type dbname="fw_docu_mst.memb_type" dbalias="la.memb_type" )
+ column=(type=char(7) update=yes updatewhereclause=yes name=role_no dbname="fw_docu_mst.role_no" dbalias="la.role_no" )
+ column=(type=char(1) update=yes updatewhereclause=yes name=hold_yn dbname="fw_docu_mst.hold_yn" dbalias="la.hold_yn" )
+ column=(type=char(1) update=yes updatewhereclause=yes name=ontop_yn dbname="fw_docu_mst.ontop_yn" dbalias="la.ontop_yn" )
+ column=(type=char(400) update=yes updatewhereclause=yes name=writer_name dbname="fw_docu_mst.writer_name" dbalias="la.writer_name" )
+ column=(type=char(16) update=yes updatewhereclause=yes name=linked_pgm_no dbname="fw_docu_mst.linked_pgm_no" dbalias="la.linked_pgm_no" )
+ column=(type=char(1) updatewhereclause=yes name=read_yn dbname="read_yn" )
+ column=(type=char(1) updatewhereclause=yes name=read_yn dbname="read_yn" )
+ column=(type=char(67) updatewhereclause=yes name=row_id dbname="row_id" )
+ retrieve="SELECT la.sys_id
+     , la.board_no
+     , la.docu_no
+     , la.docu_title
+     , la.tree_level
+     , la.start_dtm
+     , la.end_dtm
+     , la.memb_type
+     , la.role_no
+     , la.hold_yn
+     , la.ontop_yn
+     , la.writer_name
+     , la.linked_pgm_no
+     , CASE WHEN ( select count(*)    AS read_cnt
+              from fw_docu_log ta
+             where ta.sys_id    = la.sys_id
+               and ta.board_no  = la.board_no
+               and ta.docu_no   = la.docu_no
+               and ta.read_user = :as_user_id ) > 0 THEN 'Y'
+                                                    ELSE 'N' END        AS read_yn
+     , 'N'                                                              AS read_yn
+     , la.sys_id || la.corp_gr || la.board_no || TO_CHAR(la.docu_no)    AS row_id
+FROM   fw_docu_mst la
+WHERE  la.sys_id           = :as_sys_id
+  AND  la.board_no         = :as_board_no
+  AND  ((la.board_no = '0000011' And :as_corp_gr = '2200')
+         OR (la.board_no = '0000003' And la.linked_pgm_no = :as_corp_gr || '_' || :as_user_id)
+         OR (la.board_no = '0000002' And la.corp_gr = :as_corp_gr)
+         OR la.board_no = '0000001')
+  AND  NVL(la.hold_yn,'N') = 'N'
+  AND  to_date (:adtm_today,'yyyymmddHH24miss') Between la.start_dtm And nvl(la.end_dtm,to_date('9999','yyyy'))
+ORDER BY la.ontop_yn DESC
+       , la.docu_no DESC" retrieve.asneeded=yes arguments=(("as_sys_id", string),("as_board_no", string),("adtm_today", string),("as_corp_gr", string),("as_user_id", string)) )
+text(band=header alignment="2" text="게시일시" border="0" color="21053761" x="1582" y="12" height="76" width="343" html.valueishtml="0"  name=start_dtm_t visible="1"  font.face="맑은 고딕" font.height="-10" font.weight="400"  font.family="1" font.pitch="2" font.charset="129" background.mode="1" background.color="536870912" background.transparency="0" background.gradient.color="8421504" background.gradient.transparency="0" background.gradient.angle="0" background.brushmode="0" background.gradient.repetition.mode="0" background.gradient.repetition.count="0" background.gradient.repetition.length="100" background.gradient.focus="0" background.gradient.scale="100" background.gradient.spread="100" tooltip.backcolor="134217752" tooltip.delay.initial="0" tooltip.delay.visible="32000" tooltip.enabled="0" tooltip.hasclosebutton="0" tooltip.icon="0" tooltip.isbubble="0" tooltip.maxwidth="0" tooltip.textcolor="134217751" tooltip.transparency="0" transparency="0" )
+text(band=header alignment="2" text="번호" border="0" color="21053761" x="5" y="12" height="76" width="169" html.valueishtml="0"  name=compute_1_t visible="1"  font.face="맑은 고딕" font.height="-10" font.weight="400"  font.family="1" font.pitch="2" font.charset="129" background.mode="1" background.color="536870912" background.transparency="0" background.gradient.color="8421504" background.gradient.transparency="0" background.gradient.angle="0" background.brushmode="0" background.gradient.repetition.mode="0" background.gradient.repetition.count="0" background.gradient.repetition.length="100" background.gradient.focus="0" background.gradient.scale="100" background.gradient.spread="100" tooltip.backcolor="134217752" tooltip.delay.initial="0" tooltip.delay.visible="32000" tooltip.enabled="0" tooltip.hasclosebutton="0" tooltip.icon="0" tooltip.isbubble="0" tooltip.maxwidth="0" tooltip.textcolor="134217751" tooltip.transparency="0" transparency="0" )
+text(band=header alignment="2" text="제   목" border="0" color="21053761" x="183" y="12" height="76" width="1390" html.valueishtml="0"  name=docu_title_t visible="1"  font.face="맑은 고딕" font.height="-10" font.weight="400"  font.family="1" font.pitch="2" font.charset="129" background.mode="1" background.color="536870912" background.transparency="0" background.gradient.color="8421504" background.gradient.transparency="0" background.gradient.angle="0" background.brushmode="0" background.gradient.repetition.mode="0" background.gradient.repetition.count="0" background.gradient.repetition.length="100" background.gradient.focus="0" background.gradient.scale="100" background.gradient.spread="100" tooltip.backcolor="134217752" tooltip.delay.initial="0" tooltip.delay.visible="32000" tooltip.enabled="0" tooltip.hasclosebutton="0" tooltip.icon="0" tooltip.isbubble="0" tooltip.maxwidth="0" tooltip.textcolor="134217751" tooltip.transparency="0" transparency="0" )
+column(band=detail id=6 alignment="2" tabsequence=32766 border="0" color="19737901~tif ( ontop_yn = 'Y', rgb(0, 0, 160), rgb(45, 45, 45))" x="1582" y="8" height="88" width="343" format="yyyy.mm.dd" html.valueishtml="0"  name=start_dtm pointer="HyperLink!" visible="1" edit.limit=0 edit.case=any edit.focusrectangle=no edit.autoselect=yes edit.autohscroll=yes  font.face="맑은 고딕" font.height="-9" font.weight="400"  font.family="1" font.pitch="2" font.charset="129" background.mode="1" background.color="536870912" background.transparency="0" background.gradient.color="8421504" background.gradient.transparency="0" background.gradient.angle="0" background.brushmode="0" background.gradient.repetition.mode="0" background.gradient.repetition.count="0" background.gradient.repetition.length="100" background.gradient.focus="0" background.gradient.scale="100" background.gradient.spread="100" tooltip.backcolor="134217752" tooltip.delay.initial="0" tooltip.delay.visible="32000" tooltip.enabled="0" tooltip.hasclosebutton="0" tooltip.icon="0" tooltip.isbubble="0" tooltip.maxwidth="0" tooltip.textcolor="134217751" tooltip.transparency="0" transparency="0" )
+column(band=detail id=4 alignment="0" tabsequence=32766 border="0" color="19737901~tif ( ontop_yn = 'Y', rgb(0, 0, 160), rgb(45, 45, 45))" x="183" y="8" height="88" width="1390" format=" [general]" html.valueishtml="0"  name=docu_title pointer="HyperLink!" visible="1" edit.limit=200 edit.case=any edit.focusrectangle=no edit.autoselect=yes edit.autohscroll=yes  font.face="맑은 고딕" font.height="-9" font.weight="400"  font.family="1" font.pitch="2" font.charset="129" background.mode="1" background.color="536870912" background.transparency="0" background.gradient.color="8421504" background.gradient.transparency="0" background.gradient.angle="0" background.brushmode="0" background.gradient.repetition.mode="0" background.gradient.repetition.count="0" background.gradient.repetition.length="100" background.gradient.focus="0" background.gradient.scale="100" background.gradient.spread="100" tooltip.backcolor="134217752" tooltip.delay.initial="0" tooltip.delay.visible="32000" tooltip.enabled="0" tooltip.hasclosebutton="0" tooltip.icon="0" tooltip.isbubble="0" tooltip.maxwidth="0" tooltip.textcolor="134217751" tooltip.transparency="0" transparency="0" )
+compute(band=detail alignment="2" expression="docu_no"border="0" color="19737901~tif ( ontop_yn = 'Y', rgb(0, 0, 160), rgb(45, 45, 45))" x="5" y="8" height="88" width="169" format="[General]" html.valueishtml="0"  name=compute_1 pointer="HyperLink!" visible="1"  font.face="맑은 고딕" font.height="-9" font.weight="400"  font.family="1" font.pitch="2" font.charset="129" background.mode="1" background.color="536870912" background.transparency="0" background.gradient.color="8421504" background.gradient.transparency="0" background.gradient.angle="0" background.brushmode="0" background.gradient.repetition.mode="0" background.gradient.repetition.count="0" background.gradient.repetition.length="100" background.gradient.focus="0" background.gradient.scale="100" background.gradient.spread="100" tooltip.backcolor="134217752" tooltip.delay.initial="0" tooltip.delay.visible="32000" tooltip.enabled="0" tooltip.hasclosebutton="0" tooltip.icon="0" tooltip.isbubble="0" tooltip.maxwidth="0" tooltip.textcolor="134217751" tooltip.transparency="0" transparency="0" )
+htmltable(border="1" )
+htmlgen(clientevents="1" clientvalidation="1" clientcomputedfields="1" clientformatting="0" clientscriptable="0" generatejavascript="1" encodeselflinkargs="1" netscapelayers="0" pagingmethod=0 generatedddwframes="1" )
+xhtmlgen() cssgen(sessionspecific="0" )
+xmlgen(inline="0" )
+xsltgen()
+jsgen()
+export.xml(headgroups="1" includewhitespace="0" metadatatype=0 savemetadata=0 )
+import.xml()
+export.pdf(method=0 distill.custompostscript="0" xslfop.print="0" )
+export.xhtml()
+ 

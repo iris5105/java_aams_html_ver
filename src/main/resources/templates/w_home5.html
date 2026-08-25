@@ -16,6 +16,8 @@
     <link rel="stylesheet" th:href="@{/css/style.css}" href="/css/style.css">
     <!-- Common & Specialized JavaScript Modules -->
     <script th:src="@{/js/common.js}" src="/js/common.js"></script>
+    <script th:src="@{/js/tab_manager.js}" src="/js/tab_manager.js"></script>
+    <script th:src="@{/js/filter.js}" src="/js/filter.js"></script>
     <script th:src="@{/js/home_chart.js}" src="/js/home_chart.js"></script>
     <script th:src="@{/js/home_data.js}" src="/js/home_data.js"></script>
 </head>
@@ -30,11 +32,26 @@
         <!-- 2. Left Menu Tree Sidebar (Common Fragment) -->
         <aside th:replace="~{fragments/menu/sidebar :: leftSidebar}"></aside>
 
-        <!-- 3. Workspace (6 Panels 3x2 Grid) -->
-        <main class="workspace">
+        <!-- 3. Workspace Tabbed MDI Container -->
+        <main class="workspace mdi-workspace">
+            
+            <!-- Tab Navigation Bar (Max 10 Tabs) -->
+            <div class="tab-bar-container" id="tabBarContainer">
+                <div class="tab-bar" id="tabBar">
+                    <!-- Dynamic Tabs loaded via TabManager -->
+                </div>
+                <div class="tab-bar-actions">
+                    <button class="btn-close-all" id="btnCloseAllTabs" onclick="tabManager.closeAllTabs()" title="열려있는 모든 탭 닫기" style="display: none;">
+                        <i class="fa-solid fa-rectangle-xmark"></i> 모두 닫기
+                    </button>
+                </div>
+            </div>
 
-            <!-- Card 1 (Top-Left): 공모기본정보 (dw_4 / d_home04) -->
-            <section class="pb-panel">
+            <!-- Main Default Workspace Home View (Shown ONLY when 0 tabs open) -->
+            <div class="home-workspace-pane" id="homeWorkspacePane" style="display: block;">
+                <div class="workspace-grid-6">
+                        <!-- Card 1 (Top-Left): 공모기본정보 (dw_4 / d_home04) -->
+                        <section class="pb-panel">
                 <div class="panel-header">
                     <span class="panel-title"><i class="fa-solid fa-square-poll-vertical panel-title-badge"></i> 공모기본정보</span>
                     <div class="panel-actions">
@@ -216,22 +233,29 @@
                 </div>
             </section>
 
-            <!-- Card 6 (Bottom-Right): 순자산 및 계좌현황 Chart (uo_cht1 / dw_cht9) -->
-            <section class="pb-panel">
-                <div class="panel-header">
-                    <span class="panel-title"><i class="fa-solid fa-chart-column panel-title-badge"></i> 순자산 및 계좌현황</span>
-                    <div class="panel-actions">
-                        <button class="panel-btn" title="차트 형태 설정 (관리자)" th:if="${adminYn == 'Y'}" onclick="openChartConfigModal()"><i class="fa-solid fa-gear"></i></button>
-                        <button class="panel-btn" title="새로고침" onclick="loadDualChart()"><i class="fa-solid fa-rotate"></i></button>
-                    </div>
-                </div>
-                <div class="panel-body">
-                    <div class="chart-box" style="position: relative;">
-                        <canvas id="dualChart"></canvas>
-                        <div id="dualChartNoData" style="display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; align-items: center; justify-content: center; color: #94a3b8; font-size: 13px; pointer-events: none;">데이터 없음</div>
-                    </div>
-                </div>
-            </section>
+                        <!-- Card 6 (Bottom-Right) -->
+                        <section class="pb-panel">
+                            <div class="panel-header">
+                                <span class="panel-title"><i class="fa-solid fa-chart-column panel-title-badge"></i> 순자산 및 계좌현황</span>
+                                <div class="panel-actions">
+                                    <button class="panel-btn" title="차트 형태 설정 (관리자)" th:if="${adminYn == 'Y'}" onclick="openChartConfigModal()"><i class="fa-solid fa-gear"></i></button>
+                                    <button class="panel-btn" title="새로고침" onclick="loadDualChart()"><i class="fa-solid fa-rotate"></i></button>
+                                </div>
+                            </div>
+                            <div class="panel-body">
+                                <div class="chart-box" style="position: relative;">
+                                    <canvas id="dualChart"></canvas>
+                                    <div id="dualChartNoData" style="display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; align-items: center; justify-content: center; color: #94a3b8; font-size: 13px; pointer-events: none;">데이터 없음</div>
+                                </div>
+                            </div>
+                        </section>
+
+                    </div> <!-- End workspace-grid-6 -->
+            </div> <!-- End homeWorkspacePane -->
+
+            <!-- Tab Content Container for Dynamic Open Tab Views -->
+            <div class="tab-content-container" id="tabContentContainer" style="display: none;">
+            </div>
 
         </main>
     </div>

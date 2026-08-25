@@ -38,4 +38,12 @@ public class MenuService {
         }
         return menuMapper.selectSideMenuList(pgmNo);
     }
+
+    /**
+     * Get menu DTO by PGM_ID to fetch FULLPGM2
+     */
+    public MenuDto getMenuByPgmId(String pgmId) {
+        if (pgmId == null || pgmId.isBlank()) return null;
+        return menuMapper.selectMenuByPgmId(pgmId);
+    }
 }

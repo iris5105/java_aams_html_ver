@@ -1,0 +1,24 @@
+﻿global type fw_f_getymdhh24miss4d from function_object
+end type
+
+forward prototypes
+global function datetime fw_f_getymdhh24miss4d ()
+end prototypes
+
+global function datetime fw_f_getymdhh24miss4d ();datetime ldtm_now
+
+IF LEFT (gaa.jTier_dbname,5)='pgsql'   Then
+   SELECT now ()::timestamp
+     INTO :ldtm_now
+   FROM   dual;
+Else
+   SELECT now ()
+     INTO :ldtm_now
+   FROM   dual;
+End IF
+
+ldtm_now = SQLCA.getitemDateTime (1)
+
+RETURN ldtm_now
+end function
+

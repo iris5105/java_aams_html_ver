@@ -1,9 +1,17 @@
 package com.kfp.aams.domain.home.entity;
 
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.IdClass;
+import jakarta.persistence.Lob;
+import jakarta.persistence.Table;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+
 import java.time.LocalDateTime;
 
 @Entity
@@ -11,6 +19,8 @@ import java.time.LocalDateTime;
 @Getter
 @Setter
 @NoArgsConstructor
+@AllArgsConstructor
+@Builder
 @IdClass(ProposalId.class)
 public class Proposal {
 
@@ -39,4 +49,14 @@ public class Proposal {
     @Lob
     @Column(name = "CONTENT")
     private String content;
+
+    @Column(name = "FEXP", length = 4)
+    private String fexp;
+
+    @Lob
+    @Column(name = "DATA")
+    private byte[] data;
+
+    @Column(name = "ORG_FNAME", length = 400)
+    private String orgFname;
 }

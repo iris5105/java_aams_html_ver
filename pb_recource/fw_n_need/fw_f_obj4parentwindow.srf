@@ -1,0 +1,30 @@
+﻿global type fw_f_obj4parentwindow from function_object
+end type
+
+forward prototypes
+global function window fw_f_obj4parentwindow (powerobject apo_object)
+end prototypes
+
+global function window fw_f_obj4parentwindow (powerobject apo_object);If IsValid(gnv_vari.iwparent) Then Return gnv_vari.iwparent
+powerobject lpo_parent
+
+if isnull(apo_object) or not isvalid(apo_object) then return lpo_parent
+
+lpo_parent = apo_object.GetParent()
+if isnull(lpo_parent) or not isvalid(lpo_parent) then return lpo_parent
+
+Do While lpo_parent.TypeOf() <> Window! and IsValid (lpo_parent)
+	lpo_parent = lpo_parent.GetParent()
+	// <임시> 오브젝트 동적생성 시 오류가 발생해 실행 순서를 변경하였습니다.
+	If isnull(lpo_parent) or not isvalid(lpo_parent) Then Return lpo_parent
+	If lpo_parent.TypeOf() = Window! and IsValid (lpo_parent) Then
+		gnv_vari.iwparent = lpo_parent
+		Return lpo_parent
+	End If
+	//If isnull(lpo_parent) or not isvalid(lpo_parent) Then Return lpo_parent
+Loop
+
+return lpo_parent
+
+end function
+

@@ -32,6 +32,9 @@
              , SORT_ORDER    AS sortOrder
              , TREE_LEVEL    AS treeLevel
              , TREE_LINE     AS treeLine
+             , FULLPGM       AS fullpgm
+             , FULLPGM1      AS fullpgm1
+             , FULLPGM2      AS fullpgm2
           FROM FW_PGM_MST
          WHERE PGM_KIND_CODE IN ('M', 'P')
            AND MENU_USE_YN = 'Y'
@@ -40,6 +43,20 @@
          START WITH PGM_NO = #{pgmNo}
         CONNECT BY PRIOR PGM_NO = PARENT_PGM
          ORDER SIBLINGS BY NVL(SORT_ORDER, 0)
+    </select>
+
+    <!-- 3. Get Menu Info by PGM_ID -->
+    <select id="selectMenuByPgmId" resultType="com.kfp.aams.domain.menu.dto.MenuDto">
+        SELECT PGM_NO        AS pgmNo
+             , PGM_ID        AS pgmId
+             , PGM_NM        AS pgmNm
+             , PGM_GO        AS pgmGo
+             , FULLPGM       AS fullpgm
+             , FULLPGM1      AS fullpgm1
+             , FULLPGM2      AS fullpgm2
+          FROM FW_PGM_MST
+         WHERE UPPER(PGM_ID) = UPPER(#{pgmId})
+           AND ROWNUM = 1
     </select>
 
 </mapper>

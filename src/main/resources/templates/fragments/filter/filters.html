@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+
+    <!-- 1. dc_ymd -->
+    <div th:fragment="dc_ymd" class="filter-bar filter-dc-ymd">
+        <div class="filter-item">
+            <label for="filterYmd">일자</label>
+            <input type="date" id="filterYmd" name="ymd" class="filter-input input-date" th:value="${ymd}"/>
+        </div>
+    </div>
+
+    <!-- 2. dc_2ymd_dddw -->
+    <div th:fragment="dc_2ymd_dddw" class="filter-bar filter-dc-2ymd-dddw">
+        <div class="filter-item">
+            <label for="filterYmd1">전기준일</label>
+            <input type="date" id="filterYmd1" name="ymd1" class="filter-input input-date" th:value="${ymd1}"/>
+        </div>
+        <div class="filter-item">
+            <label for="filterYmd2">당기준일</label>
+            <input type="date" id="filterYmd2" name="ymd2" class="filter-input input-date" th:value="${ymd2}"/>
+        </div>
+        <div class="filter-item">
+            <label for="filterDddw">구분</label>
+            <select id="filterDddw" name="dddw" class="filter-select">
+                <option value="">전체</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- 3. dc_dddw_ym -->
+    <div th:fragment="dc_dddw_ym" class="filter-bar filter-dc-dddw-ym">
+        <div class="filter-item">
+            <label for="filterDddw">구분</label>
+            <select id="filterDddw" name="dddw" class="filter-select">
+                <option value="">전체</option>
+            </select>
+        </div>
+        <div class="filter-item">
+            <label for="filterYm">년월</label>
+            <input type="month" id="filterYm" name="ym" class="filter-input input-month" th:value="${ym}"/>
+        </div>
+    </div>
+
+    <!-- 4. dc_ftmm -->
+    <div th:fragment="dc_ftmm" class="filter-bar filter-dc-ftmm">
+        <div class="filter-item">
+            <label for="filterFMm">조회월</label>
+            <input type="month" id="filterFMm" name="fMm" class="filter-input input-month" th:value="${fMm}"/>
+            <span class="filter-separator">~</span>
+            <input type="month" id="filterTMm" name="tMm" class="filter-input input-month" th:value="${tMm}"/>
+        </div>
+    </div>
+
+    <!-- 5. dc_ftmm_dddw2 -->
+    <div th:fragment="dc_ftmm_dddw2" class="filter-bar filter-dc-ftmm-dddw2">
+        <div class="filter-item">
+            <label for="filterFMm">조회월</label>
+            <input type="month" id="filterFMm" name="fMm" class="filter-input input-month" th:value="${fMm}"/>
+            <span class="filter-separator">~</span>
+            <input type="month" id="filterTMm" name="tMm" class="filter-input input-month" th:value="${tMm}"/>
+        </div>
+        <div class="filter-item">
+            <label for="filterDddw1">구분1</label>
+            <select id="filterDddw1" name="dddw1" class="filter-select">
+                <option value="">전체</option>
+            </select>
+        </div>
+        <div class="filter-item">
+            <label for="filterDddw2">구분2</label>
+            <select id="filterDddw2" name="dddw2" class="filter-select">
+                <option value="">전체</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- 6. dc_ftymd -->
+    <div th:fragment="dc_ftymd" class="filter-bar filter-dc-ftymd">
+        <div class="filter-item">
+            <label for="filterFYmd">조회기간</label>
+            <input type="date" id="filterFYmd" name="fYmd" class="filter-input input-date" th:value="${fYmd}"/>
+            <span class="filter-separator">~</span>
+            <input type="date" id="filterTYmd" name="tYmd" class="filter-input input-date" th:value="${tYmd}"/>
+        </div>
+    </div>
+
+    <!-- 7. dc_ftymd_dddw -->
+    <div th:fragment="dc_ftymd_dddw" class="filter-bar filter-dc-ftymd-dddw">
+        <div class="filter-item">
+            <label for="filterFYmd">조회기간</label>
+            <input type="date" id="filterFYmd" name="fYmd" class="filter-input input-date" th:value="${fYmd}"/>
+            <span class="filter-separator">~</span>
+            <input type="date" id="filterTYmd" name="tYmd" class="filter-input input-date" th:value="${tYmd}"/>
+        </div>
+        <div class="filter-item">
+            <label for="filterDddw">구분</label>
+            <select id="filterDddw" name="dddw" class="filter-select">
+                <option value="">전체</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- 8. dc_ftymd_dddw2 -->
+    <div th:fragment="dc_ftymd_dddw2" class="filter-bar filter-dc-ftymd-dddw2">
+        <div class="filter-item">
+            <label for="filterFYmd">조회기간</label>
+            <input type="date" id="filterFYmd" name="fYmd" class="filter-input input-date" th:value="${fYmd}"/>
+            <span class="filter-separator">~</span>
+            <input type="date" id="filterTYmd" name="tYmd" class="filter-input input-date" th:value="${tYmd}"/>
+        </div>
+        <div class="filter-item">
+            <label for="filterDddw1">구분1</label>
+            <select id="filterDddw1" name="dddw1" class="filter-select">
+                <option value="">전체</option>
+            </select>
+        </div>
+        <div class="filter-item">
+            <label for="filterDddw2">구분2</label>
+            <select id="filterDddw2" name="dddw2" class="filter-select">
+                <option value="">전체</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- 9. dc_ftymd_dddw3 -->
+    <div th:fragment="dc_ftymd_dddw3" class="filter-bar filter-dc-ftymd-dddw3">
+        <div class="filter-item">
+            <label for="filterFYmd">조회기간</label>
+            <input type="date" id="filterFYmd" name="fYmd" class="filter-input input-date" th:value="${fYmd}"/>
+            <span class="filter-separator">~</span>
+            <input type="date" id="filterTYmd" name="tYmd" class="filter-input input-date" th:value="${tYmd}"/>
+        </div>
+        <div class="filter-item">
+            <label for="filterDddw1">구분1</label>
+            <select id="filterDddw1" name="dddw1" class="filter-select">
+                <option value="">전체</option>
+            </select>
+        </div>
+        <div class="filter-item">
+            <label for="filterDddw2">구분2</label>
+            <select id="filterDddw2" name="dddw2" class="filter-select">
+                <option value="">전체</option>
+            </select>
+        </div>
+        <div class="filter-item">
+            <label for="filterDddw3">구분3</label>
+            <select id="filterDddw3" name="dddw3" class="filter-select">
+                <option value="">전체</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- 10. dc_ftymd_dddw_xx -->
+    <div th:fragment="dc_ftymd_dddw_xx" class="filter-bar filter-dc-ftymd-dddw-xx">
+        <div class="filter-item">
+            <label for="filterFYmd">조회기간</label>
+            <input type="date" id="filterFYmd" name="fYmd" class="filter-input input-date" th:value="${fYmd}"/>
+            <span class="filter-separator">~</span>
+            <input type="date" id="filterTYmd" name="tYmd" class="filter-input input-date" th:value="${tYmd}"/>
+        </div>
+        <div class="filter-item">
+            <label for="filterDddw">구분</label>
+            <select id="filterDddw" name="dddw" class="filter-select">
+                <option value="">전체</option>
+            </select>
+        </div>
+        <div class="filter-item">
+            <label for="filterXx">상세조건</label>
+            <input type="text" id="filterXx" name="xx" class="filter-input" placeholder="검색어 입력"/>
+        </div>
+    </div>
+
+    <!-- 11. dc_fund_all_list -->
+    <div th:fragment="dc_fund_all_list" class="filter-bar filter-dc-fund-all-list">
+        <div class="filter-item">
+            <label for="filterCorpGr">운용사</label>
+            <select id="filterCorpGr" name="corpGr" class="filter-select">
+                <option value="2200" th:selected="${corpGr == '2200'}">(주)케이에프피</option>
+                <option value="2100" th:selected="${corpGr == '2100'}">현대자산운용</option>
+                <option value="2300" th:selected="${corpGr == '2300'}">한국투신운용</option>
+            </select>
+        </div>
+        <div class="filter-item">
+            <label for="filterFundKind">펀드구분</label>
+            <select id="filterFundKind" name="fundKind" class="filter-select">
+                <option value="">전체</option>
+            </select>
+        </div>
+        <div class="filter-item">
+            <label for="filterFundCdNm">펀드명/코드</label>
+            <input type="text" id="filterFundCdNm" name="fundCdNm" class="filter-input" placeholder="펀드명 또는 코드 입력"/>
+        </div>
+    </div>
+
+    <!-- 12. dc_fund_list -->
+    <div th:fragment="dc_fund_list(showFundInput)" class="filter-bar filter-dc-fund-list">
+        <div class="filter-item">
+            <label for="filterCorpGr">운용사</label>
+            <select id="filterCorpGr" name="corpGr" class="filter-select">
+                <option value="2200" th:selected="${corpGr == '2200'}">(주)케이에프피</option>
+                <option value="2100" th:selected="${corpGr == '2100'}">현대자산운용</option>
+                <option value="2300" th:selected="${corpGr == '2300'}">한국투신운용</option>
+            </select>
+        </div>
+        <div class="filter-item" th:if="${showFundInput == null or showFundInput}">
+            <label for="filterFundCdNm">펀드명/코드</label>
+            <input type="text" id="filterFundCdNm" name="fundCdNm" class="filter-input" placeholder="펀드명 또는 코드 입력"/>
+        </div>
+    </div>
+
+    <!-- 13. dc_mon2task -->
+    <div th:fragment="dc_mon2task" class="filter-bar filter-dc-mon2task">
+        <div class="filter-item">
+            <label for="filterTaskYm">작업월</label>
+            <input type="month" id="filterTaskYm" name="taskYm" class="filter-input input-month" th:value="${taskYm}"/>
+        </div>
+        <div class="filter-item">
+            <label for="filterCorpGr">운용사</label>
+            <select id="filterCorpGr" name="corpGr" class="filter-select">
+                <option value="2200" th:selected="${corpGr == '2200'}">(주)케이에프피</option>
+                <option value="2100" th:selected="${corpGr == '2100'}">현대자산운용</option>
+                <option value="2300" th:selected="${corpGr == '2300'}">한국투신운용</option>
+            </select>
+        </div>
+        <div class="filter-item">
+            <label for="filterTaskKind">작업구분</label>
+            <select id="filterTaskKind" name="taskKind" class="filter-select">
+                <option value="">전체</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- 14. dc_plan -->
+    <div th:fragment="dc_plan" class="filter-bar filter-dc-plan">
+        <div class="filter-item">
+            <label for="filterYmd">조회일자</label>
+            <input type="date" id="filterYmd" name="ymd" class="filter-input input-date" th:value="${ymd}"/>
+        </div>
+        <div class="filter-item">
+            <label for="filterCorpGr">운용사</label>
+            <select id="filterCorpGr" name="corpGr" class="filter-select">
+                <option value="2200" th:selected="${corpGr == '2200'}">(주)케이에프피</option>
+                <option value="2100" th:selected="${corpGr == '2100'}">현대자산운용</option>
+                <option value="2300" th:selected="${corpGr == '2300'}">한국투신운용</option>
+            </select>
+        </div>
+        <div class="filter-item">
+            <label for="filterPlanKind">플랜구분</label>
+            <select id="filterPlanKind" name="planKind" class="filter-select">
+                <option value="">전체</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- 15. dc_xx_ftymd -->
+    <div th:fragment="dc_xx_ftymd" class="filter-bar filter-dc-xx-ftymd">
+        <div class="filter-item">
+            <label for="filterXx">조회조건</label>
+            <select id="filterXx" name="xx" class="filter-select">
+                <option value="">전체</option>
+            </select>
+        </div>
+        <div class="filter-item">
+            <label for="filterFYmd">조회기간</label>
+            <input type="date" id="filterFYmd" name="fYmd" class="filter-input input-date" th:value="${fYmd}"/>
+            <span class="filter-separator">~</span>
+            <input type="date" id="filterTYmd" name="tYmd" class="filter-input input-date" th:value="${tYmd}"/>
+        </div>
+    </div>
+
+    <!-- 16. dc_xx_ymd -->
+    <div th:fragment="dc_xx_ymd" class="filter-bar filter-dc-xx-ymd">
+        <div class="filter-item">
+            <label for="filterXx">조회조건</label>
+            <select id="filterXx" name="xx" class="filter-select">
+                <option value="">전체</option>
+            </select>
+        </div>
+        <div class="filter-item">
+            <label for="filterYmd">조회일자</label>
+            <input type="date" id="filterYmd" name="ymd" class="filter-input input-date" th:value="${ymd}"/>
+        </div>
+    </div>
+
+    <!-- 17. dc_ym_dddw3 -->
+    <div th:fragment="dc_ym_dddw3" class="filter-bar filter-dc-ym-dddw3">
+        <div class="filter-item">
+            <label for="filterYm">년월</label>
+            <input type="month" id="filterYm" name="ym" class="filter-input input-month" th:value="${ym}"/>
+        </div>
+        <div class="filter-item">
+            <label for="filterDddw1">구분1</label>
+            <select id="filterDddw1" name="dddw1" class="filter-select">
+                <option value="">전체</option>
+            </select>
+        </div>
+        <div class="filter-item">
+            <label for="filterDddw2">구분2</label>
+            <select id="filterDddw2" name="dddw2" class="filter-select">
+                <option value="">전체</option>
+            </select>
+        </div>
+        <div class="filter-item">
+            <label for="filterDddw3">구분3</label>
+            <select id="filterDddw3" name="dddw3" class="filter-select">
+                <option value="">전체</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- 18. dc_ymd_dddw -->
+    <div th:fragment="dc_ymd_dddw" class="filter-bar filter-dc-ymd-dddw">
+        <div class="filter-item">
+            <label for="filterYmd">조회일자</label>
+            <input type="date" id="filterYmd" name="ymd" class="filter-input input-date" th:value="${ymd}"/>
+        </div>
+        <div class="filter-item">
+            <label for="filterDddw">구분</label>
+            <select id="filterDddw" name="dddw" class="filter-select">
+                <option value="">전체</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- 19. dc_ymd_dddw2 -->
+    <div th:fragment="dc_ymd_dddw2" class="filter-bar filter-dc-ymd-dddw2">
+        <div class="filter-item">
+            <label for="filterYmd">조회일자</label>
+            <input type="date" id="filterYmd" name="ymd" class="filter-input input-date" th:value="${ymd}"/>
+        </div>
+        <div class="filter-item">
+            <label for="filterDddw1">구분1</label>
+            <select id="filterDddw1" name="dddw1" class="filter-select">
+                <option value="">전체</option>
+            </select>
+        </div>
+        <div class="filter-item">
+            <label for="filterDddw2">구분2</label>
+            <select id="filterDddw2" name="dddw2" class="filter-select">
+                <option value="">전체</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- 20. dc_ymd_dddw3 -->
+    <div th:fragment="dc_ymd_dddw3" class="filter-bar filter-dc-ymd-dddw3">
+        <div class="filter-item">
+            <label for="filterYmd">조회일자</label>
+            <input type="date" id="filterYmd" name="ymd" class="filter-input input-date" th:value="${ymd}"/>
+        </div>
+        <div class="filter-item">
+            <label for="filterDddw1">구분1</label>
+            <select id="filterDddw1" name="dddw1" class="filter-select">
+                <option value="">전체</option>
+            </select>
+        </div>
+        <div class="filter-item">
+            <label for="filterDddw2">구분2</label>
+            <select id="filterDddw2" name="dddw2" class="filter-select">
+                <option value="">전체</option>
+            </select>
+        </div>
+        <div class="filter-item">
+            <label for="filterDddw3">구분3</label>
+            <select id="filterDddw3" name="dddw3" class="filter-select">
+                <option value="">전체</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- 21. dc_ymd_dddw3_xx -->
+    <div th:fragment="dc_ymd_dddw3_xx" class="filter-bar filter-dc-ymd-dddw3-xx">
+        <div class="filter-item">
+            <label for="filterYmd">조회일자</label>
+            <input type="date" id="filterYmd" name="ymd" class="filter-input input-date" th:value="${ymd}"/>
+        </div>
+        <div class="filter-item">
+            <label for="filterDddw1">구분1</label>
+            <select id="filterDddw1" name="dddw1" class="filter-select">
+                <option value="">전체</option>
+            </select>
+        </div>
+        <div class="filter-item">
+            <label for="filterDddw2">구분2</label>
+            <select id="filterDddw2" name="dddw2" class="filter-select">
+                <option value="">전체</option>
+            </select>
+        </div>
+        <div class="filter-item">
+            <label for="filterDddw3">구분3</label>
+            <select id="filterDddw3" name="dddw3" class="filter-select">
+                <option value="">전체</option>
+            </select>
+        </div>
+        <div class="filter-item">
+            <label for="filterXx">상세조건</label>
+            <input type="text" id="filterXx" name="xx" class="filter-input" placeholder="검색어 입력"/>
+        </div>
+    </div>
+
+    <!-- 22. dc_ymd_dddw_xx -->
+    <div th:fragment="dc_ymd_dddw_xx" class="filter-bar filter-dc-ymd-dddw-xx">
+        <div class="filter-item">
+            <label for="filterYmd">조회일자</label>
+            <input type="date" id="filterYmd" name="ymd" class="filter-input input-date" th:value="${ymd}"/>
+        </div>
+        <div class="filter-item">
+            <label for="filterDddw">구분</label>
+            <select id="filterDddw" name="dddw" class="filter-select">
+                <option value="">전체</option>
+            </select>
+        </div>
+        <div class="filter-item">
+            <label for="filterXx">상세조건</label>
+            <input type="text" id="filterXx" name="xx" class="filter-input" placeholder="검색어 입력"/>
+        </div>
+    </div>
+
+    <!-- 23. dc_yyyy -->
+    <div th:fragment="dc_yyyy" class="filter-bar filter-dc-yyyy">
+        <div class="filter-item">
+            <label for="filterYyyy">조회년도</label>
+            <input type="number" id="filterYyyy" name="yyyy" class="filter-input input-year" min="2000" max="2099" step="1" th:value="${yyyy != null ? yyyy : #dates.format(#dates.createNow(), 'yyyy')}"/>
+        </div>
+    </div>
+
+    <!-- 24. dc_yyyy_dddw2 -->
+    <div th:fragment="dc_yyyy_dddw2" class="filter-bar filter-dc-yyyy-dddw2">
+        <div class="filter-item">
+            <label for="filterYyyy">조회년도</label>
+            <input type="number" id="filterYyyy" name="yyyy" class="filter-input input-year" min="2000" max="2099" step="1" th:value="${yyyy != null ? yyyy : #dates.format(#dates.createNow(), 'yyyy')}"/>
+        </div>
+        <div class="filter-item">
+            <label for="filterDddw1">구분1</label>
+            <select id="filterDddw1" name="dddw1" class="filter-select">
+                <option value="">전체</option>
+            </select>
+        </div>
+        <div class="filter-item">
+            <label for="filterDddw2">구분2</label>
+            <select id="filterDddw2" name="dddw2" class="filter-select">
+                <option value="">전체</option>
+            </select>
+        </div>
+    </div>
+
+</body>
+</html>

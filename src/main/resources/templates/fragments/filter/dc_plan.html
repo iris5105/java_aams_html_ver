@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+    <!-- Plan Condition Filter (dc_plan) -->
+    <div th:fragment="filter" class="filter-bar filter-dc-plan">
+        <div class="filter-item">
+            <label for="filterYmd">조회일자</label>
+            <input type="date" id="filterYmd" name="ymd" class="filter-input input-date" th:value="${ymd}"/>
+        </div>
+        <div class="filter-item">
+            <label for="filterCorpGr">운용사</label>
+            <select id="filterCorpGr" name="corpGr" class="filter-select">
+                <option value="2200" th:selected="${corpGr == '2200'}">(주)케이에프피</option>
+                <option value="2100" th:selected="${corpGr == '2100'}">현대자산운용</option>
+                <option value="2300" th:selected="${corpGr == '2300'}">한국투신운용</option>
+            </select>
+        </div>
+        <div class="filter-item">
+            <label for="filterPlanKind">플랜구분</label>
+            <select id="filterPlanKind" name="planKind" class="filter-select">
+                <option value="">전체</option>
+            </select>
+        </div>
+    </div>
+</body>
+</html>

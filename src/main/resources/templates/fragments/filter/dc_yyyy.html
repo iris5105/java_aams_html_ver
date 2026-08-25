@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+    <!-- Year Filter (dc_yyyy) -->
+    <div th:fragment="filter" class="filter-bar filter-dc-yyyy">
+        <div class="filter-item">
+            <label for="filterYyyy">조회년도</label>
+            <input type="number" id="filterYyyy" name="yyyy" class="filter-input input-year" min="2000" max="2099" step="1" th:value="${yyyy != null ? yyyy : #dates.format(#dates.createNow(), 'yyyy')}"/>
+        </div>
+    </div>
+</body>
+</html>

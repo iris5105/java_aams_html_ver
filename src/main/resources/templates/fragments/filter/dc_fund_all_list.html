@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+    <!-- Fund All List Filter (dc_fund_all_list) -->
+    <div th:fragment="filter" class="filter-bar filter-dc-fund-all-list">
+        <div class="filter-item">
+            <label for="filterCorpGr">운용사</label>
+            <select id="filterCorpGr" name="corpGr" class="filter-select">
+                <option value="2200" th:selected="${corpGr == '2200'}">(주)케이에프피</option>
+                <option value="2100" th:selected="${corpGr == '2100'}">현대자산운용</option>
+                <option value="2300" th:selected="${corpGr == '2300'}">한국투신운용</option>
+            </select>
+        </div>
+        <div class="filter-item">
+            <label for="filterFundKind">펀드구분</label>
+            <select id="filterFundKind" name="fundKind" class="filter-select">
+                <option value="">전체</option>
+            </select>
+        </div>
+        <div class="filter-item">
+            <label for="filterFundCdNm">펀드명/코드</label>
+            <input type="text" id="filterFundCdNm" name="fundCdNm" class="filter-input" placeholder="펀드명 또는 코드 입력"/>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,26 @@
+﻿global type fw_f_replaceall from function_object
+end type
+
+forward prototypes
+global function string fw_f_replaceall (string as_source, string as_old, string as_new)
+end prototypes
+
+global function string fw_f_replaceall (string as_source, string as_old, string as_new);long ll_Pos = 1
+
+// Find the first occurrence of as_old ...
+ll_Pos = Pos ( as_source, as_old, ll_Pos )
+
+// Only enter the loop if you find as_old ...
+Do While ll_Pos > 0 
+   // Replace old_str with  ls_new_str ...
+   as_source = Replace ( as_source, ll_Pos, Len(as_old), as_new)
+
+   // Find the next occurrence of ls_old_str 
+   ll_Pos = Pos ( as_source, as_old, ll_Pos + Len(as_new))
+Loop
+
+// Return string
+Return as_source
+
+end function
+

@@ -1,0 +1,34 @@
+﻿global type f_add_months from function_object
+end type
+
+forward prototypes
+global function datetime f_add_months (datetime adate, integer amon, datetime ddcheck)
+end prototypes
+
+global function datetime f_add_months (datetime adate, integer amon, datetime ddcheck);DateTime dt_date
+
+SELECT  ADD_MONTHS (:adate, :amon)
+  INTO  :dt_date
+FROM    dual;
+IF	SQLCA.sqlcode ()=0	Then
+	dt_date = SQLCA.getitemdatetime (1)
+Else
+	dt_date = null_dt
+End IF
+
+IF f_null (ddcheck) THEN RETURN dt_date
+
+IF string (ddcheck,'dd')<string (dt_date,'dd')  Then
+   SELECT  TO_DATE(to_char(:dt_date,'yyyymm') ||to_char(:ddcheck,'dd'),'yyyymmdd')
+     INTO  :dt_date
+   FROM    dual;
+	IF	SQLCA.sqlcode ()=0	Then
+		dt_date = SQLCA.getitemdatetime (1)
+	Else
+		dt_date = null_dt
+	End IF
+End IF
+
+RETURN   dt_date
+end function
+

@@ -1,0 +1,46 @@
+﻿global type appeonsetlongpressinterval from function_object
+end type
+
+forward prototypes
+global function long appeonsetlongpressinterval (long al_interval)
+end prototypes
+
+global function long appeonsetlongpressinterval (long al_interval);//========================================================================
+// 
+// Copyright ? 2001-2016 Appeon, Inc. and its subsidiaries. All rights reserved.
+// 
+//------------------------------------------------------------------------------------------------
+// Function: appeonsetlongpressinterval()
+//------------------------------------------------------------------------------------------------
+// Description: 
+// Sets the duration (in milliseconds) for a press before it is recognized as a long press. Once 
+// this long press duration is reached, the keyboard will be brought up to display (by default, 
+//	the keyboard pops up only when the user taps twice in the field of the DataWindow).
+// Supported on mobile client only.	
+// 
+// Arguments:  
+//			value Long al_interval
+//				Sets the duration in milliseconds. If it is set to a value smaller than 500 milliseconds, 
+//				then 550 milliseconds will be used, because 500 milliseconds is already used as the 
+//				duration for the DataWindow drag & drop event.	If this function is not called,the default
+//				value that Appeon uses is 1500 milliseconds when long press will be recognized and keyboard
+//				will be displayed.
+// Returns:  integer. 
+//					 1 - Success.
+//					-1 - It is called in PowerBuilder or Appeon Web, or there is an error.
+//------------------------------------------------------------------------------------------------
+// Author:	APPEON		Date: 2016-04
+//------------------------------------------------------------------------------------------------
+// Revision History: 
+//				1.0   Initial version
+//========================================================================
+long ll_interval
+eon_mobile_aws leon_mobile_aws
+
+leon_mobile_aws = Create eon_mobile_aws
+ll_interval = leon_mobile_aws.of_setlongpressinterval(al_interval)
+Destroy leon_mobile_aws
+Return ll_interval
+
+end function
+

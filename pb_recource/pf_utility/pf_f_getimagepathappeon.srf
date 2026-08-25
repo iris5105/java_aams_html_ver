@@ -1,0 +1,39 @@
+﻿global type pf_f_getimagepathappeon from function_object
+end type
+
+forward prototypes
+global function string pf_f_getimagepathappeon (string as_filename)
+end prototypes
+
+global function string pf_f_getimagepathappeon (string as_filename);If gnv_vari.getclienttype = 'PB' Then Return as_filename
+If fw_f_nvls(as_filename, '') = '' Then Return as_filename
+
+string		ls_appeonfolder
+string		ls_filename, ls_url
+long		ll_lastpos
+
+ls_appeonfolder = gnv_vari.getcachedir
+ls_appeonfolder += '\images\'
+
+ll_lastpos = lastpos(as_filename, '\')
+If ll_lastpos > 0 Then
+	ls_filename = mid(as_filename, ll_lastpos + 1)
+	ls_filename = ls_appeonfolder + ls_filename
+Else
+	ls_filename = as_filename
+End If
+
+Long		ll_rtn /* to-be image file accept variable */
+ll_rtn = pf_f_imagefilestorage(ls_filename)
+If ll_rtn > 0 Then Return ls_filename
+
+// 파일이 존재하지 않는 경우 직접 다운로드
+If Not fileexists(ls_filename) Then
+	ls_url = gnv_vari.AppeonGetIEurl + "images/" + gnv_extfunc.of_pathstrippath(as_filename)
+	gnv_extfunc.of_urldownload2file(ls_url, ls_filename)
+End If
+
+return ls_filename
+
+end function
+

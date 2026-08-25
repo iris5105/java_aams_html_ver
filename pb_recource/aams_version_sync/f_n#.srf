@@ -1,0 +1,16 @@
+﻿global type f_n# from function_object
+end type
+
+forward prototypes
+global function string f_n# (decimal id_data, long il_length, long il_scale)
+end prototypes
+
+global function string f_n# (decimal id_data, long il_length, long il_scale);STRING	ls_data, ls_scale
+
+IF	il_scale=0 THEN ls_scale = '0' ELSE ls_scale = '0.'+LEFT('000000000000',il_scale)
+ls_data = TRIM(string(id_data,'###,###,###,###,###,##'+ls_scale))
+IF	il_length>LEN(ls_data) THEN ls_data = RIGHT(SPACE(il_length)+ls_data,il_length)
+
+RETURN	ls_data
+end function
+

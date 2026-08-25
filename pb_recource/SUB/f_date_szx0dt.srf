@@ -1,0 +1,28 @@
+﻿global type f_date_szx0dt from function_object
+end type
+
+forward prototypes
+global function long f_date_szx0dt (datetime ldt)
+end prototypes
+
+global function long f_date_szx0dt (datetime ldt);Datetime  ldt1, ldt2, ldt3
+
+SELECT  hyun_ymd
+      , junyong_ymd
+      , ikyong_ymd
+  INTO  :ldt1
+      , :ldt2
+      , :ldt3
+FROM    szx0dt
+WHERE   corp_gr = :gaa.corp_gr;
+
+ldt1 = SQLCA.getitemdatetime (1)
+ldt2 = SQLCA.getitemdatetime (2)
+ldt3 = SQLCA.getitemdatetime (3)
+
+IF ldt=ldt1 THEN RETURN 16711680
+IF ldt=ldt2 THEN RETURN 0
+IF ldt=ldt3 THEN RETURN 192
+RETURN 8684164
+end function
+

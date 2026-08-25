@@ -1,0 +1,28 @@
+﻿global type fw_f_settabpage2objsync from function_object
+end type
+
+forward prototypes
+global function integer fw_f_settabpage2objsync (graphicobject ago_control, ref graphicobject ago_object)
+end prototypes
+
+global function integer fw_f_settabpage2objsync (graphicobject ago_control, ref graphicobject ago_object);userobject	luo_current
+
+long	ll_objcnt, i
+
+choose case ago_control.TypeOf()
+	case UserObject!
+		luo_current = ago_control
+		ll_objcnt = UpperBound(luo_current.Control)
+		for i = 1 to ll_objcnt
+			if luo_current.Control[i].classname() = ago_object.classname() then
+				ago_object = luo_current.Control[i]
+				return 1
+			end if
+		next
+	case else
+		return -1
+end choose
+
+return -1
+end function
+

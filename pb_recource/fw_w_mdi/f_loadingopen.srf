@@ -1,0 +1,35 @@
+﻿global type f_loadingopen from function_object
+end type
+
+forward prototypes
+global subroutine f_loadingopen (string ag_action)
+end prototypes
+
+global subroutine f_loadingopen (string ag_action);n_loading	lu_bar
+
+lu_bar = CREATE n_loading
+
+CHOOSE CASE ag_action
+	CASE 'start'
+		CHOOSE CASE	SharedObjectRegister ('n_loading', 'aamsopen')
+			CASE Success!
+				CHOOSE CASE	SharedObjectGet ('aamsopen', lu_bar)
+					CASE Success!
+						lu_bar.uf_start ('w_loadingopen')
+					CASE SharedObjectCreateInstanceError!
+						MessageBox ('error', 'The local reference to the shared object could not be created')
+					CASE SharedObjectNotExistsError!
+						SharedObjectUnregister ('n_loading')
+					END CHOOSE
+			CASE SharedObjectExistsError!
+				MessageBox ('error', 'The instance name has already been used')
+			CASE SharedObjectCreateInstanceError!
+				MessageBox ('error', 'The object could not be created')
+			CASE SharedObjectCreatePBSessionError!
+				MessageBox ('error', 'The shared object session could not be created')
+		END CHOOSE
+	CASE 'stop'
+		SharedObjectUnregister ('aamsopen')
+END CHOOSE
+end subroutine
+

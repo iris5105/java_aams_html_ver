@@ -1,0 +1,86 @@
+﻿global type fw_f_setlog4pgm from function_object
+end type
+
+forward prototypes
+global subroutine fw_f_setlog4pgm (string as_usecd, string as_pgmno, string as_pgmid, string as_pgmnm, string as_pgm_type, string as_reason, string as_remark)
+end prototypes
+
+global subroutine fw_f_setlog4pgm (string as_usecd, string as_pgmno, string as_pgmid, string as_pgmnm, string as_pgm_type, string as_reason, string as_remark);STRING	ls_issuedatetime,  ls_issuedate,  ls_issuetime, ls_sqlerrtext
+dec{0}   ldc_logseq
+
+IF POS(lower(as_pgmid), gnv_vari.w_home)>0   Then RETURN
+
+SELECT seqval ('fw_pgmlogseq')
+     , TO_CHAR(now(),'yyyymmddhh24miss')
+     , TO_CHAR(now(),'yyyymmdd')
+     , TO_CHAR(now(),'hh24miss')
+  INTO :ldc_logseq
+     , :ls_issuedatetime
+     , :ls_issuedate
+     , :ls_issuetime
+FROM   dual;
+
+ldc_logseq = SQLCA.getitemdecimal (1)
+ls_issuedatetime = SQLCA.getitemstring (2)
+ls_issuedate = SQLCA.getitemstring (3)
+ls_issuetime = SQLCA.getitemstring (4)
+
+IF fw_f_nvls(ls_issuedatetime, '')=''	Then ls_issuedatetime = 'empty'
+IF fw_f_nvls(ls_issuedate, '')=''   	Then ls_issuedate = 'empty'
+IF fw_f_nvls(ls_issuetime, '')=''   	Then ls_issuetime = 'empty'
+IF fw_f_nvls(as_pgmno, '')='' 			Then as_pgmno = 'empty'
+IF fw_f_nvls(as_pgmid, '')='' 			Then as_pgmid = 'empty'
+
+INSERT INTO fw_pgm_log (
+       log_seq           /* _1: */
+     , sys_id            /* _2: */
+     , site_id           /* _3: */
+     , user_id           /* _4: */
+     , user_nm           /* _5: */
+     , email_id          /* _6: */
+     , dept_cd           /* _7: */
+     , dept_nm           /* _8: */
+     , client_id         /* _9: */
+     , client_nm         /* _10: */
+     , pc_ip             /* _11: */
+     , pgm_no            /* _12: */
+     , pgm_id            /* _13: */
+     , pgm_nm            /* _14: */
+     , pgm_type          /* _15: */
+     , use_cd            /* _16: */
+     , issue_datetime    /* _17: */
+     , issue_date        /* _18: */
+     , issue_time        /* _19: */
+     , issue_reason      /* _20: */
+     , issue_remark )    /* _21: */
+VALUES ( :ldc_logseq               /* _1: */
+       , :gnv_vari.is_sys_id       /* _2: */
+       , :gnv_vari.setesssite      /* _3: */
+       , :gaa.login                /* _4: */
+       , :gnv_vari.is_user_nm      /* _5: */
+       , :gaa.login                /* _6: */
+       , :gnv_vari.is_dept_cd      /* _7: */
+       , :gnv_vari.is_dept_nm      /* _8: */
+       , :gaa.corp_gr              /* _9: */
+       , :gaa.corp_nm              /* _10: */
+       , :gnv_vari.is_ipaddress    /* _11: */
+       , :as_pgmno                 /* _12: */
+       , upper(:as_pgmid)          /* _13: */
+       , :as_pgmnm                 /* _14: */
+       , :as_pgm_type              /* _15: */
+       , :as_usecd                 /* _16: */
+       , :ls_issuedatetime         /* _17: */
+       , :ls_issuedate             /* _18: */
+       , :ls_issuetime             /* _19: */
+       , :as_reason                /* _20: */
+       , :as_remark                /* _21: */
+       );
+
+IF SQLCA.sqlcode ()<>0  Then
+   ls_sqlerrtext = SQLCA.sqlerrtext ()
+   rollbackJ ()
+End IF
+
+commitJ ()
+end subroutine
+

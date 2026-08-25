@@ -17,4 +17,9 @@ public interface MenuMapper {
      * Side navigation menu list (Hierarchical CONNECT BY ISLEAF = 1 query starting with pgmNo)
      */
     List<MenuDto> selectSideMenuList(@Param("pgmNo") String pgmNo);
+
+    /**
+     * Get menu DTO by PGM_ID to fetch FULLPGM2 breadcrumb info
+     */
+    MenuDto selectMenuByPgmId(@Param("pgmId") String pgmId);
 }

@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<div class="view-container ja010b-container" th:fragment="ja010bView">
+
+    <!-- Top Action Control Bar (Row 1) -->
+    <div class="view-toolbar">
+        <div class="toolbar-left">
+            <!-- Reusable Common Toolbar Buttons Fragment (닫기 ~ 엑셀) -->
+            <div th:replace="~{fragments/tab_header :: toolbarButtons}"></div>
+            <!-- Page-specific Action Button for w_ja010b -->
+            <button class="t-btn btn-action btn-pyungjan" onclick="onJa010bPyungjanCalc()"><i class="fa-solid fa-calculator"></i> 평잔재계산</button>
+        </div>
+        <!-- Reusable Common Breadcrumb Fragment -->
+        <div th:replace="~{fragments/tab_header :: toolbarBreadcrumb}"></div>
+    </div>
+
+    <!-- Sub Filter Bar (Row 2: Common 운용사 Select Box) -->
+    <div th:replace="~{fragments/tab_header :: corpFilter}"></div>
+    <!-- Upper Master Grid Section (dw_list / d_ja010b1.srd) -->
+    <div class="grid-section master-grid-section">
+        <div class="grid-table-wrapper">
+            <table class="aams-grid-table master-table">
+                <thead>
+                    <tr>
+                        <th style="width: 40px;">No.</th>
+                        <th style="width: 100px;">증권회사</th>
+                        <th style="width: 140px;">고객명</th>
+                        <th style="width: 75px;">관리번호</th>
+                        <th style="width: 110px;">계좌번호</th>
+                        <th style="width: 95px;">계좌관리그룹</th>
+                        <th style="width: 80px;">고객유형</th>
+                        <th style="width: 55px;">선취</th>
+                        <th style="width: 55px;">후취</th>
+                        <th style="width: 65px;">목표수익(%)</th>
+                        <th style="width: 65px;">성과보수(%)</th>
+                        <th style="width: 90px;">성과보수 대상자산</th>
+                        <th style="width: 80px;">최초계약일</th>
+                        <th style="width: 80px;">(재)계약일</th>
+                        <th style="width: 100px;" class="text-right">계약잔액</th>
+                        <th style="width: 70px;">수수료비용처리</th>
+                        <th style="width: 50px;">계약횟수</th>
+                        <th style="width: 50px;">계약기간</th>
+                        <th style="width: 80px;">만기예정일</th>
+                        <th style="width: 80px;">계약종료일</th>
+                        <th style="width: 70px;">운용역</th>
+                        <th style="width: 110px;">계좌별주식매매수수료율</th>
+                        <th style="width: 60px;">특이사항</th>
+                        <th style="width: 150px;">이메일주소</th>
+                    </tr>
+                </thead>
+                <tbody id="tbody-ja010b-master">
+                    <tr th:each="item, iterStat : ${masterList}" 
+                        th:classappend="${iterStat.first} ? 'selected-row' : ''"
+                        th:data-fund-cd="${item.fundCd}"
+                        th:data-special-note="${item.specialNote}"
+                        onclick="onJa010bMasterRowClick(this, this.getAttribute('data-fund-cd'))">
+                        <td class="text-center" th:text="${iterStat.count}">1</td>
+                        <td th:text="${item.mgNm != null ? item.mgNm : item.mgCd}"></td>
+                        <td th:text="${item.fundNm}"></td>
+                        <td class="text-center font-mono" th:text="${item.fundCd}"></td>
+                        <td class="font-mono" th:text="${item.acctNo != null ? item.acctNo : item.encAcctNo}"></td>
+                        <td class="text-center" th:text="${item.seriesGb}"></td>
+                        <td class="text-center" th:text="${item.typeGbNm}"></td>
+                        <td class="text-right" th:text="${item.preBasic}"></td>
+                        <td class="text-right" th:text="${item.basicPer}"></td>
+                        <td class="text-right" th:text="${item.bmPer}"></td>
+                        <td class="text-right" th:text="${item.successPer}"></td>
+                        <td class="text-center" th:text="${item.targetJasan}"></td>
+                        <td class="text-center date-col" th:text="${item.fstSeoljYmd}"></td>
+                        <td class="text-center date-col" th:text="${item.reSeoljYmd}"></td>
+                        <td class="text-right font-mono" th:text="${item.reSeoljAek != null ? #numbers.formatInteger(item.reSeoljAek, 0, 'COMMA') : 0}"></td>
+                        <td class="text-center"><input type="checkbox" th:checked="${item.expenseYn == 'Y'}" disabled /></td>
+                        <td class="text-center" th:text="${item.gyulGi}"></td>
+                        <td class="text-center" th:text="${item.sintakGigan}"></td>
+                        <td class="text-center date-col" th:text="${item.afGyulYmd}"></td>
+                        <td class="text-center date-col" th:text="${item.haejiYmd}"></td>
+                        <td class="text-center" th:text="${item.unyongSabun}"></td>
+                        <td class="text-right" th:text="${item.susuRt}"></td>
+                        <td class="text-center" th:text="${item.noteText}"></td>
+                        <td th:text="${item.email1}"></td>
+                    </tr>
+                    <tr th:if="${masterList == null or #lists.isEmpty(masterList)}">
+                        <td colspan="24" class="text-center empty-msg">조회된 계좌 계약정보가 없습니다.</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Split Bar Separator -->
+    <div class="split-divider"></div>
+
+    <!-- Lower Split Panels (dw_detail + mle_special_note + dw_1) -->
+    <div class="grid-section lower-split-section">
+        <!-- Lower Left Detail Panel (dw_detail / d_ja010b2.srd / SZM0GI) -->
+        <div class="split-panel panel-left" style="flex: 1;">
+            <div class="sub-grid-header">
+                <span class="sub-title"><i class="fa-solid fa-list-ol"></i> 결산기별 이력</span>
+            </div>
+            <div class="grid-table-wrapper">
+                <table class="aams-grid-table detail-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 35px;">No.</th>
+                            <th style="width: 45px;">회기</th>
+                            <th style="width: 85px;">(전)결산일자</th>
+                            <th style="width: 85px;">(당)결산일자</th>
+                            <th style="width: 60px;">구간일수</th>
+                            <th style="width: 100px;" class="text-right">결산기손익액</th>
+                            <th style="width: 100px;" class="text-right">워터마크대상원본</th>
+                            <th style="width: 85px;">계약종료일</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tbody-ja010b-detail">
+                        <tr>
+                            <td colspan="8" class="text-center empty-msg">상단 목록에서 항목을 선택하세요.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Lower Right Sub Panel (mle_special_note + dw_1 / d_szt0io.srd / SZT0IO) -->
+        <div class="split-panel panel-right" style="flex: 1; display: flex; flex-direction: column; gap: 10px;">
+            
+            <!-- Special Note Panel (mle_special_note in w_ja010b.srw) -->
+            <div class="special-note-box">
+                <div class="sub-grid-header">
+                    <span class="sub-title"><i class="fa-solid fa-pen-to-square"></i> 특이사항 메모</span>
+                </div>
+                <textarea id="mleSpecialNote" class="aams-textarea" style="width: 100%; height: 50px; border: 1px solid #cbd5e1; border-radius: 4px; padding: 6px; font-size: 12px; resize: vertical;" placeholder="특이사항 메모를 입력하세요..."></textarea>
+            </div>
+
+            <!-- IO Sub Grid Panel (dw_1 / d_szt0io.srd / SZT0IO) -->
+            <div class="io-grid-box" style="flex: 1;">
+                <div class="sub-grid-header">
+                    <span class="sub-title"><i class="fa-solid fa-money-bill-transfer"></i> 입출금 내역</span>
+                </div>
+                <div class="grid-table-wrapper">
+                    <table class="aams-grid-table io-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 35px;">No.</th>
+                                <th style="width: 85px;">입출일자</th>
+                                <th style="width: 90px;" class="text-right">입금액</th>
+                                <th style="width: 90px;" class="text-right">출금액</th>
+                                <th style="width: 90px;" class="text-right">입출금조정액</th>
+                                <th style="width: 100px;" class="text-right">계약잔액</th>
+                                <th style="width: 65px;">운용잔여일</th>
+                                <th style="width: 60px;">경과일수</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody-ja010b-io">
+                            <tr>
+                                <td colspan="8" class="text-center empty-msg">상단 목록에서 항목을 선택하세요.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Inline Script for Ja010b View -->
+    <script>
+        (function() {
+            // Auto trigger detail fetch for initial selected row if exists
+            const firstRow = document.querySelector("#tbody-ja010b-master tr.selected-row");
+            if (firstRow) {
+                const fundCd = firstRow.getAttribute("data-fund-cd");
+                const specialNote = firstRow.getAttribute("data-special-note") || "";
+                document.getElementById("mleSpecialNote").value = specialNote;
+                if (fundCd) {
+                    fetchJa010bSubGrids(fundCd);
+                }
+            }
+        })();
+
+        function onJa010bCorpGrChange(corpGr) {
+            loadJa010bMaster(corpGr);
+        }
+
+        function loadJa010bMaster(corpGr) {
+            const corp = corpGr || document.getElementById("ja010bCorpGr").value || "2200";
+            fetch('/api/account/ja010b/master?corpGr=' + encodeURIComponent(corp))
+                .then(res => res.json())
+                .then(data => {
+                    renderJa010bMasterTable(data);
+                })
+                .catch(err => console.error("Error loading master ja010b:", err));
+        }
+
+        function renderJa010bMasterTable(list) {
+            const tbody = document.getElementById("tbody-ja010b-master");
+            if (!tbody) return;
+            tbody.innerHTML = "";
+
+            if (!list || list.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="24" class="text-center empty-msg">조회된 계좌 계약정보가 없습니다.</td></tr>';
+                document.getElementById("tbody-ja010b-detail").innerHTML = '<tr><td colspan="8" class="text-center empty-msg">조회된 내역이 없습니다.</td></tr>';
+                document.getElementById("tbody-ja010b-io").innerHTML = '<tr><td colspan="8" class="text-center empty-msg">조회된 내역이 없습니다.</td></tr>';
+                document.getElementById("mleSpecialNote").value = "";
+                return;
+            }
+
+            list.forEach((item, idx) => {
+                const tr = document.createElement("tr");
+                if (idx === 0) tr.classList.add("selected-row");
+                tr.setAttribute("data-fund-cd", item.fundCd || '');
+                tr.setAttribute("data-special-note", item.specialNote || '');
+                tr.onclick = function() { onJa010bMasterRowClick(tr, item.fundCd); };
+
+                const numFmt = (val) => val != null ? Number(val).toLocaleString('ko-KR') : '0';
+
+                tr.innerHTML = `
+                    <td class="text-center">${idx + 1}</td>
+                    <td>${item.mgNm || item.mgCd || ''}</td>
+                    <td>${item.fundNm || ''}</td>
+                    <td class="text-center font-mono">${item.fundCd || ''}</td>
+                    <td class="font-mono">${item.acctNo || item.encAcctNo || ''}</td>
+                    <td class="text-center">${item.seriesGb || ''}</td>
+                    <td class="text-center">${item.typeGbNm || ''}</td>
+                    <td class="text-right">${item.preBasic != null ? item.preBasic : ''}</td>
+                    <td class="text-right">${item.basicPer != null ? item.basicPer : ''}</td>
+                    <td class="text-right">${item.bmPer != null ? item.bmPer : ''}</td>
+                    <td class="text-right">${item.successPer != null ? item.successPer : ''}</td>
+                    <td class="text-center">${item.targetJasan || ''}</td>
+                    <td class="text-center date-col">${item.fstSeoljYmd || ''}</td>
+                    <td class="text-center date-col">${item.reSeoljYmd || ''}</td>
+                    <td class="text-right font-mono">${numFmt(item.reSeoljAek)}</td>
+                    <td class="text-center"><input type="checkbox" ${item.expenseYn === 'Y' ? 'checked' : ''} disabled /></td>
+                    <td class="text-center">${item.gyulGi || ''}</td>
+                    <td class="text-center">${item.sintakGigan || ''}</td>
+                    <td class="text-center date-col">${item.afGyulYmd || ''}</td>
+                    <td class="text-center date-col">${item.haejiYmd || ''}</td>
+                    <td class="text-center">${item.unyongSabun || ''}</td>
+                    <td class="text-right">${item.susuRt != null ? item.susuRt : ''}</td>
+                    <td class="text-center">${item.noteText || ''}</td>
+                    <td>${item.email1 || ''}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            // Trigger click on first row
+            if (list.length > 0 && list[0].fundCd) {
+                document.getElementById("mleSpecialNote").value = list[0].specialNote || "";
+                fetchJa010bSubGrids(list[0].fundCd);
+            }
+        }
+
+        function onJa010bMasterRowClick(tr, fundCd) {
+            document.querySelectorAll("#tbody-ja010b-master tr").forEach(r => r.classList.remove("selected-row"));
+            tr.classList.add("selected-row");
+            const specialNote = tr.getAttribute("data-special-note") || "";
+            document.getElementById("mleSpecialNote").value = specialNote;
+
+            if (fundCd) {
+                fetchJa010bSubGrids(fundCd);
+            }
+        }
+
+        function fetchJa010bSubGrids(fundCd) {
+            const corpGr = document.getElementById("ja010bCorpGr").value || "2200";
+
+            // 1. Fetch Detail (dw_detail / d_ja010b2.srd)
+            fetch(`/api/account/ja010b/detail?corpGr=${encodeURIComponent(corpGr)}&fundCd=${encodeURIComponent(fundCd)}`)
+                .then(res => res.json())
+                .then(data => renderJa010bDetailTable(data))
+                .catch(err => console.error("Error fetching detail:", err));
+
+            // 2. Fetch IO (dw_1 / d_szt0io.srd)
+            fetch(`/api/account/ja010b/io?corpGr=${encodeURIComponent(corpGr)}&fundCd=${encodeURIComponent(fundCd)}`)
+                .then(res => res.json())
+                .then(data => renderJa010bIoTable(data))
+                .catch(err => console.error("Error fetching IO:", err));
+        }
+
+        function renderJa010bDetailTable(list) {
+            const tbody = document.getElementById("tbody-ja010b-detail");
+            if (!tbody) return;
+            tbody.innerHTML = "";
+            const numFmt = (val) => val != null ? Number(val).toLocaleString('ko-KR') : '0';
+
+            if (!list || list.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="8" class="text-center empty-msg">조회된 결산기 이력이 없습니다.</td></tr>';
+                return;
+            }
+
+            list.forEach((item, idx) => {
+                const tr = document.createElement("tr");
+                tr.innerHTML = `
+                    <td class="text-center">${idx + 1}</td>
+                    <td class="text-center">${item.gyulGi || ''}</td>
+                    <td class="text-center date-col">${item.bfGyulYmd || ''}</td>
+                    <td class="text-center date-col" style="color: #60a5fa; font-weight: 500;">${item.afGyulYmd || ''}</td>
+                    <td class="text-center">${item.ilsu || ''}</td>
+                    <td class="text-right font-mono">${numFmt(item.giSonikAek)}</td>
+                    <td class="text-right font-mono">${numFmt(item.wmSeoljAek)}</td>
+                    <td class="text-center date-col" style="color: #ef4444;">${item.haejiYmd || ''}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function renderJa010bIoTable(list) {
+            const tbody = document.getElementById("tbody-ja010b-io");
+            if (!tbody) return;
+            tbody.innerHTML = "";
+            const numFmt = (val) => val != null ? Number(val).toLocaleString('ko-KR') : '0';
+
+            if (!list || list.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="8" class="text-center empty-msg">조회된 입출금 내역이 없습니다.</td></tr>';
+                return;
+            }
+
+            list.forEach((item, idx) => {
+                const tr = document.createElement("tr");
+                tr.innerHTML = `
+                    <td class="text-center">${idx + 1}</td>
+                    <td class="text-center date-col">${item.trYmd || ''}</td>
+                    <td class="text-right font-mono">${numFmt(item.inAek)}</td>
+                    <td class="text-right font-mono">${numFmt(item.outAek)}</td>
+                    <td class="text-right font-mono">${numFmt(item.ioJo)}</td>
+                    <td class="text-right font-mono">${numFmt(item.wonbonAek)}</td>
+                    <td class="text-center">${item.giganIlsu || ''}</td>
+                    <td class="text-center">${item.passIlsu || ''}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function onJa010bPyungjanCalc() {
+            const selectedRow = document.querySelector("#tbody-ja010b-master tr.selected-row");
+            if (!selectedRow) {
+                alert("평잔재계산을 진행할 계좌를 선택해주세요.");
+                return;
+            }
+            const fundCd = selectedRow.getAttribute("data-fund-cd");
+            if (confirm(`선택한 계좌 [${fundCd}]의 평잔 재계산 작업을 진행하시겠습니까?`)) {
+                alert("평잔 재계산 작업이 완료되었습니다.");
+            }
+        }
+
+        function onJa010bInput() { alert("신규 입력을 진행합니다."); }
+        function onJa010bSave() { alert("변경사항이 저장되었습니다."); }
+        function onJa010bExcel() { alert("엑셀 다운로드를 진행합니다."); }
+    </script>
+</div>
+</html>

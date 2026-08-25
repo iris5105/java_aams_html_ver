@@ -1,0 +1,19 @@
+﻿global type fw_f_savepath from function_object
+end type
+
+forward prototypes
+global subroutine fw_f_savepath (string as_gb, string as_path)
+end prototypes
+
+global subroutine fw_f_savepath (string as_gb, string as_path);Choose Case as_gb
+	Case 'get'
+		If fw_f_nvls(gnv_vari.GetSavePath, '') <> '' Then
+			ChangeDirectory(gnv_vari.GetSavePath)
+		Else
+			ChangeDirectory('C:\')  /* 특정 폴더로 초기 설정 */
+		End If
+	Case 'set'
+		If fw_f_nvls(as_path, '') <> '' and as_path <> gnv_vari.basepath Then gnv_vari.GetSavePath = as_path			
+End Choose
+end subroutine
+

@@ -1,8 +1,13 @@
 package com.kfp.aams.domain.home.dto;
 
-import lombok.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
@@ -14,8 +19,11 @@ public class CompanyDto {
     private String junyongYmd;
     private String ikyongYmd;
     private String thikyongYmd;
+    private String lastYmd;
     private String symd;
     private String eymd;
+    private String checkYmd;
+    private String h2o;
     private Integer depositDd;
     private String depositAccount;
     private String bigo;

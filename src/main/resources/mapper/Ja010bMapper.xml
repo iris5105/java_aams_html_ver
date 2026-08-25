@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.kfp.aams.domain.account.mapper.Ja010bMapper">
+
+    <!-- 1. Master Account Contract List (SZM0IA) -->
+    <select id="selectJa010bMasterList" resultType="com.kfp.aams.domain.account.dto.Ja010bMasterDto">
+        SELECT t1.CORP_GR                       AS corpGr
+             , t1.ENC_ACCT_NO                   AS encAcctNo
+             , TO_DECRYPTS(t1.ENC_ACCT_NO)      AS acctNo
+             , t1.FUND_CD                       AS fundCd
+             , t1.FUND_NM                       AS fundNm
+             , t1.TYPE_GB                       AS typeGb
+             , CASE t1.TYPE_GB
+                 WHEN '1' THEN '개인일임'
+                 WHEN '2' THEN '고유'
+                 WHEN '3' THEN '운용완료'
+                 ELSE '기타'
+               END                              AS typeGbNm
+             , TO_CHAR(t1.FST_SEOLJ_YMD, 'YYYY-MM-DD') AS fstSeoljYmd
+             , t1.SINTAK_GIGAN                  AS sintakGigan
+             , TO_CHAR(t1.BF_GYUL_YMD, 'YYYY-MM-DD')  AS bfGyulYmd
+             , TO_CHAR(t1.AF_GYUL_YMD, 'YYYY-MM-DD')  AS afGyulYmd
+             , t1.PRE_BASIC                     AS preBasic
+             , t1.BASIC_PER                     AS basicPer
+             , t1.BM_PER                        AS bmPer
+             , t1.SUCCESS_PER                   AS successPer
+             , t1.SERIES_GB                     AS seriesGb
+             , t1.TARGET_JASAN                  AS targetJasan
+             , t1.GYUL_GI                      AS gyulGi
+             , t1.HAEJI_GB                      AS haejiGb
+             , TO_CHAR(t1.HAEJI_YMD, 'YYYY-MM-DD')    AS haejiYmd
+             , t1.RE_SEOLJ_YEAR                 AS reSeoljYear
+             , t1.RE_SEOLJ_AEK                  AS reSeoljAek
+             , t1.MG_CD                         AS mgCd
+             , F_BALH_NM(t1.CORP_GR, t1.MG_CD) AS mgNm
+             , t1.SUSU_RT                       AS susuRt
+             , t1.EMAIL1                        AS email1
+             , TO_CHAR(t1.RE_SEOLJ_YMD, 'YYYY-MM-DD') AS reSeoljYmd
+             , t1.UNYONG_SABUN                  AS unyongSabun
+             , t1.ORDER_SEND                    AS orderSend
+             , t1.EXPENSE_YN                    AS expenseYn
+             , t1.ALIAS_CODE                    AS aliasCode
+             , t1.SPECIAL_NOTE                  AS specialNote
+             , CASE WHEN NVL(t1.SPECIAL_NOTE, ' ') = ' ' THEN ' ' ELSE 'NOTE' END AS noteText
+          FROM SZM0IA t1
+         WHERE (#{corpGr} IS NULL OR t1.corp_gr = #{corpGr})
+         ORDER BY NVL(t1.haeji_gb, '0') ASC, t1.mg_cd ASC, t1.fund_nm ASC, t1.re_seolj_ymd ASC
+    </select>
+
+    <!-- 2. Detail Settlement Period History List (SZM0GI) -->
+    <select id="selectJa010bDetailList" resultType="com.kfp.aams.domain.account.dto.Ja010bDetailDto">
+        SELECT t1.CORP_GR                       AS corpGr
+             , t1.FUND_CD                       AS fundCd
+             , t1.GYUL_GI                       AS gyulGi
+             , TO_CHAR(t1.BF_GYUL_YMD, 'YYYY-MM-DD')  AS bfGyulYmd
+             , TO_CHAR(t1.AF_GYUL_YMD, 'YYYY-MM-DD')  AS afGyulYmd
+             , t1.ILSU                          AS ilsu
+             , t1.GI_SONIK_AEK                  AS giSonikAek
+             , t1.WM_SEOLJ_AEK                  AS wmSeoljAek
+             , TO_CHAR(t1.WM_DT, 'YYYY-MM-DD')        AS wmDt
+             , TO_CHAR(t1.HAEJI_YMD, 'YYYY-MM-DD')    AS haejiYmd
+             , t1.DIST_CALC                     AS distCalc
+             , TO_CHAR(t1.INCHUL_YMD, 'YYYY-MM-DD')   AS inchulYmd
+             , t1.IN_AEK                        AS inAek
+             , t1.AF_GIJUN                      AS afGijun
+          FROM SZM0GI t1
+         WHERE t1.corp_gr = #{corpGr}
+           AND t1.fund_cd = #{fundCd}
+         ORDER BY t1.bf_gyul_ymd DESC
+    </select>
+
+    <!-- 3. Sub Deposit/Withdrawal History List (SZT0IO) -->
+    <select id="selectJa010bIoList" resultType="com.kfp.aams.domain.account.dto.Ja010bIoDto">
+        SELECT t1.CORP_GR                       AS corpGr
+             , t1.FUND_CD                       AS fundCd
+             , TO_CHAR(t1.TR_YMD, 'YYYY-MM-DD')       AS trYmd
+             , t1.WONBON_AEK                    AS wonbonAek
+             , t1.IN_AEK                        AS inAek
+             , t1.OUT_AEK                       AS outAek
+             , t1.GIGAN_ILSU                    AS giganIlsu
+             , t1.PASS_ILSU                     AS passIlsu
+             , t1.IO_JO                         AS ioJo
+             , TO_CHAR(t1.MOD_DT, 'YYYY-MM-DD')       AS modDt
+             , t1.MOD_USER                      AS modUser
+             , CASE WHEN NVL(t1.mod_user, 'start') = 'start' THEN 'N' ELSE 'Y' END AS modYn
+          FROM SZT0IO t1
+         WHERE t1.corp_gr = #{corpGr}
+           AND t1.fund_cd = #{fundCd}
+         ORDER BY t1.tr_ymd DESC
+    </select>
+
+</mapper>

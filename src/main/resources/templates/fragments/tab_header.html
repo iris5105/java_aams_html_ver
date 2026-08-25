@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+
+    <!-- 1. Common Toolbar Buttons (닫기 ~ 엑셀) -->
+    <div th:fragment="toolbarButtons" class="toolbar-buttons">
+        <button class="t-btn btn-close" onclick="tabManager.closeCurrentTab()"><i class="fa-solid fa-xmark"></i> 닫기</button>
+        <button class="t-btn btn-refresh" onclick="if(typeof onRefresh === 'function') onRefresh(); else if(typeof loadJa010bMaster === 'function') loadJa010bMaster();"><i class="fa-solid fa-rotate"></i> 새로고침</button>
+        <button class="t-btn btn-search" onclick="if(typeof onSearch === 'function') onSearch(); else if(typeof loadJa010bMaster === 'function') loadJa010bMaster();"><i class="fa-solid fa-magnifying-glass"></i> 조회</button>
+        <button class="t-btn btn-input" onclick="if(typeof onInput === 'function') onInput(); else if(typeof onJa010bInput === 'function') onJa010bInput();"><i class="fa-solid fa-plus"></i> 입력</button>
+        <button class="t-btn btn-save" onclick="if(typeof onSave === 'function') onSave(); else if(typeof onJa010bSave === 'function') onJa010bSave();"><i class="fa-solid fa-floppy-disk"></i> 저장</button>
+        <button class="t-btn btn-excel" onclick="if(typeof onExcel === 'function') onExcel(); else if(typeof onJa010bExcel === 'function') onJa010bExcel();"><i class="fa-regular fa-file-excel"></i> 엑셀</button>
+    </div>
+
+    <!-- 2. Common Breadcrumb Fragment -->
+    <div th:fragment="toolbarBreadcrumb" class="toolbar-right breadcrumb">
+        <i class="fa-solid fa-house"></i> <span th:text="${fullpgm2 != null ? fullpgm2 : '사무관리 > 자문일일 > 일위작업 > 1011 계좌계약정보관리 [w_ja010b]'}">사무관리 &gt; 자문일일 &gt; 일위작업 &gt; 1011 계좌계약정보관리 [w_ja010b]</span>
+    </div>
+
+    <!-- 3. Common Corp Group Filter (운용사 선택 드롭다운) -->
+    <div th:fragment="corpFilter" class="filter-bar">
+        <div class="filter-item">
+            <label for="filterCorpGr">운용사</label>
+            <select id="filterCorpGr" name="corpGr" class="filter-select">
+                <option value="2200" th:selected="${corpGr == '2200'}">(주)케이에프피</option>
+                <option value="2100" th:selected="${corpGr == '2100'}">현대자산운용</option>
+                <option value="2300" th:selected="${corpGr == '2300'}">한국투신운용</option>
+            </select>
+        </div>
+    </div>
+
+</body>
+</html>

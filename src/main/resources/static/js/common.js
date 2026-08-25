@@ -64,6 +64,51 @@ function toggleMenuGroup(headerEl) {
     groupEl.classList.toggle('collapsed');
 }
 
+function formatBreadcrumb(fullpgm2, title, pgmId) {
+    let base = (fullpgm2 && fullpgm2.trim() !== '') ? fullpgm2.trim() : '';
+    let menuName = (title && title.trim() !== '') ? title.trim() : '';
+    let pId = (pgmId && pgmId.trim() !== '') ? pgmId.trim() : '';
+
+    if (!base) {
+        return menuName ? `${menuName} [${pId}]` : (pId ? `[${pId}]` : '');
+    }
+
+    if (menuName && !base.endsWith(menuName)) {
+        base += ` > ${menuName}`;
+    }
+
+    if (pId && !base.endsWith(`[${pId}]`)) {
+        base += ` [${pId}]`;
+    }
+
+    return base;
+}
+
+function onSidebarMenuClick(el) {
+    if (!el) return;
+    const pgmNo = el.getAttribute('data-pgm-no');
+    const pgmId = el.getAttribute('data-pgm-id') || pgmNo;
+    const title = el.getAttribute('data-title') || el.innerText.trim();
+    const rawBreadcrumb = el.getAttribute('data-breadcrumb');
+    const breadcrumb = formatBreadcrumb(rawBreadcrumb, title, pgmId);
+
+    if (window.tabManager) {
+        window.tabManager.openTab(pgmNo, pgmId, title, null, breadcrumb);
+    }
+}
+
+function filterSidebarMenu(query) {
+    const q = (query || '').trim().toLowerCase();
+    document.querySelectorAll('#sidebarMenuContainer .tree-menu-item').forEach(el => {
+        const text = el.innerText.toLowerCase();
+        if (!q || text.includes(q)) {
+            el.style.display = 'flex';
+        } else {
+            el.style.display = 'none';
+        }
+    });
+}
+
 function renderSideMenu(list) {
     const container = document.getElementById('sidebarMenuContainer');
     if (!container) return;
@@ -122,9 +167,12 @@ function renderSideMenu(list) {
             // If showGroupHeader is false (middleCategoryCount <= 1), skip rendering the single group header
         } else {
             // Leaf screen menu item (PGM_KIND_CODE === 'P')
+            const pgmId = item.pgmId ? item.pgmId.trim() : (item.pgmNo ? item.pgmNo.trim() : '');
+            const rawBreadcrumb = item.fullpgm2 || item.fullpgm || '';
+            const breadcrumb = formatBreadcrumb(rawBreadcrumb, displayNm, pgmId);
             html += `
-                <div class="menu-item${hasLineClass}" data-pgm-no="${item.pgmNo || ''}">
-                    <i class="fa-solid fa-file-code"></i> <span>${displayNm}</span>
+                <div class="tree-menu-item${hasLineClass}" data-pgm-no="${item.pgmNo || ''}" data-pgm-id="${pgmId}" data-title="${displayNm}" data-breadcrumb="${breadcrumb}" onclick="onSidebarMenuClick(this)">
+                    <i class="fa-solid fa-file-code menu-icon"></i> <span class="menu-label">${displayNm}</span>
                 </div>
             `;
         }
