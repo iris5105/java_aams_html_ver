@@ -1,6 +1,5 @@
 package com.kfp.aams.domain.home.controller;
 
-import com.kfp.aams.domain.auth.dto.*;
 import com.kfp.aams.domain.home.dto.*;
 import com.kfp.aams.domain.menu.dto.*;
 import com.kfp.aams.security.UserPrincipal;
@@ -35,7 +34,8 @@ public class HomeController {
         String userNm = resolveUserNm(principal);
         String lastConnect = principal.getLastConnect();
 
-        String today = java.time.LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"));
+        String today = java.time.LocalDateTime.now()
+                .format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"));
 
         List<MenuDto> topMenuList = menuService.getTopMenuList();
         String activePgmNo = (topMenuList != null && !topMenuList.isEmpty()) ? topMenuList.get(0).getPgmNo() : "01000";

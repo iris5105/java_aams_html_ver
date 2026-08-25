@@ -1,8 +1,7 @@
 package com.kfp.aams.domain.home.service;
 
-import com.kfp.aams.domain.auth.dto.*;
 import com.kfp.aams.domain.home.dto.*;
-import com.kfp.aams.domain.menu.dto.*;
+
 import com.kfp.aams.domain.home.mapper.HomeMapper;
 import com.kfp.aams.domain.home.repository.HomeQueryDslRepository;
 import lombok.RequiredArgsConstructor;
@@ -72,7 +71,8 @@ public class HomeService {
     }
 
     /**
-     * Notice Component (uo_allnotice / d_home5_notice_1): Multi-table Subquery via MyBatis
+     * Notice Component (uo_allnotice / d_home5_notice_1): Multi-table Subquery via
+     * MyBatis
      */
     public List<NoticeDto> getNoticeList(String userId) {
         return homeMapper.selectHome5NoticeList(userId != null ? userId : "GUEST");
@@ -82,7 +82,8 @@ public class HomeService {
      * Dual-Axis Chart Component (uo_cht1 / dw_cht9): fw_day_chtdata via MyBatis
      */
     public List<ChtDataDto> getChtDataList(String corpGr, String ymd) {
-        String targetYmd = (ymd != null && !ymd.isBlank()) ? ymd : LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
+        String targetYmd = (ymd != null && !ymd.isBlank()) ? ymd
+                : LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
         return homeMapper.selectChtDataList(corpGr, targetYmd);
     }
 }
