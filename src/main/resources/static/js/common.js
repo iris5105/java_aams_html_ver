@@ -464,3 +464,24 @@ function extendAccessToken() {
         alert('토큰 연장 요청 중 오류가 발생했습니다.');
     });
 }
+
+/**
+ * Responsive Mobile Sidebar Drawer Controller & Window Resize Helper
+ */
+function toggleSidebar() {
+    const sidebar = document.querySelector('.left-sidebar');
+    const body = document.body;
+    if (!sidebar) return;
+    
+    sidebar.classList.toggle('sidebar-open');
+    body.classList.toggle('sidebar-backdrop-open');
+}
+
+// Window resize listener to automatically redraw Tabulator instances
+window.addEventListener('resize', function() {
+    if (typeof Tabulator !== 'undefined') {
+        Tabulator.findTable(".tabulator").forEach(table => {
+            try { table.redraw(true); } catch(e) {}
+        });
+    }
+});

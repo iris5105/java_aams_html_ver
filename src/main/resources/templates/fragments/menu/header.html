@@ -3,11 +3,15 @@
 <!-- Top Navigation Header Fragment -->
 <header class="top-header" th:fragment="topHeader">
     <div class="top-header-left">
+        <!-- Mobile Sidebar Toggle Button -->
+        <button class="mobile-sidebar-toggle" onclick="toggleSidebar()" title="사이드바 메뉴 열기/닫기">
+            <i class="fa-solid fa-bars"></i>
+        </button>
         <div class="user-info">
             <i class="fa-solid fa-user"></i>
             <span class="user-name" th:text="${userNm != null ? userNm + ' 님' : ' 님'}"></span>
             <span class="login-date">최근 접속 :<br><span th:text="${lastConnect != null ? lastConnect : today}"></span></span>
-            <button onclick="handleLogout()" style="background: none; border: 1px solid #475569; color: #cbd5e1; border-radius: 3px; padding: 2px 6px; font-size: 11px; cursor: pointer; margin-left: 8px;">로그아웃</button>
+            <button onclick="handleLogout()" class="btn-logout">로그아웃</button>
         </div>
         <nav class="top-nav" id="topNavContainer">
             <th:block th:if="${topMenuList != null and not #lists.isEmpty(topMenuList)}">
@@ -28,10 +32,10 @@
     </div>
     <!-- 회사 변경: 관리자(adminYn == 'Y') 전용 기능 -->
     <div class="top-header-right" th:if="${adminYn != null and #strings.equalsIgnoreCase(adminYn, 'Y')}" onclick="openCompanyModal()" style="cursor: pointer;" title="회사 변경">
-        <img th:src="@{'/img/right_logo/fw_top_logo_right_' + ${corpGr} + '.jpg'}" src="/img/right_logo/fw_top_logo_right_2200.jpg" alt="Company Logo" style="max-height: 32px; vertical-align: middle;" onerror="this.src='/img/right_logo/fw_top_logo_right_2200.jpg'">
+        <img th:src="@{'/img/right_logo/fw_top_logo_right_' + ${corpGr} + '.jpg'}" src="/img/right_logo/fw_top_logo_right_2200.jpg" alt="Company Logo" class="top-company-logo" onerror="this.src='/img/right_logo/fw_top_logo_right_2200.jpg'">
     </div>
     <div class="top-header-right" th:unless="${adminYn != null and #strings.equalsIgnoreCase(adminYn, 'Y')}">
-        <img th:src="@{'/img/right_logo/fw_top_logo_right_' + ${corpGr} + '.jpg'}" src="/img/right_logo/fw_top_logo_right_2200.jpg" alt="Company Logo" style="max-height: 32px; vertical-align: middle;" onerror="this.src='/img/right_logo/fw_top_logo_right_2200.jpg'">
+        <img th:src="@{'/img/right_logo/fw_top_logo_right_' + ${corpGr} + '.jpg'}" src="/img/right_logo/fw_top_logo_right_2200.jpg" alt="Company Logo" class="top-company-logo" onerror="this.src='/img/right_logo/fw_top_logo_right_2200.jpg'">
     </div>
 </header>
 </html>

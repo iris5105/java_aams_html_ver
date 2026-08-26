@@ -12,6 +12,9 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- Chart.js for Dual Axis Chart -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Tabulator Data Grid (Light Theme) -->
+    <link rel="stylesheet" th:href="@{/css/tabulator.min.css}" href="/css/tabulator.min.css">
+    <script th:src="@{/js/tabulator.min.js}" src="/js/tabulator.min.js"></script>
     <!-- Unified Stylesheet -->
     <link rel="stylesheet" th:href="@{/css/style.css}" href="/css/style.css">
     <!-- Common & Specialized JavaScript Modules -->
@@ -59,34 +62,7 @@
                     </div>
                 </div>
                 <div class="panel-body">
-                    <table class="dw-table">
-                        <thead>
-                            <tr>
-                                <th>발행기관</th>
-                                <th>공모종목명</th>
-                                <th>공모일자</th>
-                                <th>청약증권사</th>
-                                <th>시작일자</th>
-                                <th>마감일자</th>
-                                <th><span>청약금</span><br/> <span>납입일</span></th>
-                                <th>상장일자</th>
-                                <th><span>수수료율</span><br/> <span>(%)</span></th>
-                                <th>상장예정종목코드</th>
-                                <th>상장예정종목명</th>
-                            </tr>
-                        </thead>
-                        <tbody id="tbody-public-stocks">
-                            <tr th:each="item : ${publicStockList}">
-                                <td class="text-center" th:text="${item.balhCo}"></td>
-                                <td th:text="${item.jmNm}"></td>
-                                <td class="text-center date-col" th:text="${item.startYmd != null ? item.startYmd : item.ymd}"></td>
-                                <td th:text="${item.jgTrCoNm}"></td>
-                            </tr>
-                            <tr th:if="${publicStockList == null or #lists.isEmpty(publicStockList)}">
-                                <td colspan="4" class="text-center" style="color: #94a3b8; padding: 12px;">데이터 없음</td>
-                            </tr>
-                        </tbody>
-                    </table>
+                    <div id="grid-public-stocks" class="tabulator-dw-grid"></div>
                 </div>
             </section>
 
@@ -99,24 +75,7 @@
                     </div>
                 </div>
                 <div class="panel-body">
-                    <table class="dw-table">
-                        <thead>
-                            <tr>
-                                <th>종목명</th>
-                                <th>상장예정종목</th>
-                                <th>청약일</th>
-                                <th>청약수량</th>
-                                <th>청약단가</th>
-                                <th>청약금액</th>
-                                <th>매도제한</th>
-                            </tr>
-                        </thead>
-                        <tbody id="tbody-subscriptions">
-                            <tr>
-                                <td colspan="4" class="text-center" style="color: #94a3b8; padding: 12px;">데이터 없음</td>
-                            </tr>
-                        </tbody>
-                    </table>
+                    <div id="grid-subscriptions" class="tabulator-dw-grid"></div>
                 </div>
             </section>
 
@@ -129,20 +88,7 @@
                     </div>
                 </div>
                 <div class="panel-body">
-                    <table class="dw-table">
-                        <thead>
-                            <tr>
-                                <th>의뢰일시</th>
-                                <th>개발 의뢰내용</th>
-                                <th>완료일시</th>
-                            </tr>
-                        </thead>
-                        <tbody id="tbody-proposals">
-                            <tr>
-                                <td colspan="3" class="text-center" style="color: #94a3b8; padding: 12px;">데이터 없음</td>
-                            </tr>
-                        </tbody>
-                    </table>
+                    <div id="grid-proposals" class="tabulator-dw-grid"></div>
                 </div>
             </section>
 
@@ -155,29 +101,7 @@
                     </div>
                 </div>
                 <div class="panel-body">
-                    <table class="dw-table">
-                        <thead>
-                            <tr>
-                                <th>거래유형</th>
-                                <th>거래구분</th>
-                                <th class="text-right">건수</th>
-                                <th class="text-right">거래금액</th>
-                                <th class="text-center">**</th>
-                            </tr>
-                        </thead>
-                        <tbody id="tbody-daytr">
-                            <tr th:each="item : ${dayTrList}">
-                                <td th:text="${item.jasanGb}"></td>
-                                <td class="text-center" th:text="${item.trCd}"></td>
-                                <td class="text-right" th:text="${#numbers.formatInteger(item.trCount, 0, 'COMMA')}"></td>
-                                <td class="text-right" th:text="${#numbers.formatDecimal(item.trAek, 0, 'COMMA', 0, 'POINT')}"></td>
-                                <td class="text-center" th:text="${item.fundCount}"></td>
-                            </tr>
-                            <tr th:if="${dayTrList == null or #lists.isEmpty(dayTrList)}">
-                                <td colspan="5" class="text-center" style="color: #94a3b8; padding: 12px;">데이터 없음</td>
-                            </tr>
-                        </tbody>
-                    </table>
+                    <div id="grid-daytr" class="tabulator-dw-grid"></div>
                 </div>
             </section>
 
@@ -189,46 +113,12 @@
                 </div>
                 <div class="panel-body">
                     <!-- Tab 1: dw_2 -->
-                    <div id="gyulTab">
-                        <table class="dw-table">
-                            <thead>
-                                <tr>
-                                    <th>계약만료월</th>
-                                    <th>펀드코드</th>
-                                    <th>펀드명</th>
-                                </tr>
-                            </thead>
-                            <tbody id="tbody-gyul">
-                                <tr th:each="item : ${gyulList}">
-                                    <td class="text-center date-col" th:text="${item.gyulYmd}"></td>
-                                    <td class="text-center" th:text="${item.fundCd}"></td>
-                                    <td th:text="${item.fundNm}"></td>
-                                </tr>
-                                <tr th:if="${gyulList == null or #lists.isEmpty(gyulList)}">
-                                    <td colspan="3" class="text-center" style="color: #94a3b8; padding: 12px;">데이터 없음</td>
-                                </tr>
-                            </tbody>
-                        </table>
+                    <div id="gyulTab" style="height: 100%;">
+                        <div id="grid-gyul" class="tabulator-dw-grid"></div>
                     </div>
                     <!-- Tab 2: dw_3 -->
-                    <div id="rateTab" style="display:none;">
-                        <table class="dw-table">
-                            <thead>
-                                <tr>
-                                    <th>종목코드</th>
-                                    <th>종목명</th>
-                                    <th>펀드명</th>
-                                    <th>이자수령일</th>
-                                    <th>계좌명</th>
-                                    <th>관리번호</th>
-                                </tr>
-                            </thead>
-                            <tbody id="tbody-rate">
-                                <tr>
-                                    <td colspan="4" class="text-center" style="color: #94a3b8; padding: 12px;">데이터 없음</td>
-                                </tr>
-                            </tbody>
-                        </table>
+                    <div id="rateTab" style="display:none; height: 100%;">
+                        <div id="grid-rate" class="tabulator-dw-grid"></div>
                     </div>
                 </div>
             </section>
