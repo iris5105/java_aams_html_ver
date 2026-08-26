@@ -9,9 +9,10 @@
         <th:block th:if="${sideMenuList != null and not #lists.isEmpty(sideMenuList)}">
             <div th:each="item : ${sideMenuList}" 
                  class="tree-menu-item" 
-                 th:classappend="${activePgmNo != null and activePgmNo == item.pgmNo} ? 'active' : ''"
+                 th:classappend="${(activePgmGo != null and item.pgmGo != null and activePgmGo == item.pgmGo) or (activePgmNo != null and activePgmNo == item.pgmNo)} ? 'active' : ''"
                  th:data-pgm-no="${item.pgmNo}"
                  th:data-pgm-id="${item.pgmId}"
+                 th:data-pgm-go="${item.pgmGo}"
                  th:data-title="${item.displayNm}"
                  th:data-breadcrumb="${item.fullpgm2 != null ? item.fullpgm2 : (item.fullpgm != null ? item.fullpgm : item.displayNm)}"
                  onclick="onSidebarMenuClick(this)">

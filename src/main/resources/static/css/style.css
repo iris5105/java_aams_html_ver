@@ -1294,6 +1294,63 @@ body, html {
     vertical-align: middle;
 }
 
+/* Top Category Tree Folder Styling in Sidebar */
+.top-menu-group {
+    display: flex;
+    flex-direction: column;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+
+.top-menu-group-header {
+    padding: 9px 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    color: #38bdf8;
+    background-color: #1e242b;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 700;
+    user-select: none;
+    transition: background 0.15s ease;
+}
+
+.top-menu-group-header:hover {
+    background-color: #232931;
+    color: #60a5fa;
+}
+
+.top-menu-group-header .group-title-box {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.top-menu-group-header .group-icon {
+    font-size: 13px;
+    color: #38bdf8;
+}
+
+.top-menu-group-header .toggle-icon {
+    font-size: 11px;
+    color: #64748b;
+    transition: transform 0.2s ease;
+}
+
+.top-menu-group.collapsed .top-menu-group-children {
+    display: none;
+}
+
+.top-menu-group.collapsed .toggle-icon {
+    transform: rotate(-90deg);
+}
+
+.top-menu-group-children {
+    display: flex;
+    flex-direction: column;
+    background-color: #232931;
+}
+
 /* 1. Large Laptop / Small Desktop (992px ~ 1399px) */
 @media (max-width: 1399px) {
     .workspace-grid-6 {
@@ -1312,7 +1369,19 @@ body, html {
     }
 }
 
-@media (max-width: 1050px) {
+@media (max-width: 1100px) {
+    /* Hide top nav tabs from header on tablet/narrow screens to prevent overlap */
+    .top-nav {
+        display: none !important;
+    }
+
+    /* Enable mobile sidebar toggle button */
+    .mobile-sidebar-toggle {
+        display: inline-flex !important;
+        align-items: center;
+        justify-content: center;
+    }
+
     .breadcrumb {
         display: none !important;
     }

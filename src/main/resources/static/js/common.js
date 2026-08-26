@@ -42,19 +42,108 @@ function onHeaderMenuClick(el) {
 
     const pgmNo = el.getAttribute('data-pgm-no');
     if (pgmNo) {
-        loadSideMenu(pgmNo);
+        expandTopCategoryFolder(pgmNo);
+    }
+}
+
+let g_topMenuDataCache = null;
+
+function initSidebarTopTree(activePgmNo) {
+    const container = document.getElementById('sidebarMenuContainer');
+    if (!container) return;
+
+    if (g_topMenuDataCache) {
+        renderTopCategoryFolders(g_topMenuDataCache, activePgmNo);
+        return;
+    }
+
+    safeFetchJson('/api/menu/top')
+        .then(data => {
+            if (!data || data.length === 0) {
+                return;
+            }
+            g_topMenuDataCache = data;
+            renderTopCategoryFolders(g_topMenuDataCache, activePgmNo);
+        });
+}
+
+function renderTopCategoryFolders(topList, activePgmNo) {
+    const container = document.getElementById('sidebarMenuContainer');
+    if (!container) return;
+
+    const targetActiveNo = activePgmNo || (topList[0] ? topList[0].pgmNo : '01000');
+
+    let html = '';
+    topList.forEach(item => {
+        const pgmNo = item.pgmNo;
+        const pgmNm = item.pgmNm;
+        const isActive = (pgmNo === targetActiveNo);
+        const collapsedClass = isActive ? '' : ' collapsed';
+
+        html += `
+            <div class="top-menu-group${collapsedClass}" id="top-menu-group-${pgmNo}" data-pgm-no="${pgmNo}">
+                <div class="top-menu-group-header" onclick="toggleTopCategoryGroup('${pgmNo}')">
+                    <div class="group-title-box">
+                        <i class="fa-solid fa-folder-open group-icon"></i>
+                        <span class="group-title">${pgmNm}</span>
+                    </div>
+                    <i class="fa-solid fa-chevron-down toggle-icon"></i>
+                </div>
+                <div class="top-menu-group-children" id="top-menu-children-${pgmNo}">
+                </div>
+            </div>
+        `;
+    });
+
+    container.innerHTML = html;
+
+    // Load sub-tree for active top category folder
+    loadTopCategorySubTree(targetActiveNo);
+}
+
+function toggleTopCategoryGroup(pgmNo) {
+    const groupEl = document.getElementById(`top-menu-group-${pgmNo}`);
+    if (!groupEl) return;
+
+    const isCollapsed = groupEl.classList.contains('collapsed');
+    if (isCollapsed) {
+        groupEl.classList.remove('collapsed');
+        loadTopCategorySubTree(pgmNo);
+    } else {
+        groupEl.classList.add('collapsed');
+    }
+}
+
+function expandTopCategoryFolder(pgmNo) {
+    const groupEl = document.getElementById(`top-menu-group-${pgmNo}`);
+    if (!groupEl) {
+        initSidebarTopTree(pgmNo);
+        return;
+    }
+
+    groupEl.classList.remove('collapsed');
+    loadTopCategorySubTree(pgmNo);
+}
+
+function loadTopCategorySubTree(pgmNo) {
+    const childContainer = document.getElementById(`top-menu-children-${pgmNo}`);
+    if (!childContainer) return;
+
+    if (childContainer.children.length === 0) {
+        childContainer.innerHTML = '<div style="padding: 8px 16px; color: #94a3b8; font-size: 11px;"><i class="fa-solid fa-spinner fa-spin"></i> 로딩 중...</div>';
+        safeFetchJson(`/api/menu/side?pgmNo=${encodeURIComponent(pgmNo)}`)
+            .then(data => {
+                if (!data || data.length === 0) {
+                    childContainer.innerHTML = '<div style="padding: 8px 16px; color: #64748b; font-size: 11px;">하위 메뉴 없음</div>';
+                    return;
+                }
+                childContainer.innerHTML = renderSubTreeHtml(data);
+            });
     }
 }
 
 function loadSideMenu(pgmNo) {
-    const container = document.getElementById('sidebarMenuContainer');
-    if (!container) return;
-
-    safeFetchJson(`/api/menu/side?pgmNo=${encodeURIComponent(pgmNo)}`)
-        .then(data => {
-            if (!data) return;
-            renderSideMenu(data);
-        });
+    initSidebarTopTree(pgmNo);
 }
 
 function toggleMenuGroup(headerEl) {
@@ -69,7 +158,6 @@ function formatBreadcrumb(fullpgm2, title, pgmId) {
     const menuName = (title && String(title).trim() !== '') ? String(title).trim() : '';
     const pId = (pgmId && String(pgmId).trim() !== '') ? String(pgmId).trim() : '';
 
-    // Prevent duplicate formatting if base already contains [pId]
     if (pId && base.includes(`[${pId}]`)) {
         return base;
     }
@@ -93,17 +181,29 @@ function onSidebarMenuClick(el) {
     if (!el) return;
     const pgmNo = el.getAttribute('data-pgm-no');
     const pgmId = el.getAttribute('data-pgm-id') || pgmNo;
+    const pgmGo = el.getAttribute('data-pgm-go') || '';
     const title = el.getAttribute('data-title') || el.innerText.trim();
     const rawBreadcrumb = el.getAttribute('data-breadcrumb');
     const breadcrumb = formatBreadcrumb(rawBreadcrumb, title, pgmId);
 
     if (window.tabManager) {
-        window.tabManager.openTab(pgmNo, pgmId, title, null, breadcrumb);
+        window.tabManager.openTab(pgmNo, pgmId, title, null, breadcrumb, pgmGo);
     }
 }
 
 function filterSidebarMenu(query) {
     const q = (query || '').trim().toLowerCase();
+
+    if (q) {
+        document.querySelectorAll('.top-menu-group').forEach(group => {
+            const pgmNo = group.getAttribute('data-pgm-no');
+            if (pgmNo) {
+                group.classList.remove('collapsed');
+                loadTopCategorySubTree(pgmNo);
+            }
+        });
+    }
+
     document.querySelectorAll('#sidebarMenuContainer .tree-menu-item').forEach(el => {
         const text = el.innerText.toLowerCase();
         if (!q || text.includes(q)) {
@@ -114,35 +214,23 @@ function filterSidebarMenu(query) {
     });
 }
 
-function renderSideMenu(list) {
-    const container = document.getElementById('sidebarMenuContainer');
-    if (!container) return;
+function renderSubTreeHtml(list) {
+    if (!list || list.length === 0) return '';
 
-    if (!list || list.length === 0) {
-        container.innerHTML = '<div class="menu-item" style="color: #94a3b8; padding: 12px;"><i class="fa-solid fa-circle-info"></i> 메뉴 없음</div>';
-        return;
-    }
-
-    // Count how many middle categories (중분류) exist in the list
-    const middleCategoryCount = list.filter(item => item.pgmKindCode === 'M' || item.treeLevel === 3).length;
-    const showGroupHeader = middleCategoryCount > 1; // Render group headers ONLY if there are multiple middle categories (> 1)
+    const middleCategories = list.filter(item => item.pgmKindCode === 'M' && item.parentPgm !== '00000');
+    const showGroupHeader = middleCategories.length > 1;
 
     let html = '';
     let inGroup = false;
     let groupIndex = 0;
 
     list.forEach(item => {
-        // Skip Top Navigation Level (Level 2) in side menu
-        if (item.treeLevel === 2) {
-            return;
-        }
+        if (item.parentPgm === '00000') return;
 
         const go = item.pgmGo ? item.pgmGo.trim() : '';
         const nm = (item.pgmNm && item.pgmNm.trim()) ? item.pgmNm.trim() : ((item.pgmNo && item.pgmNo.trim()) ? item.pgmNo.trim() : '');
         const displayNm = item.displayNm || (go ? `${go} ${nm}` : nm);
         const hasLineClass = (item.treeLine === 'Y' || item.treeLine === 'y') ? ' has-tree-line' : '';
-
-        // PGM_KIND_CODE === 'M' takes priority to be recognized as Middle Category (중분류)
         const isMiddleCategory = (item.pgmKindCode === 'M') || (item.treeLevel === 3);
 
         if (isMiddleCategory) {
@@ -153,7 +241,6 @@ function renderSideMenu(list) {
                 }
 
                 groupIndex++;
-                // Expand ONLY the first middle category (groupIndex === 1), collapse the remaining (groupIndex > 1)
                 const collapsedClass = (groupIndex === 1) ? '' : ' collapsed';
 
                 html += `
@@ -169,14 +256,13 @@ function renderSideMenu(list) {
                 `;
                 inGroup = true;
             }
-            // If showGroupHeader is false (middleCategoryCount <= 1), skip rendering the single group header
         } else {
-            // Leaf screen menu item (PGM_KIND_CODE === 'P')
             const pgmId = item.pgmId ? item.pgmId.trim() : (item.pgmNo ? item.pgmNo.trim() : '');
+            const pgmGo = item.pgmGo ? item.pgmGo.trim() : '';
             const rawBreadcrumb = item.fullpgm2 || item.fullpgm || '';
             const breadcrumb = formatBreadcrumb(rawBreadcrumb, displayNm, pgmId);
             html += `
-                <div class="tree-menu-item${hasLineClass}" data-pgm-no="${item.pgmNo || ''}" data-pgm-id="${pgmId}" data-title="${displayNm}" data-breadcrumb="${breadcrumb}" onclick="onSidebarMenuClick(this)">
+                <div class="tree-menu-item${hasLineClass}" data-pgm-no="${item.pgmNo || ''}" data-pgm-id="${pgmId}" data-pgm-go="${pgmGo}" data-title="${displayNm}" data-breadcrumb="${breadcrumb}" onclick="onSidebarMenuClick(this)">
                     <i class="fa-solid fa-file-code menu-icon"></i> <span class="menu-label">${displayNm}</span>
                 </div>
             `;
@@ -187,18 +273,15 @@ function renderSideMenu(list) {
         html += `</div></div>`;
     }
 
-    container.innerHTML = html;
+    return html;
 }
 
 // Auto-load side menu for initial active top nav item on DOMContentLoaded
 document.addEventListener("DOMContentLoaded", function() {
     const activeTopItem = document.querySelector('.top-nav-item.active');
-    if (activeTopItem) {
-        const pgmNo = activeTopItem.getAttribute('data-pgm-no');
-        if (pgmNo) {
-            loadSideMenu(pgmNo);
-        }
-    }
+    const pgmNo = activeTopItem ? activeTopItem.getAttribute('data-pgm-no') : '01000';
+    initSidebarTopTree(pgmNo);
+
     // Start token expiration monitoring if logged in
     if (!window.location.pathname.includes('/login') && !window.location.pathname.includes('/w_login_aams')) {
         startTokenMonitor();

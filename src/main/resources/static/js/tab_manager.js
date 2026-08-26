@@ -14,7 +14,7 @@ class TabManager {
         this.updateHomeVisibility();
     }
 
-    openTab(pgmNo, pgmId, title, url, breadcrumb) {
+    openTab(pgmNo, pgmId, title, url, breadcrumb, pgmGo) {
         if (!pgmNo) return;
 
         // Handle method overloading: openTab(pgmNo, title) where pgmId is omitted
@@ -23,10 +23,11 @@ class TabManager {
             pgmId = null;
         }
 
-        const tabKey = (pgmId && pgmId.trim() !== "") ? pgmId.trim() : pgmNo;
+        // 1. Use pgmNo (or pgmId_pgmNo) as unique tabKey so identical pgmId programs (e.g. W_RUN) can open separate tabs
+        const tabKey = (pgmNo && pgmNo.trim() !== "") ? pgmNo.trim() : (pgmId ? pgmId.trim() : "tab");
 
-        // 1. Check if tab is already open by tabKey, pgmId, or pgmNo
-        const existingTab = this.openTabs.find(t => t.tabKey === tabKey || t.pgmNo === pgmNo || (pgmId && t.pgmId === pgmId));
+        // Check if tab is already open by exact tabKey
+        const existingTab = this.openTabs.find(t => t.tabKey === tabKey);
         if (existingTab) {
             this.switchTab(existingTab.tabKey);
             return;
@@ -40,11 +41,12 @@ class TabManager {
 
         // 3. Create new tab object
         const tabTitle = title || ("메뉴 " + pgmNo);
-        const resolvedUrl = url || this.resolveMenuUrl(pgmId, pgmNo);
+        const resolvedUrl = url || this.resolveMenuUrl(pgmId, pgmNo, pgmGo);
 
         const tabObj = {
             pgmNo: pgmNo,
             pgmId: pgmId,
+            pgmGo: pgmGo || '',
             tabKey: tabKey,
             title: tabTitle,
             url: resolvedUrl,
@@ -62,6 +64,7 @@ class TabManager {
             tabItem.setAttribute("data-tab-key", tabKey);
             tabItem.setAttribute("data-pgm-no", pgmNo);
             if (pgmId) tabItem.setAttribute("data-pgm-id", pgmId);
+            if (pgmGo) tabItem.setAttribute("data-pgm-go", pgmGo);
 
             tabItem.onclick = (e) => {
                 if (!e.target.classList.contains("tab-close-btn")) {
@@ -239,24 +242,48 @@ class TabManager {
         }
     }
 
-    resolveMenuUrl(pgmId, pgmNo) {
+    resolveMenuUrl(pgmId, pgmNo, pgmGo) {
         const targetId = (pgmId && pgmId.trim() !== "") ? pgmId.trim() : pgmNo;
         if (targetId) {
             let cleanId = targetId.replace(/\.srw$/i, '').toLowerCase();
-            return "/views/" + cleanId;
+            let queryParams = [];
+            if (pgmNo) queryParams.push(`pgmNo=${encodeURIComponent(pgmNo)}`);
+            if (pgmGo) queryParams.push(`pgmGo=${encodeURIComponent(pgmGo)}`);
+            const queryString = queryParams.length > 0 ? `?${queryParams.join('&')}` : '';
+            return "/views/" + cleanId + queryString;
         }
         return "/views/w_ja010b";
     }
 
     highlightSidebarMenu(tabKey) {
+        if (!tabKey) {
+            document.querySelectorAll(".tree-menu-item").forEach(el => el.classList.remove("active"));
+            return;
+        }
+
+        const activeTab = this.openTabs.find(t => t.tabKey === tabKey || t.pgmNo === tabKey || t.pgmId === tabKey || t.pgmGo === tabKey);
+        const activePgmNo = activeTab ? activeTab.pgmNo : tabKey;
+        const activePgmId = activeTab ? activeTab.pgmId : tabKey;
+        const activePgmGo = activeTab ? activeTab.pgmGo : null;
+
         document.querySelectorAll(".tree-menu-item").forEach(el => {
-            if (!tabKey) {
-                el.classList.remove("active");
-                return;
-            }
             const keyNo = el.getAttribute("data-pgm-no");
             const keyId = el.getAttribute("data-pgm-id");
-            if (keyNo === tabKey || keyId === tabKey) {
+            const keyGo = el.getAttribute("data-pgm-go");
+
+            let isMatch = false;
+
+            if (activePgmGo && keyGo && activePgmGo.trim() !== "" && keyGo.trim() !== "") {
+                isMatch = (keyGo.trim() === activePgmGo.trim());
+            } else if (activePgmId && keyId && activePgmId.trim() !== "" && keyId.trim() !== "") {
+                isMatch = (keyId.trim() === activePgmId.trim());
+            } else if (activePgmNo && keyNo && activePgmNo.trim() !== "" && keyNo.trim() !== "") {
+                isMatch = (keyNo.trim() === activePgmNo.trim());
+            } else {
+                isMatch = (keyGo === tabKey || keyId === tabKey || keyNo === tabKey);
+            }
+
+            if (isMatch) {
                 el.classList.add("active");
             } else {
                 el.classList.remove("active");
