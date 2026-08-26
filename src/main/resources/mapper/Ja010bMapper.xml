@@ -42,9 +42,11 @@
              , t1.EXPENSE_YN                    AS expenseYn
              , t1.ALIAS_CODE                    AS aliasCode
              , t1.SPECIAL_NOTE                  AS specialNote
-             , CASE WHEN NVL(t1.SPECIAL_NOTE, ' ') = ' ' THEN ' ' ELSE 'NOTE' END AS noteText
+             , CASE WHEN NVL(t1.SPECIAL_NOTE, ' ') = ' ' THEN ' ' 
+                                                         ELSE 'NOTE'
+                END AS noteText
           FROM SZM0IA t1
-         WHERE (#{corpGr} IS NULL OR t1.corp_gr = #{corpGr})
+         WHERE t1.corp_gr = #{corpGr}
          ORDER BY NVL(t1.haeji_gb, '0') ASC, t1.mg_cd ASC, t1.fund_nm ASC, t1.re_seolj_ymd ASC
     </select>
 

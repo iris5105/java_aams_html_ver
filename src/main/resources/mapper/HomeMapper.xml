@@ -21,10 +21,10 @@
              , t1.cy_jm_cd     AS cyJmCd
              , t1.sj_jm_cd     AS sjJmCd
              , t1.susu_per     AS susuPer
-             , F_JM_NM (NVL(#{corpGr}, '2200'), t1.cy_jm_cd)  AS xx_cy_jm_cd
-             , F_JM_NM (NVL(#{corpGr}, '2200'), t1.sj_jm_cd)  AS xx_sj_jm_cd
+             , F_JM_NM ('', t1.cy_jm_cd)  AS xx_cy_jm_cd
+             , F_JM_NM ('', t1.sj_jm_cd)  AS xx_sj_jm_cd
           FROM SJG1JC t1
-         WHERE (#{corpGr} IS NULL OR t1.ymd >= (SELECT ADD_MONTHS(h1.hyun_ymd, -3) FROM SZX0AA h1 WHERE h1.corp_gr = #{corpGr}))
+         WHERE t1.ymd >= (SELECT ADD_MONTHS(h1.hyun_ymd, -3) FROM SZX0AA h1 WHERE h1.corp_gr = #{corpGr})
          ORDER BY t1.ymd DESC, t1.JM_NM ASC, t1.balh_co ASC
     </select>
 
@@ -51,7 +51,7 @@
              , t1.jg_tr_co_cd        AS sjg1jcJgTrCoCd
              , t1.jg_tr_co_nm        AS sjg1jcJgTrCoNm
              , t1.JM_NM              AS jmNm
-             , F_BALH_NM (NVL(tr.corp_gr, #{corpGr}), t1.balh_co) AS xx_balh_co
+             , F_BALH_NM (tr.corp_gr, t1.balh_co) AS xx_balh_co
              , t1.cy_GB              AS cyGb
              , t1.sj_ymd             AS sjYmd
              , t1.sj_jm_cd           AS JmCd
@@ -61,7 +61,7 @@
           LEFT OUTER JOIN sjg1jc_tr tr ON tr.corp_gr = #{corpGr}
                                       AND tr.JC_JOIN = t1.JC_JOIN
          WHERE t1.balh_co IS NOT NULL
-           AND (#{corpGr} IS NULL OR t1.nabib_ymd >= (SELECT ADD_MONTHS(h1.hyun_ymd, -1)
+           AND (t1.nabib_ymd >= (SELECT ADD_MONTHS(h1.hyun_ymd, -1)
                                                          FROM SZX0AA h1
                                                         WHERE h1.corp_gr = #{corpGr})
                 OR tr.jc_join IS NOT NULL)
@@ -76,7 +76,8 @@
              , ia.fund_nm     AS fundNm
              , TO_CHAR(SYSDATE, 'YYYY-MM-DD') AS titleYmd
           FROM SZM0GI t1
-          JOIN SZM0IA ia ON ia.corp_gr = t1.corp_gr AND ia.fund_cd = t1.fund_cd
+          JOIN SZM0IA ia ON ia.corp_gr = t1.corp_gr 
+                        AND ia.fund_cd = t1.fund_cd
          WHERE t1.corp_gr = #{corpGr}
            AND t1.af_gyul_ymd Between trunc(now (),'mm') And LAST_DAY(now ())
            AND NVL(ia.haeji_ymd, SYSDATE) >= SYSDATE
@@ -86,13 +87,14 @@
  <!-- d_home03: Multi-table JOIN (SCM0CM + SCJ0IG + SCM0CJ + SZM0IA + SHM0HM + SHJ0IG + SHM0HJ) -->
     <!-- 4-2. 당월이자(만기) -->
     <select id="selectHome03List" resultType="com.kfp.aams.domain.home.dto.RateChangeDto">
-        SELECT DISTINCT 
-               cj.jm_cd      AS jmCd
+        SELECT DISTINCT cj.jm_cd      AS jmCd
              , cj.cj_nm      AS cjNm
              , ia.fund_cd    AS fundCd
              , ia.fund_nm    AS fundNm
              , ig.af_ija_ymd AS afIjaYmd
-             , CASE WHEN ig.af_ija_ymd = cj.sanghw_ymd THEN 'red' ELSE 'blue' END AS lineColor
+             , CASE WHEN ig.af_ija_ymd = cj.sanghw_ymd THEN 'red' 
+                                                       ELSE 'blue' 
+                END          AS lineColor
           FROM SCM0CM t1
              , SCJ0IG ig
              , SCM0CJ cj
@@ -101,20 +103,21 @@
            AND t1.ymd        = F_OPEN_YMD(TRUNC(SYSDATE, 'DD'), '-')
            AND ig.corp_gr    = t1.corp_gr
            AND ig.jm_cd      = t1.jm_cd
-           AND ig.af_ija_ymd BETWEEN TO_CHAR(TRUNC(SYSDATE, 'MM'), 'YYYYMMDD') AND TO_CHAR(LAST_DAY(SYSDATE), 'YYYYMMDD')
+           AND ig.af_ija_ymd BETWEEN TRUNC(SYSDATE, 'MM') AND LAST_DAY(SYSDATE)
            AND cj.corp_gr    = t1.corp_gr
            AND cj.jm_cd      = t1.jm_cd
            AND ia.corp_gr    = t1.corp_gr
            AND ia.fund_cd    = t1.fund_cd
-           AND NVL(ia.haeji_ymd, TO_CHAR(SYSDATE, 'YYYYMMDD')) >= TO_CHAR(SYSDATE, 'YYYYMMDD')
+           AND NVL(ia.haeji_ymd, SYSDATE) >= SYSDATE
         UNION ALL
-        SELECT DISTINCT 
-               hj.jm_cd      AS jmCd
+        SELECT DISTINCT hj.jm_cd      AS jmCd
              , hj.hj_nm      AS cjNm
              , ia.fund_cd    AS fundCd
              , ia.fund_nm    AS fundNm
              , ig.af_ija_ymd AS afIjaYmd
-             , CASE WHEN ig.af_ija_ymd = hj.sanghw_ymd THEN 'red' ELSE 'blue' END AS lineColor
+             , CASE WHEN ig.af_ija_ymd = hj.sanghw_ymd THEN 'red' 
+                                                       ELSE 'blue' 
+                END AS lineColor
           FROM SHM0HM t1
              , SHJ0IG ig
              , SHM0HJ hj
@@ -123,12 +126,12 @@
            AND t1.ymd        = F_OPEN_YMD(TRUNC(SYSDATE, 'DD'), '-')
            AND ig.corp_gr    = t1.corp_gr
            AND ig.jm_cd      = t1.jm_cd
-           AND ig.af_ija_ymd BETWEEN TO_CHAR(TRUNC(SYSDATE, 'MM'), 'YYYYMMDD') AND TO_CHAR(LAST_DAY(SYSDATE), 'YYYYMMDD')
+           AND ig.af_ija_ymd BETWEEN TRUNC(SYSDATE, 'MM') AND LAST_DAY(SYSDATE)
            AND hj.corp_gr    = t1.corp_gr
            AND hj.jm_cd      = t1.jm_cd
            AND ia.corp_gr    = t1.corp_gr
            AND ia.fund_cd    = t1.fund_cd
-           AND NVL(ia.haeji_ymd, TO_CHAR(SYSDATE, 'YYYYMMDD')) >= TO_CHAR(SYSDATE, 'YYYYMMDD')
+           AND NVL(ia.haeji_ymd, SYSDATE) >= SYSDATE
     </select>
 
 
@@ -163,7 +166,7 @@
              , NVL(t1.g90104, 0) / 100000000                           AS cv2Chtvalue001
              , t1.fund1                                                AS cv2Chtvalue002
           FROM fw_day_chtdata t1
-         WHERE (#{corpGr} IS NULL OR t1.corp_gr = #{corpGr})
+         WHERE t1.corp_gr = #{corpGr}
            AND t1.YMD Between ADD_MONTHS(TO_DATE(NVL(#{ymd}, TO_CHAR(SYSDATE, 'YYYYMMDD')), 'YYYYMMDD') - 1, -6)
                           And TO_DATE(NVL(#{ymd}, TO_CHAR(SYSDATE, 'YYYYMMDD')), 'YYYYMMDD')
            AND t1.FUND_CURRENCY = 'KRW'

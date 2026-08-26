@@ -28,7 +28,7 @@ public class HomeQueryDslRepository {
                 QSzx0aa szx0aa = QSzx0aa.szx0aa;
 
                 return queryFactory
-                                .select(Projections.constructor(CompanyDto.class,
+                                .select(Projections.fields(CompanyDto.class,
                                                 szx0aa.corpGr,
                                                 szx0aa.companyName,
                                                 szx0aa.hyunYmd,
