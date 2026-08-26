@@ -2,8 +2,9 @@
 <html xmlns:th="http://www.thymeleaf.org">
 <!-- Left Menu Tree Sidebar Fragment -->
 <aside class="left-sidebar" th:fragment="leftSidebar">
-    <div class="sidebar-search">
-        <input type="text" id="sidebarSearchInput" class="search-input" placeholder="화면 명칭 (번호)" oninput="filterSidebarMenu(this.value)">
+    <div class="sidebar-search" style="position: relative;">
+        <input type="text" id="sidebarSearchInput" class="search-input" placeholder="전체 프로그램 검색 (명칭/번호/ID)" oninput="filterSidebarMenu(this.value)" onfocus="filterSidebarMenu(this.value)" autocomplete="off">
+        <div id="sidebarSearchDropdown" class="search-dropdown-list" style="display: none;"></div>
     </div>
     <div class="sidebar-menu" id="sidebarMenuContainer">
         <th:block th:if="${sideMenuList != null and not #lists.isEmpty(sideMenuList)}">

@@ -27,6 +27,9 @@ function safeFetchJson(url, options) {
         });
 }
 
+let g_currentPgmNo = '01000';
+let g_lastIsMobile = (window.innerWidth <= 1100);
+
 /**
  * Header Top Menu Click Handler & Side Navigation Dynamic Loader
  */
@@ -42,7 +45,7 @@ function onHeaderMenuClick(el) {
 
     const pgmNo = el.getAttribute('data-pgm-no');
     if (pgmNo) {
-        expandTopCategoryFolder(pgmNo);
+        loadSideMenu(pgmNo);
     }
 }
 
@@ -117,7 +120,7 @@ function toggleTopCategoryGroup(pgmNo) {
 function expandTopCategoryFolder(pgmNo) {
     const groupEl = document.getElementById(`top-menu-group-${pgmNo}`);
     if (!groupEl) {
-        initSidebarTopTree(pgmNo);
+        loadSideMenu(pgmNo);
         return;
     }
 
@@ -143,7 +146,24 @@ function loadTopCategorySubTree(pgmNo) {
 }
 
 function loadSideMenu(pgmNo) {
-    initSidebarTopTree(pgmNo);
+    if (pgmNo) g_currentPgmNo = pgmNo;
+    const targetNo = g_currentPgmNo || '01000';
+
+    // If screen width is <= 1100px (header top nav is hidden), use Top Category Tree Folders in sidebar
+    if (window.innerWidth <= 1100) {
+        initSidebarTopTree(targetNo);
+        return;
+    }
+
+    // On Desktop (> 1100px): Render ONLY sub-items for selected pgmNo without wrapping in top category folders!
+    const container = document.getElementById('sidebarMenuContainer');
+    if (!container) return;
+
+    safeFetchJson(`/api/menu/side?pgmNo=${encodeURIComponent(targetNo)}`)
+        .then(data => {
+            if (!data) return;
+            container.innerHTML = renderSubTreeHtml(data);
+        });
 }
 
 function toggleMenuGroup(headerEl) {
@@ -191,28 +211,130 @@ function onSidebarMenuClick(el) {
     }
 }
 
+let g_allMenuListCache = null;
+
 function filterSidebarMenu(query) {
     const q = (query || '').trim().toLowerCase();
+    const dropdown = document.getElementById('sidebarSearchDropdown');
+    if (!dropdown) return;
 
-    if (q) {
-        document.querySelectorAll('.top-menu-group').forEach(group => {
-            const pgmNo = group.getAttribute('data-pgm-no');
-            if (pgmNo) {
-                group.classList.remove('collapsed');
-                loadTopCategorySubTree(pgmNo);
-            }
-        });
+    if (!q) {
+        dropdown.style.display = 'none';
+        dropdown.innerHTML = '';
+        return;
     }
 
-    document.querySelectorAll('#sidebarMenuContainer .tree-menu-item').forEach(el => {
-        const text = el.innerText.toLowerCase();
-        if (!q || text.includes(q)) {
-            el.style.display = 'flex';
-        } else {
-            el.style.display = 'none';
-        }
-    });
+    if (!g_allMenuListCache) {
+        safeFetchJson('/api/menu/all')
+            .then(data => {
+                if (!data) return;
+                g_allMenuListCache = data;
+                renderSearchDropdownResults(g_allMenuListCache, q);
+            });
+    } else {
+        renderSearchDropdownResults(g_allMenuListCache, q);
+    }
 }
+
+function renderSearchDropdownResults(list, q) {
+    const dropdown = document.getElementById('sidebarSearchDropdown');
+    if (!dropdown) return;
+
+    const filtered = list.filter(item => {
+        const go = item.pgmGo ? item.pgmGo.trim().toLowerCase() : '';
+        const nm = item.pgmNm ? item.pgmNm.trim().toLowerCase() : '';
+        const pId = item.pgmId ? item.pgmId.trim().toLowerCase() : '';
+
+        return go.includes(q) || nm.includes(q) || pId.includes(q);
+    });
+
+    if (filtered.length === 0) {
+        dropdown.innerHTML = `
+            <div style="padding: 12px; color: #94a3b8; font-size: 11px; text-align: center;">
+                <i class="fa-solid fa-magnifying-glass" style="margin-bottom: 4px;"></i><br>
+                '${escapeHtml(q)}' 검색 결과가 없습니다.
+            </div>
+        `;
+        dropdown.style.display = 'block';
+        return;
+    }
+
+    let html = '';
+    filtered.forEach(item => {
+        const go = item.pgmGo ? item.pgmGo.trim() : '';
+        const nm = (item.pgmNm && item.pgmNm.trim()) ? item.pgmNm.trim() : ((item.pgmNo && item.pgmNo.trim()) ? item.pgmNo.trim() : '');
+        const pgmId = item.pgmId ? item.pgmId.trim() : (item.pgmNo ? item.pgmNo.trim() : '');
+        const pgmNo = item.pgmNo || '';
+        const rawBreadcrumb = item.fullpgm2 || item.fullpgm || '';
+        const displayNm = item.displayNm || (go ? `${go} ${nm}` : nm);
+        const breadcrumb = formatBreadcrumb(rawBreadcrumb, displayNm, pgmId);
+
+        // Highlight matching text in pgmGo, pgmNm, and pgmId
+        const highlightedGo = highlightSearchMatch(go, q);
+        const highlightedNm = highlightSearchMatch(nm, q);
+        const highlightedPId = highlightSearchMatch(pgmId, q);
+
+        const titleHtml = highlightedGo 
+            ? `${highlightedGo} ${highlightedNm} [${highlightedPId}]`
+            : `${highlightedNm} [${highlightedPId}]`;
+
+        html += `
+            <div class="search-dropdown-item" 
+                 data-pgm-no="${pgmNo}" 
+                 data-pgm-id="${pgmId}" 
+                 data-pgm-go="${go}" 
+                 data-title="${displayNm}" 
+                 data-breadcrumb="${breadcrumb}" 
+                 onclick="onSearchDropdownItemClick(this)">
+                <div class="item-title">
+                    <i class="fa-solid fa-file-code menu-icon" style="color: #60a5fa; font-size: 11px;"></i>
+                    <span>${titleHtml}</span>
+                </div>
+                ${breadcrumb ? `<div class="item-breadcrumb">${escapeHtml(breadcrumb)}</div>` : ''}
+            </div>
+        `;
+    });
+
+    dropdown.innerHTML = html;
+    dropdown.style.display = 'block';
+}
+
+function highlightSearchMatch(text, query) {
+    if (!text || !query) return escapeHtml(text || '');
+    const str = String(text);
+    const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const regex = new RegExp(`(${escaped})`, 'gi');
+    return escapeHtml(str).replace(regex, '<mark class="search-highlight">$1</mark>');
+}
+
+function escapeHtml(str) {
+    if (!str) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
+function onSearchDropdownItemClick(el) {
+    if (!el) return;
+    const dropdown = document.getElementById('sidebarSearchDropdown');
+    const searchInput = document.getElementById('sidebarSearchInput');
+    if (dropdown) dropdown.style.display = 'none';
+    if (searchInput) searchInput.value = '';
+
+    onSidebarMenuClick(el);
+}
+
+// Close search dropdown on click outside
+document.addEventListener('click', function(e) {
+    const searchContainer = document.querySelector('.sidebar-search');
+    const dropdown = document.getElementById('sidebarSearchDropdown');
+    if (dropdown && searchContainer && !searchContainer.contains(e.target)) {
+        dropdown.style.display = 'none';
+    }
+});
 
 function renderSubTreeHtml(list) {
     if (!list || list.length === 0) return '';
@@ -280,7 +402,7 @@ function renderSubTreeHtml(list) {
 document.addEventListener("DOMContentLoaded", function() {
     const activeTopItem = document.querySelector('.top-nav-item.active');
     const pgmNo = activeTopItem ? activeTopItem.getAttribute('data-pgm-no') : '01000';
-    initSidebarTopTree(pgmNo);
+    loadSideMenu(pgmNo);
 
     // Start token expiration monitoring if logged in
     if (!window.location.pathname.includes('/login') && !window.location.pathname.includes('/w_login_aams')) {
@@ -565,8 +687,14 @@ function toggleSidebar() {
     body.classList.toggle('sidebar-backdrop-open');
 }
 
-// Window resize listener to automatically redraw Tabulator instances
+// Window resize listener to automatically redraw Tabulator instances and update sidebar menu mode
 window.addEventListener('resize', function() {
+    const isMobile = (window.innerWidth <= 1100);
+    if (isMobile !== g_lastIsMobile) {
+        g_lastIsMobile = isMobile;
+        loadSideMenu(g_currentPgmNo);
+    }
+
     if (typeof Tabulator !== 'undefined') {
         Tabulator.findTable(".tabulator").forEach(table => {
             try { table.redraw(true); } catch(e) {}

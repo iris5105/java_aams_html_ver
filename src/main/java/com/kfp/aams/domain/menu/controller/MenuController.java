@@ -31,4 +31,12 @@ public class MenuController {
     public List<MenuDto> getSideMenu(@RequestParam(name = "pgmNo", required = false) String pgmNo) {
         return menuService.getSideMenuList(pgmNo);
     }
+
+    /**
+     * Get all menu items for global search
+     */
+    @GetMapping("/all")
+    public List<MenuDto> getAllMenu() {
+        return menuService.getAllMenuList();
+    }
 }

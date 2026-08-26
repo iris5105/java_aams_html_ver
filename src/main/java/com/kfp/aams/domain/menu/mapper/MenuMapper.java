@@ -22,4 +22,9 @@ public interface MenuMapper {
      * Get menu DTO by PGM_ID to fetch FULLPGM2 breadcrumb info
      */
     MenuDto selectMenuByPgmId(@Param("pgmId") String pgmId);
+
+    /**
+     * Get all menu items for global sidebar search
+     */
+    List<MenuDto> selectAllMenuList();
 }

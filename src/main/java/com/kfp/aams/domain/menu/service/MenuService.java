@@ -46,4 +46,11 @@ public class MenuService {
         if (pgmId == null || pgmId.isBlank()) return null;
         return menuMapper.selectMenuByPgmId(pgmId);
     }
+
+    /**
+     * Get all menu items for global sidebar search
+     */
+    public List<MenuDto> getAllMenuList() {
+        return menuMapper.selectAllMenuList();
+    }
 }
