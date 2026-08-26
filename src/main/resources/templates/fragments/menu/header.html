@@ -23,18 +23,13 @@
                       onclick="onHeaderMenuClick(this)">
                 </span>
             </th:block>
-            <th:block th:if="${topMenuList == null or #lists.isEmpty(topMenuList)}">
-                <span class="top-nav-item active" data-pgm-no="01000" onclick="onHeaderMenuClick(this)">자문일일</span>
-                <span class="top-nav-item" data-pgm-no="02000" onclick="onHeaderMenuClick(this)">공모청약(권리)</span>
-                <span class="top-nav-item" data-pgm-no="03000" onclick="onHeaderMenuClick(this)">자산운용</span>
-            </th:block>
         </nav>
     </div>
     <!-- 회사 변경: 관리자(adminYn == 'Y') 전용 기능 -->
-    <div class="top-header-right" th:if="${adminYn != null and #strings.equalsIgnoreCase(adminYn, 'Y')}" onclick="openCompanyModal()" style="cursor: pointer;" title="회사 변경">
-        <img th:src="@{'/img/right_logo/fw_top_logo_right_' + ${corpGr} + '.jpg'}" src="/img/right_logo/fw_top_logo_right_2200.jpg" alt="Company Logo" class="top-company-logo" onerror="this.src='/img/right_logo/fw_top_logo_right_2200.jpg'">
-    </div>
-    <div class="top-header-right" th:unless="${adminYn != null and #strings.equalsIgnoreCase(adminYn, 'Y')}">
+    <div class="top-header-right" 
+         th:onclick="${adminYn != null and #strings.equalsIgnoreCase(adminYn, 'Y')} ? 'openCompanyModal()' : null"
+         th:style="${adminYn != null and #strings.equalsIgnoreCase(adminYn, 'Y')} ? 'cursor: pointer;' : null"
+         th:title="${adminYn != null and #strings.equalsIgnoreCase(adminYn, 'Y')} ? '회사 변경' : null">
         <img th:src="@{'/img/right_logo/fw_top_logo_right_' + ${corpGr} + '.jpg'}" src="/img/right_logo/fw_top_logo_right_2200.jpg" alt="Company Logo" class="top-company-logo" onerror="this.src='/img/right_logo/fw_top_logo_right_2200.jpg'">
     </div>
 </header>

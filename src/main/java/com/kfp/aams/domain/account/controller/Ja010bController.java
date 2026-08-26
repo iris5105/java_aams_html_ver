@@ -35,26 +35,9 @@ public class Ja010bController {
 
         var menuDto = menuService.getMenuByPgmId("w_ja010b");
         String fullpgm2 = (menuDto != null) ? menuDto.getFullpgm2() : null;
-        model.addAttribute("fullpgm2", formatBreadcrumb(fullpgm2, "1011 계좌계약정보관리", "w_ja010b"));
+        model.addAttribute("fullpgm2", fullpgm2);
 
         return "views/w_ja010b";
-    }
-
-    private String formatBreadcrumb(String fullpgm2, String title, String pgmId) {
-        String base = (fullpgm2 != null && !fullpgm2.isBlank()) ? fullpgm2.trim() : "";
-        String menuName = (title != null && !title.isBlank()) ? title.trim() : "";
-        String pId = (pgmId != null && !pgmId.isBlank()) ? pgmId.trim() : "";
-
-        if (base.isEmpty()) {
-            return menuName.isEmpty() ? "[" + pId + "]" : menuName + " [" + pId + "]";
-        }
-        if (!menuName.isEmpty() && !base.endsWith(menuName)) {
-            base += " > " + menuName;
-        }
-        if (!pId.isEmpty() && !base.endsWith("[" + pId + "]")) {
-            base += " [" + pId + "]";
-        }
-        return base;
     }
 
     @GetMapping("/api/account/ja010b/master")

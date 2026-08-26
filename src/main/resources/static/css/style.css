@@ -77,6 +77,13 @@ body, html {
     display: flex;
     align-items: center;
     gap: 2px;
+    overflow-x: auto;
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE/Edge */
+}
+
+.top-nav::-webkit-scrollbar {
+    display: none; /* Chrome/Safari */
 }
 
 .top-nav-item {
@@ -86,6 +93,8 @@ body, html {
     border-radius: 3px;
     transition: all 0.15s ease;
     font-weight: 500;
+    white-space: nowrap;
+    flex-shrink: 0;
 }
 
 .top-nav-item:hover, 
@@ -102,6 +111,7 @@ body, html {
     display: flex;
     align-items: center;
     gap: 8px;
+    flex-shrink: 0;
 }
 
 /* ------------------------------------------
@@ -1293,6 +1303,18 @@ body, html {
 
     .left-sidebar {
         width: 220px;
+    }
+}
+
+@media (max-width: 1250px) {
+    .login-date {
+        display: none !important;
+    }
+}
+
+@media (max-width: 1050px) {
+    .breadcrumb {
+        display: none !important;
     }
 }
 

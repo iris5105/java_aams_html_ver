@@ -65,19 +65,24 @@ function toggleMenuGroup(headerEl) {
 }
 
 function formatBreadcrumb(fullpgm2, title, pgmId) {
-    let base = (fullpgm2 && fullpgm2.trim() !== '') ? fullpgm2.trim() : '';
-    let menuName = (title && title.trim() !== '') ? title.trim() : '';
-    let pId = (pgmId && pgmId.trim() !== '') ? pgmId.trim() : '';
+    let base = (fullpgm2 && String(fullpgm2).trim() !== '') ? String(fullpgm2).trim() : '';
+    const menuName = (title && String(title).trim() !== '') ? String(title).trim() : '';
+    const pId = (pgmId && String(pgmId).trim() !== '') ? String(pgmId).trim() : '';
 
-    if (!base) {
-        return menuName ? `${menuName} [${pId}]` : (pId ? `[${pId}]` : '');
+    // Prevent duplicate formatting if base already contains [pId]
+    if (pId && base.includes(`[${pId}]`)) {
+        return base;
     }
 
-    if (menuName && !base.endsWith(menuName)) {
+    if (!base) {
+        return menuName ? (pId ? `${menuName} [${pId}]` : menuName) : (pId ? `[${pId}]` : '');
+    }
+
+    if (menuName && !base.includes(menuName)) {
         base += ` > ${menuName}`;
     }
 
-    if (pId && !base.endsWith(`[${pId}]`)) {
+    if (pId && !base.includes(`[${pId}]`)) {
         base += ` [${pId}]`;
     }
 
@@ -485,3 +490,10 @@ window.addEventListener('resize', function() {
         });
     }
 });
+
+/**
+ * Global Common Breadcrumb Builder Helper
+ */
+function buildBreadcrumbText(fullpgm2, title, pgmId) {
+    return formatBreadcrumb(fullpgm2, title, pgmId);
+}
