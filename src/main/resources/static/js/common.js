@@ -244,38 +244,63 @@ function handleLogout() {
 let allCompanies = [];
 
 function openCompanyModal() {
+    console.log('[DEBUG] openCompanyModal() called');
     const modal = document.getElementById('companyModal');
-    if (modal) modal.style.display = 'flex';
+    if (!modal) {
+        console.warn('[DEBUG] #companyModal element not found in DOM! Check if company_modal fragment is included.');
+        return;
+    }
+    modal.style.display = 'flex';
+    console.log('[DEBUG] #companyModal displayed. Cached allCompanies count:', allCompanies.length);
+
     if (allCompanies.length === 0) {
+        console.log('[DEBUG] allCompanies is empty. Triggering fetchCompanies()...');
         fetchCompanies();
     } else {
+        console.log('[DEBUG] Using cached allCompanies. Calling renderCompanies()...');
         renderCompanies(allCompanies);
     }
 }
 
 function closeCompanyModal() {
+    console.log('[DEBUG] closeCompanyModal() called');
     const modal = document.getElementById('companyModal');
     if (modal) modal.style.display = 'none';
 }
 
 function fetchCompanies() {
+    console.log('[DEBUG] fetchCompanies() started - Requesting /api/home/companies');
     safeFetchJson('/api/home/companies')
         .then(data => {
-            if (!data) return;
+            console.log('[DEBUG] /api/home/companies API response received:', data);
+            if (!data) {
+                console.warn('[DEBUG] /api/home/companies returned null or undefined!');
+                return;
+            }
             allCompanies = data || [];
+            console.log('[DEBUG] allCompanies updated. Total count:', allCompanies.length);
             renderCompanies(allCompanies);
+        })
+        .catch(err => {
+            console.error('[DEBUG] fetchCompanies() error during API call:', err);
         });
 }
 
 function renderCompanies(list) {
+    console.log('[DEBUG] renderCompanies() called. List count:', list ? list.length : 0, list);
     const grid = document.getElementById('companyGrid');
-    if (!grid) return;
+    if (!grid) {
+        console.warn('[DEBUG] #companyGrid element not found in DOM! Check company_modal.html structure.');
+        return;
+    }
     if (!list || list.length === 0) {
+        console.warn('[DEBUG] Company list is empty. Displaying no data message.');
         grid.innerHTML = '<div style="grid-column: span 2; text-align: center; color: #94a3b8; padding: 20px;">등록된 회사가 없습니다.</div>';
         return;
     }
 
     const activeCorpGr = window.currentCorpGr || '';
+    console.log('[DEBUG] Current active corpGr:', activeCorpGr);
 
     grid.innerHTML = list.map(c => {
         const isActive = c.corpGr === activeCorpGr ? 'active' : '';
@@ -293,6 +318,7 @@ function renderCompanies(list) {
             </div>
         `;
     }).join('');
+    console.log('[DEBUG] renderCompanies() successfully rendered cards.');
 }
 
 function filterCompanies() {

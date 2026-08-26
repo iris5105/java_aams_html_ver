@@ -64,10 +64,22 @@ public class HomeService {
     }
 
     /**
-     * Company List (SZX0AA): Single Table query via QueryDSL
+     * Company List (SZX0AA): Single Table query via QueryDSL with DB fallback
      */
     public List<CompanyDto> getCompanyList() {
-        return queryDslRepository.findCompanyList();
+        try {
+            List<CompanyDto> list = queryDslRepository.findCompanyList();
+            if (list != null && !list.isEmpty()) {
+                return list;
+            }
+        } catch (Exception e) {
+            org.slf4j.LoggerFactory.getLogger(HomeService.class).warn("Failed to fetch SZX0AA company list from DB: {}",
+                    e.getMessage());
+        }
+
+        // Fallback default companies when DB query fails or table is empty
+        return List.of(
+                CompanyDto.builder().corpGr(" ").companyName("데이터가 없습니다.").build());
     }
 
     /**
