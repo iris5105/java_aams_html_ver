@@ -17,12 +17,12 @@ function initDualChart() {
                     label: '순자산(억)',
                     type: 'line',
                     data: [],
-                    borderColor: '#28303dff',
-                    backgroundColor: '#28303dff',
-                    borderDash: [0, 0],
-                    borderWidth: 2,
-                    pointBackgroundColor: '#28303dff',
-                    pointRadius: 4,
+                    borderColor: '#4b5563',
+                    backgroundColor: '#4b5563',
+                    borderWidth: 1.5,
+                    pointBackgroundColor: '#4b5563',
+                    pointRadius: 3,
+                    pointHoverRadius: 5,
                     yAxisID: 'y1'
                 },
                 {
@@ -30,7 +30,9 @@ function initDualChart() {
                     type: 'bar',
                     data: [],
                     backgroundColor: '#60a5fa',
-                    borderRadius: 2,
+                    borderRadius: 0,
+                    barPercentage: 0.7,
+                    categoryPercentage: 0.8,
                     yAxisID: 'y2'
                 }
             ]
@@ -39,30 +41,31 @@ function initDualChart() {
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
-                legend: {
-                    display: true,
-                    position: 'top',
-                    align: 'end',
-                    labels: { boxWidth: 10, font: { size: 10 } }
-                }
+                legend: { display: false }
             },
             scales: {
                 x: {
                     grid: { display: false },
-                    ticks: { font: { size: 9 }, color: '#475569' }
+                    ticks: {
+                        font: { size: 9 },
+                        color: '#475569',
+                        maxRotation: 45,
+                        minRotation: 45
+                    }
                 },
                 y1: {
                     type: 'linear',
                     position: 'left',
-                    title: { display: true, text: '순자산(억)', font: { size: 10 } },
-                    ticks: { font: { size: 9 } }
+                    title: { display: false },
+                    ticks: { font: { size: 9 }, color: '#334155' },
+                    grid: { color: '#e2e8f0' }
                 },
                 y2: {
                     type: 'linear',
                     position: 'right',
-                    title: { display: true, text: '계좌수', font: { size: 10 } },
+                    title: { display: false },
                     grid: { display: false },
-                    ticks: { font: { size: 9 } }
+                    ticks: { font: { size: 9 }, color: '#334155' }
                 }
             }
         }
