@@ -21,7 +21,7 @@
     <div th:fragment="corpFilter(dddwId, seq)" class="filter-bar" th:data-dddw-id="${dddwId != null ? dddwId : 'CORP_GR'}" th:data-seq="${seq != null ? seq : 1}">
         <div class="filter-item">
             <label for="filterCorpGr">운용사</label>
-            <select id="filterCorpGr" name="corpGr" class="filter-select" onchange="if(typeof loadJa010bMaster === 'function') loadJa010bMaster(this.value);">
+            <select id="filterCorpGr" name="corpGr" class="filter-select" onchange="if(typeof loadSzx0seData === 'function') loadSzx0seData(this.value); else if(typeof loadJa010bMaster === 'function') loadJa010bMaster(this.value); else if(typeof loadJa010dData === 'function') loadJa010dData(this.value);">
                 <th:block th:if="${corpList != null and not #lists.isEmpty(corpList)}">
                     <option th:each="corp : ${corpList}"
                             th:value="${corp.code}"
