@@ -61,7 +61,7 @@ function initPublicStocksGrid() {
             { title: "청약증권사", field: "jgTrCoNm", minWidth: 100 },
             { title: "시작일자", field: "startYmd", hozAlign: "center", width: 90, formatter: cell => formatDate(cell.getValue()) },
             { title: "마감일자", field: "endYmd", hozAlign: "center", width: 90, formatter: cell => formatDate(cell.getValue()) },
-            { title: "납입일", field: "nabibYmd", hozAlign: "center", width: 90, formatter: cell => formatDate(cell.getValue()) },
+            { title: "청약금<br/>납입일", field: "nabibYmd", hozAlign: "center", width: 90, formatter: cell => formatDate(cell.getValue()) },
             { title: "상장일자", field: "sjYmd", hozAlign: "center", width: 90, formatter: cell => formatDate(cell.getValue()) },
             { title: "수수료율(%)", field: "susuPer", hozAlign: "right", width: 90 },
             { title: "상장예정코드", field: "sjJmCd", hozAlign: "center", width: 100 },
