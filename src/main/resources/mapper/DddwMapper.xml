@@ -11,8 +11,8 @@
              , SQL_WHERE   AS sqlWhere
              , SQL_REMARK  AS sqlRemark
           FROM WDDDWCTL
-         WHERE (UPPER(DDDW_ID || '_' || TO_CHAR(SEQ)) = UPPER(#{dddwNm}))
-            OR (UPPER(DDDW_ID) = UPPER(#{dddwId}) <if test="seq != null">AND SEQ = #{seq}</if>)
+         WHERE UPPER(DDDW_ID) = UPPER(#{dddwId})
+           AND SEQ = #{seq}
            AND ROWNUM = 1
     </select>
 

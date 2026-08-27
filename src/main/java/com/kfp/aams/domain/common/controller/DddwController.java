@@ -21,9 +21,13 @@ public class DddwController {
      * Example: GET /api/common/dddw?dddwNm=corp_gr_1&addWhere=USE_YN='Y'
      */
     @GetMapping("/api/common/dddw")
-    public List<DddwDto> getDddwList(@RequestParam(name = "dddwNm", defaultValue = "corp_gr_1") String dddwNm,
+    public List<DddwDto> getDddwList(@RequestParam(name = "dddwId", required = false) String dddwId,
+                                     @RequestParam(name = "dddwNm", required = false) String dddwNm,
+                                     @RequestParam(name = "seq", defaultValue = "1") Integer seq,
                                      @RequestParam(name = "addWhere", required = false) String addWhere,
+                                     @RequestParam(name = "addOrderBy", required = false) String addOrderBy,
                                      HttpSession session) {
-        return dddwService.getDddwList(dddwNm, addWhere, session);
+        String targetId = (dddwId != null && !dddwId.isBlank()) ? dddwId : dddwNm;
+        return dddwService.getDddwList(targetId, seq, addWhere, addOrderBy, session);
     }
 }

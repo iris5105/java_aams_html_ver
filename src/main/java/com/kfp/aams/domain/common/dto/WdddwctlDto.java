@@ -24,5 +24,6 @@ public class WdddwctlDto implements Serializable {
     private String sqlColumns;
     private String sqlTables;
     private String sqlWhere;
+    private String sqlOrderBy;
     private String sqlRemark;
 }

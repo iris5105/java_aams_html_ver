@@ -28,33 +28,52 @@ public class DddwService {
      * 2nd column = name (화면 표출명)
      * Automatically caches in session under "DDDW_" + dddwNm
      */
-    public List<DddwDto> getDddwList(String dddwNm, String addWhere, HttpSession session) {
-        if (dddwNm == null || dddwNm.isBlank()) {
-            dddwNm = "corp_gr_1";
+    public List<DddwDto> getDddwList(String dddwId, String addWhere, HttpSession session) {
+        return getDddwList(dddwId, 1, addWhere, null, session);
+    }
+
+    public List<DddwDto> getDddwList(String dddwId, String addWhere, String addOrderBy, HttpSession session) {
+        return getDddwList(dddwId, 1, addWhere, addOrderBy, session);
+    }
+
+    /**
+     * Build dynamic SQL from WDDDWCTL metadata using dddwId and seq.
+     * Query formula:
+     *   SELECT 'SELECT ' || SQL_COLUMNS || ' FROM ' || SQL_TABLES ||
+     *          CASE WHEN LENGTH(TRIM(SQL_WHERE)) <> 0 THEN ' WHERE ' || SQL_WHERE ELSE '' END ||
+     *          CASE WHEN LENGTH(TRIM(SQL_ORDERBY)) <> 0 THEN ' ORDER BY ' || SQL_ORDERBY ELSE '' END
+     *   FROM WDDDWCTL WHERE UPPER(DDDW_ID) = UPPER(:dddwId) AND SEQ = :seq
+     */
+    public List<DddwDto> getDddwList(String dddwId, Integer seq, String addWhere, String addOrderBy, HttpSession session) {
+        if (dddwId == null || dddwId.isBlank()) {
+            return List.of(new DddwDto("", "데이터없음", ""));
         }
 
-        // Parse dddwNm into dddwId and seq (e.g. 'corp_gr_1' -> dddwId='corp_gr',
-        // seq=1)
-        String dddwId = dddwNm;
-        Integer seq = 1;
-        if (dddwNm.contains("_")) {
-            int lastUnderscore = dddwNm.lastIndexOf('_');
-            String potentialSeq = dddwNm.substring(lastUnderscore + 1);
+        String targetDddwId = dddwId.trim().toUpperCase();
+        Integer targetSeq = (seq != null) ? seq : 1;
+
+        // If dddwId comes in combined form like 'CORP_GR_1', parse into dddwId='CORP_GR', seq=1
+        if (targetDddwId.contains("_")) {
+            int lastUnderscore = targetDddwId.lastIndexOf('_');
+            String potentialSeq = targetDddwId.substring(lastUnderscore + 1);
             if (potentialSeq.matches("\\d+")) {
-                dddwId = dddwNm.substring(0, lastUnderscore);
-                seq = Integer.parseInt(potentialSeq);
+                targetDddwId = targetDddwId.substring(0, lastUnderscore);
+                targetSeq = Integer.parseInt(potentialSeq);
             }
         }
 
         List<DddwDto> dddwList = new ArrayList<>();
         try {
-            WdddwctlDto ctl = dddwMapper.selectWdddwctl(dddwNm, dddwId, seq);
+            WdddwctlDto ctl = dddwMapper.selectWdddwctl(targetDddwId, targetSeq);
 
             if (ctl != null && ctl.getSqlColumns() != null && ctl.getSqlTables() != null) {
                 String sqlColumns = ctl.getSqlColumns().trim();
                 String sqlTables = ctl.getSqlTables().trim();
                 String sqlWhere = ctl.getSqlWhere() != null ? ctl.getSqlWhere().trim() : "";
+                String sqlOrderBy = ctl.getSqlOrderBy() != null ? ctl.getSqlOrderBy().trim() : "";
+
                 String extraWhere = addWhere != null ? addWhere.trim() : "";
+                String extraOrderBy = addOrderBy != null ? addOrderBy.trim() : "";
 
                 StringBuilder sqlBuilder = new StringBuilder();
                 sqlBuilder.append("SELECT ").append(sqlColumns).append(" FROM ").append(sqlTables);
@@ -70,8 +89,13 @@ public class DddwService {
                     sqlBuilder.append(" WHERE ").append(extraWhere);
                 }
 
+                String finalOrderBy = !extraOrderBy.isEmpty() ? extraOrderBy : sqlOrderBy;
+                if (!finalOrderBy.isEmpty()) {
+                    sqlBuilder.append(" ORDER BY ").append(finalOrderBy);
+                }
+
                 String finalSql = sqlBuilder.toString();
-                log.info("Executing Dynamic DDDW Query [{}] -> {}", dddwNm, finalSql);
+                log.info("Executing Dynamic DDDW Query [dddwId={}, seq={}] -> {}", targetDddwId, targetSeq, finalSql);
 
                 dddwList = jdbcTemplate.query(finalSql, (rs, rowNum) -> {
                     int colCount = rs.getMetaData().getColumnCount();
@@ -86,20 +110,19 @@ public class DddwService {
                 });
             }
         } catch (Exception e) {
-            log.warn("Failed to execute dynamic DDDW query for [{}] : {}", dddwNm, e.getMessage());
+            log.warn("Failed to execute dynamic DDDW query for [dddwId={}, seq={}] : {}", targetDddwId, targetSeq, e.getMessage());
         }
 
-        // Fallback test defaults if table metadata or DB query returns empty for 'corp_gr_1'
-        if (dddwList.isEmpty() && ("corp_gr_1".equalsIgnoreCase(dddwNm) || "corp_gr".equalsIgnoreCase(dddwId))) {
-            dddwList.add(new DddwDto("2200", "(주)케이에프피", "FK_2200"));
-            dddwList.add(new DddwDto("2100", "현대자산운용", "FK_2100"));
-            dddwList.add(new DddwDto("2300", "한국투신운용", "FK_2300"));
+        // Fallback default value if dynamic DDDW query returns empty or fails
+        if (dddwList.isEmpty()) {
+            dddwList.add(new DddwDto("", "데이터없음", ""));
         }
 
         // Store in Session for view/page access
         if (session != null) {
-            session.setAttribute("DDDW_" + dddwNm, dddwList);
-            session.setAttribute("DDDW_" + dddwId, dddwList);
+            String cacheKey = targetDddwId + "_" + targetSeq;
+            session.setAttribute("DDDW_" + cacheKey, dddwList);
+            session.setAttribute("DDDW_" + targetDddwId, dddwList);
         }
 
         return dddwList;

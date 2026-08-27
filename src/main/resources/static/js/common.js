@@ -398,16 +398,35 @@ function renderSubTreeHtml(list) {
     return html;
 }
 
+/**
+ * Security Access Verification for corpGr Cookie
+ * If corpGr/savedCorpGr cookie is missing during authenticated access, prompt error and force logout on OK click.
+ */
+function verifyCorpGrCookie() {
+    const path = window.location.pathname;
+    if (path.includes('/login') || path.includes('/w_login_aams')) {
+        return true;
+    }
+
+    const corpGrCookie = (typeof getCookie === 'function') ? (getCookie('savedCorpGr') || getCookie('corpGr')) : null;
+    if (!corpGrCookie || !corpGrCookie.trim()) {
+        alert('비정상적인 접근입니다.');
+        handleLogout();
+        return false;
+    }
+    return true;
+}
+
 // Auto-load side menu for initial active top nav item on DOMContentLoaded
 document.addEventListener("DOMContentLoaded", function() {
+    if (!window.location.pathname.includes('/login') && !window.location.pathname.includes('/w_login_aams')) {
+        if (!verifyCorpGrCookie()) return;
+        startTokenMonitor();
+    }
+
     const activeTopItem = document.querySelector('.top-nav-item.active');
     const pgmNo = activeTopItem ? activeTopItem.getAttribute('data-pgm-no') : '01000';
     loadSideMenu(pgmNo);
-
-    // Start token expiration monitoring if logged in
-    if (!window.location.pathname.includes('/login') && !window.location.pathname.includes('/w_login_aams')) {
-        startTokenMonitor();
-    }
 });
 
 /**
@@ -703,8 +722,62 @@ window.addEventListener('resize', function() {
 });
 
 /**
+ * Global Cookie Getter Helper
+ */
+function getCookie(name) {
+    if (!document.cookie) return null;
+    const cookies = document.cookie.split(';');
+    for (let i = 0; i < cookies.length; i++) {
+        const c = cookies[i].trim();
+        if (c.startsWith(name + '=')) {
+            return decodeURIComponent(c.substring(name.length + 1));
+        }
+    }
+    return null;
+}
+
+/**
  * Global Common Breadcrumb Builder Helper
  */
 function buildBreadcrumbText(fullpgm2, title, pgmId) {
     return formatBreadcrumb(fullpgm2, title, pgmId);
+}
+
+/**
+ * Dynamic DDDW Dropdown Options Loader Helper (e.g. dddwId = 'CORP_GR', seq = 1)
+ */
+function loadDddwOptions(selectId, dddwId, seq, addWhere, addOrderBy, defaultVal) {
+    const selectEl = document.getElementById(selectId);
+    if (!selectEl) return;
+
+    let targetDddwId = dddwId || 'CORP_GR';
+    let targetSeq = 1;
+    let actualWhere = addWhere;
+    let actualOrderBy = addOrderBy;
+    let actualDefault = defaultVal;
+
+    if (typeof seq === 'number') {
+        targetSeq = seq;
+    } else if (typeof seq === 'string' && /^\d+$/.test(seq)) {
+        targetSeq = parseInt(seq, 10);
+    } else {
+        // Handle argument shift if seq was omitted
+        actualDefault = addOrderBy;
+        actualOrderBy = addWhere;
+        actualWhere = seq;
+    }
+
+    let url = `/api/common/dddw?dddwId=${encodeURIComponent(targetDddwId)}&seq=${encodeURIComponent(targetSeq)}`;
+    if (actualWhere) url += `&addWhere=${encodeURIComponent(actualWhere)}`;
+    if (actualOrderBy) url += `&addOrderBy=${encodeURIComponent(actualOrderBy)}`;
+
+    safeFetchJson(url).then(list => {
+        if (!list || list.length === 0) return;
+        let html = '';
+        list.forEach(item => {
+            const selected = (actualDefault && item.code === actualDefault) ? 'selected' : '';
+            html += `<option value="${escapeHtml(item.code)}" ${selected}>${escapeHtml(item.name)}</option>`;
+        });
+        selectEl.innerHTML = html;
+    });
 }

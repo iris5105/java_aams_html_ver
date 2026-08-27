@@ -17,14 +17,30 @@
         <i class="fa-solid fa-house"></i> <span class="breadcrumb-text" th:text="${fullpgm2 != null ? fullpgm2 : '사무관리 > 자문일일 > 일위작업 > 1011 계좌계약정보관리 [w_ja010b]'}"></span>
     </div>
 
-    <!-- 3. Common Corp Group Filter (운용사 선택 드롭다운) -->
-    <div th:fragment="corpFilter" class="filter-bar">
+    <!-- 3. Common Corp Group Filter (운용사 선택 드롭다운: dddwId = CORP_GR, seq = 1) -->
+    <div th:fragment="corpFilter(dddwId, seq)" class="filter-bar" th:data-dddw-id="${dddwId != null ? dddwId : 'CORP_GR'}" th:data-seq="${seq != null ? seq : 1}">
         <div class="filter-item">
             <label for="filterCorpGr">운용사</label>
-            <select id="filterCorpGr" name="corpGr" class="filter-select">
-                <option value="2200" th:selected="${corpGr == '2200'}">(주)케이에프피</option>
-                <option value="2100" th:selected="${corpGr == '2100'}">현대자산운용</option>
-                <option value="2300" th:selected="${corpGr == '2300'}">한국투신운용</option>
+            <select id="filterCorpGr" name="corpGr" class="filter-select" onchange="if(typeof loadJa010bMaster === 'function') loadJa010bMaster(this.value);">
+                <th:block th:if="${corpList != null and not #lists.isEmpty(corpList)}">
+                    <option th:each="corp : ${corpList}"
+                            th:value="${corp.code}"
+                            th:text="${corp.name}"
+                            th:selected="${corpGr == corp.code or (corpGr == null and corp.code == '2200')}"></option>
+                </th:block>
+                <th:block th:if="${corpList == null or #lists.isEmpty(corpList)}">
+                    <option value="2200" th:selected="${corpGr == '2200'}">(주)케이에프피</option>
+                    <option value="2202" th:selected="${corpGr == '2202'}">이언투자자문</option>
+                    <option value="2203" th:selected="${corpGr == '2203'}">주식회사솔루션퀀트</option>
+                    <option value="2204" th:selected="${corpGr == '2204'}">브레인자산운용</option>
+                    <option value="2201" th:selected="${corpGr == '2201'}">투핸즈투자자문</option>
+                    <option value="2401" th:selected="${corpGr == '2401'}">SIP투자자문</option>
+                    <option value="2402" th:selected="${corpGr == '2402'}">리코자산운용</option>
+                    <option value="2501" th:selected="${corpGr == '2501'}">Karma & Company</option>
+                    <option value="2502" th:selected="${corpGr == '2502'}">US Portfolio Model</option>
+                    <option value="2601" th:selected="${corpGr == '2601'}">신규회사 테스트</option>
+                    <option value="9999" th:selected="${corpGr == '9999'}">테스트회사</option>
+                </th:block>
             </select>
         </div>
     </div>

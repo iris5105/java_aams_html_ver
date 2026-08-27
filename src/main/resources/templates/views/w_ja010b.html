@@ -14,8 +14,8 @@
         <div th:replace="~{fragments/tab_header :: toolbarBreadcrumb}"></div>
     </div>
 
-    <!-- Sub Filter Bar (Row 2: Common 운용사 Select Box) -->
-    <div th:replace="~{fragments/tab_header :: corpFilter}"></div>
+    <!-- Sub Filter Bar (Row 2: Common 운용사 Select Box: dddwId='CORP_GR', seq=1) -->
+    <div th:replace="~{fragments/tab_header :: corpFilter(dddwId='CORP_GR', seq=1)}"></div>
 
     <!-- Upper Master Grid Section (dw_list / d_ja010b1.srd) -->
     <div class="grid-section master-grid-section">
@@ -96,30 +96,37 @@
                     selectableRows: 1,
                     placeholder: "<span>조회된 계좌 계약정보가 없습니다.</span>",
                     columns: [
-                        { title: "No.", formatter: "rownum", hozAlign: "center", width: 45 },
-                        { title: "증권회사", field: "mgNm", minWidth: 100, formatter: cell => cell.getValue() || cell.getRow().getData().mgCd || '' },
-                        { title: "고객명", field: "fundNm", minWidth: 140 },
-                        { title: "관리번호", field: "fundCd", hozAlign: "center", width: 85 },
-                        { title: "계좌번호", field: "acctNo", width: 110, formatter: cell => cell.getValue() || cell.getRow().getData().encAcctNo || '' },
-                        { title: "계좌관리그룹", field: "seriesGb", hozAlign: "center", width: 95 },
-                        { title: "고객유형", field: "typeGbNm", hozAlign: "center", width: 85 },
-                        { title: "선취", field: "preBasic", hozAlign: "right", width: 65 },
-                        { title: "후취", field: "basicPer", hozAlign: "right", width: 65 },
-                        { title: "목표수익(%)", field: "bmPer", hozAlign: "right", width: 75 },
-                        { title: "성과보수(%)", field: "successPer", hozAlign: "right", width: 75 },
-                        { title: "성과보수 대상자산", field: "targetJasan", hozAlign: "center", width: 110 },
-                        { title: "최초계약일", field: "fstSeoljYmd", hozAlign: "center", width: 90, formatter: cell => formatDateVal(cell.getValue()) },
-                        { title: "(재)계약일", field: "reSeoljYmd", hozAlign: "center", width: 90, formatter: cell => formatDateVal(cell.getValue()) },
-                        { title: "계약잔액", field: "reSeoljAek", hozAlign: "right", width: 110, formatter: cell => numFmt(cell.getValue()) },
-                        { title: "수수료비용처리", field: "expenseYn", hozAlign: "center", width: 90, formatter: cell => `<input type="checkbox" ${cell.getValue() === 'Y' ? 'checked' : ''} disabled />` },
-                        { title: "계약횟수", field: "gyulGi", hozAlign: "center", width: 65 },
-                        { title: "계약기간", field: "sintakGigan", hozAlign: "center", width: 65 },
-                        { title: "만기예정일", field: "afGyulYmd", hozAlign: "center", width: 90, formatter: cell => formatDateVal(cell.getValue()) },
-                        { title: "계약종료일", field: "haejiYmd", hozAlign: "center", width: 90, formatter: cell => formatDateVal(cell.getValue()) },
-                        { title: "운용역", field: "unyongSabun", hozAlign: "center", width: 75 },
-                        { title: "계좌별주식매매수수료율", field: "susuRt", hozAlign: "right", width: 120 },
-                        { title: "특이사항", field: "noteText", hozAlign: "center", width: 70 },
-                        { title: "이메일주소", field: "email1", minWidth: 140 }
+                        { title: "No.", formatter: "rownum", hozAlign: "center", width: 40 },
+                        { title: "증권회사", field: "mgNm", minWidth: 90, formatter: cell => cell.getValue() || cell.getRow().getData().mgCd || '' },
+                        { title: "고객명", field: "fundNm", minWidth: 120 },
+                        { title: "관리번호", field: "fundCd", hozAlign: "center", width: 75 },
+                        { title: "계좌번호", field: "acctNo", minWidth: 105, formatter: cell => cell.getValue() || cell.getRow().getData().encAcctNo || '' },
+                        { title: "계좌관리그룹", field: "seriesGb", hozAlign: "center", minWidth: 85 },
+                        { title: "고객<br/>유형", field: "typeGbNm", hozAlign: "center", minWidth: 75 },
+                        {
+                            title: "수수료(%)",
+                            headerHozAlign: "center",
+                            
+                            columns: [
+                                { title: "선취", field: "preBasic", hozAlign: "right", minWidth: 55 },
+                                { title: "후취", field: "basicPer", hozAlign: "right", minWidth: 55 }
+                            ]
+                        },
+                        { title: "목표<br/>수익(%)", field: "bmPer", hozAlign: "right", minWidth: 75 },
+                        { title: "성과<br/>보수(%)", field: "successPer", hozAlign: "right", minWidth: 75 },
+                        { title: "성과보수<br/>대상자산", field: "targetJasan", hozAlign: "center", minWidth: 95 },
+                        { title: "최 초<br/>계약일", field: "fstSeoljYmd", hozAlign: "center", minWidth: 85, formatter: cell => formatDateVal(cell.getValue()) },
+                        { title: "(재)<br/>계약일", field: "reSeoljYmd", hozAlign: "center", minWidth: 85, formatter: cell => formatDateVal(cell.getValue()) },
+                        { title: "계약잔액", field: "reSeoljAek", hozAlign: "right", minWidth: 100, formatter: cell => numFmt(cell.getValue()) },
+                        { title: "수수료<br/>비용처리", field: "expenseYn", hozAlign: "center", minWidth: 85, formatter: cell => `<input type="checkbox" ${cell.getValue() === 'Y' ? 'checked' : ''} disabled />` },
+                        { title: "계약<br/>횟수", field: "gyulGi", hozAlign: "center", minWidth: 60 },
+                        { title: "계약<br/>기간", field: "sintakGigan", hozAlign: "center", minWidth: 60 },
+                        { title: "만기예정일", field: "afGyulYmd", hozAlign: "center", minWidth: 85, formatter: cell => formatDateVal(cell.getValue()) },
+                        { title: "계약종료일", field: "haejiYmd", hozAlign: "center", minWidth: 85, formatter: cell => formatDateVal(cell.getValue()) },
+                        { title: "운용역", field: "unyongSabun", hozAlign: "center", minWidth: 70 },
+                        { title: "계좌별<br/>주식매매수수료율", field: "susuRt", hozAlign: "right", minWidth: 110 },
+                        { title: "특이사항", field: "noteText", hozAlign: "center", minWidth: 65 },
+                        { title: "이메일주소", field: "email1", minWidth: 120 }
                     ]
                 });
 
@@ -160,14 +167,14 @@
                     height: "100%",
                     placeholder: "<span>상단 목록에서 항목을 선택하세요.</span>",
                     columns: [
-                        { title: "No.", formatter: "rownum", hozAlign: "center", width: 45 },
-                        { title: "회기", field: "gyulGi", hozAlign: "center", width: 55 },
-                        { title: "(전)결산일자", field: "bfGyulYmd", hozAlign: "center", width: 95, formatter: cell => formatDateVal(cell.getValue()) },
-                        { title: "(당)결산일자", field: "afGyulYmd", hozAlign: "center", width: 95, formatter: cell => formatDateVal(cell.getValue()) },
-                        { title: "구간일수", field: "ilsu", hozAlign: "center", width: 70 },
-                        { title: "결산기손익액", field: "giSonikAek", hozAlign: "right", minWidth: 100, formatter: cell => numFmt(cell.getValue()) },
-                        { title: "워터마크대상원본", field: "wmSeoljAek", hozAlign: "right", minWidth: 110, formatter: cell => numFmt(cell.getValue()) },
-                        { title: "계약종료일", field: "haejiYmd", hozAlign: "center", width: 95, formatter: cell => formatDateVal(cell.getValue()) }
+                        { title: "No.", formatter: "rownum", hozAlign: "center", width: 60 },
+                        { title: "회<br/>기", field: "gyulGi", hozAlign: "center", width: 55 },
+                        { title: "(전)<br/>결산일자", field: "bfGyulYmd", hozAlign: "center", width: 95, formatter: cell => formatDateVal(cell.getValue()) },
+                        { title: "(당)<br/>결산일자", field: "afGyulYmd", hozAlign: "center", width: 95, formatter: cell => formatDateVal(cell.getValue()) },
+                        { title: "구간<br/>일수", field: "ilsu", hozAlign: "center", width: 70 },
+                        { title: "결산기<br/>손익액", field: "giSonikAek", hozAlign: "right", minWidth: 100, formatter: cell => numFmt(cell.getValue()) },
+                        { title: "워터마크<br/>대상원본", field: "wmSeoljAek", hozAlign: "right", minWidth: 110, formatter: cell => numFmt(cell.getValue()) },
+                        { title: "계약<br/>종료일", field: "haejiYmd", hozAlign: "center", width: 95, formatter: cell => formatDateVal(cell.getValue()) }
                     ]
                 });
             }
@@ -248,6 +255,31 @@
             initMasterGrid();
             initDetailGrid();
             initIoGrid();
+
+            // Retrieve active corpGr from cookie (savedCorpGr / corpGr)
+            const activeCorpGr = (typeof getCookie === 'function' ? (getCookie('savedCorpGr') || getCookie('corpGr')) : null);
+            if (!activeCorpGr || !activeCorpGr.trim()) {
+                alert('비정상적인 접근입니다.');
+                if (typeof handleLogout === 'function') {
+                    handleLogout();
+                } else {
+                    window.location.href = '/login';
+                }
+                return;
+            }
+
+            const adminYn = /*[[${adminYn}]]*/ "N";
+
+            // Show full list if adminYn == 'Y'. Otherwise, append 'corp_gr = :activeCorpGr'!
+            let addWhere = null;
+            if (adminYn !== 'Y') {
+                addWhere = `corp_gr = '${activeCorpGr}'`;
+            }
+
+            // Load DDDW filter options dynamically (dddwId='CORP_GR', seq=1)
+            if (typeof loadDddwOptions === 'function') {
+                loadDddwOptions("filterCorpGr", "CORP_GR", 1, addWhere, null, activeCorpGr);
+            }
         })();
 
         function onJa010bPyungjanCalc() {

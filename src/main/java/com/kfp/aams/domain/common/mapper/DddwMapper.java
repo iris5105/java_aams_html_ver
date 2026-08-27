@@ -8,9 +8,8 @@ import org.apache.ibatis.annotations.Param;
 public interface DddwMapper {
 
     /**
-     * Fetch WDDDWCTL metadata by dddwNm (e.g., 'corp_gr_1' or dddwId='corp_gr', seq=1)
+     * Fetch WDDDWCTL metadata by dddwId and seq (e.g., dddwId='CORP_GR', seq=1)
      */
-    WdddwctlDto selectWdddwctl(@Param("dddwNm") String dddwNm,
-                               @Param("dddwId") String dddwId,
+    WdddwctlDto selectWdddwctl(@Param("dddwId") String dddwId,
                                @Param("seq") Integer seq);
 }
