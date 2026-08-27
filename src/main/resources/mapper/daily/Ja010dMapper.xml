@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
-<mapper namespace="com.kfp.aams.domain.ja010.mapper.Ja010dMapper">
+<mapper namespace="com.kfp.aams.domain.daily.mapper.Ja010dMapper">
 
-    <!-- Select Daily Deposit / Withdrawal List (d_ja010d1) -->
-    <select id="selectJa010dList" resultType="com.kfp.aams.domain.ja010.dto.Ja010dDto">
+    <!-- Select Daily IO Transaction List (d_ja010d1.srd) -->
+    <select id="selectJa010dList" resultType="com.kfp.aams.domain.daily.dto.Ja010dDto">
         SELECT t1.CORP_GR                       AS corpGr
              , t1.FUND_CD                       AS fundCd
              , ia.FUND_NM                       AS fundNm
@@ -28,7 +28,7 @@
          ORDER BY t1.FUND_CD ASC
     </select>
 
-    <!-- Select Distinct Deposit / Withdrawal Dates for green highlight calendar -->
+    <!-- Select Available Transaction Dates for Calendar Dropdown/Highlighting -->
     <select id="selectJa010dTrDates" resultType="string">
         SELECT DISTINCT TO_CHAR(t1.TR_YMD, 'YYYY-MM-DD') AS trYmd
           FROM SZT0IO t1

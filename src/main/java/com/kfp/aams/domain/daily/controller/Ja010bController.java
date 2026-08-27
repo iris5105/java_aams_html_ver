@@ -1,9 +1,9 @@
-package com.kfp.aams.domain.ja010.controller;
+package com.kfp.aams.domain.daily.controller;
 
-import com.kfp.aams.domain.ja010.dto.Ja010bDetailDto;
-import com.kfp.aams.domain.ja010.dto.Ja010bIoDto;
-import com.kfp.aams.domain.ja010.dto.Ja010bMasterDto;
-import com.kfp.aams.domain.ja010.service.Ja010bService;
+import com.kfp.aams.domain.daily.dto.Ja010bDetailDto;
+import com.kfp.aams.domain.daily.dto.Ja010bIoDto;
+import com.kfp.aams.domain.daily.dto.Ja010bMasterDto;
+import com.kfp.aams.domain.daily.service.Ja010bService;
 import com.kfp.aams.security.UserPrincipal;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -24,7 +24,7 @@ public class Ja010bController {
     private final com.kfp.aams.domain.menu.service.MenuService menuService;
     private final com.kfp.aams.domain.common.service.DddwService dddwService;
 
-    @GetMapping({"/views/w_ja010b", "/views/ja010/w_ja010b"})
+    @GetMapping({"/views/w_ja010b", "/views/daily/w_ja010b"})
     public String viewJa010b(@AuthenticationPrincipal Object principalObj,
             @RequestParam(name = "corpGr", required = false) String paramCorpGr,
             @CookieValue(name = "savedCorpGr", required = false) String cookieCorpGr1,
@@ -52,7 +52,7 @@ public class Ja010bController {
         String fullpgm2 = (menuDto != null) ? menuDto.getFullpgm2() : null;
         model.addAttribute("fullpgm2", fullpgm2);
 
-        return "views/ja010/w_ja010b";
+        return "views/daily/w_ja010b";
     }
 
     @GetMapping("/api/account/ja010b/master")
@@ -65,6 +65,8 @@ public class Ja010bController {
         String corpGr = resolveCorpGr(paramCorpGr, cookieCorpGr, principal);
         return ja010bService.getMasterList(corpGr);
     }
+
+
 
     @GetMapping("/api/account/ja010b/detail")
     @ResponseBody

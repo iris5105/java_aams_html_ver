@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<div class="view-container szx0se-container" th:fragment="szx0seView">
+
+    <!-- Top Action Control Bar (Row 1) -->
+    <div class="view-toolbar">
+        <div class="toolbar-left">
+            <!-- Reusable Common Toolbar Buttons Fragment (닫기 ~ 엑셀) -->
+            <div th:replace="~{fragments/tab_header :: toolbarButtons}"></div>
+            <button class="t-btn btn-action" onclick="loadSzx0seData()"><i class="fa-solid fa-magnifying-glass"></i> 조회</button>
+        </div>
+        <!-- Reusable Common Breadcrumb Fragment -->
+        <div th:replace="~{fragments/tab_header :: toolbarBreadcrumb}"></div>
+    </div>
+
+    <!-- Sub Filter Bar (Row 2: Common 운용사 Select Box) -->
+    <div th:replace="~{fragments/tab_header :: corpFilter(dddwId='CORP_GR', seq=1)}"></div>
+
+    <!-- Main Grid Section (d_szx0se.srd / SZX0SE) -->
+    <div class="grid-section" style="padding: 10px; flex: 1; height: calc(100vh - 180px); min-height: 400px;">
+        <div class="grid-table-wrapper" style="height: 100%;">
+            <div id="grid-szx0se" class="tabulator-aams-grid" style="height: 100%;"></div>
+        </div>
+    </div>
+
+    <!-- Page Specific Script (Mapper / API Data Fetching Only) -->
+    <script th:inline="javascript">
+        (function() {
+            const initialData = /*[[${dataList}]]*/ [];
+            let gridSzx0se = null;
+
+            function numFmt(val) {
+                if (val == null || val === "") return "0";
+                return Number(val).toLocaleString('ko-KR');
+            }
+
+            function initSzx0seGrid() {
+                const container = document.getElementById("grid-szx0se");
+                if (!container) return;
+
+                gridSzx0se = new Tabulator(container, {
+                    data: initialData || [],
+                    layout: "fitColumns",
+                    height: "100%",
+                    placeholder: "<span>조회된 계좌관리그룹/상품그룹 데이터가 없습니다.</span>",
+                    columnDefaults: { vertAlign: "middle", headerSortTristate: true },
+                    columns: [
+                        { title: "No.", formatter: "rownum", hozAlign: "center", width: 45, resizable: false, widthGrow: 0 },
+                        { title: "미사용", field: "used", hozAlign: "center", width: 65, formatter: cell => cell.getValue() === '0' ? '사용안함' : '사용' },
+                        { title: "대분류", field: "seriesG1", hozAlign: "center", width: 80 },
+                        { title: "시리즈(상품분류)", field: "seriesG2", hozAlign: "center", width: 110 },
+                        { title: "계좌관리그룹코드", field: "seriesGb", hozAlign: "center", width: 110 },
+                        { title: "그룹명칭", field: "seriesNm", minWidth: 160 },
+                        { title: "선취수수료(%)", field: "preBasic", hozAlign: "right", minWidth: 100 },
+                        { title: "후취수수료(%)", field: "basicPer", hozAlign: "right", minWidth: 100 },
+                        { title: "목표수익률(%)", field: "mokpyoSuikPer", hozAlign: "right", minWidth: 110 },
+                        { title: "성과보수(%)", field: "successPer", hozAlign: "right", minWidth: 100 },
+                        { title: "재설정기한(년)", field: "reSeoljYear", hozAlign: "center", width: 105 },
+                        { title: "신탁기간", field: "sintakGigan", hozAlign: "center", width: 85 },
+                        { title: "보수기간", field: "bosuGigan", hozAlign: "center", width: 85 },
+                        { title: "비고", field: "bigo", minWidth: 150 }
+                    ]
+                });
+            }
+
+            // Data retrieval function (Mapper / REST API)
+            window.loadSzx0seData = function() {
+                const filterSelect = document.getElementById("filterCorpGr");
+                const corpGr = filterSelect ? filterSelect.value : "2200";
+
+                fetch('/api/account/szx0se/list?corpGr=' + encodeURIComponent(corpGr))
+                    .then(res => res.json())
+                    .then(data => {
+                        if (gridSzx0se) {
+                            gridSzx0se.setData(Array.isArray(data) ? data : []);
+                        }
+                    })
+                    .catch(err => console.error("Error loading szx0se list:", err));
+            };
+
+            initSzx0seGrid();
+        })();
+    </script>
+</div>
+</html>

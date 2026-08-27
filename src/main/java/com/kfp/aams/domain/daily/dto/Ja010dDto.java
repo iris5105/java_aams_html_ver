@@ -1,9 +1,11 @@
-package com.kfp.aams.domain.ja010.dto;
+package com.kfp.aams.domain.daily.dto;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+
+import java.math.BigDecimal;
 
 @Data
 @Builder
@@ -14,9 +16,9 @@ public class Ja010dDto {
     private String fundCd;
     private String fundNm;
     private String trYmd;
-    private Long inAek;
-    private Long outAek;
-    private Long ioJo;
-    private Long wonbonAek;
+    private BigDecimal inAek;
+    private BigDecimal outAek;
+    private BigDecimal ioJo;
+    private BigDecimal wonbonAek;
     private Integer pVisible;
 }
