@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>AAMS - 오류가 발생했습니다</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body style="background-color: #f8fafc; display: flex; align-items: center; justify-content: center; height: 100vh; font-family: '맑은 고딕', sans-serif; margin: 0;">
+    <div style="background: #ffffff; padding: 40px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.08); text-align: center; max-width: 480px; width: 90%; border: 1px solid #e2e8f0;">
+        <div style="color: #ef4444; font-size: 48px; margin-bottom: 16px;">
+            <i class="fa-solid fa-circle-exclamation"></i>
+        </div>
+        <h2 style="font-size: 20px; font-weight: 700; color: #1e293b; margin-bottom: 8px;">요청 처리 중 오류가 발생했습니다</h2>
+        <p style="font-size: 13px; color: #64748b; margin-bottom: 20px; word-break: break-all;" th:text="${errorMessage != null ? errorMessage : '요청하신 페이지를 처리하는 동안 문제가 발생했습니다.'}"></p>
+        <div style="display: flex; justify-content: center; gap: 10px;">
+            <button onclick="window.history.back()" style="background: #3b82f6; color: #ffffff; border: none; padding: 8px 16px; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer;">이전 페이지</button>
+            <button onclick="window.location.href='/w_home5'" style="background: #f1f5f9; color: #334155; border: 1px solid #cbd5e1; padding: 8px 16px; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer;">홈으로</button>
+        </div>
+    </div>
+</body>
+</html>

@@ -44,11 +44,9 @@ public class GlobalExceptionHandler {
                     .contentType(MediaType.APPLICATION_JSON)
                     .body(body);
         } else {
-            // HTML View Requests: Reset buffer & return error view cleanly
+            // HTML View Requests: Return error view cleanly
             if (!response.isCommitted()) {
-                response.resetBuffer();
                 response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-                response.setContentType("text/html;charset=UTF-8");
             }
             ModelAndView mav = new ModelAndView();
             mav.addObject("errorMessage", ex.getMessage());

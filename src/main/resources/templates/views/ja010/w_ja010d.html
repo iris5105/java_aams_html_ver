@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<div class="view-container ja010d-container" th:fragment="ja010dView">
+
+    <!-- Top Action Control Bar (Row 1) -->
+    <div class="view-toolbar">
+        <div class="toolbar-left">
+            <!-- Reusable Common Toolbar Buttons Fragment (닫기 ~ 엑셀) -->
+            <div th:replace="~{fragments/tab_header :: toolbarButtons}"></div>
+            <button class="t-btn btn-action" onclick="loadJa010dData()"><i class="fa-solid fa-magnifying-glass"></i> 조회</button>
+        </div>
+        <!-- Reusable Common Breadcrumb Fragment -->
+        <div th:replace="~{fragments/tab_header :: toolbarBreadcrumb}"></div>
+    </div>
+
+    <!-- Sub Filter Bar (Row 2: 입출금일자 Filter with Pure JS AAMS Highlight Calendar) -->
+    <div class="filter-bar" style="display: flex; align-items: center; gap: 15px; background-color: #f8fafc; padding: 8px 12px; border-bottom: 1px solid #e2e8f0; position: relative;">
+        <div class="filter-item" style="position: relative; display: flex; align-items: center; gap: 6px;">
+            <label for="filterTrYmd" style="font-weight: 600; font-size: 13px; color: #334155;">입.출금일자:</label>
+            <!-- Pure JS AamsCalendar automatically constructs input wrapper, icon button and popover -->
+            <input type="text" id="filterTrYmd" th:value="${trYmd}" />
+            <span> 7영업일전 입,출금은 등록을 의뢰하십시오.</span>
+        </div>
+    </div>
+
+    <!-- Main Grid Section (d_ja010d1.srd) -->
+    <div class="grid-section" style="padding: 10px; flex: 1; height: calc(100vh - 180px); min-height: 400px;">
+        <div class="grid-table-wrapper" style="height: 100%;">
+            <div id="grid-ja010d" class="tabulator-aams-grid" style="height: 100%;"></div>
+        </div>
+    </div>
+
+    <!-- Page Specific Script (Mapper / API Data Fetching Only) -->
+    <script th:inline="javascript">
+        (function() {
+            const initialData = /*[[${dataList}]]*/ [];
+            let gridJa010d = null;
+
+            function numFmt(val) {
+                if (val == null || val === "") return "0";
+                return Number(val).toLocaleString('ko-KR');
+            }
+
+            function formatDateVal(val) {
+                if (!val) return "";
+                if (val.length === 8) {
+                    return val.substring(0, 4) + '-' + val.substring(4, 6) + '-' + val.substring(6, 8);
+                }
+                return val;
+            }
+
+            function initJa010dGrid() {
+                const container = document.getElementById("grid-ja010d");
+                if (!container) return;
+
+                gridJa010d = new Tabulator(container, {
+                    data: initialData || [],
+                    layout: "fitColumns",
+                    height: "100%",
+                    placeholder: "<span>조회된 입.출금 내역 데이터가 없습니다.</span>",
+                    columnDefaults: { vertAlign: "middle", headerSortTristate: true },
+                    columns: [
+                        { title: "No.", formatter: "rownum", hozAlign: "center", width: 45, resizable: false, widthGrow: 0 },
+                        { title: "관리번호", field: "fundCd", hozAlign: "center", width: 90 },
+                        { title: "고객명", field: "fundNm", minWidth: 160 },
+                        { title: "입.출금일자", field: "trYmd", hozAlign: "center", width: 105, formatter: cell => formatDateVal(cell.getValue()) },
+                        { title: "입금액", field: "inAek", hozAlign: "right", minWidth: 120, formatter: cell => numFmt(cell.getValue()) },
+                        { title: "출금액", field: "outAek", hozAlign: "right", minWidth: 120, formatter: cell => numFmt(cell.getValue()) },
+                        { title: "계약잔액", field: "wonbonAek", hozAlign: "right", minWidth: 130, formatter: cell => numFmt(cell.getValue()) },
+                        { title: "입출금조정액", field: "ioJo", hozAlign: "right", minWidth: 130, formatter: cell => numFmt(cell.getValue()) }
+                    ]
+                });
+            }
+
+            // Data retrieval function (Mapper / REST API)
+            window.loadJa010dData = function() {
+                const filterTrYmdInput = document.getElementById("filterTrYmd");
+                const trYmd = filterTrYmdInput ? filterTrYmdInput.value : "";
+
+                fetch('/api/account/ja010d/list?trYmd=' + encodeURIComponent(trYmd))
+                    .then(res => res.json())
+                    .then(data => {
+                        if (gridJa010d) {
+                            gridJa010d.setData(Array.isArray(data) ? data : []);
+                        }
+                    })
+                    .catch(err => console.error("Error loading ja010d list:", err));
+            };
+
+            // DOM ready or fragment load trigger
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', () => {
+                    initJa010dGrid();
+                    initCalendarComponent();
+                });
+            } else {
+                initJa010dGrid();
+                initCalendarComponent();
+            }
+
+            function initCalendarComponent() {
+                if (typeof AamsCalendar !== 'undefined') {
+                    AamsCalendar.init('filterTrYmd', {
+                        initialYmd: /*[[${trYmd}]]*/ "",
+                        highlightDates: /*[[${trDates}]]*/ [],
+                        datesApiUrl: '/api/account/ja010d/dates',
+                        onSelect: function(ymd) {
+                            loadJa010dData();
+                        }
+                    });
+                }
+            }
+        })();
+    </script>
+</div>
+</html>

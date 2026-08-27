@@ -95,12 +95,13 @@
                     height: "100%",
                     selectableRows: 1,
                     placeholder: "<span>조회된 계좌 계약정보가 없습니다.</span>",
+                    columnDefaults: { vertAlign: "middle", headerSortTristate: true },
                     columns: [
-                        { title: "No.", formatter: "rownum", hozAlign: "center", width: 40 },
+                        { title: "No.", formatter: "rownum", hozAlign: "center", width: 45, resizable: false, widthGrow: 0 },
                         { title: "증권회사", field: "mgNm", minWidth: 90, formatter: cell => cell.getValue() || cell.getRow().getData().mgCd || '' },
                         { title: "고객명", field: "fundNm", minWidth: 120 },
                         { title: "관리번호", field: "fundCd", hozAlign: "center", width: 75 },
-                        { title: "계좌번호", field: "acctNo", minWidth: 105, formatter: cell => cell.getValue() || cell.getRow().getData().encAcctNo || '' },
+                        { title: "계좌번호", field: "acctNo", minWidth: 105, formatter: cell => cell.getValue() || cell.getRow().getData().acctNo || '-' },
                         { title: "계좌관리그룹", field: "seriesGb", hozAlign: "center", minWidth: 85 },
                         { title: "고객<br/>유형", field: "typeGbNm", hozAlign: "center", minWidth: 75 },
                         {
@@ -166,8 +167,9 @@
                     layout: "fitColumns",
                     height: "100%",
                     placeholder: "<span>상단 목록에서 항목을 선택하세요.</span>",
+                    columnDefaults: { vertAlign: "middle", headerSortTristate: true },
                     columns: [
-                        { title: "No.", formatter: "rownum", hozAlign: "center", width: 60 },
+                        { title: "No.", formatter: "rownum", hozAlign: "center", width: 45, resizable: false, widthGrow: 0 },
                         { title: "회<br/>기", field: "gyulGi", hozAlign: "center", width: 55 },
                         { title: "(전)<br/>결산일자", field: "bfGyulYmd", hozAlign: "center", width: 95, formatter: cell => formatDateVal(cell.getValue()) },
                         { title: "(당)<br/>결산일자", field: "afGyulYmd", hozAlign: "center", width: 95, formatter: cell => formatDateVal(cell.getValue()) },
@@ -188,8 +190,9 @@
                     layout: "fitColumns",
                     height: "100%",
                     placeholder: "<span>상단 목록에서 항목을 선택하세요.</span>",
+                    columnDefaults: { vertAlign: "middle", headerSortTristate: true },
                     columns: [
-                        { title: "No.", formatter: "rownum", hozAlign: "center", width: 45 },
+                        { title: "No.", formatter: "rownum", hozAlign: "center", width: 45, resizable: false, widthGrow: 0 },
                         { title: "입출일자", field: "trYmd", hozAlign: "center", width: 95, formatter: cell => formatDateVal(cell.getValue()) },
                         { title: "입금액", field: "inAek", hozAlign: "right", minWidth: 95, formatter: cell => numFmt(cell.getValue()) },
                         { title: "출금액", field: "outAek", hozAlign: "right", minWidth: 95, formatter: cell => numFmt(cell.getValue()) },

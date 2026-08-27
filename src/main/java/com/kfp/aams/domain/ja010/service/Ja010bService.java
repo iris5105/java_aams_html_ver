@@ -1,9 +1,9 @@
-package com.kfp.aams.domain.account.service;
+package com.kfp.aams.domain.ja010.service;
 
-import com.kfp.aams.domain.account.dto.Ja010bDetailDto;
-import com.kfp.aams.domain.account.dto.Ja010bIoDto;
-import com.kfp.aams.domain.account.dto.Ja010bMasterDto;
-import com.kfp.aams.domain.account.mapper.Ja010bMapper;
+import com.kfp.aams.domain.ja010.dto.Ja010bDetailDto;
+import com.kfp.aams.domain.ja010.dto.Ja010bIoDto;
+import com.kfp.aams.domain.ja010.dto.Ja010bMasterDto;
+import com.kfp.aams.domain.ja010.mapper.Ja010bMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

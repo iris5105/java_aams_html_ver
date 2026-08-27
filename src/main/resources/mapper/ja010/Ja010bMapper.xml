@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
-<mapper namespace="com.kfp.aams.domain.account.mapper.Ja010bMapper">
+<mapper namespace="com.kfp.aams.domain.ja010.mapper.Ja010bMapper">
 
     <!-- 1. Master Account Contract List (SZM0IA) -->
-    <select id="selectJa010bMasterList" resultType="com.kfp.aams.domain.account.dto.Ja010bMasterDto">
+    <select id="selectJa010bMasterList" resultType="com.kfp.aams.domain.ja010.dto.Ja010bMasterDto">
         SELECT t1.CORP_GR                       AS corpGr
              , t1.ENC_ACCT_NO                   AS encAcctNo
              , TO_DECRYPTS(t1.ENC_ACCT_NO)      AS acctNo
@@ -43,15 +43,15 @@
              , t1.ALIAS_CODE                    AS aliasCode
              , t1.SPECIAL_NOTE                  AS specialNote
              , CASE WHEN NVL(t1.SPECIAL_NOTE, ' ') = ' ' THEN ' ' 
-                                                         ELSE 'NOTE'
+                                                         ELSE 'NOTE' 
                 END AS noteText
           FROM SZM0IA t1
          WHERE t1.corp_gr = #{corpGr}
          ORDER BY NVL(t1.haeji_gb, '0') ASC, t1.mg_cd ASC, t1.fund_nm ASC, t1.re_seolj_ymd ASC
     </select>
 
-    <!-- 2. Detail Settlement Period History List (SZM0GI) -->
-    <select id="selectJa010bDetailList" resultType="com.kfp.aams.domain.account.dto.Ja010bDetailDto">
+    <!-- 2. Detail Settlement History List (SZM0GI) -->
+    <select id="selectJa010bDetailList" resultType="com.kfp.aams.domain.ja010.dto.Ja010bDetailDto">
         SELECT t1.CORP_GR                       AS corpGr
              , t1.FUND_CD                       AS fundCd
              , t1.GYUL_GI                       AS gyulGi
@@ -72,9 +72,8 @@
          ORDER BY t1.bf_gyul_ymd DESC
     </select>
 
-    <!-- 3. Sub Deposit/Withdrawal History List (SZT0IO) -->
-    <select id="selectJa010bIoList" resultType="com.kfp.aams.domain.account.dto.Ja010bIoDto">
-    
+    <!-- 3. IO Deposit/Withdrawal List (SZT0IO) -->
+    <select id="selectJa010bIoList" resultType="com.kfp.aams.domain.ja010.dto.Ja010bIoDto">
         SELECT t1.CORP_GR                       AS corpGr
              , t1.FUND_CD                       AS fundCd
              , TO_CHAR(t1.TR_YMD, 'YYYY-MM-DD')       AS trYmd

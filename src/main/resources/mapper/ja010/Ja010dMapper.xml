@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.kfp.aams.domain.ja010.mapper.Ja010dMapper">
+
+    <!-- Select Daily Deposit / Withdrawal List (d_ja010d1) -->
+    <select id="selectJa010dList" resultType="com.kfp.aams.domain.ja010.dto.Ja010dDto">
+        SELECT t1.CORP_GR                       AS corpGr
+             , t1.FUND_CD                       AS fundCd
+             , ia.FUND_NM                       AS fundNm
+             , TO_CHAR(t1.TR_YMD, 'YYYY-MM-DD') AS trYmd
+             , t1.IN_AEK                        AS inAek
+             , t1.OUT_AEK                       AS outAek
+             , t1.IO_JO                         AS ioJo
+             , t1.WONBON_AEK                    AS wonbonAek
+             , CASE WHEN t1.TR_YMD >= F_WORKDATE(t1.CORP_GR)
+                    THEN 1
+                    ELSE 0
+               END                              AS pVisible
+          FROM SZT0IO t1
+             , SZM0IA ia
+         WHERE t1.CORP_GR = #{corpGr}
+           <if test="trYmd != null and trYmd != ''">
+           AND TRUNC(t1.TR_YMD) = TO_DATE(REPLACE(#{trYmd}, '-', ''), 'YYYYMMDD')
+           </if>
+           AND ia.CORP_GR = t1.CORP_GR
+           AND ia.FUND_CD = t1.FUND_CD
+         ORDER BY t1.FUND_CD ASC
+    </select>
+
+    <!-- Select Distinct Deposit / Withdrawal Dates for green highlight calendar -->
+    <select id="selectJa010dTrDates" resultType="string">
+        SELECT DISTINCT TO_CHAR(t1.TR_YMD, 'YYYY-MM-DD') AS trYmd
+          FROM SZT0IO t1
+             , SZM0IA ia
+         WHERE t1.CORP_GR = #{corpGr}
+           AND ia.CORP_GR = t1.CORP_GR
+           AND ia.FUND_CD = t1.FUND_CD
+         ORDER BY trYmd DESC
+    </select>
+
+</mapper>

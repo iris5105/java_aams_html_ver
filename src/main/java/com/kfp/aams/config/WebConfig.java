@@ -11,13 +11,14 @@ import org.springframework.http.converter.HttpMessageConverter;
 import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 
 /**
  * Web MVC & Jackson Configuration
  * Defines ObjectMapper Bean with JavaTimeModule (JSR-310) support for LocalDateTime/LocalDate,
- * and allows text/html content-type serialization.
+ * and allows text/html content-type serialization for maps and objects.
  */
 @Configuration
 public class WebConfig implements WebMvcConfigurer {
@@ -32,8 +33,12 @@ public class WebConfig implements WebMvcConfigurer {
     }
 
     @Override
+    @SuppressWarnings("deprecation")
     public void extendMessageConverters(List<HttpMessageConverter<?>> converters) {
         ObjectMapper mapper = objectMapper();
+
+        MediaType textHtmlUtf8 = new MediaType("text", "html", StandardCharsets.UTF_8);
+        MediaType appJsonUtf8 = new MediaType("application", "json", StandardCharsets.UTF_8);
 
         for (HttpMessageConverter<?> converter : converters) {
             if (converter instanceof MappingJackson2HttpMessageConverter jacksonConverter) {
@@ -41,6 +46,12 @@ public class WebConfig implements WebMvcConfigurer {
                 List<MediaType> mediaTypes = new ArrayList<>(jacksonConverter.getSupportedMediaTypes());
                 if (!mediaTypes.contains(MediaType.TEXT_HTML)) {
                     mediaTypes.add(MediaType.TEXT_HTML);
+                }
+                if (!mediaTypes.contains(textHtmlUtf8)) {
+                    mediaTypes.add(textHtmlUtf8);
+                }
+                if (!mediaTypes.contains(appJsonUtf8)) {
+                    mediaTypes.add(appJsonUtf8);
                 }
                 jacksonConverter.setSupportedMediaTypes(mediaTypes);
             }

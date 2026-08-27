@@ -1,4 +1,4 @@
-package com.kfp.aams.domain.account.dto;
+package com.kfp.aams.domain.ja010.dto;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;

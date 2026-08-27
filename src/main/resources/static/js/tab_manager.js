@@ -1,17 +1,70 @@
 /**
  * Tabbed MDI Container Manager (Max 10 Tabs)
+ * Supports F5 / Page Refresh State Persistence via sessionStorage.
  */
 class TabManager {
     constructor() {
         this.maxTabs = 10;
-        this.openTabs = []; // [{ pgmNo, pgmId, tabKey, title, url }]
+        this.openTabs = []; // [{ pgmNo, pgmId, pgmGo, tabKey, title, url, breadcrumb }]
         this.activeTabKey = null;
+        this.isRestoring = false;
     }
 
     init() {
         this.openTabs = [];
         this.activeTabKey = null;
-        this.updateHomeVisibility();
+        const restored = this.restoreStateFromStorage();
+        if (!restored) {
+            this.updateHomeVisibility();
+        }
+    }
+
+    saveStateToStorage() {
+        if (this.isRestoring) return;
+        try {
+            const state = {
+                openTabs: this.openTabs.map(t => ({
+                    pgmNo: t.pgmNo,
+                    pgmId: t.pgmId,
+                    pgmGo: t.pgmGo,
+                    title: t.title,
+                    url: t.url,
+                    breadcrumb: t.breadcrumb
+                })),
+                activeTabKey: this.activeTabKey
+            };
+            sessionStorage.setItem("AAMS_MDI_TABS_STATE", JSON.stringify(state));
+        } catch (e) {
+            console.warn("Failed to save MDI tab state to storage:", e);
+        }
+    }
+
+    restoreStateFromStorage() {
+        try {
+            const raw = sessionStorage.getItem("AAMS_MDI_TABS_STATE");
+            if (!raw) return false;
+
+            const state = JSON.parse(raw);
+            if (!state || !Array.isArray(state.openTabs) || state.openTabs.length === 0) {
+                return false;
+            }
+
+            this.isRestoring = true;
+            state.openTabs.forEach(t => {
+                this.openTab(t.pgmNo, t.pgmId, t.title, t.url, t.breadcrumb, t.pgmGo);
+            });
+            this.isRestoring = false;
+
+            if (state.activeTabKey) {
+                this.switchTab(state.activeTabKey);
+            }
+
+            return true;
+        } catch (e) {
+            console.warn("Failed to restore MDI tab state from storage:", e);
+            this.isRestoring = false;
+            return false;
+        }
     }
 
     openTab(pgmNo, pgmId, title, url, breadcrumb, pgmGo) {
@@ -138,6 +191,7 @@ class TabManager {
 
         // 7. Activate newly created tab
         this.switchTab(tabKey);
+        this.saveStateToStorage();
     }
 
     switchTab(tabKey) {
@@ -167,6 +221,7 @@ class TabManager {
 
         this.updateHomeVisibility();
         this.highlightSidebarMenu(tabKey);
+        this.saveStateToStorage();
     }
 
     closeTab(tabKey, event) {
@@ -201,6 +256,7 @@ class TabManager {
         }
 
         this.updateHomeVisibility();
+        this.saveStateToStorage();
     }
 
     closeCurrentTab() {
@@ -222,6 +278,7 @@ class TabManager {
         this.openTabs = [];
         this.activeTabKey = null;
         this.updateHomeVisibility();
+        sessionStorage.removeItem("AAMS_MDI_TABS_STATE");
     }
 
     updateHomeVisibility() {

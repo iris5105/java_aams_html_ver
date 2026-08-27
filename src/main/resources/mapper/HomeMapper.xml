@@ -79,7 +79,7 @@
           JOIN SZM0IA ia ON ia.corp_gr = t1.corp_gr 
                         AND ia.fund_cd = t1.fund_cd
          WHERE t1.corp_gr = #{corpGr}
-           AND t1.af_gyul_ymd Between trunc(now (),'mm') And LAST_DAY(now ())
+           AND t1.af_gyul_ymd Between TRUNC(SYSDATE, 'MM') And LAST_DAY(SYSDATE)
            AND NVL(ia.haeji_ymd, SYSDATE) >= SYSDATE
          ORDER BY t1.af_gyul_ymd ASC, t1.fund_cd ASC
     </select>

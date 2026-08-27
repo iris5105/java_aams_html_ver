@@ -463,6 +463,7 @@ function handleLogout() {
     fetch('/api/auth/logout', { method: 'POST' })
         .then(() => {
             localStorage.clear();
+            sessionStorage.clear();
             window.location.href = '/login';
         });
 }
