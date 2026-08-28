@@ -32,57 +32,42 @@
             // DDDW Option Caches (Populated via ue_dddw_retrieve and f_dddwctl)
             let dddwOptionsMap = {
                 series_g1: [],
+                series_g2: [],
                 bm_gr: [],
                 gugan: [],
                 ga: []
             };
 
             /**
-             * PowerBuilder f_dddwctl Helper: Dynamically fetches DropDownDataWindow options via REST API
-             * @param {string} dddwId DropDownDataWindow ID (e.g. 'series_g1', 'bm_gr', 'gugan', 'ga')
-             * @param {number} seq Sequence number (default 1)
-             * @param {string} addWhere Dynamic WHERE clause (e.g. "corp_gr='2200'")
-             * @param {string} addOrderBy Dynamic ORDER BY clause
-             * @returns {Promise<Array<{code: string, name: string}>>}
-             */
-            function f_dddwctl(dddwId, seq = 1, addWhere = "", addOrderBy = "") {
-                let url = `/api/common/dddw?dddwId=${encodeURIComponent(dddwId)}&seq=${seq}`;
-                if (addWhere) url += `&addWhere=${encodeURIComponent(addWhere)}`;
-                if (addOrderBy) url += `&addOrderBy=${encodeURIComponent(addOrderBy)}`;
-
-                return fetch(url)
-                    .then(res => res.ok ? res.json() : [])
-                    .catch(err => {
-                        console.warn(`[f_dddwctl] Error loading DDDW (${dddwId}):`, err);
-                        return [];
-                    });
-            }
-
-            /**
-             * PowerBuilder ue_dddw_retrieve Event: Populates all DDDW dropdowns for dw_list
+             * PowerBuilder dw_list::ue_dddw_retrieve Event Integration
              * Corresponds to dw_list::ue_dddw_retrieve in w_szx0se.srw:
-             *   F_DDDWCTL (THIS, 'series_g1', gaa.corp_gr, '', 1, "corp_gr='" + corp_gr + "'")
-             *   f_dddwctl (THIS, 'bm_gr', gaa.corp_gr, '', 1, '')
-             *   f_dddwctl (THIS, 'gugan', '', ',,', 1, '')
-             *   f_dddwctl (THIS, 'ga', '', ',,', 1, '')
+             *   1. F_DDDWCTL (THIS, 'series_g1', gaa.corp_gr, '', 1, "corp_gr='" + corp_gr + "'")
+             *   2. F_DDDWCTL (THIS, 'series_g2', gaa.corp_gr, '', 1, "corp_gr='" + corp_gr + "'")
+             *   4. f_dddwctl (THIS, 'bm_gr', gaa.corp_gr, '', 1, '')
+             *   5. f_dddwctl (THIS, 'gugan', '', ',,', 1, '')
+             *   6. f_dddwctl (THIS, 'ga', '', ',,', 1, '')
              */
             function ue_dddw_retrieve(corpGr) {
                 const filterSelect = document.getElementById("filterCorpGr");
-                const targetCorpGr = corpGr || (filterSelect ? filterSelect.value : "2200");
+                const targetCorpGr = corpGr != null ? corpGr : (filterSelect ? filterSelect.value : "");
 
-                Promise.all([
-                    f_dddwctl('series_g1', 1, `corp_gr='${targetCorpGr}'`),
-                    f_dddwctl('bm_gr', 1),
-                    f_dddwctl('gugan', 1),
-                    f_dddwctl('ga', 1)
-                ]).then(([seriesG1Data, bmGrData, guganData, gaData]) => {
-                    dddwOptionsMap.series_g1 = seriesG1Data || [];
-                    dddwOptionsMap.bm_gr = bmGrData || [];
-                    dddwOptionsMap.gugan = guganData || [];
-                    dddwOptionsMap.ga = gaData || [];
+                f_dddwctl.retrieveMultiple({
+                    series_g1: ['series_g1', 1, `corp_gr='${targetCorpGr}'`],
+                    series_g2: ['series_g2', 1, `corp_gr='${targetCorpGr}'`],
+                    bm_gr: ['bm_gr', 1],
+                    gugan: ['gugan', 1],
+                    ga: ['ga', 1]
+                }).then(results => {
+                    dddwOptionsMap.series_g1 = results.series_g1 || [];
+                    dddwOptionsMap.series_g2 = results.series_g2 || [];
 
-                    console.log('[ue_dddw_retrieve] Successfully retrieved DDDW options:', {
+                    dddwOptionsMap.bm_gr = results.bm_gr || [];
+                    dddwOptionsMap.gugan = results.gugan || [];
+                    dddwOptionsMap.ga = results.ga || [];
+
+                    console.log('[ue_dddw_retrieve] Successfully retrieved DDDW options via f_dddwctl:', {
                         series_g1: dddwOptionsMap.series_g1.length,
+                        series_g2: dddwOptionsMap.series_g2.length,
                         bm_gr: dddwOptionsMap.bm_gr.length,
                         gugan: dddwOptionsMap.gugan.length,
                         ga: dddwOptionsMap.ga.length
@@ -95,10 +80,7 @@
             }
 
             function getDddwLabel(dddwKey, codeVal) {
-                if (codeVal == null || codeVal === '') return '';
-                const list = dddwOptionsMap[dddwKey] || [];
-                const found = list.find(item => item.code === String(codeVal).trim());
-                return found ? found.name : codeVal;
+                return f_dddwctl.getLabel(dddwOptionsMap, dddwKey, codeVal);
             }
 
             function numFmt(val) {
@@ -134,9 +116,9 @@
                         
                         // Requirement 2: Dynamic DDDW Formatters powered by f_dddwctl / ue_dddw_retrieve
                         { title: "대분류", field: "seriesG1", hozAlign: "center", width: 85, formatter: cell => getDddwLabel('series_g1', cell.getValue()) },
-                        { title: "시리즈(상품분류)", field: "seriesG2", hozAlign: "center", width: 110 },
+                        { title: "시리즈(상품분류)", field: "seriesG2", hozAlign: "center", width: 110, formatter: cell => getDddwLabel('series_g2', cell.getValue()) },
                         { title: "시리즈(상품분류)명", field: "seriesNm", hozAlign: "center", width: 160 },
-                        { title: "평잔구간", field: "gugan", hozAlign: "center", width: 160 },
+                        { title: "평잔구간", field: "gugan", hozAlign: "center", width: 160, formatter: cell => getDddwLabel('gugan', cell.getValue()) },
                         { title: "금감원<br/>보고분류", field: "ga", hozAlign: "center", width: 60, formatter: cell => getDddwLabel('ga', cell.getValue()) },
                         { title: "재설정기한<br/>(년)", field: "reSeoljYear", hozAlign: "center", width: 105 },
                         { title: "신탁기간<br/>(월)", field: "sintakGigan", hozAlign: "center", width: 85 },
@@ -176,7 +158,7 @@
             // Data retrieval function (Mapper / REST API)
             window.loadSzx0seData = function(selectedCorpGr) {
                 const filterSelect = document.getElementById("filterCorpGr");
-                const corpGr = selectedCorpGr || (filterSelect ? filterSelect.value : "2200");
+                const corpGr = selectedCorpGr != null ? selectedCorpGr : (filterSelect ? filterSelect.value : "");
 
                 // Re-trigger ue_dddw_retrieve when corpGr changes (matches dw_c::itemchanged event in w_szx0se.srw)
                 ue_dddw_retrieve(corpGr);

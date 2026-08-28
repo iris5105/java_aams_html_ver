@@ -745,40 +745,11 @@ function buildBreadcrumbText(fullpgm2, title, pgmId) {
 }
 
 /**
- * Dynamic DDDW Dropdown Options Loader Helper (e.g. dddwId = 'CORP_GR', seq = 1)
+ * Dynamic DDDW Dropdown Options Loader Helper (Delegated to f_dddwctl.js)
  */
 function loadDddwOptions(selectId, dddwId, seq, addWhere, addOrderBy, defaultVal) {
-    const selectEl = document.getElementById(selectId);
-    if (!selectEl) return;
-
-    let targetDddwId = dddwId || 'CORP_GR';
-    let targetSeq = 1;
-    let actualWhere = addWhere;
-    let actualOrderBy = addOrderBy;
-    let actualDefault = defaultVal;
-
-    if (typeof seq === 'number') {
-        targetSeq = seq;
-    } else if (typeof seq === 'string' && /^\d+$/.test(seq)) {
-        targetSeq = parseInt(seq, 10);
-    } else {
-        // Handle argument shift if seq was omitted
-        actualDefault = addOrderBy;
-        actualOrderBy = addWhere;
-        actualWhere = seq;
+    if (typeof window.f_dddwctl === 'function' && typeof window.f_dddwctl.loadOptions === 'function') {
+        return window.f_dddwctl.loadOptions(selectId, dddwId, seq, addWhere, addOrderBy, defaultVal);
     }
-
-    let url = `/api/common/dddw?dddwId=${encodeURIComponent(targetDddwId)}&seq=${encodeURIComponent(targetSeq)}`;
-    if (actualWhere) url += `&addWhere=${encodeURIComponent(actualWhere)}`;
-    if (actualOrderBy) url += `&addOrderBy=${encodeURIComponent(actualOrderBy)}`;
-
-    safeFetchJson(url).then(list => {
-        if (!list || list.length === 0) return;
-        let html = '';
-        list.forEach(item => {
-            const selected = (actualDefault && item.code === actualDefault) ? 'selected' : '';
-            html += `<option value="${escapeHtml(item.code)}" ${selected}>${escapeHtml(item.name)}</option>`;
-        });
-        selectEl.innerHTML = html;
-    });
 }
+
