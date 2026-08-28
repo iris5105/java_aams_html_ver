@@ -141,7 +141,14 @@ function loadTopCategorySubTree(pgmNo) {
                     return;
                 }
                 childContainer.innerHTML = renderSubTreeHtml(data);
+                if (window.tabManager && window.tabManager.activeTabKey) {
+                    window.tabManager.highlightSidebarMenu(window.tabManager.activeTabKey);
+                }
             });
+    } else {
+        if (window.tabManager && window.tabManager.activeTabKey) {
+            window.tabManager.highlightSidebarMenu(window.tabManager.activeTabKey);
+        }
     }
 }
 
@@ -163,6 +170,9 @@ function loadSideMenu(pgmNo) {
         .then(data => {
             if (!data) return;
             container.innerHTML = renderSubTreeHtml(data);
+            if (window.tabManager && window.tabManager.activeTabKey) {
+                window.tabManager.highlightSidebarMenu(window.tabManager.activeTabKey);
+            }
         });
 }
 

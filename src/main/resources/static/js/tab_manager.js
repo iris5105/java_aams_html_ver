@@ -323,6 +323,8 @@ class TabManager {
         const activePgmId = activeTab ? activeTab.pgmId : tabKey;
         const activePgmGo = activeTab ? activeTab.pgmGo : null;
 
+        let matched = false;
+
         document.querySelectorAll(".tree-menu-item").forEach(el => {
             const keyNo = el.getAttribute("data-pgm-no");
             const keyId = el.getAttribute("data-pgm-id");
@@ -342,10 +344,36 @@ class TabManager {
 
             if (isMatch) {
                 el.classList.add("active");
+                matched = true;
+                // If matched item is inside a collapsed group, un-collapse it
+                const parentGroup = el.closest(".menu-group");
+                if (parentGroup && parentGroup.classList.contains("collapsed")) {
+                    parentGroup.classList.remove("collapsed");
+                }
             } else {
                 el.classList.remove("active");
             }
         });
+
+        // If no matching sidebar menu item is currently visible in DOM, attempt to switch top menu category
+        if (!matched && activePgmNo && activePgmNo !== 'tab') {
+            const topNavItems = Array.from(document.querySelectorAll('.top-nav-item'));
+            if (topNavItems.length > 0) {
+                const prefix = String(activePgmNo).substring(0, 2);
+                let targetTopItem = topNavItems.find(item => {
+                    const no = item.getAttribute('data-pgm-no');
+                    return no && no.startsWith(prefix);
+                });
+                if (targetTopItem && !targetTopItem.classList.contains('active')) {
+                    topNavItems.forEach(i => i.classList.remove('active'));
+                    targetTopItem.classList.add('active');
+                    const targetPgmNo = targetTopItem.getAttribute('data-pgm-no');
+                    if (typeof window.loadSideMenu === 'function') {
+                        window.loadSideMenu(targetPgmNo);
+                    }
+                }
+            }
+        }
     }
 }
 
