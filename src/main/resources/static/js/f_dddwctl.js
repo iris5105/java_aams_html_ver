@@ -161,8 +161,14 @@
         const strCode = String(targetCode).trim();
         const found = dddwList.find(item => {
             if (!item) return false;
-            const itemCode = (item.code != null ? item.code : (item.SEBU_CD != null ? item.SEBU_CD : item.cd));
-            return String(itemCode).trim() === strCode;
+            const itemCodeRaw = item.code != null ? item.code : (item.SEBU_CD != null ? item.SEBU_CD : item.cd);
+            if (itemCodeRaw == null) return false;
+            const itemCode = String(itemCodeRaw).trim();
+            if (itemCode === strCode) return true;
+            if (strCode !== '' && itemCode !== '' && !isNaN(strCode) && !isNaN(itemCode) && Number(strCode) === Number(itemCode)) {
+                return true;
+            }
+            return false;
         });
 
         if (!found) return String(targetCode);

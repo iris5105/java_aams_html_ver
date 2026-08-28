@@ -71,6 +71,59 @@
 
             const initialMasterData = /*[[${masterList}]]*/ [];
 
+            // DDDW Option Caches (Populated via ue_dddw_retrieve and f_dddwctl)
+            let dddwOptionsMap = {
+                type_gb: [],
+                unyong_sabun: [],
+                series_gb: [],
+                target_jasan: [],
+                mg_cd: []
+            };
+
+            /**
+             * PowerBuilder dw_list::ue_dddw_retrieve Event Integration
+             * Corresponds to dw_list::ue_dddw_retrieve in w_ja010b.srw:
+             *   1. f_dddwctl (THIS, 'type_gb', dw_c.object.dddw [1], '', 9, "")
+             *   2. f_dddwctl (THIS, 'unyong_sabun', dw_c.object.dddw [1], '', 1, "")
+             *   3. f_dddwctl (THIS, 'series_gb', dw_c.object.dddw [1], '', 1, "")
+             *   4. f_dddwctl (THIS, 'target_jasan', dw_c.object.dddw [1], '', 1, "")
+             *   5. f_dddwctl (THIS, 'mg_cd', dw_c.object.dddw [1], '', 1, "")
+             */
+            function ue_dddw_retrieve(corpGr) {
+                const filterSelect = document.getElementById("filterCorpGr");
+                const targetCorpGr = corpGr != null ? corpGr : (filterSelect ? filterSelect.value : "");
+
+                f_dddwctl.retrieveMultiple({
+                    type_gb: ['type_gb', 9, `corp_gr='${targetCorpGr}'`],
+                    unyong_sabun: ['unyong_sabun', 1, `corp_gr='${targetCorpGr}'`],
+                    series_gb: ['series_gb', 1, `corp_gr='${targetCorpGr}'`],
+                    target_jasan: ['target_jasan', 1, `corp_gr='${targetCorpGr}'`],
+                    mg_cd: ['mg_cd', 1, `corp_gr='${targetCorpGr}'`]
+                }).then(results => {
+                    dddwOptionsMap.type_gb = results.type_gb || [];
+                    dddwOptionsMap.unyong_sabun = results.unyong_sabun || [];
+                    dddwOptionsMap.series_gb = results.series_gb || [];
+                    dddwOptionsMap.target_jasan = results.target_jasan || [];
+                    dddwOptionsMap.mg_cd = results.mg_cd || [];
+
+                    console.log('[w_ja010b ue_dddw_retrieve] Successfully retrieved DDDW options via f_dddwctl:', {
+                        type_gb: dddwOptionsMap.type_gb.length,
+                        unyong_sabun: dddwOptionsMap.unyong_sabun.length,
+                        series_gb: dddwOptionsMap.series_gb.length,
+                        target_jasan: dddwOptionsMap.target_jasan.length,
+                        mg_cd: dddwOptionsMap.mg_cd.length
+                    });
+
+                    if (gridMaster) {
+                        gridMaster.redraw(true);
+                    }
+                });
+            }
+
+            function getDddwLabel(dddwKey, codeVal) {
+                return f_dddwctl.getLabel(dddwOptionsMap, dddwKey, codeVal);
+            }
+
             function numFmt(val) {
                 if (val == null || val === "") return "0";
                 return Number(val).toLocaleString('ko-KR');
@@ -98,12 +151,12 @@
                     columnDefaults: { vertAlign: "middle", headerSortTristate: true },
                     columns: [
                         { title: "No.", formatter: "rownum", hozAlign: "center", width: 45, resizable: false, widthGrow: 0 },
-                        { title: "증권회사", field: "mgNm", minWidth: 90, formatter: cell => cell.getValue() || cell.getRow().getData().mgCd || '' },
+                        { title: "증권회사", field: "mgCd", minWidth: 90, formatter: cell => getDddwLabel('mg_cd', cell.getValue() || cell.getRow().getData().mgNm) },
                         { title: "고객명", field: "fundNm", minWidth: 120 },
                         { title: "관리번호", field: "fundCd", hozAlign: "center", width: 75 },
-                        { title: "계좌번호", field: "acctNo", minWidth: 105, formatter: cell => cell.getValue() || cell.getRow().getData().acctNo || '-' },
-                        { title: "계좌관리그룹", field: "seriesGb", hozAlign: "center", minWidth: 85 },
-                        { title: "고객<br/>유형", field: "typeGbNm", hozAlign: "center", minWidth: 75 },
+                        { title: "계좌번호", field: "acctNo", minWidth: 105, formatter: cell => cell.getValue() || '-' },
+                        { title: "계좌관리그룹", field: "seriesGb", hozAlign: "center", minWidth: 85, formatter: cell => getDddwLabel('series_gb', cell.getValue()) },
+                        { title: "고객<br/>유형", field: "typeGb", hozAlign: "center", minWidth: 75, formatter: cell => getDddwLabel('type_gb', cell.getValue() || cell.getRow().getData().typeGbNm) },
                         {
                             title: "수수료(%)",
                             headerHozAlign: "center",
@@ -115,7 +168,7 @@
                         },
                         { title: "목표<br/>수익(%)", field: "bmPer", hozAlign: "right", minWidth: 75 },
                         { title: "성과<br/>보수(%)", field: "successPer", hozAlign: "right", minWidth: 75 },
-                        { title: "성과보수<br/>대상자산", field: "targetJasan", hozAlign: "center", minWidth: 95 },
+                        { title: "성과보수<br/>대상자산", field: "targetJasan", hozAlign: "center", minWidth: 95, formatter: cell => getDddwLabel('target_jasan', cell.getValue()) },
                         { title: "최 초<br/>계약일", field: "fstSeoljYmd", hozAlign: "center", minWidth: 85, formatter: cell => formatDateVal(cell.getValue()) },
                         { title: "(재)<br/>계약일", field: "reSeoljYmd", hozAlign: "center", minWidth: 85, formatter: cell => formatDateVal(cell.getValue()) },
                         { title: "계약잔액", field: "reSeoljAek", hozAlign: "right", minWidth: 100, formatter: cell => numFmt(cell.getValue()) },
@@ -124,7 +177,7 @@
                         { title: "계약<br/>기간", field: "sintakGigan", hozAlign: "center", minWidth: 60 },
                         { title: "만기예정일", field: "afGyulYmd", hozAlign: "center", minWidth: 85, formatter: cell => formatDateVal(cell.getValue()) },
                         { title: "계약종료일", field: "haejiYmd", hozAlign: "center", minWidth: 85, formatter: cell => formatDateVal(cell.getValue()) },
-                        { title: "운용역", field: "unyongSabun", hozAlign: "center", minWidth: 70 },
+                        { title: "운용역", field: "unyongSabun", hozAlign: "center", minWidth: 70, formatter: cell => getDddwLabel('unyong_sabun', cell.getValue()) },
                         { title: "계좌별<br/>주식매매수수료율", field: "susuRt", hozAlign: "right", minWidth: 110 },
                         { title: "특이사항", field: "noteText", hozAlign: "center", minWidth: 65 },
                         { title: "이메일주소", field: "email1", minWidth: 120 }
@@ -207,7 +260,11 @@
             // Global functions for controller integration
             window.loadJa010bMaster = function(corpGr) {
                 const filterSelect = document.getElementById("filterCorpGr");
-                const corp = corpGr || (filterSelect ? filterSelect.value : "2200");
+                const corp = corpGr != null ? corpGr : (filterSelect ? filterSelect.value : "");
+
+                // Re-trigger ue_dddw_retrieve when corpGr changes
+                ue_dddw_retrieve(corp);
+
                 fetch('/api/account/ja010b/master?corpGr=' + encodeURIComponent(corp))
                     .then(res => res.json())
                     .then(data => {
@@ -237,7 +294,7 @@
 
             function fetchJa010bSubGrids(fundCd) {
                 const filterSelect = document.getElementById("filterCorpGr");
-                const corpGr = filterSelect ? filterSelect.value : "2200";
+                const corpGr = filterSelect ? filterSelect.value : "";
 
                 fetch(`/api/account/ja010b/detail?corpGr=${encodeURIComponent(corpGr)}&fundCd=${encodeURIComponent(fundCd)}`)
                     .then(res => res.json())
@@ -254,10 +311,11 @@
                     .catch(err => console.error("Error fetching IO:", err));
             }
 
-            // Initialize all 3 grids on view load
+            // Initialize all 3 grids & Trigger ue_dddw_retrieve on view load
             initMasterGrid();
             initDetailGrid();
             initIoGrid();
+            ue_dddw_retrieve();
 
             // Retrieve active corpGr from cookie (savedCorpGr / corpGr)
             const activeCorpGr = (typeof getCookie === 'function' ? (getCookie('savedCorpGr') || getCookie('corpGr')) : null);

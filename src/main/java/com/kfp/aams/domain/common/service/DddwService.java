@@ -75,6 +75,26 @@ public class DddwService {
                 String extraWhere = addWhere != null ? addWhere.trim() : "";
                 String extraOrderBy = addOrderBy != null ? addOrderBy.trim() : "";
 
+                // Extract raw unquoted corpGr from extraWhere if present (e.g., corp_gr='2200' -> 2200)
+                String rawCorpGr = "2200";
+                if (!extraWhere.isEmpty()) {
+                    java.util.regex.Matcher matcher = java.util.regex.Pattern.compile("corp_gr\\s*=\\s*'?([^'\\s]+)'?", java.util.regex.Pattern.CASE_INSENSITIVE).matcher(extraWhere);
+                    if (matcher.find()) {
+                        rawCorpGr = matcher.group(1).replaceAll("'", "");
+                    }
+                }
+
+                // Replace :corp_gr placeholder in WDDDWCTL sqlWhere if present without duplicating single quotes
+                if (sqlWhere.toLowerCase().contains(":corp_gr")) {
+                    sqlWhere = sqlWhere.replaceAll("(?i)'+:corp_gr'+", "'" + rawCorpGr + "'");
+                    sqlWhere = sqlWhere.replaceAll("(?i):corp_gr", "'" + rawCorpGr + "'");
+
+                    if (extraWhere.toLowerCase().replaceAll("\\s+", "").contains("corp_gr='" + rawCorpGr.toLowerCase() + "'") ||
+                        extraWhere.toLowerCase().replaceAll("\\s+", "").contains("corp_gr=" + rawCorpGr.toLowerCase())) {
+                        extraWhere = "";
+                    }
+                }
+
                 StringBuilder sqlBuilder = new StringBuilder();
                 sqlBuilder.append("SELECT ").append(sqlColumns).append(" FROM ").append(sqlTables);
 
@@ -108,9 +128,11 @@ public class DddwService {
                             .fkey(fkeyVal != null ? fkeyVal.trim() : "")
                             .build();
                 });
+            } else {
+                log.warn("WDDDWCTL metadata entry not found for [dddwId={}, seq={}]", targetDddwId, targetSeq);
             }
         } catch (Exception e) {
-            log.warn("Failed to execute dynamic DDDW query for [dddwId={}, seq={}] : {}", targetDddwId, targetSeq, e.getMessage());
+            log.error("Failed to execute dynamic DDDW query for [dddwId={}, seq={}] : {}", targetDddwId, targetSeq, e.getMessage(), e);
         }
 
         // Fallback default value if dynamic DDDW query returns empty or fails
