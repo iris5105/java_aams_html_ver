@@ -29,22 +29,22 @@ public class DddwService {
      * Automatically caches in session under "DDDW_" + dddwNm
      */
     public List<DddwDto> getDddwList(String dddwId, String addWhere, HttpSession session) {
-        return getDddwList(dddwId, 1, addWhere, null, session);
+        return getDddwList(dddwId, 1, null, addWhere, null, session);
     }
 
     public List<DddwDto> getDddwList(String dddwId, String addWhere, String addOrderBy, HttpSession session) {
-        return getDddwList(dddwId, 1, addWhere, addOrderBy, session);
+        return getDddwList(dddwId, 1, null, addWhere, addOrderBy, session);
+    }
+
+    public List<DddwDto> getDddwList(String dddwId, Integer seq, String addWhere, String addOrderBy, HttpSession session) {
+        return getDddwList(dddwId, seq, null, addWhere, addOrderBy, session);
     }
 
     /**
      * Build dynamic SQL from WDDDWCTL metadata using dddwId and seq.
-     * Query formula:
-     *   SELECT 'SELECT ' || SQL_COLUMNS || ' FROM ' || SQL_TABLES ||
-     *          CASE WHEN LENGTH(TRIM(SQL_WHERE)) <> 0 THEN ' WHERE ' || SQL_WHERE ELSE '' END ||
-     *          CASE WHEN LENGTH(TRIM(SQL_ORDERBY)) <> 0 THEN ' ORDER BY ' || SQL_ORDERBY ELSE '' END
-     *   FROM WDDDWCTL WHERE UPPER(DDDW_ID) = UPPER(:dddwId) AND SEQ = :seq
+     * Replaces :corp_gr placeholder with corpGr parameter if provided.
      */
-    public List<DddwDto> getDddwList(String dddwId, Integer seq, String addWhere, String addOrderBy, HttpSession session) {
+    public List<DddwDto> getDddwList(String dddwId, Integer seq, String corpGr, String addWhere, String addOrderBy, HttpSession session) {
         if (dddwId == null || dddwId.isBlank()) {
             return List.of(new DddwDto("", "데이터없음", ""));
         }
@@ -75,9 +75,11 @@ public class DddwService {
                 String extraWhere = addWhere != null ? addWhere.trim() : "";
                 String extraOrderBy = addOrderBy != null ? addOrderBy.trim() : "";
 
-                // Extract raw unquoted corpGr from extraWhere if present (e.g., corp_gr='2200' -> 2200)
-                String rawCorpGr = "2200";
-                if (!extraWhere.isEmpty()) {
+                // Determine raw corpGr value (from corpGr parameter or extracted from extraWhere)
+                String rawCorpGr = "";
+                if (corpGr != null && !corpGr.isBlank()) {
+                    rawCorpGr = corpGr.trim().replaceAll("'", "");
+                } else if (!extraWhere.isEmpty()) {
                     java.util.regex.Matcher matcher = java.util.regex.Pattern.compile("corp_gr\\s*=\\s*'?([^'\\s]+)'?", java.util.regex.Pattern.CASE_INSENSITIVE).matcher(extraWhere);
                     if (matcher.find()) {
                         rawCorpGr = matcher.group(1).replaceAll("'", "");
@@ -85,7 +87,7 @@ public class DddwService {
                 }
 
                 // Replace :corp_gr placeholder in WDDDWCTL sqlWhere if present without duplicating single quotes
-                if (sqlWhere.toLowerCase().contains(":corp_gr")) {
+                if (!rawCorpGr.isEmpty() && sqlWhere.toLowerCase().contains(":corp_gr")) {
                     sqlWhere = sqlWhere.replaceAll("(?i)'+:corp_gr'+", "'" + rawCorpGr + "'");
                     sqlWhere = sqlWhere.replaceAll("(?i):corp_gr", "'" + rawCorpGr + "'");
 

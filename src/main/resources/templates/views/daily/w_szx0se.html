@@ -52,11 +52,11 @@
                 const targetCorpGr = corpGr != null ? corpGr : (filterSelect ? filterSelect.value : "");
 
                 f_dddwctl.retrieveMultiple({
-                    series_g1: ['series_g1', 1, `corp_gr='${targetCorpGr}'`],
-                    series_g2: ['series_g2', 1, `corp_gr='${targetCorpGr}'`],
-                    bm_gr: ['bm_gr', 1],
-                    gugan: ['gugan', 1],
-                    ga: ['ga', 1]
+                    series_g1: ['series_g1', 1, targetCorpGr, `corp_gr='${targetCorpGr}'`],
+                    series_g2: ['series_g2', 1, targetCorpGr, `corp_gr='${targetCorpGr}'`],
+                    bm_gr: ['bm_gr', 1, targetCorpGr],
+                    gugan: ['gugan', 1, ''],
+                    ga: ['ga', 1, '']
                 }).then(results => {
                     dddwOptionsMap.series_g1 = results.series_g1 || [];
                     dddwOptionsMap.series_g2 = results.series_g2 || [];

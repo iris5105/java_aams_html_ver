@@ -24,10 +24,11 @@ public class DddwController {
     public List<DddwDto> getDddwList(@RequestParam(name = "dddwId", required = false) String dddwId,
                                      @RequestParam(name = "dddwNm", required = false) String dddwNm,
                                      @RequestParam(name = "seq", defaultValue = "1") Integer seq,
+                                     @RequestParam(name = "corpGr", required = false) String corpGr,
                                      @RequestParam(name = "addWhere", required = false) String addWhere,
                                      @RequestParam(name = "addOrderBy", required = false) String addOrderBy,
                                      HttpSession session) {
         String targetId = (dddwId != null && !dddwId.isBlank()) ? dddwId : dddwNm;
-        return dddwService.getDddwList(targetId, seq, addWhere, addOrderBy, session);
+        return dddwService.getDddwList(targetId, seq, corpGr, addWhere, addOrderBy, session);
     }
 }

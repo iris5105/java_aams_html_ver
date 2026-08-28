@@ -18,32 +18,37 @@
      * Dynamically retrieves DropDownDataWindow code/name options via REST API (/api/common/dddw)
      *
      * Overload Signatures:
+     *   f_dddwctl(dddwId, seq, corpGr, addWhere, addOrderBy)
      *   f_dddwctl(dddwId, seq, addWhere, addOrderBy)
-     *   f_dddwctl(dddwId, addWhere, addOrderBy)  --> (seq defaults to 1)
      *
-     * @param {string} dddwId DropDownDataWindow ID (e.g. 'CORP_GR', 'series_g1', 'bm_gr', 'gugan', 'ga')
-     * @param {number|string} [seq=1] Sequence number or dynamic WHERE clause if omitted
+     * @param {string} dddwId DropDownDataWindow ID (e.g. 'CORP_GR', 'series_g1', 'type_gb', 'mg_cd')
+     * @param {number|string} [seq=1] Sequence number
+     * @param {string} [corpGr=""] Query variable value (e.g. targetCorpGr / "2200") to replace :corp_gr
      * @param {string} [addWhere=""] Dynamic WHERE clause (e.g. "corp_gr='2200'")
      * @param {string} [addOrderBy=""] Dynamic ORDER BY clause
      * @returns {Promise<Array<{code: string, name: string}>>}
      */
-    function f_dddwctl(dddwId, seq = 1, addWhere = "", addOrderBy = "") {
+    function f_dddwctl(dddwId, seq = 1, corpGr = "", addWhere = "", addOrderBy = "") {
         let targetDddwId = dddwId || 'CORP_GR';
         let targetSeq = 1;
-        let actualWhere = addWhere;
-        let actualOrderBy = addOrderBy;
+        let actualCorpGr = "";
+        let actualWhere = "";
+        let actualOrderBy = "";
 
-        if (typeof seq === 'number') {
-            targetSeq = seq;
-        } else if (typeof seq === 'string' && /^\d+$/.test(seq)) {
+        if (typeof seq === 'number' || (typeof seq === 'string' && /^\d+$/.test(seq))) {
             targetSeq = parseInt(seq, 10);
+            actualCorpGr = corpGr || "";
+            actualWhere = addWhere || "";
+            actualOrderBy = addOrderBy || "";
         } else if (typeof seq === 'string') {
-            // Handle argument shift if seq was omitted (e.g. f_dddwctl('series_g1', "corp_gr='2200'"))
-            actualOrderBy = addWhere;
-            actualWhere = seq;
+            // Handle argument shift if seq was omitted: f_dddwctl('series_g1', '2200', 'where')
+            actualCorpGr = seq;
+            actualWhere = corpGr || "";
+            actualOrderBy = addWhere || "";
         }
 
         let url = `/api/common/dddw?dddwId=${encodeURIComponent(targetDddwId)}&seq=${encodeURIComponent(targetSeq)}`;
+        if (actualCorpGr) url += `&corpGr=${encodeURIComponent(actualCorpGr)}`;
         if (actualWhere) url += `&addWhere=${encodeURIComponent(actualWhere)}`;
         if (actualOrderBy) url += `&addOrderBy=${encodeURIComponent(actualOrderBy)}`;
 

@@ -2,6 +2,14 @@
 <html xmlns:th="http://www.thymeleaf.org">
 <div class="view-container ja010b-container" th:fragment="ja010bView">
 
+    <style>
+        .ja010b-container .tabulator-row.row-completed,
+        .ja010b-container .tabulator-row.row-completed .tabulator-cell {
+            color: #94a3b8 !important;
+            background-color: #f8fafc !important;
+        }
+    </style>
+
     <!-- Top Action Control Bar (Row 1) -->
     <div class="view-toolbar">
         <div class="toolbar-left">
@@ -94,11 +102,11 @@
                 const targetCorpGr = corpGr != null ? corpGr : (filterSelect ? filterSelect.value : "");
 
                 f_dddwctl.retrieveMultiple({
-                    type_gb: ['type_gb', 9, `corp_gr='${targetCorpGr}'`],
-                    unyong_sabun: ['unyong_sabun', 1, `corp_gr='${targetCorpGr}'`],
-                    series_gb: ['series_gb', 1, `corp_gr='${targetCorpGr}'`],
-                    target_jasan: ['target_jasan', 1, `corp_gr='${targetCorpGr}'`],
-                    mg_cd: ['mg_cd', 1, `corp_gr='${targetCorpGr}'`]
+                    type_gb: ['type_gb', 9, targetCorpGr],
+                    unyong_sabun: ['unyong_sabun', 1, targetCorpGr],
+                    series_gb: ['series_gb', 1, targetCorpGr],
+                    target_jasan: ['target_jasan', 1, ''],
+                    mg_cd: ['mg_cd', 1, targetCorpGr]
                 }).then(results => {
                     dddwOptionsMap.type_gb = results.type_gb || [];
                     dddwOptionsMap.unyong_sabun = results.unyong_sabun || [];
@@ -149,6 +157,12 @@
                     selectableRows: 1,
                     placeholder: "<span>조회된 계좌 계약정보가 없습니다.</span>",
                     columnDefaults: { vertAlign: "middle", headerSortTristate: true },
+                    rowFormatter: function(row) {
+                        const data = row.getData();
+                        if (data && data.typeGb && String(data.typeGb).trim().toUpperCase() === 'X') {
+                            row.getElement().classList.add("row-completed");
+                        }
+                    },
                     columns: [
                         { title: "No.", formatter: "rownum", hozAlign: "center", width: 45, resizable: false, widthGrow: 0 },
                         { title: "증권회사", field: "mgCd", minWidth: 90, formatter: cell => getDddwLabel('mg_cd', cell.getValue() || cell.getRow().getData().mgNm) },
