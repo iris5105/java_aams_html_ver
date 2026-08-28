@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.kfp.aams.domain.daily.mapper.Ja010aMapper">
+
+    <!-- Select Company Master List (d_ja010a1.srd / SZX0AA) -->
+    <select id="selectJa010aMasterList" resultType="com.kfp.aams.domain.daily.dto.Ja010aMasterDto">
+        SELECT t1.CORP_GR                       AS corpGr
+             , t1.COMPANY_NAME                  AS companyName
+             , TO_CHAR(t1.HYUN_YMD, 'YYYY-MM-DD')     AS hyunYmd
+             , TO_CHAR(t1.GIJUNGA_YMD, 'YYYY-MM-DD')  AS gijungaYmd
+             , TO_CHAR(t1.JUNYONG_YMD, 'YYYY-MM-DD')  AS junyongYmd
+             , TO_CHAR(t1.IKYONG_YMD, 'YYYY-MM-DD')   AS ikyongYmd
+             , TO_CHAR(t1.THIKYONG_YMD, 'YYYY-MM-DD') AS thikyongYmd
+             , TO_CHAR(t1.SYMD, 'YYYY-MM-DD')         AS symd
+             , TO_CHAR(t1.EYMD, 'YYYY-MM-DD')         AS eymd
+             , t1.DEPOSIT_DD                    AS depositDd
+             , t1.DEPOSIT_ACCOUNT               AS depositAccount
+             , t1.BIGO                          AS bigo
+             , t1.CUSTOMER_GR                   AS customerGr
+             , t1.EXPENSE_YN                    AS expenseYn
+             , 1                                AS pVisible
+          FROM SZX0AA t1
+         ORDER BY t1.CORP_GR ASC
+    </select>
+
+    <!-- Select Company Contract History Detail List (d_ja010a2.srd / SZX0AB) -->
+    <select id="selectJa010aDetailList" resultType="com.kfp.aams.domain.daily.dto.Ja010aDetailDto">
+        SELECT t1.CORP_GR                       AS corpGr
+             , TO_CHAR(t1.YMD, 'YYYY-MM-DD')    AS ymd
+             , t1.COMPANY_NAME                  AS companyName
+             , t1.IDNO                          AS idno
+             , TO_CHAR(t1.CONTRACT_YMD, 'YYYY-MM-DD') AS contractYmd
+             , t1.POST                          AS post
+             , t1.JUSO                          AS juso
+             , t1.CEO_NM                        AS ceoNm
+             , t1.TEL_NO                        AS telNo
+             , t1.FAX_NO                        AS faxNo
+             , t1.E_MAIL                        AS email
+             , 1                                AS pVisible
+          FROM SZX0AB t1
+         WHERE t1.CORP_GR = #{corpGr}
+         ORDER BY t1.YMD DESC
+    </select>
+
+</mapper>

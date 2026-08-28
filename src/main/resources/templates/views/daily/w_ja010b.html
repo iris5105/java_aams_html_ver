@@ -139,10 +139,11 @@
 
             function formatDateVal(val) {
                 if (!val) return "";
-                if (val.length === 8) {
-                    return val.substring(0, 4) + '-' + val.substring(4, 6) + '-' + val.substring(6, 8);
+                const clean = String(val).replace(/\D/g, "");
+                if (clean.length === 8) {
+                    return clean.substring(0, 4) + '.' + clean.substring(4, 6) + '.' + clean.substring(6, 8);
                 }
-                return val;
+                return String(val).replace(/-/g, ".");
             }
 
             // 1. Initialize Master Tabulator Grid
@@ -167,34 +168,33 @@
                         { title: "No.", formatter: "rownum", hozAlign: "center", width: 45, resizable: false, widthGrow: 0 },
                         { title: "증권회사", field: "mgCd", minWidth: 90, formatter: cell => getDddwLabel('mg_cd', cell.getValue() || cell.getRow().getData().mgNm) },
                         { title: "고객명", field: "fundNm", minWidth: 120 },
-                        { title: "관리번호", field: "fundCd", hozAlign: "center", width: 75 },
+                        { title: "<span style='color: #0d9488;'>관리번호</span>", field: "fundCd", hozAlign: "center", width: 75 },
                         { title: "계좌번호", field: "acctNo", minWidth: 105, formatter: cell => cell.getValue() || '-' },
                         { title: "계좌관리그룹", field: "seriesGb", hozAlign: "center", minWidth: 85, formatter: cell => getDddwLabel('series_gb', cell.getValue()) },
                         { title: "고객<br/>유형", field: "typeGb", hozAlign: "center", minWidth: 75, formatter: cell => getDddwLabel('type_gb', cell.getValue() || cell.getRow().getData().typeGbNm) },
                         {
                             title: "수수료(%)",
                             headerHozAlign: "center",
-                            
                             columns: [
-                                { title: "선취", field: "preBasic", hozAlign: "right", minWidth: 55 },
-                                { title: "후취", field: "basicPer", hozAlign: "right", minWidth: 55 }
+                                { title: "<span style='color: #2563eb;'>선취</span>", field: "preBasic", hozAlign: "right", minWidth: 55 },
+                                { title: "<span style='color: #2563eb;'>후취</span>", field: "basicPer", hozAlign: "right", minWidth: 55 }
                             ]
                         },
-                        { title: "목표<br/>수익(%)", field: "bmPer", hozAlign: "right", minWidth: 75 },
-                        { title: "성과<br/>보수(%)", field: "successPer", hozAlign: "right", minWidth: 75 },
+                        { title: "<span style='color: #2563eb;'>목표<br/>수익(%)</span>", field: "bmPer", hozAlign: "right", minWidth: 75 },
+                        { title: "<span style='color: #2563eb;'>성과<br/>보수(%)</span>", field: "successPer", hozAlign: "right", minWidth: 75 },
                         { title: "성과보수<br/>대상자산", field: "targetJasan", hozAlign: "center", minWidth: 95, formatter: cell => getDddwLabel('target_jasan', cell.getValue()) },
                         { title: "최 초<br/>계약일", field: "fstSeoljYmd", hozAlign: "center", minWidth: 85, formatter: cell => formatDateVal(cell.getValue()) },
-                        { title: "(재)<br/>계약일", field: "reSeoljYmd", hozAlign: "center", minWidth: 85, formatter: cell => formatDateVal(cell.getValue()) },
-                        { title: "계약잔액", field: "reSeoljAek", hozAlign: "right", minWidth: 100, formatter: cell => numFmt(cell.getValue()) },
+                        { title: "<span style='color: #2563eb;'>(재)<br/>계약일</span>", field: "reSeoljYmd", hozAlign: "center", minWidth: 85, formatter: cell => `<span style="color: #2563eb; font-weight: 500;">${formatDateVal(cell.getValue())}</span>` },
+                        { title: "<span style='color: #2563eb;'>계약잔액</span>", field: "reSeoljAek", hozAlign: "right", minWidth: 100, formatter: cell => `<span style="color: #2563eb; font-weight: 500;">${numFmt(cell.getValue())}</span>` },
                         { title: "수수료<br/>비용처리", field: "expenseYn", hozAlign: "center", minWidth: 85, formatter: cell => `<input type="checkbox" ${cell.getValue() === 'Y' ? 'checked' : ''} disabled />` },
                         { title: "계약<br/>횟수", field: "gyulGi", hozAlign: "center", minWidth: 60 },
                         { title: "계약<br/>기간", field: "sintakGigan", hozAlign: "center", minWidth: 60 },
                         { title: "만기예정일", field: "afGyulYmd", hozAlign: "center", minWidth: 85, formatter: cell => formatDateVal(cell.getValue()) },
-                        { title: "계약종료일", field: "haejiYmd", hozAlign: "center", minWidth: 85, formatter: cell => formatDateVal(cell.getValue()) },
+                        { title: "<span style='color: #ef4444;'>계약종료일</span>", field: "haejiYmd", hozAlign: "center", minWidth: 85, formatter: cell => `<span style="color: #ef4444; font-weight: 500;">${formatDateVal(cell.getValue())}</span>` },
                         { title: "운용역", field: "unyongSabun", hozAlign: "center", minWidth: 70, formatter: cell => getDddwLabel('unyong_sabun', cell.getValue()) },
                         { title: "계좌별<br/>주식매매수수료율", field: "susuRt", hozAlign: "right", minWidth: 110 },
                         { title: "특이사항", field: "noteText", hozAlign: "center", minWidth: 65 },
-                        { title: "이메일주소", field: "email1", minWidth: 120 }
+                        { title: "<span style='color: #0d9488;'>이메일주소</span>", field: "email1", minWidth: 120 }
                     ]
                 });
 
