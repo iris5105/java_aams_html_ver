@@ -24,9 +24,9 @@
     </div>
 
     <!-- Main Grid Section (d_ja010d1.srd) -->
-    <div class="grid-section" style="padding: 10px; flex: 1; height: calc(100vh - 180px); min-height: 400px;">
-        <div class="grid-table-wrapper" style="height: 100%;">
-            <div id="grid-ja010d" class="tabulator-aams-grid" style="height: 100%;"></div>
+    <div class="grid-section">
+        <div class="grid-table-wrapper">
+            <div id="grid-ja010d" class="tabulator-aams-grid"></div>
         </div>
     </div>
 
@@ -73,11 +73,13 @@
             }
 
             // Data retrieval function (Mapper / REST API)
-            window.loadJa010dData = function() {
+            window.loadJa010dData = function(selectedCorpGr) {
+                const filterSelect = document.getElementById("filterCorpGr");
+                const corpGr = selectedCorpGr != null ? selectedCorpGr : (filterSelect ? filterSelect.value : "");
                 const filterTrYmdInput = document.getElementById("filterTrYmd");
                 const trYmd = filterTrYmdInput ? filterTrYmdInput.value : "";
 
-                fetch('/api/account/ja010d/list?trYmd=' + encodeURIComponent(trYmd))
+                fetch(`/api/account/ja010d/list?corpGr=${encodeURIComponent(corpGr)}&trYmd=${encodeURIComponent(trYmd)}`)
                     .then(res => res.json())
                     .then(data => {
                         if (gridJa010d) {
@@ -86,6 +88,18 @@
                     })
                     .catch(err => console.error("Error loading ja010d list:", err));
             };
+
+            // Register standard CorpGr change contract method on current tab pane
+            const currentScript = document.currentScript;
+            const pane = currentScript ? currentScript.closest('.tab-pane') : null;
+            if (pane) {
+                pane.onCorpGrChange = function(val) {
+                    window.loadJa010dData(val);
+                };
+                pane.addEventListener("corpGrChanged", function(e) {
+                    window.loadJa010dData(e.detail ? e.detail.corpGr : val);
+                });
+            }
 
             // DOM ready or fragment load trigger
             if (document.readyState === 'loading') {

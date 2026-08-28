@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<div class="view-container proposal-container" th:fragment="proposalView">
+
+    <style>
+        .proposal-container {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            overflow: hidden;
+            box-sizing: border-box;
+            background-color: #f8fafc;
+        }
+
+        .proposal-container .master-grid-section {
+            flex: 5.5;
+            min-height: 200px;
+            display: flex;
+            flex-direction: column;
+            padding: 6px 12px 2px 12px;
+        }
+
+        .proposal-container .master-grid-section .grid-table-wrapper {
+            flex: 1;
+            height: 100%;
+            min-height: 0;
+        }
+
+        .proposal-container .split-divider {
+            flex: 0 0 6px;
+            background-color: #cbd5e1;
+            margin: 2px 0;
+        }
+
+        .proposal-container .lower-split-section {
+            flex: 4.5;
+            min-height: 220px;
+            display: flex;
+            gap: 12px;
+            padding: 2px 12px 6px 12px;
+            margin-bottom: 0;
+        }
+
+        .proposal-container .detail-memo-box {
+            flex: 1.1;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            background-color: #ffffff;
+            border: 1px solid #cbd5e1;
+            border-radius: 4px;
+            padding: 8px;
+        }
+
+        .proposal-container .memo-group {
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+        }
+
+        .proposal-container .memo-label {
+            font-size: 11.5px;
+            font-weight: 700;
+            color: #334155;
+            margin-bottom: 3px;
+        }
+
+        .proposal-container .memo-textarea {
+            flex: 1;
+            width: 100%;
+            resize: none;
+            border: 1px solid #cbd5e1;
+            border-radius: 3px;
+            padding: 6px;
+            font-size: 12px;
+            font-family: inherit;
+            color: #1e293b;
+            background-color: #f1f5f9;
+            box-sizing: border-box;
+        }
+
+        .proposal-container .comment-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background-color: #ffffff;
+            border: 1px solid #cbd5e1;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+    </style>
+
+    <!-- Top Action Control Bar (Row 1) -->
+    <div class="view-toolbar">
+        <div class="toolbar-left">
+            <!-- Reusable Common Toolbar Buttons Fragment (닫기 ~ 엑셀) -->
+            <div th:replace="~{fragments/tab_header :: toolbarButtons}"></div>
+            <button class="t-btn btn-action" onclick="loadProposalMaster()"><i class="fa-solid fa-magnifying-glass"></i> 조회</button>
+        </div>
+        <!-- Reusable Common Breadcrumb Fragment -->
+        <div th:replace="~{fragments/tab_header :: toolbarBreadcrumb}"></div>
+    </div>
+
+    <!-- Sub Filter Bar (Row 2: Common 운용사 Select Box: dddwId='CORP_GR', seq=1) -->
+    <div th:replace="~{fragments/filter/corp_filter :: corpFilter(dddwId='CORP_GR', seq=1)}"></div>
+
+    <!-- Upper Master Grid Section (dw_list / d_proposal_list.srd / PROPOSAL) -->
+    <div class="grid-section master-grid-section">
+        <div class="grid-table-wrapper">
+            <div id="grid-proposal-master" class="tabulator-aams-grid"></div>
+        </div>
+    </div>
+
+    <!-- Split Bar Separator -->
+    <div class="split-divider"></div>
+
+    <!-- Lower Split Panels (dw_detail & dw_2 / d_proposal_2.srd / PROPOSAL_APPEND) -->
+    <div class="grid-section lower-split-section">
+        <!-- Lower Left Detail Text Area (mle_matter / mle_content) -->
+        <div class="detail-memo-box">
+            <div class="memo-group">
+                <span class="memo-label"><i class="fa-solid fa-circle-info"></i> 개발 의뢰 상세 내용 (Matter)</span>
+                <textarea id="proposalMatter" class="memo-textarea" readonly placeholder="상단 목록에서 항목을 선택하십시오."></textarea>
+            </div>
+            <div class="memo-group">
+                <span class="memo-label"><i class="fa-solid fa-check-double"></i> 처리 내용 및 완료 소감 (Content)</span>
+                <textarea id="proposalContent" class="memo-textarea" readonly placeholder="처리 내역이 여기에 표시됩니다."></textarea>
+            </div>
+        </div>
+
+        <!-- Lower Right Comment Grid Panel (dw_2 / d_proposal_2.srd) -->
+        <div class="comment-panel">
+            <div class="sub-grid-header">
+                <span class="sub-title"><i class="fa-solid fa-comments"></i> 건의사항 댓글 및 처리 이력</span>
+            </div>
+            <div class="grid-table-wrapper" style="flex: 1;">
+                <div id="grid-proposal-comment" class="tabulator-aams-grid"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Inline Script for Proposal View with Tabulator Grids -->
+    <script th:inline="javascript">
+        (function() {
+            let gridMaster = null;
+            let gridComment = null;
+
+            const initialMasterData = /*[[${masterList}]]*/ [];
+
+            function formatDateVal(val) {
+                if (!val) return "";
+                const str = String(val).replace(/\D/g, "");
+                if (str.length >= 8) {
+                    let res = str.substring(0, 4) + '.' + str.substring(4, 6) + '.' + str.substring(6, 8);
+                    if (str.length >= 12) {
+                        res += ' ' + str.substring(8, 10) + ':' + str.substring(10, 12);
+                    }
+                    return res;
+                }
+                return String(val);
+            }
+
+            // 1. Initialize Master Tabulator Grid (d_proposal_list / PROPOSAL)
+            function initMasterGrid() {
+                const container = document.getElementById("grid-proposal-master");
+                if (!container) return;
+
+                gridMaster = new Tabulator(container, {
+                    data: initialMasterData || [],
+                    layout: "fitDataFill",
+                    height: "100%",
+                    selectableRows: 1,
+                    placeholder: "<span>조회된 건의사항/개선요청 내역이 없습니다.</span>",
+                    columnDefaults: { vertAlign: "middle", headerSortTristate: true },
+                    columns: [
+                        { title: "No.", formatter: "rownum", hozAlign: "center", width: 45, resizable: false, widthGrow: 0 },
+                        { title: "의뢰일시", field: "ymd", hozAlign: "center", width: 140, formatter: cell => formatDateVal(cell.getValue()) },
+                        { title: "개발 의뢰내용", field: "title", minWidth: 260 },
+                        { title: "의뢰자", field: "proposer", hozAlign: "center", width: 90 },
+                        { title: "<span style='color: #2563eb;'>완료일시</span>", field: "contentYmd", hozAlign: "center", width: 140, formatter: cell => `<span style="color: #2563eb; font-weight: 500;">${formatDateVal(cell.getValue())}</span>` },
+                        { title: "첨부파일", field: "fexp", hozAlign: "center", width: 90, formatter: cell => cell.getValue() ? '<i class="fa-solid fa-paperclip" style="color: #0d9488;"></i>' : '-' }
+                    ]
+                });
+
+                gridMaster.on("rowClick", function(e, row) {
+                    gridMaster.deselectRow();
+                    row.select();
+                    const data = row.getData();
+                    updateDetailPanel(data);
+                });
+
+                // Auto select first row on build
+                gridMaster.on("tableBuilt", function() {
+                    const rows = gridMaster.getRows();
+                    if (rows && rows.length > 0) {
+                        rows[0].select();
+                        updateDetailPanel(rows[0].getData());
+                    }
+                });
+            }
+
+            // 2. Initialize Comment Grid (d_proposal_2 / PROPOSAL_APPEND)
+            function initCommentGrid() {
+                const container = document.getElementById("grid-proposal-comment");
+                if (!container) return;
+
+                gridComment = new Tabulator(container, {
+                    layout: "fitColumns",
+                    height: "100%",
+                    placeholder: "<span>상단 목록에서 항목을 선택하세요.</span>",
+                    columnDefaults: { vertAlign: "middle", headerSortTristate: true },
+                    columns: [
+                        { title: "No.", formatter: "rownum", hozAlign: "center", width: 45, resizable: false, widthGrow: 0 },
+                        { title: "댓글입력일시", field: "ymd", hozAlign: "center", width: 135, formatter: cell => formatDateVal(cell.getValue()) },
+                        { title: "입력자", field: "sbNm", hozAlign: "center", width: 90 },
+                        { title: "댓  글  내  용", field: "appending", minWidth: 200 }
+                    ]
+                });
+            }
+
+            function updateDetailPanel(data) {
+                if (!data) return;
+                const matterEl = document.getElementById("proposalMatter");
+                const contentEl = document.getElementById("proposalContent");
+
+                if (matterEl) matterEl.value = data.matter || "";
+                if (contentEl) contentEl.value = data.content || "";
+
+                if (data.corpGr) {
+                    fetchProposalComments(data.corpGr, data.ymd, data.proposer);
+                }
+            }
+
+            window.loadProposalMaster = function(targetCorpGr) {
+                const filterSelect = document.getElementById("filterCorpGr");
+                const corpGr = targetCorpGr != null ? targetCorpGr : (filterSelect ? filterSelect.value : "2200");
+
+                // Reset detail panels
+                const matterEl = document.getElementById("proposalMatter");
+                const contentEl = document.getElementById("proposalContent");
+                if (matterEl) matterEl.value = "";
+                if (contentEl) contentEl.value = "";
+                if (gridComment) gridComment.setData([]);
+                
+                fetch(`/api/proposal/master?corpGr=${encodeURIComponent(corpGr)}`)
+                    .then(res => res.json())
+                    .then(data => {
+                        if (gridMaster) {
+                            gridMaster.setData(data);
+                        }
+                    })
+                    .catch(err => console.error("Failed to load proposal master:", err));
+            };
+
+            function fetchProposalComments(corpGr, ymd, proposer) {
+                let url = `/api/proposal/comment?corpGr=${encodeURIComponent(corpGr)}`;
+                if (ymd) url += `&ymd=${encodeURIComponent(ymd)}`;
+                if (proposer) url += `&proposer=${encodeURIComponent(proposer)}`;
+
+                fetch(url)
+                    .then(res => res.json())
+                    .then(data => {
+                        if (gridComment) {
+                            gridComment.setData(data);
+                        }
+                    })
+                    .catch(err => console.error("Failed to load proposal comments:", err));
+            }
+
+            // Register standard CorpGr change contract method on current tab pane
+            function ue_dddw_retrieve() {
+                const currentScript = document.currentScript;
+                const pane = currentScript ? currentScript.closest('.tab-pane') : null;
+                if (pane) {
+                    pane.onCorpGrChange = function(val) {
+                        loadProposalMaster(val);
+                    };
+                    pane.addEventListener("corpGrChanged", function(e) {
+                        loadProposalMaster(e.detail ? e.detail.corpGr : val);
+                    });
+                }
+            }
+
+            document.addEventListener("DOMContentLoaded", function() {
+                initMasterGrid();
+                initCommentGrid();
+                ue_dddw_retrieve();
+            });
+
+            // Initialize immediately if DOM is ready
+            if (document.readyState === "complete" || document.readyState === "interactive") {
+                setTimeout(() => {
+                    initMasterGrid();
+                    initCommentGrid();
+                    ue_dddw_retrieve();
+                }, 50);
+            }
+        })();
+    </script>
+</div>
+</html>

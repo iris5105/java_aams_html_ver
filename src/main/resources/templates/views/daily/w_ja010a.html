@@ -2,6 +2,58 @@
 <html xmlns:th="http://www.thymeleaf.org">
 <div class="view-container ja010a-container" th:fragment="ja010aView">
 
+    <style>
+        .ja010a-container {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            overflow: hidden;
+            box-sizing: border-box;
+            background-color: #f8fafc;
+        }
+
+        .ja010a-container .master-grid-section {
+            flex: 6;
+            min-height: 200px;
+            display: flex;
+            flex-direction: column;
+            padding: 6px 12px 2px 12px;
+        }
+
+        .ja010a-container .master-grid-section .grid-table-wrapper {
+            flex: 1;
+            height: 100%;
+            min-height: 0;
+        }
+
+        .ja010a-container .split-divider {
+            flex: 0 0 6px;
+            background-color: #cbd5e1;
+            margin: 2px 0;
+        }
+
+        .ja010a-container .lower-split-section {
+            flex: 4;
+            min-height: 200px;
+            display: flex;
+            flex-direction: column;
+            padding: 2px 12px 6px 12px;
+            margin-bottom: 0;
+        }
+
+        .ja010a-container .lower-split-section .panel-left {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+
+        .ja010a-container .lower-split-section .grid-table-wrapper {
+            flex: 1;
+            height: 100%;
+            min-height: 0;
+        }
+    </style>
+
     <!-- Top Action Control Bar (Row 1) -->
     <div class="view-toolbar">
         <div class="toolbar-left">
@@ -15,7 +67,7 @@
 
     <!-- Upper Master Grid Section (dw_list / d_ja010a1.srd / SZX0AA) -->
     <div class="grid-section master-grid-section">
-        <div class="grid-table-wrapper" style="flex: 1; min-height: 260px;">
+        <div class="grid-table-wrapper">
             <div id="grid-ja010a-master" class="tabulator-aams-grid"></div>
         </div>
     </div>
@@ -29,7 +81,7 @@
             <div class="sub-grid-header">
                 <span class="sub-title"><i class="fa-solid fa-file-contract"></i> 회사 계약 및 변경 이력</span>
             </div>
-            <div class="grid-table-wrapper" style="flex: 1; min-height: 220px;">
+            <div class="grid-table-wrapper">
                 <div id="grid-ja010a-detail" class="tabulator-aams-grid"></div>
             </div>
         </div>
@@ -149,7 +201,10 @@
             }
 
             // Global functions for controller integration
-            window.loadJa010aMaster = function() {
+            window.loadJa010aMaster = function(targetCorpGr) {
+                const filterSelect = document.getElementById("filterCorpGr");
+                const corpGr = targetCorpGr != null ? targetCorpGr : (filterSelect ? filterSelect.value : "");
+
                 fetch('/api/company/ja010a/master')
                     .then(res => res.json())
                     .then(data => {
@@ -158,9 +213,18 @@
                             if (Array.isArray(data) && data.length > 0) {
                                 setTimeout(() => {
                                     const rows = gridMaster.getRows();
-                                    if (rows && rows.length > 0) {
-                                        rows[0].select();
-                                        const d = rows[0].getData();
+                                    let targetRow = null;
+                                    if (corpGr) {
+                                        rows.forEach(r => {
+                                            if (r.getData().corpGr === corpGr) targetRow = r;
+                                        });
+                                    }
+                                    if (!targetRow && rows.length > 0) targetRow = rows[0];
+
+                                    if (targetRow) {
+                                        gridMaster.deselectRow();
+                                        targetRow.select();
+                                        const d = targetRow.getData();
                                         if (d.corpGr) fetchJa010aDetail(d.corpGr);
                                     }
                                 }, 100);
@@ -179,6 +243,18 @@
                         if (gridDetail) gridDetail.setData(Array.isArray(data) ? data : []);
                     })
                     .catch(err => console.error("Error fetching ja010a detail:", err));
+            }
+
+            // Register standard CorpGr change contract method on current tab pane
+            const currentScript = document.currentScript;
+            const pane = currentScript ? currentScript.closest('.tab-pane') : null;
+            if (pane) {
+                pane.onCorpGrChange = function(val) {
+                    window.loadJa010aMaster(val);
+                };
+                pane.addEventListener("corpGrChanged", function(e) {
+                    window.loadJa010aMaster(e.detail ? e.detail.corpGr : val);
+                });
             }
 
             // Initialize both grids on view load

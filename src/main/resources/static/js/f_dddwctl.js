@@ -28,26 +28,90 @@
      * @param {string} [addOrderBy=""] Dynamic ORDER BY clause
      * @returns {Promise<Array<{code: string, name: string}>>}
      */
-    function f_dddwctl(dddwId, seq = 1, corpGr = "", addWhere = "", addOrderBy = "") {
-        let targetDddwId = dddwId || 'CORP_GR';
-        let targetSeq = 1;
+    function f_dddwctl(dddwId, param2, param3, param4, param5) {
+        let actualDddwId = dddwId;
+        let targetSeq = null;
         let actualCorpGr = "";
         let actualWhere = "";
         let actualOrderBy = "";
+        let prependHeaderItem = null;
 
-        if (typeof seq === 'number' || (typeof seq === 'string' && /^\d+$/.test(seq))) {
-            targetSeq = parseInt(seq, 10);
-            actualCorpGr = corpGr || "";
-            actualWhere = addWhere || "";
-            actualOrderBy = addOrderBy || "";
-        } else if (typeof seq === 'string') {
-            // Handle argument shift if seq was omitted: f_dddwctl('series_g1', '2200', 'where')
-            actualCorpGr = seq;
-            actualWhere = corpGr || "";
-            actualOrderBy = addWhere || "";
+        // Check if 3rd parameter (param3) contains ',' to prepend header option item (e.g. '%,전체,')
+        if (typeof param3 === 'string' && param3.includes(',')) {
+            const parts = param3.split(',').map(s => s.trim());
+            const codeVal = parts[0] || "";
+            const nameVal = parts[1] || codeVal || "";
+            // Ignore if only commas with no content (e.g. ',,', ',')
+            if (codeVal !== "" || nameVal !== "") {
+                prependHeaderItem = {
+                    code: codeVal,
+                    name: nameVal,
+                    SEBU_CD: codeVal,
+                    SEBU_CD_NM: nameVal,
+                    cd: codeVal,
+                    dscr: nameVal
+                };
+            }
         }
 
-        let url = `/api/common/dddw?dddwId=${encodeURIComponent(targetDddwId)}&seq=${encodeURIComponent(targetSeq)}`;
+        // Helper to read cookie value
+        function getCookieVal(name) {
+            const value = `; ${document.cookie}`;
+            const parts = value.split(`; ${name}=`);
+            if (parts.length === 2) return decodeURIComponent(parts.pop().split(';').shift());
+            return "";
+        }
+
+        const cookieAdmin = getCookieVal("admin") || getCookieVal("adminYn") || getCookieVal("role") || "";
+        const isAdmin = (cookieAdmin === "Y" || cookieAdmin === "true" || cookieAdmin === "1" || String(cookieAdmin).toUpperCase() === "ADMIN");
+
+        // 1. Standard JS signature: f_dddwctl(dddwId, seq, corpGr, addWhere, addOrderBy)
+        if (typeof param2 === 'number' || (typeof param2 === 'string' && /^\d{1,2}$/.test(param2.trim()) && (param4 == null || isNaN(Number(param4))))) {
+            targetSeq = parseInt(param2, 10);
+            actualCorpGr = (param3 && !param3.includes(',')) ? param3 : "";
+            actualWhere = param4 || "";
+            actualOrderBy = param5 || "";
+        } 
+        // 2. HTML screen PB-mapped signature (without THIS): f_dddwctl(dddwId, corpGr, addWhere1, seq, addWhere2)
+        //    [1] dddwId   : 'series_g1' / 'gugan'
+        //    [2] corpGr   : targetCorpGr / ''
+        //    [3] addWhere1/prependHeader: '%,전체,' / ',,' / ''
+        //    [4] seq      : 1 / 9
+        //    [5] addWhere2: "corp_gr='2402'" / '' (5th parameter WHERE clause - added ONLY IF NOT ADMIN)
+        else {
+            actualCorpGr = param2 || "";
+            targetSeq = (param4 != null && !isNaN(Number(param4))) ? parseInt(param4, 10) : 1;
+            
+            // 5th parameter (param5) WHERE clause handling:
+            // Omit ONLY IF it is strictly a direct single corp_gr='...' equality clause for ADMIN (e.g. "corp_gr='2402'").
+            // Complex subqueries (e.g. "tr_co_cd in (select mg_cd from szm0ia where corp_gr='...')"), multi-column, or general conditions are ALWAYS included for everyone!
+            if (param5) {
+                const isDirectCorpGrOnly = /^\s*corp_gr\s*=\s*'[^']*'\s*$/i.test(param5.trim());
+                if (isDirectCorpGrOnly) {
+                    if (!isAdmin) {
+                        actualWhere = param5;
+                    } else {
+                        actualWhere = ""; // Omit ONLY pure single corp_gr='...' clause for Admin
+                    }
+                } else {
+                    actualWhere = param5; // Always include complex subqueries or general conditions
+                }
+            } else if (param3 && !param3.includes(',')) {
+                actualWhere = param3;
+            }
+        }
+
+        // Apply fallback seq 1 only if seq was omitted by caller
+        if (targetSeq == null || isNaN(targetSeq)) {
+            targetSeq = 1;
+        }
+
+        // Strip 'dddw |' if present and extract key text after '|'
+        if (typeof actualDddwId === 'string' && actualDddwId.includes('|')) {
+            actualDddwId = actualDddwId.split('|').pop().trim();
+        }
+
+        let url = `/api/common/dddw?dddwId=${encodeURIComponent(actualDddwId || 'corp_gr')}&seq=${encodeURIComponent(targetSeq)}`;
         if (actualCorpGr) url += `&corpGr=${encodeURIComponent(actualCorpGr)}`;
         if (actualWhere) url += `&addWhere=${encodeURIComponent(actualWhere)}`;
         if (actualOrderBy) url += `&addOrderBy=${encodeURIComponent(actualOrderBy)}`;
@@ -58,10 +122,16 @@
             : fetch(url).then(res => res.ok ? res.json() : []);
 
         return fetchPromise
-            .then(list => Array.isArray(list) ? list : [])
+            .then(list => {
+                const resultList = Array.isArray(list) ? list.slice() : [];
+                if (prependHeaderItem) {
+                    resultList.unshift(prependHeaderItem);
+                }
+                return resultList;
+            })
             .catch(err => {
-                console.warn(`[f_dddwctl] Error loading DDDW (${targetDddwId}):`, err);
-                return [];
+                console.warn(`[f_dddwctl] Error loading DDDW (${actualDddwId}):`, err);
+                return prependHeaderItem ? [prependHeaderItem] : [];
             });
     }
 

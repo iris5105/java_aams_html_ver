@@ -14,12 +14,12 @@
     </div>
 
     <!-- Sub Filter Bar (Row 2: Common 운용사 Select Box: dw_c in w_szx0se.srw) -->
-    <div th:replace="~{fragments/tab_header :: corpFilter(dddwId='CORP_GR', seq=1)}"></div>
+    <div th:replace="~{fragments/filter/corp_filter :: corpFilter(dddwId='CORP_GR', seq=1)}"></div>
 
     <!-- Main Grid Section (d_szx0se.srd / SZX0SE) -->
-    <div class="grid-section" style="padding: 10px; flex: 1; height: calc(100vh - 180px); min-height: 400px;">
-        <div class="grid-table-wrapper" style="height: 100%;">
-            <div id="grid-szx0se" class="tabulator-aams-grid" style="height: 100%;"></div>
+    <div class="grid-section">
+        <div class="grid-table-wrapper">
+            <div id="grid-szx0se" class="tabulator-aams-grid"></div>
         </div>
     </div>
 
@@ -52,11 +52,11 @@
                 const targetCorpGr = corpGr != null ? corpGr : (filterSelect ? filterSelect.value : "");
 
                 f_dddwctl.retrieveMultiple({
-                    series_g1: ['series_g1', 1, targetCorpGr, `corp_gr='${targetCorpGr}'`],
-                    series_g2: ['series_g2', 1, targetCorpGr, `corp_gr='${targetCorpGr}'`],
-                    bm_gr: ['bm_gr', 1, targetCorpGr],
-                    gugan: ['gugan', 1, ''],
-                    ga: ['ga', 1, '']
+                    series_g1: ['series_g1', targetCorpGr, '', 1, `corp_gr='${targetCorpGr}'`],
+                    series_g2: ['series_g2', targetCorpGr, '', 1, `corp_gr='${targetCorpGr}'`],
+                    bm_gr: ['bm_gr', targetCorpGr, '', 1, ''],
+                    gugan: ['gugan', '', ',,', 1, ''],
+                    ga: ['ga', '', ',,', 1, '']
                 }).then(results => {
                     dddwOptionsMap.series_g1 = results.series_g1 || [];
                     dddwOptionsMap.series_g2 = results.series_g2 || [];
@@ -173,11 +173,15 @@
                     .catch(err => console.error("Error loading szx0se list for corpGr [" + corpGr + "]:", err));
             };
 
-            // Bind change event listener directly to company select element (#filterCorpGr)
-            const filterSelect = document.getElementById("filterCorpGr");
-            if (filterSelect) {
-                filterSelect.addEventListener("change", function() {
-                    window.loadSzx0seData(this.value);
+            // Register standard CorpGr change contract method on current tab pane
+            const currentScript = document.currentScript;
+            const pane = currentScript ? currentScript.closest('.tab-pane') : null;
+            if (pane) {
+                pane.onCorpGrChange = function(val) {
+                    window.loadSzx0seData(val);
+                };
+                pane.addEventListener("corpGrChanged", function(e) {
+                    window.loadSzx0seData(e.detail ? e.detail.corpGr : val);
                 });
             }
 

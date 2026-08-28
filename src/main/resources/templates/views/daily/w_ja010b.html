@@ -23,7 +23,7 @@
     </div>
 
     <!-- Sub Filter Bar (Row 2: Common 운용사 Select Box: dddwId='CORP_GR', seq=1) -->
-    <div th:replace="~{fragments/tab_header :: corpFilter(dddwId='CORP_GR', seq=1)}"></div>
+    <div th:replace="~{fragments/filter/corp_filter :: corpFilter(dddwId='CORP_GR', seq=1)}"></div>
 
     <!-- Upper Master Grid Section (dw_list / d_ja010b1.srd) -->
     <div class="grid-section master-grid-section">
@@ -330,6 +330,18 @@
             initDetailGrid();
             initIoGrid();
             ue_dddw_retrieve();
+
+            // Register standard CorpGr change contract method on current tab pane
+            const currentScript = document.currentScript;
+            const pane = currentScript ? currentScript.closest('.tab-pane') : null;
+            if (pane) {
+                pane.onCorpGrChange = function(val) {
+                    window.loadJa010bMaster(val);
+                };
+                pane.addEventListener("corpGrChanged", function(e) {
+                    window.loadJa010bMaster(e.detail ? e.detail.corpGr : val);
+                });
+            }
 
             // Retrieve active corpGr from cookie (savedCorpGr / corpGr)
             const activeCorpGr = (typeof getCookie === 'function' ? (getCookie('savedCorpGr') || getCookie('corpGr')) : null);

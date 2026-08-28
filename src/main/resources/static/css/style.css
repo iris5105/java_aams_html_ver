@@ -885,13 +885,44 @@ body, html {
     box-sizing: border-box;
 }
 
-/* w_ja010b Container & Toolbar */
-.view-container.ja010b-container {
+/* Grid Sections & Tables */
+.view-container {
     display: flex;
     flex-direction: column;
     height: 100%;
+    width: 100%;
+    box-sizing: border-box;
     background-color: #f8fafc;
-    overflow-y: auto;
+    overflow: hidden;
+}
+
+.grid-section {
+    padding: 8px 12px;
+    box-sizing: border-box;
+}
+
+/* Single grid view: stretches flex: 1 to bottom and matches 12px left/right/bottom padding */
+.view-container > .grid-section:not(.master-grid-section):not(.lower-split-section) {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    padding-bottom: 12px;
+}
+
+.grid-table-wrapper {
+    flex: 1;
+    height: 100%;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.tabulator-aams-grid,
+.tabulator-dw-grid {
+    flex: 1;
+    height: 100% !important;
+    min-height: 0;
 }
 
 .view-toolbar {

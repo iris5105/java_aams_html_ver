@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+
+    <!-- Common Corp Group Filter (f_dddwctl('corp_gr', cookieCorpGr, '', '1', '')) -->
+    <div th:fragment="corpFilter(dddwId, seq)" class="filter-bar" 
+         th:data-dddw-id="${dddwId != null ? dddwId : 'corp_gr'}" 
+         th:data-seq="${seq != null ? seq : 1}">
+        <div class="filter-item">
+            <label for="filterCorpGr">운용사</label>
+            <select id="filterCorpGr" name="corpGr" class="filter-select" onchange="onCorpGrFilterChange(this)">
+                <th:block th:if="${corpList != null and not #lists.isEmpty(corpList)}">
+                    <option th:each="corp : ${corpList}"
+                            th:value="${corp.code}"
+                            th:text="${corp.name}"
+                            th:selected="${corpGr == corp.code}"></option>
+                </th:block>
+                <th:block th:if="${corpList == null or #lists.isEmpty(corpList)}">
+                    <option value="">데이터 없음</option>
+                </th:block>
+            </select>
+        </div>
+
+        <script th:inline="javascript">
+            // 100% Generic & Decoupled MDI Tab CorpGr Filter Change Handler (Zero hardcoded screen names)
+            if (typeof window.onCorpGrFilterChange !== 'function') {
+                window.onCorpGrFilterChange = function(selectEl) {
+                    if (!selectEl) return;
+                    const val = selectEl.value;
+
+                    // Locate active tab pane to isolate MDI scope
+                    const pane = selectEl.closest('.tab-pane') || selectEl.closest('.view-container') || document.querySelector('.tab-pane.active') || document;
+
+                    // 1. Invoke pane-scoped onCorpGrChange contract method if defined by the active view
+                    if (pane && typeof pane.onCorpGrChange === 'function') {
+                        pane.onCorpGrChange(val);
+                    } 
+                    // 2. Fallback to global handler if defined
+                    else if (typeof window.onCorpGrChange === 'function') {
+                        window.onCorpGrChange(val);
+                    }
+
+                    // 3. Dispatch standard custom event on current tab pane
+                    pane.dispatchEvent(new CustomEvent('corpGrChanged', {
+                        bubbles: true,
+                        detail: { corpGr: val }
+                    }));
+                };
+            }
+
+            (function() {
+                function getCookieVal(name) {
+                    const value = `; ${document.cookie}`;
+                    const parts = value.split(`; ${name}=`);
+                    if (parts.length === 2) return decodeURIComponent(parts.pop().split(';').shift());
+                    return "";
+                }
+
+                // Scope select element to current script / tab pane to avoid MDI DOM ID collisions
+                const currentScript = document.currentScript;
+                const filterBar = currentScript ? currentScript.closest('.filter-bar') : null;
+                const selectEl = filterBar ? filterBar.querySelector('select') : document.getElementById("filterCorpGr");
+
+                // Read corp_gr and admin status from Access Cookie or Server Attributes
+                const cookieCorpGr = getCookieVal("corp_gr") || getCookieVal("corpGr") || /*[[${corpGr}]]*/ "";
+                const cookieAdmin = getCookieVal("admin") || getCookieVal("adminYn") || getCookieVal("role") || /*[[${adminYn}]]*/ "";
+                const isAdmin = (cookieAdmin === "Y" || cookieAdmin === "true" || cookieAdmin === "1" || String(cookieAdmin).toUpperCase() === "ADMIN");
+
+                // Call f_dddwctl with standard parameters: ('corp_gr', 1, cookieCorpGr, '', '')
+                if (typeof f_dddwctl === "function") {
+                    f_dddwctl('corp_gr', 1, cookieCorpGr, '', '').then(options => {
+                        if (selectEl && isAdmin) {
+                            if (options && options.length > 0) {
+                                const currentVal = selectEl.value || cookieCorpGr;
+                                selectEl.innerHTML = "";
+                                options.forEach(opt => {
+                                    const optionEl = document.createElement("option");
+                                    optionEl.value = opt.code;
+                                    optionEl.textContent = opt.name;
+                                    if (opt.code === currentVal || String(opt.code) === String(currentVal)) {
+                                        optionEl.selected = true;
+                                    }
+                                    selectEl.appendChild(optionEl);
+                                });
+                            } else if (!selectEl.options || selectEl.options.length === 0) {
+                                selectEl.innerHTML = '<option value="">데이터 없음</option>';
+                            }
+                        }
+                    });
+                }
+
+                // Admin Permission Check & Non-Admin Interaction Prevention
+                if (selectEl) {
+                    if (cookieCorpGr && !selectEl.value) {
+                        selectEl.value = cookieCorpGr;
+                    }
+                    
+                    if (!isAdmin) {
+                        selectEl.disabled = true;
+                        selectEl.style.pointerEvents = "none";
+                        selectEl.style.backgroundColor = "#f1f5f9";
+                        selectEl.style.cursor = "not-allowed";
+                        selectEl.title = "운용사 변경은 관리자 전용입니다.";
+
+                        const blockInteraction = function(e) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            return false;
+                        };
+                        selectEl.addEventListener("click", blockInteraction, true);
+                        selectEl.addEventListener("mousedown", blockInteraction, true);
+                        selectEl.addEventListener("touchstart", blockInteraction, true);
+                    }
+                }
+            })();
+        </script>
+    </div>
+
+</body>
+</html>
