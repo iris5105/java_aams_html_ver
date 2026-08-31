@@ -138,7 +138,12 @@
                     localStorage.setItem('accessToken', data.accessToken);
                     localStorage.setItem('refreshToken', data.refreshToken);
                     localStorage.setItem('userId', data.userId);
+                    localStorage.setItem('userNm', data.userNm || '');
                     localStorage.setItem('corpGr', data.corpGr);
+
+                    if (data.userNm) {
+                        document.cookie = "userNm=" + encodeURIComponent(data.userNm) + "; path=/; max-age=2592000";
+                    }
 
                     // Redirect to W_HOME5
                     window.location.href = '/w_home5';

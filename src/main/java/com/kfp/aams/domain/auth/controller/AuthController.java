@@ -28,7 +28,7 @@ public class AuthController {
     private final JwtProvider jwtProvider;
     private final UserQueryDslRepository userQueryDslRepository;
 
-    @GetMapping({"/login", "/w_login_aams"})
+    @GetMapping({ "/login", "/w_login_aams" })
     public String loginPage() {
         return "w_login_aams";
     }
@@ -47,13 +47,13 @@ public class AuthController {
                 "exists", true,
                 "userId", userDto.getUserId() != null ? userDto.getUserId() : "",
                 "corpGr", userDto.getCorpGr() != null ? userDto.getCorpGr() : "",
-                "adminYn", userDto.getAdminYn() != null ? userDto.getAdminYn() : "N"
-        ));
+                "adminYn", userDto.getAdminYn() != null ? userDto.getAdminYn() : "N"));
     }
 
     @PostMapping("/api/auth/login")
     @ResponseBody
-    public ResponseEntity<LoginResponseDto> login(@RequestBody LoginRequestDto request, HttpServletRequest httpRequest, HttpServletResponse response) {
+    public ResponseEntity<LoginResponseDto> login(@RequestBody LoginRequestDto request, HttpServletRequest httpRequest,
+            HttpServletResponse response) {
         String userId = request.getUserId();
         String password = request.getPassword();
 
@@ -80,7 +80,8 @@ public class AuthController {
                     .build());
         }
 
-        // Admin check for corpGr: If admin (adminYn == 'Y'), use savedCorpGr cookie if present; if non-admin (adminYn == 'N'), use user's DB corpGr
+        // Admin check for corpGr: If admin (adminYn == 'Y'), use savedCorpGr cookie if
+        // present; if non-admin (adminYn == 'N'), use user's DB corpGr
         String effectiveCorpGr = userDto.getCorpGr();
         boolean isAdmin = "Y".equalsIgnoreCase(userDto.getAdminYn());
         if (isAdmin && httpRequest != null && httpRequest.getCookies() != null) {
@@ -99,8 +100,8 @@ public class AuthController {
 
         // Store user in SecurityContextHolder
         UserPrincipal principal = new UserPrincipal(userDto);
-        UsernamePasswordAuthenticationToken authentication =
-                new UsernamePasswordAuthenticationToken(principal, null, principal.getAuthorities());
+        UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(principal, null,
+                principal.getAuthorities());
         SecurityContextHolder.getContext().setAuthentication(authentication);
 
         // Set Access Token Cookie (30 mins = 1800s)
@@ -133,7 +134,21 @@ public class AuthController {
             response.addCookie(savedCorpGrCookie);
         }
 
-        log.info("User {} logged in successfully (adminYn: {}). Assigned corpGr: {}.", userDto.getUserId(), userDto.getAdminYn(), userDto.getCorpGr());
+        // Set userNm Cookie for client scripts (30 days)
+        if (userDto.getUserNm() != null && !userDto.getUserNm().isBlank()) {
+            Cookie userNmCookie = new Cookie("userNm", java.net.URLEncoder.encode(userDto.getUserNm(), java.nio.charset.StandardCharsets.UTF_8));
+            userNmCookie.setPath("/");
+            userNmCookie.setMaxAge(30 * 24 * 60 * 60);
+            response.addCookie(userNmCookie);
+
+            Cookie userNameCookie = new Cookie("userName", java.net.URLEncoder.encode(userDto.getUserNm(), java.nio.charset.StandardCharsets.UTF_8));
+            userNameCookie.setPath("/");
+            userNameCookie.setMaxAge(30 * 24 * 60 * 60);
+            response.addCookie(userNameCookie);
+        }
+
+        log.info("User {} logged in successfully (adminYn: {}). Assigned corpGr: {}.", userDto.getUserId(),
+                userDto.getAdminYn(), userDto.getCorpGr());
 
         return ResponseEntity.ok(LoginResponseDto.builder()
                 .success(true)
@@ -141,6 +156,7 @@ public class AuthController {
                 .accessToken(accessToken)
                 .refreshToken(refreshToken)
                 .userId(userDto.getUserId())
+                .userNm(userDto.getUserNm())
                 .corpGr(userDto.getCorpGr())
                 .encEMail(userDto.getEncEMail())
                 .companyName(userDto.getCompanyName())
@@ -152,9 +168,10 @@ public class AuthController {
     @PostMapping("/api/auth/switch-company")
     @ResponseBody
     public ResponseEntity<?> switchCompany(@RequestBody Map<String, String> request,
-                                           @AuthenticationPrincipal UserPrincipal principal,
-                                           HttpServletResponse response) {
-        if (principal == null || principal.getAdminYn() == null || !"Y".equalsIgnoreCase(principal.getAdminYn().trim())) {
+            @AuthenticationPrincipal UserPrincipal principal,
+            HttpServletResponse response) {
+        if (principal == null || principal.getAdminYn() == null
+                || !"Y".equalsIgnoreCase(principal.getAdminYn().trim())) {
             return ResponseEntity.status(403).body(Map.of("success", false, "message", "관리자 권한이 필요합니다."));
         }
 
@@ -186,8 +203,8 @@ public class AuthController {
         String newRefreshToken = jwtProvider.createRefreshToken(principal.getUserId(), newCorpGr);
 
         UserPrincipal updatedPrincipal = new UserPrincipal(updatedUserDto);
-        UsernamePasswordAuthenticationToken authentication =
-                new UsernamePasswordAuthenticationToken(updatedPrincipal, null, updatedPrincipal.getAuthorities());
+        UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(updatedPrincipal,
+                null, updatedPrincipal.getAuthorities());
         SecurityContextHolder.getContext().setAuthentication(authentication);
 
         Cookie accessCookie = new Cookie("accessToken", newAccessToken);
@@ -261,8 +278,7 @@ public class AuthController {
         return ResponseEntity.ok(Map.of(
                 "success", true,
                 "expired", remainingSeconds <= 0,
-                "remainingSeconds", remainingSeconds
-        ));
+                "remainingSeconds", remainingSeconds));
     }
 
     /**
@@ -270,7 +286,8 @@ public class AuthController {
      */
     @PostMapping("/api/auth/extend-token")
     @ResponseBody
-    public ResponseEntity<?> extendToken(@AuthenticationPrincipal UserPrincipal principal, HttpServletResponse response) {
+    public ResponseEntity<?> extendToken(@AuthenticationPrincipal UserPrincipal principal,
+            HttpServletResponse response) {
         if (principal == null || principal.getUserDto() == null) {
             return ResponseEntity.status(401).body(Map.of("success", false, "message", "로그인이 필요합니다."));
         }
@@ -284,8 +301,8 @@ public class AuthController {
 
         // Update Security Context
         UserPrincipal updatedPrincipal = new UserPrincipal(userDto);
-        UsernamePasswordAuthenticationToken authentication =
-                new UsernamePasswordAuthenticationToken(updatedPrincipal, null, updatedPrincipal.getAuthorities());
+        UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(updatedPrincipal,
+                null, updatedPrincipal.getAuthorities());
         SecurityContextHolder.getContext().setAuthentication(authentication);
 
         // Set updated Access Token Cookie (50 mins = 3000s)
@@ -300,7 +317,6 @@ public class AuthController {
         return ResponseEntity.ok(Map.of(
                 "success", true,
                 "message", "액세스 토큰이 50분 연장되었습니다.",
-                "remainingSeconds", extendSeconds
-        ));
+                "remainingSeconds", extendSeconds));
     }
 }

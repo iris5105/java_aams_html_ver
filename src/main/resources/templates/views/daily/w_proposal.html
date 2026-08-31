@@ -1,80 +1,8 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
-<div class="view-container proposal-container" th:fragment="proposalView">
+<div class="view-container layout-split-lr proposal-container" th:fragment="proposalView">
 
     <style>
-        .proposal-container {
-            display: flex;
-            flex-direction: column;
-            height: 100%;
-            overflow: hidden;
-            box-sizing: border-box;
-            background-color: #f8fafc;
-        }
-
-        .proposal-main-content {
-            display: flex;
-            flex: 1;
-            height: calc(100% - 40px);
-            overflow: hidden;
-            padding: 4px 8px 8px 8px;
-            gap: 6px;
-        }
-
-        /* Left Column (Filter + Master Grid) */
-        .proposal-left-pane {
-            flex: 1.1;
-            display: flex;
-            flex-direction: column;
-            min-width: 450px;
-            height: 100%;
-            background: #ffffff;
-            border: 1px solid #cbd5e1;
-            border-radius: 4px;
-            overflow: hidden;
-        }
-
-        .proposal-left-pane .filter-bar {
-            padding: 6px 10px;
-            background-color: #f1f5f9;
-            border-bottom: 1px solid #cbd5e1;
-            margin-bottom: 0;
-        }
-
-        .proposal-left-pane .master-grid-wrapper {
-            flex: 1;
-            height: 100%;
-            min-height: 0;
-            padding: 2px;
-        }
-
-        /* Vertical Split Bar */
-        .proposal-v-divider {
-            width: 4px;
-            background-color: #cbd5e1;
-            border-radius: 2px;
-            margin: 0 1px;
-        }
-
-        /* Right Column (Matter + Content + Comment Grid) */
-        .proposal-right-pane {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            min-width: 400px;
-            height: 100%;
-            gap: 6px;
-        }
-
-        .proposal-right-pane .right-section {
-            background: #ffffff;
-            border: 1px solid #cbd5e1;
-            border-radius: 4px;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-        }
-
         .proposal-right-pane .matter-section {
             flex: 1.1;
             min-height: 120px;
@@ -211,31 +139,31 @@
     </div>
 
     <!-- Main Left/Right Split Layout Container -->
-    <div class="proposal-main-content">
+    <div class="split-lr-container proposal-main-content">
 
         <!-- LEFT COLUMN: Filter Bar + Master Grid -->
-        <div class="proposal-left-pane">
+        <div class="split-left-section proposal-left-pane">
             <!-- Sub Filter Bar: Common 운용사 Select Box (dddwId='CORP_GR', seq=1) -->
             <div th:replace="~{fragments/filter/corp_filter :: corpFilter(dddwId='CORP_GR', seq=1)}"></div>
 
             <!-- Master Grid Section -->
             <div class="master-grid-wrapper">
-                <div id="grid-proposal-master" class="tabulator-aams-grid"></div>
+                <div id="master-grid" class="tabulator-aams-grid"></div>
             </div>
         </div>
 
         <!-- Vertical Divider -->
-        <div class="proposal-v-divider"></div>
+        <div class="split-v-divider proposal-v-divider"></div>
 
         <!-- RIGHT COLUMN: Matter Text + Content Text + Comment Grid -->
-        <div class="proposal-right-pane">
+        <div class="split-right-section proposal-right-pane">
 
             <!-- Top Right Section: 개발 의뢰내용 (Matter) -->
             <div class="right-section matter-section">
                 <div class="section-header-bar">
                     <span class="header-help-text">머리글 수준 <span class="kbd">Ctrl</span> 증가[->], 감소[<-], 모양변경(최근사용분부터) <span class="kbd">Ctrl</span> [Home, ↑]/[↓, End] 선택줄이동-SPACE</span>
                 </div>
-                <textarea id="proposalMatter" class="proposal-textarea" readonly placeholder="상단 목록에서 항목을 선택하십시오."></textarea>
+                <textarea id="proposalMatter" class="proposal-textarea" placeholder="개발 의뢰 내용을 입력하십시오."></textarea>
             </div>
 
             <!-- Middle Right Section: 처리 내용 (Content) -->
@@ -243,7 +171,7 @@
                 <div class="section-header-bar">
                     <span class="header-title">※ 수정완료</span>
                 </div>
-                <textarea id="proposalContent" class="proposal-textarea" readonly placeholder="처리 내역이 여기에 표시됩니다."></textarea>
+                <textarea id="proposalContent" class="proposal-textarea" placeholder="처리 내역을 입력하십시오."></textarea>
             </div>
 
             <!-- Bottom Right Section: 댓글현황 (Comment Grid) -->
@@ -253,7 +181,6 @@
                     <div class="comment-tools">
                         <button class="grid-tool-btn" title="댓글 추가"><i class="fa-solid fa-plus"></i></button>
                         <button class="grid-tool-btn" title="댓글 삭제"><i class="fa-solid fa-trash"></i></button>
-                        <button class="grid-tool-btn" title="댓글 저장"><i class="fa-solid fa-floppy-disk"></i></button>
                         <button class="grid-tool-btn" title="이전"><i class="fa-solid fa-step-backward"></i></button>
                         <button class="grid-tool-btn" title="다음"><i class="fa-solid fa-step-forward"></i></button>
                     </div>
@@ -262,9 +189,7 @@
                     <div id="grid-proposal-comment" class="tabulator-aams-grid"></div>
                 </div>
             </div>
-
         </div>
-
     </div>
 
     <!-- Inline Script for Proposal View with Tabulator Grids -->
@@ -274,6 +199,65 @@
             let gridComment = null;
 
             const initialMasterData = /*[[${masterList}]]*/ [];
+
+            function resolveCurrentUserNm() {
+                // 1. Server-injected model attribute
+                let u = /*[[${userNm}]]*/ "";
+                if (u && String(u).trim()) return String(u).trim();
+
+                // 2. Cookie values (userNm, userName, user_nm)
+                const cVal = getCookieVal("userNm") || getCookieVal("userName") || getCookieVal("user_nm");
+                if (cVal && String(cVal).trim()) {
+                    try {
+                        return decodeURIComponent(cVal).trim();
+                    } catch(e) {
+                        return String(cVal).trim();
+                    }
+                }
+
+                // 3. LocalStorage userNm
+                try {
+                    const lsUserNm = localStorage.getItem("userNm");
+                    if (lsUserNm && lsUserNm.trim()) return lsUserNm.trim();
+                } catch(e) {}
+
+                // 4. Try parsing JWT accessToken from cookie or localStorage
+                const token = getCookieVal("accessToken") || (function() {
+                    try { return localStorage.getItem("accessToken"); } catch(e) { return ""; }
+                })();
+                if (token && token.includes('.')) {
+                    try {
+                        const base64Url = token.split('.')[1];
+                        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+                        const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+                            return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+                        }).join(''));
+                        const obj = JSON.parse(jsonPayload);
+                        if (obj.userNm) return obj.userNm;
+                        if (obj.name) return obj.name;
+                    } catch(e) {}
+                }
+
+                // 5. Fallback to DOM top header user name element (e.g. "김태현 님")
+                const userEl = document.querySelector(".user-info .user-name");
+                if (userEl && userEl.textContent) {
+                    const txt = userEl.textContent.replace(/님|\s+/g, "").trim();
+                    if (txt) return txt;
+                }
+
+                return getCookieVal("userId") || "";
+            }
+
+            function isCurrentUserProposer(cellOrRow) {
+                if (!cellOrRow) return false;
+                const row = (typeof cellOrRow.getRow === 'function') ? cellOrRow.getRow() : cellOrRow;
+                const data = (typeof row.getData === 'function') ? row.getData() : row;
+                if (!data) return false;
+                if (data.isNew) return true;
+                const currentNm = resolveCurrentUserNm();
+                const proposer = (data.proposer || '').trim();
+                return Boolean(currentNm && proposer && (currentNm === proposer || proposer.includes(currentNm) || currentNm.includes(proposer)));
+            }
 
             function formatDateVal(val) {
                 if (!val) return "";
@@ -290,7 +274,7 @@
 
             // 1. Initialize Master Tabulator Grid (d_proposal_list / PROPOSAL)
             function initMasterGrid() {
-                const container = document.getElementById("grid-proposal-master");
+                const container = pane ? pane.querySelector("#master-grid") : document.getElementById("master-grid");
                 if (!container) return;
 
                 gridMaster = new Tabulator(container, {
@@ -303,8 +287,64 @@
                     columns: [
                         { title: "No.", formatter: "rownum", hozAlign: "center", width: 40, resizable: false, widthGrow: 0 },
                         { title: "의뢰일시", field: "ymd", hozAlign: "center", width: 125, formatter: cell => formatDateVal(cell.getValue()) },
-                        { title: "개발 의뢰내용", field: "title", minWidth: 200 },
-                        { title: "의뢰자", field: "proposer", hozAlign: "center", width: 75, formatter: cell => `<span style="color: #2563eb; font-weight: 600;">${cell.getValue() || ''}</span>` },
+                        { 
+                            title: "개발 의뢰내용", 
+                            field: "title", 
+                            minWidth: 200, 
+                            editor: function(cell, onRendered, success, cancel, editorParams) {
+                                // 사용자와 의뢰자가 다르면 편집 모드를 열지 않고 취소 (row 선택 및 상세 조회는 100% 정상 작동)
+                                if (!isCurrentUserProposer(cell)) {
+                                    cancel();
+                                    return false;
+                                }
+
+                                const input = document.createElement("input");
+                                input.type = "text";
+                                input.value = cell.getValue() || "";
+                                input.style.width = "100%";
+                                input.style.padding = "4px";
+                                input.style.boxSizing = "border-box";
+                                input.style.font = "inherit";
+
+                                onRendered(function() {
+                                    input.focus();
+                                    input.select();
+                                });
+
+                                function onChange() {
+                                    if (input.value !== cell.getValue()) {
+                                        success(input.value);
+                                    } else {
+                                        cancel();
+                                    }
+                                }
+
+                                input.addEventListener("change", onChange);
+                                input.addEventListener("blur", onChange);
+                                input.addEventListener("keydown", function(e) {
+                                    if (e.key === "Enter") {
+                                        onChange();
+                                    } else if (e.key === "Escape") {
+                                        cancel();
+                                    }
+                                });
+
+                                return input;
+                            }
+                        },
+                        { 
+                            title: "의뢰자", 
+                            field: "proposer", 
+                            hozAlign: "center", 
+                            width: 80,
+                            formatter: cell => {
+                                let val = cell.getValue();
+                                if (val == null || String(val).trim() === "") {
+                                    val = resolveCurrentUserNm();
+                                }
+                                return `<span style="color: #2563eb; font-weight: 600;">${val || ''}</span>`;
+                            }
+                        },
                         { title: "완료일시", field: "contentYmd", hozAlign: "center", width: 125, formatter: cell => formatDateVal(cell.getValue()) },
                         { 
                             title: "첨부파일", 
@@ -327,52 +367,97 @@
                     ]
                 });
 
+                gridMaster.on("cellClick", function(e, cell) {
+                    const row = cell.getRow();
+                    if (row) {
+                        gridMaster.deselectRow();
+                        row.select();
+                        updateDetailPanel(row.getData());
+                    }
+                });
+
                 gridMaster.on("rowClick", function(e, row) {
                     gridMaster.deselectRow();
                     row.select();
-                    const data = row.getData();
-                    updateDetailPanel(data);
+                    updateDetailPanel(row.getData());
                 });
 
                 // Auto select first row on build
                 gridMaster.on("tableBuilt", function() {
                     const rows = gridMaster.getRows();
                     if (rows && rows.length > 0) {
+                        gridMaster.deselectRow();
                         rows[0].select();
                         updateDetailPanel(rows[0].getData());
+                    } else {
+                        updateDetailPanel(null);
                     }
                 });
             }
 
             // 2. Initialize Comment Grid (d_proposal_2 / PROPOSAL_APPEND)
             function initCommentGrid() {
-                const container = document.getElementById("grid-proposal-comment");
+                const container = pane ? pane.querySelector("#grid-proposal-comment") : document.getElementById("grid-proposal-comment");
                 if (!container) return;
 
                 gridComment = new Tabulator(container, {
                     layout: "fitColumns",
                     height: "100%",
-                    placeholder: "<span>상단 목록에서 항목을 선택하세요.</span>",
+                    placeholder: "<span>선택된 의뢰건에 등록된 댓글이 없습니다.</span>",
                     columnDefaults: { vertAlign: "middle", headerSortTristate: true },
                     columns: [
                         { title: "No.", formatter: "rownum", hozAlign: "center", width: 40, resizable: false, widthGrow: 0 },
                         { title: "댓글입력일시", field: "ymd", hozAlign: "center", width: 135, formatter: cell => formatDateVal(cell.getValue()) },
-                        { title: "입력자", field: "sbNm", hozAlign: "center", width: 85 },
-                        { title: "댓  글  내  용", field: "appending", minWidth: 200 }
+                        { 
+                            title: "입력자", 
+                            field: "sbNm", 
+                            hozAlign: "center", 
+                            width: 85,
+                            formatter: cell => {
+                                const row = cell.getRow().getData();
+                                if (row && row.color === 16711680) {
+                                    return `<span style="color: #2563eb; font-weight: 700;">${cell.getValue() || ''}</span>`;
+                                }
+                                return cell.getValue() || '';
+                            }
+                        },
+                        { 
+                            title: "댓  글  내  용", 
+                            field: "appending", 
+                            minWidth: 200,
+                            formatter: cell => {
+                                const row = cell.getRow().getData();
+                                if (row && row.color === 16711680) {
+                                    return `<span style="color: #2563eb; font-weight: 600;">${cell.getValue() || ''}</span>`;
+                                }
+                                return cell.getValue() || '';
+                            }
+                        }
                     ]
                 });
             }
 
             function updateDetailPanel(data) {
-                if (!data) return;
-                const matterEl = document.getElementById("proposalMatter");
-                const contentEl = document.getElementById("proposalContent");
+                const matterEl = pane ? pane.querySelector("#proposalMatter") : document.getElementById("proposalMatter");
+                const contentEl = pane ? pane.querySelector("#proposalContent") : document.getElementById("proposalContent");
+
+                if (!data) {
+                    if (matterEl) matterEl.value = "";
+                    if (contentEl) contentEl.value = "";
+                    if (gridComment) gridComment.setData([]);
+                    return;
+                }
 
                 if (matterEl) matterEl.value = data.matter || "";
                 if (contentEl) contentEl.value = data.content || "";
 
-                if (data.corpGr) {
-                    fetchProposalComments(data.corpGr, data.ymd, data.proposer);
+                const filterSelect = pane ? pane.querySelector('select[name="corpGr"]') : document.getElementById("filterCorpGr");
+                const corpGr = data.corpGr || (filterSelect && filterSelect.value ? filterSelect.value : (getCookieVal("savedCorpGr") || getCookieVal("corpGr") || getCookieVal("corp_gr")));
+
+                if (corpGr && data.ymd && data.proposer) {
+                    fetchProposalComments(corpGr, data.ymd, data.proposer);
+                } else {
+                    if (gridComment) gridComment.setData([]);
                 }
             }
 
@@ -431,7 +516,7 @@
                     .catch(err => console.error("Failed to load proposal comments:", err));
             }
 
-            // Register standard CorpGr change contract method on current tab pane
+            // Register standard contracts on current tab pane
             if (pane) {
                 pane.onCorpGrChange = function(val) {
                     window.loadProposalMaster(val);
@@ -439,6 +524,60 @@
                 pane.addEventListener("corpGrChanged", function(e) {
                     const selectedVal = (e.detail && e.detail.corpGr) ? e.detail.corpGr : "";
                     window.loadProposalMaster(selectedVal);
+                });
+
+                // Provide default initial data when [입력] toolbar button is clicked
+                pane.getNewRowData = function() {
+                    const now = new Date();
+                    const pad = n => String(n).padStart(2, '0');
+                    const nowYmd = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+                    const userNm = resolveCurrentUserNm();
+                    const filterSelect = pane ? pane.querySelector('select[name="corpGr"]') : document.getElementById("filterCorpGr");
+                    const corpGr = filterSelect ? filterSelect.value : (getCookieVal("savedCorpGr") || getCookieVal("corpGr") || getCookieVal("corp_gr") || "");
+
+                    return {
+                        corpGr: corpGr,
+                        ymd: nowYmd,
+                        proposer: userNm,
+                        title: "",
+                        matter: "",
+                        contentYmd: "",
+                        content: "",
+                        fexp: "",
+                        saveVisible: 1,
+                        isNew: true
+                    };
+                };
+
+                pane.addEventListener("masterRowInserted", function(e) {
+                    if (e.detail && e.detail.data) {
+                        updateDetailPanel(e.detail.data);
+                    }
+                });
+            }
+
+            // Sync Matter / Content textarea inputs to selected row in gridMaster
+            const matterEl = document.getElementById("proposalMatter");
+            if (matterEl) {
+                matterEl.addEventListener("input", function() {
+                    if (gridMaster) {
+                        const selectedRows = gridMaster.getSelectedRows();
+                        if (selectedRows && selectedRows.length > 0) {
+                            selectedRows[0].update({ matter: matterEl.value });
+                        }
+                    }
+                });
+            }
+
+            const contentEl = document.getElementById("proposalContent");
+            if (contentEl) {
+                contentEl.addEventListener("input", function() {
+                    if (gridMaster) {
+                        const selectedRows = gridMaster.getSelectedRows();
+                        if (selectedRows && selectedRows.length > 0) {
+                            selectedRows[0].update({ content: contentEl.value });
+                        }
+                    }
                 });
             }
 

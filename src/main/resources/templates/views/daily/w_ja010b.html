@@ -1,12 +1,119 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
-<div class="view-container ja010b-container" th:fragment="ja010bView">
+<div class="view-container layout-split-tb ja010b-container" th:fragment="ja010bView">
 
     <style>
         .ja010b-container .tabulator-row.row-completed,
         .ja010b-container .tabulator-row.row-completed .tabulator-cell {
             color: #94a3b8 !important;
             background-color: #f8fafc !important;
+        }
+
+        /* 입출금 내역 섹션: 헤더 고정 및 내부 데이터 행 전용 스크롤 보장 */
+        .ja010b-container .io-grid-box {
+            overflow: hidden !important;
+        }
+
+        .ja010b-container .io-grid-box .grid-table-wrapper {
+            overflow: hidden !important;
+        }
+
+        .ja010b-container #grid-ja010b-io {
+            height: 100% !important;
+            overflow: hidden !important;
+        }
+
+        .ja010b-container #grid-ja010b-io .tabulator-header {
+            position: sticky !important;
+            top: 0 !important;
+            z-index: 2 !important;
+        }
+
+        .ja010b-container #grid-ja010b-io .tabulator-tableholder {
+            overflow-y: auto !important;
+            overflow-x: auto !important;
+        }
+
+        /* w_ja010b Dedicated Mobile Responsive Layout */
+        @media (max-width: 767px) {
+            .ja010b-container {
+                display: flex !important;
+                flex-direction: column !important;
+                height: auto !important;
+                min-height: 100% !important;
+                overflow-y: auto !important;
+                padding-bottom: 20px !important;
+            }
+
+            .ja010b-container .split-top-section {
+                flex: 0 0 auto !important;
+                height: 240px !important;
+                min-height: 240px !important;
+            }
+
+            .ja010b-container .split-bottom-section {
+                display: flex !important;
+                flex-direction: column !important;
+                flex: 0 0 auto !important;
+                height: auto !important;
+                gap: 12px !important;
+                overflow: visible !important;
+                padding-bottom: 10px !important;
+            }
+
+            .ja010b-container .split-panel.panel-left {
+                width: 100% !important;
+                height: 200px !important;
+                min-height: 200px !important;
+                flex: 0 0 auto !important;
+                overflow: hidden !important;
+            }
+
+            .ja010b-container .split-panel.panel-right {
+                width: 100% !important;
+                height: auto !important;
+                min-height: 280px !important;
+                flex: 0 0 auto !important;
+                display: flex !important;
+                flex-direction: column !important;
+                overflow: hidden !important;
+                border: 1px solid #cbd5e1 !important;
+                border-radius: 4px !important;
+                background-color: #fff !important;
+            }
+
+            .ja010b-container .special-note-box {
+                flex: 0 0 auto !important;
+                height: auto !important;
+            }
+
+            .ja010b-container .special-note-box textarea {
+                height: 52px !important;
+                min-height: 52px !important;
+            }
+
+            .ja010b-container .io-grid-box {
+                flex: 0 0 auto !important;
+                height: 200px !important;
+                min-height: 200px !important;
+                display: flex !important;
+                flex-direction: column !important;
+                border-top: 1px solid #cbd5e1 !important;
+                overflow: hidden !important;
+            }
+
+            .ja010b-container .io-grid-box .grid-table-wrapper {
+                flex: 1 1 auto !important;
+                height: calc(200px - 28px) !important;
+                min-height: 160px !important;
+                overflow: hidden !important;
+            }
+
+            .ja010b-container #grid-ja010b-io {
+                height: 100% !important;
+                min-height: 160px !important;
+                overflow: hidden !important;
+            }
         }
     </style>
 
@@ -26,44 +133,44 @@
     <div th:replace="~{fragments/filter/corp_filter :: corpFilter(dddwId='CORP_GR', seq=1)}"></div>
 
     <!-- Upper Master Grid Section (dw_list / d_ja010b1.srd) -->
-    <div class="grid-section master-grid-section">
-        <div class="grid-table-wrapper" style="flex: 1; min-height: 260px;">
-            <div id="grid-ja010b-master" class="tabulator-aams-grid"></div>
+    <div class="grid-section split-top-section">
+        <div class="grid-table-wrapper">
+            <div id="master-grid" class="tabulator-aams-grid"></div>
         </div>
     </div>
 
     <!-- Split Bar Separator -->
-    <div class="split-divider"></div>
+    <div class="split-h-divider"></div>
 
-    <!-- Lower Split Panels (dw_detail + mle_special_note + dw_1) -->
-    <div class="grid-section lower-split-section">
-        <!-- Lower Left Detail Panel (dw_detail / d_ja010b2.srd / SZM0GI) -->
-        <div class="split-panel panel-left" style="flex: 1;">
+    <!-- 1차: 하단 섹션 (Bottom, ~50%) -->
+    <!-- 2차: 하단 내부를 좌우 분할(split-lr-container)로 구성 -->
+    <div class="grid-section split-bottom-section split-lr-container">
+        <!-- 2차 좌측 패널 (Left: 결산기별 이력 / SZM0GI) -->
+        <div class="split-left-section split-panel panel-left">
             <div class="sub-grid-header">
                 <span class="sub-title"><i class="fa-solid fa-list-ol"></i> 결산기별 이력</span>
             </div>
-            <div class="grid-table-wrapper" style="flex: 1; min-height: 220px;">
+            <div class="grid-table-wrapper">
                 <div id="grid-ja010b-detail" class="tabulator-aams-grid"></div>
             </div>
         </div>
 
-        <!-- Lower Right Sub Panel (mle_special_note + dw_1 / d_szt0io.srd / SZT0IO) -->
-        <div class="split-panel panel-right" style="flex: 1; display: flex; flex-direction: column;">
-            
-            <!-- Special Note Panel (mle_special_note in w_ja010b.srw) -->
+        <!-- 2차 우측 패널 (Right: 3차 상하 분할 적용) -->
+        <div class="split-right-section split-panel panel-right">
+            <!-- 3차 상단: 특이사항 메모 패널 (mle_special_note in w_ja010b.srw) -->
             <div class="special-note-box">
                 <div class="sub-grid-header">
                     <span class="sub-title"><i class="fa-solid fa-pen-to-square"></i> 특이사항 메모</span>
                 </div>
-                <textarea id="mleSpecialNote" class="aams-textarea" style="width: 100%; height: 50px; border: none; border-bottom: 1px solid #cbd5e1; padding: 6px; font-size: 12px; resize: none;" placeholder="특이사항 메모를 입력하세요..."></textarea>
+                <textarea id="mleSpecialNote" class="aams-textarea" placeholder="특이사항 메모를 입력하세요..."></textarea>
             </div>
 
-            <!-- IO Sub Grid Panel (dw_1 / d_szt0io.srd / SZT0IO) -->
-            <div class="io-grid-box" style="flex: 1;">
+            <!-- 3차 하단: 입출금 내역 서브 그리드 패널 (dw_1 / d_szt0io.srd / SZT0IO) -->
+            <div class="io-grid-box">
                 <div class="sub-grid-header">
                     <span class="sub-title"><i class="fa-solid fa-money-bill-transfer"></i> 입출금 내역</span>
                 </div>
-                <div class="grid-table-wrapper" style="flex: 1; min-height: 170px;">
+                <div class="grid-table-wrapper">
                     <div id="grid-ja010b-io" class="tabulator-aams-grid"></div>
                 </div>
             </div>
@@ -73,6 +180,9 @@
     <!-- Inline Script for Ja010b View with Tabulator Grids -->
     <script th:inline="javascript">
         (function() {
+            const currentScript = document.currentScript;
+            const pane = currentScript ? (currentScript.closest('.tab-pane') || currentScript.closest('.view-container')) : null;
+
             let gridMaster = null;
             let gridDetail = null;
             let gridIo = null;
@@ -98,7 +208,7 @@
              *   5. f_dddwctl (THIS, 'mg_cd', dw_c.object.dddw [1], '', 1, "")
              */
             function ue_dddw_retrieve(corpGr) {
-                const filterSelect = document.getElementById("filterCorpGr");
+                const filterSelect = pane ? pane.querySelector("#filterCorpGr") : document.getElementById("filterCorpGr");
                 const targetCorpGr = corpGr != null ? corpGr : (filterSelect ? filterSelect.value : "");
 
                 f_dddwctl.retrieveMultiple({
@@ -132,6 +242,15 @@
                 return f_dddwctl.getLabel(dddwOptionsMap, dddwKey, codeVal);
             }
 
+            function getDddwOptions(dddwKey) {
+                const list = dddwOptionsMap[dddwKey] || [];
+                return list.map(item => {
+                    const code = (item.code != null ? item.code : (item.SEBU_CD != null ? item.SEBU_CD : (item.cd != null ? item.cd : ''))).toString().trim();
+                    const name = (item.name != null ? item.name : (item.SEBU_CD_NM != null ? item.SEBU_CD_NM : (item.dscr != null ? item.dscr : code))).toString().trim();
+                    return { label: name, value: code };
+                });
+            }
+
             function numFmt(val) {
                 if (val == null || val === "") return "0";
                 return Number(val).toLocaleString('ko-KR');
@@ -148,7 +267,7 @@
 
             // 1. Initialize Master Tabulator Grid
             function initMasterGrid() {
-                const container = document.getElementById("grid-ja010b-master");
+                const container = pane ? pane.querySelector("#master-grid") : document.getElementById("master-grid");
                 if (!container) return;
 
                 gridMaster = new Tabulator(container, {
@@ -166,35 +285,152 @@
                     },
                     columns: [
                         { title: "No.", formatter: "rownum", hozAlign: "center", width: 45, resizable: false, widthGrow: 0 },
-                        { title: "증권회사", field: "mgCd", minWidth: 90, formatter: cell => getDddwLabel('mg_cd', cell.getValue() || cell.getRow().getData().mgNm) },
-                        { title: "고객명", field: "fundNm", minWidth: 120 },
+                        { 
+                            title: "증권회사", 
+                            field: "mgCd", 
+                            minWidth: 90, 
+                            formatter: cell => getDddwLabel('mg_cd', cell.getValue() || cell.getRow().getData().mgNm),
+                            editor: "list",
+                            editorParams: {
+                                valuesLookup: () => getDddwOptions('mg_cd'),
+                                autocomplete: false,
+                                listOnEmpty: true,
+                                clearable: true
+                            },
+                            cellClick: function(e, cell) {
+                                cell.edit(true);
+                            }
+                        },
+                        { title: "고객명", field: "fundNm", minWidth: 120, editor: "input", cellClick: (e, cell) => cell.edit(true) },
                         { title: "<span style='color: #0d9488;'>관리번호</span>", field: "fundCd", hozAlign: "center", width: 75 },
-                        { title: "계좌번호", field: "acctNo", minWidth: 105, formatter: cell => cell.getValue() || '-' },
-                        { title: "계좌관리그룹", field: "seriesGb", hozAlign: "center", minWidth: 85, formatter: cell => getDddwLabel('series_gb', cell.getValue()) },
-                        { title: "고객<br/>유형", field: "typeGb", hozAlign: "center", minWidth: 75, formatter: cell => getDddwLabel('type_gb', cell.getValue() || cell.getRow().getData().typeGbNm) },
+                        { title: "계좌번호", field: "acctNo", minWidth: 105, formatter: cell => cell.getValue() || '-', editor: "input", cellClick: (e, cell) => cell.edit(true) },
+                        { 
+                            title: "계좌관리그룹", 
+                            field: "seriesGb", 
+                            hozAlign: "center", 
+                            minWidth: 85, 
+                            formatter: cell => getDddwLabel('series_gb', cell.getValue()),
+                            editor: "list",
+                            editorParams: {
+                                valuesLookup: () => getDddwOptions('series_gb'),
+                                autocomplete: false,
+                                listOnEmpty: true,
+                                clearable: true
+                            },
+                            cellClick: function(e, cell) {
+                                cell.edit(true);
+                            }
+                        },
+                        { 
+                            title: "고객<br/>유형", 
+                            field: "typeGb", 
+                            hozAlign: "center", 
+                            minWidth: 75, 
+                            formatter: cell => getDddwLabel('type_gb', cell.getValue() || cell.getRow().getData().typeGbNm),
+                            editor: "list",
+                            editorParams: {
+                                valuesLookup: () => getDddwOptions('type_gb'),
+                                autocomplete: false,
+                                listOnEmpty: true,
+                                clearable: true
+                            },
+                            cellClick: function(e, cell) {
+                                cell.edit(true);
+                            }
+                        },
                         {
                             title: "수수료(%)",
                             headerHozAlign: "center",
                             columns: [
-                                { title: "<span style='color: #2563eb;'>선취</span>", field: "preBasic", hozAlign: "right", minWidth: 55 },
-                                { title: "<span style='color: #2563eb;'>후취</span>", field: "basicPer", hozAlign: "right", minWidth: 55 }
+                                { title: "<span style='color: #2563eb;'>선취</span>", field: "preBasic", hozAlign: "right", minWidth: 55, editor: "number", editorParams: { step: 0.01 }, cellClick: (e, cell) => cell.edit(true) },
+                                { title: "<span style='color: #2563eb;'>후취</span>", field: "basicPer", hozAlign: "right", minWidth: 55, editor: "number", editorParams: { step: 0.01 }, cellClick: (e, cell) => cell.edit(true) }
                             ]
                         },
-                        { title: "<span style='color: #2563eb;'>목표<br/>수익(%)</span>", field: "bmPer", hozAlign: "right", minWidth: 75 },
-                        { title: "<span style='color: #2563eb;'>성과<br/>보수(%)</span>", field: "successPer", hozAlign: "right", minWidth: 75 },
-                        { title: "성과보수<br/>대상자산", field: "targetJasan", hozAlign: "center", minWidth: 95, formatter: cell => getDddwLabel('target_jasan', cell.getValue()) },
-                        { title: "최 초<br/>계약일", field: "fstSeoljYmd", hozAlign: "center", minWidth: 85, formatter: cell => formatDateVal(cell.getValue()) },
-                        { title: "<span style='color: #2563eb;'>(재)<br/>계약일</span>", field: "reSeoljYmd", hozAlign: "center", minWidth: 85, formatter: cell => `<span style="color: #2563eb; font-weight: 500;">${formatDateVal(cell.getValue())}</span>` },
+                        { title: "<span style='color: #2563eb;'>목표<br/>수익(%)</span>", field: "bmPer", hozAlign: "right", minWidth: 75, editor: "number", editorParams: { step: 0.01 }, cellClick: (e, cell) => cell.edit(true) },
+                        { title: "<span style='color: #2563eb;'>성과<br/>보수(%)</span>", field: "successPer", hozAlign: "right", minWidth: 75, editor: "number", editorParams: { step: 0.01 }, cellClick: (e, cell) => cell.edit(true) },
+                        { 
+                            title: "성과보수<br/>대상자산", 
+                            field: "targetJasan", 
+                            hozAlign: "center", 
+                            minWidth: 95, 
+                            formatter: cell => getDddwLabel('target_jasan', cell.getValue()),
+                            editor: "list",
+                            editorParams: {
+                                valuesLookup: () => getDddwOptions('target_jasan'),
+                                autocomplete: false,
+                                listOnEmpty: true,
+                                clearable: true
+                            },
+                            cellClick: function(e, cell) {
+                                cell.edit(true);
+                            }
+                        },
+                        { 
+                            title: "최 초<br/>계약일", 
+                            field: "fstSeoljYmd", 
+                            hozAlign: "center", 
+                            minWidth: 85, 
+                            formatter: cell => formatDateVal(cell.getValue()),
+                            editor: "input",
+                            editable: (cell) => !cell.getValue() || cell.getRow().getData().isNew,
+                            cellClick: function(e, cell) {
+                                cell.edit(true);
+                            }
+                        },
+                        { title: "<span style='color: #2563eb;'>(재)<br/>계약일</span>", field: "reSeoljYmd", hozAlign: "center", minWidth: 85, formatter: cell => `<span style="color: #2563eb; font-weight: 500;">${formatDateVal(cell.getValue())}</span>`, editor: "input", cellClick: (e, cell) => cell.edit(true) },
                         { title: "<span style='color: #2563eb;'>계약잔액</span>", field: "reSeoljAek", hozAlign: "right", minWidth: 100, formatter: cell => `<span style="color: #2563eb; font-weight: 500;">${numFmt(cell.getValue())}</span>` },
-                        { title: "수수료<br/>비용처리", field: "expenseYn", hozAlign: "center", minWidth: 85, formatter: cell => `<input type="checkbox" ${cell.getValue() === 'Y' ? 'checked' : ''} disabled />` },
+                        { 
+                            title: "수수료<br/>비용처리", 
+                            field: "expenseYn", 
+                            hozAlign: "center", 
+                            minWidth: 85, 
+                            formatter: cell => {
+                                const isChecked = (cell.getValue() === 'Y');
+                                return `<input type="checkbox" ${isChecked ? 'checked' : ''} style="pointer-events: none;" />`;
+                            },
+                            cellClick: function(e, cell) {
+                                cell.setValue(cell.getValue() === 'Y' ? 'N' : 'Y');
+                            }
+                        },
                         { title: "계약<br/>횟수", field: "gyulGi", hozAlign: "center", minWidth: 60 },
-                        { title: "계약<br/>기간", field: "sintakGigan", hozAlign: "center", minWidth: 60 },
+                        { title: "계약<br/>기간", field: "sintakGigan", hozAlign: "center", minWidth: 60, editor: "number", cellClick: (e, cell) => cell.edit(true) },
                         { title: "만기예정일", field: "afGyulYmd", hozAlign: "center", minWidth: 85, formatter: cell => formatDateVal(cell.getValue()) },
-                        { title: "<span style='color: #ef4444;'>계약종료일</span>", field: "haejiYmd", hozAlign: "center", minWidth: 85, formatter: cell => `<span style="color: #ef4444; font-weight: 500;">${formatDateVal(cell.getValue())}</span>` },
-                        { title: "운용역", field: "unyongSabun", hozAlign: "center", minWidth: 70, formatter: cell => getDddwLabel('unyong_sabun', cell.getValue()) },
-                        { title: "계좌별<br/>주식매매수수료율", field: "susuRt", hozAlign: "right", minWidth: 110 },
+                        { title: "<span style='color: #ef4444;'>계약종료일</span>", field: "haejiYmd", hozAlign: "center", minWidth: 85, formatter: cell => `<span style="color: #ef4444; font-weight: 500;">${formatDateVal(cell.getValue())}</span>`, editor: "input", cellClick: (e, cell) => cell.edit(true) },
+                        { 
+                            title: "운용역", 
+                            field: "unyongSabun", 
+                            hozAlign: "center", 
+                            minWidth: 70, 
+                            formatter: cell => getDddwLabel('unyong_sabun', cell.getValue()),
+                            editor: "list",
+                            editorParams: {
+                                valuesLookup: () => getDddwOptions('unyong_sabun'),
+                                autocomplete: false,
+                                listOnEmpty: true,
+                                clearable: true
+                            },
+                            cellClick: function(e, cell) {
+                                cell.edit(true);
+                            }
+                        },
+                        { 
+                            title: "계좌별<br/>주식매매수수료율", 
+                            field: "susuRt", 
+                            hozAlign: "right", 
+                            minWidth: 110,
+                            editor: "list",
+                            editorParams: {
+                                values: [
+                                    { label: "0.001", value: 0.001 },
+                                    { label: "0.0005", value: 0.0005 }
+                                ],
+                                autocomplete: false,
+                                listOnEmpty: true
+                            },
+                            cellClick: (e, cell) => cell.edit(true)
+                        },
                         { title: "특이사항", field: "noteText", hozAlign: "center", minWidth: 65 },
-                        { title: "<span style='color: #0d9488;'>이메일주소</span>", field: "email1", minWidth: 120 }
+                        { title: "<span style='color: #0d9488;'>이메일주소</span>", field: "email1", minWidth: 120, editor: "input", cellClick: (e, cell) => cell.edit(true) }
                     ]
                 });
 
@@ -203,7 +439,7 @@
                     row.select();
                     const data = row.getData();
                     const specialNote = data.specialNote || "";
-                    const mle = document.getElementById("mleSpecialNote");
+                    const mle = pane ? pane.querySelector("#mleSpecialNote") : document.getElementById("mleSpecialNote");
                     if (mle) mle.value = specialNote;
                     if (data.fundCd) {
                         fetchJa010bSubGrids(data.fundCd);
@@ -216,7 +452,7 @@
                     if (rows && rows.length > 0) {
                         rows[0].select();
                         const data = rows[0].getData();
-                        const mle = document.getElementById("mleSpecialNote");
+                        const mle = pane ? pane.querySelector("#mleSpecialNote") : document.getElementById("mleSpecialNote");
                         if (mle) mle.value = data.specialNote || "";
                         if (data.fundCd) {
                             fetchJa010bSubGrids(data.fundCd);
@@ -227,7 +463,7 @@
 
             // 2. Initialize Detail Grid (d_ja010b2.srd)
             function initDetailGrid() {
-                const container = document.getElementById("grid-ja010b-detail");
+                const container = pane ? pane.querySelector("#grid-ja010b-detail") : document.getElementById("grid-ja010b-detail");
                 if (!container) return;
 
                 gridDetail = new Tabulator(container, {
@@ -237,12 +473,12 @@
                     columnDefaults: { vertAlign: "middle", headerSortTristate: true },
                     columns: [
                         { title: "No.", formatter: "rownum", hozAlign: "center", width: 45, resizable: false, widthGrow: 0 },
-                        { title: "회<br/>기", field: "gyulGi", hozAlign: "center", width: 55 },
-                        { title: "(전)<br/>결산일자", field: "bfGyulYmd", hozAlign: "center", width: 95, formatter: cell => formatDateVal(cell.getValue()) },
-                        { title: "(당)<br/>결산일자", field: "afGyulYmd", hozAlign: "center", width: 95, formatter: cell => formatDateVal(cell.getValue()) },
+                        { title: "회<br/>기", field: "gyulGi", hozAlign: "center", width: 55, editor: "number" },
+                        { title: "(전)<br/>결산일자", field: "bfGyulYmd", hozAlign: "center", width: 95, formatter: cell => formatDateVal(cell.getValue()), editor: "input" },
+                        { title: "(당)<br/>결산일자", field: "afGyulYmd", hozAlign: "center", width: 95, formatter: cell => formatDateVal(cell.getValue()), editor: "input" },
                         { title: "구간<br/>일수", field: "ilsu", hozAlign: "center", width: 70 },
-                        { title: "결산기<br/>손익액", field: "giSonikAek", hozAlign: "right", minWidth: 100, formatter: cell => numFmt(cell.getValue()) },
-                        { title: "워터마크<br/>대상원본", field: "wmSeoljAek", hozAlign: "right", minWidth: 110, formatter: cell => numFmt(cell.getValue()) },
+                        { title: "결산기<br/>손익액", field: "giSonikAek", hozAlign: "right", minWidth: 100, formatter: cell => numFmt(cell.getValue()), editor: "number" },
+                        { title: "워터마크<br/>대상원본", field: "wmSeoljAek", hozAlign: "right", minWidth: 110, formatter: cell => numFmt(cell.getValue()), editor: "number" },
                         { title: "계약<br/>종료일", field: "haejiYmd", hozAlign: "center", width: 95, formatter: cell => formatDateVal(cell.getValue()) }
                     ]
                 });
@@ -250,7 +486,7 @@
 
             // 3. Initialize IO Grid (d_szt0io.srd)
             function initIoGrid() {
-                const container = document.getElementById("grid-ja010b-io");
+                const container = pane ? pane.querySelector("#grid-ja010b-io") : document.getElementById("grid-ja010b-io");
                 if (!container) return;
 
                 gridIo = new Tabulator(container, {
@@ -260,11 +496,11 @@
                     columnDefaults: { vertAlign: "middle", headerSortTristate: true },
                     columns: [
                         { title: "No.", formatter: "rownum", hozAlign: "center", width: 45, resizable: false, widthGrow: 0 },
-                        { title: "입출일자", field: "trYmd", hozAlign: "center", width: 95, formatter: cell => formatDateVal(cell.getValue()) },
+                        { title: "입출일자", field: "trYmd", hozAlign: "center", width: 95, formatter: cell => formatDateVal(cell.getValue()), editor: "input" },
                         { title: "입금액", field: "inAek", hozAlign: "right", minWidth: 95, formatter: cell => numFmt(cell.getValue()) },
                         { title: "출금액", field: "outAek", hozAlign: "right", minWidth: 95, formatter: cell => numFmt(cell.getValue()) },
                         { title: "입출금조정액", field: "ioJo", hozAlign: "right", minWidth: 100, formatter: cell => numFmt(cell.getValue()) },
-                        { title: "계약잔액", field: "wonbonAek", hozAlign: "right", minWidth: 100, formatter: cell => numFmt(cell.getValue()) },
+                        { title: "계약잔액", field: "wonbonAek", hozAlign: "right", minWidth: 100, formatter: cell => numFmt(cell.getValue()), editor: "number" },
                         { title: "운용잔여일", field: "giganIlsu", hozAlign: "center", width: 80 },
                         { title: "경과일수", field: "passIlsu", hozAlign: "center", width: 70 }
                     ]
@@ -307,7 +543,7 @@
             };
 
             function fetchJa010bSubGrids(fundCd) {
-                const filterSelect = document.getElementById("filterCorpGr");
+                const filterSelect = pane ? pane.querySelector("#filterCorpGr") : document.getElementById("filterCorpGr");
                 const corpGr = filterSelect ? filterSelect.value : "";
 
                 fetch(`/api/account/ja010b/detail?corpGr=${encodeURIComponent(corpGr)}&fundCd=${encodeURIComponent(fundCd)}`)
@@ -332,8 +568,6 @@
             ue_dddw_retrieve();
 
             // Register standard CorpGr change contract method on current tab pane
-            const currentScript = document.currentScript;
-            const pane = currentScript ? currentScript.closest('.tab-pane') : null;
             if (pane) {
                 pane.onCorpGrChange = function(val) {
                     window.loadJa010bMaster(val);
@@ -343,29 +577,13 @@
                 });
             }
 
-            // Retrieve active corpGr from cookie (savedCorpGr / corpGr)
-            const activeCorpGr = (typeof getCookie === 'function' ? (getCookie('savedCorpGr') || getCookie('corpGr')) : null);
-            if (!activeCorpGr || !activeCorpGr.trim()) {
-                alert('비정상적인 접근입니다.');
-                if (typeof handleLogout === 'function') {
-                    handleLogout();
-                } else {
-                    window.location.href = '/login';
-                }
-                return;
-            }
-
-            const adminYn = /*[[${adminYn}]]*/ "N";
-
-            // Show full list if adminYn == 'Y'. Otherwise, append 'corp_gr = :activeCorpGr'!
-            let addWhere = null;
-            if (adminYn !== 'Y') {
-                addWhere = `corp_gr = '${activeCorpGr}'`;
-            }
-
-            // Load DDDW filter options dynamically (dddwId='CORP_GR', seq=1)
-            if (typeof loadDddwOptions === 'function') {
-                loadDddwOptions("filterCorpGr", "CORP_GR", 1, addWhere, null, activeCorpGr);
+            // Initial Master Grid data load if initial data exists
+            if (initialMasterData && initialMasterData.length > 0) {
+                setTimeout(() => {
+                    if (gridMaster) {
+                        gridMaster.setData(initialMasterData);
+                    }
+                }, 50);
             }
         })();
 

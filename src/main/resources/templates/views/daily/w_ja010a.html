@@ -1,58 +1,6 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
-<div class="view-container ja010a-container" th:fragment="ja010aView">
-
-    <style>
-        .ja010a-container {
-            display: flex;
-            flex-direction: column;
-            height: 100%;
-            overflow: hidden;
-            box-sizing: border-box;
-            background-color: #f8fafc;
-        }
-
-        .ja010a-container .master-grid-section {
-            flex: 6;
-            min-height: 200px;
-            display: flex;
-            flex-direction: column;
-            padding: 6px 12px 2px 12px;
-        }
-
-        .ja010a-container .master-grid-section .grid-table-wrapper {
-            flex: 1;
-            height: 100%;
-            min-height: 0;
-        }
-
-        .ja010a-container .split-divider {
-            flex: 0 0 6px;
-            background-color: #cbd5e1;
-            margin: 2px 0;
-        }
-
-        .ja010a-container .lower-split-section {
-            flex: 4;
-            min-height: 200px;
-            display: flex;
-            flex-direction: column;
-            padding: 2px 12px 6px 12px;
-            margin-bottom: 0;
-        }
-
-        .ja010a-container .lower-split-section .panel-left {
-            display: flex;
-            flex-direction: column;
-            height: 100%;
-        }
-
-        .ja010a-container .lower-split-section .grid-table-wrapper {
-            flex: 1;
-            height: 100%;
-            min-height: 0;
-        }
-    </style>
+<div class="view-container layout-split-tb ja010a-container" th:fragment="ja010aView">
 
     <!-- Top Action Control Bar (Row 1) -->
     <div class="view-toolbar">
@@ -66,18 +14,18 @@
     </div>
 
     <!-- Upper Master Grid Section (dw_list / d_ja010a1.srd / SZX0AA) -->
-    <div class="grid-section master-grid-section">
+    <div class="grid-section split-top-section">
         <div class="grid-table-wrapper">
-            <div id="grid-ja010a-master" class="tabulator-aams-grid"></div>
+            <div id="master-grid" class="tabulator-aams-grid"></div>
         </div>
     </div>
 
     <!-- Split Bar Separator -->
-    <div class="split-divider"></div>
+    <div class="split-h-divider"></div>
 
     <!-- Lower Split Panels (dw_detail / d_ja010a2.srd / SZX0AB) -->
-    <div class="grid-section lower-split-section">
-        <div class="split-panel panel-left" style="flex: 1;">
+    <div class="grid-section split-bottom-section">
+        <div class="split-panel" style="flex: 1;">
             <div class="sub-grid-header">
                 <span class="sub-title"><i class="fa-solid fa-file-contract"></i> 회사 계약 및 변경 이력</span>
             </div>
@@ -90,6 +38,9 @@
     <!-- Inline Script for Ja010a View with Tabulator Grids -->
     <script th:inline="javascript">
         (function() {
+            const currentScript = document.currentScript;
+            const pane = currentScript ? (currentScript.closest('.tab-pane') || currentScript.closest('.view-container')) : null;
+
             let gridMaster = null;
             let gridDetail = null;
 
@@ -123,7 +74,7 @@
 
             // 1. Initialize Master Tabulator Grid (d_ja010a1 / SZX0AA)
             function initMasterGrid() {
-                const container = document.getElementById("grid-ja010a-master");
+                const container = pane ? pane.querySelector("#master-grid") : document.getElementById("master-grid");
                 if (!container) return;
 
                 gridMaster = new Tabulator(container, {
@@ -135,20 +86,84 @@
                     columnDefaults: { vertAlign: "middle", headerSortTristate: true },
                     columns: [
                         { title: "No.", formatter: "rownum", hozAlign: "center", width: 45, resizable: false, widthGrow: 0 },
-                        { title: "회사코드", field: "corpGr", hozAlign: "center", width: 80 },
-                        { title: "회사명", field: "companyName", minWidth: 140 },
-                        { title: "입금<br/>영업일수", field: "depositDd", hozAlign: "center", width: 95, formatter: cell => formatDepositDd(cell.getValue()) },
-                        { title: "<span style='color: #2563eb;'>작업<br/>기준일</span>", field: "hyunYmd", hozAlign: "center", width: 95, formatter: cell => `<span style="color: #2563eb; font-weight: 500;">${formatDateVal(cell.getValue())}</span>` },
-                        { title: "기준가<br/>계산일", field: "gijungaYmd", hozAlign: "center", width: 95, formatter: cell => formatDateVal(cell.getValue()) },
-                        { title: "관리<br/>시작일", field: "symd", hozAlign: "center", width: 95, formatter: cell => formatDateVal(cell.getValue()) },
-                        { title: "<span style='color: #ef4444;'>관리<br/>종료일</span>", field: "eymd", hozAlign: "center", width: 95, formatter: cell => `<span style="color: #ef4444; font-weight: 500;">${formatDateVal(cell.getValue())}</span>` },
-                        { title: "전영업일", field: "junyongYmd", hozAlign: "center", width: 95, formatter: cell => formatDateVal(cell.getValue()) },
-                        { title: "익영업일", field: "ikyongYmd", hozAlign: "center", width: 95, formatter: cell => formatDateVal(cell.getValue()) },
-                        { title: "3영업일", field: "thikyongYmd", hozAlign: "center", width: 95, formatter: cell => formatDateVal(cell.getValue()) },
-                        { title: "수수료<br/>비용처리", field: "expenseYn", hozAlign: "center", width: 90, formatter: cell => `<input type="checkbox" ${cell.getValue() === 'Y' ? 'checked' : ''} disabled />` },
-                        { title: "메뉴그룹", field: "customerGr", hozAlign: "center", width: 100 },
-                        { title: "수수료 입금계좌", field: "depositAccount", minWidth: 170 },
-                        { title: "비고", field: "bigo", minWidth: 150 }
+                        { 
+                            title: "회사코드", 
+                            field: "corpGr", 
+                            hozAlign: "center", 
+                            width: 80, 
+                            editor: "input",
+                            editable: (cell) => !cell.getValue() || cell.getRow().getData().isNew,
+                            cellClick: (e, cell) => cell.edit(true)
+                        },
+                        { title: "회사명", field: "companyName", minWidth: 140, editor: "input", cellClick: (e, cell) => cell.edit(true) },
+                        { 
+                            title: "입금<br/>영업일수", 
+                            field: "depositDd", 
+                            hozAlign: "center", 
+                            width: 95, 
+                            formatter: cell => formatDepositDd(cell.getValue()),
+                            editor: "list",
+                            editorParams: {
+                                values: [
+                                    { label: "5영업일", value: 5 },
+                                    { label: "7영업일", value: 7 }
+                                ],
+                                autocomplete: false,
+                                listOnEmpty: true
+                            },
+                            cellClick: (e, cell) => cell.edit(true)
+                        },
+                        { 
+                            title: "<span style='color: #2563eb;'>작업<br/>기준일</span>", 
+                            field: "hyunYmd", 
+                            hozAlign: "center", 
+                            width: 95, 
+                            formatter: cell => `<span style="color: #2563eb; font-weight: 500;">${formatDateVal(cell.getValue())}</span>`,
+                            editor: "input",
+                            cellClick: (e, cell) => cell.edit(true)
+                        },
+                        { title: "기준가<br/>계산일", field: "gijungaYmd", hozAlign: "center", width: 95, formatter: cell => formatDateVal(cell.getValue()), editor: "input", cellClick: (e, cell) => cell.edit(true) },
+                        { title: "관리<br/>시작일", field: "symd", hozAlign: "center", width: 95, formatter: cell => formatDateVal(cell.getValue()), editor: "input", cellClick: (e, cell) => cell.edit(true) },
+                        { 
+                            title: "<span style='color: #ef4444;'>관리<br/>종료일</span>", 
+                            field: "eymd", 
+                            hozAlign: "center", 
+                            width: 95, 
+                            formatter: cell => `<span style="color: #ef4444; font-weight: 500;">${formatDateVal(cell.getValue())}</span>`,
+                            editor: "input",
+                            cellClick: (e, cell) => cell.edit(true)
+                        },
+                        { title: "전영업일", field: "junyongYmd", hozAlign: "center", width: 95, formatter: cell => formatDateVal(cell.getValue()), editor: "input", cellClick: (e, cell) => cell.edit(true) },
+                        { title: "익영업일", field: "ikyongYmd", hozAlign: "center", width: 95, formatter: cell => formatDateVal(cell.getValue()), editor: "input", cellClick: (e, cell) => cell.edit(true) },
+                        { title: "3영업일", field: "thikyongYmd", hozAlign: "center", width: 95, formatter: cell => formatDateVal(cell.getValue()), editor: "input", cellClick: (e, cell) => cell.edit(true) },
+                        { 
+                            title: "수수료<br/>비용처리", 
+                            field: "expenseYn", 
+                            hozAlign: "center", 
+                            width: 90, 
+                            formatter: cell => {
+                                const isChecked = (cell.getValue() === 'Y');
+                                return `<input type="checkbox" ${isChecked ? 'checked' : ''} style="pointer-events: none;" />`;
+                            },
+                            cellClick: function(e, cell) {
+                                cell.setValue(cell.getValue() === 'Y' ? 'N' : 'Y');
+                            }
+                        },
+                        { 
+                            title: "메뉴그룹", 
+                            field: "customerGr", 
+                            hozAlign: "center", 
+                            width: 100,
+                            editor: "list",
+                            editorParams: {
+                                values: ["자산운용", "*자산운용", "자문회사", "*자문회사"],
+                                autocomplete: false,
+                                listOnEmpty: true
+                            },
+                            cellClick: (e, cell) => cell.edit(true)
+                        },
+                        { title: "수수료 입금계좌", field: "depositAccount", minWidth: 170, editor: "input", cellClick: (e, cell) => cell.edit(true) },
+                        { title: "비고", field: "bigo", minWidth: 150, editor: "input", cellClick: (e, cell) => cell.edit(true) }
                     ]
                 });
 
@@ -176,7 +191,7 @@
 
             // 2. Initialize Detail Tabulator Grid (d_ja010a2 / SZX0AB)
             function initDetailGrid() {
-                const container = document.getElementById("grid-ja010a-detail");
+                const container = pane ? pane.querySelector("#grid-ja010a-detail") : document.getElementById("grid-ja010a-detail");
                 if (!container) return;
 
                 gridDetail = new Tabulator(container, {
@@ -186,23 +201,23 @@
                     columnDefaults: { vertAlign: "middle", headerSortTristate: true },
                     columns: [
                         { title: "No.", formatter: "rownum", hozAlign: "center", width: 45, resizable: false, widthGrow: 0 },
-                        { title: "계약(변경)일자", field: "ymd", hozAlign: "center", width: 110, formatter: cell => formatDateVal(cell.getValue()) },
-                        { title: "회사명", field: "companyName", minWidth: 140 },
-                        { title: "사업자등록번호", field: "idno", hozAlign: "center", width: 125, formatter: cell => formatIdno(cell.getValue()) },
-                        { title: "계약일자", field: "contractYmd", hozAlign: "center", width: 105, formatter: cell => formatDateVal(cell.getValue()) },
-                        { title: "대표자명", field: "ceoNm", hozAlign: "center", width: 110 },
-                        { title: "대표전화번호", field: "telNo", hozAlign: "center", width: 120 },
-                        { title: "팩스번호", field: "faxNo", hozAlign: "center", width: 120 },
-                        { title: "E-Mail 주소", field: "email", minWidth: 150 },
-                        { title: "우편번호", field: "post", hozAlign: "center", width: 80 },
-                        { title: "주소", field: "juso", minWidth: 200 }
+                        { title: "계약(변경)일자", field: "ymd", hozAlign: "center", width: 110, formatter: cell => formatDateVal(cell.getValue()), editor: "input" },
+                        { title: "회사명", field: "companyName", minWidth: 140, editor: "input" },
+                        { title: "사업자등록번호", field: "idno", hozAlign: "center", width: 125, formatter: cell => formatIdno(cell.getValue()), editor: "input" },
+                        { title: "계약일자", field: "contractYmd", hozAlign: "center", width: 105, formatter: cell => formatDateVal(cell.getValue()), editor: "input" },
+                        { title: "대표자명", field: "ceoNm", hozAlign: "center", width: 110, editor: "input" },
+                        { title: "대표전화번호", field: "telNo", hozAlign: "center", width: 120, editor: "input" },
+                        { title: "팩스번호", field: "faxNo", hozAlign: "center", width: 120, editor: "input" },
+                        { title: "E-Mail 주소", field: "email", minWidth: 150, editor: "input" },
+                        { title: "우편번호", field: "post", hozAlign: "center", width: 80, editor: "input" },
+                        { title: "주소", field: "juso", minWidth: 200, editor: "input" }
                     ]
                 });
             }
 
             // Global functions for controller integration
             window.loadJa010aMaster = function(targetCorpGr) {
-                const filterSelect = document.getElementById("filterCorpGr");
+                const filterSelect = pane ? pane.querySelector("#filterCorpGr") : document.getElementById("filterCorpGr");
                 const corpGr = targetCorpGr != null ? targetCorpGr : (filterSelect ? filterSelect.value : "");
 
                 fetch('/api/company/ja010a/master')
@@ -246,8 +261,6 @@
             }
 
             // Register standard CorpGr change contract method on current tab pane
-            const currentScript = document.currentScript;
-            const pane = currentScript ? currentScript.closest('.tab-pane') : null;
             if (pane) {
                 pane.onCorpGrChange = function(val) {
                     window.loadJa010aMaster(val);

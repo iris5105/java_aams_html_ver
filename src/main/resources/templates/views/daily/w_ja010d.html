@@ -26,13 +26,16 @@
     <!-- Main Grid Section (d_ja010d1.srd) -->
     <div class="grid-section">
         <div class="grid-table-wrapper">
-            <div id="grid-ja010d" class="tabulator-aams-grid"></div>
+            <div id="master-grid" class="tabulator-aams-grid"></div>
         </div>
     </div>
 
     <!-- Page Specific Script (Mapper / API Data Fetching Only) -->
     <script th:inline="javascript">
         (function() {
+            const currentScript = document.currentScript;
+            const pane = currentScript ? (currentScript.closest('.tab-pane') || currentScript.closest('.view-container')) : null;
+
             const initialData = /*[[${dataList}]]*/ [];
             let gridJa010d = null;
 
@@ -50,7 +53,7 @@
             }
 
             function initJa010dGrid() {
-                const container = document.getElementById("grid-ja010d");
+                const container = pane ? pane.querySelector("#master-grid") : document.getElementById("master-grid");
                 if (!container) return;
 
                 gridJa010d = new Tabulator(container, {
@@ -61,11 +64,11 @@
                     columnDefaults: { vertAlign: "middle", headerSortTristate: true },
                     columns: [
                         { title: "No.", formatter: "rownum", hozAlign: "center", width: 45, resizable: false, widthGrow: 0 },
-                        { title: "관리번호", field: "fundCd", hozAlign: "center", width: 90 },
+                        { title: "관리번호", field: "fundCd", hozAlign: "center", width: 90, editor: "input", cellClick: (e, cell) => cell.edit(true) },
                         { title: "고객명", field: "fundNm", minWidth: 160 },
                         { title: "입.출금일자", field: "trYmd", hozAlign: "center", width: 105, formatter: cell => formatDateVal(cell.getValue()) },
-                        { title: "입금액", field: "inAek", hozAlign: "right", minWidth: 120, formatter: cell => numFmt(cell.getValue()) },
-                        { title: "출금액", field: "outAek", hozAlign: "right", minWidth: 120, formatter: cell => numFmt(cell.getValue()) },
+                        { title: "입금액", field: "inAek", hozAlign: "right", minWidth: 120, formatter: cell => numFmt(cell.getValue()), editor: "number", cellClick: (e, cell) => cell.edit(true) },
+                        { title: "출금액", field: "outAek", hozAlign: "right", minWidth: 120, formatter: cell => numFmt(cell.getValue()), editor: "number", cellClick: (e, cell) => cell.edit(true) },
                         { title: "계약잔액", field: "wonbonAek", hozAlign: "right", minWidth: 130, formatter: cell => numFmt(cell.getValue()) },
                         { title: "입출금조정액", field: "ioJo", hozAlign: "right", minWidth: 130, formatter: cell => numFmt(cell.getValue()) }
                     ]
@@ -74,9 +77,9 @@
 
             // Data retrieval function (Mapper / REST API)
             window.loadJa010dData = function(selectedCorpGr) {
-                const filterSelect = document.getElementById("filterCorpGr");
+                const filterSelect = pane ? pane.querySelector("#filterCorpGr") : document.getElementById("filterCorpGr");
                 const corpGr = selectedCorpGr != null ? selectedCorpGr : (filterSelect ? filterSelect.value : "");
-                const filterTrYmdInput = document.getElementById("filterTrYmd");
+                const filterTrYmdInput = pane ? pane.querySelector("#filterTrYmd") : document.getElementById("filterTrYmd");
                 const trYmd = filterTrYmdInput ? filterTrYmdInput.value : "";
 
                 fetch(`/api/account/ja010d/list?corpGr=${encodeURIComponent(corpGr)}&trYmd=${encodeURIComponent(trYmd)}`)
@@ -90,8 +93,6 @@
             };
 
             // Register standard CorpGr change contract method on current tab pane
-            const currentScript = document.currentScript;
-            const pane = currentScript ? currentScript.closest('.tab-pane') : null;
             if (pane) {
                 pane.onCorpGrChange = function(val) {
                     window.loadJa010dData(val);

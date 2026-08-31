@@ -24,13 +24,13 @@ public class ProposalController {
     private final MenuService menuService;
     private final com.kfp.aams.domain.common.service.DddwService dddwService;
 
-    @GetMapping({"/views/w_proposal", "/views/daily/w_proposal"})
+    @GetMapping({ "/views/w_proposal", "/views/daily/w_proposal" })
     public String viewProposal(@AuthenticationPrincipal UserPrincipal principal,
-                               @RequestParam(name = "corpGr", required = false) String paramCorpGr,
-                               @CookieValue(name = "savedCorpGr", required = false) String cookieCorpGr1,
-                               @CookieValue(name = "corpGr", required = false) String cookieCorpGr2,
-                               Model model,
-                               jakarta.servlet.http.HttpSession session) {
+            @RequestParam(name = "corpGr", required = false) String paramCorpGr,
+            @CookieValue(name = "savedCorpGr", required = false) String cookieCorpGr1,
+            @CookieValue(name = "corpGr", required = false) String cookieCorpGr2,
+            Model model,
+            jakarta.servlet.http.HttpSession session) {
         String corpGr = resolveCorpGr(paramCorpGr, cookieCorpGr1, cookieCorpGr2, principal);
         String adminYn = (principal != null && principal.getAdminYn() != null) ? principal.getAdminYn() : "N";
 
@@ -56,9 +56,9 @@ public class ProposalController {
     @GetMapping("/api/proposal/master")
     @ResponseBody
     public List<ProposalMasterDto> getMasterList(@AuthenticationPrincipal UserPrincipal principal,
-                                                 @RequestParam(name = "corpGr", required = false) String paramCorpGr,
-                                                 @CookieValue(name = "savedCorpGr", required = false) String cookieCorpGr1,
-                                                 @CookieValue(name = "corpGr", required = false) String cookieCorpGr2) {
+            @RequestParam(name = "corpGr", required = false) String paramCorpGr,
+            @CookieValue(name = "savedCorpGr", required = false) String cookieCorpGr1,
+            @CookieValue(name = "corpGr", required = false) String cookieCorpGr2) {
         String corpGr = resolveCorpGr(paramCorpGr, cookieCorpGr1, cookieCorpGr2, principal);
         return proposalService.getProposalMasterList(corpGr);
     }
@@ -66,20 +66,28 @@ public class ProposalController {
     @GetMapping("/api/proposal/comment")
     @ResponseBody
     public List<ProposalCommentDto> getCommentList(@AuthenticationPrincipal UserPrincipal principal,
-                                                   @RequestParam(name = "corpGr", required = false) String paramCorpGr,
-                                                   @CookieValue(name = "savedCorpGr", required = false) String cookieCorpGr1,
-                                                   @CookieValue(name = "corpGr", required = false) String cookieCorpGr2,
-                                                   @RequestParam(name = "ymd", required = false) String ymd,
-                                                   @RequestParam(name = "proposer", required = false) String proposer) {
+            @RequestParam(name = "corpGr", required = false) String paramCorpGr,
+            @CookieValue(name = "savedCorpGr", required = false) String cookieCorpGr1,
+            @CookieValue(name = "corpGr", required = false) String cookieCorpGr2,
+            @RequestParam(name = "ymd", required = false) String ymd,
+            @RequestParam(name = "proposer", required = false) String proposer) {
         String corpGr = resolveCorpGr(paramCorpGr, cookieCorpGr1, cookieCorpGr2, principal);
-        return proposalService.getProposalCommentList(corpGr, ymd, proposer);
+        String gsUser = (principal != null && principal.getUserNm() != null && !principal.getUserNm().isBlank())
+                ? principal.getUserNm()
+                : (principal != null ? principal.getUserId() : "");
+        return proposalService.getProposalCommentList(corpGr, ymd, proposer, gsUser);
     }
 
-    private String resolveCorpGr(String paramCorpGr, String cookieCorpGr1, String cookieCorpGr2, UserPrincipal principal) {
-        if (paramCorpGr != null && !paramCorpGr.isBlank()) return paramCorpGr;
-        if (cookieCorpGr1 != null && !cookieCorpGr1.isBlank()) return cookieCorpGr1;
-        if (cookieCorpGr2 != null && !cookieCorpGr2.isBlank()) return cookieCorpGr2;
-        if (principal != null && principal.getCorpGr() != null && !principal.getCorpGr().isBlank()) return principal.getCorpGr();
+    private String resolveCorpGr(String paramCorpGr, String cookieCorpGr1, String cookieCorpGr2,
+            UserPrincipal principal) {
+        if (paramCorpGr != null && !paramCorpGr.isBlank())
+            return paramCorpGr;
+        if (cookieCorpGr1 != null && !cookieCorpGr1.isBlank())
+            return cookieCorpGr1;
+        if (cookieCorpGr2 != null && !cookieCorpGr2.isBlank())
+            return cookieCorpGr2;
+        if (principal != null && principal.getCorpGr() != null && !principal.getCorpGr().isBlank())
+            return principal.getCorpGr();
         return "";
     }
 }

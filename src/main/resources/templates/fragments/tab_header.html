@@ -2,16 +2,20 @@
 <html xmlns:th="http://www.thymeleaf.org">
 <body>
 
-    <!-- 1. Common Toolbar Buttons (닫기 ~ 엑셀) -->
-    <div th:fragment="toolbarButtons" class="toolbar-buttons">
-        <button class="t-btn btn-close" onclick="tabManager.closeCurrentTab()"><i class="fa-solid fa-xmark"></i> 닫기</button>
-        <button class="t-btn btn-refresh" onclick="if(typeof onRefresh === 'function') onRefresh(); else if(typeof loadJa010bMaster === 'function') loadJa010bMaster();"><i class="fa-solid fa-rotate"></i> 새로고침</button>
-        <button class="t-btn btn-search" onclick="if(typeof onSearch === 'function') onSearch(); else if(typeof loadJa010bMaster === 'function') loadJa010bMaster();"><i class="fa-solid fa-magnifying-glass"></i> 조회</button>
-        <button class="t-btn btn-input" onclick="if(typeof onInput === 'function') onInput(); else if(typeof onJa010bInput === 'function') onJa010bInput();"><i class="fa-solid fa-plus"></i> 입력</button>
-        <button class="t-btn btn-save" onclick="if(typeof onSave === 'function') onSave(); else if(typeof onJa010bSave === 'function') onJa010bSave();"><i class="fa-solid fa-floppy-disk"></i> 저장</button>
-        <button class="t-btn btn-excel" onclick="if(typeof onExcel === 'function') onExcel(); else if(typeof onJa010bExcel === 'function') onJa010bExcel();"><i class="fa-regular fa-file-excel"></i> 엑셀</button>
+    <!-- 1. Common Toolbar Buttons (닫기 버튼 분리 div + 액션 버튼 toolbar-buttons div) -->
+    <div th:fragment="toolbarButtons" class="toolbar-button-group">
+        <div class="toolbar-close-wrap">
+            <button class="t-btn btn-close" onclick="onToolbarClose(this)"><i class="fa-solid fa-xmark"></i> 닫기</button>
+        </div>
+        <div class="toolbar-buttons">
+            <button class="t-btn btn-refresh" onclick="onToolbarRefresh(this)"><i class="fa-solid fa-rotate"></i> 새로고침</button>
+            <button class="t-btn btn-search" onclick="onToolbarSearch(this)"><i class="fa-solid fa-magnifying-glass"></i> 조회</button>
+            <button class="t-btn btn-input" onclick="onToolbarInput(this)"><i class="fa-solid fa-plus"></i> 입력</button>
+            <button class="t-btn btn-save" onclick="onToolbarSave(this)"><i class="fa-solid fa-floppy-disk"></i> 저장</button>
+            <button class="t-btn btn-excel" onclick="onToolbarExcel(this)"><i class="fa-regular fa-file-excel"></i> 엑셀</button>
+        </div>
     </div>
-
+    
     <!-- 2. Common Breadcrumb Fragment -->
     <div th:fragment="toolbarBreadcrumb" class="toolbar-right breadcrumb">
         <i class="fa-solid fa-house"></i> <span class="breadcrumb-text" th:text="${fullpgm2 != null ? fullpgm2 : '사무관리 > 자문일일 > 일위작업 > 1011 계좌계약정보관리 [w_ja010b]'}"></span>

@@ -12,5 +12,6 @@ public interface ProposalMapper {
     List<ProposalMasterDto> selectProposalMasterList(@Param("corpGr") String corpGr);
     List<ProposalCommentDto> selectProposalCommentList(@Param("corpGr") String corpGr, 
                                                       @Param("ymd") String ymd, 
-                                                      @Param("proposer") String proposer);
+                                                      @Param("proposer") String proposer,
+                                                      @Param("gsUser") String gsUser);
 }

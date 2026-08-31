@@ -28,9 +28,12 @@
              , TO_CHAR(pa.YMD, 'YYYY-MM-DD HH24:MI:SS') AS ymd
              , pa.SB_NM                         AS sbNm
              , pa.APPENDING                     AS appending
-             , 1 AS color
+             , CASE WHEN pa.SB_NM = #{gsUser} THEN 16711680
+                                              ELSE 33554432 END AS color
           FROM PROPOSAL_APPEND pa
-         WHERE pa.CORP_GR = #{corpGr}
+         WHERE pa.CORP_GR    = #{corpGr}
+           AND pa.P_YMD      = TO_DATE(#{ymd}, 'YYYY-MM-DD HH24:MI:SS')
+           AND pa.P_PROPOSER = #{proposer}
          ORDER BY pa.YMD DESC
     </select>
 

@@ -21,6 +21,7 @@ public class DddwService {
 
     private final DddwMapper dddwMapper;
     private final JdbcTemplate jdbcTemplate;
+    private final java.util.Map<String, List<DddwDto>> dddwCache = new java.util.concurrent.ConcurrentHashMap<>();
 
     /**
      * Build dynamic SQL from WDDDWCTL metadata and fetch DddwDto key-value list.
@@ -60,6 +61,11 @@ public class DddwService {
                 targetDddwId = targetDddwId.substring(0, lastUnderscore);
                 targetSeq = Integer.parseInt(potentialSeq);
             }
+        }
+
+        String cacheKey = targetDddwId + ":" + targetSeq + ":" + (corpGr != null ? corpGr.trim() : "") + ":" + (addWhere != null ? addWhere.trim() : "") + ":" + (addOrderBy != null ? addOrderBy.trim() : "");
+        if (dddwCache.containsKey(cacheKey)) {
+            return dddwCache.get(cacheKey);
         }
 
         List<DddwDto> dddwList = new ArrayList<>();
@@ -142,12 +148,8 @@ public class DddwService {
             dddwList.add(new DddwDto("", "데이터없음", ""));
         }
 
-        // Store in Session for view/page access
-        if (session != null) {
-            String cacheKey = targetDddwId + "_" + targetSeq;
-            session.setAttribute("DDDW_" + cacheKey, dddwList);
-            session.setAttribute("DDDW_" + targetDddwId, dddwList);
-        }
+        // Cache in ConcurrentHashMap
+        dddwCache.put(cacheKey, dddwList);
 
         return dddwList;
     }

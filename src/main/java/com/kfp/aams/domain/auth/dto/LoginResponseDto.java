@@ -18,6 +18,7 @@ public class LoginResponseDto {
     private String refreshToken;
     private String userId;
     private String corpGr;
+    private String userNm;
     private String encEMail;
     private String companyName;
     private String hyunYmd;

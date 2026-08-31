@@ -19,13 +19,16 @@
     <!-- Main Grid Section (d_szx0se.srd / SZX0SE) -->
     <div class="grid-section">
         <div class="grid-table-wrapper">
-            <div id="grid-szx0se" class="tabulator-aams-grid"></div>
+            <div id="master-grid" class="tabulator-aams-grid"></div>
         </div>
     </div>
 
     <!-- Page Specific Script with PowerBuilder f_dddwctl / ue_dddw_retrieve Integration -->
     <script th:inline="javascript">
         (function() {
+            const currentScript = document.currentScript;
+            const pane = currentScript ? (currentScript.closest('.tab-pane') || currentScript.closest('.view-container')) : null;
+
             const initialData = /*[[${dataList}]]*/ [];
             let gridSzx0se = null;
 
@@ -48,7 +51,7 @@
              *   6. f_dddwctl (THIS, 'ga', '', ',,', 1, '')
              */
             function ue_dddw_retrieve(corpGr) {
-                const filterSelect = document.getElementById("filterCorpGr");
+                const filterSelect = pane ? pane.querySelector("#filterCorpGr") : document.getElementById("filterCorpGr");
                 const targetCorpGr = corpGr != null ? corpGr : (filterSelect ? filterSelect.value : "");
 
                 f_dddwctl.retrieveMultiple({
@@ -83,13 +86,22 @@
                 return f_dddwctl.getLabel(dddwOptionsMap, dddwKey, codeVal);
             }
 
+            function getDddwOptions(dddwKey) {
+                const list = dddwOptionsMap[dddwKey] || [];
+                return list.map(item => {
+                    const code = (item.code != null ? item.code : (item.SEBU_CD != null ? item.SEBU_CD : (item.cd != null ? item.cd : ''))).toString().trim();
+                    const name = (item.name != null ? item.name : (item.SEBU_CD_NM != null ? item.SEBU_CD_NM : (item.dscr != null ? item.dscr : code))).toString().trim();
+                    return { label: name, value: code };
+                });
+            }
+
             function numFmt(val) {
                 if (val == null || val === "") return "0";
                 return Number(val).toLocaleString('ko-KR');
             }
 
             function initSzx0seGrid() {
-                const container = document.getElementById("grid-szx0se");
+                const container = pane ? pane.querySelector("#master-grid") : document.getElementById("master-grid");
                 if (!container) return;
 
                 gridSzx0se = new Tabulator(container, {
@@ -101,7 +113,7 @@
                     columns: [
                         { title: "No.", formatter: "rownum", hozAlign: "center", width: 45, resizable: false, widthGrow: 0 },
                         
-                        // Requirement 1: Checkbox for '미사용' (used == '0' -> checked)
+                        // Requirement 1: Checkbox for '미사용' (used == '0' -> checked, tabsequence=10)
                         { 
                             title: "미사용", 
                             field: "used", 
@@ -110,23 +122,85 @@
                             formatter: cell => {
                                 const val = String(cell.getValue() != null ? cell.getValue() : '').trim();
                                 const isChecked = (val === '0');
-                                return `<input type="checkbox" ${isChecked ? 'checked' : ''} disabled />`;
-                            } 
+                                return `<input type="checkbox" ${isChecked ? 'checked' : ''} style="pointer-events: none;" />`;
+                            },
+                            cellClick: function(e, cell) {
+                                const curVal = String(cell.getValue() != null ? cell.getValue() : '').trim();
+                                cell.setValue(curVal === '0' ? '1' : '0');
+                            }
                         },
                         
-                        // Requirement 2: Dynamic DDDW Formatters powered by f_dddwctl / ue_dddw_retrieve
-                        { title: "대분류", field: "seriesG1", hozAlign: "center", width: 85, formatter: cell => getDddwLabel('series_g1', cell.getValue()) },
-                        { title: "시리즈(상품분류)", field: "seriesG2", hozAlign: "center", width: 110, formatter: cell => getDddwLabel('series_g2', cell.getValue()) },
-                        { title: "시리즈(상품분류)명", field: "seriesNm", hozAlign: "center", width: 160 },
-                        { title: "평잔구간", field: "gugan", hozAlign: "center", width: 160, formatter: cell => getDddwLabel('gugan', cell.getValue()) },
-                        { title: "금감원<br/>보고분류", field: "ga", hozAlign: "center", width: 60, formatter: cell => getDddwLabel('ga', cell.getValue()) },
-                        { title: "재설정기한<br/>(년)", field: "reSeoljYear", hozAlign: "center", width: 105 },
-                        { title: "신탁기간<br/>(월)", field: "sintakGigan", hozAlign: "center", width: 85 },
-                        { title: "보수기간<br/>(월)", field: "bosuGigan", hozAlign: "center", width: 85 },
-                        { title: "목표수익률<br/>(%)", field: "mokpyoSuikPer", hozAlign: "right", minWidth: 110 },
-                        { title: "선취수수료<br/>(%)", field: "preBasic", hozAlign: "right", minWidth: 100 },
-                        { title: "운용보수율료<br/>(%)", field: "basicPer", hozAlign: "right", minWidth: 100 },
-                        { title: "성과보수<br/>(%)", field: "successPer", hozAlign: "right", minWidth: 100 },
+                        // Requirement 2: Dynamic DDDW Formatters & Editors (tabsequence=20, 30, 40...)
+                        { 
+                            title: "대분류", 
+                            field: "seriesG1", 
+                            hozAlign: "center", 
+                            width: 85, 
+                            formatter: cell => getDddwLabel('series_g1', cell.getValue()),
+                            editor: "list",
+                            editorParams: {
+                                valuesLookup: () => getDddwOptions('series_g1'),
+                                autocomplete: false,
+                                listOnEmpty: true,
+                                clearable: true
+                            },
+                            cellClick: function(e, cell) {
+                                cell.edit(true);
+                            }
+                        },
+                        { 
+                            title: "시리즈(상품분류)", 
+                            field: "seriesG2", 
+                            hozAlign: "center", 
+                            width: 110, 
+                            formatter: cell => getDddwLabel('series_g2', cell.getValue()),
+                            editor: "input",
+                            cellClick: function(e, cell) {
+                                cell.edit(true);
+                            }
+                        },
+                        { title: "시리즈(상품분류)명", field: "seriesNm", hozAlign: "left", width: 160, editor: "input", cellClick: (e, cell) => cell.edit(true) },
+                        { 
+                            title: "평잔구간", 
+                            field: "gugan", 
+                            hozAlign: "center", 
+                            width: 160, 
+                            formatter: cell => getDddwLabel('gugan', cell.getValue()),
+                            editor: "list",
+                            editorParams: {
+                                valuesLookup: () => getDddwOptions('gugan'),
+                                autocomplete: false,
+                                listOnEmpty: true,
+                                clearable: true
+                            },
+                            cellClick: function(e, cell) {
+                                cell.edit(true);
+                            }
+                        },
+                        { 
+                            title: "금감원<br/>보고분류", 
+                            field: "ga", 
+                            hozAlign: "center", 
+                            width: 60, 
+                            formatter: cell => getDddwLabel('ga', cell.getValue()),
+                            editor: "list",
+                            editorParams: {
+                                valuesLookup: () => getDddwOptions('ga'),
+                                autocomplete: false,
+                                listOnEmpty: true,
+                                clearable: true
+                            },
+                            cellClick: function(e, cell) {
+                                cell.edit(true);
+                            }
+                        },
+                        { title: "재설정기한<br/>(년)", field: "reSeoljYear", hozAlign: "center", width: 105, editor: "number", cellClick: (e, cell) => cell.edit(true) },
+                        { title: "신탁기간<br/>(월)", field: "sintakGigan", hozAlign: "center", width: 85, editor: "number", cellClick: (e, cell) => cell.edit(true) },
+                        { title: "보수기간<br/>(월)", field: "bosuGigan", hozAlign: "center", width: 85, editor: "number", cellClick: (e, cell) => cell.edit(true) },
+                        { title: "목표수익률<br/>(%)", field: "mokpyoSuikPer", hozAlign: "right", minWidth: 110, editor: "number", editorParams: { step: 0.01 }, cellClick: (e, cell) => cell.edit(true) },
+                        { title: "선취수수료<br/>(%)", field: "preBasic", hozAlign: "right", minWidth: 100, editor: "number", editorParams: { step: 0.01 }, cellClick: (e, cell) => cell.edit(true) },
+                        { title: "운용보수율<br/>(%)", field: "basicPer", hozAlign: "right", minWidth: 100, editor: "number", editorParams: { step: 0.01 }, cellClick: (e, cell) => cell.edit(true) },
+                        { title: "성과보수<br/>(%)", field: "successPer", hozAlign: "right", minWidth: 100, editor: "number", editorParams: { step: 0.01 }, cellClick: (e, cell) => cell.edit(true) },
                         { 
                             title: "마감일자<br/>사용여부", 
                             field: "magamUsed", 
@@ -135,8 +209,12 @@
                             formatter: cell => {
                                 const val = String(cell.getValue() != null ? cell.getValue() : '').trim();
                                 const isChecked = (val === '1');
-                                return `<input type="checkbox" ${isChecked ? 'checked' : ''} disabled />`;
-                            } 
+                                return `<input type="checkbox" ${isChecked ? 'checked' : ''} style="pointer-events: none;" />`;
+                            },
+                            cellClick: function(e, cell) {
+                                const curVal = String(cell.getValue() != null ? cell.getValue() : '').trim();
+                                cell.setValue(curVal === '1' ? '0' : '1');
+                            }
                         },
                         { 
                             title: "수요예측<br/>생성여부", 
@@ -145,19 +223,39 @@
                             width: 65, 
                             formatter: cell => {
                                 const val = String(cell.getValue() != null ? cell.getValue() : '').trim();
-                                const isChecked = (val === '1' );
-                                return `<input type="checkbox" ${isChecked ? 'checked' : ''} disabled />`;
-                            } 
+                                const isChecked = (val === '1');
+                                return `<input type="checkbox" ${isChecked ? 'checked' : ''} style="pointer-events: none;" />`;
+                            },
+                            cellClick: function(e, cell) {
+                                const curVal = String(cell.getValue() != null ? cell.getValue() : '').trim();
+                                cell.setValue(curVal === '1' ? '0' : '1');
+                            }
                         },
-                        { title: "BM그룹<br/>(9420)", field: "bmGr", hozAlign: "center", width: 90, formatter: cell => getDddwLabel('bm_gr', cell.getValue()) },
-                        { title: "비고", field: "bigo", minWidth: 150 }
+                        { 
+                            title: "BM그룹<br/>(9420)", 
+                            field: "bmGr", 
+                            hozAlign: "center", 
+                            width: 90, 
+                            formatter: cell => getDddwLabel('bm_gr', cell.getValue()),
+                            editor: "list",
+                            editorParams: {
+                                valuesLookup: () => getDddwOptions('bm_gr'),
+                                autocomplete: false,
+                                listOnEmpty: true,
+                                clearable: true
+                            },
+                            cellClick: function(e, cell) {
+                                cell.edit(true);
+                            }
+                        },
+                        { title: "비고", field: "bigo", minWidth: 150, editor: "input", cellClick: (e, cell) => cell.edit(true) }
                     ]
                 });
             }
 
             // Data retrieval function (Mapper / REST API)
             window.loadSzx0seData = function(selectedCorpGr) {
-                const filterSelect = document.getElementById("filterCorpGr");
+                const filterSelect = pane ? pane.querySelector("#filterCorpGr") : document.getElementById("filterCorpGr");
                 const corpGr = selectedCorpGr != null ? selectedCorpGr : (filterSelect ? filterSelect.value : "");
 
                 // Re-trigger ue_dddw_retrieve when corpGr changes (matches dw_c::itemchanged event in w_szx0se.srw)
@@ -174,8 +272,6 @@
             };
 
             // Register standard CorpGr change contract method on current tab pane
-            const currentScript = document.currentScript;
-            const pane = currentScript ? currentScript.closest('.tab-pane') : null;
             if (pane) {
                 pane.onCorpGrChange = function(val) {
                     window.loadSzx0seData(val);
@@ -183,6 +279,24 @@
                 pane.addEventListener("corpGrChanged", function(e) {
                     window.loadSzx0seData(e.detail ? e.detail.corpGr : val);
                 });
+                pane.getNewRowData = function() {
+                    const filterSelect = pane.querySelector("#filterCorpGr");
+                    const corpGr = filterSelect ? filterSelect.value : "";
+                    return {
+                        corpGr: corpGr,
+                        used: '1',
+                        magamUsed: '0',
+                        dpUsed: '0',
+                        reSeoljYear: 1,
+                        sintakGigan: 12,
+                        bosuGigan: 12,
+                        mokpyoSuikPer: 0,
+                        preBasic: 0,
+                        basicPer: 0,
+                        successPer: 0,
+                        isNew: true
+                    };
+                };
             }
 
             // Initialize Grid & Trigger ue_dddw_retrieve on page load

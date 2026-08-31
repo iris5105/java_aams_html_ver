@@ -20,7 +20,10 @@ public class ProposalService {
         return proposalMapper.selectProposalMasterList(corpGr);
     }
 
-    public List<ProposalCommentDto> getProposalCommentList(String corpGr, String ymd, String proposer) {
-        return proposalMapper.selectProposalCommentList(corpGr, ymd, proposer);
+    public List<ProposalCommentDto> getProposalCommentList(String corpGr, String ymd, String proposer, String gsUser) {
+        if (corpGr == null || corpGr.isBlank() || ymd == null || ymd.isBlank() || proposer == null || proposer.isBlank()) {
+            return java.util.Collections.emptyList();
+        }
+        return proposalMapper.selectProposalCommentList(corpGr, ymd, proposer, gsUser);
     }
 }
