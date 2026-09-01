@@ -53,4 +53,17 @@ public class MenuDto {
         }
         return go + " " + nm;
     }
+
+    /**
+     * Root top category PGM_NO derived from FULLPGM1 (e.g. 0;00000;00004;00689 -> 00004)
+     */
+    public String getRootTopPgmNo() {
+        if (fullpgm1 != null && !fullpgm1.isBlank()) {
+            String[] parts = fullpgm1.split(";");
+            if (parts.length > 2 && !"00000".equals(parts[2].trim()) && !"0".equals(parts[2].trim())) {
+                return parts[2].trim();
+            }
+        }
+        return parentPgm;
+    }
 }

@@ -38,7 +38,7 @@ public class HomeController {
                 .format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"));
 
         List<MenuDto> topMenuList = menuService.getTopMenuList();
-        String activePgmNo = (topMenuList != null && !topMenuList.isEmpty()) ? topMenuList.get(0).getPgmNo() : "01000";
+        String activePgmNo = (topMenuList != null && !topMenuList.isEmpty()) ? topMenuList.get(0).getPgmNo() : "00804";
         List<MenuDto> sideMenuList = menuService.getSideMenuList(activePgmNo);
 
         model.addAttribute("corpGr", corpGr);

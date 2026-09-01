@@ -27,8 +27,103 @@ function safeFetchJson(url, options) {
         });
 }
 
-let g_currentPgmNo = '01000';
+window.g_currentPgmNo = '00804';
 let g_lastIsMobile = (window.innerWidth <= 1100);
+
+/**
+ * Maps standard AAMS 4-digit program numbering to root top category PGM_NO:
+ * 0001 ~ 0099 : 00822 (손익차등)
+ * 1000 ~ 1999 : 00804 (자문일일)
+ * 2000 ~ 2999 : 00004 (공모청약(관리))
+ * 3000 ~ 3499 : 00013 (자산운용)
+ * 3500 ~ 3999 : 00153 (US Portfolio Model)
+ * 4000 ~ 4999 : 00091 (외화자산운용)
+ * 5000 ~ 5029 : 00030 (원장조회)
+ * 5030 ~ 5049 : 00359 (보고서)
+ * 5050 ~ 5999 : 00030 (원장조회)
+ * 8000 ~ 8999 : 00055 (코드관리)
+ * 9300 ~ 9990 : 00001 (시스템관리)
+ * 9991 ~ 9999 : 00009 (프레임관리)
+ */
+function getTopPgmNoByGo(goNum) {
+    if (goNum === null || goNum === undefined) return null;
+    const n = parseInt(goNum, 10);
+    if (isNaN(n)) return null;
+
+    if (n >= 1 && n <= 99) return '00822';      // 손익차등
+    if (n >= 1000 && n <= 1999) return '00804'; // 자문일일
+    if (n >= 2000 && n <= 2999) return '00004'; // 공모청약(관리)
+    if (n >= 3000 && n <= 3499) return '00013'; // 자산운용
+    if (n >= 3500 && n <= 3999) return '00153'; // US Portfolio Model
+    if (n >= 4000 && n <= 4999) return '00091'; // 외화자산운용
+    if (n >= 5030 && n <= 5049) return '00359'; // 보고서
+    if (n >= 5000 && n <= 5999) return '00030'; // 원장조회
+    if (n >= 8000 && n <= 8999) return '00055'; // 코드관리
+    if (n >= 9300 && n <= 9990) return '00001'; // 시스템관리
+    if (n >= 9991 && n <= 9999) return '00009'; // 프레임관리
+    return null;
+}
+
+function extractPgmGoFromTab(tabObj) {
+    if (!tabObj) return null;
+    if (tabObj.pgmGo && /^\d+$/.test(String(tabObj.pgmGo).trim())) {
+        return String(tabObj.pgmGo).trim();
+    }
+    if (tabObj.url) {
+        const match = tabObj.url.match(/[?&]pgmGo=(\d+)/i);
+        if (match) return match[1];
+    }
+    if (tabObj.title) {
+        const match = tabObj.title.match(/^\s*(\d{1,4})\b/);
+        if (match) return match[1];
+    }
+    if (tabObj.tabKey && /^\d{1,4}$/.test(String(tabObj.tabKey).trim())) {
+        return String(tabObj.tabKey).trim();
+    }
+    if (tabObj.pgmNo && /^\d{1,4}$/.test(String(tabObj.pgmNo).trim())) {
+        return String(tabObj.pgmNo).trim();
+    }
+    return null;
+}
+
+function findTopCategoryForTab(tabObj) {
+    if (!tabObj) return null;
+
+    // 1. Direct valid topPgmNo in DOM
+    if (tabObj.topPgmNo && document.querySelector(`.top-nav-item[data-pgm-no="${tabObj.topPgmNo}"]`)) {
+        return tabObj.topPgmNo;
+    }
+
+    // 2. Extract 4-digit pgmGo using standard AAMS program number range mapping
+    const goNum = extractPgmGoFromTab(tabObj);
+    if (goNum) {
+        const mappedTop = getTopPgmNoByGo(goNum);
+        if (mappedTop && document.querySelector(`.top-nav-item[data-pgm-no="${mappedTop}"]`)) {
+            return mappedTop;
+        }
+    }
+
+    // 3. Match from breadcrumb or title against top nav item names
+    const textToCheck = ((tabObj.breadcrumb || '') + ' ' + (tabObj.title || '')).trim();
+    if (textToCheck) {
+        const topItems = Array.from(document.querySelectorAll('.top-nav-item'));
+        for (const item of topItems) {
+            const name = item.innerText.trim();
+            const no = item.getAttribute('data-pgm-no');
+            if (name && no && textToCheck.includes(name)) {
+                return no;
+            }
+        }
+    }
+
+    // 4. Fallback: currently active or first top-nav-item in DOM
+    const activeTop = document.querySelector('.top-nav-item.active') || document.querySelector('.top-nav-item');
+    return activeTop ? activeTop.getAttribute('data-pgm-no') : '00804';
+}
+
+window.getTopPgmNoByGo = getTopPgmNoByGo;
+window.extractPgmGoFromTab = extractPgmGoFromTab;
+window.findTopCategoryForTab = findTopCategoryForTab;
 
 /**
  * Header Top Menu Click Handler & Side Navigation Dynamic Loader
@@ -45,6 +140,7 @@ function onHeaderMenuClick(el) {
 
     const pgmNo = el.getAttribute('data-pgm-no');
     if (pgmNo) {
+        window.g_currentPgmNo = pgmNo;
         loadSideMenu(pgmNo);
     }
 }
@@ -153,11 +249,19 @@ function loadTopCategorySubTree(pgmNo) {
 }
 
 function loadSideMenu(pgmNo) {
-    if (pgmNo) g_currentPgmNo = pgmNo;
-    const targetNo = g_currentPgmNo || '01000';
+    if (pgmNo) window.g_currentPgmNo = pgmNo;
+    let targetNo = window.g_currentPgmNo || '00804';
 
-    // If screen width is <= 1100px (header top nav is hidden), use Top Category Tree Folders in sidebar
-    if (window.innerWidth <= 1100) {
+    // Verify that targetNo is a valid top category pgmNo
+    const validTop = document.querySelector(`.top-nav-item[data-pgm-no="${targetNo}"]`);
+    if (!validTop) {
+        const activeTop = document.querySelector('.top-nav-item.active') || document.querySelector('.top-nav-item');
+        targetNo = activeTop ? activeTop.getAttribute('data-pgm-no') : '00804';
+        window.g_currentPgmNo = targetNo;
+    }
+
+    // If screen is in compact mode (header top nav is hidden due to collision or narrow screen), use Top Category Tree Folders in sidebar
+    if (document.body.classList.contains('header-compact-mode') || window.innerWidth <= 1100) {
         initSidebarTopTree(targetNo);
         return;
     }
@@ -168,7 +272,10 @@ function loadSideMenu(pgmNo) {
 
     safeFetchJson(`/api/menu/side?pgmNo=${encodeURIComponent(targetNo)}`)
         .then(data => {
-            if (!data) return;
+            if (!data || !Array.isArray(data) || data.length === 0) {
+                console.warn(`No side menu items returned for pgmNo=${targetNo}`);
+                return;
+            }
             container.innerHTML = renderSubTreeHtml(data);
             if (window.tabManager && window.tabManager.activeTabKey) {
                 window.tabManager.highlightSidebarMenu(window.tabManager.activeTabKey);
@@ -216,8 +323,16 @@ function onSidebarMenuClick(el) {
     const rawBreadcrumb = el.getAttribute('data-breadcrumb');
     const breadcrumb = formatBreadcrumb(rawBreadcrumb, title, pgmId);
 
+    // Identify current top category
+    const directTop = el.getAttribute('data-top-pgm-no');
+    const topGroup = el.closest('.top-menu-group');
+    const activeTopNav = document.querySelector('.top-nav-item.active');
+    const activeTopNo = activeTopNav ? activeTopNav.getAttribute('data-pgm-no') : null;
+    const mappedTopFromGo = getTopPgmNoByGo(pgmGo);
+    const topPgmNo = directTop || (topGroup ? topGroup.getAttribute('data-pgm-no') : (mappedTopFromGo || activeTopNo || window.g_currentPgmNo || '00804'));
+
     if (window.tabManager) {
-        window.tabManager.openTab(pgmNo, pgmId, title, null, breadcrumb, pgmGo);
+        window.tabManager.openTab(pgmNo, pgmId, title, null, breadcrumb, pgmGo, topPgmNo);
     }
 }
 
@@ -288,8 +403,11 @@ function renderSearchDropdownResults(list, q) {
             ? `${highlightedGo} ${highlightedNm} [${highlightedPId}]`
             : `${highlightedNm} [${highlightedPId}]`;
 
+        const topPgmNo = item.rootTopPgmNo || getTopPgmNoByGo(go) || '';
+
         html += `
             <div class="search-dropdown-item" 
+                 data-top-pgm-no="${topPgmNo}"
                  data-pgm-no="${pgmNo}" 
                  data-pgm-id="${pgmId}" 
                  data-pgm-go="${go}" 
@@ -394,7 +512,7 @@ function renderSubTreeHtml(list) {
             const rawBreadcrumb = item.fullpgm2 || item.fullpgm || '';
             const breadcrumb = formatBreadcrumb(rawBreadcrumb, displayNm, pgmId);
             html += `
-                <div class="tree-menu-item${hasLineClass}" data-pgm-no="${item.pgmNo || ''}" data-pgm-id="${pgmId}" data-pgm-go="${pgmGo}" data-title="${displayNm}" data-breadcrumb="${breadcrumb}" onclick="onSidebarMenuClick(this)">
+                <div class="tree-menu-item${hasLineClass}" data-top-pgm-no="${window.g_currentPgmNo || ''}" data-pgm-no="${item.pgmNo || ''}" data-pgm-id="${pgmId}" data-pgm-go="${pgmGo}" data-title="${displayNm}" data-breadcrumb="${breadcrumb}" onclick="onSidebarMenuClick(this)">
                     <i class="fa-solid fa-file-code menu-icon"></i> <span class="menu-label">${displayNm}</span>
                 </div>
             `;
@@ -427,15 +545,48 @@ function verifyCorpGrCookie() {
     return true;
 }
 
-// Auto-load side menu for initial active top nav item on DOMContentLoaded
+// Auto-load side menu for active top nav item on DOMContentLoaded (supports F5 refresh persistence)
 document.addEventListener("DOMContentLoaded", function() {
     if (!window.location.pathname.includes('/login') && !window.location.pathname.includes('/w_login_aams')) {
         if (!verifyCorpGrCookie()) return;
         startTokenMonitor();
     }
 
-    const activeTopItem = document.querySelector('.top-nav-item.active');
-    const pgmNo = activeTopItem ? activeTopItem.getAttribute('data-pgm-no') : '01000';
+    // 1. Check if there is a saved active top category from sessionStorage
+    let pgmNo = null;
+    try {
+        const raw = sessionStorage.getItem("AAMS_MDI_TABS_STATE");
+        if (raw) {
+            const state = JSON.parse(raw);
+            if (state) {
+                if (state.activeTabKey && Array.isArray(state.openTabs)) {
+                    const activeTab = state.openTabs.find(t => t.tabKey === state.activeTabKey || t.pgmNo === state.activeTabKey);
+                    if (activeTab) {
+                        pgmNo = findTopCategoryForTab(activeTab);
+                    }
+                }
+                if (!pgmNo && state.activeTopPgmNo && document.querySelector(`.top-nav-item[data-pgm-no="${state.activeTopPgmNo}"]`)) {
+                    pgmNo = state.activeTopPgmNo;
+                }
+            }
+        }
+    } catch(e) {}
+
+    // 2. Update active class on top-nav-item in header
+    let targetTopItem = pgmNo ? document.querySelector(`.top-nav-item[data-pgm-no="${pgmNo}"]`) : null;
+    if (!targetTopItem) {
+        targetTopItem = document.querySelector('.top-nav-item.active') || document.querySelector('.top-nav-item');
+    }
+
+    if (targetTopItem) {
+        document.querySelectorAll('.top-nav-item').forEach(it => it.classList.remove('active'));
+        targetTopItem.classList.add('active');
+        pgmNo = targetTopItem.getAttribute('data-pgm-no');
+    } else {
+        pgmNo = '00804';
+    }
+
+    window.g_currentPgmNo = pgmNo;
     loadSideMenu(pgmNo);
 });
 
@@ -717,19 +868,90 @@ function toggleSidebar() {
     body.classList.toggle('sidebar-backdrop-open');
 }
 
+// Close sidebar on backdrop click (outside click)
+document.addEventListener('click', function(e) {
+    if (document.body.classList.contains('sidebar-backdrop-open')) {
+        const sidebar = document.querySelector('.left-sidebar');
+        const toggleBtn = document.querySelector('.mobile-sidebar-toggle');
+        if (sidebar && !sidebar.contains(e.target) && (!toggleBtn || !toggleBtn.contains(e.target))) {
+            sidebar.classList.remove('sidebar-open');
+            document.body.classList.remove('sidebar-backdrop-open');
+        }
+    }
+});
+
+/**
+ * Dynamic Header Collision Detector
+ * 화면이 작아지거나 창 크기가 변해 대분류와 유저정보가 겹쳐질 때 대분류를 접고 사이드바에 수납
+ */
+function checkHeaderCollision() {
+    const topNav = document.getElementById('topNavContainer');
+    const userInfo = document.querySelector('.top-header-right');
+    const logo = document.querySelector('.top-header-logo');
+    if (!topNav || !userInfo) return;
+
+    const body = document.body;
+    const width = window.innerWidth;
+
+    // 모바일/태블릿 규격 (<= 1100px)에서는 상시 compact 모드 유지
+    if (width <= 1100) {
+        if (!body.classList.contains('header-compact-mode')) {
+            body.classList.add('header-compact-mode');
+            if (typeof initSidebarTopTree === 'function') {
+                initSidebarTopTree(g_currentPgmNo);
+            }
+        }
+        return;
+    }
+
+    // 데스크톱 규격 (> 1100px):
+    // 실제 11개 대분류 아이템과 로고, 유저 정보가 차지하는 총 필요 너비 동적 계산
+    let navItemsWidth = 0;
+    topNav.querySelectorAll('.top-nav-item').forEach(it => {
+        navItemsWidth += it.offsetWidth + 2;
+    });
+
+    const logoWidth = logo ? logo.offsetWidth : 220;
+    const userWidth = userInfo.offsetWidth || 240;
+    const requiredTotal = logoWidth + navItemsWidth + userWidth + 24;
+
+    if (width < requiredTotal) {
+        // 실제 화면 너비가 부족하여 겹치는 경우만 compact 모드 전환
+        if (!body.classList.contains('header-compact-mode')) {
+            body.classList.add('header-compact-mode');
+            if (typeof initSidebarTopTree === 'function') {
+                initSidebarTopTree(g_currentPgmNo);
+            }
+        }
+    } else {
+        // 충분한 너비가 확보되면 정상 데스크톱 레이아웃 복원
+        if (body.classList.contains('header-compact-mode')) {
+            body.classList.remove('header-compact-mode');
+            const sidebar = document.querySelector('.left-sidebar');
+            if (sidebar) sidebar.classList.remove('sidebar-open');
+            body.classList.remove('sidebar-backdrop-open');
+
+            if (typeof loadSideMenu === 'function') {
+                loadSideMenu(g_currentPgmNo);
+            }
+        }
+    }
+}
+
 // Window resize listener to automatically redraw Tabulator instances and update sidebar menu mode
 window.addEventListener('resize', function() {
-    const isMobile = (window.innerWidth <= 1100);
-    if (isMobile !== g_lastIsMobile) {
-        g_lastIsMobile = isMobile;
-        loadSideMenu(g_currentPgmNo);
-    }
+    checkHeaderCollision();
 
     if (typeof Tabulator !== 'undefined') {
         Tabulator.findTable(".tabulator").forEach(table => {
             try { table.redraw(true); } catch(e) {}
         });
     }
+});
+
+// Initial header collision check on DOM load
+document.addEventListener('DOMContentLoaded', function() {
+    setTimeout(checkHeaderCollision, 50);
 });
 
 /**

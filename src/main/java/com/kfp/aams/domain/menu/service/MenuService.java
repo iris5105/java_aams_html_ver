@@ -33,7 +33,7 @@ public class MenuService {
             if (!topList.isEmpty()) {
                 pgmNo = topList.get(0).getPgmNo();
             } else {
-                pgmNo = "01000";
+                pgmNo = "00804";
             }
         }
         return menuMapper.selectSideMenuList(pgmNo);

@@ -9,6 +9,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.servlet.ModelAndView;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -21,6 +22,16 @@ import java.util.Map;
 @Slf4j
 @ControllerAdvice
 public class GlobalExceptionHandler {
+
+    /**
+     * 정적 자원(예: favicon.ico, 누락된 정적 리소스 등) 미존재 시 404를 반환하고,
+     * 불필요한 500 ERROR 풀 스택 트레이스 로그 발생을 방지합니다.
+     */
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<Void> handleNoResourceFound(NoResourceFoundException ex, HttpServletRequest request) {
+        log.debug("Static resource not found at [{}]: {}", request.getRequestURI(), ex.getMessage());
+        return ResponseEntity.notFound().build();
+    }
 
     @ExceptionHandler(Exception.class)
     public Object handleAllExceptions(Exception ex, HttpServletRequest request, HttpServletResponse response) {

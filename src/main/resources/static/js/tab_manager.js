@@ -5,23 +5,43 @@
 class TabManager {
     constructor() {
         this.maxTabs = 10;
-        this.openTabs = []; // [{ pgmNo, pgmId, pgmGo, tabKey, title, url, breadcrumb }]
+        this.openTabs = []; // [{ pgmNo, pgmId, pgmGo, tabKey, title, url, breadcrumb, topPgmNo }]
         this.activeTabKey = null;
+        this.activeTopPgmNo = null;
         this.isRestoring = false;
     }
 
     init() {
         this.openTabs = [];
         this.activeTabKey = null;
+        this.activeTopPgmNo = null;
         const restored = this.restoreStateFromStorage();
         if (!restored) {
             this.updateHomeVisibility();
         }
     }
 
+    findTopCategoryForTab(tabObj) {
+        if (!tabObj) return null;
+        if (typeof window.findTopCategoryForTab === 'function') {
+            return window.findTopCategoryForTab(tabObj);
+        }
+
+        if (tabObj.topPgmNo) {
+            const el = document.querySelector(`.top-nav-item[data-pgm-no="${tabObj.topPgmNo}"]`);
+            if (el) return tabObj.topPgmNo;
+        }
+
+        const activeTop = document.querySelector('.top-nav-item.active') || document.querySelector('.top-nav-item');
+        return activeTop ? activeTop.getAttribute('data-pgm-no') : '00804';
+    }
+
     saveStateToStorage() {
         if (this.isRestoring) return;
         try {
+            const activeTab = this.openTabs.find(t => t.tabKey === this.activeTabKey || t.pgmNo === this.activeTabKey);
+            const currentTop = activeTab ? this.findTopCategoryForTab(activeTab) : (this.activeTopPgmNo || window.g_currentPgmNo || '00804');
+
             const state = {
                 openTabs: this.openTabs.map(t => ({
                     pgmNo: t.pgmNo,
@@ -29,9 +49,11 @@ class TabManager {
                     pgmGo: t.pgmGo,
                     title: t.title,
                     url: t.url,
-                    breadcrumb: t.breadcrumb
+                    breadcrumb: t.breadcrumb,
+                    topPgmNo: t.topPgmNo || this.findTopCategoryForTab(t)
                 })),
-                activeTabKey: this.activeTabKey
+                activeTabKey: this.activeTabKey,
+                activeTopPgmNo: currentTop
             };
             sessionStorage.setItem("AAMS_MDI_TABS_STATE", JSON.stringify(state));
         } catch (e) {
@@ -51,12 +73,18 @@ class TabManager {
 
             this.isRestoring = true;
             state.openTabs.forEach(t => {
-                this.openTab(t.pgmNo, t.pgmId, t.title, t.url, t.breadcrumb, t.pgmGo);
+                this.openTab(t.pgmNo, t.pgmId, t.title, t.url, t.breadcrumb, t.pgmGo, t.topPgmNo);
             });
             this.isRestoring = false;
 
             if (state.activeTabKey) {
+                const activeTab = this.openTabs.find(t => t.tabKey === state.activeTabKey || t.pgmNo === state.activeTabKey);
+                const targetTopNo = this.findTopCategoryForTab(activeTab) || state.activeTopPgmNo || window.g_currentPgmNo || '00804';
+                this.activeTopPgmNo = targetTopNo;
+                window.g_currentPgmNo = targetTopNo;
+
                 this.switchTab(state.activeTabKey);
+                this.syncHeaderAndSidebar(targetTopNo, state.activeTabKey);
             }
 
             return true;
@@ -67,7 +95,40 @@ class TabManager {
         }
     }
 
-    openTab(pgmNo, pgmId, title, url, breadcrumb, pgmGo) {
+    syncHeaderAndSidebar(targetTopNo, activeTabKey) {
+        if (!targetTopNo) return;
+
+        let targetItem = document.querySelector(`.top-nav-item[data-pgm-no="${targetTopNo}"]`);
+        if (!targetItem) {
+            targetItem = document.querySelector('.top-nav-item.active') || document.querySelector('.top-nav-item');
+            if (!targetItem) return;
+            targetTopNo = targetItem.getAttribute('data-pgm-no');
+        }
+
+        // 1. 상단 헤더 대분류 탭 active 동기화
+        const topNavItems = document.querySelectorAll('.top-nav-item');
+        topNavItems.forEach(item => {
+            if (item.getAttribute('data-pgm-no') === targetTopNo) {
+                item.classList.add('active');
+            } else {
+                item.classList.remove('active');
+            }
+        });
+
+        window.g_currentPgmNo = targetTopNo;
+
+        // 2. 해당 대분류에 맞는 사이드바 메뉴 로드
+        if (typeof window.loadSideMenu === 'function') {
+            window.loadSideMenu(targetTopNo);
+        }
+
+        // 3. 사이드바 항목 하이라이트
+        if (activeTabKey) {
+            this.highlightSidebarMenu(activeTabKey);
+        }
+    }
+
+    openTab(pgmNo, pgmId, title, url, breadcrumb, pgmGo, topPgmNo) {
         if (!pgmNo) return;
 
         // Handle method overloading: openTab(pgmNo, title) where pgmId is omitted
@@ -95,6 +156,7 @@ class TabManager {
         // 3. Create new tab object
         const tabTitle = title || ("메뉴 " + pgmNo);
         const resolvedUrl = url || this.resolveMenuUrl(pgmId, pgmNo, pgmGo);
+        const currentTop = topPgmNo || (typeof window.findTopCategoryForTab === 'function' ? window.findTopCategoryForTab({ pgmNo, pgmId, pgmGo, title: tabTitle, url: resolvedUrl, breadcrumb }) : (window.g_currentPgmNo ? window.g_currentPgmNo : '00804'));
 
         const tabObj = {
             pgmNo: pgmNo,
@@ -103,7 +165,8 @@ class TabManager {
             tabKey: tabKey,
             title: tabTitle,
             url: resolvedUrl,
-            breadcrumb: breadcrumb
+            breadcrumb: breadcrumb,
+            topPgmNo: currentTop
         };
 
         this.openTabs.push(tabObj);
@@ -198,6 +261,36 @@ class TabManager {
         if (!tabKey) return;
         this.activeTabKey = tabKey;
 
+        const activeTab = this.openTabs.find(t => t.tabKey === tabKey || t.pgmNo === tabKey);
+        let topChanged = false;
+        if (activeTab) {
+            const topNo = (typeof window.findTopCategoryForTab === 'function') 
+                ? window.findTopCategoryForTab(activeTab) 
+                : this.findTopCategoryForTab(activeTab);
+
+            activeTab.topPgmNo = topNo;
+            this.activeTopPgmNo = topNo;
+
+            // 상단 헤더 대분류 탭 active 동기화 (현재 열린 화면을 따라가도록 처리)
+            const topNavItems = document.querySelectorAll('.top-nav-item');
+            topNavItems.forEach(item => {
+                if (item.getAttribute('data-pgm-no') === topNo) {
+                    item.classList.add('active');
+                } else {
+                    item.classList.remove('active');
+                }
+            });
+
+            // 소속 대분류가 변경되었으면 사이드바 메뉴도 해당 대분류로 로드
+            if (window.g_currentPgmNo !== topNo) {
+                topChanged = true;
+                window.g_currentPgmNo = topNo;
+                if (typeof window.loadSideMenu === 'function') {
+                    window.loadSideMenu(topNo);
+                }
+            }
+        }
+
         // Update Tab Header Classes
         document.querySelectorAll("#tabBar .tab-item").forEach(item => {
             if (item.getAttribute("data-tab-key") === tabKey || item.getAttribute("data-pgm-no") === tabKey) {
@@ -220,7 +313,9 @@ class TabManager {
         });
 
         this.updateHomeVisibility();
-        this.highlightSidebarMenu(tabKey);
+        if (!topChanged) {
+            this.highlightSidebarMenu(tabKey);
+        }
         this.saveStateToStorage();
     }
 
@@ -252,11 +347,14 @@ class TabManager {
                 }
             } else {
                 this.activeTabKey = null;
+                this.activeTopPgmNo = null;
+                this.updateHomeVisibility();
+                this.saveStateToStorage();
+                this.highlightSidebarMenu(null);
             }
+        } else {
+            this.saveStateToStorage();
         }
-
-        this.updateHomeVisibility();
-        this.saveStateToStorage();
     }
 
     closeCurrentTab() {
@@ -266,19 +364,19 @@ class TabManager {
     }
 
     closeAllTabs() {
-        const keysToClose = this.openTabs.map(t => t.tabKey);
-        keysToClose.forEach(key => {
-            const headerEl = document.getElementById("tab-header-" + key);
-            if (headerEl) headerEl.remove();
-
-            const paneEl = document.getElementById("tab-pane-" + key);
-            if (paneEl) paneEl.remove();
-        });
-
         this.openTabs = [];
         this.activeTabKey = null;
+        this.activeTopPgmNo = null;
+
+        const tabBar = document.getElementById("tabBar");
+        if (tabBar) tabBar.innerHTML = "";
+
+        const container = document.getElementById("tabContentContainer");
+        if (container) container.innerHTML = "";
+
         this.updateHomeVisibility();
-        sessionStorage.removeItem("AAMS_MDI_TABS_STATE");
+        this.highlightSidebarMenu(null);
+        this.saveStateToStorage();
     }
 
     updateHomeVisibility() {
@@ -345,35 +443,17 @@ class TabManager {
             if (isMatch) {
                 el.classList.add("active");
                 matched = true;
-                // If matched item is inside a collapsed group, un-collapse it
-                const parentGroup = el.closest(".menu-group");
-                if (parentGroup && parentGroup.classList.contains("collapsed")) {
-                    parentGroup.classList.remove("collapsed");
+                // If matched item is inside a collapsed group, un-collapse all parent groups
+                let parent = el.closest(".menu-group");
+                while (parent) {
+                    parent.classList.remove("collapsed");
+                    parent = parent.parentElement ? parent.parentElement.closest(".menu-group") : null;
                 }
+                el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
             } else {
                 el.classList.remove("active");
             }
         });
-
-        // If no matching sidebar menu item is currently visible in DOM, attempt to switch top menu category
-        if (!matched && activePgmNo && activePgmNo !== 'tab') {
-            const topNavItems = Array.from(document.querySelectorAll('.top-nav-item'));
-            if (topNavItems.length > 0) {
-                const prefix = String(activePgmNo).substring(0, 2);
-                let targetTopItem = topNavItems.find(item => {
-                    const no = item.getAttribute('data-pgm-no');
-                    return no && no.startsWith(prefix);
-                });
-                if (targetTopItem && !targetTopItem.classList.contains('active')) {
-                    topNavItems.forEach(i => i.classList.remove('active'));
-                    targetTopItem.classList.add('active');
-                    const targetPgmNo = targetTopItem.getAttribute('data-pgm-no');
-                    if (typeof window.loadSideMenu === 'function') {
-                        window.loadSideMenu(targetPgmNo);
-                    }
-                }
-            }
-        }
     }
 }
 

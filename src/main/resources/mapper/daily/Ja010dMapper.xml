@@ -20,9 +20,7 @@
           FROM SZT0IO t1
              , SZM0IA ia
          WHERE t1.CORP_GR = #{corpGr}
-           <if test="trYmd != null and trYmd != ''">
            AND TRUNC(t1.TR_YMD) = TO_DATE(REPLACE(#{trYmd}, '-', ''), 'YYYYMMDD')
-           </if>
            AND ia.CORP_GR = t1.CORP_GR
            AND ia.FUND_CD = t1.FUND_CD
          ORDER BY t1.FUND_CD ASC

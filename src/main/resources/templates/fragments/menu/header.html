@@ -7,11 +7,12 @@
         <button class="mobile-sidebar-toggle" onclick="toggleSidebar()" title="사이드바 메뉴 열기/닫기">
             <i class="fa-solid fa-bars"></i>
         </button>
-        <div class="user-info">
-            <i class="fa-solid fa-user"></i>
-            <span class="user-name" th:text="${userNm != null ? userNm + ' 님' : ' 님'}"></span>
-            <span class="login-date">최근 접속 :<br><span th:text="${lastConnect != null ? lastConnect : today}"></span></span>
-            <button onclick="handleLogout()" class="btn-logout">로그아웃</button>
+        <!-- 회사 로고 (투명 PNG & 세련된 구분선) -->
+        <div class="top-header-logo" 
+             th:onclick="${adminYn != null and #strings.equalsIgnoreCase(adminYn, 'Y')} ? 'openCompanyModal()' : null"
+             th:style="${adminYn != null and #strings.equalsIgnoreCase(adminYn, 'Y')} ? 'cursor: pointer;' : null"
+             th:title="${adminYn != null and #strings.equalsIgnoreCase(adminYn, 'Y')} ? '회사 변경' : null">
+            <img th:src="@{'/img/right_logo/fw_top_logo_right_' + ${corpGr} + '.png'}" src="/img/right_logo/fw_top_logo_right_2200.png" alt="Company Logo" class="top-company-logo" onerror="this.src='/img/right_logo/fw_top_logo_right_2200.png'">
         </div>
         <nav class="top-nav" id="topNavContainer">
             <th:block th:if="${topMenuList != null and not #lists.isEmpty(topMenuList)}">
@@ -25,12 +26,21 @@
             </th:block>
         </nav>
     </div>
-    <!-- 회사 변경: 관리자(adminYn == 'Y') 전용 기능 -->
-    <div class="top-header-right" 
-         th:onclick="${adminYn != null and #strings.equalsIgnoreCase(adminYn, 'Y')} ? 'openCompanyModal()' : null"
-         th:style="${adminYn != null and #strings.equalsIgnoreCase(adminYn, 'Y')} ? 'cursor: pointer;' : null"
-         th:title="${adminYn != null and #strings.equalsIgnoreCase(adminYn, 'Y')} ? '회사 변경' : null">
-        <img th:src="@{'/img/right_logo/fw_top_logo_right_' + ${corpGr} + '.jpg'}" src="/img/right_logo/fw_top_logo_right_2200.jpg" alt="Company Logo" class="top-company-logo" onerror="this.src='/img/right_logo/fw_top_logo_right_2200.jpg'">
+    <!-- 사용자 정보 영역 (우측 배치) -->
+    <div class="top-header-right">
+        <div class="user-info">
+            <div class="user-profile-badge">
+                <i class="fa-solid fa-circle-user user-icon"></i>
+                <span class="user-name" th:text="${userNm != null ? userNm + ' 님' : ' 님'}"></span>
+            </div>
+            <div class="user-access-time">
+                <span class="access-label">최근 접속</span>
+                <span class="access-date" th:text="${lastConnect != null ? lastConnect : today}"></span>
+            </div>
+            <button onclick="handleLogout()" class="btn-logout" title="로그아웃">
+                <i class="fa-solid fa-arrow-right-from-bracket"></i> 로그아웃
+            </button>
+        </div>
     </div>
 </header>
 </html>

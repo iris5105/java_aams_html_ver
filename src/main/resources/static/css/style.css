@@ -3,6 +3,10 @@
    File: style.css
    ========================================== */
 
+:root {
+    --sidebar-width: 258px;
+}
+
 /* ------------------------------------------
    1. Common Reset & Base Styles
    ------------------------------------------ */
@@ -32,54 +36,126 @@ body, html {
    2. Header & Navigation (w_home5)
    ------------------------------------------ */
 .top-header {
-    background-color: #1e252c;
+    background-color: #1a2027;
     color: #ffffff;
     height: 38px;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 0 0px;
+    padding: 0 10px 0 0;
     font-size: 12px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
     z-index: 100;
+    overflow: hidden;
 }
 
 .top-header-left {
     display: flex;
     align-items: center;
-    gap: 16px;
+    gap: 0;
+    height: 100%;
+    min-width: 0;
+    flex: 1 1 auto;
+    overflow: hidden;
+}
+
+/* 사이드바 너비(--sidebar-width)와 100% 동일하게 연동되는 로고 컨테이너 */
+.top-header-logo {
+    width: var(--sidebar-width);
+    min-width: var(--sidebar-width);
+    max-width: var(--sidebar-width);
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    padding: 0 16px;
+    border-right: 1px solid rgba(255, 255, 255, 0.1);
+    flex-shrink: 0;
+    transition: width 0.2s ease, background-color 0.2s ease;
+}
+
+.top-header-logo:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+.top-company-logo {
+    max-height: 30px;
+    max-width: 100%;
+    width: auto;
+    object-fit: contain;
+    vertical-align: middle;
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.4));
 }
 
 .user-info {
     display: flex;
     align-items: center;
-    gap: 8px;
-    background: rgba(255,255,255,0.08);
-    padding: 4px 5px;
-    border-radius: 4px;
+    gap: 10px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    padding: 3px 8px 3px 10px;
+    border-radius: 6px;
+    transition: all 0.2s ease;
 }
 
-.user-info i {
+.user-info:hover {
+    background: rgba(255, 255, 255, 0.07);
+    border-color: rgba(255, 255, 255, 0.14);
+}
+
+.user-profile-badge {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.user-profile-badge .user-icon {
     color: #60a5fa;
+    font-size: 13px;
 }
 
 .user-name {
     font-weight: 600;
-    color: #f1f5f9;
+    font-size: 12px;
+    color: #f8fafc;
+    letter-spacing: 0.2px;
 }
 
-.login-date {
+.user-access-time {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    border-left: 1px solid rgba(255, 255, 255, 0.12);
+    padding-left: 8px;
+    margin-left: 2px;
+    line-height: 1.15;
+}
+
+.access-label {
+    font-size: 9px;
     color: #94a3b8;
-    font-size: 11px;
+    letter-spacing: 0.2px;
+}
+
+.access-date {
+    font-size: 10.5px;
+    color: #cbd5e1;
+    font-family: 'Consolas', 'Menlo', monospace;
+    font-weight: 500;
 }
 
 .top-nav {
     display: flex;
     align-items: center;
     gap: 2px;
-    overflow-x: auto;
+    padding-left: 6px;
+    overflow-x: hidden;
     scrollbar-width: none; /* Firefox */
     -ms-overflow-style: none; /* IE/Edge */
+    min-width: 0;
+    flex: 0 1 auto;
 }
 
 .top-nav::-webkit-scrollbar {
@@ -87,12 +163,13 @@ body, html {
 }
 
 .top-nav-item {
-    padding: 6px 12px;
+    padding: 5px 9px;
     color: #cbd5e1;
     cursor: pointer;
     border-radius: 3px;
     transition: all 0.15s ease;
     font-weight: 500;
+    font-size: 12px;
     white-space: nowrap;
     flex-shrink: 0;
 }
@@ -104,14 +181,64 @@ body, html {
 }
 
 .top-header-right {
-    font-size: 14px;
-    font-weight: 700;
-    color: #f8fafc;
-    letter-spacing: 0.5px;
     display: flex;
     align-items: center;
     gap: 8px;
-    flex-shrink: 0;
+    flex-shrink: 0; /* CRITICAL: 유저 정보는 절대 잘리지 않음 */
+    margin-left: auto;
+    z-index: 10;
+}
+
+/* ==========================================
+   Dynamic Header Compact Mode (대분류-유저정보 겹침 감지 시 발동)
+   ========================================== */
+body.header-compact-mode .top-nav {
+    display: none !important;
+}
+
+body.header-compact-mode .mobile-sidebar-toggle {
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+}
+
+body.header-compact-mode .top-header-logo {
+    width: auto;
+    min-width: unset;
+    max-width: unset;
+    border-right: none;
+    padding: 0 10px;
+}
+
+body.header-compact-mode .app-body {
+    position: relative;
+}
+
+body.header-compact-mode .left-sidebar {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    z-index: 1000;
+    width: 260px;
+    transform: translateX(-100%);
+    transition: transform 0.25s ease-in-out;
+    box-shadow: 4px 0 15px rgba(0, 0, 0, 0.3);
+}
+
+body.header-compact-mode .left-sidebar.sidebar-open {
+    transform: translateX(0);
+}
+
+body.header-compact-mode.sidebar-backdrop-open::after {
+    content: '';
+    position: fixed;
+    top: 38px;
+    left: 0;
+    width: 100vw;
+    height: calc(100vh - 38px);
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 999;
 }
 
 /* ------------------------------------------
@@ -125,13 +252,14 @@ body, html {
 }
 
 .left-sidebar {
-    width: 258px;
+    width: var(--sidebar-width);
     background-color: #2b323b;
     color: #e2e8f0;
     display: flex;
     flex-direction: column;
     border-right: 1px solid #1e242b;
     flex-shrink: 0;
+    transition: width 0.2s ease;
 }
 
 .sidebar-search {
@@ -1643,25 +1771,26 @@ body, html {
 }
 
 .btn-logout {
-    background: none;
-    border: 1px solid #475569;
-    color: #cbd5e1;
-    border-radius: 3px;
-    padding: 2px 6px;
+    background: rgba(239, 68, 68, 0.12);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    color: #fca5a5;
+    border-radius: 4px;
+    padding: 3px 8px;
     font-size: 11px;
+    font-weight: 500;
     cursor: pointer;
-    margin-left: 8px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    transition: all 0.18s ease;
+    margin-left: 4px;
 }
 
 .btn-logout:hover {
-    background-color: #3b82f6;
+    background-color: #ef4444;
+    border-color: #ef4444;
     color: #ffffff;
-    border-color: #3b82f6;
-}
-
-.top-company-logo {
-    max-height: 32px;
-    vertical-align: middle;
+    box-shadow: 0 2px 6px rgba(239, 68, 68, 0.35);
 }
 
 /* Top Category Tree Folder Styling in Sidebar */
@@ -1789,13 +1918,13 @@ body, html {
 
 /* 1. Large Laptop / Small Desktop (992px ~ 1399px) */
 @media (max-width: 1399px) {
+    :root {
+        --sidebar-width: 220px;
+    }
+
     .workspace-grid-6 {
         grid-template-columns: repeat(2, 1fr) !important;
         grid-template-rows: auto !important;
-    }
-
-    .left-sidebar {
-        width: 220px;
     }
 }
 
@@ -1805,42 +1934,34 @@ body, html {
     }
 }
 
+/* 2. Narrow Desktop & Tablet (< 1100px) */
 @media (max-width: 1100px) {
-    /* Hide top nav tabs from header on tablet/narrow screens to prevent overlap */
+    /* 1. Header 대분류 탭 숨김 */
     .top-nav {
         display: none !important;
     }
 
-    /* Enable mobile sidebar toggle button */
+    /* 2. Sidebar 토글/콜랩스 햄버거 버튼 표시 */
     .mobile-sidebar-toggle {
         display: inline-flex !important;
         align-items: center;
         justify-content: center;
     }
 
-    .breadcrumb {
-        font-size: 11px;
-        color: #64748b;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        max-width: 350px;
-    }
-}
-
-/* 2. Tablet Portrait & Small Screen (768px ~ 991px) */
-@media (max-width: 991px) {
-    .mobile-sidebar-toggle {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
+    /* 3. 상단 로고 영역 너비/구분선 유연화 */
+    .top-header-logo {
+        width: auto;
+        min-width: unset;
+        max-width: unset;
+        border-right: none;
+        padding: 0 10px;
     }
 
+    /* 4. 대분류가 사라지는 즉시 사이드바 콜랩스 (Off-canvas Drawer 전환) */
     .app-body {
         position: relative;
     }
 
-    /* Off-canvas Slide-out Drawer Sidebar */
     .left-sidebar {
         position: absolute;
         top: 0;
@@ -1868,6 +1989,18 @@ body, html {
         z-index: 999;
     }
 
+    .breadcrumb {
+        font-size: 11px;
+        color: #64748b;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 350px;
+    }
+}
+
+/* 3. Tablet Small Screen (768px ~ 991px) */
+@media (max-width: 991px) {
     .workspace-grid-6 {
         grid-template-columns: 1fr !important;
         grid-template-rows: auto !important;
@@ -1890,18 +2023,23 @@ body, html {
         padding: 0 8px;
     }
 
+    /* 모바일 모드 변환 시 회사 로고 숨김 */
+    .top-header-logo {
+        display: none !important;
+    }
+
     .top-header-left {
         gap: 8px;
-        overflow-x: auto;
     }
 
     .top-nav {
-        overflow-x: auto;
-        white-space: nowrap;
+        display: none !important;
     }
 
-    .login-date {
-        display: none;
+    /* 모바일에서 접속 일시 숨김으로 헤더 여백 확보 */
+    .login-date,
+    .user-access-time {
+        display: none !important;
     }
 
     .workspace {
