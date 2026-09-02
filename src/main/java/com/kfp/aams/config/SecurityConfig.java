@@ -34,7 +34,7 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .exceptionHandling(exception -> exception.authenticationEntryPoint(jwtAuthenticationEntryPoint))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/", "/home", "/w_home5", "/login", "/w_login_aams", "/views/**", "/api/auth/**", "/api/account/**", "/api/company/**", "/api/proposal/**", "/api/shm0hj/**", "/api/menu/**", "/api/common/**", "/css/**",
+                        .requestMatchers("/", "/home", "/w_home5", "/login", "/w_login_aams", "/views/**", "/api/auth/**", "/api/account/**", "/api/company/**", "/api/proposal/**", "/api/shm0hj/**", "/api/daily/**", "/api/menu/**", "/api/common/**", "/css/**",
                                 "/js/**", "/images/**", "/img/**", "/h2-console/**", "/favicon.ico", "/favicon.svg", "/error")
                         .permitAll()
                         .requestMatchers("/api/home/**").authenticated()

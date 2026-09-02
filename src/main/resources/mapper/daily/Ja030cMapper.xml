@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.kfp.aams.domain.daily.mapper.Ja030cMapper">
+
+    <!-- Select Bond Trading Registration List (d_ja030c.srd / SCT0CG + SZM0IA + SCM0CJ) -->
+    <select id="selectJa030cList" resultType="com.kfp.aams.domain.daily.dto.Ja030cDto">
+        SELECT cg.CORP_GR                       AS corpGr
+             , TO_CHAR(cg.TR_YMD, 'YYYY-MM-DD') AS trYmd
+             , cg.TR_CD                         AS trCd
+             , cg.FUND_CD                       AS fundCd
+             , cg.JM_CD                         AS jmCd
+             , cg.BUY_DATE                      AS buyDate
+             , cg.SEQ_NO                        AS seqNo
+             , cg.TR_CO_CD                      AS trCoCd
+             , cg.AEKM                          AS aekm
+             , cg.DANGA                         AS danga
+             , cg.TR_AEK                        AS trAek
+             , cg.SUSU                          AS susu
+             , TO_CHAR(cg.SUDO_YMD, 'YYYY-MM-DD') AS sudoYmd
+             , cg.MK_SUIK_RT                    AS mkSuikRt
+             , cg.PG_CD                         AS pgCd
+             , cg.JAJUN_GB                      AS jajunGb
+             , cg.CHUI_AEK                      AS chuiAek
+             , cg.DANGA_GB                      AS dangaGb
+             , cg.JAJUN_SAYU                    AS jajunSayu
+             , cg.IJA_AEKM                      AS ijaAekm
+             , cj.CJ_NM                         AS cjNm
+             , ia.FUND_NM                       AS fundNm
+             , 1                                AS pVisible
+          FROM SCT0CG cg
+          LEFT OUTER JOIN SZM0IA ia ON ia.CORP_GR = cg.CORP_GR AND ia.FUND_CD = cg.FUND_CD
+             , SCM0CJ cj
+         WHERE cg.CORP_GR = #{corpGr}
+           AND (TRUNC(cg.TR_YMD) >= TO_DATE(REPLACE(#{trYmd}, '-', ''), 'YYYYMMDD') 
+                OR TRUNC(cg.SUDO_YMD) = TO_DATE(REPLACE(#{trYmd}, '-', ''), 'YYYYMMDD'))
+           AND cg.TR_CD LIKE 'J%'
+           AND cj.CORP_GR = cg.CORP_GR
+           AND cj.JM_CD   = cg.JM_CD
+         ORDER BY cg.TR_YMD ASC
+                , cg.FUND_CD ASC
+                , cg.JM_CD ASC
+    </select>
+
+</mapper>
