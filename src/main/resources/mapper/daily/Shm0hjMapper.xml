@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.kfp.aams.domain.daily.mapper.Shm0hjMapper">
+
+    <!--
+        d_shm0hj.srd retrieve query (joins SHM0HJ, szx2mm, SZM0IA)
+        Adheres to Guideline 3 (.srd SQL preservation) and Guideline 4 (MyBatis for multi-table join)
+    -->
+    <select id="selectShm0hjList" resultType="com.kfp.aams.domain.daily.dto.Shm0hjMasterDto">
+        SELECT hj.CORP_GR                                           AS corpGr
+             , hj.FUND_CD                                           AS fundCd
+             , ia.FUND_NM                                           AS fundNm
+             , hj.JM_CD                                             AS jmCd
+             , hj.CD_JIGUB_GB                                       AS cdJigubGb
+             , hj.AEKM                                              AS aekm
+             , TO_CHAR(hj.BALH_YMD, 'YYYY-MM-DD')                   AS balhYmd
+             , hj.CASH_CD                                           AS cashCd
+             , hj.CHUI_AEK                                          AS chuiAek
+             , hj.HJ_NM                                             AS hjNm
+             , TO_CHAR(hj.MEIB_YMD, 'YYYY-MM-DD')                   AS meibYmd
+             , hj.PYOM_IYUL                                         AS pyomIyul
+             , TO_CHAR(hj.AF_IJA_YMD, 'YYYY-MM-DD')                 AS afIjaYmd
+             , hj.BOJNG_GB                                          AS bojngGb
+             , hj.NOW_IJA_HOICHA                                    AS nowIjaHoicha
+             , hj.SANGHW_AEK                                        AS sanghwAek
+             , TO_CHAR(hj.SANGHW_YMD, 'YYYY-MM-DD')                 AS sanghwYmd
+             , hj.SUNHU_GB                                          AS sunhuGb
+             , hj.YY_IJA_HOICHA                                     AS yyIjaHoicha
+             , hj.IJA_YY_SU                                         AS ijaYySu
+             , hj.MEIB_MK_GB                                        AS meibMkGb
+             , hj.MEIB_SUIK_RT                                      AS meibSuikRt
+             , hj.TOT_IJA_GUGAN                                     AS totIjaGugan
+             , hj.OFFER_CO_CD                                       AS offerCoCd
+             , hj.GIUP_GYUMO                                        AS giupGyumo
+             , hj.TR_AEK                                            AS trAek
+             , hj.SUNHU_TAX_GB                                      AS sunhuTaxGb
+             , hj.TAX_OFFER_GB                                      AS taxOfferGb
+             , hj.DAEYEO_GB                                         AS daeyeoGb
+             , hj.BROKER_CD                                         AS brokerCd
+             , hj.SUSU_GA                                           AS susuGa
+             , hj.MEIB_SUIK_RT * 100                                AS meibSuikRtPer
+             , hj.PYOM_IYUL * 100                                   AS pyomIyulPer
+             , hj.BOJNG_CO                                          AS bojngCo
+             , mb.TR_CO_NM                                          AS trCoNm
+             , hj.SUNG_COST                                         AS sungCost
+             , TO_CHAR(hj.OP_YMD, 'YYYY-MM-DD')                     AS opYmd
+             , hj.KSD_JM_CD                                         AS ksdJmCd
+             , hj.SEQ_NO                                            AS seqNo
+             , hj.SUSU_09900                                        AS susu09900
+             , hj.KSD_JM5                                           AS ksdJm5
+             , hj.KSD_JM8                                           AS ksdJm8
+             , hj.PG_CD                                             AS pgCd
+             , CASE WHEN hj.BALH_YMD >= TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
+                    THEN 1
+                    ELSE 0 END                                      AS pVisible
+          FROM SHM0HJ hj
+          LEFT OUTER JOIN szx2mm mb ON mb.CORP_GR  = #{corpGr}
+                                   AND mb.TR_CO_CD = hj.BOJNG_CO
+             , SZM0IA ia
+         WHERE hj.CORP_GR               = #{corpGr}
+           AND hj.SANGHW_YMD            >= TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
+           AND hj.CASH_CD               LIKE #{cashCd}
+           AND hj.CASH_CD               &lt;&gt; '90'
+           AND ia.CORP_GR               = #{corpGr}
+           AND ia.FUND_CD               = hj.FUND_CD
+           AND NVL(ia.HAEJI_YMD, TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')) >= TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
+         ORDER BY hj.CASH_CD
+                , hj.FUND_CD
+                , hj.JM_CD
+    </select>
+
+    <!-- Procedure SR_SHJ0IG call for generating period interest -->
+    <select id="callSrShj0ig" statementType="CALLABLE">
+        { CALL KFP.SR_SHJ0IG(#{corpGr, mode=IN, jdbcType=VARCHAR}, #{jmCd, mode=IN, jdbcType=VARCHAR}, #{pDel, mode=IN, jdbcType=VARCHAR}) }
+    </select>
+
+</mapper>

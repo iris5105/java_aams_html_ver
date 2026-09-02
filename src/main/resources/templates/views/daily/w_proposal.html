@@ -125,6 +125,15 @@
             background-color: #e0f2fe;
             color: #0369a1;
         }
+
+        /* Selected row style */
+        .tabulator-row.tabulator-selected,
+        .tabulator-row.tabulator-selected .tabulator-cell {
+            background-color: #dbeafe !important;
+        }
+        .tabulator-row {
+            cursor: pointer;
+        }
     </style>
 
     <!-- Top Action Control Bar (Row 1) -->
@@ -179,10 +188,10 @@
                 <div class="comment-grid-header">
                     <span class="grid-title">■ 댓글현황</span>
                     <div class="comment-tools">
-                        <button class="grid-tool-btn" title="댓글 추가"><i class="fa-solid fa-plus"></i></button>
-                        <button class="grid-tool-btn" title="댓글 삭제"><i class="fa-solid fa-trash"></i></button>
-                        <button class="grid-tool-btn" title="이전"><i class="fa-solid fa-step-backward"></i></button>
-                        <button class="grid-tool-btn" title="다음"><i class="fa-solid fa-step-forward"></i></button>
+                        <button type="button" id="btnAddComment" class="grid-tool-btn" title="댓글 추가"><i class="fa-solid fa-plus"></i></button>
+                        <button type="button" id="btnDeleteComment" class="grid-tool-btn" title="댓글 삭제"><i class="fa-solid fa-trash"></i></button>
+                        <button type="button" id="btnPrevComment" class="grid-tool-btn" title="이전"><i class="fa-solid fa-step-backward"></i></button>
+                        <button type="button" id="btnNextComment" class="grid-tool-btn" title="다음"><i class="fa-solid fa-step-forward"></i></button>
                     </div>
                 </div>
                 <div class="grid-table-wrapper" style="flex: 1; height: 100%;">
@@ -259,6 +268,49 @@
                 return Boolean(currentNm && proposer && (currentNm === proposer || proposer.includes(currentNm) || currentNm.includes(proposer)));
             }
 
+            // Master grid title conditional edit check (Only allows edit if current user is proposer or new row)
+            function isProposalEditable(cell) {
+                if (!cell) return false;
+                const row = typeof cell.getRow === 'function' ? cell.getRow() : null;
+                if (!row) return false;
+                const data = row.getData();
+                if (!data) return false;
+
+                const canEdit = isCurrentUserProposer(cell);
+                if (canEdit) {
+                    return true;
+                } else {
+                    // 사용자와 의뢰자가 다름: 편집 차단 및 즉시 행 선택 & 상세 패널 조회
+                    if (gridMaster && (!row.isSelected || !row.isSelected())) {
+                        gridMaster.deselectRow();
+                        row.select();
+                        updateDetailPanel(data);
+                    }
+                    return false;
+                }
+            }
+
+            // Comment grid appending conditional edit check (Only author or new row)
+            function isCommentEditable(cell) {
+                if (!cell) return false;
+                const row = typeof cell.getRow === 'function' ? cell.getRow() : null;
+                if (!row) return false;
+                const data = row.getData();
+                if (!data) return false;
+
+                const currentNm = resolveCurrentUserNm();
+                const canEdit = Boolean(data.isNew || !data.sbNm || !currentNm || data.sbNm === currentNm);
+                if (canEdit) {
+                    return true;
+                } else {
+                    if (gridComment && (!row.isSelected || !row.isSelected())) {
+                        gridComment.deselectRow();
+                        row.select();
+                    }
+                    return false;
+                }
+            }
+
             function formatDateVal(val) {
                 if (!val) return "";
                 const str = String(val).replace(/\D/g, "");
@@ -282,6 +334,7 @@
                     layout: "fitDataFill",
                     height: "100%",
                     selectableRows: 1,
+                    editTriggerEvent: "click",
                     placeholder: "<span>조회된 건의사항/개선요청 내역이 없습니다.</span>",
                     columnDefaults: { vertAlign: "middle", headerSortTristate: true },
                     columns: [
@@ -291,46 +344,8 @@
                             title: "개발 의뢰내용", 
                             field: "title", 
                             minWidth: 200, 
-                            editor: function(cell, onRendered, success, cancel, editorParams) {
-                                // 사용자와 의뢰자가 다르면 편집 모드를 열지 않고 취소 (row 선택 및 상세 조회는 100% 정상 작동)
-                                if (!isCurrentUserProposer(cell)) {
-                                    cancel();
-                                    return false;
-                                }
-
-                                const input = document.createElement("input");
-                                input.type = "text";
-                                input.value = cell.getValue() || "";
-                                input.style.width = "100%";
-                                input.style.padding = "4px";
-                                input.style.boxSizing = "border-box";
-                                input.style.font = "inherit";
-
-                                onRendered(function() {
-                                    input.focus();
-                                    input.select();
-                                });
-
-                                function onChange() {
-                                    if (input.value !== cell.getValue()) {
-                                        success(input.value);
-                                    } else {
-                                        cancel();
-                                    }
-                                }
-
-                                input.addEventListener("change", onChange);
-                                input.addEventListener("blur", onChange);
-                                input.addEventListener("keydown", function(e) {
-                                    if (e.key === "Enter") {
-                                        onChange();
-                                    } else if (e.key === "Escape") {
-                                        cancel();
-                                    }
-                                });
-
-                                return input;
-                            }
+                            editor: "input",
+                            editable: isProposalEditable
                         },
                         { 
                             title: "의뢰자", 
@@ -366,6 +381,21 @@
                         }
                     ]
                 });
+
+                                // Capturing phase listener: guarantees row selection before cell's stopPropagation can block it
+                container.addEventListener("click", function(e) {
+                    const rowEl = e.target.closest(".tabulator-row");
+                    if (!rowEl || !gridMaster) return;
+                    const row = gridMaster.getRow(rowEl);
+                    if (row) {
+                        const data = row.getData();
+                        if (!row.isSelected || !row.isSelected()) {
+                            gridMaster.deselectRow();
+                            row.select();
+                            updateDetailPanel(data);
+                        }
+                    }
+                }, true);
 
                 gridMaster.on("cellClick", function(e, cell) {
                     const row = cell.getRow();
@@ -403,6 +433,8 @@
                 gridComment = new Tabulator(container, {
                     layout: "fitColumns",
                     height: "100%",
+                    selectableRows: 1,
+                    editTriggerEvent: "click",
                     placeholder: "<span>선택된 의뢰건에 등록된 댓글이 없습니다.</span>",
                     columnDefaults: { vertAlign: "middle", headerSortTristate: true },
                     columns: [
@@ -425,6 +457,8 @@
                             title: "댓  글  내  용", 
                             field: "appending", 
                             minWidth: 200,
+                            editor: "input",
+                            editable: isCommentEditable,
                             formatter: cell => {
                                 const row = cell.getRow().getData();
                                 if (row && row.color === 16711680) {
@@ -434,6 +468,24 @@
                             }
                         }
                     ]
+                });
+
+                                // Capturing phase listener for comment grid
+                container.addEventListener("click", function(e) {
+                    const rowEl = e.target.closest(".tabulator-row");
+                    if (!rowEl || !gridComment) return;
+                    const row = gridComment.getRow(rowEl);
+                    if (row) {
+                        if (!row.isSelected || !row.isSelected()) {
+                            gridComment.deselectRow();
+                            row.select();
+                        }
+                    }
+                }, true);
+
+                gridComment.on("rowClick", function(e, row) {
+                    gridComment.deselectRow();
+                    row.select();
                 });
             }
 
@@ -448,7 +500,12 @@
                     return;
                 }
 
-                if (matterEl) matterEl.value = data.matter || "";
+                if (matterEl) {
+                    matterEl.value = data.matter || "";
+                    const canEditMatter = isCurrentUserProposer(data);
+                    matterEl.readOnly = !canEditMatter;
+                    matterEl.style.backgroundColor = canEditMatter ? "#ffffff" : "#f8fafc";
+                }
                 if (contentEl) contentEl.value = data.content || "";
 
                 const filterSelect = pane ? pane.querySelector('select[name="corpGr"]') : document.getElementById("filterCorpGr");
@@ -581,9 +638,123 @@
                 });
             }
 
+            function initCommentTools() {
+                const btnAdd = pane ? pane.querySelector("#btnAddComment") : document.getElementById("btnAddComment");
+                const btnDel = pane ? pane.querySelector("#btnDeleteComment") : document.getElementById("btnDeleteComment");
+                const btnPrev = pane ? pane.querySelector("#btnPrevComment") : document.getElementById("btnPrevComment");
+                const btnNext = pane ? pane.querySelector("#btnNextComment") : document.getElementById("btnNextComment");
+
+                if (btnAdd) {
+                    btnAdd.onclick = function() {
+                        if (!gridMaster || !gridComment) return;
+                        const selectedMaster = gridMaster.getSelectedRows();
+                        if (!selectedMaster || selectedMaster.length === 0) {
+                            alert("댓글을 추가할 의뢰 건을 먼저 선택해주세요.");
+                            return;
+                        }
+                        const masterData = selectedMaster[0].getData();
+
+                        const now = new Date();
+                        const pad = n => String(n).padStart(2, '0');
+                        const nowYmd = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+                        const currentUser = resolveCurrentUserNm();
+
+                        const newRowData = {
+                            corpGr: masterData.corpGr,
+                            pYmd: masterData.ymd,
+                            pProposer: masterData.proposer,
+                            ymd: nowYmd,
+                            sbNm: currentUser,
+                            appending: "",
+                            color: 16711680,
+                            isNew: true
+                        };
+
+                        // Tabulator 자체 addRow API로 행 추가
+                        gridComment.addRow(newRowData, false).then(function(newRow) {
+                            gridComment.deselectRow();
+                            newRow.select();
+                            newRow.scrollTo();
+
+                            // 새로 생성된 댓글 내용(appending) 셀로 바로 편집 모드 포커스
+                            setTimeout(() => {
+                                const cell = newRow.getCell("appending");
+                                if (cell) cell.edit(true);
+                            }, 50);
+                        });
+                    };
+                }
+
+                if (btnDel) {
+                    btnDel.onclick = function() {
+                        if (!gridComment) return;
+                        const selectedRows = gridComment.getSelectedRows();
+                        if (!selectedRows || selectedRows.length === 0) {
+                            alert("삭제할 댓글을 먼저 선택해주세요.");
+                            return;
+                        }
+
+                        const rowData = selectedRows[0].getData();
+                        const currentNm = resolveCurrentUserNm();
+                        if (!rowData.isNew && rowData.sbNm && currentNm && rowData.sbNm !== currentNm) {
+                            alert("본인이 작성한 댓글만 삭제할 수 있습니다.");
+                            return;
+                        }
+
+                        if (confirm("선택한 댓글을 삭제하시겠습니까?")) {
+                            // Tabulator 자체 delete API
+                            selectedRows[0].delete();
+                        }
+                    };
+                }
+
+                if (btnPrev) {
+                    btnPrev.onclick = function() {
+                        if (!gridComment) return;
+                        const selectedRows = gridComment.getSelectedRows();
+                        if (!selectedRows || selectedRows.length === 0) {
+                            const allRows = gridComment.getRows();
+                            if (allRows.length > 0) {
+                                allRows[0].select();
+                                allRows[0].scrollTo();
+                            }
+                            return;
+                        }
+                        const prev = selectedRows[0].getPrevRow();
+                        if (prev) {
+                            gridComment.deselectRow();
+                            prev.select();
+                            prev.scrollTo();
+                        }
+                    };
+                }
+
+                if (btnNext) {
+                    btnNext.onclick = function() {
+                        if (!gridComment) return;
+                        const selectedRows = gridComment.getSelectedRows();
+                        if (!selectedRows || selectedRows.length === 0) {
+                            const allRows = gridComment.getRows();
+                            if (allRows.length > 0) {
+                                allRows[0].select();
+                                allRows[0].scrollTo();
+                            }
+                            return;
+                        }
+                        const next = selectedRows[0].getNextRow();
+                        if (next) {
+                            gridComment.deselectRow();
+                            next.select();
+                            next.scrollTo();
+                        }
+                    };
+                }
+            }
+
             document.addEventListener("DOMContentLoaded", function() {
                 initMasterGrid();
                 initCommentGrid();
+                initCommentTools();
             });
 
             // Initialize immediately if DOM is ready
@@ -591,6 +762,7 @@
                 setTimeout(() => {
                     initMasterGrid();
                     initCommentGrid();
+                    initCommentTools();
                 }, 50);
             }
         })();

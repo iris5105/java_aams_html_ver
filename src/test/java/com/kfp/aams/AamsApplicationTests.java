@@ -12,5 +12,4 @@ class AamsApplicationTests {
 	@Test
 	void contextLoads() {
 	}
-
 }

@@ -1,0 +1,895 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<div class="view-container layout-split-tb shm0hj-container" th:fragment="shm0hjView">
+
+    <!-- Top Action Control Bar (Row 1) -->
+    <div class="view-toolbar">
+        <div class="toolbar-left">
+            <!-- Reusable Common Toolbar Buttons Fragment (닫기, 새로고침, 조회, 입력, 저장, 엑셀) -->
+            <div th:replace="~{fragments/tab_header :: toolbarButtons}"></div>
+            <button type="button" class="t-btn btn-action" id="btnSearchMaster" title="조회"><i class="fa-solid fa-magnifying-glass"></i> 조회</button>
+            <button type="button" class="t-btn btn-action" id="btnGenerateInterest" style="background-color: #2563eb; color: #fff; border-color: #1d4ed8;" title="선택된 종목의 구간이자를 생성합니다."><i class="fa-solid fa-calculator"></i> 구간이자생성</button>
+        </div>
+        <!-- Reusable Common Breadcrumb Fragment -->
+        <div th:replace="~{fragments/tab_header :: toolbarBreadcrumb}"></div>
+    </div>
+
+    <!-- Filter Bar (Row 2): dc_ymd_dddw fragment -->
+    <div class="view-filter-bar" style="background-color: #f8fafc; border-bottom: 1px solid #e2e8f0; padding: 6px 12px;">
+        <div th:replace="~{fragments/filter/dc_ymd_dddw :: filter}"></div>
+    </div>
+
+    <style>
+        /* Selected row style */
+        .tabulator-row.tabulator-selected {
+            background-color: #dbeafe !important;
+        }
+        .tabulator-row.tabulator-selected .tabulator-cell {
+            background-color: #dbeafe !important;
+        }
+        /* New row style */
+        .tabulator-row.aams-new-row:not(.tabulator-selected) {
+            background-color: #f0fdf4 !important;
+        }
+        .tabulator-row.aams-new-row:not(.tabulator-selected) .tabulator-cell {
+            background-color: #f0fdf4 !important;
+        }
+        .tabulator-row {
+            cursor: pointer;
+        }
+    </style>
+
+    <!-- Upper Master Grid Section (dw_list / d_shm0hj.srd) -->
+    <div class="grid-section split-top-section" style="flex: 1; display: flex; flex-direction: column; overflow: hidden; min-height: 200px;">
+        <div class="sub-grid-header" style="padding: 6px 12px; background-color: #f1f5f9; border-bottom: 1px solid #cbd5e1; display: flex; justify-content: space-between; align-items: center;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <span class="sub-title" style="font-weight: 700; color: #1e293b; font-size: 13px;"><i class="fa-solid fa-coins"></i> ■ 현금 매입(종목) 목록</span>
+            </div>
+            <span id="master-count" style="font-size: 12px; color: #64748b; font-weight: 600;">[0건]</span>
+        </div>
+        <div class="grid-table-wrapper" style="flex: 1; height: calc(100% - 32px); overflow: hidden;">
+            <div id="master-grid" class="tabulator-aams-grid" style="height: 100%;"></div>
+        </div>
+    </div>
+
+    <!-- Split Bar Separator -->
+    <div class="split-h-divider" style="height: 6px; background-color: #e2e8f0; border-top: 1px solid #cbd5e1; border-bottom: 1px solid #cbd5e1; cursor: row-resize;"></div>
+
+    <!-- Lower Detail Grid Section (dw_detail / d_shj0ig.srd) -->
+    <div class="grid-section split-bottom-section" style="flex: 1; display: flex; flex-direction: column; overflow: hidden; min-height: 180px;">
+        <div class="sub-grid-header" style="padding: 6px 12px; background-color: #f1f5f9; border-bottom: 1px solid #cbd5e1; display: flex; justify-content: space-between; align-items: center;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <span class="sub-title" id="detail-title" style="font-weight: 700; color: #1e293b; font-size: 13px;"><i class="fa-solid fa-list-ol"></i> ■ 종목별 이자구간 상세</span>
+            </div>
+            <span id="detail-count" style="font-size: 12px; color: #64748b; font-weight: 600;">[0건]</span>
+        </div>
+        <div class="grid-table-wrapper" style="flex: 1; height: calc(100% - 32px); overflow: hidden;">
+            <div id="detail-grid" class="tabulator-aams-grid" style="height: 100%;"></div>
+        </div>
+    </div>
+
+    <!-- Inline Script for w_shm0hj View with Tabulator Grids -->
+    <script th:inline="javascript">
+        (function() {
+            const currentScript = document.currentScript;
+            const pane = currentScript ? (currentScript.closest('.tab-pane') || currentScript.closest('.view-container')) : null;
+
+            let gridMaster = null;
+            let gridDetail = null;
+            let selectedMasterData = null;
+
+            function formatMoney(val) {
+                if (val == null || val === "" || isNaN(val)) return "";
+                return Number(val).toLocaleString("ko-KR");
+            }
+
+            function formatRate(val) {
+                if (val == null || val === "" || isNaN(val)) return "";
+                return Number(val).toFixed(4);
+            }
+
+            function formatDateVal(val) {
+                if (!val) return "";
+                const clean = String(val).replace(/\D/g, "");
+                if (clean.length === 8) {
+                    return clean.substring(0, 4) + "-" + clean.substring(4, 6) + "-" + clean.substring(6, 8);
+                }
+                return String(val).substring(0, 10);
+            }
+
+            function resolveCorpGr() {
+                const getCookieVal = name => {
+                    const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
+                    return match ? decodeURIComponent(match[2]) : null;
+                };
+                return (sessionStorage.getItem("corp_gr") || getCookieVal("savedCorpGr") || getCookieVal("corpGr") || getCookieVal("corp_gr") || "");
+            }
+
+            let cashCdOptions = [];
+
+            // Master grid conditional edit check (New row: 1-click edit; Existing row: select row & load detail, edit blocked)
+            function isMasterRowEditable(cell) {
+                if (!cell) return false;
+                const row = typeof cell.getRow === "function" ? cell.getRow() : null;
+                if (!row) return false;
+                const data = row.getData();
+                const isNew = Boolean(data && (data.isNew === true || data._isNew === true || data.isNewRow === true));
+
+                if (isNew) {
+                    return true;
+                } else {
+                    if (gridMaster && (!row.isSelected || !row.isSelected())) {
+                        gridMaster.deselectRow();
+                        row.select();
+                        selectedMasterData = data;
+                        loadDetailList(selectedMasterData);
+                    }
+                    return false;
+                }
+            }
+
+            // Detail grid conditional edit check (New row: 1-click edit; Existing row: select row, edit blocked)
+            function isDetailRowEditable(cell) {
+                if (!cell) return false;
+                const row = typeof cell.getRow === "function" ? cell.getRow() : null;
+                if (!row) return false;
+                const data = row.getData();
+                const isNew = Boolean(data && (data.isNew === true || data._isNew === true || data.isNewRow === true));
+
+                if (isNew) {
+                    return true;
+                } else {
+                    if (gridDetail && (!row.isSelected || !row.isSelected())) {
+                        gridDetail.deselectRow();
+                        row.select();
+                    }
+                    return false;
+                }
+            }
+
+            // Helper for new row check
+            function isRowEditable(cell) {
+                if (!cell) return false;
+                const row = typeof cell.getRow === "function" ? cell.getRow() : null;
+                if (!row) return false;
+                const data = row.getData();
+                return Boolean(data && (data.isNew === true || data._isNew === true || data.isNewRow === true));
+            }
+
+
+
+            // Load DDDW options for Cash Category (dddw seq=5, sebu_cd<>'90')
+            function initDddwOptions() {
+                const dddwSelect = pane ? pane.querySelector("#filterDddw") : document.getElementById("filterDddw");
+                if (!dddwSelect) return;
+
+                fetch("/api/common/dddw?dddwNm=dddw&seq=5&addWhere=sebu_cd<>'90'")
+                    .then(res => res.json())
+                    .then(data => {
+                        if (Array.isArray(data) && data.length > 0) {
+                            cashCdOptions = data.map(item => ({ label: `${item.name} (${item.code})`, value: item.code }));
+                            dddwSelect.innerHTML = `<option value="%">전체</option>` +
+                                data.map(item => `<option value="${item.code}">${item.name}</option>`).join("");
+                            // Initial value "ZS" (전단채) per PB resource
+                            dddwSelect.value = "ZS";
+                        }
+                    })
+                    .catch(err => console.error("Failed to load cash_cd DDDW:", err));
+            }
+
+            // Init Master Grid (d_shm0hj.srd) - Edit settings configured based on tabsequence (New rows only)
+            function initMasterGrid() {
+                const container = pane ? pane.querySelector("#master-grid") : document.getElementById("master-grid");
+                if (!container) return;
+
+                gridMaster = new Tabulator(container, {
+                    layout: "fitDataFill",
+                    height: "100%",
+                    selectableRows: 1,
+                    editTriggerEvent: "click",
+                    placeholder: "<span>조회 조건 설정 후 [조회] 버튼을 클릭하세요.</span>",
+                    columnDefaults: { vertAlign: "middle", headerSortTristate: true },
+                    rowFormatter: function(row) {
+                        const data = row.getData();
+                        if (data && (data.isNew === true || data._isNew === true)) {
+                            row.getElement().classList.add("aams-new-row");
+                        } else {
+                            row.getElement().classList.remove("aams-new-row");
+                        }
+                    },
+                    columns: [
+                        // tab=0 (read-only)
+                        { title: "No.",
+                          formatter: "rownum",
+                          hozAlign: "center",
+                          width: 45, 
+                          resizable: false, 
+                          frozen: true 
+                        },
+                        // tab=10 (dddw)
+                        { 
+                            title: "현금종류", 
+                            field: "cashCd", 
+                            hozAlign: "center", 
+                            width: 75,
+                            editor: "list",
+                            editorParams: {
+                                valuesLookup: () => cashCdOptions.length > 0 ? cashCdOptions : ["ZS", "CP", "CD", "ST", "RP", "SC", "SF", "FR"],
+                                autocomplete: false,
+                                listOnEmpty: true
+                            },
+                            editable: isMasterRowEditable
+                        },
+                        // tab=20
+                        { 
+                            title: "<span style='color: #047857; font-weight: 700;'>관리번호</span>", 
+                            field: "fundCd", 
+                            hozAlign: "center", 
+                            width: 90,
+                            formatter: cell => `<span style="color: #047857; font-weight: 600;">${cell.getValue() || ''}</span>`,
+                            editor: "input",
+                            editable: isMasterRowEditable
+                        },
+
+                        // tab=32766
+                        { 
+                            title: "계좌명", 
+                            field: "fundNm", 
+                            hozAlign: "left", 
+                            width: 140,
+                            editor: "input",
+                            editable: isMasterRowEditable
+                        },
+                        // tab=32766
+                        { 
+                            title: "<span style='color: #2563eb; font-weight: 700;'>종목코드</span>", 
+                            field: "jmCd", 
+                            hozAlign: "center", 
+                            width: 110,
+                            formatter: cell => `<span style="color: #2563eb; font-weight: 600;">${cell.getValue() || ''}</span>`,
+                            editor: "input",
+                            editable: isMasterRowEditable
+                        },
+                        // tab=40
+                        { 
+                            title: "<span style='color: #2563eb; font-weight: 700;'>종  목  명</span>", 
+                            field: "hjNm", 
+                            hozAlign: "left", 
+                            minWidth: 160,
+                            formatter: cell => `<span style="color: #2563eb; font-weight: 600;">${cell.getValue() || ''}</span>`,
+                            editor: "input",
+                            editable: isMasterRowEditable
+                        },
+                        // tab=30 (mask:yyyy.mm.dd)
+                        { 
+                            title: "발행일", 
+                            field: "balhYmd", 
+                            hozAlign: "center", 
+                            width: 95, 
+                            formatter: cell => formatDateVal(cell.getValue()),
+                            editor: "input",
+                            editable: isMasterRowEditable
+                        },
+                        // tab=50 (mask:yyyy.mm.dd)
+                        { 
+                            title: "<span style='color: #2563eb; font-weight: 700;'>매입일</span>", 
+                            field: "meibYmd", 
+                            hozAlign: "center", 
+                            width: 95,
+                            formatter: cell => `<span style="color: #2563eb; font-weight: 600;">${formatDateVal(cell.getValue())}</span>`,
+                            editor: "input",
+                            editable: isMasterRowEditable
+                        },
+                        // tab=90 (mask:yyyy.mm.dd)
+                        { 
+                            title: "<span style='color: #b91c1c; font-weight: 700;'>상환일</span>", 
+                            field: "sanghwYmd", 
+                            hozAlign: "center", 
+                            width: 95,
+                            formatter: cell => `<span style="color: #b91c1c; font-weight: 600;">${formatDateVal(cell.getValue())}</span>`,
+                            editor: "input",
+                            editable: isMasterRowEditable
+                        },
+                        // tab=60
+                        { 
+                            title: "액면가", 
+                            field: "aekm", 
+                            hozAlign: "right", 
+                            width: 115, 
+                            formatter: cell => formatMoney(cell.getValue()),
+                            editor: "number",
+                            editable: isMasterRowEditable
+                        },
+                        // tab=70
+                        { 
+                            title: "표면이율(%)", 
+                            field: "pyomIyulPer", 
+                            hozAlign: "right", 
+                            width: 90, 
+                            formatter: cell => formatRate(cell.getValue()),
+                            editor: "number",
+                            editorParams: { step: 0.0001 },
+                            editable: isMasterRowEditable
+                        },
+                        // tab=0 (read-only in srd)
+                        { title: "매입수익률(%)", field: "meibSuikRtPer", hozAlign: "right", width: 95, formatter: cell => formatRate(cell.getValue()) },
+                        // tab=100
+                        { 
+                            title: "매매액", 
+                            field: "trAek", 
+                            hozAlign: "right", 
+                            width: 115, 
+                            formatter: cell => formatMoney(cell.getValue()),
+                            editor: "number",
+                            editable: isMasterRowEditable
+                        },
+                        // tab=110
+                        { 
+                            title: "취득액", 
+                            field: "chuiAek", 
+                            hozAlign: "right", 
+                            width: 115, 
+                            formatter: cell => formatMoney(cell.getValue()),
+                            editor: "number",
+                            editable: isMasterRowEditable
+                        },
+                        // tab=120
+                        { 
+                            title: "상환액", 
+                            field: "sanghwAek", 
+                            hozAlign: "right", 
+                            width: 115, 
+                            formatter: cell => formatMoney(cell.getValue()),
+                            editor: "number",
+                            editable: isMasterRowEditable
+                        },
+                        // tab=170 (dddw)
+                        { 
+                            title: "선후구분", 
+                            field: "sunhuGb", 
+                            hozAlign: "center", 
+                            width: 75,
+                            editor: "list",
+                            editorParams: {
+                                values: [
+                                    { label: "1: 선취", value: "1" },
+                                    { label: "2: 후취", value: "2" }
+                                ],
+                                autocomplete: false
+                            },
+                            editable: isMasterRowEditable
+                        },
+                        // tab=180 (dddw)
+                        { 
+                            title: "과세구분", 
+                            field: "sunhuTaxGb", 
+                            hozAlign: "center", 
+                            width: 75,
+                            editor: "list",
+                            editorParams: {
+                                values: [
+                                    { label: "1: 선과세", value: "1" },
+                                    { label: "2: 후과세", value: "2" },
+                                    { label: "3: 비과세", value: "3" }
+                                ],
+                                autocomplete: false
+                            },
+                            editable: isMasterRowEditable
+                        },
+                        // tab=160 (mask:!!!!!!!!!!!!)
+                        { 
+                            title: "<span style='color: #2563eb; font-weight: 700;'>KSD종목</span>", 
+                            field: "ksdJmCd", 
+                            hozAlign: "center", 
+                            width: 115,
+                            formatter: cell => `<span style="color: #2563eb; font-weight: 600;">${cell.getValue() || ''}</span>`,
+                            editor: "input",
+                            editable: isMasterRowEditable
+                        },
+                        // tab=0 (read-only in srd)
+                        { title: "보증기관", field: "trCoNm", hozAlign: "left", width: 110 },
+                        // tab=190 (mask:!!!)
+                        { 
+                            title: "운용회사", 
+                            field: "ksdJm5", 
+                            hozAlign: "center", 
+                            width: 75,
+                            editor: "input",
+                            editable: isMasterRowEditable
+                        },
+                        // tab=200 (mask:!!)
+                        { 
+                            title: "예탁순번", 
+                            field: "ksdJm8", 
+                            hozAlign: "center", 
+                            width: 75,
+                            editor: "input",
+                            editable: isMasterRowEditable
+                        },
+                        // tab=80 (dddw)
+                        { 
+                            title: "PG코드", 
+                            field: "pgCd", 
+                            hozAlign: "center", 
+                            width: 75,
+                            editor: "input",
+                            editable: isMasterRowEditable
+                        }
+                    ]
+                });
+
+                                // Capturing phase listener: guarantees row selection before cell's stopPropagation can block it
+                container.addEventListener("click", function(e) {
+                    const rowEl = e.target.closest(".tabulator-row");
+                    if (!rowEl || !gridMaster) return;
+                    const row = gridMaster.getRow(rowEl);
+                    if (row) {
+                        const data = row.getData();
+                        if (!row.isSelected || !row.isSelected()) {
+                            gridMaster.deselectRow();
+                            row.select();
+                            selectedMasterData = data;
+                            loadDetailList(selectedMasterData);
+                        }
+                    }
+                }, true);
+
+                gridMaster.on("rowClick", function(e, row) {
+                    gridMaster.deselectRow();
+                    row.select();
+                    selectedMasterData = row.getData();
+                    loadDetailList(selectedMasterData);
+                });
+                gridMaster.on("rowSelectionChanged", function(data, rows) {
+                    if (rows && rows.length > 0) {
+                        selectedMasterData = rows[0].getData();
+                        loadDetailList(selectedMasterData);
+                    }
+                });
+                gridMaster.on("rowTap", function(e, row) {
+                    gridMaster.deselectRow();
+                    row.select();
+                    selectedMasterData = row.getData();
+                    loadDetailList(selectedMasterData);
+                });
+            }
+
+            // Init Detail Grid (d_shj0ig.srd) - Edit settings configured based on tabsequence (New rows only)
+            function initDetailGrid() {
+                const container = pane ? pane.querySelector("#detail-grid") : document.getElementById("detail-grid");
+                if (!container) return;
+
+                gridDetail = new Tabulator(container, {
+                    layout: "fitDataFill",
+                    height: "100%",
+                    selectableRows: 1,
+                    editTriggerEvent: "click",
+                    placeholder: "<span>상단 목록에서 종목을 선택하세요.</span>",
+                    columnDefaults: { vertAlign: "middle", headerSortTristate: true },
+                    rowFormatter: function(row) {
+                        const data = row.getData();
+                        if (data && (data.isNew === true || data._isNew === true)) {
+                            row.getElement().classList.add("aams-new-row");
+                        } else {
+                            row.getElement().classList.remove("aams-new-row");
+                        }
+                    },
+                    columns: [
+                        // tab=0 (read-only)
+                        { title: "No.", formatter: "rownum", hozAlign: "center", width: 45, resizable: false, frozen: true },
+                        // tab=30
+                        { 
+                            title: "구간", 
+                            field: "guganNo", 
+                            hozAlign: "center", 
+                            width: 60,
+                            editor: "number",
+                            editable: isDetailRowEditable
+                        },
+                        // tab=10 (mask:yyyy.mm.dd)
+                        { 
+                            title: "전이자일", 
+                            field: "bfIjaYmd", 
+                            hozAlign: "center", 
+                            width: 100, 
+                            formatter: cell => formatDateVal(cell.getValue()),
+                            editor: "input",
+                            editable: isDetailRowEditable
+                        },
+                        // tab=20 (mask:yyyy.mm.dd)
+                        { 
+                            title: "<span style='color: #2563eb; font-weight: 700;'>후이자일</span>", 
+                            field: "afIjaYmd", 
+                            hozAlign: "center", 
+                            width: 100,
+                            formatter: cell => `<span style="color: #2563eb; font-weight: 600;">${formatDateVal(cell.getValue())}</span>`,
+                            editor: "input",
+                            editable: isDetailRowEditable
+                        },
+                        // tab=32766
+                        { 
+                            title: "이자일수", 
+                            field: "guganIlsu", 
+                            hozAlign: "right", 
+                            width: 75,
+                            editor: "number",
+                            editable: isDetailRowEditable
+                        },
+                        // tab=40
+                        { 
+                            title: "구간이자액", 
+                            field: "fixIjaAek", 
+                            hozAlign: "right", 
+                            width: 120, 
+                            formatter: cell => formatMoney(cell.getValue()),
+                            editor: "number",
+                            editable: isDetailRowEditable
+                        },
+                        // tab=50
+                        { 
+                            title: "단위이자액", 
+                            field: "guganIja", 
+                            hozAlign: "right", 
+                            width: 120, 
+                            formatter: cell => formatRate(cell.getValue()),
+                            editor: "number",
+                            editorParams: { step: 0.000001 },
+                            editable: isDetailRowEditable
+                        },
+                        // tab=60
+                        { 
+                            title: "선(지급)비용", 
+                            field: "otherCost", 
+                            hozAlign: "right", 
+                            width: 110, 
+                            formatter: cell => formatMoney(cell.getValue()),
+                            editor: "number",
+                            editable: isDetailRowEditable
+                        },
+                        // tab=70 (fmt:yyyy.mm.dd)
+                        { 
+                            title: "<span style='color: #2563eb; font-weight: 700;'>선지급안분종료일</span>", 
+                            field: "otherCostEndYmd", 
+                            hozAlign: "center", 
+                            width: 115,
+                            formatter: cell => `<span style="color: #2563eb; font-weight: 600;">${formatDateVal(cell.getValue())}</span>`,
+                            editor: "input",
+                            editable: isDetailRowEditable
+                        },
+                        // tab=80
+                        { 
+                            title: "플랫폼이용료", 
+                            field: "platformFee", 
+                            hozAlign: "right", 
+                            width: 110, 
+                            formatter: cell => formatMoney(cell.getValue()),
+                            editor: "number",
+                            editable: isDetailRowEditable
+                        },
+                        // tab=90 (fmt:yyyy.mm.dd)
+                        { 
+                            title: "<span style='color: #2563eb; font-weight: 700;'>플랫폼지급일</span>", 
+                            field: "platformYmd", 
+                            hozAlign: "center", 
+                            width: 105,
+                            formatter: cell => `<span style="color: #2563eb; font-weight: 600;">${formatDateVal(cell.getValue())}</span>`,
+                            editor: "input",
+                            editable: isDetailRowEditable
+                        },
+                        // tab=0 (read-only in srd)
+                        { title: "수정자", field: "ipUser", hozAlign: "center", width: 80 },
+                        // tab=0 (read-only in srd)
+                        { title: "수정일시", field: "ipYmd", hozAlign: "center", width: 140 }
+                    ]
+                });
+
+                                // Capturing phase listener: guarantees row selection on detail grid
+                container.addEventListener("click", function(e) {
+                    const rowEl = e.target.closest(".tabulator-row");
+                    if (!rowEl || !gridDetail) return;
+                    const row = gridDetail.getRow(rowEl);
+                    if (row) {
+                        if (!row.isSelected || !row.isSelected()) {
+                            gridDetail.deselectRow();
+                            row.select();
+                        }
+                    }
+                }, true);
+
+                gridDetail.on("rowClick", function(e, row) {
+                    gridDetail.deselectRow();
+                    row.select();
+                });
+                gridDetail.on("rowTap", function(e, row) {
+                    gridDetail.deselectRow();
+                    row.select();
+                });
+            }
+
+            // Load Master List
+            function loadMasterList() {
+                const corpGr = resolveCorpGr();
+                const filterYmd = pane ? pane.querySelector("#filterYmd") : document.getElementById("filterYmd");
+                const filterDddw = pane ? pane.querySelector("#filterDddw") : document.getElementById("filterDddw");
+
+                const ymd = filterYmd ? filterYmd.value : "";
+                const cashCd = filterDddw ? filterDddw.value : "%";
+
+                if (!corpGr) {
+                    alert("회사코드를 확인할 수 없습니다. 다시 로그인하거나 상단 회사 구분을 확인해주세요.");
+                    return;
+                }
+                if (!ymd) {
+                    alert("조회일자를 선택해주세요.");
+                    return;
+                }
+
+                const url = `/api/shm0hj/master?corpGr=${encodeURIComponent(corpGr)}&ymd=${encodeURIComponent(ymd)}&cashCd=${encodeURIComponent(cashCd)}`;
+
+                fetch(url)
+                    .then(res => res.json())
+                    .then(data => {
+                        const countEl = pane ? pane.querySelector("#master-count") : document.getElementById("master-count");
+                        if (countEl) countEl.textContent = `[${(data || []).length}건]`;
+
+                        if (gridMaster) {
+                            gridMaster.setData(data || []).then(() => {
+                                if (data && data.length > 0) {
+                                    const rows = gridMaster.getRows();
+                                    if (rows && rows.length > 0) {
+                                        const firstRow = rows[0];
+                                        gridMaster.deselectRow();
+                                        firstRow.select();
+                                        firstRow.scrollTo();
+                                        selectedMasterData = firstRow.getData();
+                                        loadDetailList(selectedMasterData);
+                                    }
+                                } else {
+                                    // Reset Detail Grid
+                                    selectedMasterData = null;
+                                    if (gridDetail) gridDetail.setData([]);
+                                    const detailTitle = pane ? pane.querySelector("#detail-title") : document.getElementById("detail-title");
+                                    if (detailTitle) detailTitle.innerHTML = `<i class="fa-solid fa-list-ol"></i> ■ 종목별 이자구간 상세`;
+                                    const detailCount = pane ? pane.querySelector("#detail-count") : document.getElementById("detail-count");
+                                    if (detailCount) detailCount.textContent = `[0건]`;
+                                }
+                            });
+                        }
+                    })
+                    .catch(err => {
+                        console.error("Master fetch error:", err);
+                        alert("데이터 조회 중 오류가 발생했습니다.");
+                    });
+            }
+
+            // Load Detail List for selected Master row
+            function loadDetailList(masterData) {
+                if (!masterData) return;
+                const corpGr = masterData.corpGr || resolveCorpGr();
+                const jmCd = masterData.jmCd;
+
+                const detailTitle = pane ? pane.querySelector("#detail-title") : document.getElementById("detail-title");
+                if (detailTitle) {
+                    detailTitle.innerHTML = `<i class="fa-solid fa-list-ol"></i> ■ [${masterData.hjNm || jmCd}] 종목별 이자구간 상세`;
+                }
+
+                const url = `/api/shm0hj/detail?corpGr=${encodeURIComponent(corpGr)}&jmCd=${encodeURIComponent(jmCd)}`;
+
+                fetch(url)
+                    .then(res => res.json())
+                    .then(data => {
+                        const countEl = pane ? pane.querySelector("#detail-count") : document.getElementById("detail-count");
+                        if (countEl) countEl.textContent = `[${(data || []).length}건]`;
+
+                        if (gridDetail) {
+                            gridDetail.setData(data || []).then(() => {
+                                if (data && data.length > 0) {
+                                    const detailRows = gridDetail.getRows();
+                                    if (detailRows && detailRows.length > 0) {
+                                        gridDetail.deselectRow();
+                                        detailRows[0].select();
+                                    }
+                                }
+                            });
+                        }
+                    })
+                    .catch(err => {
+                        console.error("Detail fetch error:", err);
+                    });
+            }
+
+            // Generate Period Interest (SR_SHJ0IG)
+            function generateInterest() {
+                if (!selectedMasterData) {
+                    alert("구간이자를 생성할 종목을 상단 목록에서 먼저 선택해주세요.");
+                    return;
+                }
+
+                const corpGr = selectedMasterData.corpGr || resolveCorpGr();
+                const jmCd = selectedMasterData.jmCd;
+                const hjNm = selectedMasterData.hjNm || jmCd;
+
+                const confirmMsg = `[${hjNm}] 종목의 구간이자를 생성하시겠습니까?\n(기존 이자구간이 있는 경우 삭제 후 재생성됩니다.)`;
+                if (!confirm(confirmMsg)) return;
+
+                const formData = new FormData();
+                formData.append("corpGr", corpGr);
+                formData.append("jmCd", jmCd);
+
+                fetch("/api/shm0hj/generate-interest", {
+                    method: "POST",
+                    body: formData
+                })
+                .then(res => res.json())
+                .then(result => {
+                    if (result && result.success) {
+                        alert(result.message || "구간이자가 정상적으로 생성되었습니다.");
+                        loadDetailList(selectedMasterData);
+                    } else {
+                        alert("구간이자 생성 실패: " + (result.message || "오류가 발생했습니다."));
+                    }
+                })
+                .catch(err => {
+                    console.error("Error generating interest:", err);
+                    alert("구간이자 생성 요청 처리 중 오류가 발생했습니다.");
+                });
+            }
+
+            // Add New Master Row (Only new rows are editable)
+            function addNewMasterRow() {
+                if (!gridMaster) return;
+                const corpGr = resolveCorpGr();
+                const filterYmd = pane ? pane.querySelector("#filterYmd") : document.getElementById("filterYmd");
+                const filterDddw = pane ? pane.querySelector("#filterDddw") : document.getElementById("filterDddw");
+                const ymd = filterYmd ? filterYmd.value : new Date().toISOString().slice(0, 10);
+                const cashCd = filterDddw && filterDddw.value !== "%" ? filterDddw.value : "ZS";
+
+                const newRowData = {
+                    isNew: true,
+                    corpGr: corpGr,
+                    cashCd: cashCd,
+                    balhYmd: ymd,
+                    meibYmd: ymd,
+                    sanghwYmd: ymd,
+                    fundCd: "",
+                    fundNm: "",
+                    jmCd: "",
+                    hjNm: "",
+                    aekm: 0,
+                    pyomIyulPer: 0,
+                    trAek: 0,
+                    chuiAek: 0,
+                    sanghwAek: 0,
+                    sunhuGb: "1",
+                    sunhuTaxGb: "1",
+                    ksdJmCd: "",
+                    ksdJm5: "",
+                    ksdJm8: "",
+                    pgCd: ""
+                };
+
+                gridMaster.addRow(newRowData, true).then(function(newRow) {
+                    gridMaster.deselectRow();
+                    newRow.select();
+                    newRow.scrollTo();
+                    selectedMasterData = newRow.getData();
+                    if (gridDetail) gridDetail.setData([]);
+                    const countEl = pane ? pane.querySelector("#master-count") : document.getElementById("master-count");
+                    if (countEl) countEl.textContent = `[${gridMaster.getRows().length}건]`;
+                    const cells = newRow.getCells();
+                    const firstEditable = cells.find(c => isRowEditable(c) && c.getColumn().getDefinition().editor);
+                    if (firstEditable) {
+                        setTimeout(() => firstEditable.edit(true), 50);
+                    }
+                });
+            }
+
+            // Add New Detail Row (Only new rows are editable)
+            function addNewDetailRow() {
+                if (!gridDetail) return;
+                if (!selectedMasterData) {
+                    alert("상단 목록에서 종목을 먼저 선택하거나 신규 등록해주세요.");
+                    return;
+                }
+                const corpGr = selectedMasterData.corpGr || resolveCorpGr();
+                const jmCd = selectedMasterData.jmCd || "";
+                const rows = gridDetail.getRows();
+                const nextGuganNo = (rows ? rows.length : 0) + 1;
+                const today = new Date().toISOString().slice(0, 10);
+
+                const newRowData = {
+                    isNew: true,
+                    corpGr: corpGr,
+                    jmCd: jmCd,
+                    guganNo: nextGuganNo,
+                    bfIjaYmd: today,
+                    afIjaYmd: today,
+                    guganIlsu: 0,
+                    fixIjaAek: 0,
+                    guganIja: 0,
+                    otherCost: 0,
+                    otherCostEndYmd: today,
+                    platformFee: 0,
+                    platformYmd: today
+                };
+
+                gridDetail.addRow(newRowData, false).then(function(newRow) {
+                    gridDetail.deselectRow();
+                    newRow.select();
+                    newRow.scrollTo();
+                    const countEl = pane ? pane.querySelector("#detail-count") : document.getElementById("detail-count");
+                    if (countEl) countEl.textContent = `[${gridDetail.getRows().length}건]`;
+                    const cells = newRow.getCells();
+                    const firstEditable = cells.find(c => isRowEditable(c) && c.getColumn().getDefinition().editor);
+                    if (firstEditable) {
+                        setTimeout(() => firstEditable.edit(true), 50);
+                    }
+                });
+            }
+
+            // Support pane-level common toolbar [입력] button
+            if (pane) {
+                pane.onInput = addNewMasterRow;
+                pane.onInsert = addNewMasterRow;
+                pane.getNewRowData = function() {
+                    return { isNew: true };
+                };
+            }
+
+            // Event Listeners
+            function initEvents() {
+                const btnSearch = pane ? pane.querySelector("#btnSearchMaster") : document.getElementById("btnSearchMaster");
+                if (btnSearch) btnSearch.onclick = loadMasterList;
+
+                const btnInterest = pane ? pane.querySelector("#btnGenerateInterest") : document.getElementById("btnGenerateInterest");
+                if (btnInterest) btnInterest.onclick = generateInterest;
+
+                // Toolbar Common Retrieve button
+                const btnToolbarRetrieve = pane ? pane.querySelector(".t-btn[title='조회']") : null;
+                if (btnToolbarRetrieve) btnToolbarRetrieve.onclick = loadMasterList;
+
+                // Grid Sub-header Add Row buttons
+                const btnMasterAddRow = pane ? pane.querySelector("#btnMasterAddRow") : document.getElementById("btnMasterAddRow");
+                if (btnMasterAddRow) btnMasterAddRow.onclick = addNewMasterRow;
+
+                const btnDetailAddRow = pane ? pane.querySelector("#btnDetailAddRow") : document.getElementById("btnDetailAddRow");
+                if (btnDetailAddRow) btnDetailAddRow.onclick = addNewDetailRow;
+
+                // Filter input enter key
+                const filterYmd = pane ? pane.querySelector("#filterYmd") : document.getElementById("filterYmd");
+                if (filterYmd) {
+                    filterYmd.addEventListener("keydown", function(e) {
+                        if (e.key === "Enter") loadMasterList();
+                    });
+                    if (!filterYmd.value) {
+                        const now = new Date();
+                        const pad = n => String(n).padStart(2, '0');
+                        filterYmd.value = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}`;
+                    }
+                }
+
+                const filterDddw = pane ? pane.querySelector("#filterDddw") : document.getElementById("filterDddw");
+                if (filterDddw) {
+                    filterDddw.addEventListener("change", loadMasterList);
+                }
+            }
+
+            document.addEventListener("DOMContentLoaded", function() {
+                initDddwOptions();
+                initMasterGrid();
+                initDetailGrid();
+                initEvents();
+            });
+
+            if (document.readyState === "complete" || document.readyState === "interactive") {
+                setTimeout(() => {
+                    initDddwOptions();
+                    initMasterGrid();
+                    initDetailGrid();
+                    initEvents();
+                }, 50);
+            }
+        })();
+    </script>
+</div>
+</html>

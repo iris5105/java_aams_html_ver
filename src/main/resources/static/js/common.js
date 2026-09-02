@@ -334,6 +334,13 @@ function onSidebarMenuClick(el) {
     if (window.tabManager) {
         window.tabManager.openTab(pgmNo, pgmId, title, null, breadcrumb, pgmGo, topPgmNo);
     }
+
+    // 모바일 환경이거나 오프캔버스 드로어로 열려있는 경우 사이드바 메뉴 자동 닫기
+    const sidebar = document.querySelector('.left-sidebar');
+    const isMobileMode = (window.innerWidth <= 1100) || document.body.classList.contains('header-compact-mode') || (sidebar && sidebar.classList.contains('sidebar-open'));
+    if (isMobileMode) {
+        closeMobileSidebar();
+    }
 }
 
 let g_allMenuListCache = null;
@@ -867,6 +874,15 @@ function toggleSidebar() {
     sidebar.classList.toggle('sidebar-open');
     body.classList.toggle('sidebar-backdrop-open');
 }
+
+function closeMobileSidebar() {
+    const sidebar = document.querySelector('.left-sidebar');
+    if (sidebar) {
+        sidebar.classList.remove('sidebar-open');
+    }
+    document.body.classList.remove('sidebar-backdrop-open');
+}
+window.closeMobileSidebar = closeMobileSidebar;
 
 // Close sidebar on backdrop click (outside click)
 document.addEventListener('click', function(e) {

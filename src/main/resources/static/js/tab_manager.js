@@ -316,6 +316,15 @@ class TabManager {
         if (!topChanged) {
             this.highlightSidebarMenu(tabKey);
         }
+
+        // 모바일 오프캔버스 드로어로 사이드바가 열려있는 경우 탭 전환 시 자동 닫기
+        if (!this.isRestoring && typeof window.closeMobileSidebar === 'function') {
+            const sidebar = document.querySelector('.left-sidebar');
+            if (sidebar && sidebar.classList.contains('sidebar-open')) {
+                window.closeMobileSidebar();
+            }
+        }
+
         this.saveStateToStorage();
     }
 
