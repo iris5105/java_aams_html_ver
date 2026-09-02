@@ -7,7 +7,6 @@
         <div class="toolbar-left">
             <!-- Reusable Common Toolbar Buttons Fragment (닫기, 새로고침, 조회, 입력, 저장, 엑셀) -->
             <div th:replace="~{fragments/tab_header :: toolbarButtons}"></div>
-            <button type="button" class="t-btn btn-action" id="btnSearchMaster" title="조회"><i class="fa-solid fa-magnifying-glass"></i> 조회</button>
             <button type="button" class="t-btn btn-action" id="btnGenerateInterest" style="background-color: #2563eb; color: #fff; border-color: #1d4ed8;" title="선택된 종목의 구간이자를 생성합니다."><i class="fa-solid fa-calculator"></i> 구간이자생성</button>
         </div>
         <!-- Reusable Common Breadcrumb Fragment -->
@@ -68,6 +67,8 @@
         </div>
     </div>
 
+    <!-- DDDW Controller Script -->
+    <script th:src="@{/js/f_dddwctl.js}" src="/js/f_dddwctl.js"></script>
     <!-- Inline Script for w_shm0hj View with Tabulator Grids -->
     <script th:inline="javascript">
         (function() {
@@ -104,8 +105,96 @@
                 };
                 return (sessionStorage.getItem("corp_gr") || getCookieVal("savedCorpGr") || getCookieVal("corpGr") || getCookieVal("corp_gr") || "");
             }
+            // DDDW Option Caches (Populated via ue_dddw_retrieve and f_dddwctl)
+            let dddwOptionsMap = {
+                filter_dddw: [],
+                cash_cd: [],
+                sunhu_gb: [],
+                sunhu_tax_gb: [],
+                pg_cd: []
+            };
 
-            let cashCdOptions = [];
+            /**
+             * PowerBuilder dw_c & dw_list::ue_dddw_retrieve Event Integration
+             * Corresponds to:
+             *   1. dw_c::ue_dddw_retrieve:
+             *      F_DDDWCTL (THIS, 'dddw', gaa.corp_gr, '%,전체,', 5, "sebu_cd<>'90'")
+             *   2. dw_list::ue_dddw_retrieve:
+             *      F_DDDWCTL (THIS, 'cash_cd', gaa.corp_gr, '', 1, '')
+             *      F_DDDWCTL (THIS, 'sunhu_gb', gaa.corp_gr, '', 2, '')
+             *      F_DDDWCTL (THIS, 'sunhu_tax_gb', gaa.corp_gr, '', 1, '')
+             *      F_DDDWCTL (THIS, 'pg_cd', gaa.corp_gr, ',,', 2, '')
+             */
+            function ue_dddw_retrieve(corpGr) {
+                const targetCorpGr = corpGr || resolveCorpGr();
+
+                if (typeof window.f_dddwctl !== 'function' || typeof window.f_dddwctl.retrieveMultiple !== 'function') {
+                    console.warn("[ue_dddw_retrieve] f_dddwctl is not defined.");
+                    return Promise.resolve();
+                }
+
+                return window.f_dddwctl.retrieveMultiple({
+                    filter_dddw: ['dddw', targetCorpGr, '%,전체,', 5, "sebu_cd<>'90'"],
+                    cash_cd: ['cash_cd', targetCorpGr, '', 1, ''],
+                    sunhu_gb: ['sunhu_gb', targetCorpGr, '', 2, ''],
+                    sunhu_tax_gb: ['sunhu_tax_gb', targetCorpGr, '', 1, ''],
+                    pg_cd: ['pg_cd', targetCorpGr, ',,', 2, '']
+                }).then(results => {
+                    dddwOptionsMap.filter_dddw = results.filter_dddw || [];
+                    dddwOptionsMap.cash_cd = results.cash_cd || [];
+                    dddwOptionsMap.sunhu_gb = results.sunhu_gb || [];
+                    dddwOptionsMap.sunhu_tax_gb = results.sunhu_tax_gb || [];
+                    dddwOptionsMap.pg_cd = results.pg_cd || [];
+
+                    // 1. Populate Filter select (#filterDddw)
+                    const dddwSelect = pane ? pane.querySelector("#filterDddw") : document.getElementById("filterDddw");
+                    if (dddwSelect && dddwOptionsMap.filter_dddw.length > 0) {
+                        const prevVal = dddwSelect.value;
+                        dddwSelect.innerHTML = dddwOptionsMap.filter_dddw.map(item => {
+                            const code = (item.code != null ? item.code : (item.SEBU_CD != null ? item.SEBU_CD : item.cd)) || '';
+                            const name = (item.name != null ? item.name : (item.SEBU_CD_NM != null ? item.SEBU_CD_NM : item.dscr)) || code;
+                            return `<option value="${code}">${name}</option>`;
+                        }).join("");
+
+                        if (prevVal && dddwOptionsMap.filter_dddw.some(x => (x.code || x.cd || x.SEBU_CD) === prevVal)) {
+                            dddwSelect.value = prevVal;
+                        } else if (dddwOptionsMap.filter_dddw.some(x => (x.code || x.cd || x.SEBU_CD) === "ZS")) {
+                            dddwSelect.value = "ZS";
+                        }
+                    }
+
+                    if (gridMaster) {
+                        gridMaster.redraw(true);
+                    }
+                }).catch(err => {
+                    console.error("[ue_dddw_retrieve] Failed to retrieve DDDW options:", err);
+                });
+            }
+
+            function getDddwOptions(dddwKey) {
+                const list = dddwOptionsMap[dddwKey] || [];
+                return list.map(item => {
+                    const code = (item.code != null ? item.code : (item.SEBU_CD != null ? item.SEBU_CD : (item.cd != null ? item.cd : ''))).toString().trim();
+                    const name = (item.name != null ? item.name : (item.SEBU_CD_NM != null ? item.SEBU_CD_NM : (item.dscr != null ? item.dscr : code))).toString().trim();
+                    return { label: name ? `${name} (${code})` : code, value: code };
+                });
+            }
+
+            function getDddwLabel(dddwKey, codeVal) {
+                if (codeVal == null || codeVal === "") return "";
+                if (typeof window.f_dddwctl === 'function' && typeof window.f_dddwctl.getLabel === 'function') {
+                    return window.f_dddwctl.getLabel(dddwOptionsMap, dddwKey, codeVal);
+                }
+                const list = dddwOptionsMap[dddwKey] || [];
+                const found = list.find(item => {
+                    const c = (item.code != null ? item.code : (item.SEBU_CD != null ? item.SEBU_CD : item.cd));
+                    return String(c).trim() === String(codeVal).trim();
+                });
+                if (found) {
+                    return found.name != null ? found.name : (found.SEBU_CD_NM != null ? found.SEBU_CD_NM : found.dscr);
+                }
+                return String(codeVal);
+            }
 
             // Master grid conditional edit check (New row: 1-click edit; Existing row: select row & load detail, edit blocked)
             function isMasterRowEditable(cell) {
@@ -147,36 +236,6 @@
                 }
             }
 
-            // Helper for new row check
-            function isRowEditable(cell) {
-                if (!cell) return false;
-                const row = typeof cell.getRow === "function" ? cell.getRow() : null;
-                if (!row) return false;
-                const data = row.getData();
-                return Boolean(data && (data.isNew === true || data._isNew === true || data.isNewRow === true));
-            }
-
-
-
-            // Load DDDW options for Cash Category (dddw seq=5, sebu_cd<>'90')
-            function initDddwOptions() {
-                const dddwSelect = pane ? pane.querySelector("#filterDddw") : document.getElementById("filterDddw");
-                if (!dddwSelect) return;
-
-                fetch("/api/common/dddw?dddwNm=dddw&seq=5&addWhere=sebu_cd<>'90'")
-                    .then(res => res.json())
-                    .then(data => {
-                        if (Array.isArray(data) && data.length > 0) {
-                            cashCdOptions = data.map(item => ({ label: `${item.name} (${item.code})`, value: item.code }));
-                            dddwSelect.innerHTML = `<option value="%">전체</option>` +
-                                data.map(item => `<option value="${item.code}">${item.name}</option>`).join("");
-                            // Initial value "ZS" (전단채) per PB resource
-                            dddwSelect.value = "ZS";
-                        }
-                    })
-                    .catch(err => console.error("Failed to load cash_cd DDDW:", err));
-            }
-
             // Init Master Grid (d_shm0hj.srd) - Edit settings configured based on tabsequence (New rows only)
             function initMasterGrid() {
                 const container = pane ? pane.querySelector("#master-grid") : document.getElementById("master-grid");
@@ -211,10 +270,11 @@
                             title: "현금종류", 
                             field: "cashCd", 
                             hozAlign: "center", 
-                            width: 75,
+                            width: 80,
+                            formatter: cell => getDddwLabel('cash_cd', cell.getValue()) || cell.getValue() || '',
                             editor: "list",
                             editorParams: {
-                                valuesLookup: () => cashCdOptions.length > 0 ? cashCdOptions : ["ZS", "CP", "CD", "ST", "RP", "SC", "SF", "FR"],
+                                valuesLookup: () => getDddwOptions('cash_cd'),
                                 autocomplete: false,
                                 listOnEmpty: true
                             },
@@ -237,16 +297,6 @@
                             field: "fundNm", 
                             hozAlign: "left", 
                             width: 140,
-                            editor: "input",
-                            editable: isMasterRowEditable
-                        },
-                        // tab=32766
-                        { 
-                            title: "<span style='color: #2563eb; font-weight: 700;'>종목코드</span>", 
-                            field: "jmCd", 
-                            hozAlign: "center", 
-                            width: 110,
-                            formatter: cell => `<span style="color: #2563eb; font-weight: 600;">${cell.getValue() || ''}</span>`,
                             editor: "input",
                             editable: isMasterRowEditable
                         },
@@ -348,14 +398,13 @@
                             title: "선후구분", 
                             field: "sunhuGb", 
                             hozAlign: "center", 
-                            width: 75,
+                            width: 80,
+                            formatter: cell => getDddwLabel('sunhu_gb', cell.getValue()) || cell.getValue() || '',
                             editor: "list",
                             editorParams: {
-                                values: [
-                                    { label: "1: 선취", value: "1" },
-                                    { label: "2: 후취", value: "2" }
-                                ],
-                                autocomplete: false
+                                valuesLookup: () => getDddwOptions('sunhu_gb'),
+                                autocomplete: false,
+                                listOnEmpty: true
                             },
                             editable: isMasterRowEditable
                         },
@@ -364,15 +413,13 @@
                             title: "과세구분", 
                             field: "sunhuTaxGb", 
                             hozAlign: "center", 
-                            width: 75,
+                            width: 80,
+                            formatter: cell => getDddwLabel('sunhu_tax_gb', cell.getValue()) || cell.getValue() || '',
                             editor: "list",
                             editorParams: {
-                                values: [
-                                    { label: "1: 선과세", value: "1" },
-                                    { label: "2: 후과세", value: "2" },
-                                    { label: "3: 비과세", value: "3" }
-                                ],
-                                autocomplete: false
+                                valuesLookup: () => getDddwOptions('sunhu_tax_gb'),
+                                autocomplete: false,
+                                listOnEmpty: true
                             },
                             editable: isMasterRowEditable
                         },
@@ -386,8 +433,16 @@
                             editor: "input",
                             editable: isMasterRowEditable
                         },
-                        // tab=0 (read-only in srd)
-                        { title: "보증기관", field: "trCoNm", hozAlign: "left", width: 110 },
+                        // tab=32766
+                        { 
+                            title: "<span style='color: #2563eb; font-weight: 700;'>종목코드</span>", 
+                            field: "jmCd", 
+                            hozAlign: "center", 
+                            width: 110,
+                            formatter: cell => `<span style="color: #2563eb; font-weight: 600;">${cell.getValue() || ''}</span>`,
+                            editor: "input",
+                            editable: isMasterRowEditable
+                        },
                         // tab=190 (mask:!!!)
                         { 
                             title: "운용회사", 
@@ -411,8 +466,14 @@
                             title: "PG코드", 
                             field: "pgCd", 
                             hozAlign: "center", 
-                            width: 75,
-                            editor: "input",
+                            width: 85,
+                            formatter: cell => getDddwLabel('pg_cd', cell.getValue()) || cell.getValue() || '',
+                            editor: "list",
+                            editorParams: {
+                                valuesLookup: () => getDddwOptions('pg_cd'),
+                                autocomplete: false,
+                                listOnEmpty: true
+                            },
                             editable: isMasterRowEditable
                         }
                     ]
@@ -429,28 +490,16 @@
                             gridMaster.deselectRow();
                             row.select();
                             selectedMasterData = data;
-                            loadDetailList(selectedMasterData);
+                            loadDetailList(selectedMasterData, true);
                         }
                     }
                 }, true);
 
-                gridMaster.on("rowClick", function(e, row) {
-                    gridMaster.deselectRow();
-                    row.select();
-                    selectedMasterData = row.getData();
-                    loadDetailList(selectedMasterData);
-                });
                 gridMaster.on("rowSelectionChanged", function(data, rows) {
                     if (rows && rows.length > 0) {
                         selectedMasterData = rows[0].getData();
-                        loadDetailList(selectedMasterData);
+                        loadDetailList(selectedMasterData, true);
                     }
-                });
-                gridMaster.on("rowTap", function(e, row) {
-                    gridMaster.deselectRow();
-                    row.select();
-                    selectedMasterData = row.getData();
-                    loadDetailList(selectedMasterData);
                 });
             }
 
@@ -596,14 +645,7 @@
                     }
                 }, true);
 
-                gridDetail.on("rowClick", function(e, row) {
-                    gridDetail.deselectRow();
-                    row.select();
-                });
-                gridDetail.on("rowTap", function(e, row) {
-                    gridDetail.deselectRow();
-                    row.select();
-                });
+
             }
 
             // Load Master List
@@ -642,11 +684,12 @@
                                         firstRow.select();
                                         firstRow.scrollTo();
                                         selectedMasterData = firstRow.getData();
-                                        loadDetailList(selectedMasterData);
+                                        loadDetailList(selectedMasterData, true);
                                     }
                                 } else {
                                     // Reset Detail Grid
                                     selectedMasterData = null;
+                                    lastLoadedMasterKey = "";
                                     if (gridDetail) gridDetail.setData([]);
                                     const detailTitle = pane ? pane.querySelector("#detail-title") : document.getElementById("detail-title");
                                     if (detailTitle) detailTitle.innerHTML = `<i class="fa-solid fa-list-ol"></i> ■ 종목별 이자구간 상세`;
@@ -662,16 +705,31 @@
                     });
             }
 
-            // Load Detail List for selected Master row
-            function loadDetailList(masterData) {
+            let lastLoadedMasterKey = "";
+
+            // Load Detail List for selected Master row (with duplicate fetch guard)
+            function loadDetailList(masterData, force = false) {
                 if (!masterData) return;
                 const corpGr = masterData.corpGr || resolveCorpGr();
-                const jmCd = masterData.jmCd;
+                const jmCd = masterData.jmCd || "";
 
                 const detailTitle = pane ? pane.querySelector("#detail-title") : document.getElementById("detail-title");
                 if (detailTitle) {
                     detailTitle.innerHTML = `<i class="fa-solid fa-list-ol"></i> ■ [${masterData.hjNm || jmCd}] 종목별 이자구간 상세`;
                 }
+
+                if (!jmCd) {
+                    if (gridDetail) gridDetail.setData([]);
+                    const countEl = pane ? pane.querySelector("#detail-count") : document.getElementById("detail-count");
+                    if (countEl) countEl.textContent = "[0건]";
+                    return;
+                }
+
+                const currentKey = `${corpGr}_${jmCd}`;
+                if (!force && lastLoadedMasterKey === currentKey) {
+                    return; // 이미 조회된 종목이면 중복 API 호출 방지
+                }
+                lastLoadedMasterKey = currentKey;
 
                 const url = `/api/shm0hj/detail?corpGr=${encodeURIComponent(corpGr)}&jmCd=${encodeURIComponent(jmCd)}`;
 
@@ -724,7 +782,7 @@
                 .then(result => {
                     if (result && result.success) {
                         alert(result.message || "구간이자가 정상적으로 생성되었습니다.");
-                        loadDetailList(selectedMasterData);
+                        loadDetailList(selectedMasterData, true);
                     } else {
                         alert("구간이자 생성 실패: " + (result.message || "오류가 발생했습니다."));
                     }
@@ -777,83 +835,37 @@
                     const countEl = pane ? pane.querySelector("#master-count") : document.getElementById("master-count");
                     if (countEl) countEl.textContent = `[${gridMaster.getRows().length}건]`;
                     const cells = newRow.getCells();
-                    const firstEditable = cells.find(c => isRowEditable(c) && c.getColumn().getDefinition().editor);
+                    const firstEditable = cells.find(c => isMasterRowEditable(c) && c.getColumn().getDefinition().editor);
                     if (firstEditable) {
                         setTimeout(() => firstEditable.edit(true), 50);
                     }
                 });
-            }
-
-            // Add New Detail Row (Only new rows are editable)
-            function addNewDetailRow() {
-                if (!gridDetail) return;
-                if (!selectedMasterData) {
-                    alert("상단 목록에서 종목을 먼저 선택하거나 신규 등록해주세요.");
-                    return;
-                }
-                const corpGr = selectedMasterData.corpGr || resolveCorpGr();
-                const jmCd = selectedMasterData.jmCd || "";
-                const rows = gridDetail.getRows();
-                const nextGuganNo = (rows ? rows.length : 0) + 1;
-                const today = new Date().toISOString().slice(0, 10);
-
-                const newRowData = {
-                    isNew: true,
-                    corpGr: corpGr,
-                    jmCd: jmCd,
-                    guganNo: nextGuganNo,
-                    bfIjaYmd: today,
-                    afIjaYmd: today,
-                    guganIlsu: 0,
-                    fixIjaAek: 0,
-                    guganIja: 0,
-                    otherCost: 0,
-                    otherCostEndYmd: today,
-                    platformFee: 0,
-                    platformYmd: today
-                };
-
-                gridDetail.addRow(newRowData, false).then(function(newRow) {
-                    gridDetail.deselectRow();
-                    newRow.select();
-                    newRow.scrollTo();
-                    const countEl = pane ? pane.querySelector("#detail-count") : document.getElementById("detail-count");
-                    if (countEl) countEl.textContent = `[${gridDetail.getRows().length}건]`;
-                    const cells = newRow.getCells();
-                    const firstEditable = cells.find(c => isRowEditable(c) && c.getColumn().getDefinition().editor);
-                    if (firstEditable) {
-                        setTimeout(() => firstEditable.edit(true), 50);
-                    }
-                });
-            }
-
-            // Support pane-level common toolbar [입력] button
-            if (pane) {
-                pane.onInput = addNewMasterRow;
-                pane.onInsert = addNewMasterRow;
-                pane.getNewRowData = function() {
-                    return { isNew: true };
-                };
             }
 
             // Event Listeners
             function initEvents() {
-                const btnSearch = pane ? pane.querySelector("#btnSearchMaster") : document.getElementById("btnSearchMaster");
-                if (btnSearch) btnSearch.onclick = loadMasterList;
+                // Support pane-level standard contracts for toolbar buttons
+                if (pane) {
+                    pane.onSearch = loadMasterList;
+                    pane.onRetrieve = loadMasterList;
+                    pane.onInput = addNewMasterRow;
+                    pane.onInsert = addNewMasterRow;
+                    pane.getNewRowData = function() {
+                        return { isNew: true };
+                    };
+                    pane.onCorpGrChange = function(newCorpGr) {
+                        ue_dddw_retrieve(newCorpGr).then(() => {
+                            loadMasterList();
+                        });
+                    };
+                }
 
                 const btnInterest = pane ? pane.querySelector("#btnGenerateInterest") : document.getElementById("btnGenerateInterest");
                 if (btnInterest) btnInterest.onclick = generateInterest;
 
                 // Toolbar Common Retrieve button
-                const btnToolbarRetrieve = pane ? pane.querySelector(".t-btn[title='조회']") : null;
+                const btnToolbarRetrieve = pane ? (pane.querySelector(".btn-search") || pane.querySelector(".t-btn[title='조회']")) : null;
                 if (btnToolbarRetrieve) btnToolbarRetrieve.onclick = loadMasterList;
-
-                // Grid Sub-header Add Row buttons
-                const btnMasterAddRow = pane ? pane.querySelector("#btnMasterAddRow") : document.getElementById("btnMasterAddRow");
-                if (btnMasterAddRow) btnMasterAddRow.onclick = addNewMasterRow;
-
-                const btnDetailAddRow = pane ? pane.querySelector("#btnDetailAddRow") : document.getElementById("btnDetailAddRow");
-                if (btnDetailAddRow) btnDetailAddRow.onclick = addNewDetailRow;
 
                 // Filter input enter key
                 const filterYmd = pane ? pane.querySelector("#filterYmd") : document.getElementById("filterYmd");
@@ -874,20 +886,19 @@
                 }
             }
 
-            document.addEventListener("DOMContentLoaded", function() {
-                initDddwOptions();
+            let isInitialized = false;
+            function startInit() {
+                if (isInitialized) return;
+                isInitialized = true;
+                ue_dddw_retrieve();
                 initMasterGrid();
                 initDetailGrid();
                 initEvents();
-            });
+            }
 
+            document.addEventListener("DOMContentLoaded", startInit);
             if (document.readyState === "complete" || document.readyState === "interactive") {
-                setTimeout(() => {
-                    initDddwOptions();
-                    initMasterGrid();
-                    initDetailGrid();
-                    initEvents();
-                }, 50);
+                setTimeout(startInit, 50);
             }
         })();
     </script>
