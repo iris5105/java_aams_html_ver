@@ -509,6 +509,7 @@
 
             // Global functions for controller integration
             window.loadJa010bMaster = function(corpGr) {
+                lastLoadedMasterKey = null;
                 const filterSelect = document.getElementById("filterCorpGr");
                 const corp = corpGr != null ? corpGr : (filterSelect ? filterSelect.value : "");
 
@@ -542,9 +543,13 @@
                     .catch(err => console.error("Error loading master ja010b:", err));
             };
 
+            let lastLoadedMasterKey = null;
             function fetchJa010bSubGrids(fundCd) {
                 const filterSelect = pane ? pane.querySelector("#filterCorpGr") : document.getElementById("filterCorpGr");
                 const corpGr = filterSelect ? filterSelect.value : "";
+                const currentKey = (corpGr || '') + '_' + (fundCd || '');
+                if (lastLoadedMasterKey === currentKey) return;
+                lastLoadedMasterKey = currentKey;
 
                 fetch(`/api/account/ja010b/detail?corpGr=${encodeURIComponent(corpGr)}&fundCd=${encodeURIComponent(fundCd)}`)
                     .then(res => res.json())
@@ -567,23 +572,42 @@
             initIoGrid();
             ue_dddw_retrieve();
 
-            // Register standard CorpGr change contract method on current tab pane
+            // Register standard toolbar & CorpGr contract (Guideline 8)
             if (pane) {
+                pane.onSearch = function() { window.loadJa010bMaster(); };
+                pane.onRetrieve = function() { window.loadJa010bMaster(); };
                 pane.onCorpGrChange = function(val) {
+                    lastLoadedMasterKey = null;
                     window.loadJa010bMaster(val);
                 };
                 pane.addEventListener("corpGrChanged", function(e) {
+                    lastLoadedMasterKey = null;
                     window.loadJa010bMaster(e.detail ? e.detail.corpGr : val);
                 });
             }
 
-            // Initial Master Grid data load if initial data exists
-            if (initialMasterData && initialMasterData.length > 0) {
-                setTimeout(() => {
-                    if (gridMaster) {
-                        gridMaster.setData(initialMasterData);
-                    }
-                }, 50);
+            // Guideline 10: Single initialization entry point with isInitialized guard
+            let isInitialized = false;
+            function startInit() {
+                if (isInitialized) return;
+                isInitialized = true;
+                initMasterGrid();
+                initDetailGrid();
+                initIoGrid();
+                ue_dddw_retrieve();
+
+                if (initialMasterData && initialMasterData.length > 0) {
+                    setTimeout(() => {
+                        if (gridMaster) {
+                            gridMaster.setData(initialMasterData);
+                        }
+                    }, 50);
+                }
+            }
+
+            document.addEventListener("DOMContentLoaded", startInit);
+            if (document.readyState === "complete" || document.readyState === "interactive") {
+                setTimeout(startInit, 50);
             }
         })();
 

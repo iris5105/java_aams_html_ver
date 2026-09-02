@@ -7,7 +7,6 @@
         <div class="toolbar-left">
             <!-- Reusable Common Toolbar Buttons Fragment (닫기 ~ 엑셀) -->
             <div th:replace="~{fragments/tab_header :: toolbarButtons}"></div>
-            <button class="t-btn btn-action" onclick="loadSzx0seData()"><i class="fa-solid fa-magnifying-glass"></i> 조회</button>
         </div>
         <!-- Reusable Common Breadcrumb Fragment -->
         <div th:replace="~{fragments/tab_header :: toolbarBreadcrumb}"></div>
@@ -108,6 +107,7 @@
                     data: initialData || [],
                     layout: "fitColumns",
                     height: "100%",
+                    selectableRows: 1,
                     placeholder: "<span>조회된 계좌관리그룹/상품그룹 데이터가 없습니다.</span>",
                     columnDefaults: { vertAlign: "middle", headerSortTristate: true },
                     columns: [
@@ -251,6 +251,17 @@
                         { title: "비고", field: "bigo", minWidth: 150, editor: "input", cellClick: (e, cell) => cell.edit(true) }
                     ]
                 });
+
+                // Guideline 7: Capturing phase listener to guarantee row selection
+                container.addEventListener("click", function(e) {
+                    const rowEl = e.target.closest(".tabulator-row");
+                    if (!rowEl || !gridSzx0se) return;
+                    const row = gridSzx0se.getRow(rowEl);
+                    if (row && (!row.isSelected || !row.isSelected())) {
+                        gridSzx0se.deselectRow();
+                        row.select();
+                    }
+                }, true);
             }
 
             // Data retrieval function (Mapper / REST API)
@@ -271,8 +282,10 @@
                     .catch(err => console.error("Error loading szx0se list for corpGr [" + corpGr + "]:", err));
             };
 
-            // Register standard CorpGr change contract method on current tab pane
+            // Register standard CorpGr change contract method on current tab pane (Guideline 8)
             if (pane) {
+                pane.onSearch = function() { window.loadSzx0seData(); };
+                pane.onRetrieve = function() { window.loadSzx0seData(); };
                 pane.onCorpGrChange = function(val) {
                     window.loadSzx0seData(val);
                 };
@@ -299,9 +312,19 @@
                 };
             }
 
-            // Initialize Grid & Trigger ue_dddw_retrieve on page load
-            initSzx0seGrid();
-            ue_dddw_retrieve();
+            // Guideline 10: Single initialization entry point with isInitialized guard
+            let isInitialized = false;
+            function startInit() {
+                if (isInitialized) return;
+                isInitialized = true;
+                initSzx0seGrid();
+                ue_dddw_retrieve();
+            }
+
+            document.addEventListener("DOMContentLoaded", startInit);
+            if (document.readyState === "complete" || document.readyState === "interactive") {
+                setTimeout(startInit, 50);
+            }
         })();
     </script>
 </div>

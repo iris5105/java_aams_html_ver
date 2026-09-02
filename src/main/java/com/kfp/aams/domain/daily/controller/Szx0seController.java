@@ -68,6 +68,6 @@ public class Szx0seController {
         if (paramCorpGr != null && !paramCorpGr.isBlank()) return paramCorpGr;
         if (cookieCorpGr != null && !cookieCorpGr.isBlank()) return cookieCorpGr;
         if (principal != null && principal.getCorpGr() != null) return principal.getCorpGr();
-        return "2200";
+        return "";
     }
 }

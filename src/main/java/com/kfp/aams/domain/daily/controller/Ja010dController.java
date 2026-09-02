@@ -96,6 +96,6 @@ public class Ja010dController {
         if (principal != null && principal.getCorpGr() != null) {
             return principal.getCorpGr();
         }
-        return "2200";
+        return "";
     }
 }

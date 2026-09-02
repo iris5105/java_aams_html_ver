@@ -530,6 +530,7 @@
             }
 
             window.loadProposalMaster = function(targetCorpGr) {
+                lastLoadedProposalKey = null;
                 const filterSelect = pane ? pane.querySelector('select[name="corpGr"]') : document.getElementById("filterCorpGr");
                 const corpGr = (targetCorpGr != null && String(targetCorpGr).trim() !== "")
                     ? targetCorpGr 
@@ -558,7 +559,12 @@
                     .catch(err => console.error("Failed to load proposal master:", err));
             };
 
+            let lastLoadedProposalKey = null;
             function fetchProposalComments(corpGr, ymd, proposer) {
+                const key = `${corpGr}_${ymd}_${proposer}`;
+                if (lastLoadedProposalKey === key) return;
+                lastLoadedProposalKey = key;
+
                 let url = `/api/proposal/comment?corpGr=${encodeURIComponent(corpGr)}`;
                 if (ymd) url += `&ymd=${encodeURIComponent(ymd)}`;
                 if (proposer) url += `&proposer=${encodeURIComponent(proposer)}`;
@@ -573,12 +579,16 @@
                     .catch(err => console.error("Failed to load proposal comments:", err));
             }
 
-            // Register standard contracts on current tab pane
+            // Register standard contracts on current tab pane (Guideline 8)
             if (pane) {
+                pane.onSearch = function() { window.loadProposalMaster(); };
+                pane.onRetrieve = function() { window.loadProposalMaster(); };
                 pane.onCorpGrChange = function(val) {
+                    lastLoadedProposalKey = null;
                     window.loadProposalMaster(val);
                 };
                 pane.addEventListener("corpGrChanged", function(e) {
+                    lastLoadedProposalKey = null;
                     const selectedVal = (e.detail && e.detail.corpGr) ? e.detail.corpGr : "";
                     window.loadProposalMaster(selectedVal);
                 });
@@ -751,19 +761,19 @@
                 }
             }
 
-            document.addEventListener("DOMContentLoaded", function() {
+            // Guideline 10: Single initialization entry point with isInitialized guard
+            let isInitialized = false;
+            function startInit() {
+                if (isInitialized) return;
+                isInitialized = true;
                 initMasterGrid();
                 initCommentGrid();
                 initCommentTools();
-            });
+            }
 
-            // Initialize immediately if DOM is ready
+            document.addEventListener("DOMContentLoaded", startInit);
             if (document.readyState === "complete" || document.readyState === "interactive") {
-                setTimeout(() => {
-                    initMasterGrid();
-                    initCommentGrid();
-                    initCommentTools();
-                }, 50);
+                setTimeout(startInit, 50);
             }
         })();
     </script>

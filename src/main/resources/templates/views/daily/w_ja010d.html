@@ -7,7 +7,6 @@
         <div class="toolbar-left">
             <!-- Reusable Common Toolbar Buttons Fragment (닫기 ~ 엑셀) -->
             <div th:replace="~{fragments/tab_header :: toolbarButtons}"></div>
-            <button class="t-btn btn-action" onclick="loadJa010dData()"><i class="fa-solid fa-magnifying-glass"></i> 조회</button>
         </div>
         <!-- Reusable Common Breadcrumb Fragment -->
         <div th:replace="~{fragments/tab_header :: toolbarBreadcrumb}"></div>
@@ -60,6 +59,7 @@
                     data: initialData || [],
                     layout: "fitColumns",
                     height: "100%",
+                    selectableRows: 1,
                     placeholder: "<span>조회된 입.출금 내역 데이터가 없습니다.</span>",
                     columnDefaults: { vertAlign: "middle", headerSortTristate: true },
                     columns: [
@@ -73,6 +73,17 @@
                         { title: "입출금조정액", field: "ioJo", hozAlign: "right", minWidth: 130, formatter: cell => numFmt(cell.getValue()) }
                     ]
                 });
+
+                // Guideline 7: Capturing listener to guarantee row selection
+                container.addEventListener("click", function(e) {
+                    const rowEl = e.target.closest(".tabulator-row");
+                    if (!rowEl || !gridJa010d) return;
+                    const row = gridJa010d.getRow(rowEl);
+                    if (row && (!row.isSelected || !row.isSelected())) {
+                        gridJa010d.deselectRow();
+                        row.select();
+                    }
+                }, true);
             }
 
             // Data retrieval function (Mapper / REST API)
@@ -92,8 +103,10 @@
                     .catch(err => console.error("Error loading ja010d list:", err));
             };
 
-            // Register standard CorpGr change contract method on current tab pane
+            // Register standard toolbar & CorpGr contract (Guideline 8)
             if (pane) {
+                pane.onSearch = function() { window.loadJa010dData(); };
+                pane.onRetrieve = function() { window.loadJa010dData(); };
                 pane.onCorpGrChange = function(val) {
                     window.loadJa010dData(val);
                 };
@@ -102,15 +115,18 @@
                 });
             }
 
-            // DOM ready or fragment load trigger
-            if (document.readyState === 'loading') {
-                document.addEventListener('DOMContentLoaded', () => {
-                    initJa010dGrid();
-                    initCalendarComponent();
-                });
-            } else {
+            // Guideline 10: Single initialization entry point with isInitialized guard
+            let isInitialized = false;
+            function startInit() {
+                if (isInitialized) return;
+                isInitialized = true;
                 initJa010dGrid();
                 initCalendarComponent();
+            }
+
+            document.addEventListener("DOMContentLoaded", startInit);
+            if (document.readyState === "complete" || document.readyState === "interactive") {
+                setTimeout(startInit, 50);
             }
 
             function initCalendarComponent() {

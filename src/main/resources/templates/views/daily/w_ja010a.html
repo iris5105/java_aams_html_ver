@@ -7,7 +7,6 @@
         <div class="toolbar-left">
             <!-- Reusable Common Toolbar Buttons Fragment (닫기 ~ 엑셀) -->
             <div th:replace="~{fragments/tab_header :: toolbarButtons}"></div>
-            <button class="t-btn btn-action" onclick="loadJa010aMaster()"><i class="fa-solid fa-magnifying-glass"></i> 조회</button>
         </div>
         <!-- Reusable Common Breadcrumb Fragment -->
         <div th:replace="~{fragments/tab_header :: toolbarBreadcrumb}"></div>
@@ -57,10 +56,14 @@
             function formatDateVal(val) {
                 if (!val) return "";
                 const clean = String(val).replace(/\D/g, "");
-                if (clean.length === 8) {
+                if (clean.length >= 8) {
                     return clean.substring(0, 4) + '.' + clean.substring(4, 6) + '.' + clean.substring(6, 8);
                 }
-                return String(val).replace(/-/g, ".");
+                const str = String(val).trim();
+                if (str.length >= 10) {
+                    return str.substring(0, 10).replace(/[-/]/g, ".");
+                }
+                return str;
             }
 
             function formatIdno(val) {
@@ -217,6 +220,7 @@
 
             // Global functions for controller integration
             window.loadJa010aMaster = function(targetCorpGr) {
+                lastLoadedMasterKey = null;
                 const filterSelect = pane ? pane.querySelector("#filterCorpGr") : document.getElementById("filterCorpGr");
                 const corpGr = targetCorpGr != null ? targetCorpGr : (filterSelect ? filterSelect.value : "");
 
@@ -251,7 +255,10 @@
                     .catch(err => console.error("Error loading master ja010a:", err));
             };
 
+            let lastLoadedMasterKey = null;
             function fetchJa010aDetail(corpGr) {
+                if (!corpGr || lastLoadedMasterKey === corpGr) return;
+                lastLoadedMasterKey = corpGr;
                 fetch(`/api/company/ja010a/detail?corpGr=${encodeURIComponent(corpGr)}`)
                     .then(res => res.json())
                     .then(data => {
@@ -260,19 +267,33 @@
                     .catch(err => console.error("Error fetching ja010a detail:", err));
             }
 
-            // Register standard CorpGr change contract method on current tab pane
+            // Register standard toolbar & CorpGr contract (Guideline 8)
             if (pane) {
+                pane.onSearch = function() { window.loadJa010aMaster(); };
+                pane.onRetrieve = function() { window.loadJa010aMaster(); };
                 pane.onCorpGrChange = function(val) {
+                    lastLoadedMasterKey = null;
                     window.loadJa010aMaster(val);
                 };
                 pane.addEventListener("corpGrChanged", function(e) {
+                    lastLoadedMasterKey = null;
                     window.loadJa010aMaster(e.detail ? e.detail.corpGr : val);
                 });
             }
 
-            // Initialize both grids on view load
-            initMasterGrid();
-            initDetailGrid();
+            // Guideline 10: Single initialization entry point with isInitialized guard
+            let isInitialized = false;
+            function startInit() {
+                if (isInitialized) return;
+                isInitialized = true;
+                initMasterGrid();
+                initDetailGrid();
+            }
+
+            document.addEventListener("DOMContentLoaded", startInit);
+            if (document.readyState === "complete" || document.readyState === "interactive") {
+                setTimeout(startInit, 50);
+            }
         })();
     </script>
 </div>
