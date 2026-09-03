@@ -292,24 +292,201 @@
     };
 
     /**
-     * Standard 2-Column Dropdown Item Formatter for Tabulator List Editor (PowerBuilder DDDW Style)
-     * Mandated by Development Guide Rule 6:
-     * - Left column: Code (auto-adjusts width dynamically to longest code or manual width)
-     * - Right column: Code Name (auto-adjusts width to fit longest name)
-     * - Top: Sticky table header [ Code | Name ]
-     * - Selection result on screen: Code Name
-     *
-     * Overload Signatures:
-     *   f_dddwctl.get2ColItemFormatter() -> Auto-fit width, '코드', '명칭'
-     *   f_dddwctl.get2ColItemFormatter(codeTitle, nameTitle) -> Auto-fit width, custom titles
-     *   f_dddwctl.get2ColItemFormatter(codeWidth, codeTitle, nameTitle) -> Manual width, custom titles
-     *
-     * @param {number|string} [customCodeWidth] Optional manual code column width in px or code title
-     * @param {string} [codeTitle='코드'] Title for code column header
-     * @param {string} [nameTitle='명칭'] Title for name column header
-     * @returns {function} Tabulator itemFormatter callback
+     * Shared 2-Column DDDW HTML & Auto-Fit Helpers
      */
-    f_dddwctl.get2ColItemFormatter = function (customCodeWidth, codeTitle, nameTitle) {
+    function render2ColRowHtml(code, name) {
+        return `<div class="dddw-2col-row">
+            <span class="dddw-col-code">${code}</span>
+            <span class="dddw-col-name">${name}</span>
+        </div>`;
+    }
+
+    function renderHeaderHtml(codeTitle, nameTitle) {
+        return `<div class="dddw-header-row">
+            <span class="dddw-hdr-code">${codeTitle || '코드'}</span>
+            <span class="dddw-hdr-name">${nameTitle || '명칭'}</span>
+        </div>`;
+    }
+
+    function apply2ColAutoFit(container, manualWidth) {
+        const headerCode = container.querySelector(".dddw-hdr-code");
+        const codeBadges = container.querySelectorAll(".dddw-col-code");
+        if (!headerCode || codeBadges.length === 0) return;
+
+        if (manualWidth && typeof manualWidth === 'number' && manualWidth > 0) {
+            headerCode.style.width = manualWidth + 'px';
+            headerCode.style.minWidth = manualWidth + 'px';
+            codeBadges.forEach(b => {
+                b.style.width = manualWidth + 'px';
+                b.style.minWidth = manualWidth + 'px';
+            });
+            return;
+        }
+
+        headerCode.style.width = "auto";
+        headerCode.style.minWidth = "auto";
+        let maxW = headerCode.scrollWidth || 28;
+        codeBadges.forEach(b => {
+            b.style.width = "auto";
+            b.style.minWidth = "auto";
+            const w = b.offsetWidth || b.scrollWidth;
+            if (w > maxW) maxW = w;
+        });
+        const maxCodeW = Math.max(26, maxW + 4);
+        headerCode.style.width = maxCodeW + "px";
+        headerCode.style.minWidth = maxCodeW + "px";
+        codeBadges.forEach(b => {
+            b.style.width = maxCodeW + "px";
+            b.style.minWidth = maxCodeW + "px";
+        });
+    }
+
+    /**
+     * Internal Branch 1: HTML <select> Component Transformation
+     */
+    function createSelectComponent(targetSelect, options, config) {
+        config = config || {};
+        const el = (typeof targetSelect === 'string') ? document.getElementById(targetSelect) : targetSelect;
+        if (!el) return null;
+
+        const cTitle = config.codeTitle || "코드";
+        const nTitle = config.nameTitle || "명칭";
+        const manualWidth = (typeof config.customCodeWidth === 'number') ? config.customCodeWidth : null;
+        const defaultVal = (config.defaultVal != null) ? config.defaultVal : el.value;
+
+        el.style.display = "none";
+
+        let wrapper = el.nextElementSibling;
+        if (!wrapper || !wrapper.classList.contains("dddw-select-custom")) {
+            wrapper = document.createElement("div");
+            wrapper.className = "dddw-select-custom";
+            el.parentNode.insertBefore(wrapper, el.nextSibling);
+        }
+        wrapper.innerHTML = "";
+
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "dddw-select-btn";
+        btn.innerHTML = `
+            <span class="dddw-select-label">선택</span>
+            <i class="fa-solid fa-chevron-down dddw-select-arrow"></i>
+        `;
+        wrapper.appendChild(btn);
+
+        const popup = document.createElement("div");
+        popup.className = "tabulator-edit-list dddw-2col-list dddw-select-popup";
+        popup.style.display = "none";
+        wrapper.appendChild(popup);
+
+        // 1. Sticky Header
+        const headerWrapper = document.createElement("div");
+        headerWrapper.innerHTML = renderHeaderHtml(cTitle, nTitle);
+        const header = headerWrapper.firstElementChild;
+        popup.appendChild(header);
+
+        // 2. Options List
+        const optList = options || [];
+        let activeItemEl = null;
+
+        optList.forEach(item => {
+            const code = (item.code != null ? item.code : (item.SEBU_CD != null ? item.SEBU_CD : (item.cd != null ? item.cd : ''))).toString().trim();
+            const name = (item.name != null ? item.name : (item.SEBU_CD_NM != null ? item.SEBU_CD_NM : (item.dscr != null ? item.dscr : code))).toString().trim();
+
+            const itemEl = document.createElement("div");
+            itemEl.className = "tabulator-edit-list-item";
+            itemEl.dataset.value = code;
+            itemEl.dataset.name = name;
+            itemEl.innerHTML = render2ColRowHtml(code, name);
+
+            itemEl.addEventListener("click", (e) => {
+                e.stopPropagation();
+                selectValue(code, name, itemEl, true);
+                closePopup();
+            });
+
+            popup.appendChild(itemEl);
+        });
+
+        function selectValue(code, name, itemEl, triggerChange) {
+            el.value = code;
+            btn.querySelector(".dddw-select-label").textContent = name ? name : code;
+
+            popup.querySelectorAll(".tabulator-edit-list-item").forEach(it => it.classList.remove("active"));
+            if (itemEl && itemEl.classList) {
+                itemEl.classList.add("active");
+                activeItemEl = itemEl;
+            } else {
+                const match = popup.querySelector(`.tabulator-edit-list-item[data-value="${code}"]`);
+                if (match && match.classList) {
+                    match.classList.add("active");
+                    activeItemEl = match;
+                }
+            }
+
+            if (triggerChange) {
+                el.dispatchEvent(new Event("change", { bubbles: true }));
+            }
+        }
+
+        function openPopup() {
+            document.querySelectorAll(".dddw-select-custom.open").forEach(w => {
+                if (w !== wrapper) {
+                    w.classList.remove("open");
+                    const p = w.querySelector(".dddw-select-popup");
+                    if (p) p.style.display = "none";
+                }
+            });
+
+            wrapper.classList.add("open");
+            popup.style.display = "block";
+            popup.style.width = "max-content";
+            popup.style.minWidth = "0px";
+            apply2ColAutoFit(popup, manualWidth);
+            if (activeItemEl) {
+                activeItemEl.scrollIntoView({ block: "nearest" });
+            }
+        }
+
+        function closePopup() {
+            wrapper.classList.remove("open");
+            popup.style.display = "none";
+        }
+
+        btn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            if (wrapper.classList.contains("open")) {
+                closePopup();
+            } else {
+                openPopup();
+            }
+        });
+
+        const outsideListener = function (e) {
+            if (!wrapper.contains(e.target)) {
+                closePopup();
+            }
+        };
+        document.addEventListener("click", outsideListener);
+
+        const initialCode = (defaultVal != null && defaultVal !== '') ? defaultVal : el.value;
+        const found = optList.find(o => {
+            const c = (o.code != null ? o.code : (o.SEBU_CD != null ? o.SEBU_CD : o.cd));
+            return String(c).trim() === String(initialCode).trim();
+        }) || optList[0];
+
+        if (found) {
+            const code = (found.code != null ? found.code : (found.SEBU_CD != null ? found.SEBU_CD : (found.cd != null ? found.cd : ''))).toString().trim();
+            const name = (found.name != null ? found.name : (found.SEBU_CD_NM != null ? found.SEBU_CD_NM : (found.dscr != null ? found.dscr : code))).toString().trim();
+            selectValue(code, name, null, false);
+        }
+
+        return wrapper;
+    }
+
+    /**
+     * Internal Branch 2: Tabulator Inline List Editor Formatter
+     */
+    function createTabulatorFormatter(customCodeWidth, codeTitle, nameTitle) {
         let manualWidth = null;
         let cTitle = "코드";
         let nTitle = "명칭";
@@ -338,254 +515,57 @@
                     // 1. Insert sticky header row if not present
                     let header = listEl.querySelector('.dddw-header-row');
                     if (!header) {
-                        header = document.createElement('div');
-                        header.className = 'dddw-header-row';
-                        header.innerHTML = `
-                            <span class="dddw-hdr-code">${cTitle}</span>
-                            <span class="dddw-hdr-name">${nTitle}</span>
-                        `;
+                        const headerWrapper = document.createElement('div');
+                        headerWrapper.innerHTML = renderHeaderHtml(cTitle, nTitle);
+                        header = headerWrapper.firstElementChild;
                         listEl.insertBefore(header, listEl.firstChild);
                     }
 
                     // 2. Auto-fit column widths dynamically based on the longest code badge in this list
                     if (!listEl.dataset.autoFitted) {
                         listEl.dataset.autoFitted = "true";
-
-                        // Ensure listEl shrinks or expands tightly to its content
                         listEl.style.minWidth = "0px";
                         listEl.style.width = "max-content";
 
-                        const applyAutoFit = () => {
-                            const headerCode = header.querySelector('.dddw-hdr-code');
-                            const codeBadges = listEl.querySelectorAll('.dddw-col-code');
-                            if (!headerCode || codeBadges.length === 0) return;
-
-                            let maxCodeW = manualWidth;
-                            if (!manualWidth) {
-                                headerCode.style.width = 'auto';
-                                headerCode.style.minWidth = 'auto';
-                                let maxW = headerCode.scrollWidth || 28;
-
-                                codeBadges.forEach(b => {
-                                    b.style.width = 'auto';
-                                    b.style.minWidth = 'auto';
-                                    const w = b.offsetWidth || b.scrollWidth;
-                                    if (w > maxW) maxW = w;
-                                });
-                                // Add 4px comfort margin and ensure minimum 26px
-                                maxCodeW = Math.max(26, maxW + 4);
-                            }
-
-                            // Apply uniform width to code column (header + all row badges)
-                            headerCode.style.width = maxCodeW + 'px';
-                            headerCode.style.minWidth = maxCodeW + 'px';
-                            codeBadges.forEach(b => {
-                                b.style.width = maxCodeW + 'px';
-                                b.style.minWidth = maxCodeW + 'px';
-                            });
-                        };
-
-                        applyAutoFit();
-                        requestAnimationFrame(applyAutoFit);
+                        const runAutoFit = () => apply2ColAutoFit(listEl, manualWidth);
+                        runAutoFit();
+                        requestAnimationFrame(runAutoFit);
                     }
                 }
             }, 0);
 
-            return `<div class="dddw-2col-row">
-                <span class="dddw-col-code">${code}</span>
-                <span class="dddw-col-name">${name}</span>
-            </div>`;
+            return render2ColRowHtml(code, name);
         };
-    };
+    }
 
     /**
-     * Standard Filter Bar 2-Column DDDW Custom Dropdown Converter
-     * Transforms a native <select> element into a 2-column DDDW dropdown widget:
-     * - Shows code name on the select button
-     * - Opens a 2-column list popup: [Code] [Code Name] with sticky header
-     * - Auto-fits column and popup widths based on content
-     * - Keeps native <select> value and 'change' event synchronized
+     * Unified 2-Column DDDW Formatter & Component Converter (Development Guide Rule 6)
+     * Automatically branches based on input arguments:
      *
-     * @param {HTMLSelectElement|string} targetSelect The native select element or its ID
-     * @param {Array} options Array of {code, name} objects
-     * @param {Object} [config] Configuration options: { codeTitle, nameTitle, defaultVal, placeholder }
+     * Branch 1: HTML Element or Select ID (Filter bar custom 2-column widget)
+     *   f_dddwctl.get2ColItemFormatter(selectElementOrId, options, config)
+     *
+     * Branch 2: Tabulator editorParams itemFormatter (Grid inline editor callback)
+     *   f_dddwctl.get2ColItemFormatter([codeWidth], [codeTitle], [nameTitle])
+     *
+     * @param {HTMLElement|string|number} arg1 Target select element, select ID, codeWidth, or codeTitle
+     * @param {Array|string} [arg2] Options array (for select) or codeTitle/nameTitle (for Tabulator)
+     * @param {Object|string} [arg3] Config object (for select) or nameTitle (for Tabulator)
+     * @returns {HTMLElement|function} Created custom select wrapper OR Tabulator itemFormatter callback
      */
-    f_dddwctl.create2ColSelect = function (targetSelect, options, config) {
-        config = config || {};
-        const el = (typeof targetSelect === 'string') ? document.getElementById(targetSelect) : targetSelect;
-        if (!el) return null;
+    f_dddwctl.get2ColItemFormatter = function (arg1, arg2, arg3) {
+        const isElement = arg1 && (arg1.nodeType === 1 || (typeof HTMLElement !== 'undefined' && arg1 instanceof HTMLElement));
+        const isSelectId = typeof arg1 === 'string' && (Array.isArray(arg2) || (typeof document !== 'undefined' && document.getElementById(arg1) && document.getElementById(arg1).tagName === 'SELECT'));
 
-        const codeTitle = config.codeTitle || "코드";
-        const nameTitle = config.nameTitle || "명칭";
-        const defaultVal = (config.defaultVal != null) ? config.defaultVal : el.value;
-
-        // Hide original select
-        el.style.display = "none";
-
-        // Check if wrapper already exists
-        let wrapper = el.nextElementSibling;
-        if (!wrapper || !wrapper.classList.contains("dddw-select-custom")) {
-            wrapper = document.createElement("div");
-            wrapper.className = "dddw-select-custom";
-            el.parentNode.insertBefore(wrapper, el.nextSibling);
-        }
-        wrapper.innerHTML = "";
-
-        // Create display button
-        const btn = document.createElement("button");
-        btn.type = "button";
-        btn.className = "dddw-select-btn";
-        btn.innerHTML = `
-            <span class="dddw-select-label">선택</span>
-            <i class="fa-solid fa-chevron-down dddw-select-arrow"></i>
-        `;
-        wrapper.appendChild(btn);
-
-        // Create popup container
-        const popup = document.createElement("div");
-        popup.className = "tabulator-edit-list dddw-2col-list dddw-select-popup";
-        popup.style.display = "none";
-        wrapper.appendChild(popup);
-
-        // 1. Create sticky header
-        const header = document.createElement("div");
-        header.className = "dddw-header-row";
-        header.innerHTML = `
-            <span class="dddw-hdr-code">${codeTitle}</span>
-            <span class="dddw-hdr-name">${nameTitle}</span>
-        `;
-        popup.appendChild(header);
-
-        // 2. Create items
-        const optList = options || [];
-        let activeItemEl = null;
-
-        optList.forEach(item => {
-            const code = (item.code != null ? item.code : (item.SEBU_CD != null ? item.SEBU_CD : (item.cd != null ? item.cd : ''))).toString().trim();
-            const name = (item.name != null ? item.name : (item.SEBU_CD_NM != null ? item.SEBU_CD_NM : (item.dscr != null ? item.dscr : code))).toString().trim();
-
-            const itemEl = document.createElement("div");
-            itemEl.className = "tabulator-edit-list-item";
-            itemEl.dataset.value = code;
-            itemEl.dataset.name = name;
-            itemEl.innerHTML = `
-                <div class="dddw-2col-row">
-                    <span class="dddw-col-code">${code}</span>
-                    <span class="dddw-col-name">${name}</span>
-                </div>
-            `;
-
-            itemEl.addEventListener("click", (e) => {
-                e.stopPropagation();
-                selectValue(code, name, itemEl, true);
-                closePopup();
-            });
-
-            popup.appendChild(itemEl);
-        });
-
-        function selectValue(code, name, itemEl, triggerChange) {
-            el.value = code;
-            btn.querySelector(".dddw-select-label").textContent = name ? name : code;
-
-            popup.querySelectorAll(".tabulator-edit-list-item").forEach(it => it.classList.remove("active"));
-            if (itemEl) {
-                itemEl.classList.add("active");
-                activeItemEl = itemEl;
-            } else {
-                const match = popup.querySelector(`.tabulator-edit-list-item[data-value="${code}"]`);
-                if (match) {
-                    match.classList.add("active");
-                    activeItemEl = match;
-                }
-            }
-
-            if (triggerChange) {
-                el.dispatchEvent(new Event("change", { bubbles: true }));
-            }
+        if (isElement || isSelectId) {
+            return createSelectComponent(arg1, arg2, arg3);
         }
 
-        // Auto-fit code column width
-        function adjustWidths() {
-            const headerCode = header.querySelector(".dddw-hdr-code");
-            const codeBadges = popup.querySelectorAll(".dddw-col-code");
-            if (!headerCode || codeBadges.length === 0) return;
-
-            headerCode.style.width = "auto";
-            headerCode.style.minWidth = "auto";
-            let maxW = headerCode.scrollWidth || 28;
-            codeBadges.forEach(b => {
-                b.style.width = "auto";
-                b.style.minWidth = "auto";
-                const w = b.offsetWidth || b.scrollWidth;
-                if (w > maxW) maxW = w;
-            });
-            maxW = Math.max(26, maxW + 4);
-            headerCode.style.width = maxW + "px";
-            headerCode.style.minWidth = maxW + "px";
-            codeBadges.forEach(b => {
-                b.style.width = maxW + "px";
-                b.style.minWidth = maxW + "px";
-            });
-        }
-
-        function openPopup() {
-            // Close other open popups first
-            document.querySelectorAll(".dddw-select-custom.open").forEach(w => {
-                if (w !== wrapper) {
-                    w.classList.remove("open");
-                    const p = w.querySelector(".dddw-select-popup");
-                    if (p) p.style.display = "none";
-                }
-            });
-
-            wrapper.classList.add("open");
-            popup.style.display = "block";
-            popup.style.width = "max-content";
-            popup.style.minWidth = "0px";
-            adjustWidths();
-            if (activeItemEl) {
-                activeItemEl.scrollIntoView({ block: "nearest" });
-            }
-        }
-
-        function closePopup() {
-            wrapper.classList.remove("open");
-            popup.style.display = "none";
-        }
-
-        btn.addEventListener("click", (e) => {
-            e.stopPropagation();
-            if (wrapper.classList.contains("open")) {
-                closePopup();
-            } else {
-                openPopup();
-            }
-        });
-
-        // Click outside listener
-        const outsideListener = function (e) {
-            if (!wrapper.contains(e.target)) {
-                closePopup();
-            }
-        };
-        document.addEventListener("click", outsideListener);
-
-        // Set initial selected value
-        const initialCode = (defaultVal != null && defaultVal !== '') ? defaultVal : el.value;
-        const found = optList.find(o => {
-            const c = (o.code != null ? o.code : (o.SEBU_CD != null ? o.SEBU_CD : o.cd));
-            return String(c).trim() === String(initialCode).trim();
-        }) || optList[0];
-
-        if (found) {
-            const code = (found.code != null ? found.code : (found.SEBU_CD != null ? found.SEBU_CD : (found.cd != null ? found.cd : ''))).toString().trim();
-            const name = (found.name != null ? found.name : (found.SEBU_CD_NM != null ? found.SEBU_CD_NM : (found.dscr != null ? found.dscr : code))).toString().trim();
-            selectValue(code, name, null, false);
-        }
-
-        return wrapper;
+        return createTabulatorFormatter(arg1, arg2, arg3);
     };
+
+    // Global Alias for backward compatibility
+    f_dddwctl.create2ColSelect = f_dddwctl.get2ColItemFormatter;
 
     // Expose to global window scope
     global.f_dddwctl = f_dddwctl;
