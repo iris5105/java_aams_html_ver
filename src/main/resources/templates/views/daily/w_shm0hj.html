@@ -67,6 +67,34 @@
         </div>
     </div>
 
+    <style>
+        /* Tabulator Inline Editing Cell 4-Sided Border & Input Layout Fix */
+        .tabulator-aams-grid .tabulator-cell.tabulator-editing {
+            padding: 0 !important;
+            border: 2px solid #2563eb !important;
+            z-index: 10 !important;
+            background-color: #ffffff !important;
+            outline: none !important;
+            overflow: hidden !important;
+        }
+
+        .tabulator-aams-grid .tabulator-cell.tabulator-editing input,
+        .tabulator-aams-grid .tabulator-cell.tabulator-editing select {
+            width: 100% !important;
+            height: 100% !important;
+            box-sizing: border-box !important;
+            padding: 2px 6px !important;
+            margin: 0 !important;
+            border: none !important;
+            outline: none !important;
+            background-color: #ffffff !important;
+            color: #1e293b !important;
+            font-size: 11px !important;
+            border-radius: 0 !important;
+            box-shadow: none !important;
+        }
+    </style>
+
     <!-- DDDW Controller Script -->
     <script th:src="@{/js/f_dddwctl.js}" src="/js/f_dddwctl.js"></script>
     <!-- Inline Script for w_shm0hj View with Tabulator Grids -->
@@ -176,8 +204,28 @@
                 return list.map(item => {
                     const code = (item.code != null ? item.code : (item.SEBU_CD != null ? item.SEBU_CD : (item.cd != null ? item.cd : ''))).toString().trim();
                     const name = (item.name != null ? item.name : (item.SEBU_CD_NM != null ? item.SEBU_CD_NM : (item.dscr != null ? item.dscr : code))).toString().trim();
-                    return { label: name ? `${name} (${code})` : code, value: code };
+                    return { 
+                        label: name, 
+                        value: code,
+                        code: code,
+                        name: name
+                    };
                 });
+            }
+
+            /**
+             * 2-Column Dropdown Item Formatter for Tabulator List Editor (PowerBuilder DDDW Style)
+             * Divides dropdown item into 2 columns: [Code] on the left, [Name] on the right, with sticky table header.
+             */
+            function createDddw2ColFormatter(codeWidth, codeTitle, nameTitle) {
+                if (typeof window.f_dddwctl === 'function' && typeof window.f_dddwctl.get2ColItemFormatter === 'function') {
+                    return window.f_dddwctl.get2ColItemFormatter(codeWidth, codeTitle, nameTitle);
+                }
+                return function(label, value, item) {
+                    const code = (item && item.code != null) ? item.code : value;
+                    const name = (item && item.name != null) ? item.name : label;
+                    return `<div class="dddw-2col-row"><span class="dddw-col-code">${code}</span><span class="dddw-col-name">${name}</span></div>`;
+                };
             }
 
             function getDddwLabel(dddwKey, codeVal) {
@@ -276,7 +324,8 @@
                             editorParams: {
                                 valuesLookup: () => getDddwOptions('cash_cd'),
                                 autocomplete: false,
-                                listOnEmpty: true
+                                listOnEmpty: true,
+                                itemFormatter: createDddw2ColFormatter("코드", "현금종류명")
                             },
                             editable: isMasterRowEditable
                         },
@@ -404,7 +453,8 @@
                             editorParams: {
                                 valuesLookup: () => getDddwOptions('sunhu_gb'),
                                 autocomplete: false,
-                                listOnEmpty: true
+                                listOnEmpty: true,
+                                itemFormatter: createDddw2ColFormatter("코드", "선후구분명")
                             },
                             editable: isMasterRowEditable
                         },
@@ -419,7 +469,8 @@
                             editorParams: {
                                 valuesLookup: () => getDddwOptions('sunhu_tax_gb'),
                                 autocomplete: false,
-                                listOnEmpty: true
+                                listOnEmpty: true,
+                                itemFormatter: createDddw2ColFormatter("코드", "과세구분명")
                             },
                             editable: isMasterRowEditable
                         },

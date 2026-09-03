@@ -86,12 +86,7 @@
             }
 
             function getDddwOptions(dddwKey) {
-                const list = dddwOptionsMap[dddwKey] || [];
-                return list.map(item => {
-                    const code = (item.code != null ? item.code : (item.SEBU_CD != null ? item.SEBU_CD : (item.cd != null ? item.cd : ''))).toString().trim();
-                    const name = (item.name != null ? item.name : (item.SEBU_CD_NM != null ? item.SEBU_CD_NM : (item.dscr != null ? item.dscr : code))).toString().trim();
-                    return { label: name, value: code };
-                });
+                return f_dddwctl.getOptions(dddwOptionsMap, dddwKey);
             }
 
             function numFmt(val) {
@@ -142,7 +137,8 @@
                                 valuesLookup: () => getDddwOptions('series_g1'),
                                 autocomplete: false,
                                 listOnEmpty: true,
-                                clearable: true
+                                clearable: true,
+                                itemFormatter: f_dddwctl.get2ColItemFormatter("코드", "대분류명")
                             },
                             cellClick: function(e, cell) {
                                 cell.edit(true);
@@ -171,7 +167,8 @@
                                 valuesLookup: () => getDddwOptions('gugan'),
                                 autocomplete: false,
                                 listOnEmpty: true,
-                                clearable: true
+                                clearable: true,
+                                itemFormatter: f_dddwctl.get2ColItemFormatter("코드", "평잔구간명")
                             },
                             cellClick: function(e, cell) {
                                 cell.edit(true);
@@ -188,7 +185,8 @@
                                 valuesLookup: () => getDddwOptions('ga'),
                                 autocomplete: false,
                                 listOnEmpty: true,
-                                clearable: true
+                                clearable: true,
+                                itemFormatter: f_dddwctl.get2ColItemFormatter("코드", "보고분류명")
                             },
                             cellClick: function(e, cell) {
                                 cell.edit(true);
@@ -242,7 +240,8 @@
                                 valuesLookup: () => getDddwOptions('bm_gr'),
                                 autocomplete: false,
                                 listOnEmpty: true,
-                                clearable: true
+                                clearable: true,
+                                itemFormatter: f_dddwctl.get2ColItemFormatter("코드", "BM그룹명")
                             },
                             cellClick: function(e, cell) {
                                 cell.edit(true);

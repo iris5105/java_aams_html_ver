@@ -40,6 +40,32 @@
         .ja030c-container .tabulator-row {
             cursor: pointer;
         }
+
+        /* Tabulator Inline Editing Cell 4-Sided Border & Input Layout Fix */
+        .ja030c-container .tabulator-cell.tabulator-editing {
+            padding: 0 !important;
+            border: 2px solid #2563eb !important;
+            z-index: 10 !important;
+            background-color: #ffffff !important;
+            outline: none !important;
+            overflow: hidden !important;
+        }
+
+        .ja030c-container .tabulator-cell.tabulator-editing input,
+        .ja030c-container .tabulator-cell.tabulator-editing select {
+            width: 100% !important;
+            height: 100% !important;
+            box-sizing: border-box !important;
+            padding: 2px 6px !important;
+            margin: 0 !important;
+            border: none !important;
+            outline: none !important;
+            background-color: #ffffff !important;
+            color: #1e293b !important;
+            font-size: 11px !important;
+            border-radius: 0 !important;
+            box-shadow: none !important;
+        }
     </style>
 
     <!-- PowerBuilder DDDW Dynamic Control Script -->
@@ -60,18 +86,42 @@
             };
 
             function getDddwOptions(key) {
-                return (dddwOptionsMap[key] || []).map(opt => ({
-                    label: opt.name ? `${opt.code}: ${opt.name}` : opt.code,
-                    value: opt.code
-                }));
+                return (dddwOptionsMap[key] || []).map(opt => {
+                    const code = (opt.code != null ? opt.code : (opt.SEBU_CD != null ? opt.SEBU_CD : (opt.cd != null ? opt.cd : ''))).toString().trim();
+                    const name = (opt.name != null ? opt.name : (opt.SEBU_CD_NM != null ? opt.SEBU_CD_NM : (opt.dscr != null ? opt.dscr : code))).toString().trim();
+                    return {
+                        label: name ? name : code,
+                        value: code,
+                        code: code,
+                        name: name ? name : code
+                    };
+                });
             }
 
             function getDddwLabel(key, codeVal) {
                 if (codeVal == null || codeVal === '') return '';
                 const codeStr = String(codeVal).trim();
                 const list = dddwOptionsMap[key] || [];
-                const found = list.find(item => String(item.code).trim() === codeStr);
-                return found ? (found.name ? `${found.code}: ${found.name}` : found.code) : codeStr;
+                const found = list.find(item => {
+                    const c = (item.code != null ? item.code : (item.SEBU_CD != null ? item.SEBU_CD : item.cd));
+                    return String(c).trim() === codeStr;
+                });
+                return found ? (found.name ? found.name : (found.SEBU_CD_NM ? found.SEBU_CD_NM : found.code)) : codeStr;
+            }
+
+            /**
+             * 2-Column Dropdown Item Formatter for Tabulator List Editor (PowerBuilder DDDW Style)
+             * Divides dropdown item into 2 columns: [Code] on the left, [Name] on the right, with sticky table header.
+             */
+            function createDddw2ColFormatter(codeWidth, codeTitle, nameTitle) {
+                if (typeof window.f_dddwctl === 'function' && typeof window.f_dddwctl.get2ColItemFormatter === 'function') {
+                    return window.f_dddwctl.get2ColItemFormatter(codeWidth, codeTitle, nameTitle);
+                }
+                return function(label, value, item) {
+                    const code = (item && item.code != null) ? item.code : value;
+                    const name = (item && item.name != null) ? item.name : label;
+                    return `<div class="dddw-2col-row"><span class="dddw-col-code">${code}</span><span class="dddw-col-name">${name}</span></div>`;
+                };
             }
 
             /**
@@ -103,6 +153,15 @@
                         const defaultOpt = curVal || /*[[${dddw}]]*/ "J15";
                         if ([...filterDddwSelect.options].some(o => o.value === defaultOpt)) {
                             filterDddwSelect.value = defaultOpt;
+                        }
+
+                        // Transform into 2-Column DDDW Filter Dropdown (Development Guide Rule 6)
+                        if (window.f_dddwctl && typeof window.f_dddwctl.create2ColSelect === 'function') {
+                            window.f_dddwctl.create2ColSelect(filterDddwSelect, dddwOptionsMap.filter_dddw, {
+                                codeTitle: "코드",
+                                nameTitle: "거래구분명",
+                                defaultVal: defaultOpt
+                            });
                         }
                     }
 
@@ -200,7 +259,8 @@
                                 valuesLookup: () => getDddwOptions('pg_cd'),
                                 autocomplete: false,
                                 listOnEmpty: true,
-                                clearable: true
+                                clearable: true,
+                                itemFormatter: createDddw2ColFormatter("코드", "신용등급명")
                             },
                             cellClick: (e, cell) => cell.edit(true)
                         },

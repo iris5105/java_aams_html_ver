@@ -243,12 +243,7 @@
             }
 
             function getDddwOptions(dddwKey) {
-                const list = dddwOptionsMap[dddwKey] || [];
-                return list.map(item => {
-                    const code = (item.code != null ? item.code : (item.SEBU_CD != null ? item.SEBU_CD : (item.cd != null ? item.cd : ''))).toString().trim();
-                    const name = (item.name != null ? item.name : (item.SEBU_CD_NM != null ? item.SEBU_CD_NM : (item.dscr != null ? item.dscr : code))).toString().trim();
-                    return { label: name, value: code };
-                });
+                return f_dddwctl.getOptions(dddwOptionsMap, dddwKey);
             }
 
             function numFmt(val) {
@@ -295,7 +290,8 @@
                                 valuesLookup: () => getDddwOptions('mg_cd'),
                                 autocomplete: false,
                                 listOnEmpty: true,
-                                clearable: true
+                                clearable: true,
+                                itemFormatter: f_dddwctl.get2ColItemFormatter("코드", "증권사명")
                             },
                             cellClick: function(e, cell) {
                                 cell.edit(true);
@@ -315,7 +311,8 @@
                                 valuesLookup: () => getDddwOptions('series_gb'),
                                 autocomplete: false,
                                 listOnEmpty: true,
-                                clearable: true
+                                clearable: true,
+                                itemFormatter: f_dddwctl.get2ColItemFormatter("코드", "그룹명")
                             },
                             cellClick: function(e, cell) {
                                 cell.edit(true);
@@ -332,7 +329,8 @@
                                 valuesLookup: () => getDddwOptions('type_gb'),
                                 autocomplete: false,
                                 listOnEmpty: true,
-                                clearable: true
+                                clearable: true,
+                                itemFormatter: f_dddwctl.get2ColItemFormatter("코드", "유형명")
                             },
                             cellClick: function(e, cell) {
                                 cell.edit(true);
@@ -359,7 +357,8 @@
                                 valuesLookup: () => getDddwOptions('target_jasan'),
                                 autocomplete: false,
                                 listOnEmpty: true,
-                                clearable: true
+                                clearable: true,
+                                itemFormatter: f_dddwctl.get2ColItemFormatter("코드", "자산구분명")
                             },
                             cellClick: function(e, cell) {
                                 cell.edit(true);
@@ -407,7 +406,8 @@
                                 valuesLookup: () => getDddwOptions('unyong_sabun'),
                                 autocomplete: false,
                                 listOnEmpty: true,
-                                clearable: true
+                                clearable: true,
+                                itemFormatter: f_dddwctl.get2ColItemFormatter("사번", "성명")
                             },
                             cellClick: function(e, cell) {
                                 cell.edit(true);
