@@ -39,4 +39,14 @@ public class Ja010fTests {
         List<Ja010fDto> listSpecific = ja010fService.getList("2402", "2026-08-01", "00010");
         assertThat(listSpecific).isNotNull();
     }
+
+    @Test
+    @DisplayName("Calendar available dates query for w_ja010f")
+    void testJa010fDates() {
+        List<String> emptyDates = ja010fService.getDates(null);
+        assertThat(emptyDates).isEmpty();
+
+        List<String> dates = ja010fService.getDates("2402");
+        assertThat(dates).isNotNull();
+    }
 }

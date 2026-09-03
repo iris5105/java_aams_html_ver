@@ -46,10 +46,16 @@ public class Ja010fController {
             menuDto = menuService.getMenuByPgmId("w_ja010f");
         }
         String fullpgm2 = (menuDto != null) ? menuDto.getFullpgm2() : "사무관리 > 자문일일 > 일일작업";
+        List<String> trDates = (corpGr != null && !corpGr.isBlank()) ? ja010fService.getDates(corpGr) : Collections.emptyList();
+        String ymd = (paramYmd != null && !paramYmd.isBlank()) ? paramYmd
+                : (!trDates.isEmpty() ? trDates.get(0) : java.time.LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd")));
+
         model.addAttribute("fullpgm2", fullpgm2);
         model.addAttribute("corpGr", corpGr);
-        model.addAttribute("ymd", paramYmd);
+        model.addAttribute("ymd", ymd);
+        model.addAttribute("trYmd", ymd);
         model.addAttribute("dddw", paramDddw != null ? paramDddw : "%");
+        model.addAttribute("trDates", trDates);
 
         return "views/daily/w_ja010f";
     }
@@ -59,13 +65,37 @@ public class Ja010fController {
      */
     @GetMapping("/api/daily/ja010f/list")
     @ResponseBody
-    public List<Ja010fDto> getList(@RequestParam(name = "corpGr", required = false) String corpGr,
+    public List<Ja010fDto> getList(@AuthenticationPrincipal Object principalObj,
+                                   @RequestParam(name = "corpGr", required = false) String paramCorpGr,
                                    @RequestParam(name = "ymd", required = false) String ymd,
-                                   @RequestParam(name = "trCoCd", required = false) String trCoCd) {
+                                   @RequestParam(name = "trCoCd", required = false) String trCoCd,
+                                   @CookieValue(name = "savedCorpGr", required = false) String cookieCorpGr1,
+                                   @CookieValue(name = "corpGr", required = false) String cookieCorpGr2) {
+        UserPrincipal principal = (principalObj instanceof UserPrincipal p) ? p : null;
+        String cookieCorpGr = (cookieCorpGr1 != null && !cookieCorpGr1.isBlank()) ? cookieCorpGr1 : cookieCorpGr2;
+        String corpGr = resolveCorpGr(paramCorpGr, cookieCorpGr, principal);
         if (corpGr == null || corpGr.isBlank() || ymd == null || ymd.isBlank()) {
             return Collections.emptyList();
         }
         return ja010fService.getList(corpGr, ymd, trCoCd);
+    }
+
+    /**
+     * API: Available Dates for Calendar Highlighting (SHT0YE / dw_c::ue_getdate)
+     */
+    @GetMapping("/api/daily/ja010f/dates")
+    @ResponseBody
+    public List<String> getDates(@AuthenticationPrincipal Object principalObj,
+                                 @RequestParam(name = "corpGr", required = false) String paramCorpGr,
+                                 @CookieValue(name = "savedCorpGr", required = false) String cookieCorpGr1,
+                                 @CookieValue(name = "corpGr", required = false) String cookieCorpGr2) {
+        UserPrincipal principal = (principalObj instanceof UserPrincipal p) ? p : null;
+        String cookieCorpGr = (cookieCorpGr1 != null && !cookieCorpGr1.isBlank()) ? cookieCorpGr1 : cookieCorpGr2;
+        String corpGr = resolveCorpGr(paramCorpGr, cookieCorpGr, principal);
+        if (corpGr == null || corpGr.isBlank()) {
+            return Collections.emptyList();
+        }
+        return ja010fService.getDates(corpGr);
     }
 
     /**

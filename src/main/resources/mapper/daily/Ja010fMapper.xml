@@ -31,4 +31,12 @@
          ORDER BY t1.fund_cd
     </select>
 
+    <!-- Select Available Dates for Calendar Highlight (dw_c::ue_getdate / SHT0YE) -->
+    <select id="selectJa010fDates" resultType="string">
+        SELECT DISTINCT TO_CHAR(t1.tr_ymd, 'YYYY-MM-DD') AS trYmd
+          FROM SHT0YE t1
+         WHERE t1.corp_gr = #{corpGr}
+         ORDER BY trYmd DESC
+    </select>
+
 </mapper>

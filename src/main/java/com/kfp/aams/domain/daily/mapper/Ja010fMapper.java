@@ -16,4 +16,6 @@ public interface Ja010fMapper {
     List<Ja010fDto> selectJa010fList(@Param("corpGr") String corpGr,
                                      @Param("trYmd") String trYmd,
                                      @Param("trCoCd") String trCoCd);
+
+    List<String> selectJa010fDates(@Param("corpGr") String corpGr);
 }

@@ -31,4 +31,14 @@ public class Ja010fService {
         String coCd = (trCoCd != null && !trCoCd.isBlank() && !"%".equals(trCoCd.trim())) ? trCoCd.trim() : null;
         return ja010fMapper.selectJa010fList(corpGr.trim(), trYmd.trim(), coCd);
     }
+
+    /**
+     * Retrieve Available Dates for Calendar Highlighting (dw_c::ue_getdate / SHT0YE)
+     */
+    public List<String> getDates(String corpGr) {
+        if (corpGr == null || corpGr.isBlank()) {
+            return Collections.emptyList();
+        }
+        return ja010fMapper.selectJa010fDates(corpGr.trim());
+    }
 }

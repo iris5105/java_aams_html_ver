@@ -12,10 +12,25 @@
         <div th:replace="~{fragments/tab_header :: toolbarBreadcrumb}"></div>
     </div>
 
-    <!-- Filter Bar (Row 2): Rule 13 standard container + Rule 12 dynamic labels -->
+    <!-- Filter Bar (Row 2): Rule 14 unified filter-bar with left filter and right action buttons -->
     <div class="filter-bar">
-        <div class="filter-left">
-            <div th:replace="~{fragments/filter/dc_ymd_dddw :: filter(labelYmd='LOAD일자', labelDddw='증권사')}"></div>
+        <div class="filter-left" style="display: flex; align-items: center; gap: 16px;">
+            <div class="filter-item" style="position: relative; display: flex; align-items: center; gap: 6px;">
+                <label for="filterJa010fYmd" style="font-weight: 600; font-size: 13px; color: #334155;">LOAD일자:</label>
+                <!-- Pure JS AamsCalendar Wrapper + Button + Popover -->
+                <div class="aams-calendar-wrapper" style="position: relative; display: inline-flex; align-items: center;">
+                    <input type="text" id="filterJa010fYmd" name="ymd" class="t-input aams-calendar-input" style="width: 110px; padding: 4px 8px; font-size: 13px; text-align: center; border: 1px solid #cbd5e1; border-radius: 4px 0 0 4px; cursor: pointer; background: #ffffff;" th:value="${ymd}" readonly />
+                    <button type="button" class="t-btn btn-calendar" id="btnJa010fCalendar" title="달력 열기" style="padding: 5px 10px; border-radius: 0 4px 4px 0; border-left: none; background-color: #3b82f6; color: #ffffff; border: 1px solid #3b82f6; cursor: pointer;">
+                        <i class="fa-regular fa-calendar-days"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="filter-item" style="display: flex; align-items: center; gap: 6px;">
+                <label for="filterDddw" style="font-weight: 600; font-size: 13px; color: #334155;">증권사:</label>
+                <select id="filterDddw" name="dddw" class="filter-select">
+                    <option value="">전체</option>
+                </select>
+            </div>
         </div>
 
         <!-- Sub Action Buttons (예수금LOAD) -->
@@ -38,6 +53,9 @@
             <div id="ja010f-grid" class="tabulator-aams-grid" style="height: 100%;"></div>
         </div>
     </div>
+
+    <!-- AAMS Calendar JS -->
+    <script th:src="@{/js/aams_calendar.js}" src="/js/aams_calendar.js"></script>
 
     <!-- PowerBuilder DDDW Dynamic Control Script -->
     <script th:src="@{/js/f_dddwctl.js}" src="/js/f_dddwctl.js"></script>
@@ -85,26 +103,6 @@
                 return val;
             }
 
-            // Exception Rule 1 & Rule 7: Only new rows (isNew: true) are editable.
-            // Existing rows are read-only, and clicking them selects the row.
-            function isRowEditable(cell) {
-                if (!cell) return false;
-                const row = typeof cell.getRow === "function" ? cell.getRow() : null;
-                if (!row) return false;
-                const data = row.getData();
-                const isNew = Boolean(data && (data.isNew === true || data._isNew === true || data.isNewRow === true));
-
-                if (isNew) {
-                    return true;
-                } else {
-                    if (gridJa010f && (!row.isSelected || !row.isSelected())) {
-                        gridJa010f.deselectRow();
-                        row.select();
-                    }
-                    return false;
-                }
-            }
-
             // Recalculate total evaluation amount
             function recalculateTotAek(row) {
                 const data = row.getData();
@@ -115,7 +113,30 @@
                 row.update({ totAek: t0 + stock + bond + rp });
             }
 
-            // 1. Initialize DDDW Options for tr_co_cd (Rule 6: 2-column dropdown with sticky header)
+            // Initialize Pure JS Highlight Calendar (AamsCalendar)
+            function initCalendarComponent() {
+                const doInit = function() {
+                    if (typeof AamsCalendar !== 'undefined') {
+                        const corpGr = resolveCorpGr();
+                        AamsCalendar.init('filterJa010fYmd', {
+                            pane: pane,
+                            initialYmd: /*[[${ymd}]]*/ "",
+                            highlightDates: /*[[${trDates}]]*/ [],
+                            datesApiUrl: '/api/daily/ja010f/dates',
+                            corpGr: corpGr,
+                            historyTitle: "예수금 내역 존재",
+                            onSelect: function(ymd) {
+                                window.loadJa010fData();
+                            }
+                        });
+                    } else {
+                        setTimeout(doInit, 50);
+                    }
+                };
+                doInit();
+            }
+
+            // 1. Initialize DDDW Options for tr_co_cd (Rule 7: 2-column dropdown with sticky header)
             function initDddwOptions() {
                 const corpGr = resolveCorpGr();
                 const dddwSelect = pane ? pane.querySelector("#filterDddw") : document.getElementById("filterDddw");
@@ -140,7 +161,7 @@
 
                             dddwSelect.value = "%";
 
-                            // Transform to 2-column sticky dropdown widget using Guideline 6
+                            // Transform to 2-column sticky dropdown widget using Guideline 7
                             if (typeof window.f_dddwctl.get2ColItemFormatter === 'function') {
                                 window.f_dddwctl.get2ColItemFormatter(dddwSelect, options, {
                                     codeTitle: "코드",
@@ -161,8 +182,20 @@
                 return Promise.resolve();
             }
 
+            // Helper to ensure row selection upon clicking any editable cell
+            function selectAndEdit(cell) {
+                const row = cell.getRow();
+                if (row && (!row.isSelected || !row.isSelected())) {
+                    if (gridJa010f) {
+                        gridJa010f.deselectRow();
+                    }
+                    row.select();
+                }
+                cell.edit(true);
+            }
+
             // 2. Initialize Main Grid (d_ja010f1.srd / SHT0YE + SZM0IA)
-            // Configured strictly based on tabsequence (Rule 5) and Exception 1 (editable for isNew rows only)
+            // Configured strictly based on tabsequence (Rule 5) & column naming rule (fundCd -> 펀드번호)
             function initGrid() {
                 const gridElement = pane ? pane.querySelector("#ja010f-grid") : document.getElementById("ja010f-grid");
                 if (!gridElement) return;
@@ -173,6 +206,11 @@
                     placeholder: "조회된 예수금 잔액 내역이 없습니다.",
                     selectableRows: 1,
                     editTriggerEvent: "click",
+                    tabEndNewRow: false,
+                    keybindings: {
+                        navNext: "tab",
+                        navPrev: "shift + tab"
+                    },
                     rowFormatter: function(row) {
                         const data = row.getData();
                         if (data && (data.isNew === true || data._isNew === true)) {
@@ -183,20 +221,20 @@
                     },
                     columns: [
                         { title: "No.", formatter: "rownum", width: 45, hozAlign: "center", headerHozAlign: "center", resizable: false },
-                        // tabsequence=10: fund_cd (관리번호)
+                        // tabsequence=10: fund_cd (펀드번호 - Rule: fundCd 는 펀드번호로 표시)
                         { 
-                            title: "관리번호", 
+                            title: "펀드번호", 
                             field: "fundCd", 
                             width: 105, 
                             hozAlign: "center", 
                             headerHozAlign: "center",
                             editor: "input",
-                            editable: isRowEditable,
-                            cellClick: (e, cell) => { if (isRowEditable(cell)) cell.edit(true); }
+                            editable: true,
+                            cellClick: (e, cell) => selectAndEdit(cell)
                         },
                         // tabsequence=32766: xx_fund_cd (고객명 - read-only)
                         { title: "고객명", field: "fundNm", width: 160, hozAlign: "left", headerHozAlign: "center" },
-                        // tabsequence=20: t0_aek (당일잔액)
+                        // tabsequence=20: t0_aek (당일잔액 - editable)
                         { 
                             title: "당일잔액", 
                             field: "t0Aek", 
@@ -205,11 +243,11 @@
                             headerHozAlign: "center", 
                             formatter: numberFormatter,
                             editor: "number",
-                            editable: isRowEditable,
-                            cellClick: (e, cell) => { if (isRowEditable(cell)) cell.edit(true); },
+                            editable: true,
+                            cellClick: (e, cell) => selectAndEdit(cell),
                             cellEdited: function(cell) { recalculateTotAek(cell.getRow()); }
                         },
-                        // tabsequence=40: t2_aek (D+2일잔액)
+                        // tabsequence=40: t2_aek (D+2일잔액 - editable)
                         { 
                             title: "D+2일잔액", 
                             field: "t2Aek", 
@@ -218,10 +256,10 @@
                             headerHozAlign: "center", 
                             formatter: numberFormatter,
                             editor: "number",
-                            editable: isRowEditable,
-                            cellClick: (e, cell) => { if (isRowEditable(cell)) cell.edit(true); }
+                            editable: true,
+                            cellClick: (e, cell) => selectAndEdit(cell)
                         },
-                        // tabsequence=50: stock_aek (주식평가액)
+                        // tabsequence=50: stock_aek (주식평가액 - editable)
                         { 
                             title: "주식평가액", 
                             field: "stockAek", 
@@ -230,11 +268,11 @@
                             headerHozAlign: "center", 
                             formatter: numberFormatter,
                             editor: "number",
-                            editable: isRowEditable,
-                            cellClick: (e, cell) => { if (isRowEditable(cell)) cell.edit(true); },
+                            editable: true,
+                            cellClick: (e, cell) => selectAndEdit(cell),
                             cellEdited: function(cell) { recalculateTotAek(cell.getRow()); }
                         },
-                        // tabsequence=60: bond_aek (채권평가액)
+                        // tabsequence=60: bond_aek (채권평가액 - editable)
                         { 
                             title: "채권평가액", 
                             field: "bondAek", 
@@ -243,11 +281,11 @@
                             headerHozAlign: "center", 
                             formatter: numberFormatter,
                             editor: "number",
-                            editable: isRowEditable,
-                            cellClick: (e, cell) => { if (isRowEditable(cell)) cell.edit(true); },
+                            editable: true,
+                            cellClick: (e, cell) => selectAndEdit(cell),
                             cellEdited: function(cell) { recalculateTotAek(cell.getRow()); }
                         },
-                        // tabsequence=70: rp_aek (RP평가액)
+                        // tabsequence=70: rp_aek (RP평가액 - editable)
                         { 
                             title: "RP평가액", 
                             field: "rpAek", 
@@ -256,8 +294,8 @@
                             headerHozAlign: "center", 
                             formatter: numberFormatter,
                             editor: "number",
-                            editable: isRowEditable,
-                            cellClick: (e, cell) => { if (isRowEditable(cell)) cell.edit(true); },
+                            editable: true,
+                            cellClick: (e, cell) => selectAndEdit(cell),
                             cellEdited: function(cell) { recalculateTotAek(cell.getRow()); }
                         },
                         // tabsequence=32766: tot_aek (평가총액 - read-only, auto calculated)
@@ -267,12 +305,12 @@
                     ]
                 });
 
-                // Rule 7: Capturing click listener to guarantee row selection
+                // Rule 8: Capturing click listener to guarantee row selection on non-editable areas
                 gridElement.addEventListener("click", function(e) {
                     const rowEl = e.target.closest(".tabulator-row");
                     if (rowEl && gridJa010f) {
                         const row = gridJa010f.getRow(rowEl);
-                        if (row) {
+                        if (row && (!row.isSelected || !row.isSelected())) {
                             gridJa010f.deselectRow();
                             row.select();
                         }
@@ -283,7 +321,7 @@
             // 3. Load Data Function
             window.loadJa010fData = function() {
                 const corpGr = resolveCorpGr();
-                const filterYmdInput = pane ? pane.querySelector("#filterYmd") : document.getElementById("filterYmd");
+                const filterYmdInput = pane ? (pane.querySelector("#filterJa010fYmd") || pane.querySelector("#filterYmd")) : (document.getElementById("filterJa010fYmd") || document.getElementById("filterYmd"));
                 const filterDddwSelect = pane ? pane.querySelector("#filterDddw") : document.getElementById("filterDddw");
 
                 const ymd = filterYmdInput ? filterYmdInput.value : "";
@@ -344,21 +382,31 @@
                 }
             }
 
-            // 5. Register Standard Contracts (Guideline 8)
+            // 5. Register Standard Contracts (Guideline 9)
             if (pane) {
                 pane.onSearch = function() { window.loadJa010fData(); };
                 pane.onRetrieve = function() { window.loadJa010fData(); };
                 pane.onInput = addNewRow;
-                pane.onCorpGrChange = function() {
+                pane.onSave = function() {
+                    alert("예수금 잔액 저장 기능을 실행합니다.");
+                };
+                pane.onCorpGrChange = function(val) {
+                    if (typeof AamsCalendar !== 'undefined') {
+                        AamsCalendar.loadHighlightDates('filterJa010fYmd', '/api/daily/ja010f/dates', val);
+                    }
                     initDddwOptions().then(() => window.loadJa010fData());
                 };
 
-                pane.addEventListener("corpGrChanged", function() {
+                pane.addEventListener("corpGrChanged", function(e) {
+                    const val = e.detail ? e.detail.corpGr : resolveCorpGr();
+                    if (typeof AamsCalendar !== 'undefined') {
+                        AamsCalendar.loadHighlightDates('filterJa010fYmd', '/api/daily/ja010f/dates', val);
+                    }
                     initDddwOptions().then(() => window.loadJa010fData());
                 });
 
                 // Date and DDDW change events
-                const filterYmdInput = pane.querySelector("#filterYmd");
+                const filterYmdInput = pane ? (pane.querySelector("#filterJa010fYmd") || pane.querySelector("#filterYmd")) : (document.getElementById("filterJa010fYmd") || document.getElementById("filterYmd"));
                 if (filterYmdInput) {
                     filterYmdInput.addEventListener("change", () => window.loadJa010fData());
                 }
@@ -377,16 +425,17 @@
                 }
             }
 
-            // Guideline 10: Single initialization entry point with isInitialized guard
+            // Guideline 11: Single initialization entry point with isInitialized guard
             let isInitialized = false;
             function startInit() {
                 if (isInitialized) return;
                 isInitialized = true;
 
+                initCalendarComponent();
                 initGrid();
                 initDddwOptions().then(() => {
                     const corpGr = resolveCorpGr();
-                    const filterYmdInput = pane ? pane.querySelector("#filterYmd") : document.getElementById("filterYmd");
+                    const filterYmdInput = pane ? (pane.querySelector("#filterJa010fYmd") || pane.querySelector("#filterYmd")) : (document.getElementById("filterJa010fYmd") || document.getElementById("filterYmd"));
                     if (corpGr && filterYmdInput && filterYmdInput.value) {
                         window.loadJa010fData();
                     }
@@ -394,7 +443,7 @@
             }
 
             if (document.readyState === "complete" || document.readyState === "interactive") {
-                setTimeout(startInit, 0);
+                setTimeout(startInit, 50);
             } else {
                 document.addEventListener("DOMContentLoaded", startInit);
             }

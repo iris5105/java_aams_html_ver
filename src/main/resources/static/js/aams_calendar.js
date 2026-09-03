@@ -25,6 +25,7 @@ window.AamsCalendar = (function() {
 
             instances[inputId] = {
                 inputId: inputId,
+                pane: options.pane || null,
                 popoverId: inputId + "_popover",
                 titleId: inputId + "_title",
                 monthsGridId: inputId + "_monthsGrid",
@@ -33,6 +34,7 @@ window.AamsCalendar = (function() {
                 calMonth: initialMonth,
                 trDatesSet: new Set(options.highlightDates || []),
                 datesApiUrl: options.datesApiUrl || null,
+                historyTitle: options.historyTitle || "데이터 존재",
                 onSelect: options.onSelect || null,
                 clickBound: false
             };
@@ -46,12 +48,20 @@ window.AamsCalendar = (function() {
             }
         },
 
-        buildDOM: function(inputId, initialYmd) {
-            const inputEl = document.getElementById(inputId);
-            if (!inputEl) return;
+        getElement: function(inputId, pane) {
+            if (pane && typeof pane.querySelector === 'function') {
+                const el = pane.querySelector('#' + inputId);
+                if (el) return el;
+            }
+            return document.getElementById(inputId);
+        },
 
+        buildDOM: function(inputId, initialYmd) {
             const inst = instances[inputId];
             if (!inst) return;
+
+            const inputEl = this.getElement(inputId, inst.pane);
+            if (!inputEl) return;
 
             // 1. Create or ensure input wrapper
             let wrapper = inputEl.closest('.aams-calendar-wrapper');
@@ -78,6 +88,13 @@ window.AamsCalendar = (function() {
                 btn.innerHTML = '<i class="fa-regular fa-calendar-days"></i>';
                 btn.onclick = function() { AamsCalendar.toggle(inputId); };
                 wrapper.appendChild(btn);
+            } else {
+                if (initialYmd && !inputEl.value) inputEl.value = initialYmd;
+                inputEl.onclick = function() { AamsCalendar.toggle(inputId); };
+                const btn = wrapper.querySelector('.btn-calendar');
+                if (btn) {
+                    btn.onclick = function() { AamsCalendar.toggle(inputId); };
+                }
             }
 
             // 2. Create or recreate Popover DOM
@@ -89,7 +106,7 @@ window.AamsCalendar = (function() {
             popover = document.createElement('div');
             popover.id = inst.popoverId;
             popover.className = 'calendar-popover';
-            popover.style.cssText = 'display: none; position: absolute; top: 100%; left: 0; margin-top: 6px; z-index: 2000; background: #ffffff; border: 1px solid #708090; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2); width: 235px; padding: 4px; font-family: "맑은 고딕", sans-serif;';
+            popover.style.cssText = 'display: none; position: absolute; top: 100%; left: 0; margin-top: 6px; z-index: 9999; background: #ffffff; border: 1px solid #708090; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2); width: 235px; padding: 4px; font-family: "맑은 고딕", sans-serif;';
 
             popover.innerHTML = `
                 <div style="display: flex; align-items: center; justify-content: space-between; padding: 4px 2px; border-bottom: 1px solid #e2e8f0; font-size: 13px;">
@@ -316,7 +333,8 @@ window.AamsCalendar = (function() {
                     btn.style.color = "#00cc00"; // Bright vivid green
                     btn.style.fontWeight = "900";
                     btn.style.fontSize = "13px";
-                    btn.title = "입출금 이력 존재";
+                    const inst = instances[inputId];
+                    btn.title = (inst && inst.historyTitle) ? inst.historyTitle : "데이터 존재";
                 } else if (dayOfWeek === 0) {
                     btn.style.color = "#ef4444"; // Sunday red
                 } else if (dayOfWeek === 6) {
@@ -335,11 +353,11 @@ window.AamsCalendar = (function() {
             const self = this;
             btn.onclick = function(e) {
                 e.stopPropagation();
-                const inputEl = document.getElementById(inputId);
+                const inst = instances[inputId];
+                const inputEl = self.getElement(inputId, inst ? inst.pane : null);
                 if (inputEl) inputEl.value = ymd;
                 self.close(inputId);
 
-                const inst = instances[inputId];
                 if (inst && typeof inst.onSelect === 'function') {
                     inst.onSelect(ymd);
                 }
