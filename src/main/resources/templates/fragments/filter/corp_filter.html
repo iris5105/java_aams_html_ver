@@ -7,7 +7,7 @@
          th:data-dddw-id="${dddwId != null ? dddwId : 'corp_gr'}" 
          th:data-seq="${seq != null ? seq : 1}">
         <div class="filter-item">
-            <label for="filterCorpGr">운용사</label>
+            <label for="filterCorpGr" th:text="${label != null ? label : (labelCorpGr != null ? labelCorpGr : '자산운용(자문)사')}"></label>
             <select id="filterCorpGr" name="corpGr" class="filter-select" onchange="onCorpGrFilterChange(this)">
                 <th:block th:if="${corpList != null and not #lists.isEmpty(corpList)}">
                     <option th:each="corp : ${corpList}"

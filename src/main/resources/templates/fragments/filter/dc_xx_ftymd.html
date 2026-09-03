@@ -4,13 +4,13 @@
     <!-- Extra Condition + From-To Date Filter (dc_xx_ftymd) -->
     <div th:fragment="filter" class="filter-bar filter-dc-xx-ftymd">
         <div class="filter-item">
-            <label for="filterXx">조회조건</label>
+            <label for="filterXx" th:text="${labelXx != null ? labelXx : '조회조건'}">조회조건</label>
             <select id="filterXx" name="xx" class="filter-select">
                 <option value="">전체</option>
             </select>
         </div>
         <div class="filter-item">
-            <label for="filterFYmd">조회기간</label>
+            <label for="filterFYmd" th:text="${labelFYmd != null ? labelFYmd : '조회기간'}">조회기간</label>
             <input type="date" id="filterFYmd" name="fYmd" class="filter-input input-date" th:value="${fYmd}"/>
             <span class="filter-separator">~</span>
             <input type="date" id="filterTYmd" name="tYmd" class="filter-input input-date" th:value="${tYmd}"/>

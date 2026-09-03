@@ -4,11 +4,11 @@
     <!-- Month to Task Filter (dc_mon2task) -->
     <div th:fragment="filter" class="filter-bar filter-dc-mon2task">
         <div class="filter-item">
-            <label for="filterTaskYm">작업월</label>
+            <label for="filterTaskYm" th:text="${labelTaskYm != null ? labelTaskYm : '작업월'}">작업월</label>
             <input type="month" id="filterTaskYm" name="taskYm" class="filter-input input-month" th:value="${taskYm}"/>
         </div>
         <div class="filter-item">
-            <label for="filterCorpGr">운용사</label>
+            <label for="filterCorpGr" th:text="${labelCorpGr != null ? labelCorpGr : '운용사'}">운용사</label>
             <select id="filterCorpGr" name="corpGr" class="filter-select">
                 <option value="2200" th:selected="${corpGr == '2200'}">(주)케이에프피</option>
                 <option value="2100" th:selected="${corpGr == '2100'}">현대자산운용</option>
@@ -16,7 +16,7 @@
             </select>
         </div>
         <div class="filter-item">
-            <label for="filterTaskKind">작업구분</label>
+            <label for="filterTaskKind" th:text="${labelTaskKind != null ? labelTaskKind : '작업구분'}">작업구분</label>
             <select id="filterTaskKind" name="taskKind" class="filter-select">
                 <option value="">전체</option>
             </select>

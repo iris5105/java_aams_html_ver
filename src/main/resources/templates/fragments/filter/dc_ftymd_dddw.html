@@ -4,13 +4,13 @@
     <!-- From-To Date + 1 DDDW Filter (dc_ftymd_dddw) -->
     <div th:fragment="filter" class="filter-bar filter-dc-ftymd-dddw">
         <div class="filter-item">
-            <label for="filterFYmd">조회기간</label>
+            <label for="filterFYmd" th:text="${labelFYmd != null ? labelFYmd : '조회기간'}">조회기간</label>
             <input type="date" id="filterFYmd" name="fYmd" class="filter-input input-date" th:value="${fYmd}"/>
             <span class="filter-separator">~</span>
             <input type="date" id="filterTYmd" name="tYmd" class="filter-input input-date" th:value="${tYmd}"/>
         </div>
         <div class="filter-item">
-            <label for="filterDddw">구분</label>
+            <label for="filterDddw" th:text="${labelDddw != null ? labelDddw : '구분'}">구분</label>
             <select id="filterDddw" name="dddw" class="filter-select">
                 <option value="">전체</option>
             </select>

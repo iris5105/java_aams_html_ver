@@ -4,13 +4,13 @@
     <!-- Extra Condition + Single Date Filter (dc_xx_ymd) -->
     <div th:fragment="filter" class="filter-bar filter-dc-xx-ymd">
         <div class="filter-item">
-            <label for="filterXx">조회조건</label>
+            <label for="filterXx" th:text="${labelXx != null ? labelXx : '조회조건'}">조회조건</label>
             <select id="filterXx" name="xx" class="filter-select">
                 <option value="">전체</option>
             </select>
         </div>
         <div class="filter-item">
-            <label for="filterYmd">조회일자</label>
+            <label for="filterYmd" th:text="${labelYmd != null ? labelYmd : (label != null ? label : '조회일자')}">조회일자</label>
             <input type="date" id="filterYmd" name="ymd" class="filter-input input-date" th:value="${ymd}"/>
         </div>
     </div>

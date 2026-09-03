@@ -15,7 +15,9 @@ trigger: always_on
 9. 마스터-디테일 구조에서 마스터 행 클릭 시 동일한 키값에 대해 불필요한 중복 API 호출(fetch)이 발생하지 않도록 마지막 조회 키 비교 가드를 둔다.
 10. MDI 환경의 동적 탭 로딩 시 DOMContentLoaded와 document.readyState 중복 실행으로 인한 다중 초기화를 방지하기 위해 isInitialized 플래그를 사용하는 단일 진입점(startInit) 패턴을 적용한다.
 11. 데이터의 수정 권한이 특정 사용자(의뢰자/작성자 등)에게만 부여되는 경우, 그리드 셀의 editable뿐만 아니라 상세 패널(textarea, input 등)에도 readOnly 및 배경색 잠금 처리를 동기화하여 양방향 보호를 적용한다.
+12. 상단 필터바(fragments/filter/...) 사용 시 화면별로 라벨명을 변경해야 하는 경우, 프래그먼트 파라미터(예: `filter(label='LOAD기일')`, `filter(labelYmd='매매일자', labelDddw='거래구분')`), `th:with`, 또는 클라이언트 JS 함수(`setFilterLabel('filterYmd', 'LOAD기일')`)를 사용하여 동적으로 변경하도록 구성하며, 파라미터 미전달 시에는 표준 기본 라벨이 자동으로 표출되도록 한다.
 
 예외상황
 
 1. 그리드 테이블 관리 시 기존에 조회된 데이터는 수정을 막고 행 선택(Row Select 및 상세 조회)만 가능하게 하고, 신규로 추가된 행(isNew: true)에 대해서만 인라인 수정을 허용한다.
+

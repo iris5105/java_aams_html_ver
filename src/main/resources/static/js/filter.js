@@ -105,7 +105,31 @@ class FilterManager {
             }
         });
     }
+
+    /**
+     * Dynamically change a filter input's label text
+     * @param {string} inputId - ID of the filter input/select (e.g. 'filterYmd', 'filterDddw')
+     * @param {string} newText - New label text (e.g. 'LOAD기일', '거래구분')
+     * @param {HTMLElement|string} [scope] - Optional container or selector to isolate (e.g. current tab pane)
+     */
+    setLabel(inputId, newText, scope) {
+        const root = (typeof scope === 'string' ? document.querySelector(scope) : scope) || 
+                     document.querySelector('.tab-pane.active') || document;
+        const label = root.querySelector(`label[for="${inputId}"]`);
+        if (label) {
+            label.textContent = newText;
+        }
+    }
 }
 
 // Global Singleton Instance
 window.filterManager = new FilterManager();
+
+/**
+ * Global helper function to dynamically set filter label text
+ */
+window.setFilterLabel = function(inputId, newText, scope) {
+    if (window.filterManager) {
+        window.filterManager.setLabel(inputId, newText, scope);
+    }
+};

@@ -4,19 +4,19 @@
     <!-- From-To Month + 2 DDDWs Filter (dc_ftmm_dddw2) -->
     <div th:fragment="filter" class="filter-bar filter-dc-ftmm-dddw2">
         <div class="filter-item">
-            <label for="filterFMm">조회월</label>
+            <label for="filterFMm" th:text="${labelFMm != null ? labelFMm : '조회월'}">조회월</label>
             <input type="month" id="filterFMm" name="fMm" class="filter-input input-month" th:value="${fMm}"/>
             <span class="filter-separator">~</span>
             <input type="month" id="filterTMm" name="tMm" class="filter-input input-month" th:value="${tMm}"/>
         </div>
         <div class="filter-item">
-            <label for="filterDddw1">구분1</label>
+            <label for="filterDddw1" th:text="${labelDddw1 != null ? labelDddw1 : '구분1'}">구분1</label>
             <select id="filterDddw1" name="dddw1" class="filter-select">
                 <option value="">전체</option>
             </select>
         </div>
         <div class="filter-item">
-            <label for="filterDddw2">구분2</label>
+            <label for="filterDddw2" th:text="${labelDddw2 != null ? labelDddw2 : '구분2'}">구분2</label>
             <select id="filterDddw2" name="dddw2" class="filter-select">
                 <option value="">전체</option>
             </select>

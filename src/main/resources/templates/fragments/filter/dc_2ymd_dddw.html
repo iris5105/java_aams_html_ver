@@ -4,15 +4,15 @@
     <!-- Dual Date + DDDW Filter (dc_2ymd_dddw) -->
     <div th:fragment="filter" class="filter-bar filter-dc-2ymd-dddw">
         <div class="filter-item">
-            <label for="filterYmd1">전기준일</label>
+            <label for="filterYmd1" th:text="${labelYmd1 != null ? labelYmd1 : '전기준일'}">전기준일</label>
             <input type="date" id="filterYmd1" name="ymd1" class="filter-input input-date" th:value="${ymd1}"/>
         </div>
         <div class="filter-item">
-            <label for="filterYmd2">당기준일</label>
+            <label for="filterYmd2" th:text="${labelYmd2 != null ? labelYmd2 : '당기준일'}">당기준일</label>
             <input type="date" id="filterYmd2" name="ymd2" class="filter-input input-date" th:value="${ymd2}"/>
         </div>
         <div class="filter-item">
-            <label for="filterDddw">구분</label>
+            <label for="filterDddw" th:text="${labelDddw != null ? labelDddw : '구분'}">구분</label>
             <select id="filterDddw" name="dddw" class="filter-select">
                 <option value="">전체</option>
             </select>

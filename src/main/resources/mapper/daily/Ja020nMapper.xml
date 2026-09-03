@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.kfp.aams.domain.daily.mapper.Ja020nMapper">
+
+    <!-- 1. Select Load Status List (d_ja020n.srd) -->
+    <select id="selectStatusList" resultType="com.kfp.aams.domain.daily.dto.Ja020nStatusDto">
+        SELECT t1.corp_gr                            AS corpGr
+             , TO_CHAR(t1.load_date, 'YYYY-MM-DD HH24:MI:SS') AS loadDate
+             , t1.ip_user                            AS ipUser
+             , fw.user_nm                            AS userNm
+             , t1.load_ok                            AS loadOk
+             , t1.load_naye                          AS loadNaye
+             , TO_CHAR(t1.load_ymd, 'YYYY-MM-DD')    AS loadYmd
+          FROM LOAD_STATUS t1
+          LEFT OUTER JOIN FW_USER_MST fw ON fw.enc_e_mail = TO_ENCRYPTS(t1.ip_user)
+         WHERE t1.corp_gr  = #{corpGr}
+           AND TRUNC(t1.load_ymd) = TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
+         ORDER BY t1.load_seq desc
+    </select>
+
+    <!-- 2. Select Loaded Balance / Siga List (d_ja020n_siga.srd) -->
+    <select id="selectSigaList" resultType="com.kfp.aams.domain.daily.dto.Ja020nSigaDto">
+        SELECT '2'                            AS s1
+             , '현금'                         AS jasanNm
+             , t1.FUND_CD                     AS fundCd
+             , ia.FUND_NM                     AS fundNm
+             , t1.JM_CD                       AS jmCd
+             , F_JM_NM (t1.corp_gr, t1.jm_cd) AS jmNm
+             , t1.AEKM                        AS aekm
+             , t1.CHUI_AEK                    AS chuiAek
+             , t1.SIGA_AEK                    AS sigaAek
+             , '0'                            AS loadOk
+          FROM SHM0HM_SIGA t1
+          LEFT OUTER JOIN SZM0IA ia ON ia.corp_gr = t1.corp_gr AND ia.fund_cd = t1.fund_cd
+         WHERE t1.CORP_GR = #{corpGr}
+           AND t1.YMD     = REPLACE(#{ymd}, '-', '')
+        UNION ALL
+        SELECT '3'
+             , '주식'
+             , t1.FUND_CD
+             , ia.FUND_NM
+             , t1.JM_CD
+             , F_JM_NM (t1.corp_gr, t1.jm_cd)
+             , t1.JUSU
+             , t1.CHUI_AEK
+             , t1.SIGA_AEK
+             , '0'
+          FROM SJM0JM_SIGA t1
+          LEFT OUTER JOIN SZM0IA ia ON ia.corp_gr = t1.corp_gr AND ia.fund_cd = t1.fund_cd
+         WHERE t1.CORP_GR = #{corpGr}
+           AND t1.YMD     = REPLACE(#{ymd}, '-', '')
+        UNION ALL
+        SELECT '1'
+             , '채권'
+             , t1.FUND_CD
+             , ia.FUND_NM
+             , t1.JM_CD
+             , F_JM_NM (t1.corp_gr, t1.jm_cd)
+             , t1.AEKM
+             , t1.CHUI_AEK
+             , t1.SIGA_AEK
+             , '0'
+          FROM SCM0CM_SIGA t1
+          LEFT OUTER JOIN SZM0IA ia ON ia.corp_gr = t1.corp_gr AND ia.fund_cd = t1.fund_cd
+         WHERE t1.CORP_GR = #{corpGr}
+           AND t1.YMD     = REPLACE(#{ymd}, '-', '')
+        UNION ALL
+        SELECT '4'
+             , '펀드'
+             , t1.FUND_CD
+             , ia.FUND_NM
+             , t1.JM_CD
+             , F_JM_NM (t1.corp_gr, t1.jm_cd)
+             , t1.JWA
+             , t1.CHUI_AEK
+             , t1.SIGA_AEK
+             , '0'
+          FROM SJM5SM_SIGA t1
+          LEFT OUTER JOIN SZM0IA ia ON ia.corp_gr = t1.corp_gr AND ia.fund_cd = t1.fund_cd
+         WHERE t1.CORP_GR = #{corpGr}
+           AND t1.YMD     = REPLACE(#{ymd}, '-', '')
+    </select>
+
+    <!-- 3. Select Loaded Execution / Tr List (d_ja020n_tr.srd) -->
+    <select id="selectTrList" resultType="com.kfp.aams.domain.daily.dto.Ja020nTrDto">
+        SELECT t1.TR_CD                         AS trCd
+             , t1.FUND_CD                       AS fundCd
+             , ia.FUND_NM                       AS fundNm
+             , t1.TR_CO_CD                      AS trCoCd
+             , t1.JM_CD                         AS jmCd
+             , F_JM_NM(t1.corp_gr, t1.jm_cd)    AS jmNm
+             , t1.OFFER_NO                      AS offerNo
+             , t1.TR_JUSU                       AS trJusu
+             , t1.TR_AEK                        AS trAek
+             , t1.ENC_ACCT_NO                   AS encAcctNo
+             , t1.KOSCOM_CD                     AS koscomCd
+             , t1.DANC_GB                       AS dancGb
+             , t1.SUSU                          AS susu
+             , t1.TAX                           AS tax
+             , TO_CHAR(TO_DATE(t1.SUDO_YMD, 'YYYYMMDD'), 'YYYY-MM-DD') AS sudoYmd
+             , t1.STATUS                        AS status
+             , '0'                              AS loadOk
+          FROM SJT1JG t1
+          LEFT OUTER JOIN SZM0IA ia ON ia.corp_gr = t1.corp_gr AND ia.fund_cd = t1.fund_cd
+         WHERE t1.CORP_GR = #{corpGr}
+           AND t1.TR_YMD  = REPLACE(#{ymd}, '-', '')
+         ORDER BY t1.FUND_CD, t1.TR_CD
+    </select>
+
+</mapper>
