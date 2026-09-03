@@ -99,6 +99,42 @@
                 return val;
             }
 
+            let brokerOptionsList = [];
+
+            // Helper to format date
+            function formatDateVal(val) {
+                if (!val) return "";
+                const clean = String(val).replace(/\D/g, "");
+                if (clean.length >= 8) {
+                    return clean.substring(0, 4) + '.' + clean.substring(4, 6) + '.' + clean.substring(6, 8);
+                }
+                const str = String(val).trim();
+                if (str.length >= 10) {
+                    return str.substring(0, 10).replace(/[-/]/g, ".");
+                }
+                return str;
+            }
+
+            // Exception Rule 1 & Rule 7: Only new rows (isNew: true) are editable.
+            // Existing rows are read-only, and clicking them selects the row.
+            function isRowEditable(cell) {
+                if (!cell) return false;
+                const row = typeof cell.getRow === "function" ? cell.getRow() : null;
+                if (!row) return false;
+                const data = row.getData();
+                const isNew = Boolean(data && (data.isNew === true || data._isNew === true || data.isNewRow === true));
+
+                if (isNew) {
+                    return true;
+                } else {
+                    if (gridJa010e && (!row.isSelected || !row.isSelected())) {
+                        gridJa010e.deselectRow();
+                        row.select();
+                    }
+                    return false;
+                }
+            }
+
             // 1. Initialize DDDW Options for tr_co_cd (Rule 6: 2-column dropdown with sticky header)
             function initDddwOptions() {
                 const corpGr = resolveCorpGr();
@@ -106,9 +142,9 @@
                 if (!dddwSelect) return Promise.resolve();
 
                 if (typeof window.f_dddwctl === "function") {
-                    // PB signature: f_dddwctl(dddwId, corpGr, prependHeader, seq, addWhere)
                     return window.f_dddwctl('tr_co_cd', corpGr, '%,전체,', 1, "tr_gb='1'").then(options => {
                         brokerOptionsMap = {};
+                        brokerOptionsList = [];
                         if (options && options.length > 0) {
                             dddwSelect.innerHTML = '';
                             options.forEach(opt => {
@@ -116,6 +152,7 @@
                                 const name = (opt.name != null ? opt.name : (opt.dscr || code)).toString().trim();
                                 if (code && code !== "%") {
                                     brokerOptionsMap[code] = name;
+                                    brokerOptionsList.push({ label: `${code}: ${name}`, value: code });
                                 }
                                 const optionEl = document.createElement("option");
                                 optionEl.value = code;
@@ -129,7 +166,7 @@
                             if (typeof window.f_dddwctl.get2ColItemFormatter === 'function') {
                                 window.f_dddwctl.get2ColItemFormatter(dddwSelect, options, {
                                     codeTitle: "코드",
-                                    nameTitle: "매매증권사명",
+                                    nameTitle: "증권사명",
                                     defaultVal: "%",
                                     onSelect: function(val) {
                                         window.loadJa010eData();
@@ -141,12 +178,13 @@
                         if (gridJa010e) {
                             gridJa010e.redraw(true);
                         }
-                    }).catch(err => console.error("Error loading tr_co_cd DDDW:", err));
+                    }).catch(err => console.error("Error loading tr_co_cd DDDW in w_ja010e:", err));
                 }
                 return Promise.resolve();
             }
 
             // 2. Initialize Main Grid (d_ja010e1.srd / SJT1JG)
+            // Configured strictly based on tabsequence (Rule 5) and Exception 1 (editable for isNew rows only)
             function initGrid() {
                 const gridElement = pane ? pane.querySelector("#ja010e-grid") : document.getElementById("ja010e-grid");
                 if (!gridElement) return;
@@ -156,23 +194,184 @@
                     height: "100%",
                     placeholder: "조회된 체결 내역이 없습니다.",
                     selectableRows: 1,
+                    editTriggerEvent: "click",
+                    rowFormatter: function(row) {
+                        const data = row.getData();
+                        if (data && (data.isNew === true || data._isNew === true)) {
+                            row.getElement().classList.add("aams-new-row");
+                        } else {
+                            row.getElement().classList.remove("aams-new-row");
+                        }
+                    },
                     columns: [
-                        { title: "No.", formatter: "rownum", width: 45, hozAlign: "center", headerHozAlign: "center" },
-                        { title: "매매", field: "trCd", width: 70, hozAlign: "center", headerHozAlign: "center", formatter: trCdFormatter },
-                        { title: "관리번호", field: "fundCd", width: 105, hozAlign: "center", headerHozAlign: "center" },
-                        { title: "고객명", field: "fundNm", width: 150, hozAlign: "left", headerHozAlign: "center" },
-                        { title: "매매처", field: "trCoCd", width: 130, hozAlign: "left", headerHozAlign: "center", formatter: trCoFormatter },
+                        { title: "No.", formatter: "rownum", width: 45, hozAlign: "center", headerHozAlign: "center", resizable: false },
+                        // srd sequence 1: tr_cd (매매)
+                        { 
+                            title: "매매", 
+                            field: "trCd", 
+                            width: 75, 
+                            hozAlign: "center", 
+                            headerHozAlign: "center", 
+                            formatter: trCdFormatter,
+                            editor: "list",
+                            editorParams: {
+                                values: [
+                                    { label: "매수", value: "J" },
+                                    { label: "매도", value: "K" },
+                                    { label: "입고", value: "F" },
+                                    { label: "출고", value: "O" },
+                                    { label: "취득액", value: "+" }
+                                ],
+                                autocomplete: false,
+                                listOnEmpty: true
+                            },
+                            editable: isRowEditable,
+                            cellClick: (e, cell) => { if (isRowEditable(cell)) cell.edit(true); }
+                        },
+                        // srd sequence 2: offer_no (주문No - read-only)
                         { title: "주문No", field: "offerNo", width: 85, hozAlign: "center", headerHozAlign: "center" },
-                        { title: "종목코드", field: "jmCd", width: 100, hozAlign: "center", headerHozAlign: "center" },
+                        // srd sequence 3: fund_cd (관리번호)
+                        { 
+                            title: "펀드번호", 
+                            field: "fundCd", 
+                            width: 105, 
+                            hozAlign: "center", 
+                            headerHozAlign: "center",
+                            editor: "input",
+                            editable: isRowEditable,
+                            cellClick: (e, cell) => { if (isRowEditable(cell)) cell.edit(true); }
+                        },
+                        // srd sequence 4: xx_fund_cd (고객명 - read-only)
+                        { title: "고객명", field: "fundNm", width: 150, hozAlign: "left", headerHozAlign: "center" },
+                        // srd sequence 5: koscom_cd (종목코드)
+                        { 
+                            title: "종목코드", 
+                            field: "jmCd", 
+                            width: 100, 
+                            hozAlign: "center", 
+                            headerHozAlign: "center",
+                            editor: "input",
+                            editable: isRowEditable,
+                            cellClick: (e, cell) => { if (isRowEditable(cell)) cell.edit(true); }
+                        },
+                        // srd sequence 6: xx_koscom_cd (종목명 - read-only)
                         { title: "종목명", field: "jjNm", minWidth: 160, hozAlign: "left", headerHozAlign: "center" },
-                        { title: "매매수량", field: "trJusu", width: 100, hozAlign: "right", headerHozAlign: "center", formatter: numberFormatter },
-                        { title: "매매단가", field: "danga", width: 100, hozAlign: "right", headerHozAlign: "center", formatter: numberFormatter },
-                        { title: "매매금액", field: "trAek", width: 125, hozAlign: "right", headerHozAlign: "center", formatter: numberFormatter },
-                        { title: "수수료", field: "susu", width: 90, hozAlign: "right", headerHozAlign: "center", formatter: numberFormatter },
-                        { title: "거래세", field: "tax", width: 90, hozAlign: "right", headerHozAlign: "center", formatter: numberFormatter },
-                        { title: "수도결제일", field: "sudoYmd", width: 105, hozAlign: "center", headerHozAlign: "center" },
-                        { title: "계좌번호", field: "acctNo", width: 120, hozAlign: "center", headerHozAlign: "center" },
-                        { title: "적재일시", field: "loadTime", width: 150, hozAlign: "center", headerHozAlign: "center" }
+                        // tabsequence=40: tr_jusu (매매수량)
+                        { 
+                            title: "매매수량", 
+                            field: "trJusu", 
+                            width: 100, 
+                            hozAlign: "right", 
+                            headerHozAlign: "center", 
+                            formatter: numberFormatter,
+                            editor: "number",
+                            editable: isRowEditable,
+                            cellClick: (e, cell) => { if (isRowEditable(cell)) cell.edit(true); },
+                            cellEdited: function(cell) {
+                                const row = cell.getRow();
+                                const data = row.getData();
+                                const jusu = Number(data.trJusu || 0);
+                                const danga = Number(data.danga || 0);
+                                if (jusu > 0 && danga > 0) {
+                                    row.update({ trAek: Math.round(jusu * danga) });
+                                }
+                            }
+                        },
+                        // tabsequence=50: danga (매매단가)
+                        { 
+                            title: "매매단가", 
+                            field: "danga", 
+                            width: 100, 
+                            hozAlign: "right", 
+                            headerHozAlign: "center", 
+                            formatter: numberFormatter,
+                            editor: "number",
+                            editable: isRowEditable,
+                            cellClick: (e, cell) => { if (isRowEditable(cell)) cell.edit(true); },
+                            cellEdited: function(cell) {
+                                const row = cell.getRow();
+                                const data = row.getData();
+                                const jusu = Number(data.trJusu || 0);
+                                const danga = Number(data.danga || 0);
+                                if (jusu > 0 && danga > 0) {
+                                    row.update({ trAek: Math.round(jusu * danga) });
+                                }
+                            }
+                        },
+                        // tabsequence=60: tr_aek (매매금액)
+                        { 
+                            title: "매매금액", 
+                            field: "trAek", 
+                            width: 125, 
+                            hozAlign: "right", 
+                            headerHozAlign: "center", 
+                            formatter: numberFormatter,
+                            editor: "number",
+                            editable: isRowEditable,
+                            cellClick: (e, cell) => { if (isRowEditable(cell)) cell.edit(true); }
+                        },
+                        // tabsequence=70: susu (수수료)
+                        { 
+                            title: "수수료", 
+                            field: "susu", 
+                            width: 90, 
+                            hozAlign: "right", 
+                            headerHozAlign: "center", 
+                            formatter: numberFormatter,
+                            editor: "number",
+                            editable: isRowEditable,
+                            cellClick: (e, cell) => { if (isRowEditable(cell)) cell.edit(true); }
+                        },
+                        // tabsequence=80: tax (거래세)
+                        { 
+                            title: "거래세", 
+                            field: "tax", 
+                            width: 90, 
+                            hozAlign: "right", 
+                            headerHozAlign: "center", 
+                            formatter: numberFormatter,
+                            editor: "number",
+                            editable: isRowEditable,
+                            cellClick: (e, cell) => { if (isRowEditable(cell)) cell.edit(true); }
+                        },
+                        // tabsequence=90: sudo_ymd (수도결제일)
+                        { 
+                            title: "수도결제일", 
+                            field: "sudoYmd", 
+                            width: 105, 
+                            hozAlign: "center", 
+                            headerHozAlign: "center", 
+                            formatter: cell => formatDateVal(cell.getValue()),
+                            editor: "input",
+                            editable: isRowEditable,
+                            cellClick: (e, cell) => { if (isRowEditable(cell)) cell.edit(true); }
+                        },
+                        // srd sequence 14 / tabsequence=100: tr_co_cd (매매처 - DDDW)
+                        { 
+                            title: "매매처", 
+                            field: "trCoCd", 
+                            width: 130, 
+                            hozAlign: "left", 
+                            headerHozAlign: "center", 
+                            formatter: trCoFormatter,
+                            editor: "list",
+                            editorParams: {
+                                valuesLookup: () => brokerOptionsList,
+                                autocomplete: false,
+                                listOnEmpty: true,
+                                clearable: true,
+                                itemFormatter: (label, value, item, element) => {
+                                    const code = (item && item.value != null) ? item.value : (value || '');
+                                    const name = (item && item.label != null) ? item.label.replace(/^[^:]+:\s*/, '') : '';
+                                    return `<div style="display:flex; justify-content:space-between; width:100%; font-size:12px;">
+                                        <span style="font-weight:600; color:#1e293b; width:45px;">${code}</span>
+                                        <span style="color:#475569; text-align:right; flex:1;">${name}</span>
+                                    </div>`;
+                                }
+                            },
+                            editable: isRowEditable,
+                            cellClick: (e, cell) => { if (isRowEditable(cell)) cell.edit(true); }
+                        }
                     ]
                 });
 
@@ -217,10 +416,47 @@
                     });
             };
 
-            // 4. Register Standard Contracts (Guideline 8)
+            // 4. Add New Row Function (Rule 5 & Exception 1)
+            function addNewRow() {
+                const filterYmdInput = pane ? pane.querySelector("#filterYmd") : document.getElementById("filterYmd");
+                const filterDddwSelect = pane ? pane.querySelector("#filterDddw") : document.getElementById("filterDddw");
+                const ymd = filterYmdInput ? filterYmdInput.value : "";
+                const trCoCd = (filterDddwSelect && filterDddwSelect.value !== "%") ? filterDddwSelect.value : "";
+
+                const newRowData = {
+                    isNew: true,
+                    trCd: "F",
+                    fundCd: "",
+                    fundNm: "",
+                    trCoCd: trCoCd,
+                    offerNo: "",
+                    jmCd: "",
+                    jjNm: "",
+                    trJusu: 0,
+                    danga: 0,
+                    trAek: 0,
+                    susu: 0,
+                    tax: 0,
+                    sudoYmd: ymd ? ymd.replace(/-/g, ".") : "",
+                    acctNo: "",
+                    loadTime: ""
+                };
+
+                if (gridJa010e) {
+                    gridJa010e.addRow(newRowData, true).then(function(row) {
+                        gridJa010e.deselectRow();
+                        row.select();
+                        const cell = row.getCell("fundCd");
+                        if (cell) cell.edit();
+                    });
+                }
+            }
+
+            // 5. Register Standard Contracts (Guideline 8)
             if (pane) {
                 pane.onSearch = function() { window.loadJa010eData(); };
                 pane.onRetrieve = function() { window.loadJa010eData(); };
+                pane.onInput = addNewRow;
                 pane.onCorpGrChange = function() {
                     initDddwOptions().then(() => window.loadJa010eData());
                 };
@@ -250,9 +486,7 @@
 
                 const btnNew = pane.querySelector("#btnNew");
                 if (btnNew) {
-                    btnNew.addEventListener("click", function() {
-                        alert("신규 체결 등록 작업을 실행합니다.");
-                    });
+                    btnNew.addEventListener("click", addNewRow);
                 }
 
                 const btnDel = pane.querySelector("#btnDel");

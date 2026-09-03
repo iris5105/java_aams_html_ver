@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.kfp.aams.domain.daily.mapper.Ja010fMapper">
+
+    <!-- Select Deposit Balance Load List (d_ja010f1.srd / SHT0YE + SZM0IA) -->
+    <select id="selectJa010fList" resultType="com.kfp.aams.domain.daily.dto.Ja010fDto">
+        SELECT t1.corp_gr                          AS corpGr
+             , TO_CHAR(t1.tr_ymd, 'YYYY-MM-DD')    AS trYmd
+             , t1.fund_cd                          AS fundCd
+             , t1.t0_aek                           AS t0Aek
+             , t1.t1_aek                           AS t1Aek
+             , t1.t2_aek                           AS t2Aek
+             , t1.stock_aek                        AS stockAek
+             , t1.bond_aek                         AS bondAek
+             , t1.rp_aek                           AS rpAek
+             , t1.tot_aek                          AS totAek
+             , ia.fund_nm                          AS fundNm
+             , t1.tr_co_cd                         AS trCoCd
+             , t1.enc_acct_no                      AS encAcctNo
+             , t1.bigo                             AS bigo
+             , TO_DECRYPTS (t1.enc_acct_no)        AS acctNo
+          FROM SHT0YE t1
+          JOIN SZM0IA ia  ON ia.corp_gr = t1.corp_gr
+                         AND ia.fund_cd = t1.fund_cd
+         WHERE t1.corp_gr = #{corpGr}
+           AND TRUNC(t1.tr_ymd) = TO_DATE(REPLACE(#{trYmd}, '-', ''), 'YYYYMMDD')
+           <if test="trCoCd != null and trCoCd != ''">
+               AND t1.tr_co_cd = #{trCoCd}
+           </if>
+         ORDER BY t1.fund_cd
+    </select>
+
+</mapper>

@@ -106,43 +106,43 @@
                 return val || "-";
             }
 
-            // Column Definitions for Each Mode
+            // Column Definitions for Each Mode (Rule 6: srd header text and sequence)
             const columnsByMode = {
                 status: [
+                    { title: "No.", formatter: "rownum", width: 45, hozAlign: "center", headerHozAlign: "center", resizable: false },
+                    { title: "작업자", field: "userNm", width: 110, hozAlign: "center", headerHozAlign: "center" },
                     { title: "작업일시", field: "loadDate", width: 170, hozAlign: "center", headerHozAlign: "center" },
-                    { title: "작업자ID/IP", field: "ipUser", width: 130, hozAlign: "center", headerHozAlign: "center" },
-                    { title: "작업자성명", field: "userNm", width: 110, hozAlign: "center", headerHozAlign: "center" },
-                    { title: "처리결과", field: "loadOk", width: 90, hozAlign: "center", headerHozAlign: "center", formatter: loadOkFormatter },
-                    { title: "처리내용", field: "loadNaye", minWidth: 280, hozAlign: "left", headerHozAlign: "center" },
-                    { title: "대상기일", field: "loadYmd", width: 110, hozAlign: "center", headerHozAlign: "center" }
+                    { title: "처리내용", field: "loadNaye", minWidth: 280, hozAlign: "left", headerHozAlign: "center" }
                 ],
+                // d_ja020n_siga.srd: No., 자산, 관리번호, 계좌명, 종목코드, 종목명, 액면, 취득액, 시가액
                 siga: [
-                    { title: "자산구분", field: "jasanNm", width: 90, hozAlign: "center", headerHozAlign: "center" },
-                    { title: "펀드코드", field: "fundCd", width: 110, hozAlign: "center", headerHozAlign: "center" },
-                    { title: "펀드명", field: "fundNm", width: 160, hozAlign: "left", headerHozAlign: "center" },
-                    { title: "종목코드", field: "jmCd", width: 110, hozAlign: "center", headerHozAlign: "center" },
+                    { title: "No.", formatter: "rownum", width: 45, hozAlign: "center", headerHozAlign: "center", resizable: false },
+                    { title: "자산", field: "jasanNm", width: 85, hozAlign: "center", headerHozAlign: "center" },
+                    { title: "관리번호", field: "fundCd", width: 105, hozAlign: "center", headerHozAlign: "center" },
+                    { title: "계좌명", field: "fundNm", width: 160, hozAlign: "left", headerHozAlign: "center" },
+                    { title: "종목코드", field: "jmCd", width: 105, hozAlign: "center", headerHozAlign: "center" },
                     { title: "종목명", field: "jmNm", minWidth: 160, hozAlign: "left", headerHozAlign: "center" },
-                    { title: "수량/금액", field: "aekm", width: 120, hozAlign: "right", headerHozAlign: "center", formatter: numberFormatter },
-                    { title: "취득금액", field: "chuiAek", width: 130, hozAlign: "right", headerHozAlign: "center", formatter: numberFormatter },
-                    { title: "시가금액", field: "sigaAek", width: 130, hozAlign: "right", headerHozAlign: "center", formatter: numberFormatter },
-                    { title: "검증상태", field: "loadOk", width: 90, hozAlign: "center", headerHozAlign: "center", formatter: loadOkFormatter }
+                    { title: "액면", field: "aekm", width: 120, hozAlign: "right", headerHozAlign: "center", formatter: numberFormatter },
+                    { title: "취득액", field: "chuiAek", width: 130, hozAlign: "right", headerHozAlign: "center", formatter: numberFormatter },
+                    { title: "시가액", field: "sigaAek", width: 130, hozAlign: "right", headerHozAlign: "center", formatter: numberFormatter }
                 ],
+                // d_ja020n_tr.srd: No., 매매구분, 관리번호, 계좌명, 종목코드, 종목명, 체결번호, 금액, 단축코드, 단축식별자, 수수료, 제세금, 결제일자, 처리결과
                 tr: [
-                    { title: "매매구분", field: "trCd", width: 90, hozAlign: "center", headerHozAlign: "center" },
-                    { title: "펀드코드", field: "fundCd", width: 100, hozAlign: "center", headerHozAlign: "center" },
-                    { title: "펀드명", field: "fundNm", width: 150, hozAlign: "left", headerHozAlign: "center" },
-                    { title: "거래증권사", field: "trCoCd", width: 90, hozAlign: "center", headerHozAlign: "center" },
+                    { title: "No.", formatter: "rownum", width: 45, hozAlign: "center", headerHozAlign: "center", resizable: false },
+                    { title: "매매구분", field: "trCd", width: 85, hozAlign: "center", headerHozAlign: "center" },
+                    { title: "관리번호", field: "fundCd", width: 105, hozAlign: "center", headerHozAlign: "center" },
+                    { title: "계좌명", field: "fundNm", width: 150, hozAlign: "left", headerHozAlign: "center" },
                     { title: "종목코드", field: "jmCd", width: 100, hozAlign: "center", headerHozAlign: "center" },
                     { title: "종목명", field: "jmNm", minWidth: 150, hozAlign: "left", headerHozAlign: "center" },
-                    { title: "주문번호", field: "offerNo", width: 90, hozAlign: "center", headerHozAlign: "center" },
-                    { title: "체결수량", field: "trJusu", width: 100, hozAlign: "right", headerHozAlign: "center", formatter: numberFormatter },
-                    { title: "체결금액", field: "trAek", width: 120, hozAlign: "right", headerHozAlign: "center", formatter: numberFormatter },
-                    { title: "계좌번호", field: "encAcctNo", width: 120, hozAlign: "center", headerHozAlign: "center" },
+                    { title: "체결번호", field: "offerNo", width: 90, hozAlign: "center", headerHozAlign: "center" },
+                    { title: "채결주수<br/>(액면)", field: "trJusu", width: 90, hozAlign: "center", headerHozAlign: "center", formatter: numberFormatter },
+                    { title: "금액", field: "trAek", width: 120, hozAlign: "right", headerHozAlign: "center", formatter: numberFormatter },
+                    { title: "단축코드", field: "koscomCdd", width: 90, hozAlign: "center", headerHozAlign: "center" },
+                    { title: "단축식별자", field: "dancGb", width: 90, hozAlign: "center", headerHozAlign: "center" },
                     { title: "수수료", field: "susu", width: 90, hozAlign: "right", headerHozAlign: "center", formatter: numberFormatter },
                     { title: "제세금", field: "tax", width: 90, hozAlign: "right", headerHozAlign: "center", formatter: numberFormatter },
                     { title: "결제일자", field: "sudoYmd", width: 100, hozAlign: "center", headerHozAlign: "center" },
-                    { title: "상태", field: "status", width: 80, hozAlign: "center", headerHozAlign: "center" },
-                    { title: "검증상태", field: "loadOk", width: 80, hozAlign: "center", headerHozAlign: "center", formatter: loadOkFormatter }
+                    { title: "처리결과", field: "status", width: 85, hozAlign: "center", headerHozAlign: "center", formatter: loadOkFormatter }
                 ]
             };
 

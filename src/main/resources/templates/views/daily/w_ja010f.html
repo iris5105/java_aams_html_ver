@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<div class="view-container layout-single ja010f-container" th:fragment="ja010fView">
+
+    <!-- Top Action Control Bar (Row 1) -->
+    <div class="view-toolbar">
+        <div class="toolbar-left">
+            <!-- Reusable Common Toolbar Buttons Fragment (닫기, 새로고침, 조회, 입력, 저장, 엑셀) -->
+            <div th:replace="~{fragments/tab_header :: toolbarButtons}"></div>
+        </div>
+        <!-- Reusable Common Breadcrumb Fragment -->
+        <div th:replace="~{fragments/tab_header :: toolbarBreadcrumb}"></div>
+    </div>
+
+    <!-- Filter Bar (Row 2): Rule 13 standard container + Rule 12 dynamic labels -->
+    <div class="filter-bar">
+        <div class="filter-left">
+            <div th:replace="~{fragments/filter/dc_ymd_dddw :: filter(labelYmd='LOAD일자', labelDddw='증권사')}"></div>
+        </div>
+
+        <!-- Sub Action Buttons (예수금LOAD) -->
+        <div class="filter-actions ja010f-action-buttons">
+            <button type="button" id="btnLoad" class="t-btn btn-action" style="background: #2563eb; color: #ffffff; border-color: #1d4ed8;">
+                <i class="fa-solid fa-file-import"></i> 예수금LOAD
+            </button>
+        </div>
+    </div>
+
+    <!-- Tag Guide Notice Banner (from w_ja010f.srw tag property) -->
+    <div class="guide-notice-bar" style="padding: 4px 16px; background-color: #f8fafc; border-bottom: 1px solid #e2e8f0; font-size: 11px; color: #64748b; display: flex; align-items: center; gap: 6px;">
+        <i class="fa-solid fa-circle-info" style="color: #0284c7;"></i>
+        <span>* 수요예측자료 엑셀LOAD시 등록된 예금자료 기준으로 처리</span>
+    </div>
+
+    <!-- Main Grid Section (d_ja010f1.srd / SHT0YE + SZM0IA) -->
+    <div class="grid-section" style="flex: 1 1 auto; height: calc(100% - 115px); padding: 8px 12px; overflow: hidden;">
+        <div class="grid-table-wrapper" style="height: 100%; width: 100%; border: 1px solid #cbd5e1; border-radius: 4px; overflow: hidden; background-color: #fff;">
+            <div id="ja010f-grid" class="tabulator-aams-grid" style="height: 100%;"></div>
+        </div>
+    </div>
+
+    <!-- PowerBuilder DDDW Dynamic Control Script -->
+    <script th:src="@{/js/f_dddwctl.js}" src="/js/f_dddwctl.js"></script>
+
+    <!-- Page Specific Script for w_ja010f -->
+    <script th:inline="javascript">
+        (function() {
+            const currentScript = document.currentScript;
+            const pane = currentScript ? (currentScript.closest('.tab-pane') || currentScript.closest('.view-container')) : null;
+
+            let gridJa010f = null;
+            let brokerOptionsMap = {}; // tr_co_cd code -> name cache
+
+            // Corporate Group Resolver (Guideline 1: No default hardcoded value)
+            function resolveCorpGr() {
+                const globalSelect = document.getElementById("corpGrSelect");
+                if (globalSelect && globalSelect.value) return globalSelect.value;
+
+                const matchSaved = document.cookie.match(/(?:^|;\s*)savedCorpGr=([^;]*)/);
+                if (matchSaved && matchSaved[1]) return decodeURIComponent(matchSaved[1]);
+
+                const matchCorp = document.cookie.match(/(?:^|;\s*)corpGr=([^;]*)/);
+                if (matchCorp && matchCorp[1]) return decodeURIComponent(matchCorp[1]);
+
+                const serverVal = /*[[${corpGr}]]*/ null;
+                if (serverVal) return serverVal;
+
+                return "";
+            }
+
+            // Numeric Money Formatter
+            function numberFormatter(cell) {
+                const val = cell.getValue();
+                if (val == null || val === "" || isNaN(val)) return "0";
+                return Number(val).toLocaleString();
+            }
+
+            // Broker (tr_co_cd) Name Lookup Formatter
+            function trCoFormatter(cell) {
+                const val = cell.getValue();
+                if (!val) return "";
+                if (brokerOptionsMap[val]) {
+                    return brokerOptionsMap[val];
+                }
+                return val;
+            }
+
+            // Exception Rule 1 & Rule 7: Only new rows (isNew: true) are editable.
+            // Existing rows are read-only, and clicking them selects the row.
+            function isRowEditable(cell) {
+                if (!cell) return false;
+                const row = typeof cell.getRow === "function" ? cell.getRow() : null;
+                if (!row) return false;
+                const data = row.getData();
+                const isNew = Boolean(data && (data.isNew === true || data._isNew === true || data.isNewRow === true));
+
+                if (isNew) {
+                    return true;
+                } else {
+                    if (gridJa010f && (!row.isSelected || !row.isSelected())) {
+                        gridJa010f.deselectRow();
+                        row.select();
+                    }
+                    return false;
+                }
+            }
+
+            // Recalculate total evaluation amount
+            function recalculateTotAek(row) {
+                const data = row.getData();
+                const t0 = Number(data.t0Aek || 0);
+                const stock = Number(data.stockAek || 0);
+                const bond = Number(data.bondAek || 0);
+                const rp = Number(data.rpAek || 0);
+                row.update({ totAek: t0 + stock + bond + rp });
+            }
+
+            // 1. Initialize DDDW Options for tr_co_cd (Rule 6: 2-column dropdown with sticky header)
+            function initDddwOptions() {
+                const corpGr = resolveCorpGr();
+                const dddwSelect = pane ? pane.querySelector("#filterDddw") : document.getElementById("filterDddw");
+                if (!dddwSelect) return Promise.resolve();
+
+                if (typeof window.f_dddwctl === "function") {
+                    return window.f_dddwctl('tr_co_cd', corpGr, '%,전체,', 1, "tr_gb='1'").then(options => {
+                        brokerOptionsMap = {};
+                        if (options && options.length > 0) {
+                            dddwSelect.innerHTML = '';
+                            options.forEach(opt => {
+                                const code = (opt.code != null ? opt.code : (opt.cd || '')).toString().trim();
+                                const name = (opt.name != null ? opt.name : (opt.dscr || code)).toString().trim();
+                                if (code && code !== "%") {
+                                    brokerOptionsMap[code] = name;
+                                }
+                                const optionEl = document.createElement("option");
+                                optionEl.value = code;
+                                optionEl.textContent = name ? `${code}: ${name}` : code;
+                                dddwSelect.appendChild(optionEl);
+                            });
+
+                            dddwSelect.value = "%";
+
+                            // Transform to 2-column sticky dropdown widget using Guideline 6
+                            if (typeof window.f_dddwctl.get2ColItemFormatter === 'function') {
+                                window.f_dddwctl.get2ColItemFormatter(dddwSelect, options, {
+                                    codeTitle: "코드",
+                                    nameTitle: "증권사명",
+                                    defaultVal: "%",
+                                    onSelect: function(val) {
+                                        window.loadJa010fData();
+                                    }
+                                });
+                            }
+                        }
+
+                        if (gridJa010f) {
+                            gridJa010f.redraw(true);
+                        }
+                    }).catch(err => console.error("Error loading tr_co_cd DDDW in w_ja010f:", err));
+                }
+                return Promise.resolve();
+            }
+
+            // 2. Initialize Main Grid (d_ja010f1.srd / SHT0YE + SZM0IA)
+            // Configured strictly based on tabsequence (Rule 5) and Exception 1 (editable for isNew rows only)
+            function initGrid() {
+                const gridElement = pane ? pane.querySelector("#ja010f-grid") : document.getElementById("ja010f-grid");
+                if (!gridElement) return;
+
+                gridJa010f = new Tabulator(gridElement, {
+                    layout: "fitDataFill",
+                    height: "100%",
+                    placeholder: "조회된 예수금 잔액 내역이 없습니다.",
+                    selectableRows: 1,
+                    editTriggerEvent: "click",
+                    rowFormatter: function(row) {
+                        const data = row.getData();
+                        if (data && (data.isNew === true || data._isNew === true)) {
+                            row.getElement().classList.add("aams-new-row");
+                        } else {
+                            row.getElement().classList.remove("aams-new-row");
+                        }
+                    },
+                    columns: [
+                        { title: "No.", formatter: "rownum", width: 45, hozAlign: "center", headerHozAlign: "center", resizable: false },
+                        // tabsequence=10: fund_cd (관리번호)
+                        { 
+                            title: "관리번호", 
+                            field: "fundCd", 
+                            width: 105, 
+                            hozAlign: "center", 
+                            headerHozAlign: "center",
+                            editor: "input",
+                            editable: isRowEditable,
+                            cellClick: (e, cell) => { if (isRowEditable(cell)) cell.edit(true); }
+                        },
+                        // tabsequence=32766: xx_fund_cd (고객명 - read-only)
+                        { title: "고객명", field: "fundNm", width: 160, hozAlign: "left", headerHozAlign: "center" },
+                        // tabsequence=20: t0_aek (당일잔액)
+                        { 
+                            title: "당일잔액", 
+                            field: "t0Aek", 
+                            width: 130, 
+                            hozAlign: "right", 
+                            headerHozAlign: "center", 
+                            formatter: numberFormatter,
+                            editor: "number",
+                            editable: isRowEditable,
+                            cellClick: (e, cell) => { if (isRowEditable(cell)) cell.edit(true); },
+                            cellEdited: function(cell) { recalculateTotAek(cell.getRow()); }
+                        },
+                        // tabsequence=40: t2_aek (D+2일잔액)
+                        { 
+                            title: "D+2일잔액", 
+                            field: "t2Aek", 
+                            width: 130, 
+                            hozAlign: "right", 
+                            headerHozAlign: "center", 
+                            formatter: numberFormatter,
+                            editor: "number",
+                            editable: isRowEditable,
+                            cellClick: (e, cell) => { if (isRowEditable(cell)) cell.edit(true); }
+                        },
+                        // tabsequence=50: stock_aek (주식평가액)
+                        { 
+                            title: "주식평가액", 
+                            field: "stockAek", 
+                            width: 130, 
+                            hozAlign: "right", 
+                            headerHozAlign: "center", 
+                            formatter: numberFormatter,
+                            editor: "number",
+                            editable: isRowEditable,
+                            cellClick: (e, cell) => { if (isRowEditable(cell)) cell.edit(true); },
+                            cellEdited: function(cell) { recalculateTotAek(cell.getRow()); }
+                        },
+                        // tabsequence=60: bond_aek (채권평가액)
+                        { 
+                            title: "채권평가액", 
+                            field: "bondAek", 
+                            width: 130, 
+                            hozAlign: "right", 
+                            headerHozAlign: "center", 
+                            formatter: numberFormatter,
+                            editor: "number",
+                            editable: isRowEditable,
+                            cellClick: (e, cell) => { if (isRowEditable(cell)) cell.edit(true); },
+                            cellEdited: function(cell) { recalculateTotAek(cell.getRow()); }
+                        },
+                        // tabsequence=70: rp_aek (RP평가액)
+                        { 
+                            title: "RP평가액", 
+                            field: "rpAek", 
+                            width: 130, 
+                            hozAlign: "right", 
+                            headerHozAlign: "center", 
+                            formatter: numberFormatter,
+                            editor: "number",
+                            editable: isRowEditable,
+                            cellClick: (e, cell) => { if (isRowEditable(cell)) cell.edit(true); },
+                            cellEdited: function(cell) { recalculateTotAek(cell.getRow()); }
+                        },
+                        // tabsequence=32766: tot_aek (평가총액 - read-only, auto calculated)
+                        { title: "평가총액", field: "totAek", width: 140, hozAlign: "right", headerHozAlign: "center", formatter: numberFormatter },
+                        // tabsequence=32766: acct_no (계좌번호 - read-only)
+                        { title: "계좌번호", field: "acctNo", width: 130, hozAlign: "center", headerHozAlign: "center" }
+                    ]
+                });
+
+                // Rule 7: Capturing click listener to guarantee row selection
+                gridElement.addEventListener("click", function(e) {
+                    const rowEl = e.target.closest(".tabulator-row");
+                    if (rowEl && gridJa010f) {
+                        const row = gridJa010f.getRow(rowEl);
+                        if (row) {
+                            gridJa010f.deselectRow();
+                            row.select();
+                        }
+                    }
+                }, true);
+            }
+
+            // 3. Load Data Function
+            window.loadJa010fData = function() {
+                const corpGr = resolveCorpGr();
+                const filterYmdInput = pane ? pane.querySelector("#filterYmd") : document.getElementById("filterYmd");
+                const filterDddwSelect = pane ? pane.querySelector("#filterDddw") : document.getElementById("filterDddw");
+
+                const ymd = filterYmdInput ? filterYmdInput.value : "";
+                const trCoCd = filterDddwSelect ? filterDddwSelect.value : "%";
+
+                if (!corpGr || !ymd) {
+                    if (gridJa010f) gridJa010f.setData([]);
+                    return;
+                }
+
+                const url = `/api/daily/ja010f/list?corpGr=${encodeURIComponent(corpGr)}&ymd=${encodeURIComponent(ymd)}&trCoCd=${encodeURIComponent(trCoCd || '%')}`;
+
+                fetch(url)
+                    .then(res => res.json())
+                    .then(data => {
+                        if (gridJa010f) {
+                            gridJa010f.setData(Array.isArray(data) ? data : []);
+                        }
+                    })
+                    .catch(err => {
+                        console.error("Error loading ja010f list:", err);
+                    });
+            };
+
+            // 4. Add New Row Function (Rule 5 & Exception 1)
+            function addNewRow() {
+                const filterDddwSelect = pane ? pane.querySelector("#filterDddw") : document.getElementById("filterDddw");
+                const trCoCd = (filterDddwSelect && filterDddwSelect.value !== "%") ? filterDddwSelect.value : "";
+
+                const newRowData = {
+                    isNew: true,
+                    fundCd: "",
+                    fundNm: "",
+                    t0Aek: 0,
+                    t2Aek: 0,
+                    stockAek: 0,
+                    bondAek: 0,
+                    rpAek: 0,
+                    totAek: 0,
+                    acctNo: "",
+                    trCoCd: trCoCd,
+                    bigo: ""
+                };
+
+                if (gridJa010f) {
+                    gridJa010f.addRow(newRowData, true).then(function(row) {
+                        gridJa010f.deselectRow();
+                        row.select();
+                        const cell = row.getCell("fundCd");
+                        if (cell) cell.edit();
+                    });
+                }
+            }
+
+            // 5. Register Standard Contracts (Guideline 8)
+            if (pane) {
+                pane.onSearch = function() { window.loadJa010fData(); };
+                pane.onRetrieve = function() { window.loadJa010fData(); };
+                pane.onInput = addNewRow;
+                pane.onCorpGrChange = function() {
+                    initDddwOptions().then(() => window.loadJa010fData());
+                };
+
+                pane.addEventListener("corpGrChanged", function() {
+                    initDddwOptions().then(() => window.loadJa010fData());
+                });
+
+                // Date and DDDW change events
+                const filterYmdInput = pane.querySelector("#filterYmd");
+                if (filterYmdInput) {
+                    filterYmdInput.addEventListener("change", () => window.loadJa010fData());
+                }
+
+                const filterDddwSelect = pane.querySelector("#filterDddw");
+                if (filterDddwSelect) {
+                    filterDddwSelect.addEventListener("change", () => window.loadJa010fData());
+                }
+
+                // Sub action buttons
+                const btnLoad = pane.querySelector("#btnLoad");
+                if (btnLoad) {
+                    btnLoad.addEventListener("click", function() {
+                        alert("예수금 엑셀 파일 LOAD 작업을 실행합니다.");
+                    });
+                }
+            }
+
+            // Guideline 10: Single initialization entry point with isInitialized guard
+            let isInitialized = false;
+            function startInit() {
+                if (isInitialized) return;
+                isInitialized = true;
+
+                initGrid();
+                initDddwOptions().then(() => {
+                    const corpGr = resolveCorpGr();
+                    const filterYmdInput = pane ? pane.querySelector("#filterYmd") : document.getElementById("filterYmd");
+                    if (corpGr && filterYmdInput && filterYmdInput.value) {
+                        window.loadJa010fData();
+                    }
+                });
+            }
+
+            if (document.readyState === "complete" || document.readyState === "interactive") {
+                setTimeout(startInit, 0);
+            } else {
+                document.addEventListener("DOMContentLoaded", startInit);
+            }
+        })();
+    </script>
+</div>
+</html>
