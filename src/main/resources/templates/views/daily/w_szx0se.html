@@ -255,6 +255,14 @@
                     ]
                 });
 
+                gridSzx0se.on("tableBuilt", function() {
+                    const rows = gridSzx0se.getRows();
+                    if (rows && rows.length > 0) {
+                        gridSzx0se.deselectRow();
+                        rows[0].select();
+                    }
+                });
+
                 // Guideline 7: Capturing phase listener to guarantee row selection
                 container.addEventListener("click", function(e) {
                     const rowEl = e.target.closest(".tabulator-row");
@@ -279,7 +287,13 @@
                     .then(res => res.json())
                     .then(data => {
                         if (gridSzx0se) {
-                            gridSzx0se.setData(Array.isArray(data) ? data : []);
+                            gridSzx0se.setData(Array.isArray(data) ? data : []).then(() => {
+                                const rows = gridSzx0se.getRows();
+                                if (rows && rows.length > 0) {
+                                    gridSzx0se.deselectRow();
+                                    rows[0].select();
+                                }
+                            });
                         }
                     })
                     .catch(err => console.error("Error loading szx0se list for corpGr [" + corpGr + "]:", err));

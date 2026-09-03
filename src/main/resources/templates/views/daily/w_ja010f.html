@@ -300,7 +300,13 @@
                     .then(res => res.json())
                     .then(data => {
                         if (gridJa010f) {
-                            gridJa010f.setData(Array.isArray(data) ? data : []);
+                            gridJa010f.setData(Array.isArray(data) ? data : []).then(() => {
+                                const rows = gridJa010f.getRows();
+                                if (rows && rows.length > 0) {
+                                    gridJa010f.deselectRow();
+                                    rows[0].select();
+                                }
+                            });
                         }
                     })
                     .catch(err => {

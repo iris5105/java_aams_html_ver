@@ -74,6 +74,14 @@
                     ]
                 });
 
+                gridJa010d.on("tableBuilt", function() {
+                    const rows = gridJa010d.getRows();
+                    if (rows && rows.length > 0) {
+                        gridJa010d.deselectRow();
+                        rows[0].select();
+                    }
+                });
+
                 // Guideline 7: Capturing listener to guarantee row selection
                 container.addEventListener("click", function(e) {
                     const rowEl = e.target.closest(".tabulator-row");
@@ -97,7 +105,13 @@
                     .then(res => res.json())
                     .then(data => {
                         if (gridJa010d) {
-                            gridJa010d.setData(Array.isArray(data) ? data : []);
+                            gridJa010d.setData(Array.isArray(data) ? data : []).then(() => {
+                                const rows = gridJa010d.getRows();
+                                if (rows && rows.length > 0) {
+                                    gridJa010d.deselectRow();
+                                    rows[0].select();
+                                }
+                            });
                         }
                     })
                     .catch(err => console.error("Error loading ja010d list:", err));

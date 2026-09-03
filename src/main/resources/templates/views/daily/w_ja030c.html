@@ -355,7 +355,13 @@
                     .then(res => res.json())
                     .then(data => {
                         if (gridJa030c) {
-                            gridJa030c.setData(Array.isArray(data) ? data : []);
+                            gridJa030c.setData(Array.isArray(data) ? data : []).then(() => {
+                                const rows = gridJa030c.getRows();
+                                if (rows && rows.length > 0) {
+                                    gridJa030c.deselectRow();
+                                    rows[0].select();
+                                }
+                            });
                         }
                     })
                     .catch(err => console.error("Error loading ja030c list:", err));

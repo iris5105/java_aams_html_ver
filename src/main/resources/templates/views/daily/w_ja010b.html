@@ -34,6 +34,66 @@
             overflow-x: auto !important;
         }
 
+        /* 서브 그리드 헤더 및 행 조작 액션 버튼 스타일 */
+        .ja010b-container .sub-grid-header {
+            display: flex !important;
+            justify-content: space-between !important;
+            align-items: center !important;
+            padding: 4px 8px !important;
+            background-color: #f1f5f9 !important;
+            border-bottom: 1px solid #cbd5e1 !important;
+            min-height: 32px !important;
+        }
+
+        .ja010b-container .sub-grid-actions {
+            display: inline-flex !important;
+            align-items: center !important;
+            gap: 4px !important;
+        }
+
+        .ja010b-container .btn-sub-grid {
+            display: inline-flex !important;
+            align-items: center !important;
+            gap: 4px !important;
+            padding: 2px 7px !important;
+            font-size: 11px !important;
+            font-weight: 600 !important;
+            line-height: 1.5 !important;
+            border-radius: 4px !important;
+            cursor: pointer !important;
+            transition: all 0.15s ease-in-out !important;
+        }
+
+        .ja010b-container .btn-sub-grid.btn-add {
+            color: #059669 !important;
+            background-color: #ecfdf5 !important;
+            border: 1px solid #a7f3d0 !important;
+        }
+        .ja010b-container .btn-sub-grid.btn-add:hover {
+            background-color: #d1fae5 !important;
+            border-color: #6ee7b7 !important;
+        }
+
+        .ja010b-container .btn-sub-grid.btn-copy {
+            color: #2563eb !important;
+            background-color: #eff6ff !important;
+            border: 1px solid #bfdbfe !important;
+        }
+        .ja010b-container .btn-sub-grid.btn-copy:hover {
+            background-color: #dbeafe !important;
+            border-color: #93c5fd !important;
+        }
+
+        .ja010b-container .btn-sub-grid.btn-del {
+            color: #dc2626 !important;
+            background-color: #fef2f2 !important;
+            border: 1px solid #fecaca !important;
+        }
+        .ja010b-container .btn-sub-grid.btn-del:hover {
+            background-color: #fee2e2 !important;
+            border-color: #fca5a5 !important;
+        }
+
         /* w_ja010b Dedicated Mobile Responsive Layout */
         @media (max-width: 767px) {
             .ja010b-container {
@@ -154,6 +214,17 @@
         <div class="split-left-section split-panel panel-left">
             <div class="sub-grid-header">
                 <span class="sub-title"><i class="fa-solid fa-list-ol"></i> 결산기별 이력</span>
+                <div class="sub-grid-actions">
+                    <button type="button" class="btn-sub-grid btn-add" id="btnDetailAdd" title="신규 행 삽입">
+                        <i class="fa-solid fa-plus"></i> 행 삽입
+                    </button>
+                    <button type="button" class="btn-sub-grid btn-copy" id="btnDetailCopy" title="행 복사">
+                        <i class="fa-solid fa-copy"></i> 행 복사
+                    </button>
+                    <button type="button" class="btn-sub-grid btn-del" id="btnDetailDel" title="행 삭제">
+                        <i class="fa-solid fa-trash-can"></i> 행 삭제
+                    </button>
+                </div>
             </div>
             <div class="grid-table-wrapper">
                 <div id="grid-ja010b-detail" class="tabulator-aams-grid"></div>
@@ -174,6 +245,17 @@
             <div class="io-grid-box">
                 <div class="sub-grid-header">
                     <span class="sub-title"><i class="fa-solid fa-money-bill-transfer"></i> 입출금 내역</span>
+                    <div class="sub-grid-actions">
+                        <button type="button" class="btn-sub-grid btn-add" id="btnIoAdd" title="신규 행 삽입">
+                            <i class="fa-solid fa-plus"></i> 행 삽입
+                        </button>
+                        <button type="button" class="btn-sub-grid btn-copy" id="btnIoCopy" title="행 복사">
+                            <i class="fa-solid fa-copy"></i> 행 복사
+                        </button>
+                        <button type="button" class="btn-sub-grid btn-del" id="btnIoDel" title="행 삭제">
+                            <i class="fa-solid fa-trash-can"></i> 행 삭제
+                        </button>
+                    </div>
                 </div>
                 <div class="grid-table-wrapper">
                     <div id="grid-ja010b-io" class="tabulator-aams-grid"></div>
@@ -474,6 +556,7 @@
                 gridDetail = new Tabulator(container, {
                     layout: "fitColumns",
                     height: "100%",
+                    selectableRows: 1,
                     placeholder: "<span>상단 목록에서 항목을 선택하세요.</span>",
                     columnDefaults: { vertAlign: "middle", headerSortTristate: true },
                     columns: [
@@ -481,11 +564,16 @@
                         { title: "회<br/>기", field: "gyulGi", hozAlign: "center", width: 55, editor: "number" },
                         { title: "(전)<br/>결산일자", field: "bfGyulYmd", hozAlign: "center", width: 95, formatter: cell => formatDateVal(cell.getValue()), editor: "input" },
                         { title: "(당)<br/>결산일자", field: "afGyulYmd", hozAlign: "center", width: 95, formatter: cell => formatDateVal(cell.getValue()), editor: "input" },
-                        { title: "구간<br/>일수", field: "ilsu", hozAlign: "center", width: 70 },
+                        { title: "구간<br/>일수", field: "ilsu", hozAlign: "center", width: 70, editor: "number" },
                         { title: "결산기<br/>손익액", field: "giSonikAek", hozAlign: "right", minWidth: 100, formatter: cell => numFmt(cell.getValue()), editor: "number" },
                         { title: "워터마크<br/>대상원본", field: "wmSeoljAek", hozAlign: "right", minWidth: 110, formatter: cell => numFmt(cell.getValue()), editor: "number" },
-                        { title: "계약<br/>종료일", field: "haejiYmd", hozAlign: "center", width: 95, formatter: cell => formatDateVal(cell.getValue()) }
+                        { title: "계약<br/>종료일", field: "haejiYmd", hozAlign: "center", width: 95, formatter: cell => formatDateVal(cell.getValue()), editor: "input" }
                     ]
+                });
+
+                gridDetail.on("rowClick", function(e, row) {
+                    gridDetail.deselectRow();
+                    row.select();
                 });
             }
 
@@ -497,19 +585,171 @@
                 gridIo = new Tabulator(container, {
                     layout: "fitColumns",
                     height: "100%",
+                    selectableRows: 1,
                     placeholder: "<span>상단 목록에서 항목을 선택하세요.</span>",
                     columnDefaults: { vertAlign: "middle", headerSortTristate: true },
                     columns: [
                         { title: "No.", formatter: "rownum", hozAlign: "center", width: 45, resizable: false, widthGrow: 0 },
                         { title: "입출일자", field: "trYmd", hozAlign: "center", width: 95, formatter: cell => formatDateVal(cell.getValue()), editor: "input" },
-                        { title: "입금액", field: "inAek", hozAlign: "right", minWidth: 95, formatter: cell => numFmt(cell.getValue()) },
-                        { title: "출금액", field: "outAek", hozAlign: "right", minWidth: 95, formatter: cell => numFmt(cell.getValue()) },
-                        { title: "입출금조정액", field: "ioJo", hozAlign: "right", minWidth: 100, formatter: cell => numFmt(cell.getValue()) },
+                        { title: "입금액", field: "inAek", hozAlign: "right", minWidth: 95, formatter: cell => numFmt(cell.getValue()), editor: "number" },
+                        { title: "출금액", field: "outAek", hozAlign: "right", minWidth: 95, formatter: cell => numFmt(cell.getValue()), editor: "number" },
+                        { title: "입출금조정액", field: "ioJo", hozAlign: "right", minWidth: 100, formatter: cell => numFmt(cell.getValue()), editor: "number" },
                         { title: "계약잔액", field: "wonbonAek", hozAlign: "right", minWidth: 100, formatter: cell => numFmt(cell.getValue()), editor: "number" },
-                        { title: "운용잔여일", field: "giganIlsu", hozAlign: "center", width: 80 },
-                        { title: "경과일수", field: "passIlsu", hozAlign: "center", width: 70 }
+                        { title: "운용잔여일", field: "giganIlsu", hozAlign: "center", width: 80, editor: "number" },
+                        { title: "경과일수", field: "passIlsu", hozAlign: "center", width: 70, editor: "number" }
                     ]
                 });
+
+                gridIo.on("rowClick", function(e, row) {
+                    gridIo.deselectRow();
+                    row.select();
+                });
+            }
+
+            // Sub-grid Action Handlers: 결산기별 이력 (gridDetail)
+            function addDetailRow() {
+                const selectedMasterRows = gridMaster ? gridMaster.getSelectedRows() : [];
+                if (!selectedMasterRows || selectedMasterRows.length === 0) {
+                    alert("상단 목록에서 계좌(마스터)를 먼저 선택하세요.");
+                    return;
+                }
+                const masterData = selectedMasterRows[0].getData();
+                const fundCd = masterData.fundCd || "";
+                const filterSelect = pane ? pane.querySelector("#filterCorpGr") : document.getElementById("filterCorpGr");
+                const corpGr = filterSelect ? filterSelect.value : (masterData.corpGr || "");
+
+                let maxGyulGi = 0;
+                if (gridDetail) {
+                    const data = gridDetail.getData();
+                    if (Array.isArray(data)) {
+                        data.forEach(d => {
+                            const g = parseInt(d.gyulGi, 10);
+                            if (!isNaN(g) && g > maxGyulGi) maxGyulGi = g;
+                        });
+                    }
+                }
+                const nextGyulGi = maxGyulGi + 1;
+                const todayStr = new Date().toISOString().slice(0, 10).replace(/-/g, ".");
+
+                const newRow = {
+                    isNew: true,
+                    _isNew: true,
+                    corpGr: corpGr,
+                    fundCd: fundCd,
+                    gyulGi: nextGyulGi,
+                    bfGyulYmd: todayStr,
+                    afGyulYmd: todayStr,
+                    ilsu: 0,
+                    giSonikAek: 0,
+                    wmSeoljAek: 0,
+                    haejiYmd: ""
+                };
+
+                if (gridDetail) {
+                    gridDetail.addRow(newRow, true).then(function(row) {
+                        gridDetail.deselectRow();
+                        row.select();
+                        const cell = row.getCell("bfGyulYmd") || row.getCell("gyulGi");
+                        if (cell) cell.edit();
+                    });
+                }
+            }
+
+            function copyDetailRow() {
+                if (!gridDetail) return;
+                const selectedRows = gridDetail.getSelectedRows();
+                if (!selectedRows || selectedRows.length === 0) {
+                    alert("복사할 결산기 이력 행을 선택하세요.");
+                    return;
+                }
+                const srcData = selectedRows[0].getData();
+                const copiedData = Object.assign({}, srcData, {
+                    isNew: true,
+                    _isNew: true
+                });
+                gridDetail.addRow(copiedData, false, selectedRows[0]).then(function(row) {
+                    gridDetail.deselectRow();
+                    row.select();
+                });
+            }
+
+            function deleteDetailRow() {
+                if (!gridDetail) return;
+                const selectedRows = gridDetail.getSelectedRows();
+                if (!selectedRows || selectedRows.length === 0) {
+                    alert("삭제할 결산기 이력 행을 선택하세요.");
+                    return;
+                }
+                if (confirm("선택한 결산기 이력 행을 삭제하시겠습니까?")) {
+                    selectedRows[0].delete();
+                }
+            }
+
+            // Sub-grid Action Handlers: 입출금 내역 (gridIo)
+            function addIoRow() {
+                const selectedMasterRows = gridMaster ? gridMaster.getSelectedRows() : [];
+                if (!selectedMasterRows || selectedMasterRows.length === 0) {
+                    alert("상단 목록에서 계좌(마스터)를 먼저 선택하세요.");
+                    return;
+                }
+                const masterData = selectedMasterRows[0].getData();
+                const fundCd = masterData.fundCd || "";
+                const filterSelect = pane ? pane.querySelector("#filterCorpGr") : document.getElementById("filterCorpGr");
+                const corpGr = filterSelect ? filterSelect.value : (masterData.corpGr || "");
+                const todayStr = new Date().toISOString().slice(0, 10).replace(/-/g, ".");
+
+                const newRow = {
+                    isNew: true,
+                    _isNew: true,
+                    corpGr: corpGr,
+                    fundCd: fundCd,
+                    trYmd: todayStr,
+                    inAek: 0,
+                    outAek: 0,
+                    ioJo: 0,
+                    wonbonAek: Number(masterData.reSeoljAek || 0),
+                    giganIlsu: 0,
+                    passIlsu: 0
+                };
+
+                if (gridIo) {
+                    gridIo.addRow(newRow, true).then(function(row) {
+                        gridIo.deselectRow();
+                        row.select();
+                        const cell = row.getCell("trYmd") || row.getCell("inAek");
+                        if (cell) cell.edit();
+                    });
+                }
+            }
+
+            function copyIoRow() {
+                if (!gridIo) return;
+                const selectedRows = gridIo.getSelectedRows();
+                if (!selectedRows || selectedRows.length === 0) {
+                    alert("복사할 입출금 내역 행을 선택하세요.");
+                    return;
+                }
+                const srcData = selectedRows[0].getData();
+                const copiedData = Object.assign({}, srcData, {
+                    isNew: true,
+                    _isNew: true
+                });
+                gridIo.addRow(copiedData, false, selectedRows[0]).then(function(row) {
+                    gridIo.deselectRow();
+                    row.select();
+                });
+            }
+
+            function deleteIoRow() {
+                if (!gridIo) return;
+                const selectedRows = gridIo.getSelectedRows();
+                if (!selectedRows || selectedRows.length === 0) {
+                    alert("삭제할 입출금 내역 행을 선택하세요.");
+                    return;
+                }
+                if (confirm("선택한 입출금 내역 행을 삭제하시겠습니까?")) {
+                    selectedRows[0].delete();
+                }
             }
 
             // Global functions for controller integration
@@ -571,6 +811,25 @@
                     .catch(err => console.error("Error fetching IO:", err));
             }
 
+            // Bind Sub-grid Buttons
+            const btnDetailAdd = pane ? pane.querySelector("#btnDetailAdd") : document.getElementById("btnDetailAdd");
+            if (btnDetailAdd) btnDetailAdd.addEventListener("click", addDetailRow);
+
+            const btnDetailCopy = pane ? pane.querySelector("#btnDetailCopy") : document.getElementById("btnDetailCopy");
+            if (btnDetailCopy) btnDetailCopy.addEventListener("click", copyDetailRow);
+
+            const btnDetailDel = pane ? pane.querySelector("#btnDetailDel") : document.getElementById("btnDetailDel");
+            if (btnDetailDel) btnDetailDel.addEventListener("click", deleteDetailRow);
+
+            const btnIoAdd = pane ? pane.querySelector("#btnIoAdd") : document.getElementById("btnIoAdd");
+            if (btnIoAdd) btnIoAdd.addEventListener("click", addIoRow);
+
+            const btnIoCopy = pane ? pane.querySelector("#btnIoCopy") : document.getElementById("btnIoCopy");
+            if (btnIoCopy) btnIoCopy.addEventListener("click", copyIoRow);
+
+            const btnIoDel = pane ? pane.querySelector("#btnIoDel") : document.getElementById("btnIoDel");
+            if (btnIoDel) btnIoDel.addEventListener("click", deleteIoRow);
+
             // Initialize all 3 grids & Trigger ue_dddw_retrieve on view load
             initMasterGrid();
             initDetailGrid();
@@ -604,7 +863,17 @@
                 if (initialMasterData && initialMasterData.length > 0) {
                     setTimeout(() => {
                         if (gridMaster) {
-                            gridMaster.setData(initialMasterData);
+                            gridMaster.setData(initialMasterData).then(() => {
+                                const rows = gridMaster.getRows();
+                                if (rows && rows.length > 0) {
+                                    gridMaster.deselectRow();
+                                    rows[0].select();
+                                    const d = rows[0].getData();
+                                    const mle = pane ? pane.querySelector("#mleSpecialNote") : document.getElementById("mleSpecialNote");
+                                    if (mle) mle.value = d.specialNote || "";
+                                    if (d.fundCd) fetchJa010bSubGrids(d.fundCd);
+                                }
+                            });
                         }
                     }, 50);
                 }

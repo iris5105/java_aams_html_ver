@@ -196,7 +196,13 @@
                     .then(res => res.json())
                     .then(data => {
                         if (gridJa020n) {
-                            gridJa020n.setData(Array.isArray(data) ? data : []);
+                            gridJa020n.setData(Array.isArray(data) ? data : []).then(() => {
+                                const rows = gridJa020n.getRows();
+                                if (rows && rows.length > 0) {
+                                    gridJa020n.deselectRow();
+                                    rows[0].select();
+                                }
+                            });
                         }
                     })
                     .catch(err => {
