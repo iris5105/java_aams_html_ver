@@ -122,15 +122,20 @@
         <div class="toolbar-left">
             <!-- Reusable Common Toolbar Buttons Fragment (닫기 ~ 엑셀) -->
             <div th:replace="~{fragments/tab_header :: toolbarButtons}"></div>
-            <!-- Page-specific Action Button for w_ja010b -->
-            <button class="t-btn btn-action btn-pyungjan" onclick="onJa010bPyungjanCalc()"><i class="fa-solid fa-calculator"></i> 평잔재계산</button>
         </div>
         <!-- Reusable Common Breadcrumb Fragment -->
         <div th:replace="~{fragments/tab_header :: toolbarBreadcrumb}"></div>
     </div>
 
-    <!-- Sub Filter Bar (Row 2: Common 운용사 Select Box: dddwId='CORP_GR', seq=1) -->
-    <div th:replace="~{fragments/filter/corp_filter :: corpFilter(dddwId='CORP_GR', seq=1,label='자산운용(자문)사')}"></div>
+    <!-- Sub Filter Bar (Row 2: Common 운용사 Select Box + Page-specific Action Button) -->
+    <div class="filter-bar">
+        <div class="filter-left">
+            <div th:replace="~{fragments/filter/corp_filter :: corpFilter(dddwId='CORP_GR', seq=1,label='자산운용(자문)사')}"></div>
+        </div>
+        <div class="filter-actions">
+            <button type="button" class="t-btn btn-action btn-pyungjan" onclick="onJa010bPyungjanCalc()"><i class="fa-solid fa-calculator"></i> 평잔재계산</button>
+        </div>
+    </div>
 
     <!-- Upper Master Grid Section (dw_list / d_ja010b1.srd) -->
     <div class="grid-section split-top-section">

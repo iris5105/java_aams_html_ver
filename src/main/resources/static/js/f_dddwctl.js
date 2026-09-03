@@ -349,10 +349,10 @@
         const el = (typeof targetSelect === 'string') ? document.getElementById(targetSelect) : targetSelect;
         if (!el) return null;
 
-        const cTitle = config.codeTitle || "코드";
-        const nTitle = config.nameTitle || "명칭";
+        const cTitle = config.codeTitle || config.codeHeader || "코드";
+        const nTitle = config.nameTitle || config.nameHeader || "명칭";
         const manualWidth = (typeof config.customCodeWidth === 'number') ? config.customCodeWidth : null;
-        const defaultVal = (config.defaultVal != null) ? config.defaultVal : el.value;
+        const defaultVal = (config.defaultVal != null) ? config.defaultVal : (config.defaultText != null ? config.defaultText : el.value);
 
         el.style.display = "none";
 
@@ -425,6 +425,9 @@
 
             if (triggerChange) {
                 el.dispatchEvent(new Event("change", { bubbles: true }));
+                if (typeof config.onSelect === 'function') {
+                    config.onSelect(code, name);
+                }
             }
         }
 
@@ -558,6 +561,12 @@
         const isSelectId = typeof arg1 === 'string' && (Array.isArray(arg2) || (typeof document !== 'undefined' && document.getElementById(arg1) && document.getElementById(arg1).tagName === 'SELECT'));
 
         if (isElement || isSelectId) {
+            if (arg2 && !Array.isArray(arg2) && Array.isArray(arg2.options)) {
+                const config = Object.assign({}, arg2);
+                const options = arg2.options;
+                delete config.options;
+                return createSelectComponent(arg1, options, config);
+            }
             return createSelectComponent(arg1, arg2, arg3);
         }
 

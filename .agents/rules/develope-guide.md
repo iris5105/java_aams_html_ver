@@ -16,6 +16,7 @@ trigger: always_on
 10. MDI 환경의 동적 탭 로딩 시 DOMContentLoaded와 document.readyState 중복 실행으로 인한 다중 초기화를 방지하기 위해 isInitialized 플래그를 사용하는 단일 진입점(startInit) 패턴을 적용한다.
 11. 데이터의 수정 권한이 특정 사용자(의뢰자/작성자 등)에게만 부여되는 경우, 그리드 셀의 editable뿐만 아니라 상세 패널(textarea, input 등)에도 readOnly 및 배경색 잠금 처리를 동기화하여 양방향 보호를 적용한다.
 12. 상단 필터바(fragments/filter/...) 사용 시 화면별로 라벨명을 변경해야 하는 경우, 프래그먼트 파라미터(예: `filter(label='LOAD기일')`, `filter(labelYmd='매매일자', labelDddw='거래구분')`), `th:with`, 또는 클라이언트 JS 함수(`setFilterLabel('filterYmd', 'LOAD기일')`)를 사용하여 동적으로 변경하도록 구성하며, 파라미터 미전달 시에는 표준 기본 라벨이 자동으로 표출되도록 한다.
+13. 상단 필터 프래그먼트(fragments/filter/...) 사용 시, 필터 영역과 화면 전용 서브 버튼(예: 체결등록, NEW체결, 평잔재계산 등)이 공존할 때 배경색 단절이 발생하지 않도록 전체 영역을 `<div class="filter-bar">`로 감싸고 좌측 필터는 `<div class="filter-left">`, 우측 액션 버튼은 `<div class="filter-actions">`로 구조화하여 통일된 .filter-bar 배경색(#f1f5f9) 및 하단 테두리가 전폭(100%)에 걸쳐 매끄럽게 적용되도록 한다.
 
 예외상황
 

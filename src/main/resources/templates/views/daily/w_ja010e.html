@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<div class="view-container layout-single ja010e-container" th:fragment="ja010eView">
+
+    <!-- Top Action Control Bar (Row 1) -->
+    <div class="view-toolbar">
+        <div class="toolbar-left">
+            <!-- Reusable Common Toolbar Buttons Fragment (닫기, 새로고침, 조회, 입력, 저장, 엑셀) -->
+            <div th:replace="~{fragments/tab_header :: toolbarButtons}"></div>
+        </div>
+        <!-- Reusable Common Breadcrumb Fragment -->
+        <div th:replace="~{fragments/tab_header :: toolbarBreadcrumb}"></div>
+    </div>
+
+    <!-- Filter Bar (Row 2): dc_ymd_dddw fragment (매매일자 + 매매증권사) + Sub Action Buttons -->
+    <div class="filter-bar">
+        <div class="filter-left">
+            <div th:replace="~{fragments/filter/dc_ymd_dddw :: filter(labelYmd='매매일자', labelDddw='매매증권사')}"></div>
+        </div>
+
+        <!-- Sub Action Buttons (체결등록, NEW체결, 일괄삭제, 잔고LOAD) -->
+        <div class="filter-actions ja010e-action-buttons">
+            <button type="button" id="btnLoad" class="t-btn btn-action" style="background: #2563eb; color: #ffffff; border-color: #1d4ed8;">
+                <i class="fa-solid fa-file-import"></i> 체결등록
+            </button>
+            <button type="button" id="btnNew" class="t-btn btn-action" style="background: #10b981; color: #ffffff; border-color: #059669;">
+                <i class="fa-solid fa-plus"></i> NEW체결
+            </button>
+            <button type="button" id="btnDel" class="t-btn btn-action" style="background: #ef4444; color: #ffffff; border-color: #dc2626;">
+                <i class="fa-solid fa-trash-can"></i> 일괄삭제
+            </button>
+            <button type="button" id="btn2402" class="t-btn btn-action" style="background: #6366f1; color: #ffffff; border-color: #4f46e5;">
+                <i class="fa-solid fa-database"></i> 잔고LOAD
+            </button>
+        </div>
+    </div>
+
+    <!-- Main Grid Section (d_ja010e1.srd / SJT1JG) -->
+    <div class="grid-section" style="flex: 1 1 auto; height: calc(100% - 85px); padding: 8px 12px; overflow: hidden;">
+        <div class="grid-table-wrapper" style="height: 100%; width: 100%; border: 1px solid #cbd5e1; border-radius: 4px; overflow: hidden; background-color: #fff;">
+            <div id="ja010e-grid" class="tabulator-aams-grid" style="height: 100%;"></div>
+        </div>
+    </div>
+
+    <!-- PowerBuilder DDDW Dynamic Control Script -->
+    <script th:src="@{/js/f_dddwctl.js}" src="/js/f_dddwctl.js"></script>
+
+    <!-- Page Specific Script for w_ja010e -->
+    <script th:inline="javascript">
+        (function() {
+            const currentScript = document.currentScript;
+            const pane = currentScript ? (currentScript.closest('.tab-pane') || currentScript.closest('.view-container')) : null;
+
+            let gridJa010e = null;
+            let brokerOptionsMap = {}; // tr_co_cd code -> name cache
+
+            // Corporate Group Resolver (Guideline 1: No default hardcoded value)
+            function resolveCorpGr() {
+                const globalSelect = document.getElementById("corpGrSelect");
+                if (globalSelect && globalSelect.value) return globalSelect.value;
+
+                const matchSaved = document.cookie.match(/(?:^|;\s*)savedCorpGr=([^;]*)/);
+                if (matchSaved && matchSaved[1]) return decodeURIComponent(matchSaved[1]);
+
+                const matchCorp = document.cookie.match(/(?:^|;\s*)corpGr=([^;]*)/);
+                if (matchCorp && matchCorp[1]) return decodeURIComponent(matchCorp[1]);
+
+                const serverVal = /*[[${corpGr}]]*/ null;
+                if (serverVal) return serverVal;
+
+                return "";
+            }
+
+            // Numeric Money Formatter
+            function numberFormatter(cell) {
+                const val = cell.getValue();
+                if (val == null || val === "" || isNaN(val)) return "0";
+                return Number(val).toLocaleString();
+            }
+
+            // Trading Code (tr_cd) Formatter (J: 매수, K: 매도, F: 입고, O: 출고, +: 취득액)
+            function trCdFormatter(cell) {
+                const val = cell.getValue();
+                if (val === "J") return '<span style="color: #2563eb; font-weight: 700;">매수</span>';
+                if (val === "K") return '<span style="color: #dc2626; font-weight: 700;">매도</span>';
+                if (val === "F") return '<span style="color: #059669; font-weight: 700;">입고</span>';
+                if (val === "O") return '<span style="color: #d97706; font-weight: 700;">출고</span>';
+                if (val === "+") return '<span style="color: #4f46e5; font-weight: 700;">취득액</span>';
+                return val || "-";
+            }
+
+            // Broker (tr_co_cd) Name Lookup Formatter
+            function trCoFormatter(cell) {
+                const val = cell.getValue();
+                if (!val) return "";
+                if (brokerOptionsMap[val]) {
+                    return brokerOptionsMap[val];
+                }
+                return val;
+            }
+
+            // 1. Initialize DDDW Options for tr_co_cd (Rule 6: 2-column dropdown with sticky header)
+            function initDddwOptions() {
+                const corpGr = resolveCorpGr();
+                const dddwSelect = pane ? pane.querySelector("#filterDddw") : document.getElementById("filterDddw");
+                if (!dddwSelect) return Promise.resolve();
+
+                if (typeof window.f_dddwctl === "function") {
+                    // PB signature: f_dddwctl(dddwId, corpGr, prependHeader, seq, addWhere)
+                    return window.f_dddwctl('tr_co_cd', corpGr, '%,전체,', 1, "tr_gb='1'").then(options => {
+                        brokerOptionsMap = {};
+                        if (options && options.length > 0) {
+                            dddwSelect.innerHTML = '';
+                            options.forEach(opt => {
+                                const code = (opt.code != null ? opt.code : (opt.cd || '')).toString().trim();
+                                const name = (opt.name != null ? opt.name : (opt.dscr || code)).toString().trim();
+                                if (code && code !== "%") {
+                                    brokerOptionsMap[code] = name;
+                                }
+                                const optionEl = document.createElement("option");
+                                optionEl.value = code;
+                                optionEl.textContent = name ? `${code}: ${name}` : code;
+                                dddwSelect.appendChild(optionEl);
+                            });
+
+                            dddwSelect.value = "%";
+
+                            // Transform to 2-column sticky dropdown widget using Guideline 6
+                            if (typeof window.f_dddwctl.get2ColItemFormatter === 'function') {
+                                window.f_dddwctl.get2ColItemFormatter(dddwSelect, options, {
+                                    codeTitle: "코드",
+                                    nameTitle: "매매증권사명",
+                                    defaultVal: "%",
+                                    onSelect: function(val) {
+                                        window.loadJa010eData();
+                                    }
+                                });
+                            }
+                        }
+
+                        if (gridJa010e) {
+                            gridJa010e.redraw(true);
+                        }
+                    }).catch(err => console.error("Error loading tr_co_cd DDDW:", err));
+                }
+                return Promise.resolve();
+            }
+
+            // 2. Initialize Main Grid (d_ja010e1.srd / SJT1JG)
+            function initGrid() {
+                const gridElement = pane ? pane.querySelector("#ja010e-grid") : document.getElementById("ja010e-grid");
+                if (!gridElement) return;
+
+                gridJa010e = new Tabulator(gridElement, {
+                    layout: "fitDataFill",
+                    height: "100%",
+                    placeholder: "조회된 체결 내역이 없습니다.",
+                    selectableRows: 1,
+                    columns: [
+                        { title: "No.", formatter: "rownum", width: 45, hozAlign: "center", headerHozAlign: "center" },
+                        { title: "매매", field: "trCd", width: 70, hozAlign: "center", headerHozAlign: "center", formatter: trCdFormatter },
+                        { title: "관리번호", field: "fundCd", width: 105, hozAlign: "center", headerHozAlign: "center" },
+                        { title: "고객명", field: "fundNm", width: 150, hozAlign: "left", headerHozAlign: "center" },
+                        { title: "매매처", field: "trCoCd", width: 130, hozAlign: "left", headerHozAlign: "center", formatter: trCoFormatter },
+                        { title: "주문No", field: "offerNo", width: 85, hozAlign: "center", headerHozAlign: "center" },
+                        { title: "종목코드", field: "jmCd", width: 100, hozAlign: "center", headerHozAlign: "center" },
+                        { title: "종목명", field: "jjNm", minWidth: 160, hozAlign: "left", headerHozAlign: "center" },
+                        { title: "매매수량", field: "trJusu", width: 100, hozAlign: "right", headerHozAlign: "center", formatter: numberFormatter },
+                        { title: "매매단가", field: "danga", width: 100, hozAlign: "right", headerHozAlign: "center", formatter: numberFormatter },
+                        { title: "매매금액", field: "trAek", width: 125, hozAlign: "right", headerHozAlign: "center", formatter: numberFormatter },
+                        { title: "수수료", field: "susu", width: 90, hozAlign: "right", headerHozAlign: "center", formatter: numberFormatter },
+                        { title: "거래세", field: "tax", width: 90, hozAlign: "right", headerHozAlign: "center", formatter: numberFormatter },
+                        { title: "수도결제일", field: "sudoYmd", width: 105, hozAlign: "center", headerHozAlign: "center" },
+                        { title: "계좌번호", field: "acctNo", width: 120, hozAlign: "center", headerHozAlign: "center" },
+                        { title: "적재일시", field: "loadTime", width: 150, hozAlign: "center", headerHozAlign: "center" }
+                    ]
+                });
+
+                // Rule 7: Capturing click listener to guarantee row selection
+                gridElement.addEventListener("click", function(e) {
+                    const rowEl = e.target.closest(".tabulator-row");
+                    if (rowEl && gridJa010e) {
+                        const row = gridJa010e.getRow(rowEl);
+                        if (row) {
+                            gridJa010e.deselectRow();
+                            row.select();
+                        }
+                    }
+                }, true);
+            }
+
+            // 3. Load Data Function
+            window.loadJa010eData = function() {
+                const corpGr = resolveCorpGr();
+                const filterYmdInput = pane ? pane.querySelector("#filterYmd") : document.getElementById("filterYmd");
+                const filterDddwSelect = pane ? pane.querySelector("#filterDddw") : document.getElementById("filterDddw");
+
+                const ymd = filterYmdInput ? filterYmdInput.value : "";
+                const trCoCd = filterDddwSelect ? filterDddwSelect.value : "%";
+
+                if (!corpGr || !ymd) {
+                    if (gridJa010e) gridJa010e.setData([]);
+                    return;
+                }
+
+                const url = `/api/daily/ja010e/list?corpGr=${encodeURIComponent(corpGr)}&ymd=${encodeURIComponent(ymd)}&trCoCd=${encodeURIComponent(trCoCd || '%')}`;
+
+                fetch(url)
+                    .then(res => res.json())
+                    .then(data => {
+                        if (gridJa010e) {
+                            gridJa010e.setData(Array.isArray(data) ? data : []);
+                        }
+                    })
+                    .catch(err => {
+                        console.error("Error loading ja010e list:", err);
+                    });
+            };
+
+            // 4. Register Standard Contracts (Guideline 8)
+            if (pane) {
+                pane.onSearch = function() { window.loadJa010eData(); };
+                pane.onRetrieve = function() { window.loadJa010eData(); };
+                pane.onCorpGrChange = function() {
+                    initDddwOptions().then(() => window.loadJa010eData());
+                };
+
+                pane.addEventListener("corpGrChanged", function() {
+                    initDddwOptions().then(() => window.loadJa010eData());
+                });
+
+                // Date and DDDW change events
+                const filterYmdInput = pane.querySelector("#filterYmd");
+                if (filterYmdInput) {
+                    filterYmdInput.addEventListener("change", () => window.loadJa010eData());
+                }
+
+                const filterDddwSelect = pane.querySelector("#filterDddw");
+                if (filterDddwSelect) {
+                    filterDddwSelect.addEventListener("change", () => window.loadJa010eData());
+                }
+
+                // Sub action buttons
+                const btnLoad = pane.querySelector("#btnLoad");
+                if (btnLoad) {
+                    btnLoad.addEventListener("click", function() {
+                        alert("체결 엑셀 파일 LOAD 작업을 실행합니다.");
+                    });
+                }
+
+                const btnNew = pane.querySelector("#btnNew");
+                if (btnNew) {
+                    btnNew.addEventListener("click", function() {
+                        alert("신규 체결 등록 작업을 실행합니다.");
+                    });
+                }
+
+                const btnDel = pane.querySelector("#btnDel");
+                if (btnDel) {
+                    btnDel.addEventListener("click", function() {
+                        if (confirm("해당 일자의 체결 내역을 일괄 삭제하시겠습니까?")) {
+                            alert("일괄 삭제 작업이 요청되었습니다.");
+                        }
+                    });
+                }
+
+                const btn2402 = pane.querySelector("#btn2402");
+                if (btn2402) {
+                    btn2402.addEventListener("click", function() {
+                        alert("잔고 LOAD 작업을 실행합니다.");
+                    });
+                }
+            }
+
+            // Guideline 10: Single initialization entry point with isInitialized guard
+            let isInitialized = false;
+            function startInit() {
+                if (isInitialized) return;
+                isInitialized = true;
+
+                initGrid();
+                initDddwOptions().then(() => {
+                    const corpGr = resolveCorpGr();
+                    const filterYmdInput = pane ? pane.querySelector("#filterYmd") : document.getElementById("filterYmd");
+                    if (corpGr && filterYmdInput && filterYmdInput.value) {
+                        window.loadJa010eData();
+                    }
+                });
+            }
+
+            if (document.readyState === "complete" || document.readyState === "interactive") {
+                setTimeout(startInit, 0);
+            } else {
+                document.addEventListener("DOMContentLoaded", startInit);
+            }
+        })();
+    </script>
+</div>
+</html>

@@ -12,14 +12,14 @@
         <div th:replace="~{fragments/tab_header :: toolbarBreadcrumb}"></div>
     </div>
 
-    <!-- Filter Bar (Row 2): dc_ymd fragment (LOAD기준일) -->
-    <div class="view-filter-bar" style="background-color: #f8fafc; border-bottom: 1px solid #e2e8f0; padding: 6px 12px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
-        <div style="display: flex; align-items: center; gap: 12px;">
+    <!-- Filter Bar (Row 2): dc_ymd fragment (LOAD기준일) + Mode Tabs -->
+    <div class="filter-bar">
+        <div class="filter-left">
             <div th:replace="~{fragments/filter/dc_ymd :: filter(label='LOAD기준일')}"></div>
         </div>
 
         <!-- Mode Selection Tabs (처리결과조회 / LOAD잔고내역 / LOAD체결내역) -->
-        <div class="ja020n-mode-tabs" style="display: flex; align-items: center; gap: 4px;">
+        <div class="filter-actions ja020n-mode-tabs" style="display: flex; align-items: center; gap: 4px;">
             <button type="button" class="btn-mode active" data-mode="status" style="padding: 4px 12px; font-size: 12px; font-weight: 600; border: 1px solid #2563eb; background: #2563eb; color: #ffffff; border-radius: 4px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;">
                 <i class="fa-solid fa-list-check"></i> 처리결과조회
             </button>

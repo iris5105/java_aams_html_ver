@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.kfp.aams.domain.daily.mapper.Ja010eMapper">
+
+    <!-- Select Stock Trading Load List (d_ja010e1.srd / SJT1JG + SZM0IA + SJM0JJ) -->
+    <select id="selectJa010eList" resultType="com.kfp.aams.domain.daily.dto.Ja010eDto">
+        SELECT t1.corp_gr                         AS corpGr
+             , TO_CHAR(t1.tr_ymd, 'YYYY-MM-DD')   AS trYmd
+             , t1.tr_cd                           AS trCd
+             , t1.tr_co_cd                        AS trCoCd
+             , t1.offer_no                        AS offerNo
+             , t1.enc_acct_no                     AS encAcctNo
+             , t1.jm_cd                           AS jmCd
+             , t1.koscom_cd                       AS koscomCd
+             , t1.tr_jusu                         AS trJusu
+             , t1.tr_aek                          AS trAek
+             , t1.fund_cd                         AS fundCd
+             , ia.fund_nm                         AS fundNm
+             , jj.jj_nm                           AS jjNm
+             , t1.danc_gb                         AS dancGb
+             , t1.susu                            AS susu
+             , t1.tax                             AS tax
+             , TO_CHAR(t1.sudo_ymd, 'YYYY-MM-DD') AS sudoYmd
+             , TO_DECRYPTS (t1.enc_acct_no)       AS acctNo
+             , TO_CHAR(t1.load_time, 'YYYY-MM-DD HH24:MI:SS') AS loadTime
+             , 1                                  AS pVisible
+             , CASE WHEN NVL(t1.tr_jusu, 0) != 0 THEN TRUNC(t1.tr_aek / t1.tr_jusu) ELSE 0 END AS danga
+          FROM SJT1JG t1
+          LEFT OUTER JOIN szm0ia ia  ON ia.corp_gr = t1.corp_gr
+                                    AND ia.fund_cd = t1.fund_cd
+          LEFT OUTER JOIN sjm0jj jj  ON jj.jm_cd = t1.jm_cd
+         WHERE t1.corp_gr  = #{corpGr}
+           AND TRUNC(t1.tr_ymd) = TO_DATE(REPLACE(#{trYmd}, '-', ''), 'YYYYMMDD')
+           <if test="trCoCd != null and trCoCd != ''">
+               AND t1.tr_co_cd = #{trCoCd}
+           </if>
+         ORDER BY t1.fund_cd, t1.tr_cd, t1.offer_no
+    </select>
+
+</mapper>
