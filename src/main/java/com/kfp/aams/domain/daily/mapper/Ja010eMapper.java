@@ -16,4 +16,7 @@ public interface Ja010eMapper {
     List<Ja010eDto> selectJa010eList(@Param("corpGr") String corpGr,
                                      @Param("trYmd") String trYmd,
                                      @Param("trCoCd") String trCoCd);
+
+    List<String> selectJa010eDates(@Param("corpGr") String corpGr,
+                                   @Param("trCoCd") String trCoCd);
 }

@@ -231,6 +231,16 @@ class TabManager {
                         }
                     }
 
+                    // 태블릿-S/모바일(<= 876px) 환경에서 액션 버튼 텍스트가 숨겨질 때를 대비하여 버튼의 title 속성 자동 동기화 (DDDW 드롭다운 제외)
+                    pane.querySelectorAll("button:not(.dddw-select-btn)").forEach(btn => {
+                        if (!btn.getAttribute("title")) {
+                            const txt = btn.textContent.trim();
+                            if (txt) {
+                                btn.setAttribute("title", txt);
+                            }
+                        }
+                    });
+
                     // Execute scripts if present inside loaded HTML
                     const scripts = pane.querySelectorAll("script");
                     scripts.forEach(oldScript => {

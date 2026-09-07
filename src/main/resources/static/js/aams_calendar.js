@@ -3,11 +3,13 @@
  * Dynamically constructs input wrapper, calendar icon button, and PowerBuilder-style calendar popover DOM entirely via JS.
  */
 window.AamsCalendar = (function() {
-    const instances = {};
+    const instances = (window.AamsCalendar && window.AamsCalendar.instances) ? window.AamsCalendar.instances : {};
 
     return {
+        instances: instances,
+
         /**
-         * Attach/Initialize calendar instance on an input element ID
+         * Attach/Initialize calendar instance on an input element ID (Highlight Mode / General Mode)
          */
         init: function(inputId, options) {
             options = options || {};
@@ -23,6 +25,8 @@ window.AamsCalendar = (function() {
                 }
             }
 
+            const isSimple = !!(options.isSimple || options.simple || options.highlight === false);
+
             instances[inputId] = {
                 inputId: inputId,
                 pane: options.pane || null,
@@ -32,8 +36,9 @@ window.AamsCalendar = (function() {
                 daysGridId: inputId + "_daysGrid",
                 calYear: initialYear,
                 calMonth: initialMonth,
-                trDatesSet: new Set(options.highlightDates || []),
-                datesApiUrl: options.datesApiUrl || null,
+                isSimple: isSimple,
+                trDatesSet: isSimple ? new Set() : new Set(options.highlightDates || []),
+                datesApiUrl: isSimple ? null : (options.datesApiUrl || null),
                 historyTitle: options.historyTitle || "데이터 존재",
                 onSelect: options.onSelect || null,
                 clickBound: false
@@ -43,9 +48,34 @@ window.AamsCalendar = (function() {
             this.render(inputId);
             this.bindOutsideClick(inputId);
 
-            if (options.datesApiUrl && (!options.highlightDates || options.highlightDates.length === 0)) {
+            if (!isSimple && options.datesApiUrl && (!options.highlightDates || options.highlightDates.length === 0)) {
                 this.loadHighlightDates(inputId, options.datesApiUrl, options.corpGr);
             }
+        },
+
+        /**
+         * 순정 상태의 달력 초기화 (데이터 존재 여부 파악/하이라이트 없이 날짜 선택만 지원)
+         * @param {string} inputId - 날짜 input 요소 ID
+         * @param {object} options - { initialYmd, pane, onSelect }
+         */
+        initSimple: function(inputId, options) {
+            options = options || {};
+            options.isSimple = true;
+            options.highlight = false;
+            options.datesApiUrl = null;
+            options.highlightDates = [];
+            this.init(inputId, options);
+        },
+
+        /**
+         * 캘린더 인스턴스 제거 및 DOM 정리
+         */
+        destroy: function(inputId) {
+            const inst = instances[inputId];
+            if (!inst) return;
+            const popover = this.getElement(inst.popoverId, inst.pane);
+            if (popover) popover.remove();
+            delete instances[inputId];
         },
 
         getElement: function(inputId, pane) {
@@ -74,11 +104,15 @@ window.AamsCalendar = (function() {
                 wrapper.appendChild(inputEl);
 
                 // Style input element
+                try { inputEl.type = 'text'; } catch(e) {}
                 inputEl.className = 't-input aams-calendar-input';
                 inputEl.style.cssText = 'width: 110px; padding: 4px 8px; font-size: 13px; text-align: center; border: 1px solid #cbd5e1; border-radius: 4px 0 0 4px; cursor: pointer; background: #ffffff;';
                 inputEl.readOnly = true;
                 if (initialYmd) inputEl.value = initialYmd;
-                inputEl.onclick = function() { AamsCalendar.toggle(inputId); };
+                inputEl.onclick = function(e) {
+                    if (e) e.stopPropagation();
+                    AamsCalendar.toggle(inputId, e);
+                };
 
                 // Create calendar icon button
                 const btn = document.createElement('button');
@@ -86,14 +120,23 @@ window.AamsCalendar = (function() {
                 btn.className = 't-btn btn-calendar';
                 btn.style.cssText = 'padding: 5px 10px; border-radius: 0 4px 4px 0; border-left: none; background-color: #3b82f6; color: #ffffff; border: 1px solid #3b82f6; cursor: pointer;';
                 btn.innerHTML = '<i class="fa-regular fa-calendar-days"></i>';
-                btn.onclick = function() { AamsCalendar.toggle(inputId); };
+                btn.onclick = function(e) {
+                    if (e) e.stopPropagation();
+                    AamsCalendar.toggle(inputId, e);
+                };
                 wrapper.appendChild(btn);
             } else {
                 if (initialYmd && !inputEl.value) inputEl.value = initialYmd;
-                inputEl.onclick = function() { AamsCalendar.toggle(inputId); };
+                inputEl.onclick = function(e) {
+                    if (e) e.stopPropagation();
+                    AamsCalendar.toggle(inputId, e);
+                };
                 const btn = wrapper.querySelector('.btn-calendar');
                 if (btn) {
-                    btn.onclick = function() { AamsCalendar.toggle(inputId); };
+                    btn.onclick = function(e) {
+                        if (e) e.stopPropagation();
+                        AamsCalendar.toggle(inputId, e);
+                    };
                 }
             }
 
@@ -139,7 +182,7 @@ window.AamsCalendar = (function() {
 
         loadHighlightDates: function(inputId, apiUrl, paramCorpGr) {
             const inst = instances[inputId];
-            if (!inst) return;
+            if (!inst || inst.isSimple) return;
             const targetUrl = (apiUrl || inst.datesApiUrl) + (paramCorpGr ? '?corpGr=' + encodeURIComponent(paramCorpGr) : '');
             fetch(targetUrl)
                 .then(res => res.json())
@@ -153,9 +196,23 @@ window.AamsCalendar = (function() {
         },
 
         toggle: function(inputId) {
-            const inst = instances[inputId];
-            if (!inst) return;
-            const popover = document.getElementById(inst.popoverId);
+            let inst = instances[inputId];
+            if (!inst) {
+                const inputEl = this.getElement(inputId, null);
+                if (inputEl) {
+                    this.initSimple(inputId, { initialYmd: inputEl.value });
+                    inst = instances[inputId];
+                }
+            }
+            if (!inst) {
+                console.warn("[AamsCalendar] No calendar instance registered for:", inputId);
+                return;
+            }
+            let popover = this.getElement(inst.popoverId, inst.pane);
+            if (!popover) {
+                this.buildDOM(inputId, inst.initialYmd || "");
+                popover = this.getElement(inst.popoverId, inst.pane);
+            }
             if (!popover) return;
             if (popover.style.display === "none" || popover.style.display === "") {
                 this.render(inputId);
@@ -168,7 +225,7 @@ window.AamsCalendar = (function() {
         close: function(inputId) {
             const inst = instances[inputId];
             if (!inst) return;
-            const popover = document.getElementById(inst.popoverId);
+            const popover = this.getElement(inst.popoverId, inst.pane);
             if (popover) popover.style.display = "none";
         },
 
@@ -224,7 +281,7 @@ window.AamsCalendar = (function() {
             const d = String(now.getDate()).padStart(2, '0');
             const todayStr = `${y}-${m}-${d}`;
             
-            const inputEl = document.getElementById(inputId);
+            const inputEl = this.getElement(inputId, inst.pane);
             if (inputEl) inputEl.value = todayStr;
 
             inst.calYear = y;
@@ -240,9 +297,9 @@ window.AamsCalendar = (function() {
             const inst = instances[inputId];
             if (!inst) return;
 
-            const titleEl = document.getElementById(inst.titleId);
-            const monthsGridEl = document.getElementById(inst.monthsGridId);
-            const daysGridEl = document.getElementById(inst.daysGridId);
+            const titleEl = this.getElement(inst.titleId, inst.pane);
+            const monthsGridEl = this.getElement(inst.monthsGridId, inst.pane);
+            const daysGridEl = this.getElement(inst.daysGridId, inst.pane);
             if (!titleEl || !monthsGridEl || !daysGridEl) return;
 
             // 1. Header Title
@@ -277,7 +334,7 @@ window.AamsCalendar = (function() {
             // 3. Days Grid (42 Cells)
             daysGridEl.innerHTML = "";
 
-            const inputEl = document.getElementById(inputId);
+            const inputEl = this.getElement(inputId, inst.pane);
             const selectedYmd = inputEl ? inputEl.value : "";
 
             const firstDayOfWeek = new Date(inst.calYear, inst.calMonth, 1).getDay();
@@ -299,7 +356,7 @@ window.AamsCalendar = (function() {
             // Current month days
             for (let day = 1; day <= currentMonthLastDate; day++) {
                 const ymd = `${inst.calYear}-${String(inst.calMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-                const hasHistory = inst.trDatesSet.has(ymd);
+                const hasHistory = !inst.isSimple && inst.trDatesSet.has(ymd);
                 const isSelected = (ymd === selectedYmd);
                 const dayOfWeek = new Date(inst.calYear, inst.calMonth, day).getDay();
 
@@ -324,7 +381,7 @@ window.AamsCalendar = (function() {
             const btn = document.createElement("button");
             btn.type = "button";
             btn.textContent = dayNumber;
-            btn.style.cssText = "width: 100%; padding: 3px 0; border: none; background: none; cursor: pointer; font-size: 12px; line-height: 1.2;";
+            btn.style.cssText = "width: 100%; padding: 3px 0; border: none; background: none; cursor: pointer; font-size: 12px; line-height: 1.2; border-radius: 2px;";
 
             if (isOverflow) {
                 btn.style.color = "#94a3b8";
@@ -347,8 +404,20 @@ window.AamsCalendar = (function() {
                     btn.style.fontWeight = "900";
                     btn.style.textDecoration = "underline";
                     btn.style.color = "#000000";
+                    btn.style.backgroundColor = "#e2e8f0";
                 }
             }
+
+            btn.onmouseenter = function() {
+                if (!isSelected) {
+                    btn.style.backgroundColor = "#f1f5f9";
+                }
+            };
+            btn.onmouseleave = function() {
+                if (!isSelected) {
+                    btn.style.backgroundColor = "transparent";
+                }
+            };
 
             const self = this;
             btn.onclick = function(e) {
@@ -374,8 +443,9 @@ window.AamsCalendar = (function() {
             document.addEventListener("click", function(e) {
                 const currentInst = instances[inputId];
                 if (!currentInst) return;
-                const popover = document.getElementById(currentInst.popoverId);
-                const wrapper = popover ? popover.closest(".aams-calendar-wrapper") : null;
+                const popover = self.getElement(currentInst.popoverId, currentInst.pane);
+                const inputEl = self.getElement(inputId, currentInst.pane);
+                const wrapper = popover ? popover.closest(".aams-calendar-wrapper") : (inputEl ? inputEl.closest(".aams-calendar-wrapper") : null);
                 if (popover && popover.style.display === "block") {
                     if (wrapper && !wrapper.contains(e.target)) {
                         self.close(inputId);

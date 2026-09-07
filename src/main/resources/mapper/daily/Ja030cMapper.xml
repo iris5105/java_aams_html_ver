@@ -42,4 +42,13 @@
                 , cg.JM_CD ASC
     </select>
 
+    <!-- Available Dates for Calendar Highlighting (w_ja030c.srw / dw_c::ue_getdate / SCT0CG) -->
+    <select id="selectJa030cDates" resultType="string">
+        SELECT DISTINCT TO_CHAR(t1.TR_YMD, 'YYYY-MM-DD') AS trYmd
+          FROM SCT0CG t1
+         WHERE t1.CORP_GR = #{corpGr}
+           AND t1.TR_CD LIKE 'J%'
+         ORDER BY trYmd DESC
+    </select>
+
 </mapper>

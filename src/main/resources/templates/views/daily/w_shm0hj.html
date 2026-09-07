@@ -99,6 +99,8 @@
 
     <!-- DDDW Controller Script -->
     <script th:src="@{/js/f_dddwctl.js}" src="/js/f_dddwctl.js"></script>
+    <!-- Pure JS AAMS Calendar Component (Rule 16) -->
+    <script th:src="@{/js/aams_calendar.js}" src="/js/aams_calendar.js"></script>
     <!-- Inline Script for w_shm0hj View with Tabulator Grids -->
     <script th:inline="javascript">
         (function() {
@@ -939,10 +941,26 @@
                 }
             }
 
+            // Pure JS Simple Calendar (Rule 16: dw_c.ue_getdate 미존재 시 순정상태 달력)
+            function initCalendar() {
+                if (typeof AamsCalendar !== 'undefined') {
+                    const filterYmd = pane ? pane.querySelector("#filterYmd") : document.getElementById("filterYmd");
+                    const initialYmd = filterYmd ? filterYmd.value : "";
+                    AamsCalendar.initSimple('filterYmd', {
+                        pane: pane,
+                        initialYmd: initialYmd,
+                        onSelect: function(selectedYmd) {
+                            loadMasterList();
+                        }
+                    });
+                }
+            }
+
             let isInitialized = false;
             function startInit() {
                 if (isInitialized) return;
                 isInitialized = true;
+                initCalendar();
                 ue_dddw_retrieve();
                 initMasterGrid();
                 initDetailGrid();

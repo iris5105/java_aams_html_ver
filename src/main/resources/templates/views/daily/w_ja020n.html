@@ -48,7 +48,7 @@
                 신한투자: 잔고 <code>#8022</code> / 체결 <code>#0292</code> |
                 DB금투: 체결 <code>#0292</code>
             </div>
-            <button type="button" id="btnCloseHtsGuide" style="background: none; border: none; font-size: 14px; cursor: pointer; color: #166534;">&times;</button>
+            <button type="button" id="btnCloseHtsGuide" style="background: none; border: none; font-size: 14px; cursor: pointer; color: #166534;" title="닫기"><i class="fa-solid fa-xmark"></i></button>
         </div>
     </div>
 
@@ -61,6 +61,9 @@
 
     <!-- PowerBuilder DDDW & Common Script -->
     <script th:src="@{/js/f_dddwctl.js}" src="/js/f_dddwctl.js"></script>
+
+    <!-- Pure JS AAMS Calendar Component (Rule 16) -->
+    <script th:src="@{/js/aams_calendar.js}" src="/js/aams_calendar.js"></script>
 
     <!-- Page Specific Script for w_ja020n -->
     <script th:inline="javascript">
@@ -277,12 +280,28 @@
                 }
             }
 
+            const initialYmd = /*[[${ymd}]]*/ '';
+
+            // Pure JS Simple Calendar (Rule 16: dw_c.ue_getdate 미존재 시 순정상태 달력)
+            function initCalendar() {
+                if (typeof AamsCalendar !== 'undefined') {
+                    AamsCalendar.initSimple('filterYmd', {
+                        pane: pane,
+                        initialYmd: initialYmd,
+                        onSelect: function(selectedYmd) {
+                            window.loadJa020nData();
+                        }
+                    });
+                }
+            }
+
             // Guideline 10: Single initialization entry point with isInitialized guard
             let isInitialized = false;
             function startInit() {
                 if (isInitialized) return;
                 isInitialized = true;
 
+                initCalendar();
                 initGrid();
 
                 const corpGr = resolveCorpGr();

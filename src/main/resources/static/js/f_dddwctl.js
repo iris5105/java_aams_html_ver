@@ -576,6 +576,13 @@
     // Global Alias for backward compatibility
     f_dddwctl.create2ColSelect = f_dddwctl.get2ColItemFormatter;
 
+    /**
+     * Backward-compatible alias for retrieving DDDW dropdown lists
+     */
+    f_dddwctl.getDropdownList = function (dddwId, corpGr, seq, addWhere, addOrderBy) {
+        return f_dddwctl(dddwId, corpGr, '', seq || 1, addWhere || '', addOrderBy || '');
+    };
+
     // Expose to global window scope
     global.f_dddwctl = f_dddwctl;
 

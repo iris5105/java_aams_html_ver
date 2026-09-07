@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.kfp.aams.domain.daily.mapper.Ja010hMapper">
+
+    <!-- 1. Master Fund List (d_szm0ia.srd / SZM0IA + UZM0UI UNION SKT0GS) -->
+    <select id="selectFundList" resultType="com.kfp.aams.domain.daily.dto.Ja010hMasterDto">
+        SELECT t1.corp_gr                                    AS corpGr
+             , t1.fund_cd                                    AS fundCd
+             , t1.fund_nm                                    AS fundNm
+             , ''                                            AS workGb
+             , TO_CHAR(t1.bf_gyul_ymd + 1, 'YYYY-MM-DD')     AS bfYmd
+             , TO_CHAR(t1.af_gyul_ymd, 'YYYY-MM-DD')         AS afGyulYmd
+             , t1.mg_cd                                      AS secCd
+             , TO_CHAR(TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD'), 'YYYY-MM-DD') AS ymd
+          FROM SZM0IA t1
+         WHERE t1.corp_gr       = #{corpGr}
+           AND t1.fund_cd       IN (SELECT fund_cd
+                                      FROM UZM0UI ta
+                                     WHERE corp_gr = #{corpGr}
+                                       AND ymd     = F_UZM0UI_YMD(#{corpGr}, TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')))
+           AND t1.fst_seolj_ymd &lt;= TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
+           AND NVL(t1.haeji_ymd, TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD') + 1) &gt; TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
+        UNION ALL
+        SELECT ia.corp_gr                                    AS corpGr
+             , ia.fund_cd                                    AS fundCd
+             , ia.fund_nm                                    AS fundNm
+             , '결산'                                         AS workGb
+             , TO_CHAR(ia.bf_gyul_ymd + 1, 'YYYY-MM-DD')     AS bfYmd
+             , TO_CHAR(gi.gyul_ymd, 'YYYY-MM-DD')            AS afGyulYmd
+             , ia.mg_cd                                      AS secCd
+             , TO_CHAR(gi.gyul_ymd, 'YYYY-MM-DD')            AS ymd
+          FROM SKT0GS gi
+             , SZM0IA ia
+         WHERE gi.corp_gr       = #{corpGr}
+           AND gi.gyul_ymd      BETWEEN TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
+                                    AND F_OPEN_YMD(TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD'), '+1') - 1
+           AND ia.corp_gr       = gi.corp_gr
+           AND ia.fund_cd       = gi.fund_cd
+           AND ia.fst_seolj_ymd &lt;= TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
+         ORDER BY secCd asc, fundCd ASC
+    </select>
+
+    <!-- 2. Check Collateral Count (w_ja010h.srw ole_rd::ue_retrieve) -->
+    <select id="checkCollCount" resultType="int">
+        SELECT NVL(SUM(1), 0)
+          FROM SJM0JM t1
+         WHERE t1.CORP_GR = #{corpGr}
+           AND t1.ymd     = TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
+           AND t1.fund_cd = #{fundCd}
+           AND (NVL(coll_pass, 0) &lt;&gt; 0 OR NVL(coll_up, 0) &lt;&gt; 0 OR NVL(coll_dw, 0) &lt;&gt; 0)
+    </select>
+
+    <!-- 3. Available Dates for Calendar Highlight (UZM0UI) -->
+    <select id="selectDistinctDates" resultType="string">
+        SELECT DISTINCT TO_CHAR(t1.ymd, 'YYYY-MM-DD') AS ymd
+          FROM UZM0UI t1
+         WHERE t1.corp_gr = #{corpGr}
+         ORDER BY ymd DESC
+    </select>
+
+    <!-- 4. Single Fund Info Query -->
+    <select id="selectFundInfo" resultType="com.kfp.aams.domain.daily.dto.Ja010hMasterDto">
+        SELECT t1.corp_gr                                    AS corpGr
+             , t1.fund_cd                                    AS fundCd
+             , t1.fund_nm                                    AS fundNm
+             , ''                                            AS workGb
+             , TO_CHAR(t1.bf_gyul_ymd + 1, 'YYYY-MM-DD')     AS bfYmd
+             , TO_CHAR(t1.af_gyul_ymd, 'YYYY-MM-DD')         AS afGyulYmd
+             , t1.mg_cd                                      AS secCd
+             , TO_CHAR(TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD'), 'YYYY-MM-DD') AS ymd
+          FROM SZM0IA t1
+         WHERE t1.corp_gr = #{corpGr}
+           AND t1.fund_cd = #{fundCd}
+    </select>
+
+</mapper>

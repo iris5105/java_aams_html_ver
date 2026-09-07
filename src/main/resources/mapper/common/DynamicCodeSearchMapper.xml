@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.kfp.aams.domain.common.mapper.DynamicCodeSearchMapper">
+
+    <!-- 1. WDCS01M 메타데이터 단건 조회 -->
+    <select id="selectCodeSearchMaster" resultType="com.kfp.aams.domain.common.dto.DynamicCodeSearchDto">
+        SELECT COLUMN_NM     AS columnNm
+             , COLUMN_SEQ    AS columnSeq
+             , HEADER_NM     AS headerNm
+             , RETURN_COLUMN AS returnColumn
+             , WINDOW_NM     AS windowNm
+             , CMNT          AS cmnt
+             , CODE_SELECT   AS codeSelect
+             , EDIT_SELECT   AS editSelect
+             , COLUMN_SIZE   AS columnSize
+          FROM WDCS01M
+         WHERE LOWER(COLUMN_NM) = LOWER(#{columnNm})
+           AND COLUMN_SEQ = #{columnSeq}
+           AND ROWNUM = 1
+    </select>
+
+    <!-- 2. 동적 SELECT 쿼리 실행 -->
+    <select id="executeDynamicSelect" resultType="java.util.LinkedHashMap">
+        ${sql}
+    </select>
+
+    <!-- 3. 동적 SELECT 쿼리 단건/제한 실행 -->
+    <select id="executeDynamicSelectLimited" resultType="java.util.LinkedHashMap">
+        ${sql}
+    </select>
+
+</mapper>

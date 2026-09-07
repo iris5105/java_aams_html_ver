@@ -45,6 +45,9 @@
     <!-- PowerBuilder DDDW Dynamic Control Script -->
     <script th:src="@{/js/f_dddwctl.js}" src="/js/f_dddwctl.js"></script>
 
+    <!-- Pure JS AAMS Calendar Component (Rule 16) -->
+    <script th:src="@{/js/aams_calendar.js}" src="/js/aams_calendar.js"></script>
+
     <!-- Page Specific Script for w_ja010e -->
     <script th:inline="javascript">
         (function() {
@@ -458,17 +461,50 @@
                 }
             }
 
+            const initialYmd = /*[[${ymd}]]*/ '';
+            const initialTrDates = /*[[${trDates}]]*/ [];
+
+            // Initialize Pure JS Highlight Calendar (AamsCalendar - Rule 16)
+            function initCalendar() {
+                if (typeof AamsCalendar !== 'undefined') {
+                    const corp = resolveCorpGr();
+                    const dddwSelect = pane ? pane.querySelector("#filterDddw") : null;
+                    const trCo = dddwSelect ? dddwSelect.value : "%";
+                    const datesUrl = `/api/daily/ja010e/dates?trCoCd=${encodeURIComponent(trCo)}`;
+                    AamsCalendar.init('filterYmd', {
+                        pane: pane,
+                        initialYmd: initialYmd,
+                        highlightDates: initialTrDates,
+                        datesApiUrl: datesUrl,
+                        corpGr: corp,
+                        historyTitle: "체결 데이터 존재",
+                        onSelect: function(selectedYmd) {
+                            window.loadJa010eData();
+                        }
+                    });
+                }
+            }
+
             // 5. Register Standard Contracts (Guideline 8)
             if (pane) {
                 pane.onSearch = function() { window.loadJa010eData(); };
                 pane.onRetrieve = function() { window.loadJa010eData(); };
                 pane.onInput = addNewRow;
                 pane.onCorpGrChange = function() {
-                    initDddwOptions().then(() => window.loadJa010eData());
+                    initDddwOptions().then(() => {
+                        const corp = resolveCorpGr();
+                        if (typeof AamsCalendar !== 'undefined') {
+                            const dddwSelect = pane ? pane.querySelector("#filterDddw") : null;
+                            const trCo = dddwSelect ? dddwSelect.value : "%";
+                            const datesUrl = `/api/daily/ja010e/dates?trCoCd=${encodeURIComponent(trCo)}`;
+                            AamsCalendar.loadHighlightDates('filterYmd', datesUrl, corp);
+                        }
+                        window.loadJa010eData();
+                    });
                 };
 
                 pane.addEventListener("corpGrChanged", function() {
-                    initDddwOptions().then(() => window.loadJa010eData());
+                    if (pane.onCorpGrChange) pane.onCorpGrChange();
                 });
 
                 // Date and DDDW change events
@@ -479,7 +515,15 @@
 
                 const filterDddwSelect = pane.querySelector("#filterDddw");
                 if (filterDddwSelect) {
-                    filterDddwSelect.addEventListener("change", () => window.loadJa010eData());
+                    filterDddwSelect.addEventListener("change", () => {
+                        const corp = resolveCorpGr();
+                        const trCo = filterDddwSelect.value;
+                        const datesUrl = `/api/daily/ja010e/dates?trCoCd=${encodeURIComponent(trCo)}`;
+                        if (typeof AamsCalendar !== 'undefined') {
+                            AamsCalendar.loadHighlightDates('filterYmd', datesUrl, corp);
+                        }
+                        window.loadJa010eData();
+                    });
                 }
 
                 // Sub action buttons
@@ -518,6 +562,7 @@
                 if (isInitialized) return;
                 isInitialized = true;
 
+                initCalendar();
                 initGrid();
                 initDddwOptions().then(() => {
                     const corpGr = resolveCorpGr();

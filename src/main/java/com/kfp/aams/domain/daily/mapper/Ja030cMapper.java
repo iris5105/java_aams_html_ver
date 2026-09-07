@@ -13,4 +13,6 @@ import java.util.List;
 @Mapper
 public interface Ja030cMapper {
     List<Ja030cDto> selectJa030cList(@Param("corpGr") String corpGr, @Param("trYmd") String trYmd);
+
+    List<String> selectJa030cDates(@Param("corpGr") String corpGr);
 }

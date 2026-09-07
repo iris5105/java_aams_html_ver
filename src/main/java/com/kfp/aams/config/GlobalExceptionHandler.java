@@ -33,6 +33,15 @@ public class GlobalExceptionHandler {
         return ResponseEntity.notFound().build();
     }
 
+    /**
+     * 클라이언트(브라우저)가 PDF 스트림 로딩 도중 다른 행을 클릭하거나 창을 닫아
+     * 연결을 먼저 끊었을 때(ClientAbortException) 불필요한 500 에러 스택트레이스를 억제합니다.
+     */
+    @ExceptionHandler(org.apache.catalina.connector.ClientAbortException.class)
+    public void handleClientAbort(org.apache.catalina.connector.ClientAbortException ex, HttpServletRequest request) {
+        log.debug("Client aborted connection at [{}]: {}", request.getRequestURI(), ex.getMessage());
+    }
+
     @ExceptionHandler(Exception.class)
     public Object handleAllExceptions(Exception ex, HttpServletRequest request, HttpServletResponse response) {
         log.error("Unhandled Exception at [{}] : {}", request.getRequestURI(), ex.getMessage(), ex);

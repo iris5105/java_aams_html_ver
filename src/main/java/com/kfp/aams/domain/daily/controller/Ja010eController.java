@@ -47,11 +47,39 @@ public class Ja010eController {
         }
         String fullpgm2 = (menuDto != null) ? menuDto.getFullpgm2() : "사무관리 > 자문일일 > 일일작업";
         model.addAttribute("fullpgm2", fullpgm2);
+        List<String> trDates = (corpGr != null && !corpGr.isBlank())
+                ? ja010eService.getDates(corpGr, paramDddw)
+                : Collections.emptyList();
+        String initialYmd = (paramYmd != null && !paramYmd.isBlank())
+                ? paramYmd
+                : (!trDates.isEmpty() ? trDates.get(0) : java.time.LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd")));
+
         model.addAttribute("corpGr", corpGr);
-        model.addAttribute("ymd", paramYmd);
+        model.addAttribute("ymd", initialYmd);
         model.addAttribute("dddw", paramDddw != null ? paramDddw : "%");
+        model.addAttribute("trDates", trDates);
 
         return "views/daily/w_ja010e";
+    }
+
+    /**
+     * API: Available Dates for Calendar Highlighting (w_ja010e.srw / dw_c::ue_getdate / SJT1JG)
+     */
+    @GetMapping("/api/daily/ja010e/dates")
+    @ResponseBody
+    public List<String> getDates(@AuthenticationPrincipal Object principalObj,
+                                 @RequestParam(name = "corpGr", required = false) String paramCorpGr,
+                                 @RequestParam(name = "trCoCd", required = false) String trCoCd,
+                                 @CookieValue(name = "savedCorpGr", required = false) String cookieCorpGr1,
+                                 @CookieValue(name = "corpGr", required = false) String cookieCorpGr2) {
+        UserPrincipal principal = (principalObj instanceof UserPrincipal p) ? p : null;
+        String cookieCorpGr = (cookieCorpGr1 != null && !cookieCorpGr1.isBlank()) ? cookieCorpGr1 : cookieCorpGr2;
+        String corpGr = resolveCorpGr(paramCorpGr, cookieCorpGr, principal);
+
+        if (corpGr == null || corpGr.isBlank()) {
+            return Collections.emptyList();
+        }
+        return ja010eService.getDates(corpGr, trCoCd);
     }
 
     /**

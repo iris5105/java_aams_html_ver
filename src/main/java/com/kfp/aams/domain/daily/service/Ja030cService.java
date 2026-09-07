@@ -27,4 +27,14 @@ public class Ja030cService {
         }
         return ja030cMapper.selectJa030cList(corpGr.trim(), trYmd.trim());
     }
+
+    /**
+     * Retrieve Available Dates for Calendar Highlighting (w_ja030c.srw / dw_c::ue_getdate / SCT0CG)
+     */
+    public List<String> getDates(String corpGr) {
+        if (corpGr == null || corpGr.isBlank()) {
+            return Collections.emptyList();
+        }
+        return ja030cMapper.selectJa030cDates(corpGr.trim());
+    }
 }

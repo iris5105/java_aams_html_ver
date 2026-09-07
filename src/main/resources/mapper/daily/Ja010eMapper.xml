@@ -38,4 +38,15 @@
          ORDER BY t1.fund_cd, t1.tr_cd, t1.offer_no
     </select>
 
+    <!-- Available Dates for Calendar Highlighting (w_ja010e.srw / dw_c::ue_getdate / SJT1JG) -->
+    <select id="selectJa010eDates" resultType="string">
+        SELECT DISTINCT TO_CHAR(t1.tr_ymd, 'YYYY-MM-DD') AS trYmd
+          FROM SJT1JG t1
+         WHERE t1.corp_gr = #{corpGr}
+         <if test="trCoCd != null and trCoCd != '' and trCoCd != '%'">
+           AND t1.tr_co_cd = #{trCoCd}
+         </if>
+         ORDER BY trYmd DESC
+    </select>
+
 </mapper>

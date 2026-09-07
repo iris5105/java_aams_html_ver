@@ -28,7 +28,7 @@ function safeFetchJson(url, options) {
 }
 
 window.g_currentPgmNo = '00804';
-let g_lastIsMobile = (window.innerWidth <= 1100);
+let g_lastIsMobile = (window.innerWidth <= 876);
 
 /**
  * Maps standard AAMS 4-digit program numbering to root top category PGM_NO:
@@ -260,13 +260,13 @@ function loadSideMenu(pgmNo) {
         window.g_currentPgmNo = targetNo;
     }
 
-    // If screen is in compact mode (header top nav is hidden due to collision or narrow screen), use Top Category Tree Folders in sidebar
-    if (document.body.classList.contains('header-compact-mode') || window.innerWidth <= 1100) {
+    // If screen is in compact mode (Tablet-L <= 1415px), use Top Category Tree Folders in sidebar
+    if (document.body.classList.contains('header-compact-mode') || window.innerWidth <= 1415) {
         initSidebarTopTree(targetNo);
         return;
     }
 
-    // On Desktop (> 1100px): Render ONLY sub-items for selected pgmNo without wrapping in top category folders!
+    // On Desktop (> 1415px): Render ONLY sub-items for selected pgmNo without wrapping in top category folders!
     const container = document.getElementById('sidebarMenuContainer');
     if (!container) return;
 
@@ -337,7 +337,7 @@ function onSidebarMenuClick(el) {
 
     // 모바일 환경이거나 오프캔버스 드로어로 열려있는 경우 사이드바 메뉴 자동 닫기
     const sidebar = document.querySelector('.left-sidebar');
-    const isMobileMode = (window.innerWidth <= 1100) || document.body.classList.contains('header-compact-mode') || (sidebar && sidebar.classList.contains('sidebar-open'));
+    const isMobileMode = (window.innerWidth <= 876) || document.body.classList.contains('header-compact-mode') || (sidebar && sidebar.classList.contains('sidebar-open'));
     if (isMobileMode) {
         closeMobileSidebar();
     }
@@ -897,42 +897,17 @@ document.addEventListener('click', function(e) {
 });
 
 /**
- * Dynamic Header Collision Detector
- * 화면이 작아지거나 창 크기가 변해 대분류와 유저정보가 겹쳐질 때 대분류를 접고 사이드바에 수납
+ * Responsive Viewport & Header/Sidebar Mode Controller
+ * - 데스크톱 (> 1415px): top_header 대분류 표시, side_menu는 선택된 대분류의 하위 메뉴만 표시
+ * - 태블릿-L (<= 1415px): top_header 대분류 숨김, side_menu에 대분류가 통합되어 트리 폴더로 표시 (header-compact-mode)
+ * - 태블릿-S / 모바일 (<= 876px): 모바일 버전 형식 적용
  */
 function checkHeaderCollision() {
-    const topNav = document.getElementById('topNavContainer');
-    const userInfo = document.querySelector('.top-header-right');
-    const logo = document.querySelector('.top-header-logo');
-    if (!topNav || !userInfo) return;
-
     const body = document.body;
     const width = window.innerWidth;
 
-    // 모바일/태블릿 규격 (<= 1100px)에서는 상시 compact 모드 유지
-    if (width <= 1100) {
-        if (!body.classList.contains('header-compact-mode')) {
-            body.classList.add('header-compact-mode');
-            if (typeof initSidebarTopTree === 'function') {
-                initSidebarTopTree(g_currentPgmNo);
-            }
-        }
-        return;
-    }
-
-    // 데스크톱 규격 (> 1100px):
-    // 실제 11개 대분류 아이템과 로고, 유저 정보가 차지하는 총 필요 너비 동적 계산
-    let navItemsWidth = 0;
-    topNav.querySelectorAll('.top-nav-item').forEach(it => {
-        navItemsWidth += it.offsetWidth + 2;
-    });
-
-    const logoWidth = logo ? logo.offsetWidth : 220;
-    const userWidth = userInfo.offsetWidth || 240;
-    const requiredTotal = logoWidth + navItemsWidth + userWidth + 24;
-
-    if (width < requiredTotal) {
-        // 실제 화면 너비가 부족하여 겹치는 경우만 compact 모드 전환
+    // 태블릿-L 기준점 (1415px 이하): top_header 대분류 숨김 & side_menu 트리 폴더 통합
+    if (width <= 1415) {
         if (!body.classList.contains('header-compact-mode')) {
             body.classList.add('header-compact-mode');
             if (typeof initSidebarTopTree === 'function') {
@@ -940,7 +915,7 @@ function checkHeaderCollision() {
             }
         }
     } else {
-        // 충분한 너비가 확보되면 정상 데스크톱 레이아웃 복원
+        // 데스크톱 규격 (> 1415px): 정상 데스크톱 레이아웃 복원
         if (body.classList.contains('header-compact-mode')) {
             body.classList.remove('header-compact-mode');
             const sidebar = document.querySelector('.left-sidebar');

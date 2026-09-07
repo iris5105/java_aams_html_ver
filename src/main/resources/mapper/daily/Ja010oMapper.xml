@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.kfp.aams.domain.daily.mapper.Ja010oMapper">
+
+    <!-- 1. 주식 신용/대출잔고 내역 조회 (d_ja010o1.srd) -->
+    <select id="selectJa010oList" resultType="com.kfp.aams.domain.daily.dto.Ja010oMasterDto">
+        SELECT t1.corp_gr                                       AS corpGr
+             , TO_CHAR(t1.ymd, 'YYYY-MM-DD')                   AS ymd
+             , t1.fund_cd                                       AS fundCd
+             , t1.jm_cd                                         AS jmCd
+             , t1.coll_jusu                                     AS collJusu
+             , t1.collateral                                    AS collateral
+             , TO_CHAR(t1.coll_start, 'YYYY-MM-DD')             AS collStart
+             , TO_CHAR(t1.coll_end, 'YYYY-MM-DD')               AS collEnd
+             , jm.fund_cd                                       AS jmFundCd
+             , jm.jm_cd                                         AS jmJmCd
+             , jm.bfil_boyu_jusu                                AS bfilBoyuJusu
+             , jm.up_jusu                                       AS upJusu
+             , jm.dw_jusu                                       AS dwJusu
+             , jm.koscom_cd                                     AS koscom_cd
+             , jm.balh_co                                       AS balhCo
+             , TO_CHAR(jm.coll_start, 'YYYY-MM-DD')             AS jmStart
+             , TO_CHAR(jm.coll_end, 'YYYY-MM-DD')               AS jmEnd
+             , jj.jj_nm                                         AS jjNm
+             , CASE WHEN jm.coll_end IS NULL THEN 0
+                    ELSE 1
+               END                                              AS pVisible
+             , CASE WHEN t1.fund_cd IS NULL THEN 'new'
+                    ELSE 'jango'
+               END                                              AS collStatus
+          FROM SJM0JM jm
+          LEFT OUTER JOIN SJM0JM_COLL t1 ON t1.corp_gr = jm.corp_gr
+                                        AND t1.fund_cd = jm.fund_cd
+                                        AND t1.ymd     = jm.ymd
+                                        AND t1.jm_cd   = jm.jm_cd
+             , SJM0JJ jj
+         WHERE jm.corp_gr = #{corpGr}
+           AND jm.fund_cd = #{fundCd}
+           AND jm.ymd     = TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
+           AND jm.bs_type = 0
+           AND jj.jm_cd   = jm.jm_cd
+         ORDER BY pVisible DESC, jm.jm_cd ASC
+    </select>
+
+    <!-- 2. 운용사별 펀드 목록 조회 -->
+    <select id="selectFundList" resultType="map">
+        SELECT t1.fund_cd   AS "fundCd"
+             , t1.fund_nm   AS "fundNm"
+          FROM SZM0IA t1
+         WHERE t1.corp_gr = #{corpGr}
+         ORDER BY t1.fund_cd ASC
+    </select>
+
+    <!-- 3. SJM0JM_COLL 신용/대출 담보 저장 (MERGE INTO) -->
+    <update id="mergeCollateral" parameterType="com.kfp.aams.domain.daily.dto.Ja010oMasterDto">
+        MERGE INTO SJM0JM_COLL t
+        USING DUAL
+           ON (
+                t.corp_gr = #{corpGr}
+            AND t.ymd     = TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
+            AND t.fund_cd = #{fundCd}
+            AND t.jm_cd   = #{jmCd}
+           )
+        WHEN MATCHED THEN
+            UPDATE SET
+                t.coll_jusu  = #{collJusu, jdbcType=NUMERIC},
+                t.collateral = #{collateral, jdbcType=NUMERIC},
+                t.coll_start = CASE WHEN #{collStart} IS NOT NULL AND TRIM(#{collStart}) != ''
+                                    THEN TO_DATE(SUBSTR(REPLACE(REPLACE(#{collStart}, '-', ''), '.', ''), 1, 8), 'YYYYMMDD')
+                                    ELSE NULL END,
+                t.coll_end   = CASE WHEN #{collEnd} IS NOT NULL AND TRIM(#{collEnd}) != ''
+                                    THEN TO_DATE(SUBSTR(REPLACE(REPLACE(#{collEnd}, '-', ''), '.', ''), 1, 8), 'YYYYMMDD')
+                                    ELSE NULL END
+        WHEN NOT MATCHED THEN
+            INSERT (corp_gr, ymd, fund_cd, jm_cd, coll_jusu, collateral, coll_start, coll_end)
+            VALUES (
+                #{corpGr},
+                TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD'),
+                #{fundCd},
+                #{jmCd},
+                #{collJusu, jdbcType=NUMERIC},
+                #{collateral, jdbcType=NUMERIC},
+                CASE WHEN #{collStart} IS NOT NULL AND TRIM(#{collStart}) != ''
+                     THEN TO_DATE(SUBSTR(REPLACE(REPLACE(#{collStart}, '-', ''), '.', ''), 1, 8), 'YYYYMMDD')
+                     ELSE NULL END,
+                CASE WHEN #{collEnd} IS NOT NULL AND TRIM(#{collEnd}) != ''
+                     THEN TO_DATE(SUBSTR(REPLACE(REPLACE(#{collEnd}, '-', ''), '.', ''), 1, 8), 'YYYYMMDD')
+                     ELSE NULL END
+            )
+    </update>
+
+    <!-- 4. SJM0JM_COLL 신용/대출 담보 삭제 -->
+    <delete id="deleteCollateral" parameterType="com.kfp.aams.domain.daily.dto.Ja010oMasterDto">
+        DELETE FROM SJM0JM_COLL
+         WHERE corp_gr = #{corpGr}
+           AND ymd     = TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
+           AND fund_cd = #{fundCd}
+           AND jm_cd   = #{jmCd}
+    </delete>
+
+</mapper>

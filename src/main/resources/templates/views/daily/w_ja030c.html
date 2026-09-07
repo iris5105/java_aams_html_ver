@@ -73,6 +73,9 @@
     <!-- PowerBuilder DDDW Dynamic Control Script -->
     <script th:src="@{/js/f_dddwctl.js}" src="/js/f_dddwctl.js"></script>
 
+    <!-- Pure JS AAMS Calendar Component (Rule 16) -->
+    <script th:src="@{/js/aams_calendar.js}" src="/js/aams_calendar.js"></script>
+
     <!-- Page Specific Script for w_ja030c -->
     <script th:inline="javascript">
         (function() {
@@ -367,16 +370,43 @@
                     .catch(err => console.error("Error loading ja030c list:", err));
             };
 
+            const initialYmd = /*[[${ymd}]]*/ '';
+            const initialTrDates = /*[[${trDates}]]*/ [];
+
+            // Initialize Pure JS Highlight Calendar (AamsCalendar - Rule 16)
+            function initCalendar() {
+                if (typeof AamsCalendar !== 'undefined') {
+                    const corp = resolveCorpGr();
+                    AamsCalendar.init('filterYmd', {
+                        pane: pane,
+                        initialYmd: initialYmd,
+                        highlightDates: initialTrDates,
+                        datesApiUrl: '/api/daily/ja030c/dates',
+                        corpGr: corp,
+                        historyTitle: "채권 매매 데이터 존재",
+                        onSelect: function(selectedYmd) {
+                            window.loadJa030cData();
+                        }
+                    });
+                }
+            }
+
             // Register standard toolbar & CorpGr contracts (Guideline 8)
             if (pane) {
                 pane.onSearch = function() { window.loadJa030cData(); };
                 pane.onRetrieve = function() { window.loadJa030cData(); };
                 pane.onCorpGrChange = function(val) {
-                    ue_dddw_retrieve(val).then(() => window.loadJa030cData());
+                    ue_dddw_retrieve(val).then(() => {
+                        const corp = resolveCorpGr();
+                        if (typeof AamsCalendar !== 'undefined') {
+                            AamsCalendar.loadHighlightDates('filterYmd', '/api/daily/ja030c/dates', corp);
+                        }
+                        window.loadJa030cData();
+                    });
                 };
                 pane.addEventListener("corpGrChanged", function(e) {
                     const val = e.detail ? e.detail.corpGr : "";
-                    ue_dddw_retrieve(val).then(() => window.loadJa030cData());
+                    if (pane.onCorpGrChange) pane.onCorpGrChange(val);
                 });
 
                 // Provide default new row data when [입력] toolbar button is clicked
@@ -410,6 +440,7 @@
             function startInit() {
                 if (isInitialized) return;
                 isInitialized = true;
+                initCalendar();
                 initJa030cGrid();
                 ue_dddw_retrieve().then(() => {
                     window.loadJa030cData();

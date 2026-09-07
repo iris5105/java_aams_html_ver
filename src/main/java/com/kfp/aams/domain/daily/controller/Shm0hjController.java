@@ -1,6 +1,6 @@
 package com.kfp.aams.domain.daily.controller;
 
-import com.kfp.aams.domain.common.service.DddwService;
+//import com.kfp.aams.domain.common.service.DddwService;
 import com.kfp.aams.domain.daily.dto.Shj0igDetailDto;
 import com.kfp.aams.domain.daily.dto.Shm0hjMasterDto;
 import com.kfp.aams.domain.daily.service.Shm0hjService;
@@ -27,7 +27,8 @@ import java.util.Map;
 
 /**
  * Controller for w_shm0hj (현금 매입(종목)등록)
- * Adheres strictly to Guideline 1 (no default value fallback) and Guideline 2 (no hardcoding).
+ * Adheres strictly to Guideline 1 (no default value fallback) and Guideline 2
+ * (no hardcoding).
  */
 @Slf4j
 @Controller
@@ -36,17 +37,17 @@ public class Shm0hjController {
 
     private final Shm0hjService shm0hjService;
     private final MenuService menuService;
-    private final DddwService dddwService;
+    // private final DddwService dddwService;
 
-    @GetMapping({"/views/w_shm0hj", "/views/daily/w_shm0hj"})
+    @GetMapping({ "/views/w_shm0hj", "/views/daily/w_shm0hj" })
     public String viewShm0hj(@AuthenticationPrincipal Object principalObj,
-                             @RequestParam(name = "corpGr", required = false) String paramCorpGr,
-                             @RequestParam(name = "ymd", required = false) String paramYmd,
-                             @RequestParam(name = "dddw", required = false) String paramDddw,
-                             @CookieValue(name = "savedCorpGr", required = false) String cookieCorpGr1,
-                             @CookieValue(name = "corpGr", required = false) String cookieCorpGr2,
-                             Model model,
-                             HttpSession session) {
+            @RequestParam(name = "corpGr", required = false) String paramCorpGr,
+            @RequestParam(name = "ymd", required = false) String paramYmd,
+            @RequestParam(name = "dddw", required = false) String paramDddw,
+            @CookieValue(name = "savedCorpGr", required = false) String cookieCorpGr1,
+            @CookieValue(name = "corpGr", required = false) String cookieCorpGr2,
+            Model model,
+            HttpSession session) {
         UserPrincipal principal = (principalObj instanceof UserPrincipal p) ? p : null;
         String cookieCorpGr = (cookieCorpGr1 != null && !cookieCorpGr1.isBlank()) ? cookieCorpGr1 : cookieCorpGr2;
         String corpGr = resolveCorpGr(paramCorpGr, cookieCorpGr, principal);
@@ -68,11 +69,11 @@ public class Shm0hjController {
     @GetMapping("/api/shm0hj/master")
     @ResponseBody
     public List<Shm0hjMasterDto> getMasterList(@AuthenticationPrincipal Object principalObj,
-                                               @RequestParam(name = "corpGr", required = false) String paramCorpGr,
-                                               @RequestParam(name = "ymd", required = false) String ymd,
-                                               @RequestParam(name = "cashCd", required = false) String cashCd,
-                                               @CookieValue(name = "savedCorpGr", required = false) String cookieCorpGr1,
-                                               @CookieValue(name = "corpGr", required = false) String cookieCorpGr2) {
+            @RequestParam(name = "corpGr", required = false) String paramCorpGr,
+            @RequestParam(name = "ymd", required = false) String ymd,
+            @RequestParam(name = "cashCd", required = false) String cashCd,
+            @CookieValue(name = "savedCorpGr", required = false) String cookieCorpGr1,
+            @CookieValue(name = "corpGr", required = false) String cookieCorpGr2) {
         UserPrincipal principal = (principalObj instanceof UserPrincipal p) ? p : null;
         String cookieCorpGr = (cookieCorpGr1 != null && !cookieCorpGr1.isBlank()) ? cookieCorpGr1 : cookieCorpGr2;
         String corpGr = resolveCorpGr(paramCorpGr, cookieCorpGr, principal);
@@ -87,11 +88,11 @@ public class Shm0hjController {
     @GetMapping("/api/shm0hj/detail")
     @ResponseBody
     public List<Shj0igDetailDto> getDetailList(@AuthenticationPrincipal Object principalObj,
-                                               @RequestParam(name = "corpGr", required = false) String paramCorpGr,
-                                               @RequestParam(name = "jmCd", required = false) String jmCd,
-                                               @RequestParam(name = "nowNo", required = false) BigDecimal nowNo,
-                                               @CookieValue(name = "savedCorpGr", required = false) String cookieCorpGr1,
-                                               @CookieValue(name = "corpGr", required = false) String cookieCorpGr2) {
+            @RequestParam(name = "corpGr", required = false) String paramCorpGr,
+            @RequestParam(name = "jmCd", required = false) String jmCd,
+            @RequestParam(name = "nowNo", required = false) BigDecimal nowNo,
+            @CookieValue(name = "savedCorpGr", required = false) String cookieCorpGr1,
+            @CookieValue(name = "corpGr", required = false) String cookieCorpGr2) {
         UserPrincipal principal = (principalObj instanceof UserPrincipal p) ? p : null;
         String cookieCorpGr = (cookieCorpGr1 != null && !cookieCorpGr1.isBlank()) ? cookieCorpGr1 : cookieCorpGr2;
         String corpGr = resolveCorpGr(paramCorpGr, cookieCorpGr, principal);
@@ -106,10 +107,10 @@ public class Shm0hjController {
     @PostMapping("/api/shm0hj/generate-interest")
     @ResponseBody
     public ResponseEntity<Map<String, Object>> generatePeriodInterest(@AuthenticationPrincipal Object principalObj,
-                                                                      @RequestParam(name = "corpGr", required = false) String paramCorpGr,
-                                                                      @RequestParam(name = "jmCd", required = false) String jmCd,
-                                                                      @CookieValue(name = "savedCorpGr", required = false) String cookieCorpGr1,
-                                                                      @CookieValue(name = "corpGr", required = false) String cookieCorpGr2) {
+            @RequestParam(name = "corpGr", required = false) String paramCorpGr,
+            @RequestParam(name = "jmCd", required = false) String jmCd,
+            @CookieValue(name = "savedCorpGr", required = false) String cookieCorpGr1,
+            @CookieValue(name = "corpGr", required = false) String cookieCorpGr2) {
         UserPrincipal principal = (principalObj instanceof UserPrincipal p) ? p : null;
         String cookieCorpGr = (cookieCorpGr1 != null && !cookieCorpGr1.isBlank()) ? cookieCorpGr1 : cookieCorpGr2;
         String corpGr = resolveCorpGr(paramCorpGr, cookieCorpGr, principal);

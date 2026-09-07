@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<div class="view-container layout-single ja010o-container" th:fragment="ja010oView">
+
+    <!-- Top Action Control Bar (Row 1) -->
+    <div class="view-toolbar">
+        <div class="toolbar-left">
+            <!-- Reusable Common Toolbar Buttons Fragment (닫기, 새로고침, 조회, 저장, 엑셀) -->
+            <div th:replace="~{fragments/tab_header :: toolbarButtons}"></div>
+        </div>
+        <!-- Reusable Common Breadcrumb Fragment -->
+        <div th:replace="~{fragments/tab_header :: toolbarBreadcrumb}"></div>
+    </div>
+
+    <!-- Filter Bar (Row 2): Rule 14 & Rule 17 - dc_xx_ymd fragment matching dw_c in w_ja010o.srw -->
+    <div class="filter-bar">
+        <div class="filter-left">
+            <div th:replace="~{fragments/filter/dc_xx_ymd :: filter(labelYmd='기준일자', labelXx='관리번호')}"></div>
+        </div>
+
+        <!-- Sub Action Buttons (입/출잔고LOAD - cb_1 in w_ja010o.srw) -->
+        <div class="filter-actions ja010o-action-buttons">
+            <input type="file" id="ja010oExcelFileInput" accept=".xls,.xlsx,.csv" style="display: none;" />
+            <button type="button" id="btnLoadExcel" class="t-btn btn-action" style="background: #2563eb; color: #ffffff; border-color: #1d4ed8;" title="엑셀 파일로부터 입/출잔고를 로드합니다.">
+                <i class="fa-solid fa-file-excel"></i> 입/출잔고LOAD
+            </button>
+        </div>
+    </div>
+
+    <!-- Main Grid Section (d_ja010o1.srd / SJM0JM + SJM0JM_COLL + SJM0JJ) -->
+    <div class="grid-section" style="flex: 1 1 auto; height: calc(100% - 90px); padding: 8px 12px; overflow: hidden; display: flex; flex-direction: column;">
+        <div class="grid-table-wrapper" style="flex: 1 1 auto; height: 100%; width: 100%; border: 1px solid #cbd5e1; border-radius: 4px; overflow: hidden; background-color: #fff;">
+            <div id="ja010o-grid" class="tabulator-aams-grid" style="height: 100%;"></div>
+        </div>
+    </div>
+
+    <!-- SheetJS for Excel Reading (cb_1 client parsing) -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+    <!-- Pure JS AAMS Calendar Component (Rule 16) -->
+    <script th:src="@{/js/aams_calendar.js}" src="/js/aams_calendar.js"></script>
+
+    <!-- Dynamic Code Search Component (u_dynamiccodesearch) -->
+    <script th:src="@{/js/dynamic_code_search.js}" src="/js/dynamic_code_search.js"></script>
+
+    <!-- Page Specific Script for w_ja010o -->
+    <script th:inline="javascript">
+        (function() {
+            const currentScript = document.currentScript;
+            const pane = currentScript ? (currentScript.closest('.tab-pane') || currentScript.closest('.view-container')) : null;
+
+            let gridJa010o = null;
+            let isInitialized = false;
+            let lastFundCd = null;
+            let lastYmd = null;
+            let lastCorpGr = null;
+
+            // Corporate Group Resolver (Guideline 1: No default hardcoded value)
+            function resolveCorpGr() {
+                if (window.currentCorpGr) return window.currentCorpGr;
+
+                const globalSelect = document.getElementById("corpGrSelect");
+                if (globalSelect && globalSelect.value) return globalSelect.value;
+
+                const matchSaved = document.cookie.match(/(?:^|;\s*)savedCorpGr=([^;]*)/);
+                if (matchSaved && matchSaved[1]) return decodeURIComponent(matchSaved[1]);
+
+                const matchCorp = document.cookie.match(/(?:^|;\s*)corpGr=([^;]*)/);
+                if (matchCorp && matchCorp[1]) return decodeURIComponent(matchCorp[1]);
+
+                const serverVal = /*[[${corpGr}]]*/ null;
+                if (serverVal) return serverVal;
+
+                return "";
+            }
+
+            // Numeric Formatter
+            function numberFormatter(cell) {
+                const val = cell.getValue();
+                if (val == null || val === "" || isNaN(val)) return "0";
+                return Number(val).toLocaleString();
+            }
+
+            // Date Formatter helper
+            function formatDateVal(val) {
+                if (!val) return "";
+                const clean = String(val).replace(/\D/g, "");
+                if (clean.length >= 8) {
+                    return clean.substring(0, 4) + '.' + clean.substring(4, 6) + '.' + clean.substring(6, 8);
+                }
+                return String(val);
+            }
+
+            // Add Months Helper (f_add_months in w_ja010o.srw)
+            function addMonthsToYmd(ymdStr, months) {
+                if (!ymdStr) return "";
+                const clean = String(ymdStr).replace(/\D/g, "");
+                if (clean.length < 8) return ymdStr;
+                const year = parseInt(clean.substring(0, 4), 10);
+                const month = parseInt(clean.substring(4, 6), 10) - 1;
+                const day = parseInt(clean.substring(6, 8), 10);
+
+                const dt = new Date(year, month, day);
+                dt.setMonth(dt.getMonth() + months);
+
+                const y = dt.getFullYear();
+                const m = String(dt.getMonth() + 1).padStart(2, '0');
+                const d = String(dt.getDate()).padStart(2, '0');
+                return `${y}.${m}.${d}`;
+            }
+
+            // Exception Rule 1 & Rule 5: Tabsequence-based in-line edit check
+            function isCellEditable(cell) {
+                if (!cell) return false;
+                const row = typeof cell.getRow === "function" ? cell.getRow() : null;
+                if (!row) return false;
+
+                // Tabsequence: coll_start(10), coll_end(20), coll_jusu(30), collateral(40) are editable
+                const colField = cell.getColumn().getField();
+                const editableFields = ["collStart", "collEnd", "collJusu", "collateral"];
+
+                if (editableFields.includes(colField)) {
+                    return true;
+                } else {
+                    // Non-editable cell selection guarantee (Rule 8)
+                    if (gridJa010o && (!row.isSelected || !row.isSelected())) {
+                        gridJa010o.deselectRow();
+                        row.select();
+                    }
+                    return false;
+                }
+            }
+
+            let codeSearchInstance = null;
+
+            // 1. Initialize Dynamic Code Search (u_dynamiccodesearch: rcd seq 2)
+            function initCodeSearch(retryCount) {
+                retryCount = retryCount || 0;
+                if (window.DynamicCodeSearch && typeof window.DynamicCodeSearch.bind === "function") {
+                    codeSearchInstance = window.DynamicCodeSearch.bind({
+                        inputEl: "#filterXx",
+                        btnEl: "#btnCodeSearchXx",
+                        textEl: "#textXxName",
+                        columnNm: "rcd",
+                        seq: 2,
+                        pane: pane,
+                        getCorpGr: resolveCorpGr,
+                        onSelect: function(code, name, rowData) {
+                            if (code) {
+                                loadJa010oData(true);
+                            } else {
+                                if (gridJa010o) gridJa010o.clearData();
+                            }
+                        }
+                    });
+                } else if (retryCount < 20) {
+                    setTimeout(function() {
+                        initCodeSearch(retryCount + 1);
+                    }, 50);
+                }
+            }
+
+            // 2. Initialize Main Grid (d_ja010o1.srd / SJM0JM_COLL)
+            function initGrid() {
+                const gridElement = pane ? pane.querySelector("#ja010o-grid") : document.getElementById("ja010o-grid");
+                if (!gridElement) return;
+
+                gridJa010o = new Tabulator(gridElement, {
+                    layout: "fitColumns",
+                    height: "100%",
+                    placeholder: "조회된 신용/대출 잔고 내역이 없습니다.",
+                    selectableRows: 1,
+                    editTriggerEvent: "click",
+                    keybindings: {
+                        navNext: "tab",
+                        navPrev: "shift + tab"
+                    },
+                    tabEndNewRow: false,
+                    columns: [
+                        {
+                            title: "No.",
+                            field: "fseq",
+                            width: 55,
+                            hozAlign: "center",
+                            headerHozAlign: "center",
+                            formatter: "rownum",
+                            headerSort: false
+                        },
+                        {
+                            title: "종목코드",
+                            field: "jmJmCd",
+                            width: 100,
+                            hozAlign: "center",
+                            headerHozAlign: "center",
+                            editable: false
+                        },
+                        {
+                            title: "종목명",
+                            field: "jjNm",
+                            minWidth: 180,
+                            hozAlign: "left",
+                            headerHozAlign: "center",
+                            editable: false
+                        },
+                        {
+                            title: "신용/대출<br>시작일자",
+                            field: "collStart",
+                            width: 115,
+                            hozAlign: "center",
+                            headerHozAlign: "center",
+                            editor: "input",
+                            editable: isCellEditable,
+                            formatter: function(cell) {
+                                return formatDateVal(cell.getValue());
+                            },
+                            cellEdited: function(cell) {
+                                const row = cell.getRow();
+                                const rowData = row.getData();
+                                rowData.isEdited = true;
+                                const newStart = cell.getValue();
+                                if (newStart) {
+                                    const formattedStart = formatDateVal(newStart);
+                                    row.update({
+                                        collStart: formattedStart,
+                                        collEnd: addMonthsToYmd(formattedStart, 6),
+                                        isEdited: true
+                                    });
+                                }
+                            }
+                        },
+                        {
+                            title: "신용/대출<br>만기일자",
+                            field: "collEnd",
+                            width: 115,
+                            hozAlign: "center",
+                            headerHozAlign: "center",
+                            editor: "input",
+                            editable: isCellEditable,
+                            formatter: function(cell) {
+                                return formatDateVal(cell.getValue());
+                            },
+                            cellEdited: function(cell) {
+                                cell.getRow().update({ isEdited: true });
+                            }
+                        },
+                        {
+                            title: "신용/대출<br>수량",
+                            field: "collJusu",
+                            width: 115,
+                            hozAlign: "right",
+                            headerHozAlign: "center",
+                            editor: "number",
+                            editable: isCellEditable,
+                            formatter: numberFormatter,
+                            cellEdited: function(cell) {
+                                cell.getRow().update({ isEdited: true });
+                            }
+                        },
+                        {
+                            title: "신용/대출<br>잔액",
+                            field: "collateral",
+                            width: 130,
+                            hozAlign: "right",
+                            headerHozAlign: "center",
+                            editor: "number",
+                            editable: isCellEditable,
+                            formatter: numberFormatter,
+                            bottomCalc: "sum",
+                            bottomCalcFormatter: numberFormatter,
+                            cssClass: "cell-highlight-yellow",
+                            cellEdited: function(cell) {
+                                cell.getRow().update({ isEdited: true });
+                            }
+                        },
+                        {
+                            title: "전일보유<br>주수",
+                            field: "bfilBoyuJusu",
+                            width: 105,
+                            hozAlign: "right",
+                            headerHozAlign: "center",
+                            editable: false,
+                            formatter: numberFormatter
+                        },
+                        {
+                            title: "당일매수<br>주수",
+                            field: "upJusu",
+                            width: 105,
+                            hozAlign: "right",
+                            headerHozAlign: "center",
+                            editable: false,
+                            formatter: numberFormatter
+                        },
+                        {
+                            title: "당일매도<br>주수",
+                            field: "dwJusu",
+                            width: 105,
+                            hozAlign: "right",
+                            headerHozAlign: "center",
+                            editable: false,
+                            formatter: numberFormatter
+                        },
+                        {
+                            title: "당일잔고<br>주수",
+                            field: "compute1",
+                            width: 115,
+                            hozAlign: "right",
+                            headerHozAlign: "center",
+                            editable: false,
+                            formatter: function(cell) {
+                                const row = cell.getRow().getData();
+                                const bfil = Number(row.bfilBoyuJusu) || 0;
+                                const up = Number(row.upJusu) || 0;
+                                const dw = Number(row.dwJusu) || 0;
+                                return (bfil + up - dw).toLocaleString();
+                            },
+                            cssClass: "cell-highlight-blue"
+                        }
+                    ]
+                });
+
+                // Rule 8: Capturing event listener for row select guarantee
+                gridElement.addEventListener("click", function(e) {
+                    const rowEl = e.target.closest(".tabulator-row");
+                    if (rowEl && gridJa010o) {
+                        const row = gridJa010o.getRow(rowEl);
+                        if (row && (!row.isSelected || !row.isSelected())) {
+                            gridJa010o.deselectRow();
+                            row.select();
+                        }
+                    }
+                }, true);
+            }
+
+            // 3. Load Data Function
+            function loadJa010oData(force) {
+                const corpGr = resolveCorpGr();
+                const ymdInput = pane ? pane.querySelector("#filterYmd") : document.getElementById("filterYmd");
+                const fundSelect = pane ? pane.querySelector("#filterXx") : document.getElementById("filterXx");
+
+                const ymd = ymdInput ? ymdInput.value.replace(/\D/g, "") : "";
+                const fundCd = fundSelect ? fundSelect.value.trim() : "";
+
+                if (!corpGr) {
+                    alert("운용사를 선택하세요.");
+                    return;
+                }
+                if (!ymd) {
+                    alert("기일을 선택하세요.");
+                    return;
+                }
+                if (!fundCd) {
+                    alert("펀드를 선택하세요.");
+                    return;
+                }
+
+                // Rule 10: Guard against redundant fetch
+                if (!force && lastCorpGr === corpGr && lastYmd === ymd && lastFundCd === fundCd) {
+                    return;
+                }
+
+                const url = `/api/daily/ja010o/list?corpGr=${encodeURIComponent(corpGr)}&ymd=${encodeURIComponent(ymd)}&fundCd=${encodeURIComponent(fundCd)}`;
+
+                fetch(url)
+                    .then(res => {
+                        if (!res.ok) throw new Error("HTTP " + res.status);
+                        return res.json();
+                    })
+                    .then(data => {
+                        lastCorpGr = corpGr;
+                        lastYmd = ymd;
+                        lastFundCd = fundCd;
+
+                        if (gridJa010o) {
+                            gridJa010o.setData(data || []).then(() => {
+                                // Rule 15: Select first row automatically on data binding
+                                const rows = gridJa010o.getRows();
+                                if (rows && rows.length > 0) {
+                                    rows[0].select();
+                                }
+                            });
+                        }
+                    })
+                    .catch(err => {
+                        console.error("Error loading w_ja010o data:", err);
+                        alert("데이터 조회 중 오류가 발생했습니다: " + err.message);
+                    });
+            }
+
+            // 4. Save Data Function (SJM0JM_COLL)
+            function saveJa010oData() {
+                if (!gridJa010o) return;
+                const rows = gridJa010o.getRows();
+                const saveList = [];
+
+                rows.forEach(r => {
+                    const data = r.getData();
+                    if (data.isEdited || data.collStatus === 'load' || data.collStatus === 'new') {
+                        saveList.push(data);
+                    }
+                });
+
+                if (saveList.length === 0) {
+                    alert("저장할 수정 내역이 없습니다.");
+                    return;
+                }
+
+                if (!confirm(`총 ${saveList.length}건의 담보 내역을 저장하시겠습니까?`)) {
+                    return;
+                }
+
+                const corpGr = resolveCorpGr();
+                const ymdInput = pane ? pane.querySelector("#filterYmd") : document.getElementById("filterYmd");
+                const fundSelect = pane ? pane.querySelector("#filterXx") : document.getElementById("filterXx");
+
+                const ymd = ymdInput ? ymdInput.value.replace(/\D/g, "") : "";
+                const fundCd = fundSelect ? fundSelect.value.trim() : "";
+
+                const payload = {
+                    corpGr: corpGr,
+                    ymd: ymd,
+                    fundCd: fundCd,
+                    saveList: saveList,
+                    deleteList: []
+                };
+
+                fetch('/api/daily/ja010o/save', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                })
+                .then(res => res.json())
+                .then(result => {
+                    if (result.success) {
+                        alert(result.message || "저장이 완료되었습니다.");
+                        loadJa010oData(true);
+                    } else {
+                        alert("저장 실패: " + result.message);
+                    }
+                })
+                .catch(err => {
+                    console.error("Error saving ja010o collateral:", err);
+                    alert("저장 중 오류가 발생했습니다: " + err.message);
+                });
+            }
+
+            // 5. Excel Import Function (cb_1 logic in w_ja010o.srw)
+            function initExcelImport() {
+                const btnLoadExcel = pane ? pane.querySelector("#btnLoadExcel") : document.getElementById("btnLoadExcel");
+                const fileInput = pane ? pane.querySelector("#ja010oExcelFileInput") : document.getElementById("ja010oExcelFileInput");
+
+                if (!btnLoadExcel || !fileInput) return;
+
+                btnLoadExcel.onclick = function() {
+                    if (!gridJa010o || gridJa010o.getData().length === 0) {
+                        alert("먼저 해당 펀드의 데이터를 조회한 후 입/출잔고 LOAD를 실행하세요.");
+                        return;
+                    }
+                    fileInput.value = "";
+                    fileInput.click();
+                };
+
+                fileInput.onchange = function(e) {
+                    const file = e.target.files[0];
+                    if (!file) return;
+
+                    const reader = new FileReader();
+                    reader.onload = function(evt) {
+                        try {
+                            const data = new Uint8Array(evt.target.result);
+                            const workbook = XLSX.read(data, { type: 'array' });
+                            const firstSheetName = workbook.SheetNames[0];
+                            const sheet = workbook.Sheets[firstSheetName];
+                            const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+
+                            const ymdInput = pane ? pane.querySelector("#filterYmd") : document.getElementById("filterYmd");
+                            const currentYmd = ymdInput ? formatDateVal(ymdInput.value) : "";
+
+                            let matchCount = 0;
+                            const gridRows = gridJa010o.getRows();
+
+                            // Rows loop matching koscom_cd (similar to w_ja010o.srw cb_1)
+                            for (let r = 1; r < rows.length; r++) {
+                                const rowCells = rows[r];
+                                if (!rowCells || rowCells.length === 0) continue;
+
+                                let rawCd = String(rowCells[0] || "").trim();
+                                if (!rawCd) continue;
+
+                                // Match koscom_cd extraction: POS(rawCd, '(A')
+                                let koscomCd = rawCd;
+                                if (rawCd.includes('(A')) {
+                                    const startIdx = rawCd.indexOf('(A') + 2;
+                                    const endIdx = rawCd.indexOf(')', startIdx);
+                                    koscomCd = endIdx > startIdx ? rawCd.substring(startIdx, endIdx) : rawCd.substring(startIdx);
+                                } else if (rawCd.startsWith('A')) {
+                                    koscomCd = rawCd.substring(1);
+                                }
+
+                                const collJusu = Number(rowCells[2]) || 0; // cell(r, 3)
+                                const collateral = Number(rowCells[8]) || 0; // cell(r, 9)
+
+                                // Find in grid by koscom_cd or jm_cd
+                                for (let gr of gridRows) {
+                                    const gd = gr.getData();
+                                    const targetKoscom = gd.koscom_cd || gd.jmCd || "";
+                                    if (targetKoscom.trim() === koscomCd.trim() || gd.jmCd.trim() === koscomCd.trim()) {
+                                        let collStart = gd.collStart || currentYmd;
+                                        let collEnd = gd.collEnd || addMonthsToYmd(collStart, 6);
+
+                                        gr.update({
+                                            collJusu: collJusu,
+                                            collateral: collateral,
+                                            collStart: collStart,
+                                            collEnd: collEnd,
+                                            collStatus: 'load',
+                                            isEdited: true
+                                        });
+                                        matchCount++;
+                                        break;
+                                    }
+                                }
+                            }
+
+                            // Delete rows where collStatus is 'jango' (unmatched old jango in PowerBuilder)
+                            gridRows.forEach(gr => {
+                                const gd = gr.getData();
+                                if (gd.collStatus === 'jango') {
+                                    gr.delete();
+                                }
+                            });
+
+                            alert(`입/출잔고 Load가 완료되었습니다.\n(반영 종목: ${matchCount}건)`);
+                        } catch (err) {
+                            console.error("Error parsing excel file:", err);
+                            alert("엑셀 파일 로드 중 오류가 발생했습니다: " + err.message);
+                        }
+                    };
+                    reader.readAsArrayBuffer(file);
+                };
+            }
+
+            // 6. Excel Export Function
+            function exportJa010oExcel() {
+                if (!gridJa010o) return;
+                const fundSelect = pane ? pane.querySelector("#filterXx") : document.getElementById("filterXx");
+                const ymdInput = pane ? pane.querySelector("#filterYmd") : document.getElementById("filterYmd");
+
+                const fundCd = fundSelect ? fundSelect.value.trim() : "펀드";
+                const ymd = ymdInput ? ymdInput.value.replace(/\D/g, "") : "";
+
+                gridJa010o.download("xlsx", `주식신용대출잔고_${fundCd}_${ymd}.xlsx`, { sheetName: "신용대출잔고" });
+            }
+
+            // 7. Initialize Pure JS Calendar (Rule 16: 순정 상태의 달력)
+            function initCalendar() {
+                if (typeof window.AamsCalendar === "object" && typeof window.AamsCalendar.initSimple === "function") {
+                    window.AamsCalendar.initSimple("filterYmd", {
+                        initialYmd: /*[[${ymd}]]*/ '',
+                        pane: pane,
+                        onSelect: function(selectedYmd) {
+                            loadJa010oData(true);
+                        }
+                    });
+                }
+            }
+
+            // 8. Connect Toolbar Actions (Rule 9 standard contract functions)
+            function bindToolbarActions() {
+                if (!pane) return;
+                pane.onSearch = function() {
+                    loadJa010oData(true);
+                };
+                pane.onSave = function() {
+                    saveJa010oData();
+                };
+                pane.onExcel = function() {
+                    exportJa010oExcel();
+                };
+                pane.onCorpGrChange = function(newCorpGr) {
+                    if (codeSearchInstance) {
+                        codeSearchInstance.clear();
+                    }
+                    if (gridJa010o) {
+                        gridJa010o.clearData();
+                    }
+                };
+            }
+
+            // 9. Single Entry Point Initialization (Rule 11)
+            function startInit() {
+                if (isInitialized) return;
+                isInitialized = true;
+
+                initCalendar();
+                initGrid();
+                initCodeSearch();
+                initExcelImport();
+                bindToolbarActions();
+            }
+
+            if (document.readyState === "loading") {
+                document.addEventListener("DOMContentLoaded", startInit);
+            } else {
+                startInit();
+            }
+        })();
+    </script>
+</div>
+</html>
