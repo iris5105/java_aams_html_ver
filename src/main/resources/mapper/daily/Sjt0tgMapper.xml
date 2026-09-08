@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.kfp.aams.domain.daily.mapper.Sjt0tgMapper">
+
+    <!-- 1. 주식 종가 목록 조회 (d_sjt0tg) -->
+    <select id="selectSjt0tgList" resultType="com.kfp.aams.domain.daily.dto.Sjt0tgDto">
+        SELECT t1.corp_gr                         AS corpGr
+             , TO_CHAR(t1.ymd, 'YYYY-MM-DD')       AS ymd
+             , t1.koscom_cd                       AS koscomCd
+             , t1.close                           AS close
+             , t1.volume                          AS volume
+             , t1.value                           AS value
+             , t1.preclose                        AS preclose
+             , t1.change                          AS change
+             , t1.aekm                            AS aekm
+             , t1.sangj_jusu                      AS sangjJusu
+             , t1.mod_dt                          AS modDt
+             , TO_CHAR(t1.mod_dt, 'YYYY-MM-DD HH24:MI:SS') AS modDtStr
+             , F_KOSCOM_NM(t1.corp_gr, t1.koscom_cd) AS xxKoscomCd
+          FROM SJT0TG t1
+         WHERE t1.corp_gr = #{corpGr}
+           AND t1.ymd     = TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
+         ORDER BY t1.koscom_cd ASC
+    </select>
+
+    <!-- 2. 당일 미등록 종목 및 전일 종가 조회 (파워빌더 retrieveend 로직) -->
+    <select id="selectMissingKoscomList" resultType="com.kfp.aams.domain.daily.dto.Sjt0tgDto">
+        SELECT DISTINCT
+               t1.corp_gr                                                AS corpGr
+             , TO_CHAR(t1.ymd, 'YYYY-MM-DD')                             AS ymd
+             , t1.koscom_cd                                              AS koscomCd
+             , F_KOSCOM_NM(t1.corp_gr, t1.koscom_cd)                     AS xxKoscomCd
+             , NVL(tg.close, 0)                                          AS preclose
+             , NVL(tg.close, 0)                                          AS close
+             , 0                                                         AS change
+             , 0                                                         AS volume
+             , 0                                                         AS value
+             , 0                                                         AS aekm
+             , 0                                                         AS sangjJusu
+          FROM SJM0JM t1
+               LEFT OUTER JOIN SJT0TG tg
+                 ON  tg.corp_gr   = t1.corp_gr
+                 AND tg.ymd       = F_OPEN_YMD(t1.ymd, '-1')
+                 AND tg.koscom_cd = t1.koscom_cd
+         WHERE t1.corp_gr = #{corpGr}
+           AND t1.ymd     = TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
+           AND NOT EXISTS (
+               SELECT 1
+                 FROM SJT0TG sub
+                WHERE sub.corp_gr   = t1.corp_gr
+                  AND sub.ymd       = t1.ymd
+                  AND sub.koscom_cd = t1.koscom_cd
+           )
+         ORDER BY t1.koscom_cd ASC
+    </select>
+
+    <!-- 3. 종가 등록 -->
+    <insert id="insertSjt0tg" parameterType="com.kfp.aams.domain.daily.dto.Sjt0tgDto">
+        INSERT INTO SJT0TG (
+            corp_gr
+          , ymd
+          , koscom_cd
+          , close
+          , volume
+          , value
+          , preclose
+          , change
+          , aekm
+          , sangj_jusu
+          , mod_dt
+        ) VALUES (
+            #{corpGr}
+          , TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
+          , #{koscomCd}
+          , #{close, jdbcType=NUMERIC}
+          , #{volume, jdbcType=NUMERIC}
+          , #{value, jdbcType=NUMERIC}
+          , #{preclose, jdbcType=NUMERIC}
+          , NVL(#{change, jdbcType=NUMERIC}, #{close, jdbcType=NUMERIC} - #{preclose, jdbcType=NUMERIC})
+          , #{aekm, jdbcType=NUMERIC}
+          , #{sangjJusu, jdbcType=NUMERIC}
+          , SYSDATE
+        )
+    </insert>
+
+    <!-- 4. 종가 수정 -->
+    <update id="updateSjt0tg" parameterType="com.kfp.aams.domain.daily.dto.Sjt0tgDto">
+        UPDATE SJT0TG
+           SET close      = #{close, jdbcType=NUMERIC}
+             , volume     = #{volume, jdbcType=NUMERIC}
+             , value      = #{value, jdbcType=NUMERIC}
+             , preclose   = #{preclose, jdbcType=NUMERIC}
+             , change     = NVL(#{change, jdbcType=NUMERIC}, #{close, jdbcType=NUMERIC} - #{preclose, jdbcType=NUMERIC})
+             , aekm       = #{aekm, jdbcType=NUMERIC}
+             , sangj_jusu = #{sangjJusu, jdbcType=NUMERIC}
+             , mod_dt     = SYSDATE
+         WHERE corp_gr   = #{corpGr}
+           AND ymd       = TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
+           AND koscom_cd = #{koscomCd}
+    </update>
+
+    <!-- 5. 종가 삭제 -->
+    <delete id="deleteSjt0tg" parameterType="com.kfp.aams.domain.daily.dto.Sjt0tgDto">
+        DELETE FROM SJT0TG
+         WHERE corp_gr   = #{corpGr}
+           AND ymd       = TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
+           AND koscom_cd = #{koscomCd}
+    </delete>
+
+    <!-- 6. Merge 종가 -->
+    <update id="mergeSjt0tg" parameterType="com.kfp.aams.domain.daily.dto.Sjt0tgDto">
+        MERGE INTO SJT0TG t
+        USING DUAL
+           ON (t.corp_gr = #{corpGr} AND t.ymd = TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD') AND t.koscom_cd = #{koscomCd})
+        WHEN MATCHED THEN
+            UPDATE SET
+                t.close      = #{close, jdbcType=NUMERIC}
+              , t.volume     = #{volume, jdbcType=NUMERIC}
+              , t.value      = #{value, jdbcType=NUMERIC}
+              , t.preclose   = #{preclose, jdbcType=NUMERIC}
+              , t.change     = NVL(#{change, jdbcType=NUMERIC}, #{close, jdbcType=NUMERIC} - #{preclose, jdbcType=NUMERIC})
+              , t.aekm       = #{aekm, jdbcType=NUMERIC}
+              , t.sangj_jusu = #{sangjJusu, jdbcType=NUMERIC}
+              , t.mod_dt     = SYSDATE
+        WHEN NOT MATCHED THEN
+            INSERT (
+                corp_gr, ymd, koscom_cd, close, volume, value, preclose, change, aekm, sangj_jusu, mod_dt
+            ) VALUES (
+                #{corpGr}
+              , TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
+              , #{koscomCd}
+              , #{close, jdbcType=NUMERIC}
+              , #{volume, jdbcType=NUMERIC}
+              , #{value, jdbcType=NUMERIC}
+              , #{preclose, jdbcType=NUMERIC}
+              , NVL(#{change, jdbcType=NUMERIC}, #{close, jdbcType=NUMERIC} - #{preclose, jdbcType=NUMERIC})
+              , #{aekm, jdbcType=NUMERIC}
+              , #{sangjJusu, jdbcType=NUMERIC}
+              , SYSDATE
+            )
+    </update>
+
+</mapper>
