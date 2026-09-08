@@ -249,6 +249,13 @@ class TabManager {
                         newScript.appendChild(document.createTextNode(oldScript.innerHTML));
                         oldScript.parentNode.replaceChild(newScript, oldScript);
                     });
+
+                    // Auto-initialize Range Calendars inside loaded view pane if present
+                    if (window.AamsCalendar && typeof window.AamsCalendar.autoInitRanges === 'function') {
+                        setTimeout(() => {
+                            window.AamsCalendar.autoInitRanges(pane);
+                        }, 50);
+                    }
                 })
                 .catch(err => {
                     console.error("Error loading tab view:", err);

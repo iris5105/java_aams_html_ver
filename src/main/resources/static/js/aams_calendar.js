@@ -453,6 +453,576 @@ window.AamsCalendar = (function() {
                 }
             });
             inst.clickBound = true;
+        },
+
+        // =========================================================================
+        // AAMS Range Calendar (From-To w_calendar4day2 implementation)
+        // =========================================================================
+        rangeInstances: {},
+
+        /**
+         * Initialize dual From-To Range Calendar
+         * @param {string} fromInputId - ID of start date input (e.g. 'filterFYmd')
+         * @param {string} toInputId   - ID of end date input (e.g. 'filterTYmd')
+         * @param {object} options     - { initialFYmd, initialTYmd, pane, onSelect, separator }
+         */
+        initRange: function(fromInputId, toInputId, options) {
+            options = options || {};
+            const rangeId = fromInputId + "_" + toInputId;
+            const pane = options.pane || null;
+
+            const fromEl = this.getElement(fromInputId, pane);
+            const toEl = this.getElement(toInputId, pane);
+            if (!fromEl || !toEl) {
+                console.warn("[AamsCalendar] initRange: Inputs not found", fromInputId, toInputId);
+                return;
+            }
+
+            // Determine initial dates
+            const today = new Date();
+            const todayStr = this.formatDate(today.getFullYear(), today.getMonth() + 1, today.getDate(), '.');
+
+            let curFYmd = options.initialFYmd || fromEl.value || todayStr;
+            let curTYmd = options.initialTYmd || toEl.value || todayStr;
+
+            // Normalize format with dot '.' if hyphens were used
+            curFYmd = curFYmd.replace(/-/g, '.');
+            curTYmd = curTYmd.replace(/-/g, '.');
+
+            fromEl.value = curFYmd;
+            toEl.value = curTYmd;
+
+            const fParsed = this.parseDateStr(curFYmd);
+            const tParsed = this.parseDateStr(curTYmd);
+
+            this.rangeInstances[rangeId] = {
+                rangeId: rangeId,
+                fromInputId: fromInputId,
+                toInputId: toInputId,
+                pane: pane,
+                curFYmd: curFYmd,
+                curTYmd: curTYmd,
+                calYearF: fParsed.year,
+                calMonthF: fParsed.month,
+                calYearT: tParsed.year,
+                calMonthT: tParsed.month,
+                onSelect: options.onSelect || null,
+                popoverId: "range_popover_" + rangeId
+            };
+
+            this.buildRangeDOM(rangeId);
+            this.renderRange(rangeId);
+            this.bindRangeOutsideClick(rangeId);
+        },
+
+        parseDateStr: function(dateStr) {
+            const today = new Date();
+            if (!dateStr) {
+                return { year: today.getFullYear(), month: today.getMonth(), day: today.getDate() };
+            }
+            const clean = dateStr.replace(/\D/g, '');
+            if (clean.length === 8) {
+                return {
+                    year: parseInt(clean.substring(0, 4), 10),
+                    month: parseInt(clean.substring(4, 6), 10) - 1,
+                    day: parseInt(clean.substring(6, 8), 10)
+                };
+            }
+            return { year: today.getFullYear(), month: today.getMonth(), day: today.getDate() };
+        },
+
+        formatDate: function(year, month, day, sep) {
+            sep = sep || '.';
+            const m = month < 10 ? '0' + month : '' + month;
+            const d = day < 10 ? '0' + day : '' + day;
+            return year + sep + m + sep + d;
+        },
+
+        buildRangeDOM: function(rangeId) {
+            const inst = this.rangeInstances[rangeId];
+            if (!inst) return;
+
+            const fromEl = this.getElement(inst.fromInputId, inst.pane);
+            const toEl = this.getElement(inst.toInputId, inst.pane);
+            if (!fromEl || !toEl) return;
+
+            // Ensure wrapper
+            let wrapper = fromEl.closest('.range-calendar-wrapper');
+            if (!wrapper) {
+                wrapper = document.createElement('div');
+                wrapper.className = 'range-calendar-wrapper';
+
+                // Check if separator already exists between them
+                let separator = fromEl.nextElementSibling;
+                const hasExistingSep = separator && (separator.classList.contains('filter-separator') || separator.textContent.trim() === '~');
+
+                fromEl.parentNode.insertBefore(wrapper, fromEl);
+                wrapper.appendChild(fromEl);
+
+                if (hasExistingSep) {
+                    separator.className = 'range-calendar-separator';
+                    wrapper.appendChild(separator);
+                } else {
+                    const sep = document.createElement('span');
+                    sep.className = 'range-calendar-separator';
+                    sep.textContent = '~';
+                    wrapper.appendChild(sep);
+                }
+
+                wrapper.appendChild(toEl);
+
+                // Add Calendar Popup Button
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'btn-range-calendar';
+                btn.title = '기간 선택 달력';
+                btn.innerHTML = '<i class="fa-regular fa-calendar-days"></i>';
+                btn.onclick = function(e) {
+                    e.stopPropagation();
+                    AamsCalendar.toggleRange(rangeId);
+                };
+                wrapper.appendChild(btn);
+            }
+
+            // Input element styling & click events
+            try { fromEl.type = 'text'; } catch(e) {}
+            try { toEl.type = 'text'; } catch(e) {}
+
+            fromEl.className = 'filter-input range-calendar-input';
+            toEl.className = 'filter-input range-calendar-input';
+            fromEl.readOnly = true;
+            toEl.readOnly = true;
+
+            fromEl.onclick = function(e) {
+                e.stopPropagation();
+                AamsCalendar.toggleRange(rangeId);
+            };
+            toEl.onclick = function(e) {
+                e.stopPropagation();
+                AamsCalendar.toggleRange(rangeId);
+            };
+
+            // Remove existing popover if present
+            const oldPopover = document.getElementById(inst.popoverId);
+            if (oldPopover) oldPopover.remove();
+
+            // Create Popover Window
+            const popover = document.createElement('div');
+            popover.id = inst.popoverId;
+            popover.className = 'range-calendar-popover';
+
+            popover.innerHTML = `
+                <div class="range-calendar-content">
+                    <!-- 1. Left Calendar (From) -->
+                    <div class="range-calendar-pane" id="pane_from_${rangeId}">
+                        <div class="range-cal-header">
+                            <div class="range-cal-nav">
+                                <button type="button" onclick="AamsCalendar.rangeNav('${rangeId}', 'F', 'prevYear')" title="이전 년도">«</button>
+                                <button type="button" onclick="AamsCalendar.rangeNav('${rangeId}', 'F', 'prevMonth')" title="이전 월">‹</button>
+                                <span class="range-cal-title" id="title_from_${rangeId}"></span>
+                                <button type="button" onclick="AamsCalendar.rangeNav('${rangeId}', 'F', 'nextMonth')" title="다음 월">›</button>
+                                <button type="button" onclick="AamsCalendar.rangeNav('${rangeId}', 'F', 'nextYear')" title="다음 년도">»</button>
+                            </div>
+                            <button type="button" class="range-cal-btn-today" onclick="AamsCalendar.rangeToday('${rangeId}', 'F')">오늘</button>
+                        </div>
+                        <div class="range-cal-months-bar">
+                            <div class="range-cal-months-grid" id="months_from_${rangeId}"></div>
+                        </div>
+                        <div class="range-cal-weekdays">
+                            <span style="color: #ef4444;">일</span>
+                            <span style="color: #334155;">월</span>
+                            <span style="color: #334155;">화</span>
+                            <span style="color: #334155;">수</span>
+                            <span style="color: #334155;">목</span>
+                            <span style="color: #334155;">금</span>
+                            <span style="color: #2563eb;">토</span>
+                        </div>
+                        <div class="range-cal-days-grid" id="days_from_${rangeId}"></div>
+                    </div>
+
+                    <!-- 2. Middle Control Center (3 Buttons matching PowerBuilder w_calendar4day2) -->
+                    <div class="range-calendar-center">
+                        <!-- Top: 중지하고 나가기 (btn_calender_stop.jpg / ■) -->
+                        <button type="button" class="btn-range-center btn-range-stop" onclick="AamsCalendar.closeRange('${rangeId}')" title="중지하고 나가기">
+                            <i class="fa-solid fa-square"></i>
+                        </button>
+
+                        <!-- Middle: 좌측 달력의 날짜 기준으로 당일 조회 (btn_calender_from.jpg / ↦) -->
+                        <button type="button" class="btn-range-center btn-range-sync-from" onclick="AamsCalendar.syncFrom('${rangeId}')" title="좌측 달력의 날짜 기준으로 당일 조회">
+                            <i class="fa-solid fa-arrow-right"></i>
+                        </button>
+
+                        <!-- Bottom: 우측 달력의 날짜 기준으로 당일 조회 (btn_calender_to.jpg / ↤) -->
+                        <button type="button" class="btn-range-center btn-range-sync-to" onclick="AamsCalendar.syncTo('${rangeId}')" title="우측 달력의 날짜 기준으로 당일 조회">
+                            <i class="fa-solid fa-arrow-left"></i>
+                        </button>
+                    </div>
+
+                    <!-- 3. Right Calendar (To) -->
+                    <div class="range-calendar-pane" id="pane_to_${rangeId}">
+                        <div class="range-cal-header">
+                            <div class="range-cal-nav">
+                                <button type="button" onclick="AamsCalendar.rangeNav('${rangeId}', 'T', 'prevYear')" title="이전 년도">«</button>
+                                <button type="button" onclick="AamsCalendar.rangeNav('${rangeId}', 'T', 'prevMonth')" title="이전 월">‹</button>
+                                <span class="range-cal-title" id="title_to_${rangeId}"></span>
+                                <button type="button" onclick="AamsCalendar.rangeNav('${rangeId}', 'T', 'nextMonth')" title="다음 월">›</button>
+                                <button type="button" onclick="AamsCalendar.rangeNav('${rangeId}', 'T', 'nextYear')" title="다음 년도">»</button>
+                            </div>
+                            <button type="button" class="range-cal-btn-today" onclick="AamsCalendar.rangeToday('${rangeId}', 'T')">오늘</button>
+                        </div>
+                        <div class="range-cal-months-bar">
+                            <div class="range-cal-months-grid" id="months_to_${rangeId}"></div>
+                        </div>
+                        <div class="range-cal-weekdays">
+                            <span style="color: #ef4444;">일</span>
+                            <span style="color: #334155;">월</span>
+                            <span style="color: #334155;">화</span>
+                            <span style="color: #334155;">수</span>
+                            <span style="color: #334155;">목</span>
+                            <span style="color: #334155;">금</span>
+                            <span style="color: #2563eb;">토</span>
+                        </div>
+                        <div class="range-cal-days-grid" id="days_to_${rangeId}"></div>
+                    </div>
+                </div>
+            `;
+
+            wrapper.appendChild(popover);
+        },
+
+        renderRange: function(rangeId) {
+            const inst = this.rangeInstances[rangeId];
+            if (!inst) return;
+
+            // Render Left Calendar (From)
+            this.renderSinglePane(rangeId, 'F', inst.calYearF, inst.calMonthF, inst.curFYmd);
+
+            // Render Right Calendar (To)
+            this.renderSinglePane(rangeId, 'T', inst.calYearT, inst.calMonthT, inst.curTYmd);
+        },
+
+        renderSinglePane: function(rangeId, side, year, month, selectedYmd) {
+            const suffix = side === 'F' ? '_from_' + rangeId : '_to_' + rangeId;
+
+            // Title
+            const titleEl = document.getElementById('title' + suffix);
+            if (titleEl) {
+                titleEl.textContent = year + "년 " + (month + 1) + "월";
+            }
+
+            // Months Bar (01월 ~ 12월)
+            const monthsEl = document.getElementById('months' + suffix);
+            if (monthsEl) {
+                monthsEl.innerHTML = '';
+                for (let m = 0; m < 12; m++) {
+                    const mSpan = document.createElement('span');
+                    mSpan.className = 'range-cal-month-item' + (m === month ? ' active' : '');
+                    mSpan.textContent = (m < 9 ? '0' : '') + (m + 1) + '월';
+                    mSpan.onclick = function(e) {
+                        e.stopPropagation();
+                        AamsCalendar.rangeSelectMonth(rangeId, side, m);
+                    };
+                    monthsEl.appendChild(mSpan);
+                }
+            }
+
+            // Days Grid (42 cells: 6 weeks x 7 days)
+            const daysEl = document.getElementById('days' + suffix);
+            if (daysEl) {
+                daysEl.innerHTML = '';
+
+                const firstDay = new Date(year, month, 1);
+                let startDayOfWeek = firstDay.getDay(); // 0(일) ~ 6(토)
+                const daysInMonth = new Date(year, month + 1, 0).getDate();
+                const daysInPrevMonth = new Date(year, month, 0).getDate();
+
+                // Prev month days
+                for (let i = startDayOfWeek - 1; i >= 0; i--) {
+                    const prevDay = daysInPrevMonth - i;
+                    const cellDate = new Date(year, month - 1, prevDay);
+                    const ymdStr = this.formatDate(cellDate.getFullYear(), cellDate.getMonth() + 1, cellDate.getDate(), '.');
+                    daysEl.appendChild(this.createRangeDayCell(rangeId, side, prevDay, ymdStr, true, ymdStr === selectedYmd));
+                }
+
+                // Current month days
+                for (let d = 1; d <= daysInMonth; d++) {
+                    const ymdStr = this.formatDate(year, month + 1, d, '.');
+                    const dow = new Date(year, month, d).getDay();
+                    daysEl.appendChild(this.createRangeDayCell(rangeId, side, d, ymdStr, false, ymdStr === selectedYmd, dow));
+                }
+
+                // Next month days to fill 42 cells (or 35)
+                const totalRendered = startDayOfWeek + daysInMonth;
+                const nextDaysNeeded = totalRendered > 35 ? (42 - totalRendered) : (35 - totalRendered);
+                for (let n = 1; n <= nextDaysNeeded; n++) {
+                    const cellDate = new Date(year, month + 1, n);
+                    const ymdStr = this.formatDate(cellDate.getFullYear(), cellDate.getMonth() + 1, cellDate.getDate(), '.');
+                    daysEl.appendChild(this.createRangeDayCell(rangeId, side, n, ymdStr, true, ymdStr === selectedYmd));
+                }
+            }
+        },
+
+        createRangeDayCell: function(rangeId, side, dayNum, ymdStr, isOtherMonth, isSelected, dayOfWeek) {
+            const cell = document.createElement('div');
+            cell.className = 'range-cal-day-cell' + (isOtherMonth ? ' other-month' : '') + (isSelected ? ' selected' : '');
+            cell.textContent = dayNum;
+
+            if (!isOtherMonth && !isSelected) {
+                if (dayOfWeek === 0) cell.style.color = '#ef4444'; // 일요일 빨강
+                else if (dayOfWeek === 6) cell.style.color = '#2563eb'; // 토요일 파랑
+                else cell.style.color = '#1e293b';
+            }
+
+            // Click: change date on this side
+            cell.onclick = function(e) {
+                e.stopPropagation();
+                AamsCalendar.rangeSelectDate(rangeId, side, ymdStr);
+            };
+
+            // Double Click: confirm and choose both dates, trigger search & close
+            cell.ondblclick = function(e) {
+                e.stopPropagation();
+                AamsCalendar.rangeSelectDate(rangeId, side, ymdStr);
+                AamsCalendar.confirmRange(rangeId);
+            };
+
+            return cell;
+        },
+
+        rangeSelectDate: function(rangeId, side, ymdStr) {
+            const inst = this.rangeInstances[rangeId];
+            if (!inst) return;
+
+            const fromEl = this.getElement(inst.fromInputId, inst.pane);
+            const toEl = this.getElement(inst.toInputId, inst.pane);
+
+            if (side === 'F') {
+                inst.curFYmd = ymdStr;
+                if (fromEl) fromEl.value = ymdStr;
+                // If From is after To, adjust To as well
+                if (inst.curFYmd > inst.curTYmd) {
+                    inst.curTYmd = ymdStr;
+                    if (toEl) toEl.value = ymdStr;
+                }
+            } else {
+                inst.curTYmd = ymdStr;
+                if (toEl) toEl.value = ymdStr;
+                // If To is before From, adjust From as well
+                if (inst.curTYmd < inst.curFYmd) {
+                    inst.curFYmd = ymdStr;
+                    if (fromEl) fromEl.value = ymdStr;
+                }
+            }
+
+            this.renderRange(rangeId);
+        },
+
+        confirmRange: function(rangeId) {
+            const inst = this.rangeInstances[rangeId];
+            if (!inst) return;
+            this.closeRange(rangeId);
+            if (typeof inst.onSelect === 'function') {
+                inst.onSelect(inst.curFYmd, inst.curTYmd);
+            }
+        },
+
+        // Navigation for single side
+        rangeNav: function(rangeId, side, action) {
+            const inst = this.rangeInstances[rangeId];
+            if (!inst) return;
+
+            let year = side === 'F' ? inst.calYearF : inst.calYearT;
+            let month = side === 'F' ? inst.calMonthF : inst.calMonthT;
+
+            switch (action) {
+                case 'prevYear': year--; break;
+                case 'nextYear': year++; break;
+                case 'prevMonth':
+                    month--;
+                    if (month < 0) { month = 11; year--; }
+                    break;
+                case 'nextMonth':
+                    month++;
+                    if (month > 11) { month = 0; year++; }
+                    break;
+            }
+
+            if (side === 'F') {
+                inst.calYearF = year;
+                inst.calMonthF = month;
+            } else {
+                inst.calYearT = year;
+                inst.calMonthT = month;
+            }
+
+            this.renderRange(rangeId);
+        },
+
+        rangeSelectMonth: function(rangeId, side, m) {
+            const inst = this.rangeInstances[rangeId];
+            if (!inst) return;
+            if (side === 'F') inst.calMonthF = m;
+            else inst.calMonthT = m;
+            this.renderRange(rangeId);
+        },
+
+        rangeToday: function(rangeId, side) {
+            const inst = this.rangeInstances[rangeId];
+            if (!inst) return;
+            const today = new Date();
+            const todayStr = this.formatDate(today.getFullYear(), today.getMonth() + 1, today.getDate(), '.');
+
+            if (side === 'F') {
+                inst.calYearF = today.getFullYear();
+                inst.calMonthF = today.getMonth();
+                this.rangeSelectDate(rangeId, 'F', todayStr);
+            } else {
+                inst.calYearT = today.getFullYear();
+                inst.calMonthT = today.getMonth();
+                this.rangeSelectDate(rangeId, 'T', todayStr);
+            }
+        },
+
+        // Middle button 1: Close / Stop
+        closeRange: function(rangeId) {
+            const inst = this.rangeInstances[rangeId];
+            if (!inst) return;
+            const popover = document.getElementById(inst.popoverId);
+            if (popover) popover.style.display = 'none';
+        },
+
+        toggleRange: function(rangeId) {
+            const inst = this.rangeInstances[rangeId];
+            if (!inst) return;
+            const popover = document.getElementById(inst.popoverId);
+            if (!popover) return;
+
+            if (popover.style.display === 'none' || popover.style.display === '') {
+                // Sync current input values into cal
+                const fromEl = this.getElement(inst.fromInputId, inst.pane);
+                const toEl = this.getElement(inst.toInputId, inst.pane);
+                if (fromEl && fromEl.value) {
+                    inst.curFYmd = fromEl.value.replace(/-/g, '.');
+                    const parsed = this.parseDateStr(inst.curFYmd);
+                    inst.calYearF = parsed.year;
+                    inst.calMonthF = parsed.month;
+                }
+                if (toEl && toEl.value) {
+                    inst.curTYmd = toEl.value.replace(/-/g, '.');
+                    const parsed = this.parseDateStr(inst.curTYmd);
+                    inst.calYearT = parsed.year;
+                    inst.calMonthT = parsed.month;
+                }
+                this.renderRange(rangeId);
+                popover.style.display = 'block';
+            } else {
+                popover.style.display = 'none';
+            }
+        },
+
+        // Middle button 2: 좌측 달력 날짜 기준으로 당일 조회 (↦)
+        syncFrom: function(rangeId) {
+            const inst = this.rangeInstances[rangeId];
+            if (!inst) return;
+            const date = inst.curFYmd;
+            const fromEl = this.getElement(inst.fromInputId, inst.pane);
+            const toEl = this.getElement(inst.toInputId, inst.pane);
+
+            if (fromEl) fromEl.value = date;
+            if (toEl) toEl.value = date;
+            inst.curTYmd = date;
+
+            this.closeRange(rangeId);
+            if (typeof inst.onSelect === 'function') {
+                inst.onSelect(date, date);
+            }
+        },
+
+        // Middle button 3: 우측 달력 날짜 기준으로 당일 조회 (↤)
+        syncTo: function(rangeId) {
+            const inst = this.rangeInstances[rangeId];
+            if (!inst) return;
+            const date = inst.curTYmd;
+            const fromEl = this.getElement(inst.fromInputId, inst.pane);
+            const toEl = this.getElement(inst.toInputId, inst.pane);
+
+            if (fromEl) fromEl.value = date;
+            if (toEl) toEl.value = date;
+            inst.curFYmd = date;
+
+            this.closeRange(rangeId);
+            if (typeof inst.onSelect === 'function') {
+                inst.onSelect(date, date);
+            }
+        },
+
+        bindRangeOutsideClick: function(rangeId) {
+            const inst = this.rangeInstances[rangeId];
+            if (!inst || inst.clickBound) return;
+
+            const self = this;
+            document.addEventListener('click', function(e) {
+                const currentInst = self.rangeInstances[rangeId];
+                if (!currentInst) return;
+                const popover = document.getElementById(currentInst.popoverId);
+                const fromEl = self.getElement(currentInst.fromInputId, currentInst.pane);
+                const wrapper = popover ? popover.closest('.range-calendar-wrapper') : (fromEl ? fromEl.closest('.range-calendar-wrapper') : null);
+
+                if (popover && popover.style.display === 'block') {
+                    if (wrapper && !wrapper.contains(e.target)) {
+                        self.closeRange(rangeId);
+                    }
+                }
+            });
+
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape') {
+                    self.closeRange(rangeId);
+                }
+            });
+
+            inst.clickBound = true;
+        },
+
+        /**
+         * Auto initialize all range calendar pairs in DOM (matching fYmd and tYmd)
+         */
+        autoInitRanges: function(scopeEl) {
+            const scope = scopeEl || document;
+            const fromInputs = scope.querySelectorAll(".range-calendar-wrapper input[id*='FYmd'], .range-calendar-wrapper input[name='fYmd'], input[name='fYmd'], input[id*='FYmd'], input[id*='fromYmd']");
+            fromInputs.forEach(fromInput => {
+                const wrapper = fromInput.closest('.range-calendar-wrapper') || fromInput.closest('.filter-item') || fromInput.parentElement;
+                if (!wrapper) return;
+                const toInput = wrapper.querySelector("input[name='tYmd'], input[id*='TYmd'], input[id*='toYmd'], .range-calendar-input:last-of-type");
+                if (toInput && fromInput.id && toInput.id) {
+                    const rangeId = fromInput.id + "_" + toInput.id;
+                    if (!AamsCalendar.rangeInstances[rangeId]) {
+                        AamsCalendar.initRange(fromInput.id, toInput.id, {
+                            pane: (scope.closest && scope.closest('.tab-pane')) ? scope.closest('.tab-pane') : (fromInput.closest ? fromInput.closest('.tab-pane') : null),
+                            onSelect: function(fYmd, tYmd) {
+                                const pane = fromInput.closest('.tab-pane') || document.querySelector('.tab-pane.active') || document;
+                                if (pane && typeof pane.onSearch === 'function') {
+                                    pane.onSearch();
+                                }
+                            }
+                        });
+                    }
+                }
+            });
         }
     };
+
+    if (typeof document !== 'undefined') {
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', function() {
+                AamsCalendar.autoInitRanges();
+            });
+        } else {
+            setTimeout(function() {
+                AamsCalendar.autoInitRanges();
+            }, 50);
+        }
+    }
 })();
+
+
