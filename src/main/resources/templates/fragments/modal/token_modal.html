@@ -16,10 +16,28 @@
             <div style="font-size: 14px; font-weight: 500; line-height: 1.6; margin-bottom: 16px;">
                 로그인 세션(Access Token) 만료 
                 <span id="tokenCountdown" style="color: #ef4444; font-weight: 700; font-size: 18px;">05:00</span> 전입니다.<br>
-                세션을 계속 유지하시려면 <strong>50분 연장</strong> 버튼을 눌러주세요.
+                세션을 계속 유지하시려면 비밀번호를 입력 후 <strong>50분 연장</strong> 버튼을 눌러주세요.
             </div>
+
+            <!-- Password Input for Session Extension -->
+            <div style="margin-top: 16px; margin-bottom: 12px; text-align: left;">
+                <label for="extendTokenPassword" style="display: block; font-size: 12px; font-weight: 600; color: #94a3b8; margin-bottom: 6px;">
+                    <i class="fa-solid fa-lock" style="margin-right: 4px;"></i> 로그인 비밀번호
+                </label>
+                <input type="password" id="extendTokenPassword" 
+                       placeholder="비밀번호를 입력하세요" 
+                       onkeydown="if(event.key === 'Enter') extendAccessToken();"
+                       style="width: 100%; box-sizing: border-box; padding: 10px 12px; border-radius: 6px; border: 1px solid #334155; background-color: #1e293b; color: #f8fafc; font-size: 14px; outline: none; transition: border-color 0.2s;"
+                       onfocus="this.style.borderColor='#38bdf8';" 
+                       onblur="this.style.borderColor='#334155';"
+                       autocomplete="current-password" />
+                <div id="extendTokenError" style="display: none; color: #f87171; font-size: 12px; margin-top: 6px; line-height: 1.4;">
+                    <i class="fa-solid fa-circle-exclamation" style="margin-right: 4px;"></i><span id="extendTokenErrorText"></span>
+                </div>
+            </div>
+
             <div style="display: flex; gap: 10px; justify-content: center; margin-top: 20px;">
-                <button type="button" onclick="extendAccessToken()" style="flex: 1; padding: 10px; background-color: #2563eb; color: #ffffff; border: none; border-radius: 6px; font-weight: 600; font-size: 13px; cursor: pointer; transition: background 0.2s ease;">
+                <button type="button" id="btnExtendToken" onclick="extendAccessToken()" style="flex: 1; padding: 10px; background-color: #2563eb; color: #ffffff; border: none; border-radius: 6px; font-weight: 600; font-size: 13px; cursor: pointer; transition: background 0.2s ease;">
                     <i class="fa-solid fa-hourglass-half"></i> 50분 연장하기
                 </button>
                 <button type="button" onclick="handleLogout()" style="flex: 1; padding: 10px; background-color: #334155; color: #cbd5e1; border: 1px solid #475569; border-radius: 6px; font-weight: 600; font-size: 13px; cursor: pointer; transition: background 0.2s ease;">

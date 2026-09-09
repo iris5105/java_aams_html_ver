@@ -239,6 +239,33 @@
                             editor: "input",
                             cellClick: (e, cell) => cell.edit(true)
                         },
+                        // p_xx_fund_cd (Grid Internal Rule 1, 2: Empty column with dynamic search button)
+                        {
+                            title: "",
+                            field: "_btn_fundCd",
+                            width: 36,
+                            minWidth: 36,
+                            maxWidth: 36,
+                            hozAlign: "center",
+                            headerSort: false,
+                            resizable: false,
+                            formatter: () => `<button type="button" class="btn-grid-addon btn-search" title="펀드 검색"><i class="fa-solid fa-magnifying-glass"></i></button>`,
+                            cellClick: function(e, cell) {
+                                e.stopPropagation();
+                                const row = cell.getRow();
+                                const curVal = row.getData().fundCd || "";
+                                if (window.DynamicCodeSearch && typeof window.DynamicCodeSearch.openModal === 'function') {
+                                    window.DynamicCodeSearch.openModal({
+                                        columnNm: "fund_cd",
+                                        seq: 1,
+                                        initialKeyword: curVal,
+                                        onSelect: function(code, name) {
+                                            row.update({ fundCd: code, fundNm: name });
+                                        }
+                                    });
+                                }
+                            }
+                        },
                         // tabsequence=32766: fund_nm (계좌명 - read-only)
                         { title: "계좌명", field: "fundNm", minWidth: 140, hozAlign: "left" },
                         // tabsequence=30: jm_cd (매입종목)
@@ -249,6 +276,33 @@
                             width: 95, 
                             editor: "input",
                             cellClick: (e, cell) => cell.edit(true)
+                        },
+                        // p_xx_cj_cd (Grid Internal Rule 1, 2: Empty column with dynamic search button)
+                        {
+                            title: "",
+                            field: "_btn_jmCd",
+                            width: 36,
+                            minWidth: 36,
+                            maxWidth: 36,
+                            hozAlign: "center",
+                            headerSort: false,
+                            resizable: false,
+                            formatter: () => `<button type="button" class="btn-grid-addon btn-search" title="채권종목 검색"><i class="fa-solid fa-magnifying-glass"></i></button>`,
+                            cellClick: function(e, cell) {
+                                e.stopPropagation();
+                                const row = cell.getRow();
+                                const curVal = row.getData().jmCd || "";
+                                if (window.DynamicCodeSearch && typeof window.DynamicCodeSearch.openModal === 'function') {
+                                    window.DynamicCodeSearch.openModal({
+                                        columnNm: "cj_cd",
+                                        seq: 1,
+                                        initialKeyword: curVal,
+                                        onSelect: function(code, name) {
+                                            row.update({ jmCd: code, cjNm: name });
+                                        }
+                                    });
+                                }
+                            }
                         },
                         // tabsequence=32766: cj_nm (종목명 - read-only)
                         { title: "종목명", field: "cjNm", minWidth: 150, hozAlign: "left" },

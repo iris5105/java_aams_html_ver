@@ -112,7 +112,7 @@
                 {
                     title: "종목",
                     field: "koscomCd",
-                    width: 130,
+                    width: 100,
                     hozAlign: "center",
                     headerHozAlign: "center",
                     editable: function(cell) {
@@ -120,26 +120,28 @@
                         const rowData = cell.getRow().getData();
                         return !!rowData.isNew;
                     },
-                    editor: "input",
+                    editor: "input"
+                },
+                // Grid Internal Rule 1, 2: Empty column with dynamic search button
+                {
+                    title: "",
+                    field: "_btn_koscomCd",
+                    width: 36,
+                    minWidth: 36,
+                    maxWidth: 36,
+                    hozAlign: "center",
+                    headerSort: false,
+                    resizable: false,
                     formatter: function(cell) {
-                        const val = cell.getValue() || "";
-                        const rowData = cell.getRow().getData();
-                        if (rowData.isNew) {
-                            return `<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-                                        <span>${val}</span>
-                                        <button type="button" class="btn-grid-search" style="background:none; border:none; color:#2563eb; cursor:pointer; padding: 0 4px;" title="종목 검색">
-                                            <i class="fa-solid fa-magnifying-glass"></i>
-                                        </button>
-                                    </div>`;
-                        }
-                        return val;
+                        const isNew = cell.getRow().getData().isNew;
+                        const disClass = isNew ? "" : "disabled";
+                        return `<button type="button" class="btn-grid-addon btn-search ${disClass}" title="종목 검색"><i class="fa-solid fa-magnifying-glass"></i></button>`;
                     },
                     cellClick: function(e, cell) {
-                        const target = e.target.closest('.btn-grid-search');
-                        if (target) {
-                            e.stopPropagation();
-                            openKoscomSearchModal(cell.getRow());
-                        }
+                        e.stopPropagation();
+                        const row = cell.getRow();
+                        if (!row.getData().isNew) return;
+                        openKoscomSearchModal(row);
                     }
                 },
                 {

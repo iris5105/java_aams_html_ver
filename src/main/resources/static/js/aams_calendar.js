@@ -1009,6 +1009,205 @@ window.AamsCalendar = (function() {
                     }
                 }
             });
+        },
+
+        /**
+         * Standalone / Grid-cell DatePicker Popup (p_dd_ buttons)
+         * @param {Object} options
+         *   - anchorEl: DOM element (cell or button) to position the popup next to
+         *   - initialYmd: initial date string (e.g. '2026.09.09' or '20260909' or '2026-09-09')
+         *   - onSelect: function(formattedYmd, rawYmd, dotYmd)
+         *   - format: 'dot' ('YYYY.MM.DD') | 'dash' ('YYYY-MM-DD') | 'raw' ('YYYYMMDD')
+         */
+        openDatePicker: function(options) {
+            options = options || {};
+            const anchorEl = options.anchorEl;
+            if (!anchorEl) return;
+
+            const existing = document.getElementById("aams_grid_datepicker_popover");
+            if (existing) existing.remove();
+
+            let calYear = new Date().getFullYear();
+            let calMonth = new Date().getMonth();
+            let selectedYmd = options.initialYmd || "";
+
+            const cleanYmd = String(selectedYmd).replace(/\D/g, "");
+            if (cleanYmd.length >= 8) {
+                calYear = parseInt(cleanYmd.substring(0, 4), 10);
+                calMonth = parseInt(cleanYmd.substring(4, 6), 10) - 1;
+            }
+
+            const popover = document.createElement("div");
+            popover.id = "aams_grid_datepicker_popover";
+            popover.className = "calendar-popover aams-grid-datepicker";
+            popover.style.cssText = "position: fixed; z-index: 10000; background: #ffffff; border: 1px solid #708090; box-shadow: 0 4px 15px rgba(0,0,0,0.25); width: 235px; padding: 4px; font-family: '맑은 고딕', sans-serif; border-radius: 4px;";
+
+            const rect = anchorEl.getBoundingClientRect();
+            let top = rect.bottom + 4;
+            let left = rect.left;
+            if (top + 260 > window.innerHeight) {
+                top = Math.max(10, rect.top - 265);
+            }
+            if (left + 240 > window.innerWidth) {
+                left = Math.max(10, window.innerWidth - 245);
+            }
+            popover.style.top = top + "px";
+            popover.style.left = left + "px";
+
+            function renderPicker() {
+                popover.innerHTML = `
+                    <div style="display: flex; align-items: center; justify-content: space-between; padding: 4px 2px; border-bottom: 1px solid #e2e8f0; font-size: 13px;">
+                        <div style="display: flex; align-items: center; gap: 3px;">
+                            <button type="button" class="btn-picker-nav prev-year" title="이전 년도" style="background: none; border: none; cursor: pointer; color: #2563eb; font-weight: bold; font-size: 13px; padding: 0 2px;">«</button>
+                            <button type="button" class="btn-picker-nav prev-month" title="이전 월" style="background: none; border: none; cursor: pointer; color: #2563eb; font-weight: bold; font-size: 13px; padding: 0 2px;">‹</button>
+                            <span style="font-weight: 700; font-size: 13px; color: #1e293b; margin: 0 4px;">${calYear}년 ${calMonth + 1}월</span>
+                            <button type="button" class="btn-picker-nav next-month" title="다음 월" style="background: none; border: none; cursor: pointer; color: #2563eb; font-weight: bold; font-size: 13px; padding: 0 2px;">›</button>
+                            <button type="button" class="btn-picker-nav next-year" title="다음 년도" style="background: none; border: none; cursor: pointer; color: #2563eb; font-weight: bold; font-size: 13px; padding: 0 2px;">»</button>
+                        </div>
+                        <button type="button" class="btn-picker-today" style="background: #ffffff; border: 1px solid #16a34a; color: #16a34a; font-weight: bold; padding: 1px 7px; font-size: 11px; cursor: pointer; border-radius: 2px;">오늘</button>
+                    </div>
+                    <div style="background-color: #3b4859; color: #ffffff; padding: 4px 3px; margin: 3px 0;">
+                        <div class="picker-months" style="display: grid; grid-template-columns: repeat(6, 1fr); gap: 2px; text-align: center; font-size: 11px;"></div>
+                    </div>
+                    <div style="display: grid; grid-template-columns: repeat(7, 1fr); text-align: center; font-weight: 600; font-size: 12px; padding: 3px 0; background: #fafafa;">
+                        <span style="color: #ef4444;">일</span>
+                        <span style="color: #334155;">월</span>
+                        <span style="color: #334155;">화</span>
+                        <span style="color: #334155;">수</span>
+                        <span style="color: #334155;">목</span>
+                        <span style="color: #334155;">금</span>
+                        <span style="color: #2563eb;">토</span>
+                    </div>
+                    <div class="picker-days" style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 1px; text-align: center; font-size: 12px; padding: 2px 0;"></div>
+                `;
+
+                popover.querySelector(".prev-year").onclick = (e) => { e.stopPropagation(); calYear--; renderPicker(); };
+                popover.querySelector(".next-year").onclick = (e) => { e.stopPropagation(); calYear++; renderPicker(); };
+                popover.querySelector(".prev-month").onclick = (e) => {
+                    e.stopPropagation();
+                    calMonth--;
+                    if (calMonth < 0) { calMonth = 11; calYear--; }
+                    renderPicker();
+                };
+                popover.querySelector(".next-month").onclick = (e) => {
+                    e.stopPropagation();
+                    calMonth++;
+                    if (calMonth > 11) { calMonth = 0; calYear++; }
+                    renderPicker();
+                };
+                popover.querySelector(".btn-picker-today").onclick = (e) => {
+                    e.stopPropagation();
+                    const now = new Date();
+                    const y = now.getFullYear();
+                    const m = String(now.getMonth() + 1).padStart(2, '0');
+                    const d = String(now.getDate()).padStart(2, '0');
+                    returnSelected(`${y}${m}${d}`, `${y}.${m}.${d}`, `${y}-${m}-${d}`);
+                };
+
+                const monthsContainer = popover.querySelector(".picker-months");
+                for (let m = 0; m < 12; m++) {
+                    const mSpan = document.createElement("span");
+                    mSpan.textContent = String(m + 1).padStart(2, '0') + "월";
+                    mSpan.style.cursor = "pointer";
+                    mSpan.style.padding = "1px 0";
+                    if (m === calMonth) {
+                        mSpan.style.color = "#ffff00";
+                        mSpan.style.fontWeight = "bold";
+                        mSpan.style.textDecoration = "underline";
+                    } else {
+                        mSpan.style.color = "#e2e8f0";
+                    }
+                    mSpan.onclick = (e) => { e.stopPropagation(); calMonth = m; renderPicker(); };
+                    monthsContainer.appendChild(mSpan);
+                }
+
+                const daysContainer = popover.querySelector(".picker-days");
+                const firstDayOfWeek = new Date(calYear, calMonth, 1).getDay();
+                const prevMonthLastDate = new Date(calYear, calMonth, 0).getDate();
+                const currentMonthLastDate = new Date(calYear, calMonth + 1, 0).getDate();
+
+                for (let i = firstDayOfWeek - 1; i >= 0; i--) {
+                    const day = prevMonthLastDate - i;
+                    const prevM = (calMonth - 1 < 0) ? 11 : calMonth - 1;
+                    const prevY = (calMonth - 1 < 0) ? calYear - 1 : calYear;
+                    daysContainer.appendChild(createDayBtn(prevY, prevM, day, false));
+                }
+
+                for (let d = 1; d <= currentMonthLastDate; d++) {
+                    daysContainer.appendChild(createDayBtn(calYear, calMonth, d, true));
+                }
+
+                const renderedCount = daysContainer.children.length;
+                for (let i = 1; i <= 42 - renderedCount; i++) {
+                    const nextM = (calMonth + 1 > 11) ? 0 : calMonth + 1;
+                    const nextY = (calMonth + 1 > 11) ? calYear + 1 : calYear;
+                    daysContainer.appendChild(createDayBtn(nextY, nextM, i, false));
+                }
+            }
+
+            function createDayBtn(y, m, d, isCurrentMonth) {
+                const btn = document.createElement("button");
+                btn.type = "button";
+                btn.textContent = String(d);
+                btn.style.cssText = "background: none; border: none; padding: 3px 0; cursor: pointer; border-radius: 2px; font-size: 12px; width: 100%;";
+
+                const dayOfWeek = new Date(y, m, d).getDay();
+                if (!isCurrentMonth) {
+                    btn.style.color = "#94a3b8";
+                } else if (dayOfWeek === 0) {
+                    btn.style.color = "#ef4444";
+                } else if (dayOfWeek === 6) {
+                    btn.style.color = "#2563eb";
+                } else {
+                    btn.style.color = "#1e293b";
+                }
+
+                const rawYmd = `${y}${String(m + 1).padStart(2, '0')}${String(d).padStart(2, '0')}`;
+                if (cleanYmd && rawYmd === cleanYmd) {
+                    btn.style.backgroundColor = "#bfdbfe";
+                    btn.style.fontWeight = "bold";
+                }
+
+                btn.onmouseover = () => { if (btn.style.backgroundColor !== "rgb(191, 219, 254)") btn.style.backgroundColor = "#f1f5f9"; };
+                btn.onmouseout = () => { if (btn.style.backgroundColor !== "rgb(191, 219, 254)") btn.style.backgroundColor = "transparent"; };
+
+                btn.onclick = (e) => {
+                    e.stopPropagation();
+                    const dotYmd = `${y}.${String(m + 1).padStart(2, '0')}.${String(d).padStart(2, '0')}`;
+                    const dashYmd = `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+                    returnSelected(rawYmd, dotYmd, dashYmd);
+                };
+                return btn;
+            }
+
+            function returnSelected(rawYmd, dotYmd, dashYmd) {
+                closePicker();
+                if (typeof options.onSelect === 'function') {
+                    const fmt = options.format || (options.initialYmd && options.initialYmd.includes('.') ? 'dot' : (options.initialYmd && options.initialYmd.includes('-') ? 'dash' : 'raw'));
+                    if (fmt === 'dot') options.onSelect(dotYmd, rawYmd, dashYmd);
+                    else if (fmt === 'dash') options.onSelect(dashYmd, rawYmd, dotYmd);
+                    else options.onSelect(rawYmd, dotYmd, dashYmd);
+                }
+            }
+
+            function closePicker() {
+                if (popover && popover.parentElement) {
+                    popover.remove();
+                }
+                document.removeEventListener("click", onDocClick, true);
+            }
+
+            function onDocClick(e) {
+                if (!popover.contains(e.target) && e.target !== anchorEl && !anchorEl.contains(e.target)) {
+                    closePicker();
+                }
+            }
+
+            document.body.appendChild(popover);
+            renderPicker();
+            setTimeout(() => {
+                document.addEventListener("click", onDocClick, true);
+            }, 50);
         }
     };
 

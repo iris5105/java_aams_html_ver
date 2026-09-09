@@ -244,6 +244,42 @@
                             editable: isRowEditable,
                             cellClick: (e, cell) => { if (isRowEditable(cell)) cell.edit(true); }
                         },
+                        // p_xx_fund_cd (Grid Internal Rule 1, 2: Empty column with dynamic search button)
+                        {
+                            title: "",
+                            field: "_btn_fundCd",
+                            width: 36,
+                            minWidth: 36,
+                            maxWidth: 36,
+                            hozAlign: "center",
+                            headerSort: false,
+                            resizable: false,
+                            formatter: function(cell) {
+                                const isNew = cell.getRow().getData().isNew;
+                                const disClass = isNew ? "" : "disabled";
+                                return `<button type="button" class="btn-grid-addon btn-search ${disClass}" title="펀드 검색"><i class="fa-solid fa-magnifying-glass"></i></button>`;
+                            },
+                            cellClick: function(e, cell) {
+                                e.stopPropagation();
+                                const row = cell.getRow();
+                                const data = row.getData();
+                                if (!data.isNew && !data._isNew) {
+                                    if (gridJa010e) { gridJa010e.deselectRow(); row.select(); }
+                                    return;
+                                }
+                                const curVal = data.fundCd || "";
+                                if (window.DynamicCodeSearch && typeof window.DynamicCodeSearch.openModal === 'function') {
+                                    window.DynamicCodeSearch.openModal({
+                                        columnNm: "fund_cd",
+                                        seq: 1,
+                                        initialKeyword: curVal,
+                                        onSelect: function(code, name) {
+                                            row.update({ fundCd: code, fundNm: name });
+                                        }
+                                    });
+                                }
+                            }
+                        },
                         // srd sequence 4: xx_fund_cd (고객명 - read-only)
                         { title: "고객명", field: "fundNm", width: 150, hozAlign: "left", headerHozAlign: "center" },
                         // srd sequence 5: koscom_cd (종목코드)
@@ -256,6 +292,42 @@
                             editor: "input",
                             editable: isRowEditable,
                             cellClick: (e, cell) => { if (isRowEditable(cell)) cell.edit(true); }
+                        },
+                        // p_xx_koscom_cd (Grid Internal Rule 1, 2: Empty column with dynamic search button)
+                        {
+                            title: "",
+                            field: "_btn_jmCd",
+                            width: 36,
+                            minWidth: 36,
+                            maxWidth: 36,
+                            hozAlign: "center",
+                            headerSort: false,
+                            resizable: false,
+                            formatter: function(cell) {
+                                const isNew = cell.getRow().getData().isNew;
+                                const disClass = isNew ? "" : "disabled";
+                                return `<button type="button" class="btn-grid-addon btn-search ${disClass}" title="종목 검색"><i class="fa-solid fa-magnifying-glass"></i></button>`;
+                            },
+                            cellClick: function(e, cell) {
+                                e.stopPropagation();
+                                const row = cell.getRow();
+                                const data = row.getData();
+                                if (!data.isNew && !data._isNew) {
+                                    if (gridJa010e) { gridJa010e.deselectRow(); row.select(); }
+                                    return;
+                                }
+                                const curVal = data.jmCd || "";
+                                if (window.DynamicCodeSearch && typeof window.DynamicCodeSearch.openModal === 'function') {
+                                    window.DynamicCodeSearch.openModal({
+                                        columnNm: "koscom_cd",
+                                        seq: 1,
+                                        initialKeyword: curVal,
+                                        onSelect: function(code, name) {
+                                            row.update({ jmCd: code, jjNm: name });
+                                        }
+                                    });
+                                }
+                            }
                         },
                         // srd sequence 6: xx_koscom_cd (종목명 - read-only)
                         { title: "종목명", field: "jjNm", minWidth: 160, hozAlign: "left", headerHozAlign: "center" },

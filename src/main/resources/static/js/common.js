@@ -811,6 +811,15 @@ function openTokenExtendModal() {
     modal.style.display = 'flex';
     isExtendModalOpen = true;
 
+    // Reset password input and error message
+    const pwInput = document.getElementById('extendTokenPassword');
+    if (pwInput) {
+        pwInput.value = '';
+        setTimeout(() => pwInput.focus(), 100);
+    }
+    const errBox = document.getElementById('extendTokenError');
+    if (errBox) errBox.style.display = 'none';
+
     updateCountdownDisplay();
     if (tokenCountdownInterval) clearInterval(tokenCountdownInterval);
     tokenCountdownInterval = setInterval(() => {
@@ -836,30 +845,76 @@ function closeTokenExtendModal() {
     const modal = document.getElementById('tokenExtendModal');
     if (modal) modal.style.display = 'none';
     isExtendModalOpen = false;
+
+    const pwInput = document.getElementById('extendTokenPassword');
+    if (pwInput) pwInput.value = '';
+    const errBox = document.getElementById('extendTokenError');
+    if (errBox) errBox.style.display = 'none';
+
     if (tokenCountdownInterval) {
         clearInterval(tokenCountdownInterval);
         tokenCountdownInterval = null;
     }
 }
 
+function showExtendTokenError(msg) {
+    const errBox = document.getElementById('extendTokenError');
+    const errText = document.getElementById('extendTokenErrorText');
+    if (errBox && errText) {
+        errText.textContent = msg;
+        errBox.style.display = 'block';
+    } else {
+        alert(msg);
+    }
+    const pwInput = document.getElementById('extendTokenPassword');
+    if (pwInput) {
+        pwInput.focus();
+        pwInput.select();
+    }
+}
+
 function extendAccessToken() {
+    const pwInput = document.getElementById('extendTokenPassword');
+    const password = pwInput ? pwInput.value.trim() : '';
+
+    if (!password) {
+        showExtendTokenError('비밀번호를 입력해주세요.');
+        return;
+    }
+
+    const btn = document.getElementById('btnExtendToken');
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 확인 중...';
+    }
+
     fetch('/api/auth/extend-token', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: password })
     })
     .then(res => res.json())
     .then(data => {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fa-solid fa-hourglass-half"></i> 50분 연장하기';
+        }
         if (data && data.success) {
             closeTokenExtendModal();
             currentRemainingSeconds = data.remainingSeconds || 3000;
             startTokenMonitor();
+            alert('로그인 시간이 50분 연장되었습니다.');
         } else {
-            alert(data.message || '토큰 연장에 실패했습니다.');
+            showExtendTokenError(data.message || '비밀번호가 올바르지 않습니다.');
         }
     })
     .catch(err => {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fa-solid fa-hourglass-half"></i> 50분 연장하기';
+        }
         console.error('Token extension error:', err);
-        alert('토큰 연장 요청 중 오류가 발생했습니다.');
+        showExtendTokenError('토큰 연장 요청 중 오류가 발생했습니다.');
     });
 }
 

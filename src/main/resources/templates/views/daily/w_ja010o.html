@@ -228,6 +228,38 @@
                                 }
                             }
                         },
+                        // p_dd_coll_start (Grid Internal Rule 3, 4: Empty column with calendar popup button)
+                        {
+                            title: "",
+                            field: "_btn_collStart",
+                            width: 36,
+                            minWidth: 36,
+                            maxWidth: 36,
+                            hozAlign: "center",
+                            headerSort: false,
+                            resizable: false,
+                            formatter: () => `<button type="button" class="btn-grid-addon btn-cal" title="시작일자 선택"><i class="fa-regular fa-calendar-days"></i></button>`,
+                            cellClick: function(e, cell) {
+                                e.stopPropagation();
+                                const row = cell.getRow();
+                                const curVal = row.getData().collStart || "";
+                                if (window.AamsCalendar && typeof window.AamsCalendar.openDatePicker === 'function') {
+                                    window.AamsCalendar.openDatePicker({
+                                        anchorEl: cell.getElement(),
+                                        initialYmd: curVal,
+                                        format: 'dot',
+                                        onSelect: function(dotYmd) {
+                                            const formattedStart = formatDateVal(dotYmd);
+                                            row.update({
+                                                collStart: formattedStart,
+                                                collEnd: addMonthsToYmd(formattedStart, 6),
+                                                isEdited: true
+                                            });
+                                        }
+                                    });
+                                }
+                            }
+                        },
                         {
                             title: "신용/대출<br>만기일자",
                             field: "collEnd",
@@ -241,6 +273,36 @@
                             },
                             cellEdited: function(cell) {
                                 cell.getRow().update({ isEdited: true });
+                            }
+                        },
+                        // p_dd_coll_end (Grid Internal Rule 3, 4: Empty column with calendar popup button)
+                        {
+                            title: "",
+                            field: "_btn_collEnd",
+                            width: 36,
+                            minWidth: 36,
+                            maxWidth: 36,
+                            hozAlign: "center",
+                            headerSort: false,
+                            resizable: false,
+                            formatter: () => `<button type="button" class="btn-grid-addon btn-cal" title="만기일자 선택"><i class="fa-regular fa-calendar-days"></i></button>`,
+                            cellClick: function(e, cell) {
+                                e.stopPropagation();
+                                const row = cell.getRow();
+                                const curVal = row.getData().collEnd || "";
+                                if (window.AamsCalendar && typeof window.AamsCalendar.openDatePicker === 'function') {
+                                    window.AamsCalendar.openDatePicker({
+                                        anchorEl: cell.getElement(),
+                                        initialYmd: curVal,
+                                        format: 'dot',
+                                        onSelect: function(dotYmd) {
+                                            row.update({
+                                                collEnd: formatDateVal(dotYmd),
+                                                isEdited: true
+                                            });
+                                        }
+                                    });
+                                }
                             }
                         },
                         {

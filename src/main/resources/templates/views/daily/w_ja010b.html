@@ -464,6 +464,33 @@
                             }
                         },
                         { title: "<span style='color: #2563eb;'>(재)<br/>계약일</span>", field: "reSeoljYmd", hozAlign: "center", minWidth: 85, formatter: cell => `<span style="color: #2563eb; font-weight: 500;">${formatDateVal(cell.getValue())}</span>`, editor: "input", cellClick: (e, cell) => cell.edit(true) },
+                        // p_dd_re_seolj_ymd (Grid Internal Rule 3, 4: Empty column with calendar popup button)
+                        {
+                            title: "",
+                            field: "_btn_reSeoljYmd",
+                            width: 36,
+                            minWidth: 36,
+                            maxWidth: 36,
+                            hozAlign: "center",
+                            headerSort: false,
+                            resizable: false,
+                            formatter: () => `<button type="button" class="btn-grid-addon btn-cal" title="재설정일자 선택"><i class="fa-regular fa-calendar-days"></i></button>`,
+                            cellClick: function(e, cell) {
+                                e.stopPropagation();
+                                const row = cell.getRow();
+                                const curVal = row.getData().reSeoljYmd || "";
+                                if (window.AamsCalendar && typeof window.AamsCalendar.openDatePicker === 'function') {
+                                    window.AamsCalendar.openDatePicker({
+                                        anchorEl: cell.getElement(),
+                                        initialYmd: curVal,
+                                        format: 'raw',
+                                        onSelect: function(rawYmd) {
+                                            row.update({ reSeoljYmd: rawYmd });
+                                        }
+                                    });
+                                }
+                            }
+                        },
                         { title: "<span style='color: #2563eb;'>계약잔액</span>", field: "reSeoljAek", hozAlign: "right", minWidth: 100, formatter: cell => `<span style="color: #2563eb; font-weight: 500;">${numFmt(cell.getValue())}</span>` },
                         { 
                             title: "수수료<br/>비용처리", 

@@ -343,7 +343,42 @@
                             editor: "input",
                             editable: isMasterRowEditable
                         },
-
+                        // p_xx_fund_cd (Grid Internal Rule 1, 2: Empty column with dynamic search button)
+                        {
+                            title: "",
+                            field: "_btn_fundCd",
+                            width: 36,
+                            minWidth: 36,
+                            maxWidth: 36,
+                            hozAlign: "center",
+                            headerSort: false,
+                            resizable: false,
+                            formatter: function(cell) {
+                                const isNew = cell.getRow().getData().isNew;
+                                const disClass = isNew ? "" : "disabled";
+                                return `<button type="button" class="btn-grid-addon btn-search ${disClass}" title="펀드 검색"><i class="fa-solid fa-magnifying-glass"></i></button>`;
+                            },
+                            cellClick: function(e, cell) {
+                                e.stopPropagation();
+                                const row = cell.getRow();
+                                const data = row.getData();
+                                if (!data.isNew && !data._isNew) {
+                                    if (gridMaster) { gridMaster.deselectRow(); row.select(); }
+                                    return;
+                                }
+                                const curVal = data.fundCd || "";
+                                if (window.DynamicCodeSearch && typeof window.DynamicCodeSearch.openModal === 'function') {
+                                    window.DynamicCodeSearch.openModal({
+                                        columnNm: "fund_cd",
+                                        seq: 1,
+                                        initialKeyword: curVal,
+                                        onSelect: function(code, name) {
+                                            row.update({ fundCd: code, fundNm: name });
+                                        }
+                                    });
+                                }
+                            }
+                        },
                         // tab=32766
                         { 
                             title: "계좌명", 
@@ -373,6 +408,42 @@
                             editor: "input",
                             editable: isMasterRowEditable
                         },
+                        // p_dd_balh_ymd (Grid Internal Rule 3, 4: Empty column with calendar popup button)
+                        {
+                            title: "",
+                            field: "_btn_balhYmd",
+                            width: 36,
+                            minWidth: 36,
+                            maxWidth: 36,
+                            hozAlign: "center",
+                            headerSort: false,
+                            resizable: false,
+                            formatter: function(cell) {
+                                const isNew = cell.getRow().getData().isNew;
+                                const disClass = isNew ? "" : "disabled";
+                                return `<button type="button" class="btn-grid-addon btn-cal ${disClass}" title="발행일 선택"><i class="fa-regular fa-calendar-days"></i></button>`;
+                            },
+                            cellClick: function(e, cell) {
+                                e.stopPropagation();
+                                const row = cell.getRow();
+                                const data = row.getData();
+                                if (!data.isNew && !data._isNew) {
+                                    if (gridMaster) { gridMaster.deselectRow(); row.select(); }
+                                    return;
+                                }
+                                const curVal = data.balhYmd || "";
+                                if (window.AamsCalendar && typeof window.AamsCalendar.openDatePicker === 'function') {
+                                    window.AamsCalendar.openDatePicker({
+                                        anchorEl: cell.getElement(),
+                                        initialYmd: curVal,
+                                        format: 'raw',
+                                        onSelect: function(rawYmd) {
+                                            row.update({ balhYmd: rawYmd });
+                                        }
+                                    });
+                                }
+                            }
+                        },
                         // tab=50 (mask:yyyy.mm.dd)
                         { 
                             title: "<span style='color: #2563eb; font-weight: 700;'>매입일</span>", 
@@ -382,6 +453,42 @@
                             formatter: cell => `<span style="color: #2563eb; font-weight: 600;">${formatDateVal(cell.getValue())}</span>`,
                             editor: "input",
                             editable: isMasterRowEditable
+                        },
+                        // p_dd_meib_ymd (Grid Internal Rule 3, 4: Empty column with calendar popup button)
+                        {
+                            title: "",
+                            field: "_btn_meibYmd",
+                            width: 36,
+                            minWidth: 36,
+                            maxWidth: 36,
+                            hozAlign: "center",
+                            headerSort: false,
+                            resizable: false,
+                            formatter: function(cell) {
+                                const isNew = cell.getRow().getData().isNew;
+                                const disClass = isNew ? "" : "disabled";
+                                return `<button type="button" class="btn-grid-addon btn-cal ${disClass}" title="매입일 선택"><i class="fa-regular fa-calendar-days"></i></button>`;
+                            },
+                            cellClick: function(e, cell) {
+                                e.stopPropagation();
+                                const row = cell.getRow();
+                                const data = row.getData();
+                                if (!data.isNew && !data._isNew) {
+                                    if (gridMaster) { gridMaster.deselectRow(); row.select(); }
+                                    return;
+                                }
+                                const curVal = data.meibYmd || "";
+                                if (window.AamsCalendar && typeof window.AamsCalendar.openDatePicker === 'function') {
+                                    window.AamsCalendar.openDatePicker({
+                                        anchorEl: cell.getElement(),
+                                        initialYmd: curVal,
+                                        format: 'raw',
+                                        onSelect: function(rawYmd) {
+                                            row.update({ meibYmd: rawYmd });
+                                        }
+                                    });
+                                }
+                            }
                         },
                         // tab=90 (mask:yyyy.mm.dd)
                         { 

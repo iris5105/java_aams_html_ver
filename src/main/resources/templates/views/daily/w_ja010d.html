@@ -68,6 +68,33 @@
                     columns: [
                         { title: "No.", formatter: "rownum", hozAlign: "center", width: 45, resizable: false, widthGrow: 0 },
                         { title: "펀드번호", field: "fundCd", hozAlign: "center", width: 90, editor: "input", cellClick: (e, cell) => cell.edit(true) },
+                        // p_xx_fund_cd (Grid Internal Rule 1, 2: Empty column with dynamic search button)
+                        {
+                            title: "",
+                            field: "_btn_fundCd",
+                            width: 36,
+                            minWidth: 36,
+                            maxWidth: 36,
+                            hozAlign: "center",
+                            headerSort: false,
+                            resizable: false,
+                            formatter: () => `<button type="button" class="btn-grid-addon btn-search" title="펀드 검색"><i class="fa-solid fa-magnifying-glass"></i></button>`,
+                            cellClick: function(e, cell) {
+                                e.stopPropagation();
+                                const row = cell.getRow();
+                                const curVal = row.getData().fundCd || "";
+                                if (window.DynamicCodeSearch && typeof window.DynamicCodeSearch.openModal === 'function') {
+                                    window.DynamicCodeSearch.openModal({
+                                        columnNm: "fund_cd",
+                                        seq: 1,
+                                        initialKeyword: curVal,
+                                        onSelect: function(code, name) {
+                                            row.update({ fundCd: code, fundNm: name });
+                                        }
+                                    });
+                                }
+                            }
+                        },
                         { title: "펀드명", field: "fundNm", minWidth: 160 },
                         { title: "입.출금일자", field: "trYmd", hozAlign: "center", width: 105, formatter: cell => formatDateVal(cell.getValue()) },
                         { title: "입금액", field: "inAek", hozAlign: "right", minWidth: 120, formatter: cell => numFmt(cell.getValue()), editor: "number", cellClick: (e, cell) => cell.edit(true) },

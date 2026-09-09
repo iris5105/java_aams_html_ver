@@ -287,16 +287,35 @@ public class AuthController {
     @PostMapping("/api/auth/extend-token")
     @ResponseBody
     public ResponseEntity<?> extendToken(@AuthenticationPrincipal UserPrincipal principal,
+            @RequestBody(required = false) Map<String, String> requestBody,
             HttpServletResponse response) {
         if (principal == null || principal.getUserDto() == null) {
             return ResponseEntity.status(401).body(Map.of("success", false, "message", "로그인이 필요합니다."));
+        }
+
+        String password = (requestBody != null) ? requestBody.get("password") : null;
+        if (password == null || password.isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("success", false, "message", "비밀번호를 입력해주세요."));
+        }
+
+        UserDto userDto = principal.getUserDto();
+
+        // Verify password using UserQueryDslRepository
+        UserDto verifyDto = null;
+        try {
+            verifyDto = userQueryDslRepository.findUserForLogin(userDto.getUserId(), password);
+        } catch (Exception e) {
+            log.warn("Password verification error for user {}: {}", userDto.getUserId(), e.getMessage());
+        }
+
+        if (verifyDto == null) {
+            return ResponseEntity.badRequest().body(Map.of("success", false, "message", "비밀번호가 올바르지 않습니다."));
         }
 
         // Extend Access Token by 50 minutes (50 * 60 * 1000L = 3,000,000 ms)
         long extendMillis = 50 * 60 * 1000L;
         int extendSeconds = 50 * 60;
 
-        UserDto userDto = principal.getUserDto();
         String newAccessToken = jwtProvider.createAccessToken(userDto, extendMillis);
 
         // Update Security Context
