@@ -508,7 +508,7 @@
                         { title: "계약<br/>횟수", field: "gyulGi", hozAlign: "center", minWidth: 60 },
                         { title: "계약<br/>기간", field: "sintakGigan", hozAlign: "center", minWidth: 60, editor: "number", cellClick: (e, cell) => cell.edit(true) },
                         { title: "만기예정일", field: "afGyulYmd", hozAlign: "center", minWidth: 85, formatter: cell => formatDateVal(cell.getValue()) },
-                        { title: "<span style='color: #ef4444;'>계약종료일</span>", field: "haejiYmd", hozAlign: "center", minWidth: 85, formatter: cell => `<span style="color: #ef4444; font-weight: 500;">${formatDateVal(cell.getValue())}</span>`, editor: "input", cellClick: (e, cell) => cell.edit(true) },
+                        { title: "<span style='color: #ef4444;'>계약종료일</span>", field: "haejiYmd", hozAlign: "center", minWidth: 85, formatter: cell => `<span style="color: #ef4444; font-weight: 500;">${formatDateVal(cell.getValue())}</span>`, editor: "input", cellClick: aamsCellEdit },
                         { 
                             title: "운용역", 
                             field: "unyongSabun", 
@@ -523,9 +523,7 @@
                                 clearable: true,
                                 itemFormatter: f_dddwctl.get2ColItemFormatter("사번", "성명")
                             },
-                            cellClick: function(e, cell) {
-                                cell.edit(true);
-                            }
+                            cellClick: aamsCellEdit
                         },
                         { 
                             title: "계좌별<br/>주식매매수수료율", 
@@ -541,22 +539,36 @@
                                 autocomplete: false,
                                 listOnEmpty: true
                             },
-                            cellClick: (e, cell) => cell.edit(true)
+                            cellClick: aamsCellEdit
                         },
                         { title: "특이사항", field: "noteText", hozAlign: "center", minWidth: 65 },
-                        { title: "<span style='color: #0d9488;'>이메일주소</span>", field: "email1", minWidth: 120, editor: "input", cellClick: (e, cell) => cell.edit(true) }
+                        { title: "<span style='color: #0d9488;'>이메일주소</span>", field: "email1", minWidth: 120, editor: "input", cellClick: aamsCellEdit }
                     ]
                 });
 
-                gridMaster.on("rowClick", function(e, row) {
-                    gridMaster.deselectRow();
-                    row.select();
-                    const data = row.getData();
+                function syncJa010bDetail(row, data) {
+                    if (!data) return;
                     const specialNote = data.specialNote || "";
                     const mle = pane ? pane.querySelector("#mleSpecialNote") : document.getElementById("mleSpecialNote");
                     if (mle) mle.value = specialNote;
-                    if (data.fundCd) {
-                        fetchJa010bSubGrids(data.fundCd);
+                    fetchJa010bSubGrids(data.fundCd, data);
+                }
+
+                // 1. AAMS Standard: Register global row selection callback
+                setupTabulatorRowSelection(gridMaster, function(row, data) {
+                    syncJa010bDetail(row, data);
+                });
+
+                // 2. Tabulator standard rowClick fallback
+                gridMaster.on("rowClick", function(e, row) {
+                    const data = row ? row.getData() : null;
+                    syncJa010bDetail(row, data);
+                });
+
+                // 3. Tabulator rowSelectionChanged fallback
+                gridMaster.on("rowSelectionChanged", function(data, rows) {
+                    if (rows && rows.length > 0) {
+                        syncJa010bDetail(rows[0], rows[0].getData());
                     }
                 });
 
@@ -565,12 +577,7 @@
                     const rows = gridMaster.getRows();
                     if (rows && rows.length > 0) {
                         rows[0].select();
-                        const data = rows[0].getData();
-                        const mle = pane ? pane.querySelector("#mleSpecialNote") : document.getElementById("mleSpecialNote");
-                        if (mle) mle.value = data.specialNote || "";
-                        if (data.fundCd) {
-                            fetchJa010bSubGrids(data.fundCd);
-                        }
+                        syncJa010bDetail(rows[0], rows[0].getData());
                     }
                 });
             }
@@ -816,21 +823,31 @@
             };
 
             let lastLoadedMasterKey = null;
-            function fetchJa010bSubGrids(fundCd) {
+            function fetchJa010bSubGrids(fundCd, masterRowData) {
+                const targetFundCd = fundCd || (masterRowData ? masterRowData.fundCd : "");
+                if (!targetFundCd) return;
+
                 const filterSelect = pane ? pane.querySelector("#filterCorpGr") : document.getElementById("filterCorpGr");
-                const corpGr = filterSelect ? filterSelect.value : "";
-                const currentKey = (corpGr || '') + '_' + (fundCd || '');
+                let corpGr = (masterRowData && masterRowData.corpGr) ? masterRowData.corpGr : (filterSelect ? filterSelect.value : "");
+                if (!corpGr && gridMaster) {
+                    const sel = gridMaster.getSelectedData();
+                    if (sel && sel.length > 0 && sel[0].corpGr) {
+                        corpGr = sel[0].corpGr;
+                    }
+                }
+
+                const currentKey = (corpGr || '') + '_' + targetFundCd;
                 if (lastLoadedMasterKey === currentKey) return;
                 lastLoadedMasterKey = currentKey;
 
-                fetch(`/api/account/ja010b/detail?corpGr=${encodeURIComponent(corpGr)}&fundCd=${encodeURIComponent(fundCd)}`)
+                fetch(`/api/account/ja010b/detail?corpGr=${encodeURIComponent(corpGr)}&fundCd=${encodeURIComponent(targetFundCd)}`)
                     .then(res => res.json())
                     .then(data => {
                         if (gridDetail) gridDetail.setData(Array.isArray(data) ? data : []);
                     })
                     .catch(err => console.error("Error fetching detail:", err));
 
-                fetch(`/api/account/ja010b/io?corpGr=${encodeURIComponent(corpGr)}&fundCd=${encodeURIComponent(fundCd)}`)
+                fetch(`/api/account/ja010b/io?corpGr=${encodeURIComponent(corpGr)}&fundCd=${encodeURIComponent(targetFundCd)}`)
                     .then(res => res.json())
                     .then(data => {
                         if (gridIo) gridIo.setData(Array.isArray(data) ? data : []);
@@ -856,12 +873,6 @@
 
             const btnIoDel = pane ? pane.querySelector("#btnIoDel") : document.getElementById("btnIoDel");
             if (btnIoDel) btnIoDel.addEventListener("click", deleteIoRow);
-
-            // Initialize all 3 grids & Trigger ue_dddw_retrieve on view load
-            initMasterGrid();
-            initDetailGrid();
-            initIoGrid();
-            ue_dddw_retrieve();
 
             // Register standard toolbar & CorpGr contract (Guideline 8)
             if (pane) {
@@ -896,9 +907,7 @@
                                     gridMaster.deselectRow();
                                     rows[0].select();
                                     const d = rows[0].getData();
-                                    const mle = pane ? pane.querySelector("#mleSpecialNote") : document.getElementById("mleSpecialNote");
-                                    if (mle) mle.value = d.specialNote || "";
-                                    if (d.fundCd) fetchJa010bSubGrids(d.fundCd);
+                                    syncJa010bDetail(rows[0], d);
                                 }
                             });
                         }

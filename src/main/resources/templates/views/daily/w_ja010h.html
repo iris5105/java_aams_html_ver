@@ -390,16 +390,25 @@
                     ]
                 });
 
-                // Rule 8: Single Row selection on click
-                grid.on("rowClick", function(e, row) {
-                    grid.deselectRow();
-                    row.select();
-                    onSelectFundRow(row.getData(), true);
+                function syncJa010hDetail(row, data, isClick) {
+                    if (!data) return;
+                    onSelectFundRow(data, isClick);
+                }
+
+                // 1. AAMS Standard: Register global row selection callback
+                setupTabulatorRowSelection(grid, function(row, data) {
+                    syncJa010hDetail(row, data, true);
                 });
 
-            grid.on("rowSelected", function(row) {
-                onSelectFundRow(row.getData(), false);
-            });
+                // 2. Tabulator standard rowClick fallback
+                grid.on("rowClick", function(e, row) {
+                    syncJa010hDetail(row, row ? row.getData() : null, true);
+                });
+
+                // 3. Tabulator rowSelected fallback
+                grid.on("rowSelected", function(row) {
+                    syncJa010hDetail(row, row ? row.getData() : null, false);
+                });
 
             // Capturing listener to guarantee single selection (Rule 8)
             gridEl.addEventListener('click', function(e) {

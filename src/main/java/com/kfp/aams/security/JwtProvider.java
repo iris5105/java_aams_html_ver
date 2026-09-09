@@ -17,8 +17,8 @@ public class JwtProvider {
 
     private final SecretKey key;
 
-    // Access token validity: 30 minutes
-    public static final long ACCESS_TOKEN_EXPIRE_TIME = 30 * 60 * 1000L;
+    // Access token validity: 1 hour (60 minutes)
+    public static final long ACCESS_TOKEN_EXPIRE_TIME = 60 * 60 * 1000L;
 
     // Refresh token validity: 1 week (7 days)
     public static final long REFRESH_TOKEN_EXPIRE_TIME = 7 * 24 * 60 * 60 * 1000L;

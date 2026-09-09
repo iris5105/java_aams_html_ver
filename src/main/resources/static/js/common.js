@@ -774,10 +774,47 @@ function formatMMSS(sec) {
     return String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
 }
 
+let headerTimerInterval = null;
+
+function updateHeaderTimerDisplay() {
+    const timerElem = document.getElementById('headerSessionTimer');
+    if (!timerElem) return;
+
+    if (currentRemainingSeconds <= 0) {
+        timerElem.innerText = '00:00';
+        timerElem.classList.add('warning');
+        return;
+    }
+
+    timerElem.innerText = formatMMSS(currentRemainingSeconds);
+    if (currentRemainingSeconds <= 300) {
+        timerElem.classList.add('warning');
+    } else {
+        timerElem.classList.remove('warning');
+    }
+}
+
 function startTokenMonitor() {
     checkTokenStatus();
+    // 15초마다 서버 토큰 만료 상태와 동기화
     if (tokenCheckInterval) clearInterval(tokenCheckInterval);
-    tokenCheckInterval = setInterval(checkTokenStatus, 10000);
+    tokenCheckInterval = setInterval(checkTokenStatus, 15000);
+
+    // 1초마다 헤더 타이머 실시간 카운트다운
+    if (headerTimerInterval) clearInterval(headerTimerInterval);
+    headerTimerInterval = setInterval(() => {
+        if (currentRemainingSeconds > 0) {
+            currentRemainingSeconds--;
+            updateHeaderTimerDisplay();
+            if (isExtendModalOpen) {
+                updateCountdownDisplay();
+            }
+            if (currentRemainingSeconds <= 0) {
+                if (isExtendModalOpen) closeTokenExtendModal();
+                handleLogout();
+            }
+        }
+    }, 1000);
 }
 
 function checkTokenStatus() {
@@ -786,16 +823,19 @@ function checkTokenStatus() {
             if (!data || !data.success || data.expired) {
                 if (isExtendModalOpen) {
                     closeTokenExtendModal();
-                    handleLogout();
                 }
+                handleLogout();
                 return;
             }
 
             currentRemainingSeconds = data.remainingSeconds || 0;
+            updateHeaderTimerDisplay();
 
             // Warning threshold: 5 minutes (300 seconds) before expiration
             if (currentRemainingSeconds <= 300 && currentRemainingSeconds > 0) {
-                openTokenExtendModal();
+                if (!isExtendModalOpen) {
+                    openTokenExtendModal();
+                }
             } else if (currentRemainingSeconds > 300) {
                 if (isExtendModalOpen) {
                     closeTokenExtendModal();
@@ -821,6 +861,7 @@ function openTokenExtendModal() {
     if (errBox) errBox.style.display = 'none';
 
     updateCountdownDisplay();
+    updateHeaderTimerDisplay();
     if (tokenCountdownInterval) clearInterval(tokenCountdownInterval);
     tokenCountdownInterval = setInterval(() => {
         currentRemainingSeconds--;
@@ -897,13 +938,13 @@ function extendAccessToken() {
     .then(data => {
         if (btn) {
             btn.disabled = false;
-            btn.innerHTML = '<i class="fa-solid fa-hourglass-half"></i> 50분 연장하기';
+            btn.innerHTML = '<i class="fa-solid fa-hourglass-half"></i> 1시간 연장하기';
         }
         if (data && data.success) {
             closeTokenExtendModal();
-            currentRemainingSeconds = data.remainingSeconds || 3000;
+            currentRemainingSeconds = data.remainingSeconds || 3600;
             startTokenMonitor();
-            alert('로그인 시간이 50분 연장되었습니다.');
+            alert('로그인 시간이 1시간 연장되었습니다.');
         } else {
             showExtendTokenError(data.message || '비밀번호가 올바르지 않습니다.');
         }
@@ -911,7 +952,7 @@ function extendAccessToken() {
     .catch(err => {
         if (btn) {
             btn.disabled = false;
-            btn.innerHTML = '<i class="fa-solid fa-hourglass-half"></i> 50분 연장하기';
+            btn.innerHTML = '<i class="fa-solid fa-hourglass-half"></i> 1시간 연장하기';
         }
         console.error('Token extension error:', err);
         showExtendTokenError('토큰 연장 요청 중 오류가 발생했습니다.');
@@ -1030,4 +1071,233 @@ function loadDddwOptions(selectId, dddwId, seq, addWhere, addOrderBy, defaultVal
         return window.f_dddwctl.loadOptions(selectId, dddwId, seq, addWhere, addOrderBy, defaultVal);
     }
 }
+
+/**
+ * Tabulator Grid Row Selection & Change Synchronization Engine (AAMS Standard)
+ * 
+ * [Solves 4 Core Interaction Issues]
+ * 1. Non-editable cells (No., readonly) not triggering row change
+ * 2. Editable cell -> other row's editable cell not changing selected row (due to stopPropagation in editors)
+ * 3. Dropdown list (list/dddw) editor opening without row selection
+ * 4. Keyboard Tab navigation between rows not synchronizing selected row
+ * 
+ * @param {Tabulator} table Tabulator grid instance
+ * @param {Function} [onRowChange] Callback function (row, data) when selected row changes
+ * @param {Object} [options] Options: { keyField: string, autoSelectFirst: boolean }
+ */
+function setupTabulatorRowSelection(table, onRowChange, options = {}) {
+    if (!table) return null;
+
+    // Register onRowChange callback if provided
+    if (typeof onRowChange === 'function') {
+        table._aamsRowChangeCallback = onRowChange;
+    }
+
+    // Prevent duplicate listener attachment
+    if (table._aamsRowSelectionInitialized) {
+        return table._aamsRowSelectionHelper;
+    }
+    table._aamsRowSelectionInitialized = true;
+
+    // Use pure RowComponent instance comparison to reliably identify row changes across all screens
+    let lastSelectedRow = null;
+
+    function doSelect(row, force = false, originalEvent = null) {
+        if (!row) return;
+        const rowComp = (typeof row.getComponent === 'function') ? row.getComponent() : row;
+        const isRowChanged = (rowComp !== lastSelectedRow) || force;
+        const isSelected = (typeof rowComp.isSelected === 'function' && rowComp.isSelected());
+
+        // 1. Ensure single row selection without flickering
+        if (!isSelected) {
+            if (typeof table.deselectRow === 'function') {
+                table.deselectRow();
+            }
+            if (typeof rowComp.select === 'function') {
+                rowComp.select();
+            }
+        }
+
+        // 2. Trigger callbacks & rowClick synchronization when row actually changed or forced
+        if (isRowChanged) {
+            lastSelectedRow = rowComp;
+            const d = (typeof rowComp.getData === 'function') ? rowComp.getData() : {};
+
+            // ① Custom onRowChange callback
+            if (typeof table._aamsRowChangeCallback === 'function') {
+                try {
+                    table._aamsRowChangeCallback(rowComp, d);
+                } catch(err) {
+                    console.error("[AAMS RowSelection] Error in onRowChange callback:", err);
+                }
+            }
+
+            // ② Dispatch external rowClick event to trigger view's grid.on("rowClick", ...) handler
+            // (Guarantees execution even when cell editor / dropdown stopPropagation blocked standard click)
+            if (table.externalEvents && typeof table.externalEvents.dispatch === 'function') {
+                table._aamsLastDispatchedRow = rowComp;
+                table._aamsLastDispatchedTime = Date.now();
+                try {
+                    table.externalEvents.dispatch("rowClick", originalEvent || new MouseEvent('click'), rowComp);
+                } catch(err) {
+                    console.error("[AAMS RowSelection] Error dispatching rowClick:", err);
+                }
+            }
+        }
+    }
+
+    function initListeners() {
+        const container = table.element;
+        if (!container || !container.addEventListener) return;
+
+        // 1. Capturing Pointer/Mouse Listener (Fires BEFORE child stopPropagation)
+        let lastPointerTime = 0;
+        const handlePointerCapture = function(e) {
+            const now = Date.now();
+            if (now - lastPointerTime < 50) return; // Prevent duplicate execution between pointerdown and mousedown
+            lastPointerTime = now;
+
+            // Ignore clicks on header, footer, column resizers, or sort arrows
+            if (e.target.closest(".tabulator-header") || 
+                e.target.closest(".tabulator-footer") || 
+                e.target.closest(".tabulator-col-resize-handle") ||
+                e.target.closest(".tabulator-arrow")) {
+                return;
+            }
+
+            const rowEl = e.target.closest(".tabulator-row");
+            if (!rowEl) return;
+
+            // Find matching RowComponent via Tabulator native getRow first, then fallback to getRows find
+            let targetRow = null;
+            if (typeof table.getRow === 'function') {
+                try { targetRow = table.getRow(rowEl); } catch(err) {}
+            }
+            if (!targetRow) {
+                const rows = table.getRows();
+                if (rows && rows.length > 0) {
+                    targetRow = rows.find(r => r.getElement() === rowEl);
+                }
+            }
+
+            if (targetRow) {
+                doSelect(targetRow, false, e);
+            }
+        };
+
+        container.addEventListener("pointerdown", handlePointerCapture, true);
+        container.addEventListener("mousedown", handlePointerCapture, true);
+
+        // 2. cellEditing Hook: For keyboard Tab navigation into another row's editor
+        table.on("cellEditing", function(cell) {
+            if (cell && typeof cell.getRow === 'function') {
+                const r = cell.getRow();
+                if (r) doSelect(r);
+            }
+        });
+
+        // 3. Tabulator standard rowClick fallback (avoids duplicate execution)
+        table.on("rowClick", function(e, row) {
+            if (table._aamsLastDispatchedRow === row && Date.now() - (table._aamsLastDispatchedTime || 0) < 200) {
+                return;
+            }
+            if (row) doSelect(row, false, e);
+        });
+
+        // 4. Reset lastSelectedRow and auto select first row on data load
+        table.on("dataLoaded", function(data) {
+            lastSelectedRow = null;
+            if (options.autoSelectFirst !== false) {
+                if (Array.isArray(data) && data.length > 0) {
+                    setTimeout(() => {
+                        const rows = table.getRows();
+                        if (rows && rows.length > 0) {
+                            doSelect(rows[0]);
+                        }
+                    }, 50);
+                }
+            }
+        });
+    }
+
+    if (table.element) {
+        initListeners();
+    } else {
+        table.on("tableBuilt", initListeners);
+    }
+
+    table._aamsRowSelectionHelper = {
+        selectRow: doSelect,
+        resetRow: function() { lastSelectedRow = null; },
+        getLastSelectedRow: function() { return lastSelectedRow; }
+    };
+
+    return table._aamsRowSelectionHelper;
+}
+
+/**
+ * Safe Cell Edit Invoker: Ensures row selection before opening cell editor
+ * Can be directly assigned to column's cellClick handler:
+ * { ... cellClick: aamsCellEdit }
+ */
+function aamsCellEdit(e, cell) {
+    if (!cell) return;
+    try {
+        const row = cell.getRow();
+        if (row && typeof row.select === 'function' && !row.isSelected()) {
+            const table = cell.getTable();
+            if (table && typeof table.deselectRow === 'function') {
+                table.deselectRow();
+            }
+            row.select();
+        }
+    } catch(err) {}
+    if (typeof cell.edit === 'function') {
+        cell.edit(true);
+    }
+}
+
+/**
+ * AAMS Global Tabulator Row Selection Auto-Patch
+ * Automatically wraps window.Tabulator so that ALL grids in ALL screens
+ * inherit the capturing row selection engine without requiring manual setup.
+ */
+(function initAamsGlobalTabulator() {
+    if (typeof window === 'undefined') return;
+
+    function applyPatch() {
+        if (!window.Tabulator || window.Tabulator._isAamsPatched) return;
+
+        const OriginalTabulator = window.Tabulator;
+
+        function AamsTabulator(container, options = {}) {
+            // Instantiate original Tabulator
+            const table = new OriginalTabulator(container, options);
+
+            // Automatically attach row selection engine if selectable is enabled (default in AAMS)
+            const isSelectable = (options.selectableRows !== false && options.selectable !== false);
+            if (isSelectable) {
+                setupTabulatorRowSelection(table, null, options);
+            }
+
+            return table;
+        }
+
+        // Preserve prototype chain and all static methods/properties (e.g. Tabulator.findTable)
+        AamsTabulator.prototype = OriginalTabulator.prototype;
+        Object.setPrototypeOf(AamsTabulator, OriginalTabulator);
+        Object.assign(AamsTabulator, OriginalTabulator);
+        AamsTabulator._isAamsPatched = true;
+
+        window.Tabulator = AamsTabulator;
+    }
+
+    if (window.Tabulator) {
+        applyPatch();
+    } else {
+        document.addEventListener("DOMContentLoaded", applyPatch);
+    }
+})();
+
+
 

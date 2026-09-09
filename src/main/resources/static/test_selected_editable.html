@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>Tabulator Selected Editable Underline Test</title>
+    <link rel="stylesheet" href="https://unpkg.com/tabulator-tables@6.2.1/dist/css/tabulator.min.css">
+    <link rel="stylesheet" href="/css/tabulator-custom.css">
+    <style>
+        body { font-family: sans-serif; padding: 20px; background: #f8fafc; }
+        .box { width: 700px; height: 300px; background: #fff; padding: 15px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+    </style>
+</head>
+<body>
+    <h3>행 선택 시 편집 가능 셀 하단 Border 테스트</h3>
+    <div class="box">
+        <div id="test-table"></div>
+    </div>
+    <script src="https://unpkg.com/tabulator-tables@6.2.1/dist/js/tabulator.min.js"></script>
+    <script>
+        const table = new Tabulator("#test-table", {
+            layout: "fitColumns",
+            selectable: 1,
+            data: [
+                { no: 1, code: "KR6002881C50", name: "한솔제지28CB", price: 10790.40, rate: 2.35 },
+                { no: 2, code: "KR6005961B40", name: "동부건설263", price: 9927.92, rate: 3.12 }
+            ],
+            columns: [
+                { title: "No.", field: "no", width: 60, hozAlign: "center", editable: false },
+                { title: "종목코드", field: "code", width: 140, hozAlign: "center", editable: false },
+                { title: "종목명", field: "name", width: 200, hozAlign: "left", editable: false },
+                { title: "단가 (수정가능)", field: "price", hozAlign: "right", editor: "number", editable: true },
+                { title: "수익률 (수정가능)", field: "rate", hozAlign: "right", editor: "number", editable: true }
+            ]
+        });
+
+        table.on("tableBuilt", function() {
+            table.selectRow(table.getRows()[0]);
+        });
+    </script>
+</body>
+</html>

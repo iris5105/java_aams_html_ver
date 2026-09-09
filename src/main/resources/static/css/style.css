@@ -148,6 +148,78 @@ body, html {
     font-weight: 500;
 }
 
+/* User Session Timer & Manual Extend Button */
+.user-session-time {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    border-left: 1px solid rgba(255, 255, 255, 0.12);
+    padding-left: 8px;
+    margin-left: 2px;
+    line-height: 1.15;
+}
+
+.session-label {
+    font-size: 9px;
+    color: #94a3b8;
+    letter-spacing: 0.2px;
+    display: flex;
+    align-items: center;
+    gap: 3px;
+}
+
+.session-time-row {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    margin-top: 1px;
+}
+
+.session-timer {
+    font-size: 11px;
+    color: #38bdf8;
+    font-family: 'Consolas', 'Menlo', monospace;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+}
+
+.session-timer.warning {
+    color: #f87171;
+    animation: session-pulse 1s infinite alternate;
+}
+
+@keyframes session-pulse {
+    from { opacity: 1; transform: scale(1); }
+    to { opacity: 0.55; transform: scale(1.04); }
+}
+
+.btn-session-extend {
+    background: rgba(37, 99, 235, 0.2);
+    border: 1px solid #3b82f6;
+    color: #93c5fd;
+    font-size: 9.5px;
+    font-weight: 600;
+    padding: 1px 5px;
+    border-radius: 4px;
+    cursor: pointer;
+    line-height: 1.2;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+}
+
+.btn-session-extend:hover {
+    background: #2563eb;
+    color: #ffffff;
+    border-color: #2563eb;
+    box-shadow: 0 0 6px rgba(37, 99, 235, 0.5);
+}
+
+.btn-session-extend:active {
+    transform: scale(0.95);
+}
+
 .top-nav {
     display: flex;
     align-items: center;
@@ -1954,6 +2026,15 @@ body.header-compact-mode.sidebar-backdrop-open::after {
 
     /* 모바일에서 접속 일시 숨김으로 헤더 여백 확보 */
     .user-access-time {
+        display: none !important;
+    }
+
+    .user-session-time {
+        padding-left: 6px;
+        margin-left: 0;
+    }
+
+    .user-session-time .session-label {
         display: none !important;
     }
 

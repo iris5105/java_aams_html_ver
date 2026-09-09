@@ -96,9 +96,9 @@
                             width: 80, 
                             editor: "input",
                             editable: (cell) => !cell.getValue() || cell.getRow().getData().isNew,
-                            cellClick: (e, cell) => cell.edit(true)
+                            cellClick: aamsCellEdit
                         },
-                        { title: "회사명", field: "companyName", minWidth: 140, editor: "input", cellClick: (e, cell) => cell.edit(true) },
+                        { title: "회사명", field: "companyName", minWidth: 140, editor: "input", cellClick: aamsCellEdit },
                         { 
                             title: "입금<br/>영업일수", 
                             field: "depositDd", 
@@ -114,7 +114,7 @@
                                 autocomplete: false,
                                 listOnEmpty: true
                             },
-                            cellClick: (e, cell) => cell.edit(true)
+                            cellClick: aamsCellEdit
                         },
                         { 
                             title: "<span style='color: #2563eb;'>작업<br/>기준일</span>", 
@@ -123,10 +123,10 @@
                             width: 95, 
                             formatter: cell => `<span style="color: #2563eb; font-weight: 500;">${formatDateVal(cell.getValue())}</span>`,
                             editor: "input",
-                            cellClick: (e, cell) => cell.edit(true)
+                            cellClick: aamsCellEdit
                         },
-                        { title: "기준가<br/>계산일", field: "gijungaYmd", hozAlign: "center", width: 95, formatter: cell => formatDateVal(cell.getValue()), editor: "input", cellClick: (e, cell) => cell.edit(true) },
-                        { title: "관리<br/>시작일", field: "symd", hozAlign: "center", width: 95, formatter: cell => formatDateVal(cell.getValue()), editor: "input", cellClick: (e, cell) => cell.edit(true) },
+                        { title: "기준가<br/>계산일", field: "gijungaYmd", hozAlign: "center", width: 95, formatter: cell => formatDateVal(cell.getValue()), editor: "input", cellClick: aamsCellEdit },
+                        { title: "관리<br/>시작일", field: "symd", hozAlign: "center", width: 95, formatter: cell => formatDateVal(cell.getValue()), editor: "input", cellClick: aamsCellEdit },
                         { 
                             title: "<span style='color: #ef4444;'>관리<br/>종료일</span>", 
                             field: "eymd", 
@@ -134,11 +134,11 @@
                             width: 95, 
                             formatter: cell => `<span style="color: #ef4444; font-weight: 500;">${formatDateVal(cell.getValue())}</span>`,
                             editor: "input",
-                            cellClick: (e, cell) => cell.edit(true)
+                            cellClick: aamsCellEdit
                         },
-                        { title: "전영업일", field: "junyongYmd", hozAlign: "center", width: 95, formatter: cell => formatDateVal(cell.getValue()), editor: "input", cellClick: (e, cell) => cell.edit(true) },
-                        { title: "익영업일", field: "ikyongYmd", hozAlign: "center", width: 95, formatter: cell => formatDateVal(cell.getValue()), editor: "input", cellClick: (e, cell) => cell.edit(true) },
-                        { title: "3영업일", field: "thikyongYmd", hozAlign: "center", width: 95, formatter: cell => formatDateVal(cell.getValue()), editor: "input", cellClick: (e, cell) => cell.edit(true) },
+                        { title: "전영업일", field: "junyongYmd", hozAlign: "center", width: 95, formatter: cell => formatDateVal(cell.getValue()), editor: "input", cellClick: aamsCellEdit },
+                        { title: "익영업일", field: "ikyongYmd", hozAlign: "center", width: 95, formatter: cell => formatDateVal(cell.getValue()), editor: "input", cellClick: aamsCellEdit },
+                        { title: "3영업일", field: "thikyongYmd", hozAlign: "center", width: 95, formatter: cell => formatDateVal(cell.getValue()), editor: "input", cellClick: aamsCellEdit },
                         { 
                             title: "수수료<br/>비용처리", 
                             field: "expenseYn", 
@@ -149,6 +149,13 @@
                                 return `<input type="checkbox" ${isChecked ? 'checked' : ''} style="pointer-events: none;" />`;
                             },
                             cellClick: function(e, cell) {
+                                const row = cell.getRow();
+                                if (row && typeof row.select === 'function' && !row.isSelected()) {
+                                    gridMaster.deselectRow();
+                                    row.select();
+                                    const d = row.getData();
+                                    if (d && d.corpGr) fetchJa010aDetail(d.corpGr);
+                                }
                                 cell.setValue(cell.getValue() === 'Y' ? 'N' : 'Y');
                             }
                         },
@@ -163,19 +170,34 @@
                                 autocomplete: false,
                                 listOnEmpty: true
                             },
-                            cellClick: (e, cell) => cell.edit(true)
+                            cellClick: aamsCellEdit
                         },
-                        { title: "수수료 입금계좌", field: "depositAccount", minWidth: 170, editor: "input", cellClick: (e, cell) => cell.edit(true) },
-                        { title: "비고", field: "bigo", minWidth: 150, editor: "input", cellClick: (e, cell) => cell.edit(true) }
+                        { title: "수수료 입금계좌", field: "depositAccount", minWidth: 170, editor: "input", cellClick: aamsCellEdit },
+                        { title: "비고", field: "bigo", minWidth: 150, editor: "input", cellClick: aamsCellEdit }
                     ]
                 });
 
-                gridMaster.on("rowClick", function(e, row) {
-                    gridMaster.deselectRow();
-                    row.select();
-                    const data = row.getData();
-                    if (data.corpGr) {
+                function syncJa010aDetail(row, data) {
+                    if (data && data.corpGr) {
                         fetchJa010aDetail(data.corpGr);
+                    }
+                }
+
+                // 1. AAMS Standard: Register global row selection callback
+                setupTabulatorRowSelection(gridMaster, function(row, data) {
+                    syncJa010aDetail(row, data);
+                });
+
+                // 2. Tabulator standard rowClick fallback
+                gridMaster.on("rowClick", function(e, row) {
+                    const data = row ? row.getData() : null;
+                    syncJa010aDetail(row, data);
+                });
+
+                // 3. Tabulator rowSelectionChanged fallback
+                gridMaster.on("rowSelectionChanged", function(data, rows) {
+                    if (rows && rows.length > 0) {
+                        syncJa010aDetail(rows[0], rows[0].getData());
                     }
                 });
 
@@ -184,10 +206,7 @@
                     const rows = gridMaster.getRows();
                     if (rows && rows.length > 0) {
                         rows[0].select();
-                        const data = rows[0].getData();
-                        if (data.corpGr) {
-                            fetchJa010aDetail(data.corpGr);
-                        }
+                        syncJa010aDetail(rows[0], rows[0].getData());
                     }
                 });
             }

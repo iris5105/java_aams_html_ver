@@ -37,6 +37,16 @@
                 <span class="access-label">최근 접속</span>
                 <span class="access-date" th:text="${lastConnect != null ? lastConnect : today}"></span>
             </div>
+            <!-- 세션 만료 잔여 시간 및 수동 연장 버튼 -->
+            <div class="user-session-time" title="로그인 세션 만료 잔여 시간">
+                <span class="session-label"><i class="fa-regular fa-clock"></i> 남은 시간</span>
+                <div class="session-time-row">
+                    <span id="headerSessionTimer" class="session-timer">--:--</span>
+                    <button type="button" class="btn-session-extend" onclick="openTokenExtendModal()" title="로그인 세션 1시간 연장하기">
+                        <i class="fa-solid fa-arrows-rotate"></i> 연장
+                    </button>
+                </div>
+            </div>
             <button onclick="handleLogout()" class="btn-logout" title="로그아웃">
                 <i class="fa-solid fa-arrow-right-from-bracket"></i> 로그아웃
             </button>

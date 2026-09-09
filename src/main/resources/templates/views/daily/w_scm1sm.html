@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<div class="view-container layout-single scm1sm-container" th:fragment="scm1smView">
+
+    <!-- Top Action Control Bar (Row 1) -->
+    <div class="view-toolbar">
+        <div class="toolbar-left">
+            <!-- Reusable Common Toolbar Buttons Fragment (닫기, 새로고침, 조회, 입력, 저장, 삭제, 엑셀) -->
+            <div th:replace="~{fragments/tab_header :: toolbarButtons}"></div>
+        </div>
+        <!-- Reusable Common Breadcrumb Fragment -->
+        <div th:replace="~{fragments/tab_header :: toolbarBreadcrumb}"></div>
+    </div>
+
+    <!-- Filter Bar (Row 2): Rule 14 & Rule 17 - dc_ymd fragment matching dw_c in w_scm1sm.srw -->
+    <div class="filter-bar">
+        <div class="filter-left">
+            <div th:replace="~{fragments/filter/dc_ymd :: filter(label='종가일자')}"></div>
+        </div>
+
+        <!-- Sub Action Buttons (종가LOAD - cb_1 in w_scm1sm.srw) -->
+        <div class="filter-actions scm1sm-action-buttons">
+            <input type="file" id="scm1smExcelFileInput" accept=".xls,.xlsx,.csv" style="display: none;" />
+            <button type="button" id="btnLoadCloseExcel" class="t-btn btn-action" style="background: #2563eb; color: #ffffff; border-color: #1d4ed8;" title="엑셀 파일로부터 채권 종가(단가)를 로드합니다.">
+                <i class="fa-solid fa-file-excel"></i> 종가LOAD
+            </button>
+        </div>
+    </div>
+
+    <!-- Main Grid Section (d_scm1sm.srd / SCM1SM) -->
+    <div class="grid-section" style="flex: 1 1 auto; height: calc(100% - 90px); padding: 8px 12px; overflow: hidden; display: flex; flex-direction: column;">
+        <div class="grid-table-wrapper" style="flex: 1 1 auto; height: 100%; width: 100%; border: 1px solid #cbd5e1; border-radius: 4px; overflow: hidden; background-color: #fff;">
+            <div id="scm1sm-grid" class="tabulator-aams-grid" style="height: 100%;"></div>
+        </div>
+    </div>
+
+    <!-- SheetJS for Excel Reading (cb_1 client parsing) -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+    <!-- Pure JS AAMS Calendar Component (Rule 16) -->
+    <script th:src="@{/js/aams_calendar.js}" src="/js/aams_calendar.js"></script>
+
+    <!-- Dynamic Code Search Component (u_dynamiccodesearch) -->
+    <script th:src="@{/js/dynamic_code_search.js}" src="/js/dynamic_code_search.js"></script>
+
+    <!-- Page Specific Script for w_scm1sm -->
+    <script th:inline="javascript">
+        (function() {
+            const currentScript = document.currentScript;
+            const pane = currentScript ? (currentScript.closest('.tab-pane') || currentScript.closest('.view-container')) : null;
+
+            let gridScm1sm = null;
+            let isInitialized = false;
+            let lastYmd = null;
+            let lastCorpGr = null;
+            let deletedList = [];
+
+            // Corporate Group Resolver (Guideline 1: No default hardcoded value)
+            function resolveCorpGr() {
+                if (window.currentCorpGr) return window.currentCorpGr;
+                const filterSelect = pane ? pane.querySelector(".filter-bar select[name='corpGr'], .filter-bar select[name='corp_gr']") : null;
+                if (filterSelect && filterSelect.value) return filterSelect.value;
+                const m = document.cookie.match(/(^|;)\s*savedCorpGr=([^;]+)/) || document.cookie.match(/(^|;)\s*corpGr=([^;]+)/);
+                return m ? decodeURIComponent(m[2]) : "";
+            }
+
+            // Date Resolver
+            function resolveYmd() {
+                const ymdInput = pane ? pane.querySelector(".filter-bar input[name='ymd'], .filter-bar input.filter-ymd") : null;
+                if (ymdInput && ymdInput.value) {
+                    return ymdInput.value.replace(/-/g, "");
+                }
+                const today = new Date();
+                const y = today.getFullYear();
+                const m = String(today.getMonth() + 1).padStart(2, '0');
+                const d = String(today.getDate()).padStart(2, '0');
+                return `${y}${m}${d}`;
+            }
+
+            // Number Formatter with Comma and Decimals
+            function numberFormatter(cell, decimals = 2) {
+                const val = cell.getValue();
+                if (val === null || val === undefined || val === "") return "";
+                const num = Number(val);
+                if (isNaN(num)) return val;
+                return num.toLocaleString(undefined, { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+            }
+
+            // Tabulator Columns (Following d_scm1sm.srd sequence & tab_order)
+            const scm1smColumns = [
+                {
+                    title: "No.",
+                    formatter: "rownum",
+                    width: 60,
+                    hozAlign: "center",
+                    headerHozAlign: "center",
+                    headerSort: false,
+                    editable: false
+                },
+                {
+                    title: "종목코드",
+                    field: "asCjCd",
+                    width: 140,
+                    hozAlign: "center",
+                    headerHozAlign: "center",
+                    headerSort: true,
+                    editable: function(cell) {
+                        const row = cell.getRow();
+                        const data = row ? row.getData() : {};
+                        return !!data.isNew;
+                    },
+                    cellEdited: function(cell) {
+                        const row = cell.getRow();
+                        const data = row.getData();
+                        row.update({
+                            jmCd: cell.getValue(),
+                            rowStatus: data.isNew ? 'C' : 'U'
+                        });
+                    }
+                },
+                {
+                    title: "종목명",
+                    field: "cjNm",
+                    width: 320,
+                    hozAlign: "left",
+                    headerHozAlign: "center",
+                    headerSort: true,
+                    editable: false
+                },
+                {
+                    title: "단가",
+                    field: "danga",
+                    width: 140,
+                    hozAlign: "right",
+                    headerHozAlign: "center",
+                    headerSort: true,
+                    editable: true,
+                    editor: "number",
+                    editorParams: {
+                        step: "0.01"
+                    },
+                    formatter: function(cell) {
+                        const val = cell.getValue();
+                        const formatted = numberFormatter(cell, 2);
+                        return `<span style="color: #dc2626; font-weight: 600;">${formatted}</span>`;
+                    },
+                    cellEdited: function(cell) {
+                        const row = cell.getRow();
+                        const data = row.getData();
+                        const newDanga = Number(cell.getValue()) || 0;
+                        row.update({
+                            danga: newDanga,
+                            rowStatus: data.isNew ? 'C' : 'U'
+                        });
+                    }
+                },
+                {
+                    title: "수익률(%)",
+                    field: "jySuikPer",
+                    width: 120,
+                    hozAlign: "right",
+                    headerHozAlign: "center",
+                    headerSort: true,
+                    editable: true,
+                    editor: "number",
+                    editorParams: {
+                        step: "0.0001"
+                    },
+                    formatter: function(cell) {
+                        return numberFormatter(cell, 4);
+                    },
+                    cellEdited: function(cell) {
+                        const row = cell.getRow();
+                        const data = row.getData();
+                        const per = Number(cell.getValue()) || 0;
+                        row.update({
+                            jySuikPer: per,
+                            jySuikRt: per / 100,
+                            rowStatus: data.isNew ? 'C' : 'U'
+                        });
+                    }
+                }
+            ];
+
+            // Initialize Grid
+            function initGrid() {
+                const gridEl = pane ? pane.querySelector("#scm1sm-grid") : document.getElementById("scm1sm-grid");
+                if (!gridEl) return;
+
+                gridScm1sm = new Tabulator(gridEl, {
+                    layout: "fitColumns",
+                    height: "100%",
+                    columns: scm1smColumns,
+                    data: [],
+                    selectable: 1,
+                    placeholder: "조회된 데이터가 없습니다.",
+                    movableColumns: false,
+                    reactiveData: true
+                });
+
+                // AAMS Standard: Register global row selection engine
+                setupTabulatorRowSelection(gridScm1sm);
+            }
+
+            // Fetch Data
+            function fetchData(force = false) {
+                const corpGr = resolveCorpGr();
+                const ymd = resolveYmd();
+
+                if (!corpGr) {
+                    alert("소속 회사코드를 확인할 수 없습니다.");
+                    return;
+                }
+
+                // Rule 10: Compare last search parameters to prevent duplicate requests
+                if (!force && lastCorpGr === corpGr && lastYmd === ymd) {
+                    return;
+                }
+
+                lastCorpGr = corpGr;
+                lastYmd = ymd;
+                deletedList = [];
+
+                const url = `/api/daily/scm1sm/list?corpGr=${encodeURIComponent(corpGr)}&ymd=${encodeURIComponent(ymd)}`;
+
+                fetch(url)
+                    .then(res => res.json())
+                    .then(data => {
+                        if (gridScm1sm) {
+                            gridScm1sm.setData(data || []);
+                            // Rule 15: Select first row automatically on data binding
+                            setTimeout(() => {
+                                if (gridScm1sm) {
+                                    const rows = gridScm1sm.getRows();
+                                    if (rows && rows.length > 0) {
+                                        rows[0].select();
+                                    }
+                                }
+                            }, 50);
+                        }
+                    })
+                    .catch(err => {
+                        console.error("Failed to load scm1sm list:", err);
+                        alert("채권 단가 목록을 불러오는 중 오류가 발생했습니다.");
+                    });
+            }
+
+            // Toolbar Actions: [입력] 신규 행 추가
+            function handleInput() {
+                if (!gridScm1sm) return;
+
+                const corpGr = resolveCorpGr();
+                const ymd = resolveYmd();
+
+                const newRowData = {
+                    corpGr: corpGr,
+                    ymd: ymd,
+                    jmCd: "",
+                    asCjCd: "",
+                    cjNm: "(신규입력)",
+                    danga: 0,
+                    jySuikPer: 0,
+                    jySuikRt: 0,
+                    isNew: true,
+                    rowStatus: 'C'
+                };
+
+                gridScm1sm.addRow(newRowData, true).then(row => {
+                    gridScm1sm.deselectRow();
+                    row.select();
+                    row.scrollTo();
+                });
+            }
+
+            // Toolbar Actions: [삭제]
+            function handleDelete() {
+                if (!gridScm1sm) return;
+                const selectedRows = gridScm1sm.getSelectedRows();
+                if (!selectedRows || selectedRows.length === 0) {
+                    alert("삭제할 행을 먼저 선택해주세요.");
+                    return;
+                }
+
+                if (!confirm("선택한 행을 삭제하시겠습니까? (저장 시 DB에 반영됩니다)")) {
+                    return;
+                }
+
+                selectedRows.forEach(row => {
+                    const data = row.getData();
+                    if (!data.isNew) {
+                        data.rowStatus = 'D';
+                        deletedList.push(data);
+                    }
+                    row.delete();
+                });
+            }
+
+            // Toolbar Actions: [저장]
+            function handleSave() {
+                if (!gridScm1sm) return;
+
+                const corpGr = resolveCorpGr();
+                const ymd = resolveYmd();
+
+                const insertList = [];
+                const updateList = [];
+
+                const allRows = gridScm1sm.getRows();
+                for (let i = 0; i < allRows.length; i++) {
+                    const d = allRows[i].getData();
+                    if (d.rowStatus === 'C' || d.isNew) {
+                        if (!d.asCjCd && !d.jmCd) {
+                            alert(`${i + 1}번째 행의 종목코드를 입력해주세요.`);
+                            return;
+                        }
+                        insertList.push(d);
+                    } else if (d.rowStatus === 'U') {
+                        updateList.push(d);
+                    }
+                }
+
+                if (insertList.length === 0 && updateList.length === 0 && deletedList.length === 0) {
+                    alert("저장할 변경사항이 없습니다.");
+                    return;
+                }
+
+                if (!confirm(`신규 ${insertList.length}건, 수정 ${updateList.length}건, 삭제 ${deletedList.length}건을 저장하시겠습니까?`)) {
+                    return;
+                }
+
+                const savePayload = {
+                    corpGr: corpGr,
+                    ymd: ymd,
+                    insertList: insertList,
+                    updateList: updateList,
+                    deleteList: deletedList
+                };
+
+                fetch("/api/daily/scm1sm/save", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(savePayload)
+                })
+                .then(res => res.json())
+                .then(resData => {
+                    if (resData && resData.success) {
+                        alert(resData.message || "저장이 완료되었습니다.");
+                        fetchData(true);
+                    } else {
+                        alert("저장 실패: " + (resData ? resData.message : "알 수 없는 오류"));
+                    }
+                })
+                .catch(err => {
+                    console.error("Save error:", err);
+                    alert("저장 중 서버 통신 오류가 발생했습니다.");
+                });
+            }
+
+            // Toolbar Actions: [엑셀 다운로드]
+            function handleExcel() {
+                if (!gridScm1sm) return;
+                const ymd = resolveYmd();
+                gridScm1sm.download("xlsx", `채권단가_${ymd}.xlsx`, { sheetName: "채권단가" });
+            }
+
+            // Sub Action: [종가LOAD] (Excel Upload & Mapping)
+            function setupExcelLoader() {
+                const fileInput = pane ? pane.querySelector("#scm1smExcelFileInput") : document.getElementById("scm1smExcelFileInput");
+                const btnLoad = pane ? pane.querySelector("#btnLoadCloseExcel") : document.getElementById("btnLoadCloseExcel");
+
+                if (btnLoad && fileInput) {
+                    btnLoad.addEventListener("click", () => {
+                        fileInput.value = "";
+                        fileInput.click();
+                    });
+
+                    fileInput.addEventListener("change", function(e) {
+                        const file = e.target.files[0];
+                        if (!file) return;
+
+                        const reader = new FileReader();
+                        reader.onload = function(evt) {
+                            try {
+                                const data = new Uint8Array(evt.target.result);
+                                const workbook = XLSX.read(data, { type: 'array' });
+                                const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                                const rows = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
+
+                                if (!rows || rows.length < 2) {
+                                    alert("엑셀 파일에 데이터가 없습니다.");
+                                    return;
+                                }
+
+                                applyExcelClosePrices(rows);
+                            } catch (ex) {
+                                console.error("Excel parse error:", ex);
+                                alert("엑셀 파일 파싱 중 오류가 발생했습니다: " + ex.message);
+                            }
+                        };
+                        reader.readAsArrayBuffer(file);
+                    });
+                }
+            }
+
+            // Match Excel Rows to Grid Rows by Bond Code (D열/4열 or Header, G열/7열 or Header)
+            function applyExcelClosePrices(excelRows) {
+                if (!gridScm1sm) return;
+                const currentRows = gridScm1sm.getRows();
+                if (!currentRows || currentRows.length === 0) {
+                    alert("먼저 당일 채권 단가 목록을 조회한 후 로드해주세요.");
+                    return;
+                }
+
+                // 1. 헤더 위치 탐색 (기본: 종목코드 4열(index 3), 단가 7열(index 6))
+                let codeColIdx = 3;
+                let priceColIdx = 6;
+                let startRow = 1;
+
+                const headerRow = excelRows[0] || [];
+                for (let c = 0; c < headerRow.length; c++) {
+                    const hText = String(headerRow[c] || "").trim();
+                    if (hText.includes("종목코드") || hText.includes("단축코드") || hText.includes("채권코드") || hText === "코드") {
+                        codeColIdx = c;
+                    }
+                    if (hText.includes("단가") || hText.includes("종가") || hText.includes("현재가")) {
+                        priceColIdx = c;
+                    }
+                }
+
+                // 만약 헤더가 없거나 첫 줄이 데이터인 경우 검사
+                if (typeof headerRow[codeColIdx] === 'string' && headerRow[codeColIdx].startsWith('KR')) {
+                    startRow = 0;
+                }
+
+                let updatedCount = 0;
+                const codeToPriceMap = new Map();
+
+                for (let r = startRow; r < excelRows.length; r++) {
+                    const rowData = excelRows[r];
+                    if (!rowData || rowData.length === 0) continue;
+
+                    const rawCode = String(rowData[codeColIdx] || "").trim();
+                    const rawPrice = rowData[priceColIdx];
+
+                    if (rawCode && rawPrice !== undefined && rawPrice !== null && rawPrice !== "") {
+                        const price = Number(String(rawPrice).replace(/,/g, ''));
+                        if (!isNaN(price)) {
+                            codeToPriceMap.set(rawCode, price);
+                        }
+                    }
+                }
+
+                // 그리드 행 매핑
+                currentRows.forEach(row => {
+                    const d = row.getData();
+                    const code1 = d.asCjCd ? d.asCjCd.trim() : "";
+                    const code2 = d.jmCd ? d.jmCd.trim() : "";
+
+                    let matchedPrice = null;
+                    if (code1 && codeToPriceMap.has(code1)) {
+                        matchedPrice = codeToPriceMap.get(code1);
+                    } else if (code2 && codeToPriceMap.has(code2)) {
+                        matchedPrice = codeToPriceMap.get(code2);
+                    }
+
+                    if (matchedPrice !== null) {
+                        row.update({
+                            danga: matchedPrice,
+                            rowStatus: d.isNew ? 'C' : 'U'
+                        });
+                        updatedCount++;
+                    }
+                });
+
+                alert(`엑셀 파일에서 총 ${updatedCount}개 종목의 단가를 반영하였습니다.\n[저장] 버튼을 눌러 DB에 적용하세요.`);
+            }
+
+            // Single Entrypoint Initialization (Rule 11)
+            function startInit() {
+                if (isInitialized) return;
+                isInitialized = true;
+
+                initGrid();
+                setupExcelLoader();
+
+                // Connect MDI Standard Toolbar Contract Functions (Rule 9)
+                if (pane) {
+                    pane.onSearch = () => fetchData(true);
+                    pane.onInput = handleInput;
+                    pane.onSave = handleSave;
+                    pane.onDelete = handleDelete;
+                    pane.onExcel = handleExcel;
+                    pane.onCorpGrChange = () => fetchData(true);
+                }
+
+                // Initial fetch
+                setTimeout(() => fetchData(false), 100);
+            }
+
+            if (document.readyState === "loading") {
+                document.addEventListener("DOMContentLoaded", startInit);
+            } else {
+                startInit();
+            }
+        })();
+    </script>
+</div>
+</html>

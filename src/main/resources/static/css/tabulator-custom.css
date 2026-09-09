@@ -377,3 +377,33 @@
     cursor: not-allowed;
     pointer-events: none;
 }
+
+/* ==========================================================================
+   10. Selected Row - Editable Cell Bottom Border Indicator
+   - 행(Row) 선택 시 편집 가능한 컬럼(.tabulator-editable)에 하단 밑줄(Border-Bottom)을
+     표시하여 사용자가 인라인 수정 가능한 셀임을 한눈에 직관적으로 인지하도록 지원
+   - 배경 깜빡임 방지: 선택 행의 배경색(#bae6fd)을 일체감 있게 유지하고 transition 깜빡임을 제거
+   ========================================================================== */
+.tabulator-row.tabulator-selected .tabulator-cell.tabulator-editable,
+.tabulator-row.tabulator-selected .tabulator-cell.cell-editable {
+    border-bottom: 2.5px solid #0284c7 !important;
+    box-shadow: inset 0 -2px 0 0 #0284c7 !important;
+    cursor: pointer !important;
+    transition: none !important;
+}
+
+/* 선택된 행의 편집 가능 셀 호버 인터랙션 */
+.tabulator-row.tabulator-selected .tabulator-cell.tabulator-editable:hover,
+.tabulator-row.tabulator-selected .tabulator-cell.cell-editable:hover {
+    border-bottom: 2.5px solid #1d4ed8 !important;
+    box-shadow: inset 0 -2.5px 0 0 #1d4ed8 !important;
+    transition: none !important;
+}
+
+/* 편집 활성화(tabulator-editing) 중일 때는 4면 전체 포커스 테두리 유지 */
+.tabulator-row.tabulator-selected .tabulator-cell.tabulator-editable.tabulator-editing {
+    border-bottom: 2px solid #2563eb !important;
+    box-shadow: none !important;
+    transition: none !important;
+}
+

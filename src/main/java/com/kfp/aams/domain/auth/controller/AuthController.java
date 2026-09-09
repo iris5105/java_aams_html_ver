@@ -104,11 +104,11 @@ public class AuthController {
                 principal.getAuthorities());
         SecurityContextHolder.getContext().setAuthentication(authentication);
 
-        // Set Access Token Cookie (30 mins = 1800s)
+        // Set Access Token Cookie (1 hour = 3600s)
         Cookie accessCookie = new Cookie("accessToken", accessToken);
         accessCookie.setHttpOnly(true);
         accessCookie.setPath("/");
-        accessCookie.setMaxAge(30 * 60);
+        accessCookie.setMaxAge(60 * 60);
         response.addCookie(accessCookie);
 
         // Set Refresh Token Cookie (1 week = 604800s)
@@ -210,7 +210,7 @@ public class AuthController {
         Cookie accessCookie = new Cookie("accessToken", newAccessToken);
         accessCookie.setHttpOnly(true);
         accessCookie.setPath("/");
-        accessCookie.setMaxAge(30 * 60);
+        accessCookie.setMaxAge(60 * 60);
         response.addCookie(accessCookie);
 
         Cookie refreshCookie = new Cookie("refreshToken", newRefreshToken);
@@ -282,7 +282,7 @@ public class AuthController {
     }
 
     /**
-     * Extend Access Token lifetime by an additional 50 minutes (3,000 seconds)
+     * Extend Access Token lifetime by an additional 1 hour (3,600 seconds)
      */
     @PostMapping("/api/auth/extend-token")
     @ResponseBody
@@ -312,9 +312,9 @@ public class AuthController {
             return ResponseEntity.badRequest().body(Map.of("success", false, "message", "비밀번호가 올바르지 않습니다."));
         }
 
-        // Extend Access Token by 50 minutes (50 * 60 * 1000L = 3,000,000 ms)
-        long extendMillis = 50 * 60 * 1000L;
-        int extendSeconds = 50 * 60;
+        // Extend Access Token by 1 hour (60 * 60 * 1000L = 3,600,000 ms)
+        long extendMillis = 60 * 60 * 1000L;
+        int extendSeconds = 60 * 60;
 
         String newAccessToken = jwtProvider.createAccessToken(userDto, extendMillis);
 
@@ -324,18 +324,18 @@ public class AuthController {
                 null, updatedPrincipal.getAuthorities());
         SecurityContextHolder.getContext().setAuthentication(authentication);
 
-        // Set updated Access Token Cookie (50 mins = 3000s)
+        // Set updated Access Token Cookie (1 hour = 3600s)
         Cookie accessCookie = new Cookie("accessToken", newAccessToken);
         accessCookie.setHttpOnly(true);
         accessCookie.setPath("/");
         accessCookie.setMaxAge(extendSeconds);
         response.addCookie(accessCookie);
 
-        log.info("User {} extended Access Token lifetime by 50 minutes.", userDto.getUserId());
+        log.info("User {} extended Access Token lifetime by 1 hour.", userDto.getUserId());
 
         return ResponseEntity.ok(Map.of(
                 "success", true,
-                "message", "액세스 토큰이 50분 연장되었습니다.",
+                "message", "액세스 토큰이 1시간 연장되었습니다.",
                 "remainingSeconds", extendSeconds));
     }
 }

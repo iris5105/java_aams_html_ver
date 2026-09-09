@@ -641,26 +641,27 @@
                     ]
                 });
 
-                                // Capturing phase listener: guarantees row selection before cell's stopPropagation can block it
-                container.addEventListener("click", function(e) {
-                    const rowEl = e.target.closest(".tabulator-row");
-                    if (!rowEl || !gridMaster) return;
-                    const row = gridMaster.getRow(rowEl);
-                    if (row) {
-                        const data = row.getData();
-                        if (!row.isSelected || !row.isSelected()) {
-                            gridMaster.deselectRow();
-                            row.select();
-                            selectedMasterData = data;
-                            loadDetailList(selectedMasterData, true);
-                        }
-                    }
-                }, true);
+                function syncShm0hjDetail(row, data) {
+                    if (!data) return;
+                    selectedMasterData = data;
+                    loadDetailList(data, false);
+                }
 
+                // 1. AAMS Standard: setupTabulatorRowSelection callback
+                setupTabulatorRowSelection(gridMaster, function(row, data) {
+                    syncShm0hjDetail(row, data);
+                });
+
+                // 2. Tabulator standard rowClick fallback
+                gridMaster.on("rowClick", function(e, row) {
+                    const data = row ? row.getData() : null;
+                    syncShm0hjDetail(row, data);
+                });
+
+                // 3. Tabulator rowSelectionChanged fallback
                 gridMaster.on("rowSelectionChanged", function(data, rows) {
                     if (rows && rows.length > 0) {
-                        selectedMasterData = rows[0].getData();
-                        loadDetailList(selectedMasterData, true);
+                        syncShm0hjDetail(rows[0], rows[0].getData());
                     }
                 });
             }

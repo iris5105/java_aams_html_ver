@@ -386,34 +386,22 @@
                     ]
                 });
 
-                                // Capturing phase listener: guarantees row selection before cell's stopPropagation can block it
-                container.addEventListener("click", function(e) {
-                    const rowEl = e.target.closest(".tabulator-row");
-                    if (!rowEl || !gridMaster) return;
-                    const row = gridMaster.getRow(rowEl);
-                    if (row) {
-                        const data = row.getData();
-                        if (!row.isSelected || !row.isSelected()) {
-                            gridMaster.deselectRow();
-                            row.select();
-                            updateDetailPanel(data);
-                        }
-                    }
-                }, true);
+                // 1. AAMS Standard: Register global row selection callback
+                setupTabulatorRowSelection(gridMaster, function(row, data) {
+                    updateDetailPanel(data);
+                }, { keyField: 'reqSeq' });
 
-                gridMaster.on("cellClick", function(e, cell) {
-                    const row = cell.getRow();
-                    if (row) {
-                        gridMaster.deselectRow();
-                        row.select();
-                        updateDetailPanel(row.getData());
-                    }
+                // 2. Tabulator standard rowClick fallback
+                gridMaster.on("rowClick", function(e, row) {
+                    const data = row ? row.getData() : null;
+                    if (data) updateDetailPanel(data);
                 });
 
-                gridMaster.on("rowClick", function(e, row) {
-                    gridMaster.deselectRow();
-                    row.select();
-                    updateDetailPanel(row.getData());
+                // 3. Tabulator rowSelectionChanged fallback
+                gridMaster.on("rowSelectionChanged", function(data, rows) {
+                    if (rows && rows.length > 0) {
+                        updateDetailPanel(rows[0].getData());
+                    }
                 });
 
                 // Auto select first row on build

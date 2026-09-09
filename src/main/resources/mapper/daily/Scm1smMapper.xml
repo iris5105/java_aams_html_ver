@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.kfp.aams.domain.daily.mapper.Scm1smMapper">
+
+    <!-- 1. 채권 단가 목록 조회 (d_scm1sm / SCM1SM + SCM0CJ) -->
+    <select id="selectScm1smList" resultType="com.kfp.aams.domain.daily.dto.Scm1smDto">
+        SELECT t1.corp_gr                         AS corpGr
+             , TO_CHAR(t1.ymd, 'YYYY-MM-DD')       AS ymd
+             , t1.jm_cd                            AS jmCd
+             , t1.as_cj_cd                         AS asCjCd
+             , t1.jy_suik_rt                       AS jySuikRt
+             , t1.danga                            AS danga
+             , cj.cj_nm                            AS cjNm
+             , NVL(t1.jy_suik_rt * 100, 0)         AS jySuikPer
+             , t1.chgtime                          AS chgtime
+             , TO_CHAR(t1.chgtime, 'YYYY-MM-DD HH24:MI:SS') AS chgtimeStr
+          FROM SCM1SM t1
+             , SCM0CJ cj
+         WHERE t1.corp_gr = #{corpGr}
+           AND t1.ymd     = TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
+           AND cj.corp_gr = t1.corp_gr
+           AND cj.jm_cd   = t1.jm_cd
+         ORDER BY t1.as_cj_cd ASC
+    </select>
+
+    <!-- 2. 당일 거래/보유 채권 중 단가 미등록 종목 및 전영업일 단가 조회 (파워빌더 retrieveend 로직) -->
+    <select id="selectMissingBondList" resultType="com.kfp.aams.domain.daily.dto.Scm1smDto">
+        SELECT DISTINCT
+               t1.corp_gr                                                AS corpGr
+             , TO_CHAR(t1.ymd, 'YYYY-MM-DD')                             AS ymd
+             , t1.jm_cd                                                  AS jmCd
+             , t1.jm_cd                                                  AS asCjCd
+             , NVL(f_jm_nm(t1.corp_gr, t1.jm_cd), '')                    AS cjNm
+             , NVL(sm.danga, 0)                                          AS danga
+             , 0                                                         AS jySuikRt
+             , 0                                                         AS jySuikPer
+          FROM SCM0CM t1
+               LEFT OUTER JOIN SCM1SM sm
+                 ON  sm.corp_gr = t1.corp_gr
+                 AND sm.ymd     = f_open_ymd(t1.ymd, '-1')
+                 AND sm.jm_cd   = t1.jm_cd
+         WHERE t1.corp_gr = #{corpGr}
+           AND t1.ymd     = TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
+           AND NOT EXISTS (
+               SELECT 1
+                 FROM SCM1SM sub
+                WHERE sub.corp_gr = t1.corp_gr
+                  AND sub.ymd     = t1.ymd
+                  AND sub.jm_cd   = t1.jm_cd
+           )
+         ORDER BY 3 ASC
+    </select>
+
+    <!-- 3. 채권 단가 신규 등록 -->
+    <insert id="insertScm1sm" parameterType="com.kfp.aams.domain.daily.dto.Scm1smDto">
+        INSERT INTO SCM1SM (
+            corp_gr,
+            ymd,
+            jm_cd,
+            as_cj_cd,
+            danga,
+            jy_suik_rt,
+            chgtime
+        ) VALUES (
+            #{corpGr},
+            TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD'),
+            #{jmCd},
+            #{asCjCd},
+            #{danga},
+            <choose>
+                <when test="jySuikPer != null">#{jySuikPer} / 100</when>
+                <when test="jySuikRt != null">#{jySuikRt}</when>
+                <otherwise>null</otherwise>
+            </choose>,
+            SYSDATE
+        )
+    </insert>
+
+    <!-- 4. 채권 단가 수정 -->
+    <update id="updateScm1sm" parameterType="com.kfp.aams.domain.daily.dto.Scm1smDto">
+        UPDATE SCM1SM
+           SET as_cj_cd   = #{asCjCd}
+             , danga      = #{danga}
+             , jy_suik_rt = <choose>
+                                <when test="jySuikPer != null">#{jySuikPer} / 100</when>
+                                <when test="jySuikRt != null">#{jySuikRt}</when>
+                                <otherwise>jy_suik_rt</otherwise>
+                            </choose>
+             , chgtime    = SYSDATE
+         WHERE corp_gr    = #{corpGr}
+           AND ymd        = TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
+           AND jm_cd      = #{jmCd}
+    </update>
+
+    <!-- 5. 채권 단가 삭제 -->
+    <delete id="deleteScm1sm" parameterType="com.kfp.aams.domain.daily.dto.Scm1smDto">
+        DELETE FROM SCM1SM
+         WHERE corp_gr = #{corpGr}
+           AND ymd     = TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
+           AND jm_cd   = #{jmCd}
+    </delete>
+
+    <!-- 6. 채권 단가 Merge (등록 또는 수정) -->
+    <update id="mergeScm1sm" parameterType="com.kfp.aams.domain.daily.dto.Scm1smDto">
+        MERGE INTO SCM1SM t
+        USING DUAL
+           ON (t.corp_gr = #{corpGr}
+           AND t.ymd     = TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
+           AND t.jm_cd   = #{jmCd})
+        WHEN MATCHED THEN
+            UPDATE SET t.as_cj_cd   = #{asCjCd}
+                     , t.danga      = #{danga}
+                     , t.jy_suik_rt = <choose>
+                                        <when test="jySuikPer != null">#{jySuikPer} / 100</when>
+                                        <when test="jySuikRt != null">#{jySuikRt}</when>
+                                        <otherwise>t.jy_suik_rt</otherwise>
+                                      </choose>
+                     , t.chgtime    = SYSDATE
+        WHEN NOT MATCHED THEN
+            INSERT (
+                corp_gr,
+                ymd,
+                jm_cd,
+                as_cj_cd,
+                danga,
+                jy_suik_rt,
+                chgtime
+            ) VALUES (
+                #{corpGr},
+                TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD'),
+                #{jmCd},
+                #{asCjCd},
+                #{danga},
+                <choose>
+                    <when test="jySuikPer != null">#{jySuikPer} / 100</when>
+                    <when test="jySuikRt != null">#{jySuikRt}</when>
+                    <otherwise>null</otherwise>
+                </choose>,
+                SYSDATE
+            )
+    </update>
+
+</mapper>
