@@ -88,11 +88,4 @@
            AND tr_ymd  = TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
     </update>
 
-    <!-- 3. 기준 작업일자 조회 (파워빌더 wue_lastopen SZX0AA.JUNYONG_YMD 명세 반영) -->
-    <select id="selectWorkDate" resultType="java.lang.String">
-        SELECT TO_CHAR(NVL(junyong_ymd, hyun_ymd), 'YYYY-MM-DD')
-          FROM SZX0AA
-         WHERE corp_gr = #{corpGr}
-    </select>
-
 </mapper>

@@ -17,13 +17,13 @@
              , t1.COMP_BU
              , t1.BALH_NATION
              , t1.ENC_BUBIN_NO
-             , NVL(t1.DEL_YN, '0') AS del_yn
+             , DECODE(t1.DEL_YN, 'Y', 'Y', '0') AS del_yn
              , TO_DECRYPTS(t1.enc_bubin_no) AS bubin_no
              , 1 AS p_visible
           FROM sjx0jb t1
          WHERE NVL(t1.SOSOK_GB, '%') LIKE #{sosokGb}
            AND LENGTH(t1.balh_co) > #{cdLen}
-         ORDER BY t1.del_yn ASC, t1.balh_co ASC
+         ORDER BY DECODE(t1.DEL_YN, 'Y', 'Y', '0') ASC, t1.balh_co ASC
     </select>
 
     <select id="selectDetailList" resultType="com.kfp.aams.domain.daily.dto.Ja990cDetailDto">

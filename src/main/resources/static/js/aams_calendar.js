@@ -12,6 +12,19 @@ window.AamsCalendar = (function() {
          * Attach/Initialize calendar instance on an input element ID (Highlight Mode / General Mode)
          */
         init: function(inputId, options) {
+            // [방어 코드 1] inputId가 DOM Element인 경우 ID 및 pane 자동 추출
+            if (inputId && typeof inputId === 'object' && inputId.nodeType === 1) {
+                options = options || {};
+                if (!options.pane) {
+                    options.pane = (typeof inputId.closest === 'function') ? inputId.closest('.tab-pane') : null;
+                }
+                inputId = inputId.id || inputId.getAttribute('name') || 'filterYmd';
+            }
+
+            // [방어 코드 2] options가 문자열(초기 날짜)로 전달된 경우 정규화
+            if (typeof options === 'string') {
+                options = { initialYmd: options };
+            }
             options = options || {};
             const initialYmd = options.initialYmd || "";
             let initialYear = new Date().getFullYear();
@@ -55,10 +68,13 @@ window.AamsCalendar = (function() {
 
         /**
          * 순정 상태의 달력 초기화 (데이터 존재 여부 파악/하이라이트 없이 날짜 선택만 지원)
-         * @param {string} inputId - 날짜 input 요소 ID
-         * @param {object} options - { initialYmd, pane, onSelect }
+         * @param {string|HTMLElement} inputId - 날짜 input 요소 ID 또는 DOM Element
+         * @param {object|string} options - { initialYmd, pane, onSelect } 또는 initialYmd 문자열
          */
         initSimple: function(inputId, options) {
+            if (typeof options === 'string') {
+                options = { initialYmd: options };
+            }
             options = options || {};
             options.isSimple = true;
             options.highlight = false;
@@ -71,6 +87,9 @@ window.AamsCalendar = (function() {
          * 캘린더 인스턴스 제거 및 DOM 정리
          */
         destroy: function(inputId) {
+            if (inputId && typeof inputId === 'object' && inputId.nodeType === 1) {
+                inputId = inputId.id || inputId.getAttribute('name') || 'filterYmd';
+            }
             const inst = instances[inputId];
             if (!inst) return;
             const popover = this.getElement(inst.popoverId, inst.pane);
@@ -79,9 +98,17 @@ window.AamsCalendar = (function() {
         },
 
         getElement: function(inputId, pane) {
-            if (pane && typeof pane.querySelector === 'function') {
-                const el = pane.querySelector('#' + inputId);
-                if (el) return el;
+            if (!inputId) return null;
+            if (typeof inputId === 'object' && inputId.nodeType === 1) return inputId;
+            if (typeof inputId !== 'string') return null;
+
+            try {
+                if (pane && typeof pane.querySelector === 'function') {
+                    const el = pane.querySelector('#' + inputId);
+                    if (el) return el;
+                }
+            } catch (e) {
+                // Ignore querySelector syntax errors
             }
             return document.getElementById(inputId);
         },
@@ -195,8 +222,24 @@ window.AamsCalendar = (function() {
                 .catch(err => console.error("AamsCalendar error loading dates:", err));
         },
 
-        toggle: function(inputId) {
+        toggle: function(inputId, e) {
+            if (inputId && typeof inputId === 'object' && inputId.nodeType === 1) {
+                inputId = inputId.id || inputId.getAttribute('name') || 'filterYmd';
+            }
             let inst = instances[inputId];
+            
+            // Event target에서 현재 활성 tab-pane 감지 및 인스턴스 pane 보정
+            const eventPane = (e && e.target && typeof e.target.closest === 'function') ? e.target.closest('.tab-pane') : null;
+            if (eventPane) {
+                if (!inst) {
+                    const paneInput = eventPane.querySelector('#' + inputId);
+                    this.initSimple(inputId, { pane: eventPane, initialYmd: paneInput ? paneInput.value : "" });
+                    inst = instances[inputId];
+                } else if (inst.pane && inst.pane !== eventPane) {
+                    inst.pane = eventPane;
+                }
+            }
+
             if (!inst) {
                 const inputEl = this.getElement(inputId, null);
                 if (inputEl) {
@@ -282,7 +325,13 @@ window.AamsCalendar = (function() {
             const todayStr = `${y}-${m}-${d}`;
             
             const inputEl = this.getElement(inputId, inst.pane);
-            if (inputEl) inputEl.value = todayStr;
+            if (inputEl) {
+                inputEl.value = todayStr;
+                try {
+                    inputEl.dispatchEvent(new Event('input', { bubbles: true }));
+                    inputEl.dispatchEvent(new Event('change', { bubbles: true }));
+                } catch(e) {}
+            }
 
             inst.calYear = y;
             inst.calMonth = now.getMonth();
@@ -424,7 +473,13 @@ window.AamsCalendar = (function() {
                 e.stopPropagation();
                 const inst = instances[inputId];
                 const inputEl = self.getElement(inputId, inst ? inst.pane : null);
-                if (inputEl) inputEl.value = ymd;
+                if (inputEl) {
+                    inputEl.value = ymd;
+                    try {
+                        inputEl.dispatchEvent(new Event('input', { bubbles: true }));
+                        inputEl.dispatchEvent(new Event('change', { bubbles: true }));
+                    } catch(err) {}
+                }
                 self.close(inputId);
 
                 if (inst && typeof inst.onSelect === 'function') {

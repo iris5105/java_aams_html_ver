@@ -17,6 +17,12 @@ import java.util.List;
 public class Ja010m3Service {
 
     private final Ja010m3Mapper ja010m3Mapper;
+    private final RdReportService rdReportService;
+
+    public RdReportService.ExportResult generateReport(String corpGr, String mrdName, String fundCd, String fundNm,
+                                                       String gyulYmd, String format) throws Exception {
+        return rdReportService.generateJa010m3Report(corpGr, mrdName, fundCd, fundNm, gyulYmd, format);
+    }
 
     @Transactional(readOnly = true)
     public List<Ja010m3Dto> getList(String corpGr, String gyulYmd, String sortGb, boolean isAdmin) {

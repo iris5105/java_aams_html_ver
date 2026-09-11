@@ -22,6 +22,7 @@ import java.util.List;
 public class Ja020nService {
 
     private final Ja020nMapper ja020nMapper;
+    private final com.kfp.aams.domain.common.service.WorkDateService workDateService;
 
     /**
      * Retrieve Load Status list (d_ja020n.srd)
@@ -54,12 +55,9 @@ public class Ja020nService {
     }
 
     /**
-     * 파워빌더 w_ja020n.srw (wue_lastopen) 명세: SZX0AA.JUNYONG_YMD(2402) 또는 HYUN_YMD(기타) 작업일자 조회
+     * 기준 작업일자 조회 (공통 WorkDateService 위임)
      */
     public String getWorkDate(String corpGr) {
-        if (corpGr == null || corpGr.isBlank()) {
-            return null;
-        }
-        return ja020nMapper.selectWorkDate(corpGr.trim());
+        return workDateService.getWorkDate(corpGr);
     }
 }

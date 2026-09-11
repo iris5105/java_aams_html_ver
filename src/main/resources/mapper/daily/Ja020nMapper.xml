@@ -108,15 +108,4 @@
          ORDER BY t1.FUND_CD, t1.TR_CD
     </select>
 
-    <!-- 4. 파워빌더 w_ja020n.srw (wue_lastopen) 명세: SZX0AA.JUNYONG_YMD(2402) 또는 HYUN_YMD(기타) 작업일자 조회 -->
-    <select id="selectWorkDate" resultType="java.lang.String">
-        SELECT TO_CHAR(
-                 CASE 
-                   WHEN corp_gr = '2402' THEN NVL(junyong_ymd, hyun_ymd)
-                   ELSE hyun_ymd
-                 END, 'YYYY-MM-DD')
-          FROM SZX0AA
-         WHERE corp_gr = #{corpGr}
-    </select>
-
 </mapper>

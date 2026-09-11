@@ -1,10 +1,11 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
-<div class="view-container ja010p1-container" th:fragment="ja010p1View" style="display: flex; flex-direction: column; height: 100%; width: 100%; overflow: hidden;">
+<div class="view-container layout-single ja010p1-container" th:fragment="ja010p1View" style="display: flex; flex-direction: column; height: 100%; width: 100%; overflow: hidden;">
 
     <style>
         .ja010p1-container .report-container-panel {
             flex: 1 1 auto;
+            min-height: 0;
             height: calc(100% - 90px);
             width: 100%;
             overflow: hidden;
@@ -12,10 +13,12 @@
             display: flex;
             flex-direction: column;
             background-color: #f8fafc;
+            box-sizing: border-box;
         }
 
         .ja010p1-container .report-card {
             flex: 1 1 auto;
+            min-height: 0;
             height: 100%;
             width: 100%;
             display: flex;
@@ -35,19 +38,57 @@
             justify-content: space-between;
             align-items: center;
             flex-shrink: 0;
+            flex-wrap: wrap;
+            gap: 6px;
         }
 
         .ja010p1-container .report-body {
             flex: 1 1 auto;
+            min-height: 0;
             height: calc(100% - 41px);
             width: 100%;
             overflow: hidden;
             position: relative;
             background-color: #525659;
         }
+
+        .ja010p1-container .report-body iframe {
+            width: 100% !important;
+            height: 100% !important;
+            border: none;
+            display: block;
+            background-color: #525659;
+        }
+
+        /* 5 포맷 내보내기 버튼 그룹 (개발지침 MRD 리포트 뷰어 표준 규격) */
+        .ja010p1-container .export-button-group {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        .ja010p1-container .btn-export-format {
+            padding: 4px 9px;
+            font-size: 11px;
+            font-weight: 600;
+            border-radius: 4px;
+            background: #ffffff;
+            cursor: pointer;
+            transition: all 0.15s ease-in-out;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            line-height: 1.2;
+        }
+
+        .ja010p1-container .btn-export-format:hover {
+            opacity: 0.85;
+            transform: translateY(-1px);
+        }
     </style>
 
-    <!-- 1. 상단 공통 툴바 (Row 1) -->
+    <!-- 1. 상단 공통 툴바 (Row 1: 공통 액션 버튼 + 네비게이션 브레드크럼) -->
     <div class="view-toolbar">
         <div class="toolbar-left">
             <div th:replace="~{fragments/tab_header :: toolbarButtons}"></div>
@@ -55,81 +96,153 @@
         <div th:replace="~{fragments/tab_header :: toolbarBreadcrumb}"></div>
     </div>
 
-    <!-- 2. 상단 필터바 (규칙 14, 17: dc_ymd) -->
+    <!-- 2. 상단 필터바 (Row 2: srw dw_c dataobject인 dc_ymd 공통 프래그먼트 연동, 규칙 13, 14, 17) -->
     <div class="filter-bar">
         <div class="filter-left">
-            <th:block th:replace="~{fragments/filter/dc_ymd :: filter(label='조회일')}"></th:block>
+            <th:block th:replace="~{fragments/filter/dc_ymd :: filter(label='조회일자')}"></th:block>
         </div>
-        <div class="filter-actions d-flex align-items-center gap-1">
-            <div class="btn-group btn-group-sm">
-                <button type="button" class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
-                    <i class="fas fa-file-export me-1"></i> 리포트 내보내기
-                </button>
-                <ul class="dropdown-menu dropdown-menu-end shadow-sm">
-                    <li><a class="dropdown-item export-btn" href="#" data-format="pdf"><i class="far fa-file-pdf text-danger me-2"></i>PDF 저장</a></li>
-                    <li><a class="dropdown-item export-btn" href="#" data-format="excel"><i class="far fa-file-excel text-success me-2"></i>Excel 저장</a></li>
-                    <li><a class="dropdown-item export-btn" href="#" data-format="word"><i class="far fa-file-word text-primary me-2"></i>Word 저장</a></li>
-                    <li><a class="dropdown-item export-btn" href="#" data-format="hwp"><i class="far fa-file-alt text-info me-2"></i>한글(HWP) 저장</a></li>
-                </ul>
-            </div>
+        <div class="filter-actions" style="display: flex; align-items: center; gap: 6px;">
         </div>
     </div>
 
-    <!-- 3. RD 리포트 미리보기 뷰어 (전폭 wt_listole) -->
+    <!-- 3. RD 리포트 미리보기 뷰어 (개발지침 단일 리포트 화면 규격) -->
     <div class="report-container-panel">
         <div class="report-card">
             <div class="report-header">
-                <span class="fw-bold small text-secondary" id="report-title">
-                    <i class="fas fa-calendar-check me-1"></i> 채권/현금 만기현황 리포트
-                </span>
-                <span id="report-status" class="small text-muted">보고서 로딩 준비</span>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span class="fw-bold small text-secondary" id="report-title">
+                        <i class="fa-solid fa-calendar-check me-1"></i> 채권/현금 만기현황
+                    </span>
+                    <span id="report-status" class="small text-muted" style="font-size: 12px;">조회 대기 중</span>
+                </div>
+
+                <!-- 5 포맷 내보내기 버튼 그룹 + 새 창 열기 (개발지침 리포트 뷰어 표준 규격) -->
+                <div style="display: flex; align-items: center; gap: 6px;">
+                    <div class="export-button-group">
+                        <button type="button" class="btn-export-format export-btn" data-format="pdf" title="PDF 파일로 저장" style="border: 1px solid #ef4444; color: #dc2626;">
+                            <i class="fa-solid fa-file-pdf" style="color: #ef4444;"></i>PDF
+                        </button>
+                        <button type="button" class="btn-export-format export-btn" data-format="excel" title="Excel(XLSX) 파일로 저장" style="border: 1px solid #10b981; color: #059669;">
+                            <i class="fa-solid fa-file-excel" style="color: #10b981;"></i>Excel
+                        </button>
+                        <button type="button" class="btn-export-format export-btn" data-format="word" title="MS Word(DOC) 파일로 저장" style="border: 1px solid #3b82f6; color: #2563eb;">
+                            <i class="fa-solid fa-file-word" style="color: #3b82f6;"></i>Word
+                        </button>
+                        <button type="button" class="btn-export-format export-btn" data-format="ppt" title="PowerPoint(PPTX) 파일로 저장" style="border: 1px solid #f59e0b; color: #d97706;">
+                            <i class="fa-solid fa-file-powerpoint" style="color: #f59e0b;"></i>PPT
+                        </button>
+                        <button type="button" class="btn-export-format export-btn" data-format="hwp" title="한글(HWP) 파일로 저장" style="border: 1px solid #06b6d4; color: #0891b2;">
+                            <i class="fa-solid fa-file-lines" style="color: #06b6d4;"></i>한글(HWP)
+                        </button>
+                    </div>
+                    <button type="button" id="btnOpenNewWindow" class="t-btn btn-action" style="padding: 3px 6px; font-size: 11px; border: 1px solid #cbd5e1; background: #ffffff; color: #475569;" title="새 창으로 리포트 열기">
+                        <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                    </button>
+                </div>
             </div>
             <div class="report-body">
-                <div id="report-loading" class="position-absolute top-50 start-50 translate-middle text-white text-center d-none" style="z-index: 10;">
-                    <div class="spinner-border text-light mb-2" role="status"></div>
-                    <div class="small">보고서를 생성 중입니다...</div>
+                <!-- 로딩 인디케이터 -->
+                <div id="report-loading" style="display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; color: #ffffff; z-index: 10;">
+                    <i class="fa-solid fa-spinner fa-spin fa-2x" style="margin-bottom: 8px;"></i>
+                    <div style="font-size: 12px;">보고서를 생성 중입니다...</div>
                 </div>
-                <iframe id="report-frame" class="w-100 h-100 border-0" src="about:blank"></iframe>
+                <iframe id="report-frame" src="about:blank"></iframe>
             </div>
         </div>
     </div>
 
-    <script>
+    <script th:src="@{/js/aams_calendar.js}" src="/js/aams_calendar.js"></script>
+    <script th:inline="javascript">
         (function () {
-            var currentPane = document.currentScript.closest('.tab-pane');
-            if (!currentPane) currentPane = document;
-
+            var pane = document.currentScript.closest('.tab-pane') || document;
+            var initialYmd = /*[[${initialYmd}]]*/ '';
+            var serverCorpGr = /*[[${corpGr}]]*/ '';
             var isInitialized = false;
 
+            // 회사코드 해결 함수: 셀렉트박스 -> 쿠키 -> 서버 모델값 순으로 해결 (개발지침 1번 준수)
+            function getFilterCorpGr() {
+                var el = pane.querySelector('#corpGrSelect') || document.querySelector('#corpGrSelect');
+                if (el && el.value) return el.value;
+
+                var matchSaved = document.cookie.match(/(?:^|;\s*)savedCorpGr=([^;]*)/);
+                if (matchSaved && matchSaved[1]) return decodeURIComponent(matchSaved[1]);
+
+                var matchCorp = document.cookie.match(/(?:^|;\s*)corpGr=([^;]*)/);
+                if (matchCorp && matchCorp[1]) return decodeURIComponent(matchCorp[1]);
+
+                if (serverCorpGr) return serverCorpGr;
+                if (typeof g_corp_gr !== 'undefined' && g_corp_gr) return g_corp_gr;
+                return '';
+            }
+
             function getFilterYmd() {
-                var el = currentPane.querySelector('#filterYmd') || currentPane.querySelector('input[name="ymd"]');
-                if (el && el.value) return el.value.replace(/-/g, '');
-                return (new Date()).toISOString().slice(0, 10).replace(/-/g, '');
+                var el = pane.querySelector('#filterYmd') || pane.querySelector('input[name="ymd"]');
+                if (el && el.value) return el.value.replace(/-/g, '').replace(/\./g, '');
+                return (initialYmd || '').replace(/-/g, '').replace(/\./g, '');
+            }
+
+            // 달력 컴포넌트 초기화 (AamsCalendar 표준 규격 연동, 순정 상태 달력)
+            function initCalendar() {
+                var filterYmdInput = pane.querySelector('#filterYmd');
+                if (!filterYmdInput) return;
+
+                if (initialYmd && !filterYmdInput.value) {
+                    filterYmdInput.value = initialYmd;
+                }
+
+                if (typeof AamsCalendar !== 'undefined' && typeof AamsCalendar.initSimple === 'function') {
+                    AamsCalendar.initSimple('filterYmd', {
+                        pane: pane,
+                        initialYmd: filterYmdInput.value || initialYmd,
+                        onSelect: function (ymd) {
+                            loadReport();
+                        }
+                    });
+                }
+
+                filterYmdInput.addEventListener('change', function () {
+                    loadReport();
+                });
+            }
+
+            function buildPreviewUrl() {
+                var corpGr = getFilterCorpGr();
+                var ymd = getFilterYmd();
+
+                return "/api/daily/ja010p1/preview?corpGr=" + encodeURIComponent(corpGr) +
+                    "&ymd=" + encodeURIComponent(ymd) +
+                    "&t=" + new Date().getTime();
             }
 
             function loadReport() {
                 var ymd = getFilterYmd();
 
-                var loadingEl = currentPane.querySelector('#report-loading');
-                var statusEl = currentPane.querySelector('#report-status');
-                var iframe = currentPane.querySelector('#report-frame');
+                var loadingEl = pane.querySelector('#report-loading');
+                var statusEl = pane.querySelector('#report-status');
+                var iframe = pane.querySelector('#report-frame');
 
-                if (loadingEl) loadingEl.classList.remove('d-none');
-                if (statusEl) statusEl.innerText = "조회일: " + ymd;
+                if (loadingEl) loadingEl.style.display = 'block';
+                if (statusEl) statusEl.innerText = "조회일자: " + (ymd.length === 8 ? (ymd.substring(0, 4) + "." + ymd.substring(4, 6) + "." + ymd.substring(6, 8)) : ymd);
 
-                var url = "/api/daily/ja010p1/preview?ymd=" + encodeURIComponent(ymd) +
-                    "&t=" + new Date().getTime();
+                var previewUrl = buildPreviewUrl();
+                var formattedUrl = (window.AamsReport && typeof window.AamsReport.formatPreviewUrl === 'function')
+                    ? window.AamsReport.formatPreviewUrl(previewUrl)
+                    : previewUrl + "#toolbar=1&navpanes=0&zoom=120";
 
-                iframe.src = url;
-                iframe.onload = function () {
-                    if (loadingEl) loadingEl.classList.add('d-none');
-                };
+                if (iframe) {
+                    iframe.src = formattedUrl;
+                    iframe.onload = function () {
+                        if (loadingEl) loadingEl.style.display = 'none';
+                    };
+                }
             }
 
             function exportReport(format) {
+                var corpGr = getFilterCorpGr();
                 var ymd = getFilterYmd();
 
-                var url = "/api/daily/ja010p1/export?ymd=" + encodeURIComponent(ymd) +
+                var url = "/api/daily/ja010p1/export?corpGr=" + encodeURIComponent(corpGr) +
+                    "&ymd=" + encodeURIComponent(ymd) +
                     "&format=" + encodeURIComponent(format);
 
                 window.location.href = url;
@@ -139,7 +252,10 @@
                 if (isInitialized) return;
                 isInitialized = true;
 
-                var exportBtns = currentPane.querySelectorAll('.export-btn');
+                initCalendar();
+
+                // 5개 포맷 내보내기 버튼 이벤트 바인딩
+                var exportBtns = pane.querySelectorAll('.export-btn');
                 exportBtns.forEach(function (btn) {
                     btn.addEventListener('click', function (e) {
                         e.preventDefault();
@@ -148,23 +264,58 @@
                     });
                 });
 
+                // 새 창 열기 버튼 이벤트 바인딩
+                var btnOpenNewWindow = pane.querySelector('#btnOpenNewWindow');
+                if (btnOpenNewWindow) {
+                    btnOpenNewWindow.addEventListener('click', function () {
+                        var previewUrl = buildPreviewUrl();
+                        window.open(previewUrl, "_blank");
+                    });
+                }
+
                 // 개발지침 규칙 9: 표준 계약 함수 연결
-                currentPane.onRetrieve = currentPane.onSearch = function () {
+                pane.onRetrieve = pane.onSearch = function () {
                     loadReport();
                 };
-                currentPane.onCorpGrChange = function () {
-                    loadReport();
+
+                // 회사그룹 변경 이벤트 연동 (개발지침 달력 규칙 4)
+                pane.onCorpGrChange = function () {
+                    var newCorpGr = getFilterCorpGr();
+                    if (!newCorpGr) return;
+                    fetch('/api/daily/ja010p1/workdate?corpGr=' + encodeURIComponent(newCorpGr))
+                        .then(function (res) { return res.json(); })
+                        .then(function (data) {
+                            if (data && data.workDate) {
+                                var filterYmdInput = pane.querySelector('#filterYmd');
+                                if (filterYmdInput) {
+                                    filterYmdInput.value = data.workDate;
+                                }
+                            }
+                            loadReport();
+                        })
+                        .catch(function () {
+                            loadReport();
+                        });
                 };
-                currentPane.onRefresh = function () {
-                    var iframe = currentPane.querySelector('#report-iframe');
+
+                // 새로고침 버튼 연동 (개발지침 공통버튼 규칙 1)
+                pane.onRefresh = function () {
+                    var iframe = pane.querySelector('#report-frame');
                     if (iframe) iframe.src = 'about:blank';
-                    var ymdInput = currentPane.querySelector('#filterYmd');
-                    if (ymdInput) ymdInput.value = new Date().toISOString().slice(0, 10);
+                    var statusEl = pane.querySelector('#report-status');
+                    if (statusEl) statusEl.innerText = '조회 대기 중';
+
+                    var filterYmdInput = pane.querySelector('#filterYmd');
+                    if (filterYmdInput && initialYmd) {
+                        filterYmdInput.value = initialYmd;
+                    }
+
                     if (typeof showToast === "function") {
                         showToast("화면이 초기화되었습니다.", "info");
                     }
                 };
 
+                // 파워빌더 eb_direct_retrieve = true 규격 준수: 화면 진입 시 자동 조회
                 setTimeout(function () {
                     loadReport();
                 }, 100);

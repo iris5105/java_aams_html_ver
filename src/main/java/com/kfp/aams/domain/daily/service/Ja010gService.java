@@ -16,6 +16,7 @@ import java.util.List;
 public class Ja010gService {
 
     private final Ja010gMapper ja010gMapper;
+    private final com.kfp.aams.domain.common.service.WorkDateService workDateService;
 
     @Transactional(readOnly = true)
     public List<Ja010gDto> selectJa010gList(String corpGr, String ymd) {
@@ -57,9 +58,6 @@ public class Ja010gService {
 
     @Transactional(readOnly = true)
     public String getWorkDate(String corpGr) {
-        if (corpGr == null || corpGr.isBlank()) {
-            return null;
-        }
-        return ja010gMapper.selectWorkDate(corpGr);
+        return workDateService.getWorkDate(corpGr);
     }
 }

@@ -138,6 +138,13 @@
                     };
                 });
 
+                // 항상 앞의 코드(code) 값을 기준으로 오름차순 정렬 (자연어/숫자 인식)
+                normalizedList.sort((a, b) => {
+                    const codeA = (a.code || '').toString().trim();
+                    const codeB = (b.code || '').toString().trim();
+                    return codeA.localeCompare(codeB, undefined, { numeric: true, sensitivity: 'base' });
+                });
+
                 if (prependHeaderItem) {
                     normalizedList.unshift({
                         code: prependHeaderItem.code,
@@ -384,8 +391,15 @@
         const header = headerWrapper.firstElementChild;
         popup.appendChild(header);
 
-        // 2. Options List
-        const optList = options || [];
+        // 2. Options List (코드 기준 오름차순 정렬 보장)
+        const optList = (options || []).slice();
+        optList.sort((a, b) => {
+            const codeA = (a.code != null ? a.code : (a.SEBU_CD != null ? a.SEBU_CD : (a.cd != null ? a.cd : ''))).toString().trim();
+            const codeB = (b.code != null ? b.code : (b.SEBU_CD != null ? b.SEBU_CD : (b.cd != null ? b.cd : ''))).toString().trim();
+            if (codeA === '%' || codeA === '') return -1;
+            if (codeB === '%' || codeB === '') return 1;
+            return codeA.localeCompare(codeB, undefined, { numeric: true, sensitivity: 'base' });
+        });
         let activeItemEl = null;
 
         optList.forEach(item => {

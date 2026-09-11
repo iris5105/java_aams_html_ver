@@ -1057,6 +1057,27 @@ function getCookie(name) {
 }
 
 /**
+ * Global Common WorkDate Helper (공통 기준 작업일자 조회)
+ * - 쿠키의 workDate가 존재하고 대상 회사가 기본 회사와 일치하면 즉시 캐시값 활용 가능
+ * - 회사그룹이 변경되었거나 최신 일자가 필요하면 /api/common/workdate API 호출
+ */
+function fetchCommonWorkDate(corpGr, callback) {
+    var url = '/api/common/workdate' + (corpGr ? ('?corpGr=' + encodeURIComponent(corpGr)) : '');
+    return fetch(url)
+        .then(function(res) { return res.json(); })
+        .then(function(data) {
+            var date = (data && data.workDate) ? data.workDate : null;
+            if (typeof callback === 'function') callback(date);
+            return date;
+        })
+        .catch(function(err) {
+            console.warn('[common] fetchCommonWorkDate error:', err);
+            if (typeof callback === 'function') callback(null);
+            return null;
+        });
+}
+
+/**
  * Global Common Breadcrumb Builder Helper
  */
 function buildBreadcrumbText(fullpgm2, title, pgmId) {
@@ -1327,5 +1348,35 @@ function aamsCellEdit(e, cell) {
     }
 })();
 
+/**
+ * AAMS Report Viewer 공통 유틸리티
+ * 파워빌더 u_rd.sru의 ii_zoomRatio = 120 표준 규격 반영
+ */
+window.AamsReport = {
+    DEFAULT_ZOOM: 120,
 
+    /**
+     * 리포트 미리보기 URL에 표준 PDF 파라미터(기본 zoom=120, toolbar, navpanes)를 부착
+     * @param {string} url - 원본 리포트 URL
+     * @param {number|string} [zoom] - 지정 확대 배율 (기본값: DEFAULT_ZOOM = 120)
+     * @returns {string} 해시 파라미터가 포함된 최종 뷰어 URL
+     */
+    formatPreviewUrl: function(url, zoom) {
+        if (!url || url === 'about:blank') return url || '';
+        var targetZoom = (zoom !== undefined && zoom !== null) ? zoom : this.DEFAULT_ZOOM;
+        var cleanUrl = url.split('#')[0];
+        return cleanUrl + '#toolbar=1&navpanes=0&zoom=' + encodeURIComponent(targetZoom);
+    },
 
+    /**
+     * 대상 iframe에 리포트 URL 설정 (기본 zoom=120 적용)
+     */
+    setFrameSrc: function(frameEl, url, zoom) {
+        if (!frameEl) return;
+        if (!url || url === 'about:blank') {
+            frameEl.src = 'about:blank';
+            return;
+        }
+        frameEl.src = this.formatPreviewUrl(url, zoom);
+    }
+};

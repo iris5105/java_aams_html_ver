@@ -27,6 +27,7 @@ public class AuthController {
 
     private final JwtProvider jwtProvider;
     private final UserQueryDslRepository userQueryDslRepository;
+    private final com.kfp.aams.domain.common.service.WorkDateService workDateService;
 
     @GetMapping({ "/login", "/w_login_aams" })
     public String loginPage() {
@@ -147,8 +148,15 @@ public class AuthController {
             response.addCookie(userNameCookie);
         }
 
-        log.info("User {} logged in successfully (adminYn: {}). Assigned corpGr: {}.", userDto.getUserId(),
-                userDto.getAdminYn(), userDto.getCorpGr());
+        // Set workDate Cookie for client scripts (30 days)
+        String workDate = workDateService.getWorkDateOrDefault(userDto.getCorpGr());
+        Cookie workDateCookie = new Cookie("workDate", workDate);
+        workDateCookie.setPath("/");
+        workDateCookie.setMaxAge(30 * 24 * 60 * 60);
+        response.addCookie(workDateCookie);
+
+        log.info("User {} logged in successfully (adminYn: {}). Assigned corpGr: {}, workDate: {}.", userDto.getUserId(),
+                userDto.getAdminYn(), userDto.getCorpGr(), workDate);
 
         return ResponseEntity.ok(LoginResponseDto.builder()
                 .success(true)
@@ -161,6 +169,7 @@ public class AuthController {
                 .encEMail(userDto.getEncEMail())
                 .companyName(userDto.getCompanyName())
                 .hyunYmd(userDto.getHyunYmd())
+                .workDate(workDate)
                 .customerGr(userDto.getCustomerGr())
                 .build());
     }
@@ -224,9 +233,15 @@ public class AuthController {
         savedCorpGrCookie.setMaxAge(30 * 24 * 60 * 60);
         response.addCookie(savedCorpGrCookie);
 
-        log.info("User {} switched company corpGr to {}", principal.getUserId(), newCorpGr);
+        String switchedWorkDate = workDateService.getWorkDateOrDefault(newCorpGr);
+        Cookie workDateCookie = new Cookie("workDate", switchedWorkDate);
+        workDateCookie.setPath("/");
+        workDateCookie.setMaxAge(30 * 24 * 60 * 60);
+        response.addCookie(workDateCookie);
 
-        return ResponseEntity.ok(Map.of("success", true, "corpGr", newCorpGr));
+        log.info("User {} switched company corpGr to {}, workDate: {}", principal.getUserId(), newCorpGr, switchedWorkDate);
+
+        return ResponseEntity.ok(Map.of("success", true, "corpGr", newCorpGr, "workDate", switchedWorkDate));
     }
 
     @PostMapping("/api/auth/logout")
@@ -245,6 +260,11 @@ public class AuthController {
         refreshCookie.setPath("/");
         refreshCookie.setMaxAge(0);
         response.addCookie(refreshCookie);
+
+        Cookie workDateCookie = new Cookie("workDate", null);
+        workDateCookie.setPath("/");
+        workDateCookie.setMaxAge(0);
+        response.addCookie(workDateCookie);
 
         return ResponseEntity.ok(LoginResponseDto.builder()
                 .success(true)

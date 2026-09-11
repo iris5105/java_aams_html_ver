@@ -509,7 +509,10 @@
             if (loading) loading.style.display = 'flex';
             frame.style.display = 'block';
 
-            const previewUrl = `/api/daily/ja010h/preview?corpGr=${encodeURIComponent(currentCorpGr)}&ymd=${encodeURIComponent(ymd)}&fundCd=${encodeURIComponent(fundCd)}`;
+            const rawUrl = `/api/daily/ja010h/preview?corpGr=${encodeURIComponent(currentCorpGr)}&ymd=${encodeURIComponent(ymd)}&fundCd=${encodeURIComponent(fundCd)}`;
+            const previewUrl = (window.AamsReport && typeof window.AamsReport.formatPreviewUrl === 'function')
+                ? window.AamsReport.formatPreviewUrl(rawUrl)
+                : rawUrl + '#toolbar=1&navpanes=0&zoom=120';
             frame.src = previewUrl;
 
             frame.onload = function() {
@@ -551,7 +554,10 @@
             if (loading) loading.style.display = 'flex';
             modal.style.display = 'flex';
 
-            const previewUrl = `/api/daily/ja010h/preview?corpGr=${encodeURIComponent(currentCorpGr)}&ymd=${encodeURIComponent(ymd)}&fundCd=${encodeURIComponent(data.fundCd)}`;
+            const rawMobileUrl = `/api/daily/ja010h/preview?corpGr=${encodeURIComponent(currentCorpGr)}&ymd=${encodeURIComponent(ymd)}&fundCd=${encodeURIComponent(data.fundCd)}`;
+            const previewUrl = (window.AamsReport && typeof window.AamsReport.formatPreviewUrl === 'function')
+                ? window.AamsReport.formatPreviewUrl(rawMobileUrl)
+                : rawMobileUrl + '#toolbar=1&navpanes=0&zoom=120';
             frame.src = previewUrl;
 
             frame.onload = function() {

@@ -22,6 +22,14 @@ public class Ja020k1Service {
 
     private final Uzm0hyMapper uzm0hyMapper;
     private final RdReportService rdReportService;
+    private final com.kfp.aams.domain.common.service.WorkDateService workDateService;
+
+    /**
+     * 회사그룹별 기준일자 조회
+     */
+    public String getWorkDate(String corpGr) {
+        return workDateService.getWorkDate(corpGr);
+    }
 
     public List<Uzm0hyDto> selectUzm0hyList(String corpGr, String ymd) {
         if (corpGr == null || corpGr.isBlank() || ymd == null || ymd.isBlank()) {
@@ -100,6 +108,6 @@ public class Ja020k1Service {
                                                       String ymd, String gugan, String format) throws Exception {
         GuganReportParam param = calculateGuganParam(corpGr, fundCd, ymd, gugan);
         return rdReportService.generateJa020k1Report(
-                param.getMrdName(), fundCd, fundNm, param.getGuganText(), param.getFymd(), param.getTymd(), format);
+                corpGr, param.getMrdName(), fundCd, fundNm, param.getGuganText(), param.getFymd(), param.getTymd(), format);
     }
 }

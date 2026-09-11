@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.kfp.aams.domain.common.mapper.WorkDateMapper">
+
+    <!-- 회사그룹별 기준 작업일자 조회 (파워빌더 wue_lastopen 명세: corp_gr = '2402'이면 NVL(junyong_ymd, hyun_ymd), 그 외는 hyun_ymd) -->
+    <select id="selectWorkDate" resultType="java.lang.String">
+        SELECT TO_CHAR(
+                 CASE 
+                   WHEN corp_gr = '2402' THEN NVL(junyong_ymd, hyun_ymd)
+                   ELSE hyun_ymd
+                 END, 'YYYY-MM-DD')
+          FROM SZX0AA
+         WHERE corp_gr = #{corpGr}
+    </select>
+
+</mapper>

@@ -2,14 +2,12 @@
 <html xmlns:th="http://www.thymeleaf.org">
 <div class="view-container layout-split ja020k1-container" th:fragment="ja020k1View" style="display: flex; flex-direction: column; height: 100%; width: 100%; overflow: hidden;">
 
-    <script src="/js/f_dddwctl.js"></script>
-
     <style>
         .ja020k1-container .split-body {
             display: flex;
             flex-direction: row;
             flex: 1 1 auto;
-            height: calc(100% - 90px);
+            height: calc(100% - 92px);
             width: 100%;
             overflow: hidden;
             padding: 8px;
@@ -17,9 +15,11 @@
             background-color: #f8fafc;
         }
 
+        /* 좌측 그리드는 최적 너비로 고정, 우측 리포트 패널이 남은 영역을 100% 전폭 활용 */
         .ja020k1-container .left-pane {
-            flex: 1 1 52%;
-            min-width: 380px;
+            flex: 0 0 520px;
+            min-width: 440px;
+            max-width: 600px;
             display: flex;
             flex-direction: column;
             background: #ffffff;
@@ -30,8 +30,8 @@
         }
 
         .ja020k1-container .right-pane {
-            flex: 1 1 48%;
-            min-width: 340px;
+            flex: 1 1 auto;
+            min-width: 380px;
             display: flex;
             flex-direction: column;
             background: #ffffff;
@@ -49,6 +49,7 @@
             justify-content: space-between;
             align-items: center;
             flex-shrink: 0;
+            min-height: 41px;
         }
 
         .ja020k1-container .pane-body {
@@ -56,6 +57,70 @@
             height: calc(100% - 41px);
             width: 100%;
             overflow: hidden;
+            position: relative;
+        }
+
+        /* 5 Format Export Button Group (개발지침 표준 규격) */
+        .ja020k1-container .export-button-group {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            flex-wrap: wrap;
+        }
+
+        .ja020k1-container .btn-export-format {
+            padding: 3px 8px;
+            font-size: 11px;
+            font-weight: 600;
+            border-radius: 4px;
+            background: #ffffff;
+            cursor: pointer;
+            transition: all 0.15s ease-in-out;
+            display: inline-flex;
+            align-items: center;
+            gap: 3px;
+            line-height: 1.2;
+        }
+
+        .ja020k1-container .btn-export-format:hover {
+            opacity: 0.85;
+            transform: translateY(-1px);
+        }
+
+        /* 모바일 전용 모달 (Vanilla JS) */
+        .ja020k1-modal-backdrop {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 9999;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .ja020k1-modal-dialog {
+            background: #ffffff;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .ja020k1-modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 12px;
+            background: #f1f5f9;
+            border-bottom: 1px solid #cbd5e1;
+        }
+
+        .ja020k1-modal-body {
+            flex: 1 1 auto;
+            background: #525659;
             position: relative;
         }
 
@@ -70,6 +135,7 @@
                 flex: 1 1 100% !important;
                 width: 100% !important;
                 min-width: 0 !important;
+                max-width: 100% !important;
                 height: 100% !important;
             }
 
@@ -93,17 +159,7 @@
             <th:block th:replace="~{fragments/filter/dc_ymd :: filter(label='기일')}"></th:block>
         </div>
         <div class="filter-actions d-flex align-items-center gap-1">
-            <div class="btn-group btn-group-sm">
-                <button type="button" class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
-                    <i class="fas fa-file-export me-1"></i> 리포트 내보내기
-                </button>
-                <ul class="dropdown-menu dropdown-menu-end shadow-sm">
-                    <li><a class="dropdown-item export-btn" href="#" data-format="pdf"><i class="far fa-file-pdf text-danger me-2"></i>PDF 저장</a></li>
-                    <li><a class="dropdown-item export-btn" href="#" data-format="excel"><i class="far fa-file-excel text-success me-2"></i>Excel 저장</a></li>
-                    <li><a class="dropdown-item export-btn" href="#" data-format="word"><i class="far fa-file-word text-primary me-2"></i>Word 저장</a></li>
-                    <li><a class="dropdown-item export-btn" href="#" data-format="hwp"><i class="far fa-file-alt text-info me-2"></i>한글(HWP) 저장</a></li>
-                </ul>
-            </div>
+            <!-- 보조 액션 버튼 영역 -->
         </div>
     </div>
 
@@ -120,80 +176,169 @@
             </div>
         </div>
 
-        <!-- 우측 RD 미리보기 뷰어 -->
+        <!-- 우측 RD 미리보기 뷰어 (개발지침 리포트 뷰어 표준 규격) -->
         <div class="right-pane">
             <div class="pane-header">
-                <span class="fw-bold small text-secondary" id="preview-header-title">
-                    <i class="fas fa-file-invoice me-1"></i> 주간 운용현황 리포트
-                </span>
-                <span id="preview-status" class="small text-muted">선택된 계좌 없음</span>
-            </div>
-            <div class="pane-body" style="background-color: #525659;">
-                <div id="preview-loading" class="position-absolute top-50 start-50 translate-middle text-white text-center d-none" style="z-index: 10;">
-                    <div class="spinner-border text-light mb-2" role="status"></div>
-                    <div class="small">보고서를 생성 중입니다...</div>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span class="fw-bold small text-secondary" id="preview-header-title">
+                        <i class="fas fa-file-invoice me-1"></i> 주간 운용현황 리포트
+                    </span>
+                    <span id="preview-status" class="small text-muted" style="font-size: 12px;">선택된 계좌 없음</span>
                 </div>
-                <iframe id="report-frame" class="w-100 h-100 border-0" src="about:blank"></iframe>
+
+                <!-- 5 포맷 내보내기 버튼 그룹 + 새 창 열기 (개발지침 표준 규격) -->
+                <div style="display: flex; align-items: center; gap: 6px;">
+                    <div class="export-button-group">
+                        <button type="button" class="btn-export-format export-btn" data-format="pdf" title="PDF 파일로 저장" style="border: 1px solid #ef4444; color: #dc2626;">
+                            <i class="fa-solid fa-file-pdf" style="color: #ef4444;"></i>PDF
+                        </button>
+                        <button type="button" class="btn-export-format export-btn" data-format="excel" title="Excel(XLSX) 파일로 저장" style="border: 1px solid #10b981; color: #059669;">
+                            <i class="fa-solid fa-file-excel" style="color: #10b981;"></i>Excel
+                        </button>
+                        <button type="button" class="btn-export-format export-btn" data-format="word" title="MS Word(DOC) 파일로 저장" style="border: 1px solid #3b82f6; color: #2563eb;">
+                            <i class="fa-solid fa-file-word" style="color: #3b82f6;"></i>Word
+                        </button>
+                        <button type="button" class="btn-export-format export-btn" data-format="ppt" title="PowerPoint(PPTX) 파일로 저장" style="border: 1px solid #f59e0b; color: #d97706;">
+                            <i class="fa-solid fa-file-powerpoint" style="color: #f59e0b;"></i>PPT
+                        </button>
+                        <button type="button" class="btn-export-format export-btn" data-format="hwp" title="한글(HWP) 파일로 저장" style="border: 1px solid #06b6d4; color: #0891b2;">
+                            <i class="fa-solid fa-file-lines" style="color: #06b6d4;"></i>한글(HWP)
+                        </button>
+                    </div>
+                    <button type="button" id="btnOpenNewWindow" class="t-btn btn-action" style="padding: 3px 6px; font-size: 11px; border: 1px solid #cbd5e1; background: #ffffff; color: #475569;" title="새 창으로 리포트 열기">
+                        <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="pane-body" style="background-color: #525659; position: relative; width: 100%; height: calc(100% - 41px); overflow: hidden;">
+                <!-- 로딩 스피너 (인라인 스타일로 안정적 표출 및 은닉) -->
+                <div id="preview-loading" style="display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; color: #ffffff; z-index: 10;">
+                    <i class="fa-solid fa-spinner fa-spin fa-2x" style="margin-bottom: 8px;"></i>
+                    <div style="font-size: 12px;">보고서를 로드 중입니다...</div>
+                </div>
+                <!-- 리포트 iframe: 인라인 style로 100% 폭과 높이 보장하여 축소 방지 -->
+                <iframe id="report-frame" style="width: 100% !important; height: 100% !important; border: none; display: block; background-color: #525659;" src="about:blank"></iframe>
             </div>
         </div>
     </div>
 
-    <script>
+    <!-- 모바일 전용 리포트 모달 (width <= 876px) -->
+    <div class="ja020k1-modal-backdrop" id="ja020k1MobileModal">
+        <div class="ja020k1-modal-dialog">
+            <div class="ja020k1-modal-header">
+                <span style="font-weight: bold; font-size: 13px; color: #1e293b;" id="mobileModalLabel">주간 운용현황 리포트</span>
+                <button type="button" id="btnCloseMobileModal" style="background: none; border: none; font-size: 16px; cursor: pointer; color: #64748b;">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <!-- 모바일 모달 내보내기 버튼 바 -->
+            <div style="padding: 6px 10px; background: #f8fafc; border-bottom: 1px solid #cbd5e1; display: flex; justify-content: flex-end; align-items: center; gap: 6px; flex-wrap: wrap;">
+                <button type="button" class="btn-export-format mobile-export-btn" data-format="pdf" title="PDF 파일로 저장" style="border: 1px solid #ef4444; color: #dc2626;"><i class="fa-solid fa-file-pdf" style="color: #ef4444;"></i> PDF</button>
+                <button type="button" class="btn-export-format mobile-export-btn" data-format="excel" title="Excel(XLSX) 파일로 저장" style="border: 1px solid #10b981; color: #059669;"><i class="fa-solid fa-file-excel" style="color: #10b981;"></i> Excel</button>
+                <button type="button" class="btn-export-format mobile-export-btn" data-format="word" title="MS Word(DOC) 파일로 저장" style="border: 1px solid #3b82f6; color: #2563eb;"><i class="fa-solid fa-file-word" style="color: #3b82f6;"></i> Word</button>
+                <button type="button" class="btn-export-format mobile-export-btn" data-format="ppt" title="PowerPoint(PPTX) 파일로 저장" style="border: 1px solid #f59e0b; color: #d97706;"><i class="fa-solid fa-file-powerpoint" style="color: #f59e0b;"></i> PPT</button>
+                <button type="button" class="btn-export-format mobile-export-btn" data-format="hwp" title="한글(HWP) 파일로 저장" style="border: 1px solid #06b6d4; color: #0891b2;"><i class="fa-solid fa-file-lines" style="color: #06b6d4;"></i> 한글(HWP)</button>
+            </div>
+            <div class="ja020k1-modal-body">
+                <iframe id="mobile-report-frame" style="width: 100% !important; height: 100% !important; border: none; display: block;" src="about:blank"></iframe>
+            </div>
+        </div>
+    </div>
+
+    <script th:src="@{/js/f_dddwctl.js}" src="/js/f_dddwctl.js"></script>
+    <script th:src="@{/js/aams_calendar.js}" src="/js/aams_calendar.js"></script>
+    <script th:inline="javascript">
         (function () {
-            var currentPane = document.currentScript.closest('.tab-pane');
-            if (!currentPane) currentPane = document;
+            var currentPane = document.currentScript.closest('.tab-pane') || document;
+            var initialYmd = /*[[${initialYmd}]]*/ '';
+            var serverCorpGr = /*[[${corpGr}]]*/ '';
 
             var grid = null;
             var isInitialized = false;
             var lastLoadedMasterKey = null;
             var currentSelectedRowData = null;
 
-            // DDDW 캐시 매핑 (증권사: mg_cd, 계좌시리즈구분: series_gb)
-            var dddwMgCdMap = {};
-            var dddwSeriesGbMap = {};
+            // DDDW Option Caches (Populated via ue_dddw_retrieve and f_dddwctl)
+            var dddwOptionsMap = {
+                mg_cd: [],
+                series_gb: []
+            };
 
+            /**
+             * PowerBuilder dw_list::ue_dddw_retrieve Event Integration
+             * Corresponds to dw_list::ue_dddw_retrieve in w_ja020k1.srw:
+             *   1. f_dddwctl (THIS, 'mg_cd', gaa.corp_gr, '', 1, "")
+             *   2. f_dddwctl (THIS, 'series_gb', gaa.corp_gr, '', 1, "")
+             */
+            function ue_dddw_retrieve(corpGr) {
+                var targetCorpGr = corpGr || getFilterCorpGr();
+                if (!targetCorpGr) return Promise.resolve();
+
+                return f_dddwctl.retrieveMultiple({
+                    mg_cd: ['mg_cd', targetCorpGr, '', 1, ''],
+                    series_gb: ['series_gb', targetCorpGr, '', 1, '']
+                }).then(function (results) {
+                    dddwOptionsMap.mg_cd = results.mg_cd || [];
+                    dddwOptionsMap.series_gb = results.series_gb || [];
+
+                    if (grid) {
+                        grid.redraw(true);
+                    }
+                    return dddwOptionsMap;
+                }).catch(function (err) {
+                    console.warn('[w_ja020k1 ue_dddw_retrieve] Error retrieving DDDW options:', err);
+                    return dddwOptionsMap;
+                });
+            }
+
+            function getDddwLabel(dddwKey, codeVal) {
+                return f_dddwctl.getLabel(dddwOptionsMap, dddwKey, codeVal);
+            }
+
+            // 회사코드 해결 함수: 셀렉트박스 -> 쿠키 -> 서버 모델값 순으로 해결 (개발지침 1번 준수)
             function getFilterCorpGr() {
                 var el = currentPane.querySelector('#corpGrSelect') || document.querySelector('#corpGrSelect');
                 if (el && el.value) return el.value;
+
+                var matchSaved = document.cookie.match(/(?:^|;\s*)savedCorpGr=([^;]*)/);
+                if (matchSaved && matchSaved[1]) return decodeURIComponent(matchSaved[1]);
+
+                var matchCorp = document.cookie.match(/(?:^|;\s*)corpGr=([^;]*)/);
+                if (matchCorp && matchCorp[1]) return decodeURIComponent(matchCorp[1]);
+
+                if (serverCorpGr) return serverCorpGr;
                 if (typeof g_corp_gr !== 'undefined' && g_corp_gr) return g_corp_gr;
                 return '';
             }
 
             function getFilterYmd() {
                 var el = currentPane.querySelector('#filterYmd') || currentPane.querySelector('input[name="ymd"]');
-                if (el && el.value) return el.value.replace(/-/g, '');
-                return (new Date()).toISOString().slice(0, 10).replace(/-/g, '');
+                if (el && el.value) return el.value.replace(/-/g, '').replace(/\./g, '');
+                return (initialYmd || '').replace(/-/g, '').replace(/\./g, '');
             }
 
-            function loadDddwOptions(corpGr) {
-                if (!corpGr) return Promise.resolve();
-                var p1 = fetchDddwData('mg_cd', corpGr, '').then(function(list) {
-                    dddwMgCdMap = {};
-                    if (Array.isArray(list)) {
-                        list.forEach(function(item) {
-                            var code = item.cd || item.code || '';
-                            var name = item.dscr || item.name || code;
-                            dddwMgCdMap[code] = name;
-                        });
-                    }
-                }).catch(function(err) {
-                    console.warn("mg_cd DDDW 로드 실패:", err);
-                });
+            // 달력 컴포넌트 초기화 (AamsCalendar 표준 규격 연동)
+            function initCalendar() {
+                var filterYmdInput = currentPane.querySelector('#filterYmd');
+                if (!filterYmdInput) return;
 
-                var p2 = fetchDddwData('series_gb', corpGr, '').then(function(list) {
-                    dddwSeriesGbMap = {};
-                    if (Array.isArray(list)) {
-                        list.forEach(function(item) {
-                            var code = item.cd || item.code || '';
-                            var name = item.dscr || item.name || code;
-                            dddwSeriesGbMap[code] = name;
-                        });
-                    }
-                }).catch(function(err) {
-                    console.warn("series_gb DDDW 로드 실패:", err);
-                });
+                if (initialYmd && !filterYmdInput.value) {
+                    filterYmdInput.value = initialYmd;
+                }
 
-                return Promise.all([p1, p2]);
+                if (typeof AamsCalendar !== 'undefined' && typeof AamsCalendar.initSimple === 'function') {
+                    AamsCalendar.initSimple('filterYmd', {
+                        pane: currentPane,
+                        initialYmd: filterYmdInput.value || initialYmd,
+                        onSelect: function (ymd) {
+                            loadFunds();
+                        }
+                    });
+                }
+
+                filterYmdInput.addEventListener('change', function () {
+                    loadFunds();
+                });
             }
 
             function initGrid() {
@@ -211,13 +356,11 @@
                         { 
                             title: "증권사", 
                             field: "mgCd", 
-                            width: 100, 
+                            width: 105, 
                             hozAlign: "center", 
                             headerHozAlign: "center",
                             formatter: function(cell) {
-                                var val = cell.getValue();
-                                if (!val) return "";
-                                return dddwMgCdMap[val] || val;
+                                return getDddwLabel('mg_cd', cell.getValue());
                             }
                         },
                         { title: "고객명", field: "fundNm", minWidth: 130, hozAlign: "left", headerHozAlign: "center" },
@@ -228,9 +371,7 @@
                             hozAlign: "left", 
                             headerHozAlign: "center",
                             formatter: function(cell) {
-                                var val = cell.getValue();
-                                if (!val) return "";
-                                return dddwSeriesGbMap[val] || val;
+                                return getDddwLabel('series_gb', cell.getValue());
                             }
                         },
                         { title: "관리번호", field: "fundCd", width: 80, hozAlign: "center", headerHozAlign: "center" },
@@ -244,7 +385,7 @@
                             formatter: function(cell) {
                                 var val = cell.getValue();
                                 if (!val) return "";
-                                var s = String(val).replace(/-/g, '');
+                                var s = String(val).replace(/-/g, '').replace(/\./g, '');
                                 if (s.length === 8) return s.substring(0, 4) + "." + s.substring(4, 6) + "." + s.substring(6, 8);
                                 return val;
                             }
@@ -258,7 +399,7 @@
                             formatter: function(cell) {
                                 var val = cell.getValue();
                                 if (!val) return "";
-                                var s = String(val).replace(/-/g, '');
+                                var s = String(val).replace(/-/g, '').replace(/\./g, '');
                                 if (s.length === 8) return s.substring(0, 4) + "." + s.substring(4, 6) + "." + s.substring(6, 8);
                                 return val;
                             }
@@ -282,7 +423,7 @@
                             formatter: function(cell) {
                                 var val = cell.getValue();
                                 if (!val) return "";
-                                var s = String(val).replace(/-/g, '');
+                                var s = String(val).replace(/-/g, '').replace(/\./g, '');
                                 if (s.length === 8) return s.substring(0, 4) + "." + s.substring(4, 6) + "." + s.substring(6, 8);
                                 return val;
                             }
@@ -290,7 +431,7 @@
                     ]
                 });
 
-                // 규칙 8번 삼중 안전망
+                // 규칙 8번 삼중 안전망 (setupTabulatorRowSelection + rowClick + rowSelectionChanged)
                 if (typeof setupTabulatorRowSelection === "function") {
                     setupTabulatorRowSelection(grid, function (row, data) {
                         syncDetail(row, data);
@@ -325,12 +466,25 @@
                 loadReportPreview(data);
             }
 
-            function loadReportPreview(data) {
+            function buildPreviewUrl(data) {
                 var corpGr = getFilterCorpGr();
                 var ymd = getFilterYmd();
                 var fundCd = data.fundCd || '';
                 var fundNm = data.fundNm || '';
                 var gugan = data.gugan || '1';
+
+                return "/api/daily/ja020k1/preview?corpGr=" + encodeURIComponent(corpGr) +
+                    "&fundCd=" + encodeURIComponent(fundCd) +
+                    "&fundNm=" + encodeURIComponent(fundNm) +
+                    "&ymd=" + encodeURIComponent(ymd) +
+                    "&gugan=" + encodeURIComponent(gugan) +
+                    "&t=" + new Date().getTime();
+            }
+
+            function loadReportPreview(data) {
+                var ymd = getFilterYmd();
+                var fundCd = data.fundCd || '';
+                var fundNm = data.fundNm || '';
 
                 var statusEl = currentPane.querySelector('#preview-status');
                 var titleEl = currentPane.querySelector('#preview-header-title');
@@ -339,19 +493,44 @@
 
                 if (titleEl) titleEl.innerHTML = '<i class="fas fa-file-invoice me-1"></i> ' + fundNm + ' (' + fundCd + ') 주간 운용현황';
                 if (statusEl) statusEl.innerText = "기일: " + ymd;
-                if (loadingEl) loadingEl.classList.remove('d-none');
+                if (loadingEl) loadingEl.style.display = 'block';
 
-                var previewUrl = "/api/daily/ja020k1/preview?corpGr=" + encodeURIComponent(corpGr) +
-                    "&fundCd=" + encodeURIComponent(fundCd) +
-                    "&fundNm=" + encodeURIComponent(fundNm) +
-                    "&ymd=" + encodeURIComponent(ymd) +
-                    "&gugan=" + encodeURIComponent(gugan) +
-                    "&t=" + new Date().getTime();
+                var previewUrl = buildPreviewUrl(data);
+                var formattedUrl = (window.AamsReport && typeof window.AamsReport.formatPreviewUrl === 'function')
+                    ? window.AamsReport.formatPreviewUrl(previewUrl)
+                    : previewUrl + "#toolbar=1&navpanes=0&zoom=120";
 
-                iframe.src = previewUrl;
-                iframe.onload = function () {
-                    if (loadingEl) loadingEl.classList.add('d-none');
-                };
+                if (iframe) {
+                    iframe.src = formattedUrl;
+                    iframe.onload = function () {
+                        if (loadingEl) loadingEl.style.display = 'none';
+                    };
+                }
+
+                // 모바일 환경 (width <= 876px)인 경우 모바일 모달 팝업 표출
+                if (window.innerWidth <= 876) {
+                    openMobileModal(data, formattedUrl);
+                }
+            }
+
+            function openMobileModal(data, url) {
+                var modal = currentPane.querySelector('#ja020k1MobileModal');
+                var modalFrame = currentPane.querySelector('#mobile-report-frame');
+                var modalLabel = currentPane.querySelector('#mobileModalLabel');
+                if (modal && modalFrame) {
+                    if (modalLabel) {
+                        modalLabel.textContent = (data.fundNm || '') + ' (' + (data.fundCd || '') + ') 주간 운용현황';
+                    }
+                    modalFrame.src = url;
+                    modal.style.display = 'flex';
+                }
+            }
+
+            function closeMobileModal() {
+                var modal = currentPane.querySelector('#ja020k1MobileModal');
+                var modalFrame = currentPane.querySelector('#mobile-report-frame');
+                if (modal) modal.style.display = 'none';
+                if (modalFrame) modalFrame.src = 'about:blank';
             }
 
             function loadFunds() {
@@ -363,7 +542,7 @@
                     return;
                 }
 
-                loadDddwOptions(corpGr).then(function() {
+                ue_dddw_retrieve(corpGr).then(function() {
                     var url = "/api/daily/ja020k1/funds?corpGr=" + encodeURIComponent(corpGr) + "&ymd=" + encodeURIComponent(ymd);
                     return fetch(url);
                 })
@@ -377,6 +556,7 @@
                     if (grid) {
                         grid.setData(list).then(function () {
                             var rows = grid.getRows();
+                            // 규칙 15: 데이터 존재 시 제일 첫 번째 행 자동 선택
                             if (rows && rows.length > 0) {
                                 rows[0].select();
                                 syncDetail(rows[0], rows[0].getData());
@@ -397,7 +577,11 @@
 
             function exportReport(format) {
                 if (!currentSelectedRowData) {
-                    alert("내보낼 계좌를 먼저 선택해주세요.");
+                    if (typeof showToast === "function") {
+                        showToast("내보낼 계좌를 먼저 선택해주세요.", "warning");
+                    } else {
+                        alert("내보낼 계좌를 먼저 선택해주세요.");
+                    }
                     return;
                 }
 
@@ -421,9 +605,11 @@
                 if (isInitialized) return;
                 isInitialized = true;
 
+                initCalendar();
                 initGrid();
 
-                var exportBtns = currentPane.querySelectorAll('.export-btn');
+                // 5개 포맷 내보내기 버튼 바인딩
+                var exportBtns = currentPane.querySelectorAll('.export-btn, .mobile-export-btn');
                 exportBtns.forEach(function (btn) {
                     btn.addEventListener('click', function (e) {
                         e.preventDefault();
@@ -432,13 +618,55 @@
                     });
                 });
 
+                // 새 창 열기 버튼 바인딩
+                var btnOpenNewWindow = currentPane.querySelector('#btnOpenNewWindow');
+                if (btnOpenNewWindow) {
+                    btnOpenNewWindow.addEventListener('click', function () {
+                        if (!currentSelectedRowData) {
+                            if (typeof showToast === "function") {
+                                showToast("조회할 계좌를 먼저 선택해주세요.", "warning");
+                            } else {
+                                alert("조회할 계좌를 먼저 선택해주세요.");
+                            }
+                            return;
+                        }
+                        var previewUrl = buildPreviewUrl(currentSelectedRowData);
+                        window.open(previewUrl, "_blank");
+                    });
+                }
+
+                // 모바일 모달 닫기
+                var btnCloseMobile = currentPane.querySelector('#btnCloseMobileModal');
+                if (btnCloseMobile) {
+                    btnCloseMobile.addEventListener('click', closeMobileModal);
+                }
+
                 // 개발지침 규칙 9: 표준 계약 함수 연결
                 currentPane.onRetrieve = currentPane.onSearch = function () {
                     loadFunds();
                 };
+
+                // 회사그룹 변경 이벤트 연동
                 currentPane.onCorpGrChange = function () {
-                    loadFunds();
+                    var newCorpGr = getFilterCorpGr();
+                    if (!newCorpGr) return;
+                    ue_dddw_retrieve(newCorpGr);
+                    fetch('/api/daily/ja020k1/workdate?corpGr=' + encodeURIComponent(newCorpGr))
+                        .then(function (res) { return res.json(); })
+                        .then(function (data) {
+                            if (data && data.workDate) {
+                                var filterYmdInput = currentPane.querySelector('#filterYmd');
+                                if (filterYmdInput) {
+                                    filterYmdInput.value = data.workDate;
+                                }
+                            }
+                            loadFunds();
+                        })
+                        .catch(function () {
+                            loadFunds();
+                        });
                 };
+
                 currentPane.onRefresh = function () {
                     if (grid) grid.clearData();
                     currentSelectedRowData = null;
@@ -449,11 +677,18 @@
                     if (statusEl) statusEl.textContent = '선택된 계좌 없음';
                     var badge = currentPane.querySelector('#fund-count-badge');
                     if (badge) badge.textContent = '0건';
+
+                    var filterYmdInput = currentPane.querySelector('#filterYmd');
+                    if (filterYmdInput && initialYmd) {
+                        filterYmdInput.value = initialYmd;
+                    }
+
                     if (typeof showToast === "function") {
                         showToast("화면이 초기화되었습니다.", "info");
                     }
                 };
 
+                // 파워빌더 eb_direct_retrieve = true 규격 준수: 화면 오픈 시 자동 조회 실행
                 setTimeout(function () {
                     loadFunds();
                 }, 100);

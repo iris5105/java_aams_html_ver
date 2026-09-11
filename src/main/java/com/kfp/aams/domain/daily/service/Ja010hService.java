@@ -21,6 +21,7 @@ public class Ja010hService {
 
     private final Ja010hMapper ja010hMapper;
     private final RdReportService rdReportService;
+    private final com.kfp.aams.domain.common.service.WorkDateService workDateService;
 
     /**
      * 펀드 목록 조회 (d_szm0ia.srd)
@@ -78,13 +79,10 @@ public class Ja010hService {
     }
 
     /**
-     * 회사그룹별 기준일자 조회
+     * 회사그룹별 기준일자 조회 (공통 WorkDateService 위임)
      */
     public String getWorkDate(String corpGr) {
-        if (corpGr == null || corpGr.isBlank()) {
-            return null;
-        }
-        return ja010hMapper.selectWorkDate(corpGr);
+        return workDateService.getWorkDate(corpGr);
     }
 
     /**

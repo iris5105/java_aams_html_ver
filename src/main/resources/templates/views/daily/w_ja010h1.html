@@ -313,8 +313,18 @@
                 }
 
                 if (typeof AamsCalendar !== 'undefined' && typeof AamsCalendar.initSimple === 'function') {
-                    AamsCalendar.initSimple(filterYmdInput, filterYmdInput.value || initialYmd);
+                    AamsCalendar.initSimple('filterYmd', {
+                        pane: pane,
+                        initialYmd: filterYmdInput.value || initialYmd,
+                        onSelect: function (ymd) {
+                            loadFunds();
+                        }
+                    });
                 }
+
+                filterYmdInput.addEventListener('change', function () {
+                    loadFunds();
+                });
             }
 
             // 증권사 DDDW 초기화: f_dddwctl (THIS, 'sec_cd | tr_co_cd', gaa.corp_gr, '', 1, '')
@@ -500,11 +510,14 @@
                 if (statusEl) statusEl.innerText = "조회일자: " + ymd;
                 if (loadingEl) loadingEl.style.display = 'block';
 
-                var previewUrl = "/api/daily/ja010h1/preview?corpGr=" + encodeURIComponent(corpGr) +
+                var rawPreviewUrl = "/api/daily/ja010h1/preview?corpGr=" + encodeURIComponent(corpGr) +
                     "&ymd=" + encodeURIComponent(ymd) +
                     "&fundCd=" + encodeURIComponent(fundCd) +
                     "&fundNm=" + encodeURIComponent(fundNm) +
                     "&t=" + new Date().getTime();
+                var previewUrl = (window.AamsReport && typeof window.AamsReport.formatPreviewUrl === 'function')
+                    ? window.AamsReport.formatPreviewUrl(rawPreviewUrl)
+                    : rawPreviewUrl + "#toolbar=1&navpanes=0&zoom=120";
 
                 if (iframe) {
                     iframe.src = previewUrl;
@@ -655,10 +668,13 @@
                 var fundCd = currentSelectedRowData.fundCd || '';
                 var fundNm = currentSelectedRowData.fundNm || '';
 
-                var previewUrl = "/api/daily/ja010h1/preview?corpGr=" + encodeURIComponent(corpGr) +
+                var rawPreviewUrl = "/api/daily/ja010h1/preview?corpGr=" + encodeURIComponent(corpGr) +
                     "&ymd=" + encodeURIComponent(ymd) +
                     "&fundCd=" + encodeURIComponent(fundCd) +
                     "&fundNm=" + encodeURIComponent(fundNm);
+                var previewUrl = (window.AamsReport && typeof window.AamsReport.formatPreviewUrl === 'function')
+                    ? window.AamsReport.formatPreviewUrl(rawPreviewUrl)
+                    : rawPreviewUrl + "#toolbar=1&navpanes=0&zoom=120";
 
                 window.open(previewUrl, "_blank");
             }
@@ -737,6 +753,20 @@
                     currentSelectedRowData = null;
                     lastLoadedMasterKey = null;
 
+                    var filterYmdInput = pane.querySelector('#filterYmd');
+                    if (filterYmdInput && initialYmd) {
+                        filterYmdInput.value = initialYmd;
+                        if (typeof AamsCalendar !== 'undefined' && typeof AamsCalendar.initSimple === 'function') {
+                            AamsCalendar.initSimple('filterYmd', {
+                                pane: pane,
+                                initialYmd: initialYmd,
+                                onSelect: function (ymd) {
+                                    loadFunds();
+                                }
+                            });
+                        }
+                    }
+
                     var iframe = pane.querySelector('#report-frame');
                     if (iframe) iframe.src = "about:blank";
 
@@ -757,7 +787,7 @@
                     if (grid) grid.clearData();
                     var corpGr = getFilterCorpGr();
 
-                    fetch("/api/daily/ja010h1/workdate?corpGr=" + encodeURIComponent(corpGr))
+                    fetch("/api/common/workdate?corpGr=" + encodeURIComponent(corpGr))
                         .then(function (res) { return res.json(); })
                         .then(function (data) {
                             if (data && data.workDate) {
@@ -765,7 +795,13 @@
                                 if (filterYmdInput) {
                                     filterYmdInput.value = data.workDate;
                                     if (typeof AamsCalendar !== 'undefined' && typeof AamsCalendar.initSimple === 'function') {
-                                        AamsCalendar.initSimple(filterYmdInput, data.workDate);
+                                        AamsCalendar.initSimple('filterYmd', {
+                                            pane: pane,
+                                            initialYmd: data.workDate,
+                                            onSelect: function (ymd) {
+                                                loadFunds();
+                                            }
+                                        });
                                     }
                                 }
                             }

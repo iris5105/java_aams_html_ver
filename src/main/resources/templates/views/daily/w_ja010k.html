@@ -26,14 +26,10 @@
     </div>
 
     <!-- Split Master-Detail Layout (Horizontal Split: Left Master 28%, Right Detail 72%) -->
-    <div class="split-content-container" style="flex: 1 1 auto; height: calc(100% - 92px); padding: 8px 12px; overflow: hidden; display: flex; flex-direction: row; gap: 12px;">
+    <div class="split-content-container" style="flex: 1 1 auto; height: calc(100% - 92px); padding: 8px 12px; overflow: hidden; display: flex; flex-direction: row;">
         
         <!-- Left Master Section: Fund Account List (d_ja010k1) -->
         <div class="grid-section master-section" style="flex: 0 0 28%; min-width: 280px; display: flex; flex-direction: column; overflow: hidden;">
-            <div class="section-header" style="padding: 6px 10px; font-weight: 600; font-size: 13px; color: #1e293b; background: #e2e8f0; border-radius: 4px 4px 0 0; display: flex; justify-content: space-between; align-items: center;">
-                <span><i class="fa-solid fa-folder-tree" style="margin-right: 6px; color: #3b82f6;"></i> 펀드(고객) 목록</span>
-                <span id="master-count" style="font-size: 11px; color: #64748b; font-weight: normal;">0건</span>
-            </div>
             <div class="grid-table-wrapper" style="flex: 1 1 auto; height: 100%; width: 100%; border: 1px solid #cbd5e1; border-top: none; border-radius: 0 0 4px 4px; overflow: hidden; background-color: #fff;">
                 <div id="ja010k-master-grid" class="tabulator-aams-grid" style="height: 100%;"></div>
             </div>
@@ -41,22 +37,18 @@
 
         <!-- Right Detail Section: Demand Forecast Account Detail (d_ja010k2) -->
         <div class="grid-section detail-section" style="flex: 1 1 72%; min-width: 580px; display: flex; flex-direction: column; overflow: hidden;">
-            <div class="section-header" style="padding: 5px 10px; font-weight: 600; font-size: 13px; color: #1e293b; background: #e2e8f0; border-radius: 4px 4px 0 0; display: flex; justify-content: space-between; align-items: center;">
-                <span><i class="fa-solid fa-list-check" style="margin-right: 6px; color: #10b981;"></i> 공모청약 수요예측 참여표 (<span id="selected-fund-name" style="color: #2563eb;">선택된 펀드 없음</span>)</span>
-                <div style="display: flex; align-items: center; gap: 6px;">
-                    <span id="detail-count" style="font-size: 11px; color: #64748b; font-weight: normal; margin-right: 4px;">0건</span>
-                    <!-- Detail Sub Action Buttons matching PowerBuilder UI -->
-                    <div class="btn-group-sub" style="display: inline-flex; gap: 3px;">
-                        <button type="button" id="btnDetailRefresh" class="btn-action btn-sub" title="상세 새로고침" style="padding: 2px 7px; font-size: 11px; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 3px; cursor: pointer;">
-                            <i class="fa-solid fa-rotate-right"></i>
-                        </button>
-                        <button type="button" id="btnDetailSave" class="btn-action btn-sub" title="상세저장" style="padding: 2px 7px; font-size: 11px; background: #2563eb; color: #fff; border: 1px solid #1d4ed8; border-radius: 3px; cursor: pointer;">
-                            <i class="fa-solid fa-floppy-disk"></i>
-                        </button>
-                        <button type="button" id="btnDetailExcel" class="btn-action btn-sub" title="엑셀다운로드" style="padding: 2px 7px; font-size: 11px; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 3px; cursor: pointer;">
-                            <i class="fa-solid fa-file-excel" style="color: #16a34a;"></i>
-                        </button>
-                    </div>
+            <div class="section-header" style="padding: 5px 10px; font-weight: 600; font-size: 13px; color: #1e293b; background: #e2e8f0; border-radius: 4px 4px 0 0; display: flex; justify-content: flex-end; align-items: center;">
+                <!-- Detail Sub Action Buttons matching PowerBuilder UI -->
+                <div class="btn-group-sub" style="display: inline-flex; gap: 3px;">
+                    <button type="button" id="btnDetailRefresh" class="btn-action btn-sub" title="상세 새로고침" style="padding: 2px 7px; font-size: 11px; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 3px; cursor: pointer;">
+                        <i class="fa-solid fa-rotate-right"></i>
+                    </button>
+                    <button type="button" id="btnDetailSave" class="btn-action btn-sub" title="상세저장" style="padding: 2px 7px; font-size: 11px; background: #2563eb; color: #fff; border: 1px solid #1d4ed8; border-radius: 3px; cursor: pointer;">
+                        <i class="fa-solid fa-floppy-disk"></i>
+                    </button>
+                    <button type="button" id="btnDetailExcel" class="btn-action btn-sub" title="엑셀다운로드" style="padding: 2px 7px; font-size: 11px; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 3px; cursor: pointer;">
+                        <i class="fa-solid fa-file-excel" style="color: #16a34a;"></i>
+                    </button>
                 </div>
             </div>
             <div class="grid-table-wrapper" style="flex: 1 1 auto; height: 100%; width: 100%; border: 1px solid #cbd5e1; border-top: none; border-radius: 0 0 4px 4px; overflow: hidden; background-color: #fff;">
@@ -138,6 +130,16 @@
                 if (row && (!row.isSelected || !row.isSelected())) {
                     row.select();
                 }
+            }
+
+            // Date Formatter Helper
+            function formatDateVal(val) {
+                if (!val) return "";
+                const clean = String(val).replace(/\D/g, "");
+                if (clean.length === 8) {
+                    return clean.substring(0, 4) + '.' + clean.substring(4, 6) + '.' + clean.substring(6, 8);
+                }
+                return String(val).replace(/-/g, ".");
             }
 
             // Number Formatter Helpers
@@ -384,7 +386,9 @@
                 fetch(url)
                     .then(res => res.json())
                     .then(data => {
-                        gridDetail.setData(data || []);
+                        gridDetail.setData(data || []).then(() => {
+                            gridDetail.redraw(true);
+                        });
                         if (countEl) {
                             countEl.textContent = (data ? data.length : 0) + "건";
                         }

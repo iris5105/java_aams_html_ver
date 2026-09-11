@@ -120,6 +120,8 @@ public class DddwService {
                 String finalOrderBy = !extraOrderBy.isEmpty() ? extraOrderBy : sqlOrderBy;
                 if (!finalOrderBy.isEmpty()) {
                     sqlBuilder.append(" ORDER BY ").append(finalOrderBy);
+                } else {
+                    sqlBuilder.append(" ORDER BY 1 ASC");
                 }
 
                 String finalSql = sqlBuilder.toString();
@@ -136,6 +138,23 @@ public class DddwService {
                             .fkey(fkeyVal != null ? fkeyVal.trim() : "")
                             .build();
                 });
+
+                // 항상 앞의 코드(code) 값을 기준으로 오름차순 정렬 (자연어/숫자 정렬)
+                if (dddwList != null && dddwList.size() > 1) {
+                    dddwList.sort((a, b) -> {
+                        String c1 = a.getCode() != null ? a.getCode().trim() : "";
+                        String c2 = b.getCode() != null ? b.getCode().trim() : "";
+                        if ("%".equals(c1) || c1.isEmpty()) return -1;
+                        if ("%".equals(c2) || c2.isEmpty()) return 1;
+                        try {
+                            long n1 = Long.parseLong(c1);
+                            long n2 = Long.parseLong(c2);
+                            return Long.compare(n1, n2);
+                        } catch (NumberFormatException ignored) {
+                            return c1.compareTo(c2);
+                        }
+                    });
+                }
             } else {
                 log.warn("WDDDWCTL metadata entry not found for [dddwId={}, seq={}]", targetDddwId, targetSeq);
             }

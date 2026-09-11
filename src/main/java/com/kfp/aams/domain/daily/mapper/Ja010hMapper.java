@@ -38,11 +38,6 @@ public interface Ja010hMapper {
     void callSrPyungjan(@Param("corpGr") String corpGr, @Param("fundCd") String fundCd, @Param("ymd") String ymd);
 
     /**
-     * 회사그룹별 기준일자 조회 (wue_lastopen: corp_gr='2402'이면 junyong_ymd, 그 외는 hyun_ymd)
-     */
-    String selectWorkDate(@Param("corpGr") String corpGr);
-
-    /**
      * 2402 회사 원장생성 불일치 건수 체크 (UZM0UI NAV vs SKT0GI sun_jasan_aek)
      */
     Integer checkLedgerDiffCount(@Param("corpGr") String corpGr, @Param("ymd") String ymd);

@@ -275,7 +275,9 @@
                     "&af=" + encodeURIComponent(data.af || "") +
                     "&t=" + new Date().getTime();
 
-                iframe.src = previewUrl;
+                iframe.src = (window.AamsReport && typeof window.AamsReport.formatPreviewUrl === 'function')
+                    ? window.AamsReport.formatPreviewUrl(previewUrl)
+                    : previewUrl + "#toolbar=1&navpanes=0&zoom=120";
                 iframe.onload = function () {
                     if (loadingEl) loadingEl.classList.add('d-none');
                 };
