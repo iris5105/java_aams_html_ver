@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.kfp.aams.domain.daily.mapper.Scm1pgMapper">
+
+    <!-- 1. 채권 마스터 목록 조회 (d_scm1pg_1) -->
+    <select id="selectMasterList" resultType="com.kfp.aams.domain.daily.dto.Scm1pgMasterDto">
+        SELECT DISTINCT cj.jm_cd AS jmCd
+             , cj.cj_nm          AS cjNm
+          FROM SCM1PG t1
+             , SCM0CJ cj
+         WHERE t1.corp_gr    = #{corpGr}
+           AND cj.corp_gr    = t1.corp_gr
+           AND cj.jm_cd      = t1.jm_cd
+           AND cj.sanghw_ymd > TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
+         ORDER BY cj.jm_cd ASC
+    </select>
+
+    <!-- 2. 채권 등급 디테일 목록 조회 (d_scm1pg_2) -->
+    <select id="selectDetailList" resultType="com.kfp.aams.domain.daily.dto.Scm1pgDetailDto">
+        SELECT t1.corp_gr                         AS corpGr
+             , TO_CHAR(t1.ymd, 'YYYY-MM-DD')       AS ymd
+             , t1.jm_cd                           AS jmCd
+             , t1.pg_cd                           AS pgCd
+             , TO_CHAR(t1.ymd, 'iw')              AS week
+             , (SELECT LISTAGG(ia.fund_cd || '(' || ia.fund_nm || ')', ', ')
+                  FROM SCM1J  ta
+                     , SZM0IA ia
+                 WHERE ta.corp_gr  = t1.corp_gr
+                   AND ta.jm_cd    = t1.jm_cd
+                   AND ta.buy_date = TO_CHAR(t1.ymd, 'YYYYMMDD')
+                   AND ia.corp_gr  = ta.corp_gr
+                   AND ia.fund_cd  = ta.fund_cd)  AS fundList
+          FROM SCM1PG t1
+         WHERE t1.corp_gr = #{corpGr}
+           AND t1.jm_cd   = #{jmCd}
+         ORDER BY t1.ymd ASC
+    </select>
+
+    <!-- 3. 디테일 등록 -->
+    <insert id="insertDetail" parameterType="com.kfp.aams.domain.daily.dto.Scm1pgDetailDto">
+        INSERT INTO SCM1PG (
+            corp_gr
+          , ymd
+          , jm_cd
+          , pg_cd
+        ) VALUES (
+            #{corpGr}
+          , TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
+          , #{jmCd}
+          , #{pgCd, jdbcType=VARCHAR}
+        )
+    </insert>
+
+    <!-- 4. 디테일 수정 -->
+    <update id="updateDetail" parameterType="com.kfp.aams.domain.daily.dto.Scm1pgDetailDto">
+        UPDATE SCM1PG
+           SET pg_cd   = #{pgCd, jdbcType=VARCHAR}
+         WHERE corp_gr = #{corpGr}
+           AND jm_cd   = #{jmCd}
+           AND ymd     = TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
+    </update>
+
+    <!-- 5. 디테일 삭제 -->
+    <delete id="deleteDetail">
+        DELETE FROM SCM1PG
+         WHERE corp_gr = #{corpGr}
+           AND jm_cd   = #{jmCd}
+           AND ymd     = TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
+    </delete>
+
+</mapper>

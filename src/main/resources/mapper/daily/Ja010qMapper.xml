@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.kfp.aams.domain.daily.mapper.Ja010qMapper">
+
+    <!-- 성과보수 상세내역 계좌 목록 (d_ja010q) -->
+    <select id="selectJa010qList" resultType="com.kfp.aams.domain.daily.dto.Ja010qDto">
+        SELECT t1.corp_gr                                       AS corpGr
+             , t1.fund_cd                                       AS fundCd
+             , ia.fund_nm                                       AS fundNm
+             , TO_CHAR(t1.bf_gyul_ymd, 'YYYY-MM-DD')           AS bfGyulYmd
+             , TO_CHAR(t1.bf_gyul_ymd + 1, 'YYYY-MM-DD')       AS bfStart
+             , TO_CHAR(t1.af_gyul_ymd, 'YYYY-MM-DD')           AS afGyulYmd
+             , TO_CHAR(t1.haeji_ymd, 'YYYY-MM-DD')             AS haejiYmd
+             , TO_CHAR(t1.haeji_ymd - 1, 'YYYY-MM-DD')         AS af
+          FROM SZM0GI t1
+             , SZM0IA ia
+         WHERE t1.corp_gr = #{corpGr}
+           AND (TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD') BETWEEN t1.bf_gyul_ymd + 1 AND t1.af_gyul_ymd
+                OR ADD_MONTHS(TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD'), -12) BETWEEN t1.bf_gyul_ymd + 1 AND t1.af_gyul_ymd)
+           AND ia.corp_gr = t1.corp_gr
+           AND ia.fund_cd = t1.fund_cd
+           AND F_FUND_SUCCESS(#{corpGr}, t1.fund_cd, t1.af_gyul_ymd) = 'ok'
+         ORDER BY t1.fund_cd ASC
+    </select>
+
+</mapper>

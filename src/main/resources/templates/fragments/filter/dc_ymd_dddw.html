@@ -1,11 +1,16 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
 <body>
-    <!-- Single Date + DDDW Filter (dc_ymd_dddw) -->
+    <!-- Single Date + DDDW Filter (dc_ymd_dddw: AamsCalendar 규격) -->
     <div th:fragment="filter" class="filter-bar filter-dc-ymd-dddw">
-        <div class="filter-item">
+        <div class="filter-item" style="position: relative; display: flex; align-items: center; gap: 6px;">
             <label for="filterYmd" th:text="${labelYmd != null ? labelYmd : (label != null ? label : '조회일자')}">조회일자</label>
-            <input type="date" id="filterYmd" name="ymd" class="filter-input input-date" th:value="${ymd}"/>
+            <div class="aams-calendar-wrapper" style="position: relative; display: inline-flex; align-items: center;">
+                <input type="text" id="filterYmd" name="ymd" class="t-input aams-calendar-input" style="width: 110px; padding: 4px 8px; font-size: 13px; text-align: center; border: 1px solid #cbd5e1; border-radius: 4px 0 0 4px; cursor: pointer; background: #ffffff;" th:value="${ymd != null ? ymd : ''}" readonly autocomplete="off" />
+                <button type="button" class="t-btn btn-calendar" title="달력 열기" style="padding: 5px 10px; border-radius: 0 4px 4px 0; border-left: none; background-color: #3b82f6; color: #ffffff; border: 1px solid #3b82f6; cursor: pointer;" onclick="AamsCalendar.toggle('filterYmd', event)">
+                    <i class="fa-regular fa-calendar-days"></i>
+                </button>
+            </div>
         </div>
         <div class="filter-item">
             <label for="filterDddw" th:text="${labelDddw != null ? labelDddw : '구분'}">구분</label>

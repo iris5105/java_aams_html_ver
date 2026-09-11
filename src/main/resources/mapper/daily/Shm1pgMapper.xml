@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.kfp.aams.domain.daily.mapper.Shm1pgMapper">
+
+    <!-- 1. 현금신용등급 목록 조회 (d_shm1pg) -->
+    <select id="selectShm1pgList" resultType="com.kfp.aams.domain.daily.dto.Shm1pgDto">
+        SELECT hj.corp_gr                         AS corpGr
+             , hj.jm_cd                           AS jmCd
+             , hj.ksd_jm_cd                       AS ksdJmCd
+             , hj.hj_nm                           AS hjNm
+             , hj.pg_cd                           AS pgCd
+             , hj.fund_cd                         AS fundCd
+             , ia.fund_nm                         AS fundNm
+          FROM SHM0HJ hj
+          LEFT OUTER JOIN SZM0IA ia  ON ia.corp_gr = hj.corp_gr
+                                    AND ia.fund_cd = hj.fund_cd
+         WHERE hj.corp_gr    = #{corpGr}
+           AND hj.cash_cd    IN ('ZS','ZF')
+           AND hj.sanghw_ymd >= TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
+         ORDER BY hj.jm_cd ASC
+    </select>
+
+    <!-- 2. 적용등급(신용등급) 수정 -->
+    <update id="updateShm1pg" parameterType="com.kfp.aams.domain.daily.dto.Shm1pgDto">
+        UPDATE SHM0HJ
+           SET pg_cd   = #{pgCd, jdbcType=VARCHAR}
+         WHERE corp_gr = #{corpGr}
+           AND jm_cd   = #{jmCd}
+    </update>
+
+</mapper>

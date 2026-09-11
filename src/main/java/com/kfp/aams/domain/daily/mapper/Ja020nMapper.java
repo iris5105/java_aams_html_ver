@@ -23,4 +23,6 @@ public interface Ja020nMapper {
     List<Ja020nSigaDto> selectSigaList(@Param("corpGr") String corpGr, @Param("ymd") String ymd);
 
     List<Ja020nTrDto> selectTrList(@Param("corpGr") String corpGr, @Param("ymd") String ymd);
+
+    String selectWorkDate(@Param("corpGr") String corpGr);
 }

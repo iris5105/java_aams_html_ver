@@ -94,30 +94,158 @@ function onToolbarInput(btn) {
 }
 
 /**
- * Toolbar Action: [새로고침] (Refresh Active Tab)
+ * Helper: 어떤 화면이든 해당 pane(또는 viewContainer)에 속한 모든 Tabulator 인스턴스를 자동 탐색하여 초기화
+ * 100% 자동 감지(Auto-Discovery) - 0% 하드코딩으로 모든 화면의 Tabulator 데이터를 완전히 비움
+ * @param {HTMLElement} pane
+ * @returns {number} 초기화된 Tabulator 인스턴스 수
+ */
+function clearAllTabulatorsInPane(pane) {
+    if (!pane) return 0;
+
+    const tablesToClear = new Set();
+
+    // 1. Tabulator 전역 레지스트리 탐색 (Tabulator v5/v6 표준 내부 레지스트리)
+    try {
+        if (typeof Tabulator !== 'undefined') {
+            const registry = Tabulator.registry || (Tabulator.__proto__ && Tabulator.__proto__.registry);
+            if (registry && Array.isArray(registry.tables)) {
+                registry.tables.forEach(tbl => {
+                    if (tbl && tbl.element) {
+                        if (pane === document || pane.contains(tbl.element)) {
+                            tablesToClear.add(tbl);
+                        }
+                    }
+                });
+            }
+        }
+    } catch (e) {
+        console.warn('[clearAllTabulatorsInPane] 전역 레지스트리 조회 중 예외:', e);
+    }
+
+    // 2. DOM 엘리먼트 기반 탐색 (Tabulator.findTable)
+    try {
+        if (typeof Tabulator !== 'undefined' && typeof Tabulator.findTable === 'function') {
+            const gridEls = pane.querySelectorAll('.tabulator, .tabulator-aams-grid, [id$="-grid"], [id*="grid"], [class*="grid"]');
+            gridEls.forEach(el => {
+                try {
+                    const found = Tabulator.findTable(el);
+                    if (found) {
+                        if (Array.isArray(found)) {
+                            found.forEach(t => { if (t) tablesToClear.add(t); });
+                        } else {
+                            tablesToClear.add(found);
+                        }
+                    }
+                } catch (e) {}
+            });
+        }
+    } catch (e) {
+        console.warn('[clearAllTabulatorsInPane] DOM 엘리먼트 기반 조회 중 예외:', e);
+    }
+
+    // 3. pane 및 하위/상위 컨테이너에 직접 바인딩된 Tabulator 객체 탐색
+    try {
+        const containers = [pane];
+        const vc = pane.querySelector ? pane.querySelector('.view-container') : null;
+        if (vc && vc !== pane) containers.push(vc);
+        const pp = pane.closest ? pane.closest('.tab-pane') : null;
+        if (pp && pp !== pane) containers.push(pp);
+
+        containers.forEach(c => {
+            if (!c) return;
+            for (let prop in c) {
+                try {
+                    const obj = c[prop];
+                    if (obj && typeof obj.clearData === 'function' && typeof obj.deselectRow === 'function') {
+                        tablesToClear.add(obj);
+                    }
+                } catch (e) {}
+            }
+        });
+    } catch (e) {}
+
+    // 4. 발견된 모든 Tabulator 인스턴스에 대해 clearData 및 deselectRow 강제 실행
+    tablesToClear.forEach(tbl => {
+        try {
+            if (typeof tbl.clearData === 'function') {
+                tbl.clearData();
+            }
+            if (typeof tbl.deselectRow === 'function') {
+                tbl.deselectRow();
+            }
+        } catch (err) {
+            console.warn('[clearAllTabulatorsInPane] 테이블 데이터 초기화 중 경고:', err);
+        }
+    });
+
+    return tablesToClear.size;
+}
+
+/**
+ * Toolbar Action: [새로고침] (Reset Active Tab to initial state)
+ * 개발지침: 새로고침 버튼은 수정사항이나 조회한 내용을 초기화하여 화면에서 데이터를 조회하기 전인 초기화 상태로 되돌린다.
+ * 어떤 화면이든 새로고침 버튼을 눌렀을 때 tabulator의 데이터를 반드시 초기화한다.
  * @param {HTMLElement} btn
  */
 function onToolbarRefresh(btn) {
     const pane = getActiveTabPane(btn);
     if (!pane) return;
 
-    if (typeof pane.onRefresh === 'function') {
-        pane.onRefresh(btn);
-        return;
-    }
-    if (typeof pane.loadData === 'function') {
-        pane.loadData();
-        return;
-    }
-    if (typeof pane.onCorpGrChange === 'function') {
-        const filterSelect = pane.querySelector('select[name="corpGr"]') || pane.querySelector('#filterCorpGr');
-        const val = filterSelect ? filterSelect.value : "";
-        pane.onCorpGrChange(val);
-        return;
+    // 1. [선행 안전망] 어떤 화면이든 무조건 해당 탭 내의 모든 Tabulator 그리드 데이터 초기화
+    clearAllTabulatorsInPane(pane);
+
+    // 2. 화면 전용 초기화(onRefresh / onReset) 계약 함수 우선 실행
+    let customRefreshed = false;
+    const containers = [pane];
+    const vc = pane.querySelector ? pane.querySelector('.view-container') : null;
+    if (vc && vc !== pane) containers.push(vc);
+    const pp = pane.closest ? pane.closest('.tab-pane') : null;
+    if (pp && pp !== pane) containers.push(pp);
+
+    for (const c of containers) {
+        if (c && typeof c.onRefresh === 'function') {
+            try {
+                c.onRefresh(btn);
+                customRefreshed = true;
+                break;
+            } catch (err) {
+                console.warn('[onToolbarRefresh] onRefresh 실행 중 오류:', err);
+            }
+        } else if (c && typeof c.onReset === 'function') {
+            try {
+                c.onReset(btn);
+                customRefreshed = true;
+                break;
+            } catch (err) {
+                console.warn('[onToolbarRefresh] onReset 실행 중 오류:', err);
+            }
+        }
     }
 
+    // 3. 커스텀 초기화가 없었던 경우 기본 폼/입력 필드 초기화 폴백
+    if (!customRefreshed) {
+        try {
+            const forms = pane.querySelectorAll('form');
+            forms.forEach(f => f.reset());
+
+            const textareas = pane.querySelectorAll('textarea');
+            textareas.forEach(t => t.value = '');
+
+            if (typeof showToast === 'function') {
+                showToast("화면이 초기화되었습니다.", "info");
+            }
+        } catch (err) {
+            console.warn('[onToolbarRefresh] 기본 초기화 처리 중 경고:', err);
+        }
+    }
+
+    // 4. [후행 안전망] 커스텀 onRefresh 실행 후에도 다시 한 번 모든 Tabulator 그리드가 완전히 비워졌는지 확인 및 초기화
+    clearAllTabulatorsInPane(pane);
+
     if (typeof window.onRefresh === 'function' && window.onRefresh !== onToolbarRefresh) {
-        window.onRefresh(btn);
+        try {
+            window.onRefresh(btn);
+        } catch (e) {}
     }
 }
 

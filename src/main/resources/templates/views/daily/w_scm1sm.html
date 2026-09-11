@@ -483,6 +483,11 @@
                 initGrid();
                 setupExcelLoader();
 
+                // AamsCalendar 초기화
+                if (typeof AamsCalendar !== 'undefined' && typeof AamsCalendar.initSimple === 'function') {
+                    AamsCalendar.initSimple('filterYmd', { pane: pane });
+                }
+
                 // Connect MDI Standard Toolbar Contract Functions (Rule 9)
                 if (pane) {
                     pane.onSearch = () => fetchData(true);
@@ -490,11 +495,27 @@
                     pane.onSave = handleSave;
                     pane.onDelete = handleDelete;
                     pane.onExcel = handleExcel;
-                    pane.onCorpGrChange = () => fetchData(true);
+                    // 공통버튼 지침: 새로고침은 조회 전 초기화 상태로 되돌린다.
+                    pane.onRefresh = function() {
+                        if (gridScm1sm) gridScm1sm.clearData();
+                        const ymdInput = pane ? pane.querySelector('#filterYmd') : document.getElementById('filterYmd');
+                        if (ymdInput) {
+                            const today = new Date();
+                            const yyyy = today.getFullYear();
+                            const mm = String(today.getMonth() + 1).padStart(2, '0');
+                            const dd = String(today.getDate()).padStart(2, '0');
+                            ymdInput.value = `${yyyy}-${mm}-${dd}`;
+                        }
+                        const countEl = pane ? pane.querySelector("#scm1sm-count") : document.getElementById("scm1sm-count");
+                        if (countEl) countEl.innerText = "0건";
+                        if (typeof showToast === "function") showToast("화면이 초기화되었습니다.", "info");
+                    };
+                    pane.onCorpGrChange = function() {
+                        if (gridScm1sm) gridScm1sm.clearData();
+                    };
                 }
 
-                // Initial fetch
-                setTimeout(() => fetchData(false), 100);
+                // 자동 조회 지침: boolean eb_direct_retrieve = true 가 없으므로 초기 자동 조회 없음
             }
 
             if (document.readyState === "loading") {

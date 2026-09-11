@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<div class="view-container layout-split ja010k-container" th:fragment="ja010kView">
+
+    <!-- Top Action Control Bar (Row 1) -->
+    <div class="view-toolbar">
+        <div class="toolbar-left">
+            <!-- Reusable Common Toolbar Buttons Fragment -->
+            <div th:replace="~{fragments/tab_header :: toolbarButtons}"></div>
+        </div>
+        <!-- Reusable Common Breadcrumb Fragment -->
+        <div th:replace="~{fragments/tab_header :: toolbarBreadcrumb}"></div>
+    </div>
+
+    <!-- Filter Bar (Row 2): Rule 14 & Rule 17 - dc_ftymd fragment matching dw_c in w_ja010k.srw -->
+    <div class="filter-bar">
+        <div class="filter-left">
+            <div th:replace="~{fragments/filter/dc_ftymd :: filter(label='조회일자구간', fYmd=${fymd}, tYmd=${tymd})}"></div>
+        </div>
+        <div class="filter-actions">
+            <!-- Optional quick search input -->
+            <div class="filter-item">
+                <input type="text" id="filterFundKeyword" class="filter-input" placeholder="펀드코드/명칭 검색" style="width: 160px; font-size: 12px;" />
+            </div>
+        </div>
+    </div>
+
+    <!-- Split Master-Detail Layout (Horizontal Split: Left Master 28%, Right Detail 72%) -->
+    <div class="split-content-container" style="flex: 1 1 auto; height: calc(100% - 92px); padding: 8px 12px; overflow: hidden; display: flex; flex-direction: row; gap: 12px;">
+        
+        <!-- Left Master Section: Fund Account List (d_ja010k1) -->
+        <div class="grid-section master-section" style="flex: 0 0 28%; min-width: 280px; display: flex; flex-direction: column; overflow: hidden;">
+            <div class="section-header" style="padding: 6px 10px; font-weight: 600; font-size: 13px; color: #1e293b; background: #e2e8f0; border-radius: 4px 4px 0 0; display: flex; justify-content: space-between; align-items: center;">
+                <span><i class="fa-solid fa-folder-tree" style="margin-right: 6px; color: #3b82f6;"></i> 펀드(고객) 목록</span>
+                <span id="master-count" style="font-size: 11px; color: #64748b; font-weight: normal;">0건</span>
+            </div>
+            <div class="grid-table-wrapper" style="flex: 1 1 auto; height: 100%; width: 100%; border: 1px solid #cbd5e1; border-top: none; border-radius: 0 0 4px 4px; overflow: hidden; background-color: #fff;">
+                <div id="ja010k-master-grid" class="tabulator-aams-grid" style="height: 100%;"></div>
+            </div>
+        </div>
+
+        <!-- Right Detail Section: Demand Forecast Account Detail (d_ja010k2) -->
+        <div class="grid-section detail-section" style="flex: 1 1 72%; min-width: 580px; display: flex; flex-direction: column; overflow: hidden;">
+            <div class="section-header" style="padding: 5px 10px; font-weight: 600; font-size: 13px; color: #1e293b; background: #e2e8f0; border-radius: 4px 4px 0 0; display: flex; justify-content: space-between; align-items: center;">
+                <span><i class="fa-solid fa-list-check" style="margin-right: 6px; color: #10b981;"></i> 공모청약 수요예측 참여표 (<span id="selected-fund-name" style="color: #2563eb;">선택된 펀드 없음</span>)</span>
+                <div style="display: flex; align-items: center; gap: 6px;">
+                    <span id="detail-count" style="font-size: 11px; color: #64748b; font-weight: normal; margin-right: 4px;">0건</span>
+                    <!-- Detail Sub Action Buttons matching PowerBuilder UI -->
+                    <div class="btn-group-sub" style="display: inline-flex; gap: 3px;">
+                        <button type="button" id="btnDetailRefresh" class="btn-action btn-sub" title="상세 새로고침" style="padding: 2px 7px; font-size: 11px; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 3px; cursor: pointer;">
+                            <i class="fa-solid fa-rotate-right"></i>
+                        </button>
+                        <button type="button" id="btnDetailSave" class="btn-action btn-sub" title="상세저장" style="padding: 2px 7px; font-size: 11px; background: #2563eb; color: #fff; border: 1px solid #1d4ed8; border-radius: 3px; cursor: pointer;">
+                            <i class="fa-solid fa-floppy-disk"></i>
+                        </button>
+                        <button type="button" id="btnDetailExcel" class="btn-action btn-sub" title="엑셀다운로드" style="padding: 2px 7px; font-size: 11px; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 3px; cursor: pointer;">
+                            <i class="fa-solid fa-file-excel" style="color: #16a34a;"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="grid-table-wrapper" style="flex: 1 1 auto; height: 100%; width: 100%; border: 1px solid #cbd5e1; border-top: none; border-radius: 0 0 4px 4px; overflow: hidden; background-color: #fff;">
+                <div id="ja010k-detail-grid" class="tabulator-aams-grid" style="height: 100%;"></div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Responsive Layout Style for Small Screens -->
+    <style>
+        @media (max-width: 876px) {
+            .ja010k-container .split-content-container {
+                flex-direction: column !important;
+            }
+            .ja010k-container .master-section {
+                flex: 0 0 40% !important;
+                min-height: 220px;
+            }
+            .ja010k-container .detail-section {
+                flex: 1 1 60% !important;
+                min-height: 280px;
+            }
+        }
+        /* Style for editable venture old shares (vc_old) */
+        .ja010k-container .col-vc-old-header {
+            color: #2563eb !important;
+            font-weight: 600 !important;
+        }
+        .ja010k-container .cell-editable-blue {
+            background-color: #eff6ff !important;
+            color: #1d4ed8 !important;
+            font-weight: 600;
+        }
+    </style>
+
+    <!-- Pure JS AAMS Calendar Component (Rule 16) -->
+    <script th:src="@{/js/aams_calendar.js}" src="/js/aams_calendar.js"></script>
+
+    <!-- Page Specific Script for w_ja010k -->
+    <script th:inline="javascript">
+        (function() {
+            const currentScript = document.currentScript;
+            const pane = currentScript ? (currentScript.closest('.tab-pane') || currentScript.closest('.view-container')) : null;
+
+            let gridMaster = null;
+            let gridDetail = null;
+            let isInitialized = false;
+            let lastLoadedMasterKey = null;
+            let currentSelectedMaster = null;
+            let masterAllData = [];
+
+            // Corporate Group Resolver (Guideline 1: No default hardcoded value)
+            function resolveCorpGr() {
+                if (window.currentCorpGr) return window.currentCorpGr;
+                const m = document.cookie.match(/(^|;)\s*savedCorpGr=([^;]+)/) || document.cookie.match(/(^|;)\s*corpGr=([^;]+)/);
+                if (m) return decodeURIComponent(m[2]);
+                const selectEl = pane ? pane.querySelector("#filterCorpGr") : document.getElementById("filterCorpGr");
+                if (selectEl && selectEl.value) return selectEl.value;
+                const globalSelect = document.getElementById("topCorpGrSelect") || document.getElementById("filterCorpGr");
+                if (globalSelect && globalSelect.value) return globalSelect.value;
+                return "";
+            }
+
+            function getFilterDates() {
+                const fInput = pane ? pane.querySelector("#filterFYmd") : document.getElementById("filterFYmd");
+                const tInput = pane ? pane.querySelector("#filterTYmd") : document.getElementById("filterTYmd");
+                let fYmd = fInput ? (fInput.value || "") : "";
+                let tYmd = tInput ? (tInput.value || "") : "";
+                return {
+                    fYmd: fYmd.replace(/\./g, '-'),
+                    tYmd: tYmd.replace(/\./g, '-')
+                };
+            }
+
+            // Cell edit helper for selection (Rule 8)
+            function aamsCellEdit(e, cell) {
+                const row = cell.getRow();
+                if (row && (!row.isSelected || !row.isSelected())) {
+                    row.select();
+                }
+            }
+
+            // Number Formatter Helpers
+            function numFormatter(cell) {
+                const val = cell.getValue();
+                if (val == null || val === "" || isNaN(val)) return "0";
+                return Math.round(Number(val)).toLocaleString();
+            }
+
+            function percentFormatter(cell) {
+                const val = cell.getValue();
+                if (val == null || val === "" || isNaN(val)) return "0.00";
+                return Number(val).toFixed(2);
+            }
+
+            // Master Columns (d_ja010k1.srd - Matching PB Screenshot: No, 펀드코드, 펀드명, 재계약일)
+            const masterColumns = [
+                {
+                    title: "No.",
+                    field: "fseq",
+                    formatter: "rownum",
+                    width: 50,
+                    hozAlign: "center",
+                    headerHozAlign: "center",
+                    frozen: true
+                },
+                {
+                    title: "펀드코드",
+                    field: "fundCd",
+                    width: 80,
+                    hozAlign: "center",
+                    headerHozAlign: "center"
+                },
+                {
+                    title: "펀드명",
+                    field: "fundNm",
+                    minWidth: 125,
+                    hozAlign: "left",
+                    headerHozAlign: "center"
+                },
+                {
+                    title: "재계약일",
+                    field: "reSeoljYmd",
+                    width: 95,
+                    hozAlign: "center",
+                    headerHozAlign: "center",
+                    formatter: cell => formatDateVal(cell.getValue())
+                }
+            ];
+
+            // Detail Columns (d_ja010k2.srd - Exactly matching PB Screenshot)
+            const detailColumns = [
+                {
+                    title: "No.",
+                    field: "fseq",
+                    formatter: "rownum",
+                    width: 48,
+                    hozAlign: "center",
+                    headerHozAlign: "center",
+                    frozen: true
+                },
+                {
+                    title: "일자",
+                    field: "ymd",
+                    width: 90,
+                    hozAlign: "center",
+                    headerHozAlign: "center",
+                    formatter: cell => formatDateVal(cell.getValue())
+                },
+                {
+                    title: "종목코드",
+                    field: "jmCd",
+                    width: 95,
+                    hozAlign: "center",
+                    headerHozAlign: "center"
+                },
+                {
+                    title: "종목명",
+                    field: "jmNm",
+                    minWidth: 140,
+                    hozAlign: "left",
+                    headerHozAlign: "center"
+                },
+                {
+                    title: "자산구분",
+                    field: "gubun",
+                    width: 70,
+                    hozAlign: "center",
+                    headerHozAlign: "center"
+                },
+                {
+                    title: "소속",
+                    field: "dancGb",
+                    width: 70,
+                    hozAlign: "center",
+                    headerHozAlign: "center"
+                },
+                {
+                    title: "평가액",
+                    field: "sigaAek",
+                    width: 105,
+                    hozAlign: "right",
+                    headerHozAlign: "center",
+                    formatter: numFormatter
+                },
+                {
+                    title: "가격",
+                    field: "sise",
+                    width: 80,
+                    hozAlign: "right",
+                    headerHozAlign: "center",
+                    formatter: numFormatter
+                },
+                {
+                    title: "벤처합계",
+                    field: "ventureTotal",
+                    width: 95,
+                    hozAlign: "right",
+                    headerHozAlign: "center",
+                    formatter: numFormatter
+                },
+                {
+                    title: "벤처신주",
+                    field: "ventureNew",
+                    width: 95,
+                    hozAlign: "right",
+                    headerHozAlign: "center",
+                    formatter: numFormatter
+                },
+                {
+                    title: "벤처구주",
+                    field: "vcOld",
+                    width: 95,
+                    hozAlign: "right",
+                    headerHozAlign: "center",
+                    headerCssClass: "col-vc-old-header",
+                    cssClass: "cell-editable-blue",
+                    formatter: numFormatter,
+                    editor: "number",
+                    cellClick: aamsCellEdit,
+                    cellEdited: function(cell) {
+                        const row = cell.getRow();
+                        const data = row.getData();
+                        let vcOld = parseFloat(cell.getValue()) || 0;
+                        if (vcOld < 0) vcOld = 0;
+                        const ventureTotal = parseFloat(data.ventureTotal) || 0;
+                        const sigaAek = parseFloat(data.sigaAek) || 0;
+                        const totalNav = parseFloat(data.totalNav) || 0;
+
+                        const ventureNew = ventureTotal - vcOld;
+                        let ventureNewPer = 0;
+                        let ventureOldPer = 0;
+                        let ventureTotalPer = 0;
+
+                        if (totalNav !== 0 && ventureTotal !== 0) {
+                            ventureNewPer = (sigaAek * (1 - (vcOld / ventureTotal)) * 100) / totalNav;
+                            ventureOldPer = (sigaAek * (vcOld / ventureTotal) * 100) / totalNav;
+                            ventureTotalPer = (sigaAek * 100) / totalNav;
+                        }
+
+                        row.update({
+                            vcOld: vcOld,
+                            ventureNew: ventureNew,
+                            ventureNewPer: Number(ventureNewPer.toFixed(2)),
+                            ventureOldPer: Number(ventureOldPer.toFixed(2)),
+                            ventureTotalPer: Number(ventureTotalPer.toFixed(2)),
+                            isUpdated: true
+                        });
+                    }
+                },
+                {
+                    title: "벤처합계비율(%)",
+                    field: "ventureTotalPer",
+                    width: 105,
+                    hozAlign: "right",
+                    headerHozAlign: "center",
+                    formatter: percentFormatter
+                },
+                {
+                    title: "벤처신주비율(%)",
+                    field: "ventureNewPer",
+                    width: 105,
+                    hozAlign: "right",
+                    headerHozAlign: "center",
+                    formatter: percentFormatter
+                },
+                {
+                    title: "벤처구주비율(%)",
+                    field: "ventureOldPer",
+                    width: 105,
+                    hozAlign: "right",
+                    headerHozAlign: "center",
+                    formatter: percentFormatter
+                },
+                {
+                    title: "벤처지정 시작일자",
+                    field: "ventureStart",
+                    width: 110,
+                    hozAlign: "center",
+                    headerHozAlign: "center",
+                    formatter: cell => formatDateVal(cell.getValue())
+                },
+                {
+                    title: "벤처지정 종료일자",
+                    field: "ventureEnd",
+                    width: 110,
+                    hozAlign: "center",
+                    headerHozAlign: "center",
+                    formatter: cell => formatDateVal(cell.getValue())
+                }
+            ];
+
+            // Detail Synchronizer (Rule 8, 10)
+            function syncDetail(row, masterRowData) {
+                if (!row) return;
+                if (!row.isSelected || !row.isSelected()) {
+                    row.select();
+                }
+                const data = masterRowData || (row.getData ? row.getData() : null);
+                if (!data) return;
+
+                const corpGr = resolveCorpGr();
+                const dates = getFilterDates();
+                const currentKey = (corpGr || "") + "_" + (dates.fYmd || "") + "_" + (dates.tYmd || "") + "_" + (data.fundCd || "");
+                if (lastLoadedMasterKey === currentKey) return;
+                lastLoadedMasterKey = currentKey;
+                currentSelectedMaster = data;
+
+                const nameEl = pane ? pane.querySelector("#selected-fund-name") : document.getElementById("selected-fund-name");
+                if (nameEl) {
+                    nameEl.textContent = `${data.fundNm || ''} (${data.fundCd || ''})`;
+                }
+
+                loadDetailGrid(corpGr, dates.fYmd, dates.tYmd, data.fundCd);
+            }
+
+            // Detail Grid Data Loader
+            function loadDetailGrid(corpGr, fYmd, tYmd, fundCd) {
+                if (!gridDetail) return;
+                const countEl = pane ? pane.querySelector("#detail-count") : document.getElementById("detail-count");
+
+                const url = `/api/daily/ja010k/detail?corpGr=${encodeURIComponent(corpGr)}&fymd=${encodeURIComponent(fYmd)}&tymd=${encodeURIComponent(tYmd)}&fundCd=${encodeURIComponent(fundCd)}`;
+
+                fetch(url)
+                    .then(res => res.json())
+                    .then(data => {
+                        gridDetail.setData(data || []);
+                        if (countEl) {
+                            countEl.textContent = (data ? data.length : 0) + "건";
+                        }
+                    })
+                    .catch(err => {
+                        console.error("Failed to load detail data:", err);
+                        gridDetail.clearData();
+                        if (countEl) countEl.textContent = "0건";
+                    });
+            }
+
+            // Master Grid Data Loader
+            function loadMasterGrid() {
+                const corpGr = resolveCorpGr();
+                const dates = getFilterDates();
+                if (!corpGr) {
+                    if (window.AamsModal) window.AamsModal.alert("회사그룹을 선택해주세요.");
+                    return;
+                }
+                if (!dates.tYmd) {
+                    if (window.AamsModal) window.AamsModal.alert("조회일자를 입력해주세요.");
+                    return;
+                }
+
+                lastLoadedMasterKey = null;
+                currentSelectedMaster = null;
+                if (gridDetail) gridDetail.clearData();
+
+                const masterCountEl = pane ? pane.querySelector("#master-count") : document.getElementById("master-count");
+                const detailCountEl = pane ? pane.querySelector("#detail-count") : document.getElementById("detail-count");
+                const nameEl = pane ? pane.querySelector("#selected-fund-name") : document.getElementById("selected-fund-name");
+                if (nameEl) nameEl.textContent = "선택된 펀드 없음";
+                if (detailCountEl) detailCountEl.textContent = "0건";
+
+                const url = `/api/daily/ja010k/master?corpGr=${encodeURIComponent(corpGr)}&tymd=${encodeURIComponent(dates.tYmd)}`;
+
+                fetch(url)
+                    .then(res => res.json())
+                    .then(data => {
+                        masterAllData = data || [];
+                        applyMasterFilter();
+                    })
+                    .catch(err => {
+                        console.error("Failed to load master data:", err);
+                        gridMaster.clearData();
+                        masterAllData = [];
+                        if (masterCountEl) masterCountEl.textContent = "0건";
+                    });
+            }
+
+            function applyMasterFilter() {
+                if (!gridMaster) return;
+                const kwInput = pane ? pane.querySelector("#filterFundKeyword") : document.getElementById("filterFundKeyword");
+                const kw = kwInput ? kwInput.value.trim().toLowerCase() : "";
+
+                let filtered = masterAllData;
+                if (kw) {
+                    filtered = masterAllData.filter(d => {
+                        const cd = (d.fundCd || "").toLowerCase();
+                        const nm = (d.fundNm || "").toLowerCase();
+                        return cd.includes(kw) || nm.includes(kw);
+                    });
+                }
+
+                const masterCountEl = pane ? pane.querySelector("#master-count") : document.getElementById("master-count");
+                gridMaster.setData(filtered).then(() => {
+                    if (masterCountEl) {
+                        masterCountEl.textContent = filtered.length + "건";
+                    }
+                    if (filtered && filtered.length > 0) {
+                        const rows = gridMaster.getRows();
+                        if (rows && rows.length > 0) {
+                            rows[0].select();
+                            syncDetail(rows[0], rows[0].getData());
+                        }
+                    } else {
+                        if (gridDetail) gridDetail.clearData();
+                        const detailCountEl = pane ? pane.querySelector("#detail-count") : document.getElementById("detail-count");
+                        if (detailCountEl) detailCountEl.textContent = "0건";
+                    }
+                });
+            }
+
+            // Initialization Function
+            function initGrids() {
+                const masterEl = pane ? pane.querySelector("#ja010k-master-grid") : document.getElementById("ja010k-master-grid");
+                const detailEl = pane ? pane.querySelector("#ja010k-detail-grid") : document.getElementById("ja010k-detail-grid");
+
+                if (!masterEl || !detailEl) return;
+
+                // 1) Initialize Master Grid
+                gridMaster = new Tabulator(masterEl, {
+                    data: [],
+                    layout: "fitColumns",
+                    selectable: 1,
+                    columns: masterColumns,
+                    height: "100%",
+                    placeholder: "조회된 펀드 목록이 없습니다."
+                });
+
+                // Rule 8: Triple Fallback Row Selection for Master Grid
+                if (typeof setupTabulatorRowSelection === 'function') {
+                    setupTabulatorRowSelection(gridMaster, function(row, data) {
+                        syncDetail(row, data);
+                    });
+                }
+                gridMaster.on("rowClick", function(e, row) {
+                    syncDetail(row, row ? row.getData() : null);
+                });
+                gridMaster.on("rowSelectionChanged", function(data, rows) {
+                    if (rows && rows.length > 0) {
+                        syncDetail(rows[0], rows[0].getData());
+                    }
+                });
+
+                // 2) Initialize Detail Grid
+                gridDetail = new Tabulator(detailEl, {
+                    data: [],
+                    layout: "fitDataFill",
+                    selectable: 1,
+                    columns: detailColumns,
+                    height: "100%",
+                    placeholder: "조회된 상세 내역이 없습니다."
+                });
+
+                if (typeof setupTabulatorRowSelection === 'function') {
+                    setupTabulatorRowSelection(gridDetail);
+                }
+
+                // Filter keyword input
+                const kwInput = pane ? pane.querySelector("#filterFundKeyword") : document.getElementById("filterFundKeyword");
+                if (kwInput) {
+                    kwInput.addEventListener("input", applyMasterFilter);
+                }
+
+                // Date filter change
+                const fInput = pane ? pane.querySelector("#filterFYmd") : document.getElementById("filterFYmd");
+                const tInput = pane ? pane.querySelector("#filterTYmd") : document.getElementById("filterTYmd");
+                if (fInput) fInput.addEventListener("change", loadMasterGrid);
+                if (tInput) tInput.addEventListener("change", loadMasterGrid);
+
+                // Detail Sub Buttons
+                bindSubButtons();
+
+                // Initial Load
+                setTimeout(loadMasterGrid, 100);
+            }
+
+            function bindSubButtons() {
+                const btnRefresh = pane ? pane.querySelector("#btnDetailRefresh") : document.getElementById("btnDetailRefresh");
+                if (btnRefresh) {
+                    btnRefresh.addEventListener("click", function() {
+                        if (currentSelectedMaster) {
+                            const corpGr = resolveCorpGr();
+                            const dates = getFilterDates();
+                            loadDetailGrid(corpGr, dates.fYmd, dates.tYmd, currentSelectedMaster.fundCd);
+                        }
+                    });
+                }
+
+                const btnSave = pane ? pane.querySelector("#btnDetailSave") : document.getElementById("btnDetailSave");
+                if (btnSave) {
+                    btnSave.addEventListener("click", save);
+                }
+
+                const btnExcel = pane ? pane.querySelector("#btnDetailExcel") : document.getElementById("btnDetailExcel");
+                if (btnExcel) {
+                    btnExcel.addEventListener("click", function() {
+                        if (gridDetail) {
+                            gridDetail.download("xlsx", `수요예측참여표_${currentSelectedMaster ? currentSelectedMaster.fundCd : ''}.xlsx`);
+                        }
+                    });
+                }
+            }
+
+            // Save Function (Rule 9)
+            function save() {
+                if (!gridDetail) return;
+                const detailRows = gridDetail.getData();
+                const updatedList = detailRows.filter(r => r.isUpdated);
+
+                if (!updatedList || updatedList.length === 0) {
+                    if (window.AamsModal) window.AamsModal.alert("수정된 벤처구주 내역이 없습니다.");
+                    else alert("수정된 벤처구주 내역이 없습니다.");
+                    return;
+                }
+
+                const corpGr = resolveCorpGr();
+                const saveDto = {
+                    updatedList: updatedList.map(r => ({
+                        corpGr: corpGr,
+                        ymd: r.ymd,
+                        fundCd: r.fundCd,
+                        jmGr: r.jmGr,
+                        jmCd: r.jmCd,
+                        buyDate: r.buyDate,
+                        chasu: r.chasu,
+                        vcOld: r.vcOld
+                    }))
+                };
+
+                const doSave = function() {
+                    fetch("/api/daily/ja010k/save", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json"
+                        },
+                        body: JSON.stringify(saveDto)
+                    })
+                    .then(res => res.json())
+                    .then(res => {
+                        if (res.success) {
+                            if (window.AamsModal) {
+                                window.AamsModal.alert("저장이 완료되었습니다.", () => {
+                                    if (currentSelectedMaster) {
+                                        const dates = getFilterDates();
+                                        lastLoadedMasterKey = null;
+                                        loadDetailGrid(corpGr, dates.fYmd, dates.tYmd, currentSelectedMaster.fundCd);
+                                    }
+                                });
+                            } else {
+                                alert("저장이 완료되었습니다.");
+                                if (currentSelectedMaster) {
+                                    const dates = getFilterDates();
+                                    lastLoadedMasterKey = null;
+                                    loadDetailGrid(corpGr, dates.fYmd, dates.tYmd, currentSelectedMaster.fundCd);
+                                }
+                            }
+                        } else {
+                            if (window.AamsModal) window.AamsModal.alert(res.message || "저장 중 오류가 발생했습니다.");
+                            else alert(res.message || "저장 중 오류가 발생했습니다.");
+                        }
+                    })
+                    .catch(err => {
+                        console.error("Failed to save:", err);
+                        if (window.AamsModal) window.AamsModal.alert("저장 통신 오류가 발생했습니다.");
+                        else alert("저장 통신 오류가 발생했습니다.");
+                    });
+                };
+
+                if (window.AamsModal) {
+                    window.AamsModal.confirm("수정된 벤처구주 금액을 저장하시겠습니까?", doSave);
+                } else {
+                    if (confirm("수정된 벤처구주 금액을 저장하시겠습니까?")) {
+                        doSave();
+                    }
+                }
+            }
+
+            // Toolbar Contract Binding (Rule 9)
+            if (pane) {
+                pane.onSearch = function() {
+                    loadMasterGrid();
+                };
+                pane.onSave = function() {
+                    save();
+                };
+                pane.onCorpGrChange = function() {
+                    loadMasterGrid();
+                };
+                pane.onExcel = function() {
+                    if (gridDetail) {
+                        gridDetail.download("xlsx", `수요예측참여표_${currentSelectedMaster ? currentSelectedMaster.fundCd : ''}.xlsx`);
+                    }
+                };
+                pane.onRefresh = function() {
+                    if (gridMaster) gridMaster.clearData();
+                    if (gridDetail) gridDetail.clearData();
+                    currentSelectedMaster = null;
+                    lastLoadedMasterKey = null;
+                    if (typeof showToast === "function") {
+                        showToast("화면이 초기화되었습니다.", "info");
+                    }
+                };
+            }
+
+            // Rule 11: Single Entry Point (isInitialized guard)
+            function startInit() {
+                if (isInitialized) return;
+                isInitialized = true;
+                initGrids();
+            }
+
+            if (document.readyState === "complete" || document.readyState === "interactive") {
+                startInit();
+            } else {
+                document.addEventListener("DOMContentLoaded", startInit);
+            }
+
+        })();
+    </script>
+</div>
+</html>

@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<div class="view-container layout-split ja991a-container" th:fragment="ja991aView">
+
+    <!-- Top Action Control Bar (Row 1) -->
+    <div class="view-toolbar">
+        <div class="toolbar-left">
+            <!-- Reusable Common Toolbar Buttons Fragment -->
+            <div th:replace="~{fragments/tab_header :: toolbarButtons(isList=true)}"></div>
+        </div>
+        <!-- Reusable Common Breadcrumb Fragment -->
+        <div th:replace="~{fragments/tab_header :: toolbarBreadcrumb}"></div>
+    </div>
+
+    <!-- Filter Bar (Row 2): Rule 14 & Rule 17 standard -->
+    <div class="filter-bar">
+        <div class="filter-left">
+            <!-- Base Date filter from dc_ymd fragment -->
+            <div th:replace="~{fragments/filter/dc_ymd :: filter(labelYmd='기준일자')}"></div>
+
+            <!-- Quick search filter for stock name or code -->
+            <div class="filter-item" style="margin-left: 16px;">
+                <label for="filterSearchJm" style="font-weight: 500; font-size: 12px; color: #475569; margin-right: 6px;">종목 검색</label>
+                <input type="text" id="filterSearchJm" class="filter-input" placeholder="종목명 또는 단축코드" style="width: 190px;" />
+            </div>
+        </div>
+        <div class="filter-actions">
+            <!-- Right-side actions if needed -->
+        </div>
+    </div>
+
+    <!-- Split Master-Detail Layout (wt_vertdetail: Left Master Stock List, Right Detail Price History) -->
+    <div class="split-content-container" style="flex: 1 1 auto; height: calc(100% - 92px); padding: 8px 12px; overflow: hidden; display: flex; flex-direction: row; gap: 12px;">
+
+        <!-- Left Master Section: Stock List (d_ja991a1) -->
+        <div class="grid-section master-section" style="flex: 1 1 52%; min-width: 320px; display: flex; flex-direction: column; overflow: hidden;">
+            <div class="section-header" style="padding: 6px 10px; font-weight: 600; font-size: 13px; color: #1e293b; background: #e2e8f0; border-radius: 4px 4px 0 0; display: flex; justify-content: space-between; align-items: center;">
+                <span><i class="fa-solid fa-list-ul" style="margin-right: 6px; color: #3b82f6;"></i> 주식 종목 목록</span>
+                <span id="master-count" style="font-size: 11px; color: #64748b; font-weight: normal;">0건</span>
+            </div>
+            <div class="grid-table-wrapper" style="flex: 1 1 auto; height: 100%; width: 100%; border: 1px solid #cbd5e1; border-top: none; border-radius: 0 0 4px 4px; overflow: hidden; background-color: #fff;">
+                <div id="ja991a-master-grid" class="tabulator-aams-grid" style="height: 100%;"></div>
+            </div>
+        </div>
+
+        <!-- Right Detail Section: Price History (d_ja991a2) -->
+        <div class="grid-section detail-section" style="flex: 1 1 48%; min-width: 320px; display: flex; flex-direction: column; overflow: hidden;">
+            <div class="section-header" style="padding: 6px 10px; font-weight: 600; font-size: 13px; color: #1e293b; background: #e2e8f0; border-radius: 4px 4px 0 0; display: flex; justify-content: space-between; align-items: center;">
+                <span><i class="fa-solid fa-chart-line" style="margin-right: 6px; color: #10b981;"></i> 종목별 종가 이력 (<span id="selected-jm-desc" style="color: #2563eb;">종목을 선택하세요</span>)</span>
+                <span id="detail-count" style="font-size: 11px; color: #64748b; font-weight: normal;">0건</span>
+            </div>
+            <div class="grid-table-wrapper" style="flex: 1 1 auto; height: 100%; width: 100%; border: 1px solid #cbd5e1; border-top: none; border-radius: 0 0 4px 4px; overflow: hidden; background-color: #fff;">
+                <div id="ja991a-detail-grid" class="tabulator-aams-grid" style="height: 100%;"></div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Page Specific Script for w_ja991a -->
+    <script th:inline="javascript">
+        (function() {
+            const currentScript = document.currentScript;
+            const pane = currentScript ? (currentScript.closest('.tab-pane') || currentScript.closest('.view-container')) : null;
+
+            let gridMaster = null;
+            let gridDetail = null;
+            let isInitialized = false;
+            let lastLoadedMasterKey = null;
+            let masterDataList = [];
+
+            // Number formatter
+            function numberFormatter(cell) {
+                const val = cell.getValue();
+                if (val === null || val === undefined || val === '') return '';
+                const num = Number(val);
+                if (isNaN(num)) return val;
+                return num.toLocaleString();
+            }
+
+            // Decimal number formatter (precision: 2)
+            function decimalFormatter(cell) {
+                const val = cell.getValue();
+                if (val === null || val === undefined || val === '') return '';
+                const num = Number(val);
+                if (isNaN(num)) return val;
+                return num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            }
+
+            // Price change formatter with color & symbol
+            function changeFormatter(cell) {
+                const val = cell.getValue();
+                if (val === null || val === undefined || val === '') return '';
+                const num = Number(val);
+                if (isNaN(num)) return val;
+
+                if (num > 0) {
+                    return `<span style="color: #dc2626; font-weight: 500;">▲ ${num.toLocaleString()}</span>`;
+                } else if (num < 0) {
+                    return `<span style="color: #2563eb; font-weight: 500;">▼ ${Math.abs(num).toLocaleString()}</span>`;
+                } else {
+                    return `<span>0</span>`;
+                }
+            }
+
+            function formatDateVal(val) {
+                if (!val) return "";
+                var s = String(val).replace(/[^0-9]/g, "");
+                if (s.length === 8) return s.substring(0, 4) + "." + s.substring(4, 6) + "." + s.substring(6, 8);
+                if (String(val).length >= 10 && String(val).indexOf("-") > 0) return String(val).substring(0, 10).replace(/-/g, ".");
+                return val;
+            }
+
+            // Update Master Count badge
+            function updateMasterCount(count) {
+                const el = pane ? pane.querySelector("#master-count") : document.getElementById("master-count");
+                if (el) el.innerText = (count || 0) + "건";
+            }
+
+            // Update Detail Count badge & Title
+            function updateDetailHeader(masterData, count) {
+                const descEl = pane ? pane.querySelector("#selected-jm-desc") : document.getElementById("selected-jm-desc");
+                const countEl = pane ? pane.querySelector("#detail-count") : document.getElementById("detail-count");
+
+                if (descEl) {
+                    if (masterData) {
+                        const code = masterData.koscomCd || masterData.jmCd || '';
+                        const name = masterData.jjNm || '';
+                        descEl.innerText = `${code} ${name}`.trim();
+                    } else {
+                        descEl.innerText = "종목을 선택하세요";
+                    }
+                }
+                if (countEl) {
+                    countEl.innerText = (count || 0) + "건";
+                }
+            }
+
+            // Sync Detail with Triple Fallback (Rule 8)
+            function syncDetail(row, masterRowData) {
+                if (!row) return;
+                if (!row.isSelected || !row.isSelected()) {
+                    row.select();
+                }
+                const data = masterRowData || (row.getData ? row.getData() : null);
+                if (!data) return;
+
+                const ymdInput = pane ? pane.querySelector("#filterYmd") : document.getElementById("filterYmd");
+                const currentYmd = ymdInput ? ymdInput.value : "";
+                const currentKey = (data.koscomCd || data.jmCd || "") + "_" + currentYmd;
+
+                if (lastLoadedMasterKey === currentKey) return;
+                lastLoadedMasterKey = currentKey;
+
+                loadDetailGrid(data, currentYmd);
+            }
+
+            // Load Detail Grid API
+            function loadDetailGrid(masterData, ymd) {
+                if (!gridDetail) return;
+                const koscomCd = masterData ? (masterData.koscomCd || masterData.jmCd) : "";
+                if (!koscomCd) {
+                    gridDetail.clearData();
+                    updateDetailHeader(null, 0);
+                    return;
+                }
+
+                updateDetailHeader(masterData, 0);
+
+                const params = new URLSearchParams();
+                params.append("koscomCd", koscomCd);
+                if (ymd) params.append("ymd", ymd);
+
+                fetch(`/api/daily/ja991a/detail?${params.toString()}`, {
+                    headers: { 'Accept': 'application/json' }
+                })
+                .then(res => res.json())
+                .then(data => {
+                    const list = Array.isArray(data) ? data : [];
+                    gridDetail.setData(list);
+                    updateDetailHeader(masterData, list.length);
+                })
+                .catch(err => {
+                    console.error("Failed to load detail list:", err);
+                    gridDetail.clearData();
+                    updateDetailHeader(masterData, 0);
+                });
+            }
+
+            // Load Master Grid API
+            function loadMasterList() {
+                if (!gridMaster) return;
+
+                const corpGr = (pane && pane.dataset.corpGr) || window.currentCorpGr || "";
+                const ymdInput = pane ? pane.querySelector("#filterYmd") : document.getElementById("filterYmd");
+                const ymd = ymdInput ? ymdInput.value : "";
+
+                const params = new URLSearchParams();
+                if (corpGr) params.append("corpGr", corpGr);
+                if (ymd) params.append("ymd", ymd);
+
+                fetch(`/api/daily/ja991a/master?${params.toString()}`, {
+                    headers: { 'Accept': 'application/json' }
+                })
+                .then(res => res.json())
+                .then(data => {
+                    masterDataList = Array.isArray(data) ? data : [];
+                    applyMasterFilter();
+                })
+                .catch(err => {
+                    console.error("Failed to load master list:", err);
+                    gridMaster.clearData();
+                    masterDataList = [];
+                    updateMasterCount(0);
+                    if (gridDetail) gridDetail.clearData();
+                    updateDetailHeader(null, 0);
+                    lastLoadedMasterKey = null;
+                });
+            }
+
+            // Apply client-side quick filter on master grid
+            function applyMasterFilter() {
+                if (!gridMaster) return;
+                const searchInput = pane ? pane.querySelector("#filterSearchJm") : document.getElementById("filterSearchJm");
+                const keyword = searchInput ? searchInput.value.trim().toLowerCase() : "";
+
+                let filtered = masterDataList;
+                if (keyword) {
+                    filtered = masterDataList.filter(item => {
+                        const nm = (item.jjNm || "").toLowerCase();
+                        const cd = (item.koscomCd || "").toLowerCase();
+                        const jm = (item.jmCd || "").toLowerCase();
+                        return nm.includes(keyword) || cd.includes(keyword) || jm.includes(keyword);
+                    });
+                }
+
+                gridMaster.setData(filtered).then(() => {
+                    updateMasterCount(filtered.length);
+                    const rows = gridMaster.getRows();
+                    if (rows && rows.length > 0) {
+                        rows[0].select();
+                        syncDetail(rows[0], rows[0].getData());
+                    } else {
+                        if (gridDetail) gridDetail.clearData();
+                        updateDetailHeader(null, 0);
+                        lastLoadedMasterKey = null;
+                    }
+                });
+            }
+
+            // Initialize Grids and Event Listeners
+            function initGrids() {
+                const masterEl = pane ? pane.querySelector("#ja991a-master-grid") : document.getElementById("ja991a-master-grid");
+                const detailEl = pane ? pane.querySelector("#ja991a-detail-grid") : document.getElementById("ja991a-detail-grid");
+
+                if (!masterEl || !detailEl) return;
+
+                // 1. Master Tabulator Grid (d_ja991a1)
+                gridMaster = new Tabulator(masterEl, {
+                    layout: "fitColumns",
+                    selectableRows: 1,
+                    height: "100%",
+                    placeholder: "조회된 종목 데이터가 없습니다.",
+                    columns: [
+                        { title: "No.", field: "fseq", width: 55, hozAlign: "center", headerHozAlign: "center", frozen: true },
+                        { title: "표준종목코드", field: "jmCd", width: 130, hozAlign: "center", headerHozAlign: "center" },
+                        { title: "단축코드", field: "koscomCd", width: 90, hozAlign: "center", headerHozAlign: "center" },
+                        { title: "종목명", field: "jjNm", minWidth: 160, hozAlign: "left", headerHozAlign: "center" },
+                        { title: "종목영문명", field: "jjEnm", minWidth: 150, hozAlign: "left", headerHozAlign: "center" },
+                        { title: "발행기관", field: "balhCo", width: 85, hozAlign: "center", headerHozAlign: "center" }
+                    ]
+                });
+
+                // Rule 8: Triple Fallback for Master Row Selection
+                if (typeof setupTabulatorRowSelection === "function") {
+                    setupTabulatorRowSelection(gridMaster, function(row, data) {
+                        syncDetail(row, data);
+                    });
+                }
+                gridMaster.on("rowClick", function(e, row) {
+                    syncDetail(row, row ? row.getData() : null);
+                });
+                gridMaster.on("rowSelectionChanged", function(data, rows) {
+                    if (rows && rows.length > 0) {
+                        syncDetail(rows[0], rows[0].getData());
+                    }
+                });
+
+                // 2. Detail Tabulator Grid (d_ja991a2)
+                gridDetail = new Tabulator(detailEl, {
+                    layout: "fitColumns",
+                    selectableRows: 1,
+                    height: "100%",
+                    placeholder: "선택된 종목의 종가 이력이 없습니다.",
+                    columns: [
+                        { title: "No.", field: "fseq", width: 55, hozAlign: "center", headerHozAlign: "center", frozen: true },
+                        { title: "종가일자", field: "ymd", width: 105, hozAlign: "center", headerHozAlign: "center", formatter: cell => formatDateVal(cell.getValue()) },
+                        { title: "종가", field: "close", width: 100, hozAlign: "right", headerHozAlign: "center", formatter: numberFormatter },
+                        { title: "전일종가", field: "preclose", width: 100, hozAlign: "right", headerHozAlign: "center", formatter: numberFormatter },
+                        { title: "등락", field: "change", width: 95, hozAlign: "right", headerHozAlign: "center", formatter: changeFormatter },
+                        { title: "거래량", field: "volume", minWidth: 110, hozAlign: "right", headerHozAlign: "center", formatter: numberFormatter },
+                        { title: "거래대금(억)", field: "value", minWidth: 110, hozAlign: "right", headerHozAlign: "center", formatter: decimalFormatter }
+                    ]
+                });
+
+                if (typeof setupTabulatorRowSelection === "function") {
+                    setupTabulatorRowSelection(gridDetail);
+                }
+
+                // Attach Filter Event Listeners
+                const searchInput = pane ? pane.querySelector("#filterSearchJm") : document.getElementById("filterSearchJm");
+                if (searchInput) {
+                    searchInput.addEventListener("input", function() {
+                        applyMasterFilter();
+                    });
+                    searchInput.addEventListener("keydown", function(e) {
+                        if (e.key === "Enter") {
+                            applyMasterFilter();
+                        }
+                    });
+                }
+
+                const ymdInput = pane ? pane.querySelector("#filterYmd") : document.getElementById("filterYmd");
+                if (ymdInput) {
+                    ymdInput.addEventListener("change", function() {
+                        lastLoadedMasterKey = null;
+                        loadMasterList();
+                    });
+                // AamsCalendar 초기화
+                if (typeof AamsCalendar !== 'undefined' && typeof AamsCalendar.initSimple === 'function') {
+                    AamsCalendar.initSimple('filterYmd', { pane: pane });
+                }
+
+                // Initial Data Load (eb_direct_retrieve = true 명세)
+                loadMasterList();
+            }
+
+            // Tab pane standard action hooks (Rule 9)
+            if (pane) {
+                pane.onSearch = function() {
+                    lastLoadedMasterKey = null;
+                    loadMasterList();
+                };
+
+                // 공통버튼 지침: 새로고침은 조회 전 초기화 상태로 되돌린다.
+                pane.onRefresh = function() {
+                    if (gridMaster) gridMaster.clearData();
+                    if (gridDetail) gridDetail.clearData();
+                    lastLoadedMasterKey = null;
+                    masterDataList = [];
+                    const ymdInput = pane ? pane.querySelector("#filterYmd") : document.getElementById("filterYmd");
+                    if (ymdInput) {
+                        const today = new Date();
+                        const yyyy = today.getFullYear();
+                        const mm = String(today.getMonth() + 1).padStart(2, '0');
+                        const dd = String(today.getDate()).padStart(2, '0');
+                        ymdInput.value = `${yyyy}-${mm}-${dd}`;
+                    }
+                    const searchInput = pane ? pane.querySelector("#filterSearchJm") : document.getElementById("filterSearchJm");
+                    if (searchInput) searchInput.value = "";
+                    updateMasterCount(0);
+                    updateDetailHeader(null, 0);
+                    if (typeof showToast === "function") showToast("화면이 초기화되었습니다.", "info");
+                };
+
+                pane.onCorpGrChange = function(newCorpGr) {
+                    if (gridMaster) gridMaster.clearData();
+                    if (gridDetail) gridDetail.clearData();
+                    pane.dataset.corpGr = newCorpGr || "";
+                    lastLoadedMasterKey = null;
+                    loadMasterList();
+                };
+
+                pane.onExcel = function() {
+                    if (gridMaster && gridDetail) {
+                        const selectedRows = gridMaster.getSelectedRows();
+                        const jmDesc = (selectedRows && selectedRows.length > 0)
+                                ? (selectedRows[0].getData().jjNm || "종가이력")
+                                : "종가이력";
+                        gridDetail.download("xlsx", `${jmDesc}_종가이력.xlsx`, { sheetName: "종가이력" });
+                    } else if (gridMaster) {
+                        gridMaster.download("xlsx", "주식종목목록.xlsx", { sheetName: "주식종목" });
+                    }
+                };
+            }
+
+            // Single entry point pattern (Rule 11)
+            function startInit() {
+                if (isInitialized) return;
+                isInitialized = true;
+                setTimeout(initGrids, 60);
+            }
+
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', startInit);
+            } else {
+                startInit();
+            }
+        })();
+    </script>
+</div>
+</html>

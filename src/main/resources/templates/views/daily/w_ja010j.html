@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<div class="view-container layout-split ja010j-container" th:fragment="ja010jView" style="display: flex; flex-direction: column; height: 100%; width: 100%; overflow: hidden;">
+
+    <style>
+        .ja010j-container .split-body {
+            display: flex;
+            flex-direction: row;
+            flex: 1 1 auto;
+            height: calc(100% - 90px);
+            width: 100%;
+            overflow: hidden;
+            padding: 8px;
+            gap: 8px;
+            background-color: #f8fafc;
+        }
+
+        .ja010j-container .left-pane {
+            flex: 1 1 42%;
+            min-width: 360px;
+            display: flex;
+            flex-direction: column;
+            background: #ffffff;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+
+        .ja010j-container .right-pane {
+            flex: 1 1 58%;
+            min-width: 400px;
+            display: flex;
+            flex-direction: column;
+            background: #ffffff;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+
+        .ja010j-container .pane-header {
+            padding: 8px 12px;
+            background: #f8fafc;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0;
+        }
+
+        .ja010j-container .pane-body {
+            flex: 1 1 auto;
+            height: calc(100% - 41px);
+            width: 100%;
+            overflow: hidden;
+            position: relative;
+        }
+
+        @media (max-width: 876px) {
+            .ja010j-container .split-body {
+                flex-direction: column !important;
+                padding: 4px !important;
+                height: calc(100% - 110px) !important;
+            }
+
+            .ja010j-container .left-pane {
+                flex: 1 1 100% !important;
+                width: 100% !important;
+                min-width: 0 !important;
+                height: 100% !important;
+            }
+
+            .ja010j-container .right-pane {
+                display: none !important;
+            }
+        }
+    </style>
+
+    <!-- 1. 상단 공통 툴바 (Row 1) -->
+    <div class="view-toolbar">
+        <div class="toolbar-left">
+            <div th:replace="~{fragments/tab_header :: toolbarButtons}"></div>
+        </div>
+        <div th:replace="~{fragments/tab_header :: toolbarBreadcrumb}"></div>
+    </div>
+
+    <!-- 2. 상단 필터바 (규칙 14, 17: dc_ftymd) -->
+    <div class="filter-bar">
+        <div class="filter-left">
+            <th:block th:replace="~{fragments/filter/dc_ftymd :: filter(labelYmd='조회일구간')}"></th:block>
+        </div>
+        <div class="filter-actions d-flex align-items-center gap-1">
+            <div class="btn-group btn-group-sm">
+                <button type="button" class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                    <i class="fas fa-file-export me-1"></i> 리포트 내보내기
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end shadow-sm">
+                    <li><a class="dropdown-item export-btn" href="#" data-format="pdf"><i class="far fa-file-pdf text-danger me-2"></i>PDF 저장</a></li>
+                    <li><a class="dropdown-item export-btn" href="#" data-format="excel"><i class="far fa-file-excel text-success me-2"></i>Excel 저장</a></li>
+                    <li><a class="dropdown-item export-btn" href="#" data-format="word"><i class="far fa-file-word text-primary me-2"></i>Word 저장</a></li>
+                    <li><a class="dropdown-item export-btn" href="#" data-format="hwp"><i class="far fa-file-alt text-info me-2"></i>한글(HWP) 저장</a></li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. 메인 레이아웃 (좌: d_ja010j1 참여그룹 목록, 우: RD 수요예측 참여표 리포트) -->
+    <div class="split-body">
+        <!-- 좌측 그리드 -->
+        <div class="left-pane">
+            <div class="pane-header">
+                <span class="fw-bold small text-secondary"><i class="fas fa-list me-1"></i> 참여그룹 목록</span>
+                <span id="group-count-badge" class="badge bg-primary rounded-pill">0건</span>
+            </div>
+            <div class="pane-body">
+                <div id="ja010j-grid" class="tabulator-aams-grid" style="height: 100%; width: 100%;"></div>
+            </div>
+        </div>
+
+        <!-- 우측 RD 미리보기 뷰어 -->
+        <div class="right-pane">
+            <div class="pane-header">
+                <span class="fw-bold small text-secondary" id="preview-header-title">
+                    <i class="fas fa-file-invoice me-1"></i> 수요예측 참여표 리포트
+                </span>
+                <span id="preview-status" class="small text-muted">선택된 그룹 없음</span>
+            </div>
+            <div class="pane-body" style="background-color: #525659;">
+                <div id="preview-loading" class="position-absolute top-50 start-50 translate-middle text-white text-center d-none" style="z-index: 10;">
+                    <div class="spinner-border text-light mb-2" role="status"></div>
+                    <div class="small">보고서를 생성 중입니다...</div>
+                </div>
+                <iframe id="report-frame" class="w-100 h-100 border-0" src="about:blank"></iframe>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        (function () {
+            var currentPane = document.currentScript.closest('.tab-pane');
+            if (!currentPane) currentPane = document;
+
+            var grid = null;
+            var isInitialized = false;
+            var lastLoadedMasterKey = null;
+            var currentSelectedRowData = null;
+
+            function getFilterCorpGr() {
+                var el = currentPane.querySelector('#corpGrSelect') || document.querySelector('#corpGrSelect');
+                if (el && el.value) return el.value;
+                if (typeof g_corp_gr !== 'undefined' && g_corp_gr) return g_corp_gr;
+                return '';
+            }
+
+            function getFilterFymd() {
+                var el = currentPane.querySelector('#filterFymd') || currentPane.querySelector('input[name="fymd"]');
+                if (el && el.value) return el.value.replace(/-/g, '');
+                var d = new Date();
+                d.setMonth(d.getMonth() - 3);
+                d.setDate(d.getDate() + 1);
+                return d.toISOString().slice(0, 10).replace(/-/g, '');
+            }
+
+            function getFilterTymd() {
+                var el = currentPane.querySelector('#filterTymd') || currentPane.querySelector('input[name="tymd"]');
+                if (el && el.value) return el.value.replace(/-/g, '');
+                return (new Date()).toISOString().slice(0, 10).replace(/-/g, '');
+            }
+
+            function initDates() {
+                var fEl = currentPane.querySelector('#filterFymd') || currentPane.querySelector('input[name="fymd"]');
+                var tEl = currentPane.querySelector('#filterTymd') || currentPane.querySelector('input[name="tymd"]');
+                if (tEl && !tEl.value) {
+                    tEl.value = (new Date()).toISOString().slice(0, 10);
+                }
+                if (fEl && !fEl.value) {
+                    var d = new Date();
+                    d.setMonth(d.getMonth() - 3);
+                    d.setDate(d.getDate() + 1);
+                    fEl.value = d.toISOString().slice(0, 10);
+                }
+            }
+
+            function initGrid() {
+                var gridEl = currentPane.querySelector('#ja010j-grid');
+                if (!gridEl) return;
+
+                // d_ja010j1.srd 컬럼 x좌표 순서와 100% 일치
+                grid = new Tabulator(gridEl, {
+                    height: "100%",
+                    layout: "fitDataFill",
+                    selectable: 1,
+                    data: [],
+                    columns: [
+                        { title: "No.", formatter: "rownum", width: 45, hozAlign: "center", headerHozAlign: "center" },
+                        { title: "회사코드", field: "corpGr", width: 85, hozAlign: "center", headerHozAlign: "center" },
+                        { title: "공모참여그룹회사명", field: "companyName", minWidth: 240, hozAlign: "left", headerHozAlign: "center" }
+                    ]
+                });
+
+                // 규칙 8번 삼중 안전망
+                if (typeof setupTabulatorRowSelection === "function") {
+                    setupTabulatorRowSelection(grid, function (row, data) {
+                        syncDetail(row, data);
+                    });
+                }
+                grid.on("rowClick", function (e, row) {
+                    syncDetail(row, row ? row.getData() : null);
+                });
+                grid.on("rowSelectionChanged", function (data, rows) {
+                    if (rows && rows.length > 0) {
+                        syncDetail(rows[0], rows[0].getData());
+                    }
+                });
+            }
+
+            function syncDetail(row, masterRowData) {
+                if (!row) return;
+                if (!row.isSelected || !row.isSelected()) {
+                    row.select();
+                }
+                var data = masterRowData || (row.getData ? row.getData() : null);
+                if (!data) return;
+
+                var fymd = getFilterFymd();
+                var tymd = getFilterTymd();
+                var currentKey = (data.corpGr || "") + "_" + (data.fundCd || "") + "_" + fymd + "_" + tymd;
+
+                if (lastLoadedMasterKey === currentKey) return;
+                lastLoadedMasterKey = currentKey;
+                currentSelectedRowData = data;
+
+                loadReportPreview(data);
+            }
+
+            function loadReportPreview(data) {
+                var fymd = getFilterFymd();
+                var tymd = getFilterTymd();
+                var corpGr = data.corpGr || getFilterCorpGr();
+                var fundCd = data.fundCd || '0';
+                var companyName = data.companyName || '';
+                var fundNm = data.fundNm || '';
+
+                var statusEl = currentPane.querySelector('#preview-status');
+                var titleEl = currentPane.querySelector('#preview-header-title');
+                var loadingEl = currentPane.querySelector('#preview-loading');
+                var iframe = currentPane.querySelector('#report-frame');
+
+                if (titleEl) titleEl.innerHTML = '<i class="fas fa-file-invoice me-1"></i> ' + companyName + ' 수요예측 참여표';
+                if (statusEl) statusEl.innerText = "조회구간: " + fymd + " ~ " + tymd;
+                if (loadingEl) loadingEl.classList.remove('d-none');
+
+                var previewUrl = "/api/daily/ja010j/preview?corpGr=" + encodeURIComponent(corpGr) +
+                    "&fundCd=" + encodeURIComponent(fundCd) +
+                    "&companyName=" + encodeURIComponent(companyName) +
+                    "&fundNm=" + encodeURIComponent(fundNm) +
+                    "&fymd=" + encodeURIComponent(fymd) +
+                    "&tymd=" + encodeURIComponent(tymd) +
+                    "&t=" + new Date().getTime();
+
+                iframe.src = previewUrl;
+                iframe.onload = function () {
+                    if (loadingEl) loadingEl.classList.add('d-none');
+                };
+            }
+
+            function loadList() {
+                var corpGr = getFilterCorpGr();
+                var tymd = getFilterTymd();
+
+                if (!corpGr) {
+                    if (typeof showToast === "function") showToast("회사그룹을 선택해주세요.", "warning");
+                    return;
+                }
+
+                var url = "/api/daily/ja010j/list?corpGr=" + encodeURIComponent(corpGr) + "&ymd=" + encodeURIComponent(tymd);
+                fetch(url)
+                    .then(function (res) { return res.json(); })
+                    .then(function (data) {
+                        var list = data || [];
+                        var badge = currentPane.querySelector('#group-count-badge');
+                        if (badge) badge.innerText = list.length + "건";
+
+                        lastLoadedMasterKey = null;
+                        if (grid) {
+                            grid.setData(list).then(function () {
+                                var rows = grid.getRows();
+                                if (rows && rows.length > 0) {
+                                    rows[0].select();
+                                    syncDetail(rows[0], rows[0].getData());
+                                } else {
+                                    var iframe = currentPane.querySelector('#report-frame');
+                                    if (iframe) iframe.src = "about:blank";
+                                    var statusEl = currentPane.querySelector('#preview-status');
+                                    if (statusEl) statusEl.innerText = "조회 결과 없음";
+                                }
+                            });
+                        }
+                    })
+                    .catch(function (err) {
+                        console.error("수요예측 참여표 목록 조회 실패:", err);
+                        if (typeof showToast === "function") showToast("조회 중 오류가 발생했습니다.", "error");
+                    });
+            }
+
+            function exportReport(format) {
+                if (!currentSelectedRowData) {
+                    alert("내보낼 참여그룹을 먼저 선택해주세요.");
+                    return;
+                }
+
+                var fymd = getFilterFymd();
+                var tymd = getFilterTymd();
+                var corpGr = currentSelectedRowData.corpGr || getFilterCorpGr();
+                var fundCd = currentSelectedRowData.fundCd || '0';
+                var companyName = currentSelectedRowData.companyName || '';
+                var fundNm = currentSelectedRowData.fundNm || '';
+
+                var url = "/api/daily/ja010j/export?corpGr=" + encodeURIComponent(corpGr) +
+                    "&fundCd=" + encodeURIComponent(fundCd) +
+                    "&companyName=" + encodeURIComponent(companyName) +
+                    "&fundNm=" + encodeURIComponent(fundNm) +
+                    "&fymd=" + encodeURIComponent(fymd) +
+                    "&tymd=" + encodeURIComponent(tymd) +
+                    "&format=" + encodeURIComponent(format);
+
+                window.location.href = url;
+            }
+
+            function startInit() {
+                if (isInitialized) return;
+                isInitialized = true;
+
+                initDates();
+                initGrid();
+
+                var exportBtns = currentPane.querySelectorAll('.export-btn');
+                exportBtns.forEach(function (btn) {
+                    btn.addEventListener('click', function (e) {
+                        e.preventDefault();
+                        var format = this.getAttribute('data-format');
+                        exportReport(format);
+                    });
+                });
+
+                // 개발지침 규칙 9: 표준 계약 함수 연결
+                currentPane.onRetrieve = currentPane.onSearch = function () {
+                    loadList();
+                };
+                currentPane.onCorpGrChange = function () {
+                    loadList();
+                };
+                currentPane.onRefresh = function () {
+                    if (grid) grid.clearData();
+                    currentSelectedRowData = null;
+                    lastLoadedMasterKey = null;
+                    initDates();
+                    var previewContainer = currentPane.querySelector('#report-preview-container');
+                    if (previewContainer) {
+                        previewContainer.innerHTML = '<div class="report-empty-state"><i class="bi bi-file-earmark-bar-graph"></i><p>조회된 내역이 없습니다.</p></div>';
+                    }
+                    if (typeof showToast === "function") {
+                        showToast("화면이 초기화되었습니다.", "info");
+                    }
+                };
+
+                setTimeout(function () {
+                    loadList();
+                }, 100);
+            }
+
+            if (document.readyState === "loading") {
+                document.addEventListener("DOMContentLoaded", startInit);
+            } else {
+                startInit();
+            }
+        })();
+    </script>
+</div>
+</html>

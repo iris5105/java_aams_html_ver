@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.kfp.aams.domain.daily.mapper.Sjt0scMapper">
+
+    <!-- 1. 펀드 기준가(시가액)등록 목록 조회 (d_sjt0sc_2402 / d_sjt0sc) -->
+    <select id="selectSjt0scList" resultType="com.kfp.aams.domain.daily.dto.Sjt0scDto">
+        SELECT t1.corp_gr                         AS corpGr
+             , TO_CHAR(t1.ymd, 'YYYY-MM-DD')       AS ymd
+             , t1.jm_cd                           AS jmCd
+             , t2.tasa_fund_cd                    AS tasaFundCd
+             , F_JM_NM(t1.corp_gr, t1.jm_cd)      AS jmNm
+             , t1.dang_gijun_ga                   AS dangGijunGa
+             , t1.jun_gijun_ga                    AS junGijunGa
+             , (NVL(t1.dang_gijun_ga, 0) - NVL(t1.jun_gijun_ga, 0)) AS gijunGaDr
+             , t1.gyul_gijun_ga                   AS gyulGijunGa
+             , t1.bf_siga_aek                     AS bfSigaAek
+             , t1.load_siga_aek                   AS loadSigaAek
+             , t1.bigo                            AS bigo
+             , t1.dang_ggijun_ga                  AS dangGgijunGa
+             , t1.gyul_ggijun_ga                  AS gyulGgijunGa
+          FROM SJT0SC t1
+          LEFT OUTER JOIN sjm0sc t2  ON t2.corp_gr    = t1.corp_gr
+                                    AND t2.tasa_jm_cd = t1.jm_cd
+         WHERE t1.corp_gr LIKE #{corpGr}
+           AND t1.ymd     = TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
+         ORDER BY t1.corp_gr ASC, t1.jm_cd ASC
+    </select>
+
+    <!-- 2. 펀드 기준가 등록 -->
+    <insert id="insertSjt0sc" parameterType="com.kfp.aams.domain.daily.dto.Sjt0scDto">
+        INSERT INTO SJT0SC (
+            corp_gr
+          , ymd
+          , jm_cd
+          , dang_gijun_ga
+          , jun_gijun_ga
+          , gyul_gijun_ga
+          , bf_siga_aek
+          , load_siga_aek
+          , bigo
+          , dang_ggijun_ga
+          , gyul_ggijun_ga
+        ) VALUES (
+            #{corpGr}
+          , TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
+          , #{jmCd}
+          , #{dangGijunGa, jdbcType=NUMERIC}
+          , #{junGijunGa, jdbcType=NUMERIC}
+          , #{gyulGijunGa, jdbcType=NUMERIC}
+          , #{bfSigaAek, jdbcType=NUMERIC}
+          , #{loadSigaAek, jdbcType=NUMERIC}
+          , #{bigo, jdbcType=VARCHAR}
+          , #{dangGgijunGa, jdbcType=NUMERIC}
+          , #{gyulGgijunGa, jdbcType=NUMERIC}
+        )
+    </insert>
+
+    <!-- 3. 펀드 기준가 수정 -->
+    <update id="updateSjt0sc" parameterType="com.kfp.aams.domain.daily.dto.Sjt0scDto">
+        UPDATE SJT0SC
+           SET dang_gijun_ga  = #{dangGijunGa, jdbcType=NUMERIC}
+             , jun_gijun_ga   = #{junGijunGa, jdbcType=NUMERIC}
+             , gyul_gijun_ga  = #{gyulGijunGa, jdbcType=NUMERIC}
+             , bf_siga_aek    = #{bfSigaAek, jdbcType=NUMERIC}
+             , load_siga_aek  = #{loadSigaAek, jdbcType=NUMERIC}
+             , bigo           = #{bigo, jdbcType=VARCHAR}
+             , dang_ggijun_ga = #{dangGgijunGa, jdbcType=NUMERIC}
+             , gyul_ggijun_ga = #{gyulGgijunGa, jdbcType=NUMERIC}
+         WHERE corp_gr = #{corpGr}
+           AND ymd     = TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
+           AND jm_cd   = #{jmCd}
+    </update>
+
+    <!-- 4. 펀드 기준가 삭제 -->
+    <delete id="deleteSjt0sc">
+        DELETE FROM SJT0SC
+         WHERE corp_gr = #{corpGr}
+           AND ymd     = TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
+           AND jm_cd   = #{jmCd}
+    </delete>
+
+</mapper>

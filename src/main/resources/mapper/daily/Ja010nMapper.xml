@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.kfp.aams.domain.daily.mapper.Ja010nMapper">
+
+    <!-- 1. 주가지수 목록 조회 (d_ja010n1) -->
+    <select id="selectJa010nList" resultType="com.kfp.aams.domain.daily.dto.Ja010nDto">
+        SELECT t1.corp_gr                         AS corpGr
+             , TO_CHAR(t1.ymd, 'YYYY-MM-DD')       AS ymd
+             , t1.col_id                          AS colId
+             , t1.col_val                         AS colVal
+          FROM skt0bm t1
+         WHERE t1.corp_gr = 'JISU'
+           AND t1.col_id  = 'kospi_jisu'
+         ORDER BY t1.ymd DESC
+    </select>
+
+    <!-- 2. 주가지수 등록 -->
+    <insert id="insertJa010n" parameterType="com.kfp.aams.domain.daily.dto.Ja010nDto">
+        INSERT INTO skt0bm (
+            corp_gr
+          , ymd
+          , col_id
+          , col_val
+        ) VALUES (
+            'JISU'
+          , TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
+          , 'kospi_jisu'
+          , #{colVal, jdbcType=NUMERIC}
+        )
+    </insert>
+
+    <!-- 3. 주가지수 수정 -->
+    <update id="updateJa010n" parameterType="com.kfp.aams.domain.daily.dto.Ja010nDto">
+        UPDATE skt0bm
+           SET col_val = #{colVal, jdbcType=NUMERIC}
+         WHERE corp_gr = 'JISU'
+           AND col_id  = 'kospi_jisu'
+           AND ymd     = TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
+    </update>
+
+    <!-- 4. 주가지수 삭제 -->
+    <delete id="deleteJa010n">
+        DELETE FROM skt0bm
+         WHERE corp_gr = 'JISU'
+           AND col_id  = 'kospi_jisu'
+           AND ymd     = TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
+    </delete>
+
+</mapper>

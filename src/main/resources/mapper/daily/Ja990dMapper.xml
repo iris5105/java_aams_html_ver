@@ -1,0 +1,148 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.kfp.aams.domain.daily.mapper.Ja990dMapper">
+
+    <select id="selectStockList" resultType="com.kfp.aams.domain.daily.dto.Ja990dDto">
+        SELECT jj.JM_CD
+             , jj.KOSCOM_CD
+             , jj.JJ_FNM
+             , jj.JJ_NM
+             , jj.JJ_ENM
+             , jj.BALH_CO
+             , jj.WOOS_ILBAN_GB
+             , jj.CHG_GB
+             , jj.NEW_OLD_GB
+             , jj.DANC_GB
+             , jj.BALH_GA
+             , TO_CHAR(jj.KWEONRI_YMD, 'YYYY-MM-DD') AS kweonri_ymd
+             , TO_CHAR(jj.SANGJ_YMD, 'YYYY-MM-DD') AS sangj_ymd
+             , jj.SANGJ_JUSU
+             , jj.UPJ_CD
+             , TO_CHAR(jj.CREATED_YMD, 'YYYY-MM-DD') AS created_ymd
+             , NVL(jj.DEL_YN, '0') AS del_yn
+             , jb.BALH_NM
+             , uj.UPJ_FNM
+             , jj.CAPSIZE
+             , jj.KOSPIGUBUN
+             , TO_CHAR(jj.WOOS_VOTE_YMD, 'YYYY-MM-DD') AS woos_vote_ymd
+             , jj.UNDER
+             , jb.BALH_NATION
+             , TO_CHAR(jj.BAED_GISAN_YMD, 'YYYY-MM-DD') AS baed_gisan_ymd
+             , jj.ISIN_CD
+             , jj.A0231
+             , jj.deposit
+             , jj.CHG_RT
+          FROM SJM0JJ jj
+     LEFT JOIN sjx0jb jb ON jb.BALH_CO = jj.BALH_CO
+     LEFT JOIN szx0uj uj ON uj.UPJ_CD = jj.UPJ_CD
+         WHERE NVL(jj.danc_gb, ' ') != 'X'
+        <if test="searchKeyword != null and searchKeyword != ''">
+           AND (jj.jm_cd LIKE '%' || #{searchKeyword} || '%'
+             OR jj.koscom_cd LIKE '%' || #{searchKeyword} || '%'
+             OR jj.jj_nm LIKE '%' || #{searchKeyword} || '%')
+        </if>
+         ORDER BY jj.KOSCOM_CD ASC
+    </select>
+
+    <select id="selectRightList" resultType="com.kfp.aams.domain.daily.dto.Ja990dDto">
+        SELECT jj.JM_CD
+             , jj.KOSCOM_CD
+             , jj.JJ_FNM
+             , jj.JJ_NM
+             , jj.JJ_ENM
+             , jj.BALH_CO
+             , jj.WOOS_ILBAN_GB
+             , jj.CHG_GB
+             , jj.NEW_OLD_GB
+             , jj.DANC_GB
+             , jj.BALH_GA
+             , TO_CHAR(jj.KWEONRI_YMD, 'YYYY-MM-DD') AS kweonri_ymd
+             , TO_CHAR(jj.SANGJ_YMD, 'YYYY-MM-DD') AS sangj_ymd
+             , jj.SANGJ_JUSU
+             , jj.UPJ_CD
+             , TO_CHAR(jj.CREATED_YMD, 'YYYY-MM-DD') AS created_ymd
+             , NVL(jj.DEL_YN, '0') AS del_yn
+             , jb.BALH_NM
+             , uj.UPJ_FNM
+             , jj.CAPSIZE
+             , jj.KOSPIGUBUN
+             , TO_CHAR(jj.WOOS_VOTE_YMD, 'YYYY-MM-DD') AS woos_vote_ymd
+             , jj.UNDER
+             , jb.BALH_NATION
+             , TO_CHAR(jj.BAED_GISAN_YMD, 'YYYY-MM-DD') AS baed_gisan_ymd
+             , jj.ISIN_CD
+             , jj.A0231
+             , jj.deposit
+             , jj.CHG_RT
+          FROM SJM0JJ jj
+     LEFT JOIN sjx0jb jb ON jb.BALH_CO = jj.BALH_CO
+     LEFT JOIN szx0uj uj ON uj.UPJ_CD = jj.UPJ_CD
+         WHERE jj.danc_gb = 'X'
+        <if test="searchKeyword != null and searchKeyword != ''">
+           AND (jj.jm_cd LIKE '%' || #{searchKeyword} || '%'
+             OR jj.koscom_cd LIKE '%' || #{searchKeyword} || '%'
+             OR jj.jj_nm LIKE '%' || #{searchKeyword} || '%')
+        </if>
+         ORDER BY jj.KOSCOM_CD ASC
+    </select>
+
+    <select id="checkJmCdExists" resultType="int">
+        SELECT COUNT(1) FROM SJM0JJ WHERE jm_cd = #{jmCd}
+    </select>
+
+    <insert id="insertJm">
+        INSERT INTO SJM0JJ (
+            jm_cd, koscom_cd, jj_fnm, jj_nm, jj_enm, balh_co,
+            woos_ilban_gb, chg_gb, new_old_gb, danc_gb, balh_ga,
+            kweonri_ymd, sangj_ymd, sangj_jusu, upj_cd, created_ymd,
+            del_yn, capsize, kospigubun, woos_vote_ymd, under,
+            baed_gisan_ymd, isin_cd, a0231, deposit, chg_rt
+        ) VALUES (
+            #{jmCd}, #{koscomCd}, #{jjFnm}, #{jjNm}, #{jjEnm}, #{balhCo},
+            #{woosIlbanGb}, #{chgGb}, #{newOldGb}, #{dancGb}, #{balhGa},
+            <choose><when test="kweonriYmd != null and kweonriYmd != ''">TO_DATE(#{kweonriYmd}, 'YYYY-MM-DD')</when><otherwise>NULL</otherwise></choose>,
+            <choose><when test="sangjYmd != null and sangjYmd != ''">TO_DATE(#{sangjYmd}, 'YYYY-MM-DD')</when><otherwise>NULL</otherwise></choose>,
+            #{sangjJusu}, #{upjCd}, SYSDATE,
+            NVL(#{delYn}, '0'), #{capsize}, #{kospigubun},
+            <choose><when test="woosVoteYmd != null and woosVoteYmd != ''">TO_DATE(#{woosVoteYmd}, 'YYYY-MM-DD')</when><otherwise>NULL</otherwise></choose>,
+            #{under},
+            <choose><when test="baedGisanYmd != null and baedGisanYmd != ''">TO_DATE(#{baedGisanYmd}, 'YYYY-MM-DD')</when><otherwise>NULL</otherwise></choose>,
+            #{isinCd}, #{a0231}, #{deposit}, #{chgRt}
+        )
+    </insert>
+
+    <update id="updateJm">
+        UPDATE SJM0JJ
+           SET koscom_cd = #{koscomCd},
+               jj_fnm = #{jjFnm},
+               jj_nm = #{jjNm},
+               jj_enm = #{jjEnm},
+               balh_co = #{balhCo},
+               woos_ilban_gb = #{woosIlbanGb},
+               chg_gb = #{chgGb},
+               new_old_gb = #{newOldGb},
+               danc_gb = #{dancGb},
+               balh_ga = #{balhGa},
+               kweonri_ymd = <choose><when test="kweonriYmd != null and kweonriYmd != ''">TO_DATE(#{kweonriYmd}, 'YYYY-MM-DD')</when><otherwise>NULL</otherwise></choose>,
+               sangj_ymd = <choose><when test="sangjYmd != null and sangjYmd != ''">TO_DATE(#{sangjYmd}, 'YYYY-MM-DD')</when><otherwise>NULL</otherwise></choose>,
+               sangj_jusu = #{sangjJusu},
+               upj_cd = #{upjCd},
+               del_yn = NVL(#{delYn}, '0'),
+               capsize = #{capsize},
+               kospigubun = #{kospigubun},
+               woos_vote_ymd = <choose><when test="woosVoteYmd != null and woosVoteYmd != ''">TO_DATE(#{woosVoteYmd}, 'YYYY-MM-DD')</when><otherwise>NULL</otherwise></choose>,
+               under = #{under},
+               baed_gisan_ymd = <choose><when test="baedGisanYmd != null and baedGisanYmd != ''">TO_DATE(#{baedGisanYmd}, 'YYYY-MM-DD')</when><otherwise>NULL</otherwise></choose>,
+               isin_cd = #{isinCd},
+               a0231 = #{a0231},
+               deposit = #{deposit},
+               chg_rt = #{chgRt}
+         WHERE jm_cd = #{jmCd}
+    </update>
+
+    <delete id="deleteJm">
+        DELETE FROM SJM0JJ WHERE jm_cd = #{jmCd}
+    </delete>
+
+</mapper>

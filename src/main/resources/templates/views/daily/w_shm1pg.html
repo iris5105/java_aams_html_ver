@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<div class="view-container layout-single shm1pg-container" th:fragment="shm1pgView">
+
+    <!-- Top Action Control Bar (Row 1) -->
+    <div class="view-toolbar">
+        <div class="toolbar-left">
+            <!-- Reusable Common Toolbar Buttons Fragment -->
+            <div th:replace="~{fragments/tab_header :: toolbarButtons}"></div>
+        </div>
+        <!-- Reusable Common Breadcrumb Fragment -->
+        <div th:replace="~{fragments/tab_header :: toolbarBreadcrumb}"></div>
+    </div>
+
+    <!-- Filter Bar (Row 2): Rule 14 & Rule 17 - dc_ymd fragment matching dw_c in w_shm1pg.srw -->
+    <div class="filter-bar">
+        <div class="filter-left">
+            <div th:replace="~{fragments/filter/dc_ymd :: filter(labelYmd='등급적용일')}"></div>
+        </div>
+    </div>
+
+    <!-- Main Grid Section (d_shm1pg.srd / SHM1PG) -->
+    <div class="grid-section" style="flex: 1 1 auto; height: calc(100% - 90px); padding: 8px 12px; overflow: hidden; display: flex; flex-direction: column;">
+        <div class="grid-table-wrapper" style="flex: 1 1 auto; height: 100%; width: 100%; border: 1px solid #cbd5e1; border-radius: 4px; overflow: hidden; background-color: #fff;">
+            <div id="shm1pg-grid" class="tabulator-aams-grid" style="height: 100%;"></div>
+        </div>
+    </div>
+
+    <!-- Pure JS AAMS Calendar Component (Rule 16) -->
+    <script th:src="@{/js/aams_calendar.js}" src="/js/aams_calendar.js"></script>
+
+    <!-- DDDW Control Component (Rule 7) -->
+    <script th:src="@{/js/f_dddwctl.js}" src="/js/f_dddwctl.js"></script>
+
+    <!-- Page Specific Script for w_shm1pg -->
+    <script th:inline="javascript">
+        (function() {
+            const currentScript = document.currentScript;
+            const pane = currentScript ? (currentScript.closest('.tab-pane') || currentScript.closest('.view-container')) : null;
+
+            let gridShm1pg = null;
+            let isInitialized = false;
+            let dddwOptionsMap = {};
+
+            // Corporate Group Resolver (Guideline 1: No default hardcoded value)
+            function resolveCorpGr() {
+                if (window.currentCorpGr) return window.currentCorpGr;
+                const m = document.cookie.match(/(^|;)\s*savedCorpGr=([^;]+)/) || document.cookie.match(/(^|;)\s*corpGr=([^;]+)/);
+                if (m) return decodeURIComponent(m[2]);
+                const selectEl = pane ? pane.querySelector("#filterCorpGr") : document.getElementById("filterCorpGr");
+                if (selectEl && selectEl.value) return selectEl.value;
+                const globalSelect = document.getElementById("topCorpGrSelect") || document.getElementById("filterCorpGr");
+                if (globalSelect && globalSelect.value) return globalSelect.value;
+                return "";
+            }
+
+            function getFilterYmd() {
+                const input = pane ? pane.querySelector("#filterYmd") : document.getElementById("filterYmd");
+                if (!input) return "";
+                let val = input.value || "";
+                return val.replace(/\./g, '-');
+            }
+
+            // DDDW Retrieval (Rule 7: f_dddwctl (THIS, 'pg_cd', '', '', 2, ''))
+            function retrieveDddw() {
+                const targetCorpGr = resolveCorpGr();
+                if (typeof window.f_dddwctl === 'function') {
+                    window.f_dddwctl('pg_cd', 2, targetCorpGr, '', '').then(list => {
+                        dddwOptionsMap.pg_cd = list || [];
+                        if (gridShm1pg) {
+                            gridShm1pg.redraw(true);
+                        }
+                    }).catch(err => {
+                        console.error("Failed to retrieve DDDW options for pg_cd:", err);
+                    });
+                }
+            }
+
+            function getDddwOptions(dddwKey) {
+                const list = dddwOptionsMap[dddwKey] || [];
+                return list.map(item => {
+                    const code = (item.code != null ? item.code : (item.SEBU_CD != null ? item.SEBU_CD : (item.cd != null ? item.cd : ''))).toString().trim();
+                    const name = (item.name != null ? item.name : (item.SEBU_CD_NM != null ? item.SEBU_CD_NM : (item.dscr != null ? item.dscr : code))).toString().trim();
+                    return { 
+                        label: name, 
+                        value: code,
+                        code: code,
+                        name: name
+                    };
+                });
+            }
+
+            // Rule 7: 2-Column Dropdown Item Formatter (PowerBuilder DDDW Style)
+            function createDddw2ColFormatter(codeWidth, codeTitle, nameTitle) {
+                if (typeof window.f_dddwctl === 'function' && typeof window.f_dddwctl.get2ColItemFormatter === 'function') {
+                    return window.f_dddwctl.get2ColItemFormatter(codeWidth, codeTitle, nameTitle);
+                }
+                return function(label, value, item) {
+                    const code = (item && item.code != null) ? item.code : value;
+                    const name = (item && item.name != null) ? item.name : label;
+                    return `<div class="dddw-2col-row"><span class="dddw-col-code">${code}</span><span class="dddw-col-name">${name}</span></div>`;
+                };
+            }
+
+            function getDddwLabel(dddwKey, codeVal) {
+                if (codeVal == null || codeVal === "") return "";
+                if (typeof window.f_dddwctl === 'function' && typeof window.f_dddwctl.getLabel === 'function') {
+                    return window.f_dddwctl.getLabel(dddwOptionsMap, dddwKey, codeVal);
+                }
+                const list = dddwOptionsMap[dddwKey] || [];
+                const found = list.find(item => {
+                    const c = (item.code != null ? item.code : (item.SEBU_CD != null ? item.SEBU_CD : item.cd));
+                    return String(c).trim() === String(codeVal).trim();
+                });
+                if (found) {
+                    return found.name != null ? found.name : (found.SEBU_CD_NM != null ? found.SEBU_CD_NM : found.dscr);
+                }
+                return String(codeVal);
+            }
+
+            // Columns definition based on d_shm1pg.srd
+            const columns = [
+                {
+                    title: "No.",
+                    field: "fseq",
+                    formatter: "rownum",
+                    width: 60,
+                    hozAlign: "center",
+                    headerHozAlign: "center",
+                    headerSort: false
+                },
+                {
+                    title: "종목코드",
+                    field: "jmCd",
+                    width: 130,
+                    hozAlign: "center",
+                    headerHozAlign: "center"
+                },
+                {
+                    title: "종목명",
+                    field: "hjNm",
+                    width: 260,
+                    hozAlign: "left",
+                    headerHozAlign: "center"
+                },
+                {
+                    title: "적용등급",
+                    field: "pgCd",
+                    width: 140,
+                    hozAlign: "center",
+                    headerHozAlign: "center",
+                    editor: "list",
+                    editorParams: {
+                        values: function() { return getDddwOptions('pg_cd'); },
+                        itemFormatter: createDddw2ColFormatter(60, "코드", "등급명"),
+                        autocomplete: true,
+                        listOnEmpty: true,
+                        freetext: false
+                    },
+                    formatter: function(cell) {
+                        return getDddwLabel('pg_cd', cell.getValue());
+                    },
+                    cellClick: typeof aamsCellEdit !== 'undefined' ? aamsCellEdit : undefined,
+                    cellEdited: function(cell) {
+                        const row = cell.getRow();
+                        row.update({ rowStatus: "U" });
+                    }
+                },
+                {
+                    title: "매수계좌",
+                    field: "fundCd",
+                    width: 140,
+                    hozAlign: "center",
+                    headerHozAlign: "center"
+                },
+                {
+                    title: "계좌명",
+                    field: "fundNm",
+                    width: 260,
+                    hozAlign: "left",
+                    headerHozAlign: "center"
+                }
+            ];
+
+            function initGrid() {
+                const gridEl = pane ? pane.querySelector("#shm1pg-grid") : document.getElementById("shm1pg-grid");
+                if (!gridEl) return;
+
+                gridShm1pg = new Tabulator(gridEl, {
+                    data: [],
+                    layout: "fitColumns",
+                    columns: columns,
+                    height: "100%",
+                    placeholder: "조회된 현금신용등급 데이터가 없습니다.",
+                    selectableRows: 1
+                });
+
+                // Rule 8: Global Tabulator Row Selection Setup
+                if (typeof setupTabulatorRowSelection === 'function') {
+                    setupTabulatorRowSelection(gridShm1pg);
+                }
+
+                // Rule 15: Select first row on data loaded
+                gridShm1pg.on("dataLoaded", function() {
+                    const rows = gridShm1pg.getRows();
+                    if (rows && rows.length > 0) {
+                        rows[0].select();
+                    }
+                });
+            }
+
+            function loadList() {
+                const corpGr = resolveCorpGr();
+                const ymd = getFilterYmd();
+                if (!corpGr) {
+                    alert("소속그룹을 선택해 주세요.");
+                    return;
+                }
+                if (!ymd) {
+                    alert("등급적용일을 선택해 주세요.");
+                    return;
+                }
+
+                const url = `/api/daily/shm1pg/list?corpGr=${encodeURIComponent(corpGr)}&ymd=${encodeURIComponent(ymd)}`;
+                fetch(url)
+                    .then(res => res.json())
+                    .then(data => {
+                        if (gridShm1pg) {
+                            gridShm1pg.setData(data || []);
+                        }
+                    })
+                    .catch(err => {
+                        console.error("Error fetching shm1pg list:", err);
+                        alert("조회 중 오류가 발생했습니다.");
+                    });
+            }
+
+            function doSave() {
+                if (!gridShm1pg) return;
+                const allData = gridShm1pg.getData();
+                const ymd = getFilterYmd();
+                const corpGr = resolveCorpGr();
+
+                const updatedRows = allData.filter(d => d.rowStatus === "U");
+
+                if (updatedRows.length === 0) {
+                    alert("저장할 변경 내용이 없습니다.");
+                    return;
+                }
+
+                if (!confirm("변경된 신용등급을 저장하시겠습니까?")) return;
+
+                const payload = {
+                    corpGr: corpGr,
+                    ymd: ymd,
+                    updatedRows: updatedRows
+                };
+
+                fetch("/api/daily/shm1pg/save", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload)
+                })
+                .then(res => res.json())
+                .then(res => {
+                    if (res.success) {
+                        alert(res.message || "저장되었습니다.");
+                        loadList();
+                    } else {
+                        alert(res.message || "저장에 실패했습니다.");
+                    }
+                })
+                .catch(err => {
+                    console.error("Save error:", err);
+                    alert("저장 중 오류가 발생했습니다.");
+                });
+            }
+
+            // Toolbar Button Binding (Rule 9)
+            if (pane) {
+                pane.onSearch = loadList;
+                pane.onSave = doSave;
+                pane.onExcel = function() {
+                    if (gridShm1pg) gridShm1pg.download("xlsx", `현금신용등급_${getFilterYmd()}.xlsx`);
+                };
+                // 공통버튼 지침: 새로고침은 조회 전 초기화 상태로 되돌린다.
+                pane.onRefresh = function() {
+                    if (gridShm1pg) gridShm1pg.clearData();
+                    const ymdInput = pane ? pane.querySelector("#filterYmd") : document.getElementById("filterYmd");
+                    if (ymdInput) {
+                        const today = new Date();
+                        const yyyy = today.getFullYear();
+                        const mm = String(today.getMonth() + 1).padStart(2, '0');
+                        const dd = String(today.getDate()).padStart(2, '0');
+                        ymdInput.value = `${yyyy}-${mm}-${dd}`;
+                    }
+                    const countEl = pane ? pane.querySelector("#shm1pg-count") : document.getElementById("shm1pg-count");
+                    if (countEl) countEl.innerText = "0건";
+                    if (typeof showToast === "function") showToast("화면이 초기화되었습니다.", "info");
+                };
+                pane.onCorpGrChange = function(newCorpGr) {
+                    if (gridShm1pg) gridShm1pg.clearData();
+                    retrieveDddw();
+                    loadList();
+                };
+            }
+
+            // Initialization logic (Rule 11: startInit pattern)
+            function startInit() {
+                if (isInitialized) return;
+                isInitialized = true;
+
+                initGrid();
+                retrieveDddw();
+
+                // AamsCalendar 초기화
+                if (typeof AamsCalendar !== 'undefined' && typeof AamsCalendar.initSimple === 'function') {
+                    AamsCalendar.initSimple('filterYmd', { pane: pane });
+                }
+
+                // eb_direct_retrieve = true 명세 반영 자동 조회
+                setTimeout(() => {
+                    loadList();
+                }, 100);
+            }
+
+            if (document.readyState === "loading") {
+                document.addEventListener("DOMContentLoaded", startInit);
+            } else {
+                startInit();
+            }
+        })();
+    </script>
+</div>
+</html>

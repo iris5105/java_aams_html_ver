@@ -1104,7 +1104,19 @@ function setupTabulatorRowSelection(table, onRowChange, options = {}) {
 
     function doSelect(row, force = false, originalEvent = null) {
         if (!row) return;
-        const rowComp = (typeof row.getComponent === 'function') ? row.getComponent() : row;
+        let rowComp = row;
+        // If row is an internal Row model (not RowComponent), obtain its RowComponent
+        // Note: Do NOT access row.getComponent on RowComponent because Tabulator proxy emits a warning:
+        // "The row component does not have a getComponent function"
+        if (row && typeof row.getData !== 'function') {
+            if (typeof row.getComponent === 'function') {
+                try {
+                    rowComp = row.getComponent();
+                } catch (e) {
+                    rowComp = row;
+                }
+            }
+        }
         const isRowChanged = (rowComp !== lastSelectedRow) || force;
         const isSelected = (typeof rowComp.isSelected === 'function' && rowComp.isSelected());
 
@@ -1271,6 +1283,14 @@ function aamsCellEdit(e, cell) {
         const OriginalTabulator = window.Tabulator;
 
         function AamsTabulator(container, options = {}) {
+            // Ensure default columnDefaults.vertAlign = "middle" so Tabulator natively injects justifyContent based on hozAlign
+            if (!options.columnDefaults) {
+                options.columnDefaults = {};
+            }
+            if (!options.columnDefaults.vertAlign) {
+                options.columnDefaults.vertAlign = "middle";
+            }
+
             // Instantiate original Tabulator
             const table = new OriginalTabulator(container, options);
 
@@ -1281,6 +1301,14 @@ function aamsCellEdit(e, cell) {
             }
 
             return table;
+        }
+
+        // Set Tabulator global defaultOptions if available
+        if (OriginalTabulator.defaultOptions) {
+            if (!OriginalTabulator.defaultOptions.columnDefaults) {
+                OriginalTabulator.defaultOptions.columnDefaults = {};
+            }
+            OriginalTabulator.defaultOptions.columnDefaults.vertAlign = "middle";
         }
 
         // Preserve prototype chain and all static methods/properties (e.g. Tabulator.findTable)

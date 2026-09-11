@@ -219,7 +219,7 @@
                     title: "액면",
                     field: "aekm",
                     width: 100,
-                    hozAlign: "right",
+                    hozAlign: "center",
                     headerHozAlign: "center",
                     editable: false,
                     formatter: numberFormatter
@@ -627,6 +627,14 @@
                     ymdInput.value = `${yyyy}-${mm}-${dd}`;
                 }
 
+                // AamsCalendar 초기화
+                if (typeof AamsCalendar !== 'undefined' && typeof AamsCalendar.initSimple === 'function') {
+                    AamsCalendar.initSimple('filterYmd', {
+                        pane: pane,
+                        initialYmd: ymdInput ? ymdInput.value : ''
+                    });
+                }
+
                 // Guideline 9: Standard Toolbar Contracts Binding
                 if (pane) {
                     pane.onSearch = searchData;
@@ -634,16 +642,27 @@
                     pane.onSave = saveData;
                     pane.onDelete = deleteRow;
                     pane.onExcel = exportExcel;
-                    pane.onRefresh = searchData;
+                    // 공통버튼 지침: 새로고침은 조회 전 초기화 상태로 되돌린다.
+                    pane.onRefresh = function() {
+                        if (gridSjt0tg) gridSjt0tg.clearData();
+                        if (ymdInput) {
+                            const today = new Date();
+                            const yyyy = today.getFullYear();
+                            const mm = String(today.getMonth() + 1).padStart(2, '0');
+                            const dd = String(today.getDate()).padStart(2, '0');
+                            ymdInput.value = `${yyyy}-${mm}-${dd}`;
+                        }
+                        const countEl = pane ? pane.querySelector("#record-count") : document.getElementById("record-count");
+                        if (countEl) countEl.innerText = "0건";
+                        if (typeof showToast === "function") showToast("화면이 초기화되었습니다.", "info");
+                    };
                     pane.onCorpGrChange = function(val) {
-                        searchData();
+                        // 회사 변경 시 그리드 초기화
+                        if (gridSjt0tg) gridSjt0tg.clearData();
                     };
                 }
 
-                // Initial auto-search
-                setTimeout(() => {
-                    searchData();
-                }, 100);
+                // 자동 조회 지침: boolean eb_direct_retrieve = true 가 없으므로 초기 자동 조회 없음
             }
 
             if (document.readyState === 'loading') {

@@ -52,4 +52,14 @@ public class Ja020nService {
         }
         return ja020nMapper.selectTrList(corpGr.trim(), ymd.trim());
     }
+
+    /**
+     * 파워빌더 w_ja020n.srw (wue_lastopen) 명세: SZX0AA.JUNYONG_YMD(2402) 또는 HYUN_YMD(기타) 작업일자 조회
+     */
+    public String getWorkDate(String corpGr) {
+        if (corpGr == null || corpGr.isBlank()) {
+            return null;
+        }
+        return ja020nMapper.selectWorkDate(corpGr.trim());
+    }
 }

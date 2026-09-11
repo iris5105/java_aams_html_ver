@@ -38,7 +38,7 @@
            AND ia.corp_gr       = gi.corp_gr
            AND ia.fund_cd       = gi.fund_cd
            AND ia.fst_seolj_ymd &lt;= TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
-         ORDER BY secCd asc, fundCd ASC
+          ORDER BY secCd ASC, fundNm ASC, fundCd ASC, workGb ASC
     </select>
 
     <!-- 2. Check Collateral Count (w_ja010h.srw ole_rd::ue_retrieve) -->
@@ -72,6 +72,86 @@
           FROM SZM0IA t1
          WHERE t1.corp_gr = #{corpGr}
            AND t1.fund_cd = #{fundCd}
+    </select>
+
+    <!-- 평잔 재계산 프로시저 호출 (SR_PYUNGJAN) -->
+    <select id="callSrPyungjan" statementType="CALLABLE">
+        {CALL SR_PYUNGJAN(
+            #{corpGr, mode=IN, jdbcType=VARCHAR},
+            #{fundCd, mode=IN, jdbcType=VARCHAR},
+            TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
+        )}
+    </select>
+
+    <!-- 회사그룹별 기준일자 조회 (wue_lastopen: corp_gr='2402'이면 junyong_ymd, 그 외는 hyun_ymd) -->
+    <select id="selectWorkDate" resultType="java.lang.String">
+        SELECT TO_CHAR(CASE WHEN corp_gr = '2402' THEN NVL(junyong_ymd, hyun_ymd) ELSE hyun_ymd END, 'YYYY-MM-DD')
+          FROM SZX0AA
+         WHERE corp_gr = #{corpGr}
+    </select>
+
+    <!-- 2402 회사 원장생성 불일치 건수 체크 (UZM0UI NAV vs SKT0GI sun_jasan_aek) -->
+    <select id="checkLedgerDiffCount" resultType="java.lang.Integer">
+        SELECT NVL(COUNT(*), 0)
+          FROM (
+            SELECT tt.fund_cd
+              FROM (SELECT t1.FUND_CD
+                         , SUM(t1.SIGA_AEK)  AS NAV
+                         , 0                 AS SUN_JASAN_AEK
+                      FROM UZM0UI t1
+                         , SZM0IA ia
+                     WHERE t1.CORP_GR       = #{corpGr}
+                       AND t1.ymd           = TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
+                       AND ia.CORP_GR       = t1.CORP_GR
+                       AND ia.fund_cd       = t1.fund_cd
+                       AND ia.fst_seolj_ymd &lt;= TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
+                       AND NVL(ia.haeji_ymd, TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD') + 1) &gt; TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
+                     GROUP BY t1.fund_cd
+                    UNION ALL
+                    SELECT t1.fund_cd
+                         , 0
+                         , t1.sun_jasan_aek
+                      FROM SKT0GI t1
+                         , SZM0IA ia
+                     WHERE t1.CORP_GR       = #{corpGr}
+                       AND t1.ymd           = TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
+                       AND t1.work_gb       = 'A'
+                       AND ia.CORP_GR       = t1.CORP_GR
+                       AND ia.fund_cd       = t1.fund_cd
+                       AND ia.fst_seolj_ymd &lt;= TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
+                       AND NVL(ia.haeji_ymd, TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD') + 1) &gt; TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')) tt
+             GROUP BY tt.fund_cd
+            HAVING NVL(SUM(tt.NAV), 0) &lt;&gt; NVL(SUM(tt.SUN_JASAN_AEK), 0)
+          ) diff_list
+    </select>
+
+    <!-- 최종 원장작업자 및 작업시간 조회 -->
+    <select id="selectLastLedgerWorker" resultType="java.util.Map">
+        SELECT TO_CHAR(MAX(t1.dt), 'HH24:MI:SS') AS RUN_DT
+             , MAX(u1.USER_NM)                    AS USER_NM
+          FROM GIJUN_GA_COM t1
+             , FW_USER_MST  u1
+         WHERE t1.CORP_GR    = #{corpGr}
+           AND t1.ymd        = TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
+           AND t1.dt         = (SELECT MAX(dt) FROM GIJUN_GA_COM WHERE CORP_GR = #{corpGr} AND ymd = TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD'))
+           AND u1.CORP_GR    IN ('2200', t1.CORP_GR)
+           AND u1.enc_e_mail = TO_ENCRYPTS(t1.userid)
+    </select>
+
+    <!-- 총 순자산시가액 조회 (w_ja010h1.srw cb_1 종합 엑셀용) -->
+    <select id="selectSunJasanSigaAek" resultType="java.lang.String">
+        SELECT TO_CHAR(NVL(SUM(sun_jasan_siga_aek), 0))
+          FROM UZM0UI t1
+         WHERE t1.CORP_GR = #{corpGr}
+           AND t1.ymd     = TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
+           <choose>
+               <when test="corpGr == '2402'">
+                   AND t1.type_gb NOT IN ('5', 'X')
+               </when>
+               <otherwise>
+                   AND t1.type_gb NOT IN ('5', '6', 'X')
+               </otherwise>
+           </choose>
     </select>
 
 </mapper>

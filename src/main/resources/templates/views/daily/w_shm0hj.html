@@ -16,7 +16,7 @@
     <!-- Filter Bar (Row 2): dc_ymd_dddw fragment -->
     <div class="filter-bar">
         <div class="filter-left">
-            <div th:replace="~{fragments/filter/dc_ymd_dddw :: filter(labelYmd='발행일', labelDddw='현금종류')}"></div>
+            <div th:replace="~{fragments/filter/dc_ymd_dddw :: filter(labelYmd='발행기일', labelDddw='현금종류')}"></div>
         </div>
     </div>
 
@@ -185,13 +185,24 @@
                         dddwSelect.innerHTML = dddwOptionsMap.filter_dddw.map(item => {
                             const code = (item.code != null ? item.code : (item.SEBU_CD != null ? item.SEBU_CD : item.cd)) || '';
                             const name = (item.name != null ? item.name : (item.SEBU_CD_NM != null ? item.SEBU_CD_NM : item.dscr)) || code;
-                            return `<option value="${code}">${name}</option>`;
+                            const displayText = (code && code !== "%") ? `${code} : ${name}` : (name || code);
+                            return `<option value="${code}">${displayText}</option>`;
                         }).join("");
 
+                        // 현금종류 기본값: 전체(%) 설정
                         if (prevVal && dddwOptionsMap.filter_dddw.some(x => (x.code || x.cd || x.SEBU_CD) === prevVal)) {
                             dddwSelect.value = prevVal;
-                        } else if (dddwOptionsMap.filter_dddw.some(x => (x.code || x.cd || x.SEBU_CD) === "ZS")) {
-                            dddwSelect.value = "ZS";
+                        } else {
+                            dddwSelect.value = "%";
+                        }
+
+                        // 2-Column DDDW 드롭다운 위젯 적용 (개발지침 Rule 7: 코드, 이름 순 2열 분할 표출)
+                        if (typeof window.f_dddwctl === 'function' && typeof window.f_dddwctl.get2ColItemFormatter === 'function') {
+                            window.f_dddwctl.get2ColItemFormatter(dddwSelect, dddwOptionsMap.filter_dddw, {
+                                codeTitle: "코드",
+                                nameTitle: "현금종류명",
+                                defaultVal: dddwSelect.value || "%"
+                            });
                         }
                     }
 
@@ -722,7 +733,7 @@
                         { 
                             title: "이자일수", 
                             field: "guganIlsu", 
-                            hozAlign: "right", 
+                            hozAlign: "center", 
                             width: 75,
                             editor: "number",
                             editable: isDetailRowEditable
@@ -1020,6 +1031,33 @@
                         ue_dddw_retrieve(newCorpGr).then(() => {
                             loadMasterList();
                         });
+                    };
+                    pane.onRefresh = function() {
+                        if (gridMaster) gridMaster.clearData();
+                        if (gridDetail) gridDetail.clearData();
+                        selectedMasterData = null;
+                        lastLoadedMasterKey = null;
+
+                        const dddwSelect = pane ? pane.querySelector("#filterDddw") : document.getElementById("filterDddw");
+                        if (dddwSelect) {
+                            dddwSelect.value = "%";
+                            const customWrapper = dddwSelect.nextElementSibling;
+                            if (customWrapper && customWrapper.classList.contains("dddw-select-custom")) {
+                                const labelEl = customWrapper.querySelector(".dddw-select-label");
+                                if (labelEl) labelEl.textContent = "전체";
+                                customWrapper.querySelectorAll(".tabulator-edit-list-item").forEach(it => {
+                                    if (it.dataset.value === "%") {
+                                        it.classList.add("active");
+                                    } else {
+                                        it.classList.remove("active");
+                                    }
+                                });
+                            }
+                        }
+
+                        if (typeof showToast === "function") {
+                            showToast("화면이 초기화되었습니다.", "info");
+                        }
                     };
                 }
 

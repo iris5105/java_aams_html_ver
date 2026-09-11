@@ -463,6 +463,13 @@
                     if (pane.onCorpGrChange) pane.onCorpGrChange(val);
                 });
 
+                pane.onRefresh = function() {
+                    if (gridJa030c) gridJa030c.clearData();
+                    if (typeof showToast === "function") {
+                        showToast("화면이 초기화되었습니다.", "info");
+                    }
+                };
+
                 // Provide default new row data when [입력] toolbar button is clicked
                 pane.getNewRowData = function() {
                     const corpGr = resolveCorpGr();
@@ -496,9 +503,7 @@
                 isInitialized = true;
                 initCalendar();
                 initJa030cGrid();
-                ue_dddw_retrieve().then(() => {
-                    window.loadJa030cData();
-                });
+                ue_dddw_retrieve();
             }
 
             document.addEventListener("DOMContentLoaded", startInit);

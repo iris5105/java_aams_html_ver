@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.kfp.aams.domain.daily.mapper.Ja010kMapper">
+
+    <select id="selectMasterList" resultType="com.kfp.aams.domain.daily.dto.Ja010kMasterDto">
+        SELECT fund_cd
+             , fund_nm
+             , TO_CHAR(re_seolj_ymd, 'YYYY-MM-DD') AS re_seolj_ymd
+             , TO_CHAR(fst_seolj_ymd, 'YYYY-MM-DD') AS fst_seolj_ymd
+             , TO_CHAR(haeji_ymd, 'YYYY-MM-DD') AS haeji_ymd
+        FROM szm0ia t1
+        WHERE t1.corp_gr = #{corpGr}
+          AND NVL(t1.haeji_ymd, TO_DATE(#{tymd}, 'YYYY-MM-DD') + 1) > TO_DATE(#{tymd}, 'YYYY-MM-DD')
+          AND type_gb IN ('5','6')
+        ORDER BY fund_cd
+    </select>
+
+    <select id="selectDetailList" resultType="com.kfp.aams.domain.daily.dto.Ja010kDetailDto">
+        SELECT t1.CORP_GR
+             , TO_CHAR(t1.YMD, 'YYYY-MM-DD') AS ymd
+             , t1.type_gb
+             , t1.FUND_CD
+             , CASE WHEN t1.jm_gr='1' THEN '채권'
+                    WHEN t1.jm_gr='3' THEN '주식' END      AS gubun
+             , CASE t1.danc_gb WHEN 'A' THEN '거래소'
+                               WHEN 'C' THEN '코스닥'
+                               WHEN 'D' THEN '코넥스'
+                               WHEN 'B' THEN '비상장' END  AS danc_gb
+             , t1.jm_gr
+             , t1.jm_cd
+             , t1.jm_nm
+             , t1.buy_date
+             , t1.chasu
+             , t1.type_trench
+             , t1.bs_type
+             , NVL(t1.aekm,0)                              AS venture_total
+             , NVL(t1.sise,0)                              AS sise
+             , NVL(t1.siga_aek,0)                          AS siga_aek
+             , NVL(t1.aekm,0) - NVL(t1.vc_old,0)           AS venture_new
+             , t1.vc_old
+             , TO_CHAR(t1.vc_old_dt, 'YYYY-MM-DD HH24:MI:SS') AS vc_old_dt
+             , NVL(uh.sun_jasan_aek,0)                     AS NAV
+             , NVL(uh.real_jasan_aek,0)                    AS total_nav
+             , CASE WHEN NVL(uh.real_jasan_aek,0)=0 THEN 0
+                    WHEN NVL(t1.aekm,0)=0 THEN 0
+                    ELSE ROUND(NVL(t1.siga_aek,0) * (1 - NVL(t1.vc_old,0) / t1.aekm) * 100 / uh.real_jasan_aek, 4)
+               END                                         AS venture_new_per
+             , CASE WHEN NVL(uh.real_jasan_aek,0)=0 THEN 0
+                    WHEN NVL(t1.aekm,0)=0 THEN 0
+                    ELSE ROUND(NVL(t1.siga_aek,0) * NVL(t1.vc_old,0) / t1.aekm * 100 / uh.real_jasan_aek, 4)
+               END                                         AS venture_old_per
+             , CASE WHEN NVL(uh.real_jasan_aek,0)=0 THEN 0
+                    ELSE ROUND(NVL(t1.siga_aek,0) * 100 / uh.real_jasan_aek, 4)
+               END                                         AS venture_total_per
+             , TO_CHAR(jb.venture_start, 'YYYY-MM-DD')     AS venture_start
+             , TO_CHAR(jb.venture_end, 'YYYY-MM-DD')       AS venture_end
+          FROM UZM0UI t1
+          JOIN UZM0UH uh
+            ON uh.corp_gr = t1.CORP_GR
+           AND uh.fund_cd = t1.fund_cd
+           AND uh.ymd     = t1.ymd
+     LEFT JOIN SJX0JB jb
+            ON jb.balh_co = t1.balh_co
+         WHERE t1.corp_gr = #{corpGr}
+           AND t1.fund_cd = #{fundCd}
+           AND t1.ymd BETWEEN TO_DATE(#{fymd}, 'YYYY-MM-DD') AND TO_DATE(#{tymd}, 'YYYY-MM-DD')
+           AND NVL(t1.aekm,0) > 0
+         ORDER BY t1.ymd ASC, t1.jm_cd ASC
+    </select>
+
+    <update id="updateVcOld">
+        UPDATE UZM0UI
+           SET vc_old = #{vcOld},
+               vc_old_dt = SYSDATE
+         WHERE corp_gr = #{corpGr}
+           AND ymd = TO_DATE(#{ymd}, 'YYYY-MM-DD')
+           AND fund_cd = #{fundCd}
+           AND jm_gr = #{jmGr}
+           AND jm_cd = #{jmCd}
+           AND buy_date = #{buyDate}
+           AND chasu = #{chasu}
+    </update>
+
+</mapper>

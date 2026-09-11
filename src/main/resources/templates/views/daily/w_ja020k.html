@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<div class="view-container layout-single ja020k-container" th:fragment="ja020kView" style="display: flex; flex-direction: column; height: 100%; width: 100%; overflow: hidden;">
+
+    <style>
+        .ja020k-container .report-container-panel {
+            flex: 1 1 auto;
+            height: calc(100% - 90px);
+            width: 100%;
+            overflow: hidden;
+            padding: 8px;
+            display: flex;
+            flex-direction: column;
+            background-color: #f8fafc;
+        }
+
+        .ja020k-container .report-card {
+            flex: 1 1 auto;
+            height: 100%;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            background: #ffffff;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+
+        .ja020k-container .report-header {
+            padding: 8px 12px;
+            background: #f8fafc;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0;
+        }
+
+        .ja020k-container .report-body {
+            flex: 1 1 auto;
+            height: calc(100% - 41px);
+            width: 100%;
+            overflow: hidden;
+            position: relative;
+            background-color: #525659;
+        }
+    </style>
+
+    <!-- 1. Top Action Control Bar (Row 1) -->
+    <div class="view-toolbar">
+        <div class="toolbar-left">
+            <div th:replace="~{fragments/tab_header :: toolbarButtons}"></div>
+        </div>
+        <div th:replace="~{fragments/tab_header :: toolbarBreadcrumb}"></div>
+    </div>
+
+    <!-- 2. Sub Filter Bar (Row 2: dc_ymd_dddw + Multi-Format Export) -->
+    <div class="filter-bar">
+        <div class="filter-left">
+            <th:block th:replace="~{fragments/filter/dc_ymd_dddw :: filter(labelYmd='기준일자', labelDddw='자료구분')}"></th:block>
+        </div>
+        <div class="filter-actions d-flex align-items-center gap-1">
+            <div class="btn-group btn-group-sm">
+                <button type="button" class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                    <i class="fa-solid fa-file-export me-1"></i> 리포트 내보내기
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end shadow-sm">
+                    <li><a class="dropdown-item export-btn" href="#" data-format="pdf"><i class="fa-solid fa-file-pdf text-danger me-2"></i>PDF 저장</a></li>
+                    <li><a class="dropdown-item export-btn" href="#" data-format="excel"><i class="fa-solid fa-file-excel text-success me-2"></i>Excel 저장</a></li>
+                    <li><a class="dropdown-item export-btn" href="#" data-format="word"><i class="fa-solid fa-file-word text-primary me-2"></i>Word 저장</a></li>
+                    <li><a class="dropdown-item export-btn" href="#" data-format="hwp"><i class="fa-solid fa-file-lines text-info me-2"></i>한글(HWP) 저장</a></li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. RD Report Preview Viewer Panel -->
+    <div class="report-container-panel">
+        <div class="report-card">
+            <div class="report-header">
+                <span class="fw-bold small text-secondary" id="report-title">
+                    <i class="fa-solid fa-chart-line me-1"></i> 일(종목)별 운용현황
+                </span>
+                <span id="report-status" class="small text-muted">보고서 로딩 준비</span>
+            </div>
+            <div class="report-body">
+                <div id="report-loading" class="position-absolute top-50 start-50 translate-middle text-white text-center d-none" style="z-index: 10;">
+                    <div class="spinner-border text-light mb-2" role="status"></div>
+                    <div class="small">보고서를 생성 중입니다...</div>
+                </div>
+                <iframe id="report-frame" class="w-100 h-100 border-0" src="about:blank"></iframe>
+            </div>
+        </div>
+    </div>
+
+    <script th:src="@{/js/f_dddwctl.js}" src="/js/f_dddwctl.js"></script>
+    <script th:src="@{/js/aams_calendar.js}" src="/js/aams_calendar.js"></script>
+    <script th:inline="javascript">
+        (function () {
+            var pane = document.currentScript.closest('.tab-pane') || document;
+            var isInitialized = false;
+
+            function getFilterCorpGr() {
+                var el = pane.querySelector('#corpGrSelect') || document.querySelector('#corpGrSelect');
+                if (el && el.value) return el.value;
+                if (typeof g_corp_gr !== 'undefined' && g_corp_gr) return g_corp_gr;
+                return '';
+            }
+
+            function getFilterYmd() {
+                var el = pane.querySelector('#filterYmd') || pane.querySelector('input[name="ymd"]');
+                if (el && el.value) return el.value.replace(/-/g, '');
+                return (new Date()).toISOString().slice(0, 10).replace(/-/g, '');
+            }
+
+            function getFilterSeriesGb() {
+                var el = pane.querySelector('#filterDddw') || pane.querySelector('select[name="dddw"]');
+                if (el && el.value) return el.value;
+                return "1110";
+            }
+
+            // DDDW 초기화: f_dddwctl (THIS, 'dddw', gaa.corp_gr, '', 3, '')
+            function initDddw() {
+                var dddwSelect = pane.querySelector('#filterDddw') || pane.querySelector('select[name="dddw"]');
+                if (!dddwSelect) return;
+                var corpGr = getFilterCorpGr();
+
+                if (typeof window.f_dddwctl === 'function') {
+                    window.f_dddwctl('dddw', corpGr, '', 3, '').then(function (options) {
+                        if (options && options.length > 0) {
+                            dddwSelect.innerHTML = '';
+                            options.forEach(function (opt) {
+                                var optEl = document.createElement('option');
+                                optEl.value = opt.code || opt.cd;
+                                optEl.textContent = (opt.code || opt.cd) + ' ' + (opt.name || opt.nm);
+                                dddwSelect.appendChild(optEl);
+                            });
+                        } else {
+                            setupDefaultOptions(dddwSelect);
+                        }
+                    }).catch(function (e) {
+                        console.warn('[w_ja020k] f_dddwctl load error, using default options:', e);
+                        setupDefaultOptions(dddwSelect);
+                    });
+                } else {
+                    setupDefaultOptions(dddwSelect);
+                }
+            }
+
+            function setupDefaultOptions(selectEl) {
+                if (!selectEl || selectEl.options.length > 1) return;
+                selectEl.innerHTML = '';
+                var opt1 = new Option("1110 주식형", "1110");
+                var opt2 = new Option("1120 채권형", "1120");
+                var opt3 = new Option("1130 혼합/기타", "1130");
+                selectEl.add(opt1);
+                selectEl.add(opt2);
+                selectEl.add(opt3);
+                selectEl.value = "1110";
+            }
+
+            function loadReport() {
+                var ymd = getFilterYmd();
+                var seriesGb = getFilterSeriesGb();
+
+                var loadingEl = pane.querySelector('#report-loading');
+                var statusEl = pane.querySelector('#report-status');
+                var iframe = pane.querySelector('#report-frame');
+
+                if (loadingEl) loadingEl.classList.remove('d-none');
+                if (statusEl) statusEl.innerText = "조회기준일: " + ymd + " (구분: " + seriesGb + ")";
+
+                var url = "/api/daily/ja020k/preview?seriesGb=" + encodeURIComponent(seriesGb) +
+                    "&ymd=" + encodeURIComponent(ymd) +
+                    "&t=" + new Date().getTime();
+
+                iframe.src = url;
+                iframe.onload = function () {
+                    if (loadingEl) loadingEl.classList.add('d-none');
+                };
+            }
+
+            function exportReport(format) {
+                var ymd = getFilterYmd();
+                var seriesGb = getFilterSeriesGb();
+
+                var url = "/api/daily/ja020k/export?seriesGb=" + encodeURIComponent(seriesGb) +
+                    "&ymd=" + encodeURIComponent(ymd) +
+                    "&format=" + encodeURIComponent(format);
+
+                window.location.href = url;
+            }
+
+            function startInit() {
+                if (isInitialized) return;
+                isInitialized = true;
+
+                initDddw();
+
+                var exportBtns = pane.querySelectorAll('.export-btn');
+                exportBtns.forEach(function (btn) {
+                    btn.addEventListener('click', function (e) {
+                        e.preventDefault();
+                        var format = this.getAttribute('data-format');
+                        exportReport(format);
+                    });
+                });
+
+                // 상단 툴바 표준 계약 (규칙 9)
+                pane.onSearch = function () {
+                    loadReport();
+                };
+                pane.onRetrieve = function () {
+                    loadReport();
+                };
+                pane.onCorpGrChange = function () {
+                    initDddw();
+                };
+                pane.onRefresh = function () {
+                    var iframe = pane.querySelector('#report-frame');
+                    if (iframe) iframe.src = 'about:blank';
+                    var statusEl = pane.querySelector('#report-status');
+                    if (statusEl) statusEl.innerText = "조회 대기 중";
+                    if (typeof showToast === "function") {
+                        showToast("화면이 초기화되었습니다.", "info");
+                    }
+                };
+            }
+
+            if (document.readyState === "loading") {
+                document.addEventListener("DOMContentLoaded", startInit);
+            } else {
+                startInit();
+            }
+        })();
+    </script>
+</div>
+</html>

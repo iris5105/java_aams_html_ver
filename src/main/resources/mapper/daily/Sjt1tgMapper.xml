@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.kfp.aams.domain.daily.mapper.Sjt1tgMapper">
+
+    <!-- 1. 선물/옵션 종가 목록 조회 (d_sjt1tg) -->
+    <select id="selectSjt1tgList" resultType="com.kfp.aams.domain.daily.dto.Sjt1tgDto">
+        SELECT t1.koscom_cd                              AS sjCd
+             , f_sj_nm (t1.koscom_cd)                    AS xxSjCd
+             , t1.close                                  AS close
+             , t1.volume                                 AS volume
+             , t1.value                                  AS value
+             , t1.preclose                               AS preclose
+             , t1.spot_price                             AS spotPrice
+             , t1.calc_price                             AS calcPrice
+             , t1.change                                 AS change
+             , TO_CHAR(t1.ymd, 'YYYY-MM-DD')             AS ymd
+             , ' '                                       AS bigo
+             , 1                                         AS pVisible
+          FROM sjt1tg t1
+         WHERE t1.ymd = TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
+           AND REGEXP_LIKE (t1.koscom_cd, 'KR[4]')
+         ORDER BY t1.koscom_cd ASC
+    </select>
+
+    <!-- 2. 선물/옵션 종가 등록 -->
+    <insert id="insertSjt1tg" parameterType="com.kfp.aams.domain.daily.dto.Sjt1tgDto">
+        INSERT INTO sjt1tg (
+            koscom_cd
+          , ymd
+          , close
+          , volume
+          , value
+          , preclose
+          , spot_price
+          , calc_price
+          , change
+        ) VALUES (
+            #{sjCd}
+          , TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
+          , #{close, jdbcType=NUMERIC}
+          , #{volume, jdbcType=NUMERIC}
+          , #{value, jdbcType=NUMERIC}
+          , #{preclose, jdbcType=NUMERIC}
+          , #{spotPrice, jdbcType=NUMERIC}
+          , #{calcPrice, jdbcType=NUMERIC}
+          , NVL(#{change, jdbcType=NUMERIC}, #{close, jdbcType=NUMERIC} - #{preclose, jdbcType=NUMERIC})
+        )
+    </insert>
+
+    <!-- 3. 선물/옵션 종가 수정 -->
+    <update id="updateSjt1tg" parameterType="com.kfp.aams.domain.daily.dto.Sjt1tgDto">
+        UPDATE sjt1tg
+           SET close      = #{close, jdbcType=NUMERIC}
+             , volume     = #{volume, jdbcType=NUMERIC}
+             , value      = #{value, jdbcType=NUMERIC}
+             , preclose   = #{preclose, jdbcType=NUMERIC}
+             , spot_price = #{spotPrice, jdbcType=NUMERIC}
+             , calc_price = #{calcPrice, jdbcType=NUMERIC}
+             , change     = NVL(#{change, jdbcType=NUMERIC}, #{close, jdbcType=NUMERIC} - #{preclose, jdbcType=NUMERIC})
+         WHERE ymd       = TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
+           AND koscom_cd = #{sjCd}
+    </update>
+
+    <!-- 4. 선물/옵션 종가 삭제 -->
+    <delete id="deleteSjt1tg">
+        DELETE FROM sjt1tg
+         WHERE ymd       = TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
+           AND koscom_cd = #{sjCd}
+    </delete>
+
+    <!-- 5. 신규 선물/옵션 종목 추출 (cb_3) -->
+    <select id="selectNewFuturesList" resultType="com.kfp.aams.domain.daily.dto.Sjt1tgDto">
+        SELECT DISTINCT
+               t2.sj_cd                                  AS sjCd
+             , t2.sj_nm                                  AS xxSjCd
+             , t2.koscom_cd                              AS bigo
+             , NVL(t3.close, 0)                          AS preclose
+             , TO_CHAR(TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD'), 'YYYY-MM-DD') AS ymd
+          FROM ssm0km t1
+             , ssx0kj t2
+               LEFT OUTER JOIN sjt1tg t3
+                 ON  t3.ymd       = TO_DATE(REPLACE(#{junilYmd}, '-', ''), 'YYYYMMDD')
+                 AND t3.koscom_cd = t2.sj_cd
+         WHERE t1.corp_gr = #{corpGr}
+           AND t1.ymd     = TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
+           AND t2.corp_gr = t1.corp_gr
+           AND t2.sj_cd   = t1.sj_cd
+           AND t2.lsy_ymd > TO_DATE(REPLACE(#{junilYmd}, '-', ''), 'YYYYMMDD')
+         ORDER BY t2.sj_cd ASC
+    </select>
+
+    <!-- 6. 주식 결제지수 종목 추출 (cb_3) -->
+    <select id="selectStockIndexList" resultType="com.kfp.aams.domain.daily.dto.Sjt1tgDto">
+        SELECT DISTINCT
+               t2.sj_cd                                  AS sjCd
+             , t2.sj_nm                                  AS xxSjCd
+             , 0                                         AS preclose
+             , '신규생성 주식 결제지수'                  AS bigo
+          FROM ssx0kj t1
+             , ssx0kj t2
+         WHERE t1.corp_gr = #{corpGr}
+           AND t1.lsy_ymd = TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
+           AND t1.jasan   != 'XX'
+           AND t2.corp_gr = t1.corp_gr
+           AND t2.sj_gb   = '0'
+           AND t2.jasan   = t1.jasan
+         ORDER BY t2.sj_cd ASC
+    </select>
+
+    <!-- 7. 국고채 결제지수 종목 추출 (cb_3) -->
+    <select id="selectBondIndexList" resultType="com.kfp.aams.domain.daily.dto.Sjt1tgDto">
+        SELECT DISTINCT
+               t2.sj_cd                                  AS sjCd
+             , t2.sj_nm                                  AS xxSjCd
+             , 0                                         AS preclose
+             , '신규생성 국고채 결제지수'                AS bigo
+          FROM ssx0kj t1
+             , ssx0kj t2
+         WHERE t1.corp_gr     = #{corpGr}
+           AND t1.lsy_ymd - 1 = TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
+           AND t1.jasan       = 'XX'
+           AND t2.corp_gr     = t1.corp_gr
+           AND t2.sj_gb       = '0'
+           AND t2.jasan       = t1.jasan
+         ORDER BY t2.sj_cd ASC
+    </select>
+
+</mapper>

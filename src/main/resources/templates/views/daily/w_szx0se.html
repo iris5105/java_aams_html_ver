@@ -251,7 +251,7 @@
                                 cell.edit(true);
                             }
                         },
-                        { title: "비고", field: "bigo", minWidth: 150, editor: "input", cellClick: (e, cell) => cell.edit(true) }
+                        { title: "비고", field: "bigo", minWidth: 150, hozAlign: "left", editor: "input", cellClick: (e, cell) => cell.edit(true) }
                     ]
                 });
 
@@ -303,10 +303,17 @@
             if (pane) {
                 pane.onSearch = function() { window.loadSzx0seData(); };
                 pane.onRetrieve = function() { window.loadSzx0seData(); };
+                // 공통버튼 지침: 새로고침은 조회 전 초기화 상태로 되돌린다.
+                pane.onRefresh = function() {
+                    if (gridSzx0se) gridSzx0se.clearData();
+                    if (typeof showToast === "function") showToast("화면이 초기화되었습니다.", "info");
+                };
                 pane.onCorpGrChange = function(val) {
+                    if (gridSzx0se) gridSzx0se.clearData();
                     window.loadSzx0seData(val);
                 };
                 pane.addEventListener("corpGrChanged", function(e) {
+                    if (gridSzx0se) gridSzx0se.clearData();
                     window.loadSzx0seData(e.detail ? e.detail.corpGr : val);
                 });
                 pane.getNewRowData = function() {
@@ -336,6 +343,11 @@
                 isInitialized = true;
                 initSzx0seGrid();
                 ue_dddw_retrieve();
+
+                // eb_direct_retrieve = true 명세 반영 자동 조회
+                setTimeout(() => {
+                    window.loadSzx0seData();
+                }, 100);
             }
 
             document.addEventListener("DOMContentLoaded", startInit);

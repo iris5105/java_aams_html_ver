@@ -646,6 +646,17 @@
                         gridJa010o.clearData();
                     }
                 };
+                pane.onRefresh = function() {
+                    if (codeSearchInstance) {
+                        codeSearchInstance.clear();
+                    }
+                    if (gridJa010o) {
+                        gridJa010o.clearData();
+                    }
+                    if (typeof showToast === "function") {
+                        showToast("화면이 초기화되었습니다.", "info");
+                    }
+                };
             }
 
             // 9. Single Entry Point Initialization (Rule 11)

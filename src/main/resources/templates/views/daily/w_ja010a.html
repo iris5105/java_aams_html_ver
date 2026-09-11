@@ -98,7 +98,7 @@
                             editable: (cell) => !cell.getValue() || cell.getRow().getData().isNew,
                             cellClick: aamsCellEdit
                         },
-                        { title: "회사명", field: "companyName", minWidth: 140, editor: "input", cellClick: aamsCellEdit },
+                        { title: "회사명", field: "companyName", minWidth: 140, hozAlign: "left", editor: "input", cellClick: aamsCellEdit },
                         { 
                             title: "입금<br/>영업일수", 
                             field: "depositDd", 
@@ -172,8 +172,8 @@
                             },
                             cellClick: aamsCellEdit
                         },
-                        { title: "수수료 입금계좌", field: "depositAccount", minWidth: 170, editor: "input", cellClick: aamsCellEdit },
-                        { title: "비고", field: "bigo", minWidth: 150, editor: "input", cellClick: aamsCellEdit }
+                        { title: "수수료 입금계좌", field: "depositAccount", minWidth: 170, hozAlign: "left", editor: "input", cellClick: aamsCellEdit },
+                        { title: "비고", field: "bigo", minWidth: 150, hozAlign: "left", editor: "input", cellClick: aamsCellEdit }
                     ]
                 });
 
@@ -224,15 +224,15 @@
                     columns: [
                         { title: "No.", formatter: "rownum", hozAlign: "center", width: 45, resizable: false, widthGrow: 0 },
                         { title: "계약(변경)일자", field: "ymd", hozAlign: "center", width: 110, formatter: cell => formatDateVal(cell.getValue()), editor: "input" },
-                        { title: "회사명", field: "companyName", minWidth: 140, editor: "input" },
+                        { title: "회사명", field: "companyName", minWidth: 140, hozAlign: "left", editor: "input" },
                         { title: "사업자등록번호", field: "idno", hozAlign: "center", width: 125, formatter: cell => formatIdno(cell.getValue()), editor: "input" },
                         { title: "계약일자", field: "contractYmd", hozAlign: "center", width: 105, formatter: cell => formatDateVal(cell.getValue()), editor: "input" },
                         { title: "대표자명", field: "ceoNm", hozAlign: "center", width: 110, editor: "input" },
                         { title: "대표전화번호", field: "telNo", hozAlign: "center", width: 120, editor: "input" },
                         { title: "팩스번호", field: "faxNo", hozAlign: "center", width: 120, editor: "input" },
-                        { title: "E-Mail 주소", field: "email", minWidth: 150, editor: "input" },
+                        { title: "E-Mail 주소", field: "email", minWidth: 150, hozAlign: "left", editor: "input" },
                         { title: "우편번호", field: "post", hozAlign: "center", width: 80, editor: "input" },
-                        { title: "주소", field: "juso", minWidth: 200, editor: "input" }
+                        { title: "주소", field: "juso", minWidth: 200, hozAlign: "left", editor: "input" }
                     ]
                 });
             }
@@ -290,6 +290,13 @@
             if (pane) {
                 pane.onSearch = function() { window.loadJa010aMaster(); };
                 pane.onRetrieve = function() { window.loadJa010aMaster(); };
+                // 공통버튼 지침: 새로고침은 조회 전 초기화 상태로 되돌린다.
+                pane.onRefresh = function() {
+                    if (gridMaster) gridMaster.clearData();
+                    if (gridDetail) gridDetail.clearData();
+                    lastLoadedMasterKey = null;
+                    if (typeof showToast === "function") showToast("화면이 초기화되었습니다.", "info");
+                };
                 pane.onCorpGrChange = function(val) {
                     lastLoadedMasterKey = null;
                     window.loadJa010aMaster(val);
@@ -307,6 +314,11 @@
                 isInitialized = true;
                 initMasterGrid();
                 initDetailGrid();
+
+                // eb_direct_retrieve = true 명세 반영 자동 조회
+                setTimeout(() => {
+                    window.loadJa010aMaster();
+                }, 100);
             }
 
             document.addEventListener("DOMContentLoaded", startInit);

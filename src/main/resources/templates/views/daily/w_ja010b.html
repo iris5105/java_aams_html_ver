@@ -370,6 +370,7 @@
                         { 
                             title: "증권회사", 
                             field: "mgCd", 
+                            hozAlign: "center",
                             minWidth: 90, 
                             formatter: cell => getDddwLabel('mg_cd', cell.getValue() || cell.getRow().getData().mgNm),
                             editor: "list",
@@ -384,9 +385,9 @@
                                 cell.edit(true);
                             }
                         },
-                        { title: "고객명", field: "fundNm", minWidth: 120, editor: "input", cellClick: (e, cell) => cell.edit(true) },
+                        { title: "고객명", field: "fundNm", hozAlign: "left", minWidth: 120, editor: "input", cellClick: (e, cell) => cell.edit(true) },
                         { title: "<span style='color: #0d9488;'>관리번호</span>", field: "fundCd", hozAlign: "center", width: 75 },
-                        { title: "계좌번호", field: "acctNo", minWidth: 105, formatter: cell => cell.getValue() || '-', editor: "input", cellClick: (e, cell) => cell.edit(true) },
+                        { title: "계좌번호", field: "acctNo", hozAlign: "center", minWidth: 105, formatter: cell => cell.getValue() || '-', editor: "input", cellClick: (e, cell) => cell.edit(true) },
                         { 
                             title: "계좌관리그룹", 
                             field: "seriesGb", 
@@ -542,7 +543,7 @@
                             cellClick: aamsCellEdit
                         },
                         { title: "특이사항", field: "noteText", hozAlign: "center", minWidth: 65 },
-                        { title: "<span style='color: #0d9488;'>이메일주소</span>", field: "email1", minWidth: 120, editor: "input", cellClick: aamsCellEdit }
+                        { title: "<span style='color: #0d9488;'>이메일주소</span>", field: "email1", hozAlign: "left", minWidth: 120, editor: "input", cellClick: aamsCellEdit }
                     ]
                 });
 
@@ -629,8 +630,8 @@
                         { title: "출금액", field: "outAek", hozAlign: "right", minWidth: 95, formatter: cell => numFmt(cell.getValue()), editor: "number" },
                         { title: "입출금조정액", field: "ioJo", hozAlign: "right", minWidth: 100, formatter: cell => numFmt(cell.getValue()), editor: "number" },
                         { title: "계약잔액", field: "wonbonAek", hozAlign: "right", minWidth: 100, formatter: cell => numFmt(cell.getValue()), editor: "number" },
-                        { title: "운용잔여일", field: "giganIlsu", hozAlign: "center", width: 80, editor: "number" },
-                        { title: "경과일수", field: "passIlsu", hozAlign: "center", width: 70, editor: "number" }
+                        { title: "운용잔여일", field: "giganIlsu", hozAlign: "right", width: 80, formatter: cell => numFmt(cell.getValue()), editor: "number" },
+                        { title: "경과일수", field: "passIlsu", hozAlign: "right", width: 70, formatter: cell => numFmt(cell.getValue()), editor: "number" }
                     ]
                 });
 
@@ -878,6 +879,16 @@
             if (pane) {
                 pane.onSearch = function() { window.loadJa010bMaster(); };
                 pane.onRetrieve = function() { window.loadJa010bMaster(); };
+                // 공통버튼 지침: 새로고침은 조회 전 초기화 상태로 되돌린다.
+                pane.onRefresh = function() {
+                    if (gridMaster) gridMaster.clearData();
+                    if (gridDetail) gridDetail.clearData();
+                    if (gridIo) gridIo.clearData();
+                    lastLoadedMasterKey = null;
+                    const mle = pane ? pane.querySelector("#mleSpecialNote") : document.getElementById("mleSpecialNote");
+                    if (mle) mle.value = "";
+                    if (typeof showToast === "function") showToast("화면이 초기화되었습니다.", "info");
+                };
                 pane.onCorpGrChange = function(val) {
                     lastLoadedMasterKey = null;
                     window.loadJa010bMaster(val);
@@ -898,21 +909,10 @@
                 initIoGrid();
                 ue_dddw_retrieve();
 
-                if (initialMasterData && initialMasterData.length > 0) {
-                    setTimeout(() => {
-                        if (gridMaster) {
-                            gridMaster.setData(initialMasterData).then(() => {
-                                const rows = gridMaster.getRows();
-                                if (rows && rows.length > 0) {
-                                    gridMaster.deselectRow();
-                                    rows[0].select();
-                                    const d = rows[0].getData();
-                                    syncJa010bDetail(rows[0], d);
-                                }
-                            });
-                        }
-                    }, 50);
-                }
+                // eb_direct_retrieve = true 명세 반영 자동 조회
+                setTimeout(() => {
+                    window.loadJa010bMaster();
+                }, 100);
             }
 
             document.addEventListener("DOMContentLoaded", startInit);

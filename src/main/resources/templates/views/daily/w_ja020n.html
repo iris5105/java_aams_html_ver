@@ -15,7 +15,7 @@
     <!-- Filter Bar (Row 2): dc_ymd fragment (LOAD기준일) + Mode Tabs -->
     <div class="filter-bar">
         <div class="filter-left">
-            <div th:replace="~{fragments/filter/dc_ymd :: filter(label='LOAD기준일')}"></div>
+            <div th:replace="~{fragments/filter/dc_ymd :: filter(label='LOAD기일')}"></div>
         </div>
 
         <!-- Mode Selection Tabs (처리결과조회 / LOAD잔고내역 / LOAD체결내역) -->
@@ -113,7 +113,7 @@
             const columnsByMode = {
                 status: [
                     { title: "No.", formatter: "rownum", width: 45, hozAlign: "center", headerHozAlign: "center", resizable: false },
-                    { title: "작업자", field: "userNm", width: 110, hozAlign: "center", headerHozAlign: "center" },
+                    { title: "작업자", field: "userNm", width: 110, hozAlign: "left", headerHozAlign: "center" },
                     { title: "작업일시", field: "loadDate", width: 170, hozAlign: "center", headerHozAlign: "center" },
                     { title: "처리내용", field: "loadNaye", minWidth: 280, hozAlign: "left", headerHozAlign: "center" }
                 ],
@@ -138,14 +138,14 @@
                     { title: "종목코드", field: "jmCd", width: 100, hozAlign: "center", headerHozAlign: "center" },
                     { title: "종목명", field: "jmNm", minWidth: 150, hozAlign: "left", headerHozAlign: "center" },
                     { title: "체결번호", field: "offerNo", width: 90, hozAlign: "center", headerHozAlign: "center" },
-                    { title: "채결주수<br/>(액면)", field: "trJusu", width: 90, hozAlign: "center", headerHozAlign: "center", formatter: numberFormatter },
+                    { title: "채결주수<br/>(액면)", field: "trJusu", width: 90, hozAlign: "right", headerHozAlign: "center", formatter: numberFormatter },
                     { title: "금액", field: "trAek", width: 120, hozAlign: "right", headerHozAlign: "center", formatter: numberFormatter },
                     { title: "단축코드", field: "koscomCdd", width: 90, hozAlign: "center", headerHozAlign: "center" },
                     { title: "단축식별자", field: "dancGb", width: 90, hozAlign: "center", headerHozAlign: "center" },
                     { title: "수수료", field: "susu", width: 90, hozAlign: "right", headerHozAlign: "center", formatter: numberFormatter },
                     { title: "제세금", field: "tax", width: 90, hozAlign: "right", headerHozAlign: "center", formatter: numberFormatter },
-                    { title: "결제일자", field: "sudoYmd", width: 100, hozAlign: "center", headerHozAlign: "center" },
-                    { title: "처리결과", field: "status", width: 85, hozAlign: "center", headerHozAlign: "center", formatter: loadOkFormatter }
+                    { title: "결제일자", field: "sudoYmd", width: 100, hozAlign: "center", headerHozAlign: "center", formatter: cell => formatDateVal(cell.getValue()) },
+                    { title: "처리결과", field: "status", width: 85, hozAlign: "left", headerHozAlign: "center", formatter: loadOkFormatter }
                 ]
             };
 
@@ -245,10 +245,36 @@
             if (pane) {
                 pane.onSearch = function() { window.loadJa020nData(); };
                 pane.onRetrieve = function() { window.loadJa020nData(); };
-                pane.onCorpGrChange = function() { window.loadJa020nData(); };
+                // 공통버튼 지침: 새로고침은 조회 전 초기화 상태로 되돌린다.
+                pane.onRefresh = function() {
+                    if (gridJa020n) gridJa020n.clearData();
+                    const filterYmdInput = pane ? pane.querySelector("#filterYmd") : document.getElementById("filterYmd");
+                    if (filterYmdInput && initialYmd) {
+                        filterYmdInput.value = initialYmd;
+                    }
+                    if (typeof showToast === "function") showToast("화면이 초기화되었습니다.", "info");
+                };
+                pane.onCorpGrChange = function(newCorpGr) {
+                    if (gridJa020n) gridJa020n.clearData();
+                    const targetCorp = newCorpGr || resolveCorpGr();
+                    if (targetCorp) {
+                        fetch('/api/daily/ja020n/workdate?corpGr=' + encodeURIComponent(targetCorp))
+                            .then(res => res.json())
+                            .then(res => {
+                                if (res && res.workDate) {
+                                    const filterYmdInput = pane ? pane.querySelector("#filterYmd") : document.getElementById("filterYmd");
+                                    if (filterYmdInput) {
+                                        filterYmdInput.value = res.workDate;
+                                    }
+                                }
+                            })
+                            .catch(err => console.warn('[w_ja020n] workdate fetch error:', err));
+                    }
+                };
 
-                pane.addEventListener("corpGrChanged", function() {
-                    window.loadJa020nData();
+                pane.addEventListener("corpGrChanged", function(e) {
+                    const newCorp = e.detail ? e.detail.corpGr : "";
+                    if (pane.onCorpGrChange) pane.onCorpGrChange(newCorp);
                 });
 
                 // Mode switch buttons click listener
@@ -284,10 +310,14 @@
 
             // Pure JS Simple Calendar (Rule 16: dw_c.ue_getdate 미존재 시 순정상태 달력)
             function initCalendar() {
+                const filterYmdInput = pane ? pane.querySelector("#filterYmd") : document.getElementById("filterYmd");
+                if (filterYmdInput && initialYmd && !filterYmdInput.value) {
+                    filterYmdInput.value = initialYmd;
+                }
                 if (typeof AamsCalendar !== 'undefined') {
                     AamsCalendar.initSimple('filterYmd', {
                         pane: pane,
-                        initialYmd: initialYmd,
+                        initialYmd: initialYmd || (filterYmdInput ? filterYmdInput.value : ''),
                         onSelect: function(selectedYmd) {
                             window.loadJa020nData();
                         }
@@ -304,11 +334,7 @@
                 initCalendar();
                 initGrid();
 
-                const corpGr = resolveCorpGr();
-                const filterYmdInput = pane ? pane.querySelector("#filterYmd") : document.getElementById("filterYmd");
-                if (corpGr && filterYmdInput && filterYmdInput.value) {
-                    window.loadJa020nData();
-                }
+                // 자동 조회 지침: boolean eb_direct_retrieve = true 가 없으므로 초기 자동 조회 없음
             }
 
             if (document.readyState === "complete" || document.readyState === "interactive") {

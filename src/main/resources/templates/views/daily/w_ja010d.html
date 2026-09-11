@@ -95,7 +95,7 @@
                                 }
                             }
                         },
-                        { title: "펀드명", field: "fundNm", minWidth: 160 },
+                        { title: "펀드명", field: "fundNm", hozAlign: "left", minWidth: 160 },
                         { title: "입.출금일자", field: "trYmd", hozAlign: "center", width: 105, formatter: cell => formatDateVal(cell.getValue()) },
                         { title: "입금액", field: "inAek", hozAlign: "right", minWidth: 120, formatter: cell => numFmt(cell.getValue()), editor: "number", cellClick: (e, cell) => cell.edit(true) },
                         { title: "출금액", field: "outAek", hozAlign: "right", minWidth: 120, formatter: cell => numFmt(cell.getValue()), editor: "number", cellClick: (e, cell) => cell.edit(true) },
@@ -113,15 +113,18 @@
                 });
 
                 // Guideline 7: Capturing listener to guarantee row selection
-                container.addEventListener("click", function(e) {
-                    const rowEl = e.target.closest(".tabulator-row");
-                    if (!rowEl || !gridJa010d) return;
-                    const row = gridJa010d.getRow(rowEl);
-                    if (row && (!row.isSelected || !row.isSelected())) {
-                        gridJa010d.deselectRow();
-                        row.select();
-                    }
-                }, true);
+                const masterGridEl = pane ? pane.querySelector("#master-grid") : document.getElementById("master-grid");
+                if (masterGridEl) {
+                    masterGridEl.addEventListener("click", function(e) {
+                        const cellEl = e.target.closest(".tabulator-cell");
+                        if (!cellEl) return;
+                        const row = gridJa010d.getRow(cellEl.closest(".tabulator-row"));
+                        if (row && (!row.isSelected || !row.isSelected())) {
+                            gridJa010d.deselectRow();
+                            row.select();
+                        }
+                    }, true);
+                }
             }
 
             // Data retrieval function (Mapper / REST API)
@@ -151,11 +154,16 @@
             if (pane) {
                 pane.onSearch = function() { window.loadJa010dData(); };
                 pane.onRetrieve = function() { window.loadJa010dData(); };
+                // 공통버튼 지침: 새로고침은 조회 전 초기화 상태로 되돌린다.
+                pane.onRefresh = function() {
+                    if (gridJa010d) gridJa010d.clearData();
+                    if (typeof showToast === "function") showToast("화면이 초기화되었습니다.", "info");
+                };
                 pane.onCorpGrChange = function(val) {
-                    window.loadJa010dData(val);
+                    if (gridJa010d) gridJa010d.clearData();
                 };
                 pane.addEventListener("corpGrChanged", function(e) {
-                    window.loadJa010dData(e.detail ? e.detail.corpGr : val);
+                    if (gridJa010d) gridJa010d.clearData();
                 });
             }
 

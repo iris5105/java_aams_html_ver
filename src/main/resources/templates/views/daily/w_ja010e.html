@@ -198,6 +198,9 @@
                     placeholder: "조회된 체결 내역이 없습니다.",
                     selectableRows: 1,
                     editTriggerEvent: "click",
+                    columnDefaults: {
+                        vertAlign: "middle"
+                    },
                     rowFormatter: function(row) {
                         const data = row.getData();
                         if (data && (data.isNew === true || data._isNew === true)) {
@@ -562,7 +565,13 @@
                 pane.onSearch = function() { window.loadJa010eData(); };
                 pane.onRetrieve = function() { window.loadJa010eData(); };
                 pane.onInput = addNewRow;
+                // 공통버튼 지침: 새로고침은 조회 전 초기화 상태로 되돌린다.
+                pane.onRefresh = function() {
+                    if (gridJa010e) gridJa010e.clearData();
+                    if (typeof showToast === "function") showToast("화면이 초기화되었습니다.", "info");
+                };
                 pane.onCorpGrChange = function() {
+                    if (gridJa010e) gridJa010e.clearData();
                     initDddwOptions().then(() => {
                         const corp = resolveCorpGr();
                         if (typeof AamsCalendar !== 'undefined') {
@@ -571,7 +580,6 @@
                             const datesUrl = `/api/daily/ja010e/dates?trCoCd=${encodeURIComponent(trCo)}`;
                             AamsCalendar.loadHighlightDates('filterYmd', datesUrl, corp);
                         }
-                        window.loadJa010eData();
                     });
                 };
 
@@ -636,13 +644,8 @@
 
                 initCalendar();
                 initGrid();
-                initDddwOptions().then(() => {
-                    const corpGr = resolveCorpGr();
-                    const filterYmdInput = pane ? pane.querySelector("#filterYmd") : document.getElementById("filterYmd");
-                    if (corpGr && filterYmdInput && filterYmdInput.value) {
-                        window.loadJa010eData();
-                    }
-                });
+                initDddwOptions();
+                // 자동 조회 지침: boolean eb_direct_retrieve = true 가 없으므로 초기 자동 조회 없음
             }
 
             if (document.readyState === "complete" || document.readyState === "interactive") {

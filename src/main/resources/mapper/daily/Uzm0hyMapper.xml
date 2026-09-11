@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.kfp.aams.domain.daily.mapper.Uzm0hyMapper">
+
+    <!-- 1. 계좌(종목)별 주간 운용현황 펀드 목록 (d_uzm0hy) -->
+    <select id="selectUzm0hyList" resultType="com.kfp.aams.domain.daily.dto.Uzm0hyDto">
+        SELECT t1.corp_gr                                       AS corpGr
+             , t1.enc_acct_no                                   AS encAcctNo
+             , t1.fund_cd                                       AS fundCd
+             , t1.fund_nm                                       AS fundNm
+             , t1.type_gb                                       AS typeGb
+             , TO_CHAR(t1.fst_seolj_ymd, 'YYYY-MM-DD')          AS fstSeoljYmd
+             , t1.sintak_gigan                                  AS sintakGigan
+             , TO_CHAR(t1.bf_gyul_ymd, 'YYYY-MM-DD')           AS bfGyulYmd
+             , TO_CHAR(t1.af_gyul_ymd, 'YYYY-MM-DD')           AS afGyulYmd
+             , t1.target_jasan                                  AS targetJasan
+             , t1.gyul_gi                                       AS gyulGi
+             , t1.haeji_gb                                      AS haejiGb
+             , TO_CHAR(t1.haeji_ymd, 'YYYY-MM-DD')             AS haejiYmd
+             , t1.re_seolj_year                                 AS reSeoljYear
+             , t1.re_seolj_aek                                  AS reSeoljAek
+             , t1.mg_cd                                         AS mgCd
+             , TO_CHAR(t1.re_seolj_ymd, 'YYYY-MM-DD')          AS reSeoljYmd
+             , t1.series_gb                                     AS seriesGb
+             , TO_DECRYPTS(t1.enc_acct_no)                     AS acctNo
+             , se.gugan                                         AS gugan
+          FROM SZM0IA t1
+             , SZX0SE se
+         WHERE t1.corp_gr                     = #{corpGr}
+           AND NVL(t1.haeji_ymd, TO_DATE('2099-12-31', 'YYYY-MM-DD')) > TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
+           AND se.corp_gr                     = t1.corp_gr
+           AND se.series_gb                   = t1.series_gb
+         ORDER BY t1.haeji_gb ASC, t1.mg_cd ASC, t1.fund_nm ASC, t1.re_seolj_ymd ASC
+    </select>
+
+    <!-- 2. 구간 조회 (F_GUGAN) -->
+    <select id="selectGugan" resultType="com.kfp.aams.domain.daily.dto.GuganDto">
+        SELECT TO_CHAR(gu.m3_fymd, 'YYYY-MM-DD')   AS m3Fymd
+             , TO_CHAR(gu.m3_tymd, 'YYYY-MM-DD')   AS m3Tymd
+             , TO_CHAR(gu.g3b_fymd, 'YYYY-MM-DD')  AS g3bFymd
+             , TO_CHAR(gu.g3b_tymd, 'YYYY-MM-DD')  AS g3bTymd
+             , TO_CHAR(gu.b3_fymd, 'YYYY-MM-DD')   AS b3Fymd
+             , TO_CHAR(gu.b3_tymd, 'YYYY-MM-DD')   AS b3Tymd
+             , '평균비율구간 : ' || TO_CHAR(gu.m3_fymd, 'yyyy.mm.dd') || ' - ' || TO_CHAR(gu.m3_tymd, 'yyyy.mm.dd')  AS g1Text
+             , '평균비율구간 : ' || TO_CHAR(gu.g3b_fymd, 'yyyy.mm.dd') || ' - ' || TO_CHAR(gu.g3b_tymd, 'yyyy.mm.dd') AS g2Text
+             , '평균비율구간 : ' || TO_CHAR(gu.b3_fymd, 'yyyy.mm.dd') || ' - ' || TO_CHAR(gu.b3_tymd, 'yyyy.mm.dd')  AS g3Text
+             , gu.m3_gu                            AS m3Gu
+             , gu.g3_gu                            AS g3Gu
+          FROM TABLE(F_GUGAN(#{corpGr}, #{fundCd}, TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD'))) gu
+    </select>
+
+</mapper>

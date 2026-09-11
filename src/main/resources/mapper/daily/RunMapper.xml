@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.kfp.aams.domain.daily.mapper.RunMapper">
+
+    <!-- 1. 원장생성 대상 프로그램 목록 조회 (d_run) -->
+    <select id="selectRunProgramList" resultType="com.kfp.aams.domain.daily.dto.RunItemDto">
+        SELECT ps.proc_seq                      AS procSeq
+             , ps.pgm_id                        AS pgmId
+             , ps.pgm_nm                        AS pgmNm
+             , ' '                              AS flag
+             , RPAD(' ', 200)                   AS errMsg
+          FROM szx0ps ps
+         WHERE ps.proc_seq > 9
+         ORDER BY ps.proc_seq ASC
+    </select>
+
+    <!-- 2. SR_EXEC 프로시저 호출 -->
+    <select id="callSrExec" statementType="CALLABLE">
+        {CALL SR_EXEC(
+            #{corpGr, mode=IN, jdbcType=VARCHAR},
+            #{ymd, mode=IN, jdbcType=VARCHAR},
+            #{pgmId, mode=IN, jdbcType=VARCHAR},
+            #{userId, mode=IN, jdbcType=VARCHAR},
+            #{outMsg, mode=OUT, jdbcType=VARCHAR}
+        )}
+    </select>
+
+    <!-- 3. 에러메시지 CLEAR -->
+    <delete id="deleteWfrmerr">
+        DELETE FROM WFRMERR
+    </delete>
+
+    <!-- 4. 검증 결과 조회 (szx3ck) -->
+    <select id="selectCheckResults" resultType="com.kfp.aams.domain.daily.dto.RunCheckResultDto">
+        SELECT DISTINCT t1.err_msg   AS errMsg
+             , t1.color              AS color
+          FROM szx3ck t1
+         WHERE t1.corp_gr = #{corpGr}
+           AND t1.proc    = 'skkp010'
+         ORDER BY t1.color, t1.err_msg
+    </select>
+
+</mapper>

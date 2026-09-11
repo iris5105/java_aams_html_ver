@@ -47,11 +47,31 @@ public class Ja020nController {
             menuDto = menuService.getMenuByPgmId("w_ja020n");
         }
         String fullpgm2 = (menuDto != null) ? menuDto.getFullpgm2() : "사무관리 > 자문일일 > 일일작업";
+
+        // 파워빌더 w_ja020n.srw (wue_lastopen) 명세: SZX0AA.JUNYONG_YMD(2402) 또는 HYUN_YMD(기타) 작업일자 반영
+        String workDate = (paramYmd != null && !paramYmd.isBlank()) ? paramYmd : ja020nService.getWorkDate(corpGr);
+        if (workDate == null || workDate.isBlank()) {
+            workDate = java.time.LocalDate.now().toString();
+        }
+
         model.addAttribute("fullpgm2", fullpgm2);
         model.addAttribute("corpGr", corpGr);
-        model.addAttribute("ymd", paramYmd);
+        model.addAttribute("ymd", workDate);
 
         return "views/daily/w_ja020n";
+    }
+
+    /**
+     * API: Get Work Date (SZX0AA.JUNYONG_YMD 또는 HYUN_YMD)
+     */
+    @GetMapping("/api/daily/ja020n/workdate")
+    @ResponseBody
+    public java.util.Map<String, String> getWorkDate(@RequestParam(name = "corpGr", required = false) String corpGr) {
+        String workDate = ja020nService.getWorkDate(corpGr);
+        if (workDate == null || workDate.isBlank()) {
+            workDate = java.time.LocalDate.now().toString();
+        }
+        return java.util.Map.of("workDate", workDate);
     }
 
     /**

@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<div class="view-container layout-single ja010n-container" th:fragment="ja010nView">
+
+    <!-- Top Action Control Bar (Row 1) -->
+    <div class="view-toolbar">
+        <div class="toolbar-left">
+            <!-- Reusable Common Toolbar Buttons Fragment -->
+            <div th:replace="~{fragments/tab_header :: toolbarButtons}"></div>
+        </div>
+        <!-- Reusable Common Breadcrumb Fragment -->
+        <div th:replace="~{fragments/tab_header :: toolbarBreadcrumb}"></div>
+    </div>
+
+    <!-- Main Grid Section (d_ja010n1.srd / SKT0BM) -->
+    <div class="grid-section" style="flex: 1 1 auto; height: calc(100% - 50px); padding: 8px 12px; overflow: hidden; display: flex; flex-direction: column;">
+        <div class="grid-table-wrapper" style="flex: 1 1 auto; height: 100%; width: 100%; max-width: 600px; border: 1px solid #cbd5e1; border-radius: 4px; overflow: hidden; background-color: #fff;">
+            <div id="ja010n-grid" class="tabulator-aams-grid" style="height: 100%;"></div>
+        </div>
+    </div>
+
+    <!-- Pure JS AAMS Calendar Component (Rule 16) -->
+    <script th:src="@{/js/aams_calendar.js}" src="/js/aams_calendar.js"></script>
+
+    <!-- Page Specific Script for w_ja010n -->
+    <script th:inline="javascript">
+        (function() {
+            const currentScript = document.currentScript;
+            const pane = currentScript ? (currentScript.closest('.tab-pane') || currentScript.closest('.view-container')) : null;
+
+            let gridJa010n = null;
+            let isInitialized = false;
+            let deletedList = [];
+
+            function decimalFormatter(cell) {
+                const val = cell.getValue();
+                if (val === null || val === undefined || val === "") return "";
+                const num = Number(val);
+                if (isNaN(num)) return val;
+                return num.toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            }
+
+            function isCellEditable(cell) {
+                const rowData = cell.getRow().getData();
+                return !!rowData.isNew;
+            }
+
+            // Columns definition based on d_ja010n1.srd
+            const columns = [
+                {
+                    title: "No.",
+                    field: "fseq",
+                    formatter: "rownum",
+                    width: 70,
+                    hozAlign: "center",
+                    headerHozAlign: "center",
+                    headerSort: false
+                },
+                {
+                    title: "기준일자",
+                    field: "ymd",
+                    width: 150,
+                    hozAlign: "center",
+                    headerHozAlign: "center",
+                    editor: "input",
+                    editable: isCellEditable,
+                    cellClick: function(e, cell) {
+                        if (typeof aamsCellEdit === 'function') aamsCellEdit(e, cell);
+                        const rowData = cell.getRow().getData();
+                        if (rowData.isNew && typeof AamsCalendar !== 'undefined') {
+                            AamsCalendar.open(cell.getElement(), cell.getValue(), function(selectedDate) {
+                                cell.setValue(selectedDate);
+                            });
+                        }
+                    }
+                },
+                {
+                    title: "종합주가지수",
+                    field: "colVal",
+                    width: 180,
+                    hozAlign: "right",
+                    headerHozAlign: "center",
+                    editor: "number",
+                    formatter: decimalFormatter,
+                    cellClick: typeof aamsCellEdit !== 'undefined' ? aamsCellEdit : undefined,
+                    cellEdited: function(cell) {
+                        const row = cell.getRow();
+                        const data = row.getData();
+                        if (!data.isNew) row.update({ rowStatus: "U" });
+                    }
+                }
+            ];
+
+            function initGrid() {
+                const gridEl = pane ? pane.querySelector("#ja010n-grid") : document.getElementById("ja010n-grid");
+                if (!gridEl) return;
+
+                gridJa010n = new Tabulator(gridEl, {
+                    data: [],
+                    layout: "fitColumns",
+                    columns: columns,
+                    height: "100%",
+                    placeholder: "조회된 주가지수 데이터가 없습니다.",
+                    selectableRows: 1
+                });
+
+                // Rule 8: Global Tabulator Row Selection Setup
+                if (typeof setupTabulatorRowSelection === 'function') {
+                    setupTabulatorRowSelection(gridJa010n);
+                }
+
+                // Rule 15: Select first row on data loaded
+                gridJa010n.on("dataLoaded", function() {
+                    const rows = gridJa010n.getRows();
+                    if (rows && rows.length > 0) {
+                        rows[0].select();
+                    }
+                });
+            }
+
+            function loadList() {
+                deletedList = [];
+                fetch("/api/daily/ja010n/list")
+                    .then(res => res.json())
+                    .then(data => {
+                        if (gridJa010n) {
+                            gridJa010n.setData(data || []);
+                        }
+                    })
+                    .catch(err => {
+                        console.error("Error fetching ja010n list:", err);
+                        alert("조회 중 오류가 발생했습니다.");
+                    });
+            }
+
+            function doInput() {
+                if (!gridJa010n) return;
+                const today = new Date().toISOString().substring(0, 10);
+                const newRow = {
+                    fseq: gridJa010n.getData().length + 1,
+                    corpGr: "JISU",
+                    colId: "kospi_jisu",
+                    ymd: today,
+                    colVal: 0,
+                    isNew: true,
+                    rowStatus: "C"
+                };
+                gridJa010n.addRow(newRow, true).then(function(row) {
+                    row.select();
+                });
+            }
+
+            function doDelete() {
+                if (!gridJa010n) return;
+                const selectedRows = gridJa010n.getSelectedRows();
+                if (!selectedRows || selectedRows.length === 0) {
+                    alert("삭제할 행을 선택하세요.");
+                    return;
+                }
+
+                const row = selectedRows[0];
+                const rowData = row.getData();
+                if (!confirm(`[${rowData.ymd || '신규'}] 일자의 주가지수를 삭제하시겠습니까?`)) {
+                    return;
+                }
+
+                if (!rowData.isNew && rowData.ymd) {
+                    deletedList.push(rowData);
+                }
+                row.delete();
+            }
+
+            function doSave() {
+                if (!gridJa010n) return;
+                const allData = gridJa010n.getData();
+
+                const createdRows = allData.filter(d => d.isNew || d.rowStatus === "C");
+                const updatedRows = allData.filter(d => !d.isNew && d.rowStatus === "U");
+
+                if (createdRows.length === 0 && updatedRows.length === 0 && deletedList.length === 0) {
+                    alert("저장할 변경 내용이 없습니다.");
+                    return;
+                }
+
+                if (!confirm("변경 사항을 저장하시겠습니까?")) return;
+
+                const payload = {
+                    createdRows: createdRows,
+                    updatedRows: updatedRows,
+                    deletedRows: deletedList
+                };
+
+                fetch("/api/daily/ja010n/save", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload)
+                })
+                .then(res => res.json())
+                .then(res => {
+                    if (res.success) {
+                        alert(res.message || "저장되었습니다.");
+                        loadList();
+                    } else {
+                        alert(res.message || "저장에 실패했습니다.");
+                    }
+                })
+                .catch(err => {
+                    console.error("Save error:", err);
+                    alert("저장 중 오류가 발생했습니다.");
+                });
+            }
+
+            // Toolbar Button Binding (Rule 9)
+            if (pane) {
+                pane.onSearch = loadList;
+                pane.onInput = doInput;
+                pane.onSave = doSave;
+                pane.onDelete = doDelete;
+                pane.onExcel = function() {
+                    if (gridJa010n) gridJa010n.download("xlsx", `주가지수.xlsx`);
+                };
+                pane.onRefresh = function() {
+                    if (gridJa010n) gridJa010n.clearData();
+                    deletedList = [];
+                    if (typeof showToast === "function") {
+                        showToast("화면이 초기화되었습니다.", "info");
+                    }
+                };
+            }
+
+            // Initialization logic (Rule 11: startInit pattern)
+            function startInit() {
+                if (isInitialized) return;
+                isInitialized = true;
+
+                initGrid();
+
+                setTimeout(() => {
+                    loadList();
+                }, 100);
+            }
+
+            if (document.readyState === "loading") {
+                document.addEventListener("DOMContentLoaded", startInit);
+            } else {
+                startInit();
+            }
+        })();
+    </script>
+</div>
+</html>

@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.kfp.aams.domain.daily.mapper.Ja990cMapper">
+
+    <select id="selectMasterList" resultType="com.kfp.aams.domain.daily.dto.Ja990cMasterDto">
+        SELECT t1.BALH_CO
+             , t1.BALH_NM
+             , t1.TR_STOP_GB
+             , t1.SOSOK_GB
+             , t1.AEKM
+             , t1.GR_BALH_GB
+             , TO_CHAR(t1.BUDO_YMD, 'YYYY-MM-DD') AS budo_ymd
+             , t1.COMP_CD
+             , t1.GYUL_MM
+             , t1.ISIN_CD
+             , t1.COMP_BU
+             , t1.BALH_NATION
+             , t1.ENC_BUBIN_NO
+             , NVL(t1.DEL_YN, '0') AS del_yn
+             , TO_DECRYPTS(t1.enc_bubin_no) AS bubin_no
+             , 1 AS p_visible
+          FROM sjx0jb t1
+         WHERE NVL(t1.SOSOK_GB, '%') LIKE #{sosokGb}
+           AND LENGTH(t1.balh_co) > #{cdLen}
+         ORDER BY t1.del_yn ASC, t1.balh_co ASC
+    </select>
+
+    <select id="selectDetailList" resultType="com.kfp.aams.domain.daily.dto.Ja990cDetailDto">
+        SELECT BALH_CO
+             , TO_CHAR(YMD, 'YYYY-MM-DD HH24:MI:SS') AS ymd
+             , CHG_COLUMN
+             , BF_DATA
+             , AF_DATA
+             , NVL(SKT0BU, 'N') AS skt0bu
+             , UPD_USER
+          FROM sjx0jb_history
+         WHERE balh_co = #{balhCo}
+         ORDER BY chg_column ASC, ymd ASC
+    </select>
+
+    <select id="checkBalhCoExists" resultType="int">
+        SELECT COUNT(1)
+          FROM sjx0jb
+         WHERE balh_co = #{balhCo}
+    </select>
+
+    <insert id="insertMaster">
+        INSERT INTO sjx0jb (
+            balh_co, balh_nm, tr_stop_gb, sosok_gb, aekm, gr_balh_gb,
+            budo_ymd, comp_cd, gyul_mm, isin_cd, comp_bu, balh_nation,
+            enc_bubin_no, del_yn
+        ) VALUES (
+            #{balhCo}, #{balhNm}, #{trStopGb}, #{sosokGb}, #{aekm}, #{grBalhGb},
+            <choose>
+                <when test="budoYmd != null and budoYmd != ''">TO_DATE(#{budoYmd}, 'YYYY-MM-DD')</when>
+                <otherwise>NULL</otherwise>
+            </choose>,
+            #{compCd}, #{gyulMm}, #{isinCd}, #{compBu}, #{balhNation},
+            <choose>
+                <when test="bubinNo != null and bubinNo != ''">TO_ENCRYPTS(#{bubinNo})</when>
+                <otherwise>NULL</otherwise>
+            </choose>,
+            NVL(#{delYn}, '0')
+        )
+    </insert>
+
+    <update id="updateMaster">
+        UPDATE sjx0jb
+           SET balh_nm = #{balhNm},
+               tr_stop_gb = #{trStopGb},
+               sosok_gb = #{sosokGb},
+               aekm = #{aekm},
+               gr_balh_gb = #{grBalhGb},
+               budo_ymd = <choose>
+                            <when test="budoYmd != null and budoYmd != ''">TO_DATE(#{budoYmd}, 'YYYY-MM-DD')</when>
+                            <otherwise>NULL</otherwise>
+                          </choose>,
+               comp_cd = #{compCd},
+               gyul_mm = #{gyulMm},
+               isin_cd = #{isinCd},
+               comp_bu = #{compBu},
+               balh_nation = #{balhNation},
+               enc_bubin_no = <choose>
+                                <when test="bubinNo != null and bubinNo != ''">TO_ENCRYPTS(#{bubinNo})</when>
+                                <otherwise>enc_bubin_no</otherwise>
+                              </choose>,
+               del_yn = NVL(#{delYn}, '0')
+         WHERE balh_co = #{balhCo}
+    </update>
+
+    <delete id="deleteMaster">
+        DELETE FROM sjx0jb
+         WHERE balh_co = #{balhCo}
+    </delete>
+
+    <insert id="insertHistory">
+        INSERT INTO sjx0jb_history (
+            balh_co, ymd, chg_column, bf_data, af_data, skt0bu, upd_user
+        ) VALUES (
+            #{balhCo}, SYSDATE, #{chgColumn}, #{bfData}, #{afData}, NVL(#{skt0bu}, 'N'), #{updUser}
+        )
+    </insert>
+
+</mapper>

@@ -43,6 +43,14 @@ public class Ja010hService {
     }
 
     /**
+     * 평잔 재계산
+     */
+    @Transactional
+    public void executePyungjan(String corpGr, String fundCd, String ymd) {
+        ja010hMapper.callSrPyungjan(corpGr, fundCd, ymd);
+    }
+
+    /**
      * 자산명세표 리포트 내보내기 (PDF, Excel, Word, PPT, HWP)
      * 파워빌더 ole_rd::ue_retrieve 비즈니스 로직 적용:
      * SJM0JM 테이블에서 담보 건수(coll_pass, coll_up, coll_dw)를 확인하여
@@ -67,5 +75,46 @@ public class Ja010hService {
      */
     public RdReportService.ExportResult previewReport(String corpGr, String ymd, String fundCd) throws Exception {
         return exportReport(corpGr, ymd, fundCd, "pdf");
+    }
+
+    /**
+     * 회사그룹별 기준일자 조회
+     */
+    public String getWorkDate(String corpGr) {
+        if (corpGr == null || corpGr.isBlank()) {
+            return null;
+        }
+        return ja010hMapper.selectWorkDate(corpGr);
+    }
+
+    /**
+     * 2402 회사 원장생성 검증 (w_ja010h1.srw ole_rd::ue_retrieve)
+     * 불일치 발생 시 작업자 및 작업시간을 담은 경고 메시지 반환, 정상일 경우 null 반환
+     */
+    public String checkLedgerValidation(String corpGr, String ymd) {
+        if (!"2402".equals(corpGr) || ymd == null || ymd.isBlank()) {
+            return null;
+        }
+        String cleanYmd = ymd.replace("-", "").replace(".", "");
+        if (cleanYmd.compareTo("20241230") <= 0) {
+            return null;
+        }
+
+        Integer diffCount = ja010hMapper.checkLedgerDiffCount(corpGr, ymd);
+        if (diffCount != null && diffCount > 0) {
+            java.util.Map<String, Object> worker = ja010hMapper.selectLastLedgerWorker(corpGr, ymd);
+            String userNm = (worker != null && worker.get("USER_NM") != null) ? String.valueOf(worker.get("USER_NM")) : "담당자";
+            String runDt = (worker != null && worker.get("RUN_DT") != null) ? String.valueOf(worker.get("RUN_DT")) : "";
+            return "최종작업자 " + userNm + "(이)가 원장생성을 " + runDt + "에 작업했습니다.\n최종 LOAD자료 반영을 위해 원장생성 작업을 다시 하십시오.";
+        }
+        return null;
+    }
+
+    /**
+     * 보유자산 종합 엑셀 리포트 생성 (w_ja010h1.srw cb_1)
+     */
+    public RdReportService.ExportResult exportTotalExcel(String corpGr, String ymd) throws Exception {
+        String sunJasan = ja010hMapper.selectSunJasanSigaAek(corpGr, ymd);
+        return rdReportService.generateJa010hTotalReport(corpGr, ymd, sunJasan, "excel");
     }
 }

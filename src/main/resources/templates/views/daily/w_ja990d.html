@@ -1,0 +1,1225 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<div class="view-container ja990d-container" th:fragment="ja990dView">
+
+    <style>
+        .ja990d-container {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            overflow: hidden;
+        }
+        .stock-header-code {
+            color: #2563eb !important;
+            font-weight: 700 !important;
+        }
+        .stock-header-balh {
+            background-color: #dbeafe !important;
+            color: #1e40af !important;
+            font-weight: 600 !important;
+        }
+        .form-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            min-height: 25px;
+            font-size: 12px;
+        }
+        .form-label {
+            width: 100px;
+            min-width: 100px;
+            background: #f1f5f9;
+            color: #334155;
+            font-weight: 600;
+            text-align: center;
+            padding: 3px 4px;
+            border: 1px solid #cbd5e1;
+            border-radius: 2px;
+            font-size: 11.5px;
+            white-space: nowrap;
+            letter-spacing: -0.3px;
+        }
+        .form-control-area {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            min-width: 0;
+        }
+        .form-input {
+            height: 24px;
+            padding: 2px 6px;
+            border: 1px solid #cbd5e1;
+            border-radius: 2px;
+            font-size: 12px;
+            color: #1e293b;
+            background: #fff;
+            box-sizing: border-box;
+        }
+        .form-input:focus, .form-select:focus {
+            border-color: #2563eb;
+            outline: none;
+            box-shadow: 0 0 0 1px #2563eb;
+        }
+        .form-input[readonly] {
+            background: #f8fafc;
+            color: #475569;
+        }
+        .form-select {
+            height: 24px;
+            padding: 1px 4px;
+            border: 1px solid #cbd5e1;
+            border-radius: 2px;
+            font-size: 12px;
+            color: #1e293b;
+            background: #fff;
+            box-sizing: border-box;
+        }
+        .btn-search-icon, .btn-cal-icon {
+            height: 24px;
+            width: 24px;
+            padding: 0;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid #cbd5e1;
+            background: #f8fafc;
+            border-radius: 2px;
+            cursor: pointer;
+            color: #2563eb;
+            flex-shrink: 0;
+        }
+        .btn-search-icon:hover, .btn-cal-icon:hover {
+            background: #e2e8f0;
+        }
+
+        /* 반응형: 태블릿/모바일 (width <= 876px) 우측 폼 하단 배치 */
+        @media (max-width: 876px) {
+            #panel-stock {
+                flex-direction: column !important;
+            }
+            .stock-right-pane {
+                width: 100% !important;
+                flex: 0 0 auto !important;
+                max-height: 280px;
+            }
+        }
+    </style>
+
+    <!-- Top Action Control Bar (Row 1) -->
+    <div class="view-toolbar">
+        <div class="toolbar-left">
+            <!-- Reusable Common Toolbar Buttons Fragment -->
+            <div th:replace="~{fragments/tab_header :: toolbarButtons}"></div>
+        </div>
+        <!-- Reusable Common Breadcrumb Fragment -->
+        <div th:replace="~{fragments/tab_header :: toolbarBreadcrumb}"></div>
+    </div>
+
+    <!-- Filter Bar (Row 2): Quick search keyword -->
+    <div class="filter-bar">
+        <div class="filter-left">
+            <div class="filter-item">
+                <label for="ja990d-search">종목 검색</label>
+                <input type="text" id="ja990d-search" class="filter-input" placeholder="종목코드, 단축코드, 종목명" style="width: 240px;" />
+            </div>
+        </div>
+    </div>
+
+    <!-- Tab Buttons (주식종목 / 신주인수권) -->
+    <div class="sub-tab-bar" style="display: flex; gap: 4px; padding: 6px 12px 0 12px; background: #f8fafc; border-bottom: 1px solid #cbd5e1;">
+        <button type="button" class="sub-tab-btn active" id="tab-btn-stock" data-target="stock" style="padding: 6px 16px; border: 1px solid #cbd5e1; border-bottom: none; border-radius: 4px 4px 0 0; background: #fff; font-weight: 600; font-size: 13px; color: #2563eb; cursor: pointer;">
+            <i class="fa-solid fa-chart-line"></i> 주식종목
+        </button>
+        <button type="button" class="sub-tab-btn" id="tab-btn-right" data-target="right" style="padding: 6px 16px; border: 1px solid transparent; border-bottom: none; border-radius: 4px 4px 0 0; background: #e2e8f0; font-weight: 600; font-size: 13px; color: #64748b; cursor: pointer;">
+            <i class="fa-solid fa-ticket"></i> 신주인수권
+        </button>
+    </div>
+
+    <!-- Tab Content Wrapper -->
+    <div class="tab-content-area" style="flex: 1 1 auto; height: calc(100% - 130px); padding: 8px 12px; overflow: hidden; display: flex; flex-direction: column;">
+        
+        <!-- Tab 1: Stock Panel (Horizontal Split: 좌측 그리드 70% + 우측 폼 390px) -->
+        <div id="panel-stock" class="sub-panel" style="flex: 1 1 auto; height: 100%; display: flex; flex-direction: row; gap: 12px; overflow: hidden;">
+            
+            <!-- Left: 주식 종목 목록 그리드 (d_ja990d_t1a) -->
+            <div class="stock-left-pane" style="flex: 1 1 70%; display: flex; flex-direction: column; min-width: 0; height: 100%; overflow: hidden;">
+                <div class="section-header" style="padding: 4px 8px; font-weight: 600; font-size: 13px; color: #1e293b; background: #e2e8f0; border-radius: 4px 4px 0 0; display: flex; justify-content: space-between; align-items: center;">
+                    <span><i class="fa-solid fa-list"></i> 주식 종목 목록</span>
+                    <span id="stock-count" style="font-size: 11px; color: #64748b; font-weight: normal;">0건</span>
+                </div>
+                <div class="grid-table-wrapper" style="flex: 1 1 auto; height: 100%; width: 100%; border: 1px solid #cbd5e1; border-top: none; border-radius: 0 0 4px 4px; overflow: hidden; background-color: #fff;">
+                    <div id="ja990d-stock-grid" class="tabulator-aams-grid" style="height: 100%;"></div>
+                </div>
+            </div>
+
+            <!-- Right: 주식 종목 상세 폼 패널 (d_ja990d_t1b) -->
+            <div class="stock-right-pane" style="flex: 0 0 390px; width: 390px; display: flex; flex-direction: column; height: 100%; background: #fff; border: 1px solid #cbd5e1; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); overflow: hidden;">
+                <div class="section-header" style="padding: 4px 8px; font-weight: 600; font-size: 13px; color: #1e293b; background: #e2e8f0; border-bottom: 1px solid #cbd5e1; display: flex; align-items: center; gap: 6px;">
+                    <i class="fa-solid fa-file-pen" style="color: #2563eb;"></i>
+                    <span>주식 종목 상세정보</span>
+                </div>
+                <div class="stock-form-body" style="padding: 10px 12px; overflow-y: auto; flex: 1 1 auto; display: flex; flex-direction: column; gap: 5px;">
+                    
+                    <!-- 1. 표준종목코드 -->
+                    <div class="form-row">
+                        <div class="form-label">표준종목코드</div>
+                        <div class="form-control-area">
+                            <input type="text" id="form-jmCd" class="form-input" style="width: 140px; font-weight: 600; color: #2563eb;" maxlength="12" />
+                            <input type="text" id="form-balhNation" class="form-input" style="width: 45px; text-align: center;" value="KR" readonly />
+                        </div>
+                    </div>
+
+                    <!-- 2. 발행기관 -->
+                    <div class="form-row">
+                        <div class="form-label">발행기관</div>
+                        <div class="form-control-area">
+                            <input type="text" id="form-balhCo" class="form-input" style="width: 55px; text-align: center;" maxlength="5" />
+                            <button type="button" id="btn-balh-search" class="btn-search-icon" title="발행기관 검색">
+                                <i class="fa-solid fa-magnifying-glass"></i>
+                            </button>
+                            <input type="text" id="form-balhNm" class="form-input" style="flex: 1;" readonly />
+                        </div>
+                    </div>
+
+                    <!-- 3. KOSCOM코드 -->
+                    <div class="form-row">
+                        <div class="form-label">KOSCOM코드</div>
+                        <div class="form-control-area">
+                            <input type="text" id="form-koscomCd" class="form-input" style="width: 110px;" maxlength="12" />
+                        </div>
+                    </div>
+
+                    <!-- 4. 종목명 -->
+                    <div class="form-row">
+                        <div class="form-label">종목명</div>
+                        <div class="form-control-area">
+                            <input type="text" id="form-jjNm" class="form-input" style="width: 100%;" maxlength="120" />
+                        </div>
+                    </div>
+
+                    <!-- 5. 영문명칭 -->
+                    <div class="form-row">
+                        <div class="form-label">영문명칭</div>
+                        <div class="form-control-area">
+                            <input type="text" id="form-jjEnm" class="form-input" style="width: 100%;" maxlength="120" />
+                        </div>
+                    </div>
+
+                    <!-- 6. 시장구분 / 비상장예탁여부 -->
+                    <div class="form-row">
+                        <div class="form-label">시장구분</div>
+                        <div class="form-control-area" style="justify-content: space-between;">
+                            <select id="form-dancGb" class="form-select" style="width: 110px;"></select>
+                            <label style="display: inline-flex; align-items: center; gap: 4px; font-size: 11.5px; color: #475569; cursor: pointer; user-select: none;">
+                                <span>비상장예탁여부</span>
+                                <input type="checkbox" id="form-deposit" value="Y" />
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- 7. 주권종류 -->
+                    <div class="form-row">
+                        <div class="form-label">주권종류</div>
+                        <div class="form-control-area">
+                            <select id="form-woosIlbanGb" class="form-select" style="width: 140px;"></select>
+                        </div>
+                    </div>
+
+                    <!-- 8. 신주종류 -->
+                    <div class="form-row">
+                        <div class="form-label">신주종류</div>
+                        <div class="form-control-area">
+                            <select id="form-newOldGb" class="form-select" style="width: 140px;"></select>
+                        </div>
+                    </div>
+
+                    <!-- 9. 전환종류 -->
+                    <div class="form-row">
+                        <div class="form-label">전환종류</div>
+                        <div class="form-control-area">
+                            <select id="form-chgGb" class="form-select" style="width: 140px;"></select>
+                        </div>
+                    </div>
+
+                    <!-- 10. 권리발생일 -->
+                    <div class="form-row">
+                        <div class="form-label">권리발생일</div>
+                        <div class="form-control-area">
+                            <input type="text" id="form-kweonriYmd" class="form-input" style="width: 110px; text-align: center;" placeholder="YYYY.MM.DD" />
+                            <button type="button" id="btn-kweonri-cal" class="btn-cal-icon" title="달력 선택">
+                                <i class="fa-regular fa-calendar-days"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 11. 우선주 권리발생일 -->
+                    <div class="form-row">
+                        <div class="form-label" style="font-size: 11px;">우선주 권리발생일</div>
+                        <div class="form-control-area">
+                            <input type="text" id="form-woosVoteYmd" class="form-input" style="width: 110px; text-align: center;" placeholder="YYYY.MM.DD" />
+                            <button type="button" id="btn-woos-vote-cal" class="btn-cal-icon" title="달력 선택">
+                                <i class="fa-regular fa-calendar-days"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 12. 상 장 일 -->
+                    <div class="form-row">
+                        <div class="form-label">상 장 일</div>
+                        <div class="form-control-area">
+                            <input type="text" id="form-sangjYmd" class="form-input" style="width: 110px; text-align: center;" placeholder="YYYY.MM.DD" />
+                            <button type="button" id="btn-sangj-cal" class="btn-cal-icon" title="달력 선택">
+                                <i class="fa-regular fa-calendar-days"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 13. 발 행 가 -->
+                    <div class="form-row">
+                        <div class="form-label">발 행 가</div>
+                        <div class="form-control-area">
+                            <input type="text" id="form-balhGa" class="form-input" style="width: 100%; text-align: right;" />
+                        </div>
+                    </div>
+
+                    <!-- 14. 상장주수 -->
+                    <div class="form-row">
+                        <div class="form-label">상장주수</div>
+                        <div class="form-control-area">
+                            <input type="text" id="form-sangjJusu" class="form-input" style="width: 100%; text-align: right;" />
+                        </div>
+                    </div>
+
+                    <!-- 15. 규모 -->
+                    <div class="form-row">
+                        <div class="form-label">규모</div>
+                        <div class="form-control-area">
+                            <select id="form-capsize" class="form-select" style="width: 140px;"></select>
+                        </div>
+                    </div>
+
+                    <!-- 16. 업종코드 -->
+                    <div class="form-row">
+                        <div class="form-label">업종코드</div>
+                        <div class="form-control-area">
+                            <input type="text" id="form-upjCd" class="form-input" style="width: 55px; text-align: center;" maxlength="3" />
+                            <button type="button" id="btn-upj-search" class="btn-search-icon" title="업종코드 검색">
+                                <i class="fa-solid fa-magnifying-glass"></i>
+                            </button>
+                            <input type="text" id="form-upjFnm" class="form-input" style="flex: 1;" readonly />
+                        </div>
+                    </div>
+
+                    <!-- 17. KOSPI200 -->
+                    <div class="form-row">
+                        <div class="form-label">KOSPI200</div>
+                        <div class="form-control-area">
+                            <select id="form-kospigubun" class="form-select" style="width: 110px;"></select>
+                        </div>
+                    </div>
+
+                    <!-- 18. 신주생성일 -->
+                    <div class="form-row">
+                        <div class="form-label">신주생성일</div>
+                        <div class="form-control-area">
+                            <input type="text" id="form-createdYmd" class="form-input" style="width: 110px; text-align: center;" placeholder="YYYY.MM.DD" />
+                            <button type="button" id="btn-created-cal" class="btn-cal-icon" title="달력 선택">
+                                <i class="fa-regular fa-calendar-days"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 19. 배당기산일 -->
+                    <div class="form-row">
+                        <div class="form-label">배당기산일</div>
+                        <div class="form-control-area">
+                            <input type="text" id="form-baedGisanYmd" class="form-input" style="width: 110px; text-align: center;" placeholder="YYYY.MM.DD" />
+                            <button type="button" id="btn-baed-gisan-cal" class="btn-cal-icon" title="달력 선택">
+                                <i class="fa-regular fa-calendar-days"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 20. 관리/감리 -->
+                    <div class="form-row">
+                        <div class="form-label">관리/감리</div>
+                        <div class="form-control-area">
+                            <select id="form-under" class="form-select" style="width: 140px;"></select>
+                        </div>
+                    </div>
+
+                    <!-- 21. 시가평가코드 -->
+                    <div class="form-row">
+                        <div class="form-label">시가평가코드</div>
+                        <div class="form-control-area">
+                            <input type="text" id="form-isinCd" class="form-input" style="width: 100%;" maxlength="20" />
+                        </div>
+                    </div>
+
+                    <!-- 22. 과표대상여부 -->
+                    <div class="form-row">
+                        <div class="form-label">과표대상여부</div>
+                        <div class="form-control-area">
+                            <input type="checkbox" id="form-a0231" value="Y" />
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Tab 2: Right Grid (신주인수권 종목 목록) -->
+        <div id="panel-right" class="sub-panel" style="flex: 1 1 auto; height: 100%; display: none; flex-direction: column; overflow: hidden;">
+            <div class="section-header" style="padding: 4px 8px; font-weight: 600; font-size: 13px; color: #1e293b; background: #e2e8f0; border-radius: 4px 4px 0 0; display: flex; justify-content: space-between; align-items: center;">
+                <span><i class="fa-solid fa-list"></i> 신주인수권 종목 목록</span>
+                <span id="right-count" style="font-size: 11px; color: #64748b; font-weight: normal;">0건</span>
+            </div>
+            <div class="grid-table-wrapper" style="flex: 1 1 auto; height: 100%; width: 100%; border: 1px solid #cbd5e1; border-top: none; border-radius: 0 0 4px 4px; overflow: hidden; background-color: #fff;">
+                <div id="ja990d-right-grid" class="tabulator-aams-grid" style="height: 100%;"></div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Pure JS AAMS Calendar Component (Rule 16) -->
+    <script th:src="@{/js/aams_calendar.js}" src="/js/aams_calendar.js"></script>
+
+    <!-- DDDW Control Component (Rule 7) -->
+    <script th:src="@{/js/f_dddwctl.js}" src="/js/f_dddwctl.js"></script>
+
+    <!-- Page Specific Script for w_ja990d -->
+    <script th:inline="javascript">
+        (function() {
+            const currentScript = document.currentScript;
+            const pane = currentScript ? (currentScript.closest('.tab-pane') || currentScript.closest('.view-container')) : null;
+
+            let gridStock = null;
+            let gridRight = null;
+            let currentTab = "stock";
+            let isInitialized = false;
+
+            let selectedStockRow = null;
+            let lastLoadedMasterKey = null;
+
+            let deletedStockList = [];
+            let deletedRightList = [];
+
+            let dddwOptionsMap = {
+                woos_ilban_gb: [],
+                chg_gb: [],
+                new_old_gb: [],
+                danc_gb: [],
+                capsize: [],
+                kospigubun: [],
+                under: []
+            };
+
+            function resolveCorpGr() {
+                if (window.currentCorpGr) return window.currentCorpGr;
+                const m = document.cookie.match(/(^|;)\s*savedCorpGr=([^;]+)/) || document.cookie.match(/(^|;)\s*corpGr=([^;]+)/);
+                if (m) return decodeURIComponent(m[2]);
+                const selectEl = pane ? pane.querySelector("#filterCorpGr") : document.getElementById("filterCorpGr");
+                if (selectEl && selectEl.value) return selectEl.value;
+                return "";
+            }
+
+            function aamsCellEdit(e, cell) {
+                const row = cell.getRow();
+                if (row && (!row.isSelected || !row.isSelected())) {
+                    row.select();
+                }
+            }
+
+            function numFormatter(cell) {
+                const val = cell.getValue();
+                if (val == null || val === "" || isNaN(val)) return "0";
+                return Math.round(Number(val)).toLocaleString();
+            }
+
+            function dateFormatter(cell) {
+                const val = cell.getValue();
+                if (!val) return "";
+                const clean = String(val).replace(/[-.\s]/g, "");
+                if (clean.length === 8) {
+                    return clean.substring(0, 4) + "." + clean.substring(4, 6) + "." + clean.substring(6, 8);
+                }
+                return String(val).replace(/-/g, ".");
+            }
+
+            function formatDateDot(val) {
+                if (!val) return "";
+                const clean = String(val).replace(/[-.\s]/g, "");
+                if (clean.length === 8) {
+                    return clean.substring(0, 4) + "." + clean.substring(4, 6) + "." + clean.substring(6, 8);
+                }
+                return String(val).replace(/-/g, ".");
+            }
+
+            function formatDateHyphen(val) {
+                if (!val) return "";
+                const clean = String(val).replace(/[-.\s]/g, "");
+                if (clean.length === 8) {
+                    return clean.substring(0, 4) + "-" + clean.substring(4, 6) + "-" + clean.substring(6, 8);
+                }
+                return String(val).replace(/\./g, "-");
+            }
+
+            // Populate form select dropdowns
+            function populateSelectOptions(selectId, options) {
+                const sel = pane ? pane.querySelector("#" + selectId) : document.getElementById(selectId);
+                if (!sel) return;
+                const prevVal = sel.value;
+                sel.innerHTML = '<option value="">선택</option>';
+                (options || []).forEach(opt => {
+                    const optEl = document.createElement("option");
+                    optEl.value = opt.value;
+                    optEl.textContent = opt.label || opt.name || opt.value;
+                    sel.appendChild(optEl);
+                });
+                if (prevVal) sel.value = prevVal;
+            }
+
+            // Retrieve DDDW options (Rule 7)
+            function retrieveDddw() {
+                const targetCorpGr = resolveCorpGr();
+                if (typeof window.f_dddwctl === 'function') {
+                    const keys = ['woos_ilban_gb', 'chg_gb', 'new_old_gb', 'danc_gb', 'capsize', 'kospigubun', 'under'];
+                    const selectIdMap = {
+                        woos_ilban_gb: 'form-woosIlbanGb',
+                        chg_gb: 'form-chgGb',
+                        new_old_gb: 'form-newOldGb',
+                        danc_gb: 'form-dancGb',
+                        capsize: 'form-capsize',
+                        kospigubun: 'form-kospigubun',
+                        under: 'form-under'
+                    };
+
+                    keys.forEach(k => {
+                        window.f_dddwctl(k, 1, targetCorpGr, '', '').then(list => {
+                            dddwOptionsMap[k] = list || [];
+                            const opts = getDddwOptions(k);
+                            if (selectIdMap[k]) {
+                                populateSelectOptions(selectIdMap[k], opts);
+                            }
+                            if (gridStock) gridStock.redraw(true);
+                            if (gridRight) gridRight.redraw(true);
+                        }).catch(e => console.error(e));
+                    });
+                }
+            }
+
+            function getDddwOptions(dddwKey) {
+                const list = dddwOptionsMap[dddwKey] || [];
+                return list.map(item => {
+                    const code = (item.code != null ? item.code : (item.SEBU_CD != null ? item.SEBU_CD : (item.cd != null ? item.cd : ''))).toString().trim();
+                    const name = (item.name != null ? item.name : (item.SEBU_CD_NM != null ? item.SEBU_CD_NM : (item.dscr != null ? item.dscr : code))).toString().trim();
+                    return { label: name, value: code, code: code, name: name };
+                });
+            }
+
+            function getDddwLabel(dddwKey, codeVal) {
+                if (codeVal == null || codeVal === "") return "";
+                const list = dddwOptionsMap[dddwKey] || [];
+                const found = list.find(item => {
+                    const c = (item.code != null ? item.code : (item.SEBU_CD != null ? item.SEBU_CD : item.cd));
+                    return String(c).trim() === String(codeVal).trim();
+                });
+                if (found) {
+                    return found.name != null ? found.name : (found.SEBU_CD_NM != null ? found.SEBU_CD_NM : found.dscr);
+                }
+                return String(codeVal);
+            }
+
+            // Stock Columns (d_ja990d_t1a.srd - 1:1 match with PB screenshot)
+            const stockColumns = [
+                { title: "No.", field: "fseq", formatter: "rownum", width: 45, hozAlign: "center", headerHozAlign: "center", frozen: true },
+                { title: "종목코드", field: "jmCd", width: 105, hozAlign: "center", headerHozAlign: "center", headerCssClass: "stock-header-code" },
+                { title: "단축코드", field: "koscomCd", width: 80, hozAlign: "center", headerHozAlign: "center" },
+                { title: "종목명", field: "jjNm", minWidth: 140, hozAlign: "left", headerHozAlign: "center" },
+                { title: "발행기관", field: "balhCo", width: 75, hozAlign: "center", headerHozAlign: "center", headerCssClass: "stock-header-balh" },
+                { title: "발행기관명", field: "balhNm", width: 120, hozAlign: "left", headerHozAlign: "center", headerCssClass: "stock-header-balh" },
+                {
+                    title: "시장구분", field: "dancGb", width: 75, hozAlign: "center", headerHozAlign: "center",
+                    formatter: function(cell) { return getDddwLabel('danc_gb', cell.getValue()); }
+                },
+                {
+                    title: "주권종류", field: "woosIlbanGb", width: 75, hozAlign: "center", headerHozAlign: "center",
+                    formatter: function(cell) { return getDddwLabel('woos_ilban_gb', cell.getValue()); }
+                },
+                {
+                    title: "전환종류", field: "chgGb", width: 75, hozAlign: "center", headerHozAlign: "center",
+                    formatter: function(cell) { return getDddwLabel('chg_gb', cell.getValue()); }
+                },
+                {
+                    title: "신주종류", field: "newOldGb", width: 75, hozAlign: "center", headerHozAlign: "center",
+                    formatter: function(cell) { return getDddwLabel('new_old_gb', cell.getValue()); }
+                },
+                { title: "발행가", field: "balhGa", width: 80, hozAlign: "right", headerHozAlign: "center", formatter: numFormatter },
+                { title: "권리발생일", field: "kweonriYmd", width: 90, hozAlign: "center", headerHozAlign: "center", formatter: dateFormatter },
+                { title: "상장일", field: "sangjYmd", width: 90, hozAlign: "center", headerHozAlign: "center", formatter: dateFormatter },
+                { title: "배당기산일", field: "baedGisanYmd", width: 90, hozAlign: "center", headerHozAlign: "center", formatter: dateFormatter }
+            ];
+
+            // Right Columns (d_ja990d_t2.srd - Development Guide Rule: p_xx dynamic search button, p_dd calendar popup button)
+            const rightColumns = [
+                { title: "No.", field: "fseq", formatter: "rownum", width: 45, hozAlign: "center", headerHozAlign: "center", frozen: true },
+                {
+                    title: "삭제", field: "delYn", width: 50, hozAlign: "center", headerHozAlign: "center",
+                    formatter: function(cell) {
+                        return `<input type="checkbox" ${cell.getValue() === '1' ? 'checked' : ''} style="cursor:pointer;"/>`;
+                    },
+                    cellClick: function(e, cell) {
+                        aamsCellEdit(e, cell);
+                        cell.setValue(cell.getValue() === '1' ? '0' : '1');
+                        cell.getRow().update({ isUpdated: true });
+                    }
+                },
+                { title: "종목코드", field: "jmCd", width: 105, hozAlign: "center", headerHozAlign: "center", editor: function(cell){ return cell.getRow().getData().isNew ? "input" : false; }, cellClick: aamsCellEdit },
+                { title: "발행기관", field: "balhCo", width: 75, hozAlign: "center", headerHozAlign: "center", editor: "input", cellClick: aamsCellEdit },
+                {
+                    title: "", field: "p_xx_balh_co", width: 35, hozAlign: "center", headerHozAlign: "center",
+                    formatter: function() {
+                        return `<button type="button" class="btn btn-sm" style="padding: 0 3px; border: none; background: transparent; cursor: pointer;" title="발행기관 검색"><i class="fa-solid fa-magnifying-glass" style="color: #2563eb;"></i></button>`;
+                    },
+                    cellClick: function(e, cell) {
+                        aamsCellEdit(e, cell);
+                        const row = cell.getRow();
+                        if (window.AamsCodeSearch) {
+                            window.AamsCodeSearch.open("balh_co", function(selected) {
+                                if (selected) {
+                                    row.update({ balhCo: selected.code, balhNm: selected.name, isUpdated: true });
+                                }
+                            });
+                        }
+                    }
+                },
+                { title: "발행기관명", field: "balhNm", width: 130, hozAlign: "left", headerHozAlign: "center" },
+                { title: "신주인수권명", field: "jjNm", minWidth: 160, hozAlign: "left", headerHozAlign: "center", editor: "input", cellClick: aamsCellEdit },
+                {
+                    title: "주권종류", field: "woosIlbanGb", width: 85, hozAlign: "center", headerHozAlign: "center",
+                    formatter: function(cell) { return getDddwLabel('woos_ilban_gb', cell.getValue()); },
+                    editor: "list", editorParams: { values: function() { return getDddwOptions('woos_ilban_gb'); } }, cellClick: aamsCellEdit
+                },
+                {
+                    title: "전환종류", field: "chgGb", width: 85, hozAlign: "center", headerHozAlign: "center",
+                    formatter: function(cell) { return getDddwLabel('chg_gb', cell.getValue()); },
+                    editor: "list", editorParams: { values: function() { return getDddwOptions('chg_gb'); } }, cellClick: aamsCellEdit
+                },
+                {
+                    title: "신주종류", field: "newOldGb", width: 85, hozAlign: "center", headerHozAlign: "center",
+                    formatter: function(cell) { return getDddwLabel('new_old_gb', cell.getValue()); },
+                    editor: "list", editorParams: { values: function() { return getDddwOptions('new_old_gb'); } }, cellClick: aamsCellEdit
+                },
+                { title: "단축코드", field: "koscomCd", width: 85, hozAlign: "center", headerHozAlign: "center", editor: "input", cellClick: aamsCellEdit },
+                { title: "발행가", field: "balhGa", width: 90, hozAlign: "right", headerHozAlign: "center", formatter: numFormatter, editor: "number", cellClick: aamsCellEdit },
+                { title: "총발행주수", field: "sangjJusu", width: 100, hozAlign: "right", headerHozAlign: "center", formatter: numFormatter, editor: "number", cellClick: aamsCellEdit },
+                { title: "권리발생일", field: "kweonriYmd", width: 95, hozAlign: "center", headerHozAlign: "center", formatter: dateFormatter, editor: "date", cellClick: aamsCellEdit },
+                {
+                    title: "", field: "p_dd_kweonri_ymd", width: 35, hozAlign: "center", headerHozAlign: "center",
+                    formatter: function() {
+                        return `<button type="button" class="btn btn-sm" style="padding: 0 3px; border: none; background: transparent; cursor: pointer;" title="권리발생일 선택"><i class="fa-regular fa-calendar-days" style="color: #2563eb;"></i></button>`;
+                    },
+                    cellClick: function(e, cell) {
+                        aamsCellEdit(e, cell);
+                        const row = cell.getRow();
+                        if (window.AamsCalendar && window.AamsCalendar.pickDate) {
+                            window.AamsCalendar.pickDate(row.getData().kweonriYmd, function(selectedDate) {
+                                row.update({ kweonriYmd: selectedDate, isUpdated: true });
+                            });
+                        }
+                    }
+                },
+                { title: "상장일", field: "sangjYmd", width: 95, hozAlign: "center", headerHozAlign: "center", formatter: dateFormatter, editor: "date", cellClick: aamsCellEdit },
+                {
+                    title: "", field: "p_dd_sangj_ymd", width: 35, hozAlign: "center", headerHozAlign: "center",
+                    formatter: function() {
+                        return `<button type="button" class="btn btn-sm" style="padding: 0 3px; border: none; background: transparent; cursor: pointer;" title="상장일 선택"><i class="fa-regular fa-calendar-days" style="color: #2563eb;"></i></button>`;
+                    },
+                    cellClick: function(e, cell) {
+                        aamsCellEdit(e, cell);
+                        const row = cell.getRow();
+                        if (window.AamsCalendar && window.AamsCalendar.pickDate) {
+                            window.AamsCalendar.pickDate(row.getData().sangjYmd, function(selectedDate) {
+                                row.update({ sangjYmd: selectedDate, isUpdated: true });
+                            });
+                        }
+                    }
+                },
+                { 
+                    title: "전환비율", 
+                    field: "chgRt", 
+                    width: 80, 
+                    hozAlign: "center", 
+                    headerHozAlign: "center", 
+                    formatter: function(cell) {
+                        const val = cell.getValue();
+                        if (val == null || val === "" || isNaN(val)) return "";
+                        return Number(val).toFixed(2);
+                    },
+                    editor: "number", 
+                    cellClick: aamsCellEdit 
+                }
+            ];
+
+            // Bind data to stock detail form (d_ja990d_t1b)
+            function bindStockForm(data) {
+                if (!data) data = {};
+                const getEl = id => (pane ? pane.querySelector("#" + id) : document.getElementById(id));
+
+                const jmCdEl = getEl("form-jmCd");
+                if (jmCdEl) {
+                    jmCdEl.value = data.jmCd || "";
+                    jmCdEl.readOnly = !data.isNew;
+                }
+
+                if (getEl("form-balhNation")) getEl("form-balhNation").value = data.balhNation || "KR";
+                if (getEl("form-balhCo")) getEl("form-balhCo").value = data.balhCo || "";
+                if (getEl("form-balhNm")) getEl("form-balhNm").value = data.balhNm || "";
+                if (getEl("form-koscomCd")) getEl("form-koscomCd").value = data.koscomCd || "";
+                if (getEl("form-jjNm")) getEl("form-jjNm").value = data.jjNm || "";
+                if (getEl("form-jjEnm")) getEl("form-jjEnm").value = data.jjEnm || "";
+                if (getEl("form-dancGb")) getEl("form-dancGb").value = data.dancGb || "";
+                if (getEl("form-deposit")) getEl("form-deposit").checked = (data.deposit === "Y" || data.deposit === "1");
+                if (getEl("form-woosIlbanGb")) getEl("form-woosIlbanGb").value = data.woosIlbanGb || "";
+                if (getEl("form-newOldGb")) getEl("form-newOldGb").value = data.newOldGb || "";
+                if (getEl("form-chgGb")) getEl("form-chgGb").value = data.chgGb || "";
+
+                if (getEl("form-kweonriYmd")) getEl("form-kweonriYmd").value = formatDateDot(data.kweonriYmd);
+                if (getEl("form-woosVoteYmd")) getEl("form-woosVoteYmd").value = formatDateDot(data.woosVoteYmd);
+                if (getEl("form-sangjYmd")) getEl("form-sangjYmd").value = formatDateDot(data.sangjYmd);
+
+                if (getEl("form-balhGa")) {
+                    getEl("form-balhGa").value = (data.balhGa != null && data.balhGa !== "") ? Number(data.balhGa).toLocaleString() : "0";
+                }
+                if (getEl("form-sangjJusu")) {
+                    getEl("form-sangjJusu").value = (data.sangjJusu != null && data.sangjJusu !== "") ? Number(data.sangjJusu).toLocaleString() : "";
+                }
+
+                if (getEl("form-capsize")) getEl("form-capsize").value = data.capsize || "";
+                if (getEl("form-upjCd")) getEl("form-upjCd").value = data.upjCd || "";
+                if (getEl("form-upjFnm")) getEl("form-upjFnm").value = data.upjFnm || "";
+                if (getEl("form-kospigubun")) getEl("form-kospigubun").value = data.kospigubun || "";
+
+                if (getEl("form-createdYmd")) getEl("form-createdYmd").value = formatDateDot(data.createdYmd);
+                if (getEl("form-baedGisanYmd")) getEl("form-baedGisanYmd").value = formatDateDot(data.baedGisanYmd);
+
+                if (getEl("form-under")) getEl("form-under").value = data.under || "";
+                if (getEl("form-isinCd")) getEl("form-isinCd").value = data.isinCd || "";
+                if (getEl("form-a0231")) getEl("form-a0231").checked = (data.a0231 === "Y" || data.a0231 === "1");
+            }
+
+            // Sync form field change back to grid row
+            function syncFormToGrid(field, value) {
+                if (!selectedStockRow) return;
+                const updateObj = { isUpdated: true };
+                updateObj[field] = value;
+                selectedStockRow.update(updateObj);
+            }
+
+            // Attach listeners to form inputs
+            function initFormListeners() {
+                const getEl = id => (pane ? pane.querySelector("#" + id) : document.getElementById(id));
+
+                const bindInput = (id, field, isNumeric, isDate) => {
+                    const el = getEl(id);
+                    if (!el) return;
+                    el.addEventListener("input", function() {
+                        let val = el.value.trim();
+                        if (isNumeric) {
+                            val = val.replace(/,/g, "");
+                            if (isNaN(val) || val === "") val = 0;
+                            else val = Number(val);
+                        } else if (isDate) {
+                            val = formatDateHyphen(val);
+                        }
+                        syncFormToGrid(field, val);
+                    });
+                };
+
+                const bindSelect = (id, field) => {
+                    const el = getEl(id);
+                    if (!el) return;
+                    el.addEventListener("change", function() {
+                        syncFormToGrid(field, el.value);
+                    });
+                };
+
+                const bindCheckbox = (id, field) => {
+                    const el = getEl(id);
+                    if (!el) return;
+                    el.addEventListener("change", function() {
+                        syncFormToGrid(field, el.checked ? "Y" : "N");
+                    });
+                };
+
+                bindInput("form-jmCd", "jmCd");
+                bindInput("form-balhNation", "balhNation");
+                bindInput("form-balhCo", "balhCo");
+                bindInput("form-koscomCd", "koscomCd");
+                bindInput("form-jjNm", "jjNm");
+                bindInput("form-jjEnm", "jjEnm");
+                bindSelect("form-dancGb", "dancGb");
+                bindCheckbox("form-deposit", "deposit");
+                bindSelect("form-woosIlbanGb", "woosIlbanGb");
+                bindSelect("form-newOldGb", "newOldGb");
+                bindSelect("form-chgGb", "chgGb");
+
+                bindInput("form-kweonriYmd", "kweonriYmd", false, true);
+                bindInput("form-woosVoteYmd", "woosVoteYmd", false, true);
+                bindInput("form-sangjYmd", "sangjYmd", false, true);
+                bindInput("form-balhGa", "balhGa", true);
+                bindInput("form-sangjJusu", "sangjJusu", true);
+
+                bindSelect("form-capsize", "capsize");
+                bindInput("form-upjCd", "upjCd");
+                bindSelect("form-kospigubun", "kospigubun");
+                bindInput("form-createdYmd", "createdYmd", false, true);
+                bindInput("form-baedGisanYmd", "baedGisanYmd", false, true);
+                bindSelect("form-under", "under");
+                bindInput("form-isinCd", "isinCd");
+                bindCheckbox("form-a0231", "a0231");
+
+                // 발행기관 검색 모달 버튼
+                const btnBalh = getEl("btn-balh-search");
+                if (btnBalh) {
+                    btnBalh.addEventListener("click", function() {
+                        if (window.AamsCodeSearch) {
+                            window.AamsCodeSearch.open("balh_co", function(selected) {
+                                if (selected) {
+                                    if (getEl("form-balhCo")) getEl("form-balhCo").value = selected.code || "";
+                                    if (getEl("form-balhNm")) getEl("form-balhNm").value = selected.name || "";
+                                    if (selectedStockRow) {
+                                        selectedStockRow.update({
+                                            balhCo: selected.code,
+                                            balhNm: selected.name,
+                                            isUpdated: true
+                                        });
+                                    }
+                                }
+                            });
+                        }
+                    });
+                }
+
+                // 업종코드 검색 모달 버튼
+                const btnUpj = getEl("btn-upj-search");
+                if (btnUpj) {
+                    btnUpj.addEventListener("click", function() {
+                        if (window.AamsCodeSearch) {
+                            window.AamsCodeSearch.open("upj_cd", function(selected) {
+                                if (selected) {
+                                    if (getEl("form-upjCd")) getEl("form-upjCd").value = selected.code || "";
+                                    if (getEl("form-upjFnm")) getEl("form-upjFnm").value = selected.name || "";
+                                    if (selectedStockRow) {
+                                        selectedStockRow.update({
+                                            upjCd: selected.code,
+                                            upjFnm: selected.name,
+                                            isUpdated: true
+                                        });
+                                    }
+                                }
+                            });
+                        }
+                    });
+                }
+
+                // 달력 선택 버튼 바인딩 헬퍼 (Rule 16)
+                const bindCalendarBtn = (btnId, inputId, fieldName) => {
+                    const btn = getEl(btnId);
+                    const inp = getEl(inputId);
+                    if (!btn || !inp) return;
+                    btn.addEventListener("click", function() {
+                        if (window.AamsCalendar && window.AamsCalendar.pickDate) {
+                            window.AamsCalendar.pickDate(inp.value, function(newDate) {
+                                inp.value = formatDateDot(newDate);
+                                syncFormToGrid(fieldName, formatDateHyphen(newDate));
+                            });
+                        }
+                    });
+                };
+
+                bindCalendarBtn("btn-kweonri-cal", "form-kweonriYmd", "kweonriYmd");
+                bindCalendarBtn("btn-woos-vote-cal", "form-woosVoteYmd", "woosVoteYmd");
+                bindCalendarBtn("btn-sangj-cal", "form-sangjYmd", "sangjYmd");
+                bindCalendarBtn("btn-created-cal", "form-createdYmd", "createdYmd");
+                bindCalendarBtn("btn-baed-gisan-cal", "form-baedGisanYmd", "baedGisanYmd");
+            }
+
+            // Triple Fallback Detail Synchronization (Rule 8)
+            function syncDetail(row, masterRowData) {
+                if (!row) return;
+                if (!row.isSelected || !row.isSelected()) {
+                    row.select();
+                }
+                selectedStockRow = row;
+                const data = masterRowData || (row.getData ? row.getData() : null);
+                if (!data) return;
+
+                const currentKey = (data.jmCd || "") + "_" + (data.koscomCd || "");
+                if (lastLoadedMasterKey === currentKey) return;
+                lastLoadedMasterKey = currentKey;
+
+                bindStockForm(data);
+            }
+
+            // Tab Switching Logic
+            function switchTab(target) {
+                currentTab = target;
+                const btnStock = pane ? pane.querySelector("#tab-btn-stock") : document.getElementById("tab-btn-stock");
+                const btnRight = pane ? pane.querySelector("#tab-btn-right") : document.getElementById("tab-btn-right");
+                const pnlStock = pane ? pane.querySelector("#panel-stock") : document.getElementById("panel-stock");
+                const pnlRight = pane ? pane.querySelector("#panel-right") : document.getElementById("panel-right");
+
+                if (target === "stock") {
+                    btnStock.style.background = "#fff";
+                    btnStock.style.borderColor = "#cbd5e1";
+                    btnStock.style.color = "#2563eb";
+
+                    btnRight.style.background = "#e2e8f0";
+                    btnRight.style.borderColor = "transparent";
+                    btnRight.style.color = "#64748b";
+
+                    pnlStock.style.display = "flex";
+                    pnlRight.style.display = "none";
+                    if (gridStock) gridStock.redraw(true);
+                } else {
+                    btnRight.style.background = "#fff";
+                    btnRight.style.borderColor = "#cbd5e1";
+                    btnRight.style.color = "#2563eb";
+
+                    btnStock.style.background = "#e2e8f0";
+                    btnStock.style.borderColor = "transparent";
+                    btnStock.style.color = "#64748b";
+
+                    pnlStock.style.display = "none";
+                    pnlRight.style.display = "flex";
+                    if (gridRight) gridRight.redraw(true);
+                    loadRightList();
+                }
+            }
+
+            // Load Data
+            function loadStockList() {
+                const searchInput = pane ? pane.querySelector("#ja990d-search") : document.getElementById("ja990d-search");
+                const keyword = searchInput ? searchInput.value.trim() : "";
+                const countEl = pane ? pane.querySelector("#stock-count") : document.getElementById("stock-count");
+
+                fetch(`/api/daily/ja990d/stocks?searchKeyword=${encodeURIComponent(keyword)}`)
+                    .then(r => r.json())
+                    .then(data => {
+                        gridStock.setData(data || []);
+                        if (countEl) countEl.textContent = (data ? data.length : 0) + "건";
+                        // Rule 15: Select first row automatically
+                        if (data && data.length > 0) {
+                            const rows = gridStock.getRows();
+                            if (rows && rows.length > 0) {
+                                rows[0].select();
+                                syncDetail(rows[0], rows[0].getData());
+                            }
+                        } else {
+                            bindStockForm({});
+                        }
+                    })
+                    .catch(e => console.error(e));
+            }
+
+            function loadRightList() {
+                const searchInput = pane ? pane.querySelector("#ja990d-search") : document.getElementById("ja990d-search");
+                const keyword = searchInput ? searchInput.value.trim() : "";
+                const countEl = pane ? pane.querySelector("#right-count") : document.getElementById("right-count");
+
+                fetch(`/api/daily/ja990d/rights?searchKeyword=${encodeURIComponent(keyword)}`)
+                    .then(r => r.json())
+                    .then(data => {
+                        gridRight.setData(data || []);
+                        if (countEl) countEl.textContent = (data ? data.length : 0) + "건";
+                        if (data && data.length > 0) {
+                            const rows = gridRight.getRows();
+                            if (rows && rows.length > 0) rows[0].select();
+                        }
+                    })
+                    .catch(e => console.error(e));
+            }
+
+            function loadData() {
+                lastLoadedMasterKey = null;
+                if (currentTab === "stock") {
+                    loadStockList();
+                } else {
+                    loadRightList();
+                }
+            }
+
+            // Init Grids and Components
+            function init() {
+                retrieveDddw();
+                initFormListeners();
+
+                const stockEl = pane ? pane.querySelector("#ja990d-stock-grid") : document.getElementById("ja990d-stock-grid");
+                const rightEl = pane ? pane.querySelector("#ja990d-right-grid") : document.getElementById("ja990d-right-grid");
+
+                if (stockEl) {
+                    gridStock = new Tabulator(stockEl, {
+                        data: [],
+                        layout: "fitDataFill",
+                        selectable: 1,
+                        columns: stockColumns,
+                        height: "100%",
+                        placeholder: "조회된 주식 종목이 없습니다."
+                    });
+
+                    // Rule 8: Triple Fallback Row Selection Binding
+                    if (typeof setupTabulatorRowSelection === 'function') {
+                        setupTabulatorRowSelection(gridStock, function(row, data) {
+                            syncDetail(row, data);
+                        });
+                    }
+                    gridStock.on("rowClick", function(e, row) {
+                        syncDetail(row, row ? row.getData() : null);
+                    });
+                    gridStock.on("rowSelectionChanged", function(data, rows) {
+                        if (rows && rows.length > 0) {
+                            syncDetail(rows[0], rows[0].getData());
+                        }
+                    });
+                }
+
+                if (rightEl) {
+                    gridRight = new Tabulator(rightEl, {
+                        data: [],
+                        layout: "fitDataFill",
+                        selectable: 1,
+                        columns: rightColumns,
+                        height: "100%",
+                        placeholder: "조회된 신주인수권 종목이 없습니다.",
+                        cellEdited: function(cell) {
+                            cell.getRow().update({ isUpdated: true });
+                        }
+                    });
+                    if (typeof setupTabulatorRowSelection === 'function') {
+                        setupTabulatorRowSelection(gridRight);
+                    }
+                }
+
+                // Tab Click Handlers
+                const btnStock = pane ? pane.querySelector("#tab-btn-stock") : document.getElementById("tab-btn-stock");
+                const btnRight = pane ? pane.querySelector("#tab-btn-right") : document.getElementById("tab-btn-right");
+                if (btnStock) btnStock.addEventListener("click", () => switchTab("stock"));
+                if (btnRight) btnRight.addEventListener("click", () => switchTab("right"));
+
+                // Search Keyup
+                const searchInput = pane ? pane.querySelector("#ja990d-search") : document.getElementById("ja990d-search");
+                if (searchInput) {
+                    searchInput.addEventListener("keyup", function(e) {
+                        if (e.key === "Enter") loadData();
+                    });
+                }
+
+                setTimeout(loadStockList, 100);
+            }
+
+            // Input Row
+            function inputRow() {
+                if (currentTab === "stock") {
+                    const newRow = {
+                        jmCd: "",
+                        koscomCd: "",
+                        jjNm: "",
+                        jjEnm: "",
+                        balhCo: "",
+                        balhNm: "",
+                        balhNation: "KR",
+                        dancGb: "A",
+                        woosIlbanGb: "0",
+                        chgGb: "0",
+                        newOldGb: "0",
+                        balhGa: 0,
+                        sangjJusu: 0,
+                        upjCd: "A99",
+                        under: "N",
+                        delYn: "0",
+                        isNew: true
+                    };
+
+                    gridStock.addRow(newRow, true).then(row => {
+                        lastLoadedMasterKey = null;
+                        row.select();
+                        syncDetail(row, newRow);
+                        const jmCdEl = pane ? pane.querySelector("#form-jmCd") : document.getElementById("form-jmCd");
+                        if (jmCdEl) {
+                            jmCdEl.readOnly = false;
+                            jmCdEl.focus();
+                        }
+                    });
+                } else {
+                    if (!gridRight) return;
+                    const newRow = {
+                        jmCd: "",
+                        balhCo: "",
+                        balhNm: "",
+                        jjNm: "",
+                        woosIlbanGb: "0",
+                        chgGb: "0",
+                        newOldGb: "0",
+                        koscomCd: "",
+                        dancGb: "X",
+                        balhGa: 0,
+                        sangjJusu: 0,
+                        kweonriYmd: "",
+                        sangjYmd: "",
+                        chgRt: 1,
+                        under: "N",
+                        delYn: "0",
+                        isNew: true
+                    };
+
+                    gridRight.addRow(newRow, true).then(row => {
+                        row.select();
+                        setTimeout(() => {
+                            const cell = row.getCell("jmCd");
+                            if (cell) cell.edit();
+                        }, 100);
+                    });
+                }
+            }
+
+            // Delete Row
+            function deleteRow() {
+                const targetGrid = (currentTab === "stock") ? gridStock : gridRight;
+                const delList = (currentTab === "stock") ? deletedStockList : deletedRightList;
+                if (!targetGrid) return;
+
+                const selected = targetGrid.getSelectedRows();
+                if (!selected || selected.length === 0) {
+                    if (window.AamsModal) window.AamsModal.alert("삭제할 행을 선택해주세요.");
+                    return;
+                }
+
+                const row = selected[0];
+                const data = row.getData();
+
+                const doDelete = function() {
+                    if (data.isNew) {
+                        row.delete();
+                    } else {
+                        delList.push(data);
+                        row.delete();
+                    }
+                    if (currentTab === "stock") {
+                        selectedStockRow = null;
+                        bindStockForm({});
+                    }
+                };
+
+                if (window.AamsModal) {
+                    window.AamsModal.confirm("선택한 종목을 삭제하시겠습니까?", doDelete);
+                } else {
+                    if (confirm("선택한 종목을 삭제하시겠습니까?")) {
+                        doDelete();
+                    }
+                }
+            }
+
+            // Save Function
+            function save() {
+                const targetGrid = (currentTab === "stock") ? gridStock : gridRight;
+                const delList = (currentTab === "stock") ? deletedStockList : deletedRightList;
+                if (!targetGrid) return;
+
+                const rows = targetGrid.getData();
+                const inserted = rows.filter(r => r.isNew);
+                const updated = rows.filter(r => !r.isNew && r.isUpdated);
+
+                if (inserted.length === 0 && updated.length === 0 && delList.length === 0) {
+                    if (window.AamsModal) window.AamsModal.alert("수정 또는 변경된 데이터가 없습니다.");
+                    return;
+                }
+
+                for (const item of inserted) {
+                    if (!item.jmCd || item.jmCd.trim() === "") {
+                        if (window.AamsModal) window.AamsModal.alert("종목코드를 입력해주세요.");
+                        return;
+                    }
+                }
+
+                const saveDto = {
+                    insertedList: inserted,
+                    updatedList: updated,
+                    deletedList: delList
+                };
+
+                const doSave = function() {
+                    fetch("/api/daily/ja990d/save", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(saveDto)
+                    })
+                    .then(r => r.json())
+                    .then(res => {
+                        if (res.success) {
+                            if (window.AamsModal) {
+                                window.AamsModal.alert("저장이 완료되었습니다.", () => { loadData(); });
+                            } else {
+                                alert("저장이 완료되었습니다.");
+                                loadData();
+                            }
+                        } else {
+                            if (window.AamsModal) window.AamsModal.alert(res.message || "오류 발생");
+                            else alert(res.message || "오류 발생");
+                        }
+                    })
+                    .catch(err => {
+                        console.error("Save error:", err);
+                        if (window.AamsModal) window.AamsModal.alert("통신 오류가 발생했습니다.");
+                    });
+                };
+
+                if (window.AamsModal) {
+                    window.AamsModal.confirm("종목 정보를 저장하시겠습니까?", doSave);
+                } else {
+                    if (confirm("종목 정보를 저장하시겠습니까?")) doSave();
+                }
+            }
+
+            // Toolbar Contract Binding (Rule 9)
+            if (pane) {
+                pane.onSearch = function() { loadData(); };
+                pane.onInput = function() { inputRow(); };
+                pane.onDelete = function() { deleteRow(); };
+                pane.onSave = function() { save(); };
+                pane.onCorpGrChange = function() { loadData(); };
+                pane.onRefresh = function() {
+                    if (gridStock) gridStock.clearData();
+                    if (gridRight) gridRight.clearData();
+                    selectedStockRow = null;
+                    lastLoadedMasterKey = null;
+                    bindStockForm({});
+                    deletedStockList = [];
+                    deletedRightList = [];
+                    const searchInput = pane ? pane.querySelector("#ja990d-search") : document.getElementById("ja990d-search");
+                    if (searchInput) searchInput.value = "";
+                    if (typeof showToast === "function") {
+                        showToast("화면이 초기화되었습니다.", "info");
+                    }
+                };
+            }
+
+            // Rule 11: Single Entry Point (isInitialized guard)
+            function startInit() {
+                if (isInitialized) return;
+                isInitialized = true;
+                init();
+            }
+
+            if (document.readyState === "complete" || document.readyState === "interactive") {
+                startInit();
+            } else {
+                document.addEventListener("DOMContentLoaded", startInit);
+            }
+
+        })();
+    </script>
+</div>
+</html>

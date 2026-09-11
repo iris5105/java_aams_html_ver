@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.kfp.aams.domain.daily.mapper.Ja010gMapper">
+
+    <!-- 1. 입력자료 대비 순자산점검 목록 조회 (파워빌더 d_ja010g1_common / d_ja010g1_2402 100% 반영) -->
+    <select id="selectJa010gList" resultType="com.kfp.aams.domain.daily.dto.Ja010gDto">
+        <choose>
+            <!-- 1-1. 운용사 2402 전용 쿼리 (d_ja010g1_2402.srd) -->
+            <when test="corpGr == '2402'">
+                SELECT t1.corp_gr                                                         AS corpGr
+                     , TO_CHAR(t1.tr_ymd, 'YYYY-MM-DD')                                   AS trYmd
+                     , t1.fund_cd                                                         AS fundCd
+                     , t1.tr_co_cd                                                        AS trCoCd
+                     , t1.enc_acct_no                                                     AS encAcctNo
+                     , t1.stock_aek                                                       AS yeStockAek
+                     , t1.bond_aek                                                        AS yeBondAek
+                     , t1.fund_aek                                                        AS yeFundAek
+                     , t1.cash_aek                                                        AS cashAek
+                     , (t1.tot_aek + NVL(uh.mibae_aek, 0))                                AS yeTotAek
+                     , (NVL(uh.stock_aek, 0) - NVL(uh.collateral, 0))                     AS uhStockAek
+                     , NVL(uh.stock_gongmo, 0)                                            AS uhStockGongmo
+                     , NVL(uh.bond_aek, 0)                                                AS uhBondAek
+                     , NVL(uh.sj_aek, 0)                                                  AS uhSjAek
+                     , (NVL(uh.cash_aek, 0) - f_misubaed_aek(#{corpGr}, TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD'), t1.fund_cd)) AS uhCashAek
+                     , uh.sun_jasan_aek                                                   AS uhNav
+                     , TO_CHAR(t1.conf_ymd, 'YYYY-MM-DD')                                 AS confYmd
+                     , ia.fund_nm                                                         AS fundNm
+                     , TO_DECRYPTS(t1.enc_acct_no)                                       AS acctNo
+                     , f_misubaed_aek(#{corpGr}, TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD'), t1.fund_cd)  AS misuBaedAek
+                     , f_mijigub_aek(#{corpGr}, TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD'), t1.fund_cd)   AS mijigubAek
+                     , f_gaek(#{corpGr}, TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD'), t1.fund_cd)          AS gaek
+                     , f_gsonik1(#{corpGr}, TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD'), t1.fund_cd)       AS gsonik
+                  FROM SHT0YE t1
+                     , UZM0UH uh
+                     , SZM0IA ia
+                 WHERE t1.corp_gr = #{corpGr}
+                   AND t1.tr_ymd  = TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
+                   AND uh.corp_gr = t1.corp_gr
+                   AND uh.ymd     = t1.tr_ymd
+                   AND uh.fund_cd = t1.fund_cd
+                   AND ia.corp_gr = t1.corp_gr
+                   AND ia.fund_cd = t1.fund_cd
+                 ORDER BY t1.tr_co_cd ASC, ia.fund_nm ASC
+            </when>
+            <!-- 1-2. 공통 운용사 쿼리 (d_ja010g1_common.srd) -->
+            <otherwise>
+                SELECT t1.corp_gr                                                         AS corpGr
+                     , TO_CHAR(t1.tr_ymd, 'YYYY-MM-DD')                                   AS trYmd
+                     , t1.fund_cd                                                         AS fundCd
+                     , t1.tr_co_cd                                                        AS trCoCd
+                     , t1.enc_acct_no                                                     AS encAcctNo
+                     , t1.stock_aek                                                       AS yeStockAek
+                     , t1.bond_aek                                                        AS yeBondAek
+                     , t1.cash_aek                                                        AS cashAek
+                     , t1.tot_aek                                                         AS yeTotAek
+                     , (NVL(uh.stock_aek, 0) - NVL(uh.collateral, 0))                     AS uhStockAek
+                     , NVL(uh.stock_gongmo, 0)                                            AS uhStockGongmo
+                     , NVL(uh.bond_aek, 0)                                                AS uhBondAek
+                     , uh.sun_jasan_aek                                                   AS uhNav
+                     , TO_CHAR(t1.conf_ymd, 'YYYY-MM-DD')                                 AS confYmd
+                     , ia.fund_nm                                                         AS fundNm
+                     , TO_DECRYPTS(t1.enc_acct_no)                                       AS acctNo
+                     , f_misubaed_aek(#{corpGr}, TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD'), t1.fund_cd)  AS misuBaedAek
+                     , f_mijigub_aek(#{corpGr}, TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD'), t1.fund_cd)   AS mijigubAek
+                     , f_gaek(#{corpGr}, TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD'), t1.fund_cd)          AS gaek
+                     , f_gsonik1(#{corpGr}, TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD'), t1.fund_cd)       AS gsonik
+                  FROM SHT0YE t1
+                     , UZM0UH uh
+                     , SZM0IA ia
+                 WHERE t1.corp_gr = #{corpGr}
+                   AND t1.tr_ymd  = TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
+                   AND uh.corp_gr = t1.corp_gr
+                   AND uh.ymd     = t1.tr_ymd
+                   AND uh.fund_cd = t1.fund_cd
+                   AND ia.corp_gr = t1.corp_gr
+                   AND ia.fund_cd = t1.fund_cd
+                 ORDER BY t1.tr_co_cd ASC, ia.fund_nm ASC
+            </otherwise>
+        </choose>
+    </select>
+
+    <!-- 2. 차액반영 (conf_ymd 업데이트) -->
+    <update id="updateConfirmYmd">
+        UPDATE SHT0YE
+           SET conf_ymd = SYSDATE
+         WHERE corp_gr = #{corpGr}
+           AND tr_ymd  = TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
+    </update>
+
+    <!-- 3. 기준 작업일자 조회 (파워빌더 wue_lastopen SZX0AA.JUNYONG_YMD 명세 반영) -->
+    <select id="selectWorkDate" resultType="java.lang.String">
+        SELECT TO_CHAR(NVL(junyong_ymd, hyun_ymd), 'YYYY-MM-DD')
+          FROM SZX0AA
+         WHERE corp_gr = #{corpGr}
+    </select>
+
+</mapper>

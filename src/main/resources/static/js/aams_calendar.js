@@ -502,6 +502,8 @@ window.AamsCalendar = (function() {
                 pane: pane,
                 curFYmd: curFYmd,
                 curTYmd: curTYmd,
+                backupFYmd: curFYmd,
+                backupTYmd: curTYmd,
                 calYearF: fParsed.year,
                 calMonthF: fParsed.month,
                 calYearT: tParsed.year,
@@ -643,7 +645,7 @@ window.AamsCalendar = (function() {
                     <!-- 2. Middle Control Center (3 Buttons matching PowerBuilder w_calendar4day2) -->
                     <div class="range-calendar-center">
                         <!-- Top: 중지하고 나가기 (btn_calender_stop.jpg / ■) -->
-                        <button type="button" class="btn-range-center btn-range-stop" onclick="AamsCalendar.closeRange('${rangeId}')" title="중지하고 나가기">
+                        <button type="button" class="btn-range-center btn-range-stop" onclick="AamsCalendar.cancelRange('${rangeId}')" title="중지하고 나가기">
                             <i class="fa-solid fa-square"></i>
                         </button>
 
@@ -702,16 +704,17 @@ window.AamsCalendar = (function() {
         },
 
         renderSinglePane: function(rangeId, side, year, month, selectedYmd) {
+            const inst = this.rangeInstances[rangeId];
             const suffix = side === 'F' ? '_from_' + rangeId : '_to_' + rangeId;
 
             // Title
-            const titleEl = document.getElementById('title' + suffix);
+            const titleEl = (inst && inst.pane && inst.pane.querySelector('#title' + suffix)) || document.getElementById('title' + suffix);
             if (titleEl) {
                 titleEl.textContent = year + "년 " + (month + 1) + "월";
             }
 
             // Months Bar (01월 ~ 12월)
-            const monthsEl = document.getElementById('months' + suffix);
+            const monthsEl = (inst && inst.pane && inst.pane.querySelector('#months' + suffix)) || document.getElementById('months' + suffix);
             if (monthsEl) {
                 monthsEl.innerHTML = '';
                 for (let m = 0; m < 12; m++) {
@@ -727,7 +730,7 @@ window.AamsCalendar = (function() {
             }
 
             // Days Grid (42 cells: 6 weeks x 7 days)
-            const daysEl = document.getElementById('days' + suffix);
+            const daysEl = (inst && inst.pane && inst.pane.querySelector('#days' + suffix)) || document.getElementById('days' + suffix);
             if (daysEl) {
                 daysEl.innerHTML = '';
 
@@ -820,6 +823,8 @@ window.AamsCalendar = (function() {
         confirmRange: function(rangeId) {
             const inst = this.rangeInstances[rangeId];
             if (!inst) return;
+            inst.backupFYmd = inst.curFYmd;
+            inst.backupTYmd = inst.curTYmd;
             this.closeRange(rangeId);
             if (typeof inst.onSelect === 'function') {
                 inst.onSelect(inst.curFYmd, inst.curTYmd);
@@ -883,22 +888,69 @@ window.AamsCalendar = (function() {
             }
         },
 
-        // Middle button 1: Close / Stop
+        // Middle button 1: Close / Stop without revert
         closeRange: function(rangeId) {
             const inst = this.rangeInstances[rangeId];
             if (!inst) return;
-            const popover = document.getElementById(inst.popoverId);
+            const popover = (inst.pane && inst.pane.querySelector('#' + inst.popoverId)) || document.getElementById(inst.popoverId);
             if (popover) popover.style.display = 'none';
         },
 
-        toggleRange: function(rangeId) {
+        // Middle button 1: 중지하고 나가기 / 취소 (■ 버튼) - 기존 값으로 되돌리고 닫기
+        cancelRange: function(rangeId) {
             const inst = this.rangeInstances[rangeId];
             if (!inst) return;
-            const popover = document.getElementById(inst.popoverId);
+
+            const fromEl = this.getElement(inst.fromInputId, inst.pane);
+            const toEl = this.getElement(inst.toInputId, inst.pane);
+
+            // 기존 백업 값으로 복원
+            const revertF = inst.backupFYmd || inst.curFYmd;
+            const revertT = inst.backupTYmd || inst.curTYmd;
+
+            inst.curFYmd = revertF;
+            inst.curTYmd = revertT;
+
+            if (fromEl) fromEl.value = revertF;
+            if (toEl) toEl.value = revertT;
+
+            const parsedF = this.parseDateStr(revertF);
+            inst.calYearF = parsedF.year;
+            inst.calMonthF = parsedF.month;
+
+            const parsedT = this.parseDateStr(revertT);
+            inst.calYearT = parsedT.year;
+            inst.calMonthT = parsedT.month;
+
+            this.renderRange(rangeId);
+
+            const popover = (inst.pane && inst.pane.querySelector('#' + inst.popoverId)) || document.getElementById(inst.popoverId);
+            if (popover) popover.style.display = 'none';
+        },
+
+        toggleRange: function(rangeId, e) {
+            if (e && typeof e.stopPropagation === 'function') {
+                e.stopPropagation();
+            }
+            let inst = this.rangeInstances[rangeId];
+            if (!inst) {
+                const parts = rangeId.split('_');
+                if (parts.length === 2) {
+                    this.initRange(parts[0], parts[1]);
+                    inst = this.rangeInstances[rangeId];
+                }
+            }
+            if (!inst) return;
+            let popover = (inst.pane && inst.pane.querySelector('#' + inst.popoverId)) || document.getElementById(inst.popoverId);
+            if (!popover) {
+                this.buildRangeDOM(rangeId);
+                this.renderRange(rangeId);
+                popover = (inst.pane && inst.pane.querySelector('#' + inst.popoverId)) || document.getElementById(inst.popoverId);
+            }
             if (!popover) return;
 
             if (popover.style.display === 'none' || popover.style.display === '') {
-                // Sync current input values into cal
+                // Sync current input values into cal and backup
                 const fromEl = this.getElement(inst.fromInputId, inst.pane);
                 const toEl = this.getElement(inst.toInputId, inst.pane);
                 if (fromEl && fromEl.value) {
@@ -913,10 +965,15 @@ window.AamsCalendar = (function() {
                     inst.calYearT = parsed.year;
                     inst.calMonthT = parsed.month;
                 }
+                // 팝오버 열리는 시점의 원래 값 백업
+                inst.backupFYmd = inst.curFYmd;
+                inst.backupTYmd = inst.curTYmd;
+
                 this.renderRange(rangeId);
                 popover.style.display = 'block';
             } else {
-                popover.style.display = 'none';
+                // 열려있는 상태에서 다시 호출 시 원래 값으로 되돌리고 닫음
+                this.cancelRange(rangeId);
             }
         },
 
@@ -931,6 +988,10 @@ window.AamsCalendar = (function() {
             if (fromEl) fromEl.value = date;
             if (toEl) toEl.value = date;
             inst.curTYmd = date;
+
+            // 확정되었으므로 백업값 갱신
+            inst.backupFYmd = date;
+            inst.backupTYmd = date;
 
             this.closeRange(rangeId);
             if (typeof inst.onSelect === 'function') {
@@ -950,6 +1011,10 @@ window.AamsCalendar = (function() {
             if (toEl) toEl.value = date;
             inst.curFYmd = date;
 
+            // 확정되었으므로 백업값 갱신
+            inst.backupFYmd = date;
+            inst.backupTYmd = date;
+
             this.closeRange(rangeId);
             if (typeof inst.onSelect === 'function') {
                 inst.onSelect(date, date);
@@ -964,20 +1029,20 @@ window.AamsCalendar = (function() {
             document.addEventListener('click', function(e) {
                 const currentInst = self.rangeInstances[rangeId];
                 if (!currentInst) return;
-                const popover = document.getElementById(currentInst.popoverId);
+                const popover = (currentInst.pane && currentInst.pane.querySelector('#' + currentInst.popoverId)) || document.getElementById(currentInst.popoverId);
                 const fromEl = self.getElement(currentInst.fromInputId, currentInst.pane);
                 const wrapper = popover ? popover.closest('.range-calendar-wrapper') : (fromEl ? fromEl.closest('.range-calendar-wrapper') : null);
 
                 if (popover && popover.style.display === 'block') {
                     if (wrapper && !wrapper.contains(e.target)) {
-                        self.closeRange(rangeId);
+                        self.cancelRange(rangeId);
                     }
                 }
             });
 
             document.addEventListener('keydown', function(e) {
                 if (e.key === 'Escape') {
-                    self.closeRange(rangeId);
+                    self.cancelRange(rangeId);
                 }
             });
 

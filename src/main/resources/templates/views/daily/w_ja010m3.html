@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<div class="view-container layout-split ja010m3-container" th:fragment="ja010m3View">
+
+    <!-- Top Action Control Bar (Row 1) -->
+    <div class="view-toolbar">
+        <div class="toolbar-left">
+            <!-- Reusable Common Toolbar Buttons Fragment -->
+            <div th:replace="~{fragments/tab_header :: toolbarButtons}"></div>
+        </div>
+        <!-- Reusable Common Breadcrumb Fragment -->
+        <div th:replace="~{fragments/tab_header :: toolbarBreadcrumb}"></div>
+    </div>
+
+    <!-- Filter Bar (Row 2): Rule 14 & Rule 17 - dc_ymd_dddw fragment matching dw_c in w_ja010m3.srw -->
+    <div class="filter-bar">
+        <div class="filter-left">
+            <div th:replace="~{fragments/filter/dc_ymd_dddw :: filter(labelYmd='결산기준일', labelDddw='정렬구분', ymd=${ymd})}"></div>
+        </div>
+    </div>
+
+    <!-- Split Master-Detail Layout (Horizontal Split: Left Grid, Right Memo & RD Report) -->
+    <div class="split-content-container" style="flex: 1 1 auto; height: calc(100% - 90px); padding: 8px 12px; overflow: hidden; display: flex; flex-direction: row; gap: 8px;">
+        
+        <!-- Left Section: Grid (d_ja010m3) -->
+        <div class="grid-section" style="flex: 1 1 65%; min-width: 0; display: flex; flex-direction: column; overflow: hidden;">
+            <div class="section-header" style="padding: 4px 8px; font-weight: 600; font-size: 13px; color: #1e293b; background: #e2e8f0; border-radius: 4px 4px 0 0; display: flex; justify-content: space-between; align-items: center;">
+                <span><i class="fa-solid fa-file-invoice-dollar"></i> 결산현황 목록</span>
+                <span id="grid-count" style="font-size: 11px; color: #64748b; font-weight: normal;">0건</span>
+            </div>
+            <div class="grid-table-wrapper" style="flex: 1 1 auto; height: 100%; width: 100%; border: 1px solid #cbd5e1; border-top: none; border-radius: 0 0 4px 4px; overflow: hidden; background-color: #fff;">
+                <div id="ja010m3-grid" class="tabulator-aams-grid" style="height: 100%;"></div>
+            </div>
+        </div>
+
+        <!-- Right Section: Contract Condition Memo & RD Report Preview -->
+        <div class="detail-section" style="flex: 1 1 35%; min-width: 320px; display: flex; flex-direction: column; gap: 8px; overflow: hidden;">
+            
+            <!-- Upper Memo Panel: mle_cond (계약조건) -->
+            <div class="memo-panel" style="flex: 0 0 140px; display: flex; flex-direction: column; border: 1px solid #cbd5e1; border-radius: 4px; background: #fff; overflow: hidden;">
+                <div class="section-header" style="padding: 4px 8px; font-weight: 600; font-size: 13px; color: #1e293b; background: #e2e8f0; display: flex; justify-content: space-between; align-items: center;">
+                    <span><i class="fa-solid fa-pen-to-square"></i> 계약조건 메모</span>
+                    <span id="memo-fund-name" style="font-size: 11px; color: #2563eb; font-weight: normal;">선택된 펀드 없음</span>
+                </div>
+                <div style="flex: 1 1 auto; padding: 6px;">
+                    <textarea id="ja010m3-memo" style="width: 100%; height: 100%; resize: none; border: 1px solid #e2e8f0; border-radius: 3px; font-family: '맑은 고딕', sans-serif; font-size: 12px; padding: 6px; box-sizing: border-box;" placeholder="계약조건 내용이 표출됩니다."></textarea>
+                </div>
+            </div>
+
+            <!-- Lower Report Preview Panel: ole_rd -->
+            <div class="report-panel" style="flex: 1 1 auto; display: flex; flex-direction: column; border: 1px solid #cbd5e1; border-radius: 4px; background: #fff; overflow: hidden;">
+                <div class="section-header" style="padding: 4px 8px; font-weight: 600; font-size: 13px; color: #1e293b; background: #e2e8f0; display: flex; justify-content: space-between; align-items: center;">
+                    <span><i class="fa-solid fa-file-pdf"></i> 결산보고서 미리보기</span>
+                    <button type="button" id="btn-open-report-newtab" class="btn btn-sm btn-outline-secondary" style="padding: 1px 6px; font-size: 11px;" title="새 창으로 보기">
+                        <i class="fa-solid fa-arrow-up-right-from-square"></i> 새창
+                    </button>
+                </div>
+                <div id="report-frame-container" style="flex: 1 1 auto; width: 100%; height: 100%; background: #f8fafc; display: flex; justify-content: center; align-items: center; position: relative;">
+                    <div id="report-placeholder" style="color: #94a3b8; font-size: 13px; text-align: center;">
+                        <i class="fa-regular fa-file-lines" style="font-size: 32px; margin-bottom: 8px; display: block;"></i>
+                        선택된 결산건의 보고서가 여기에 표출됩니다.
+                    </div>
+                    <iframe id="report-preview-frame" style="width: 100%; height: 100%; border: none; display: none;"></iframe>
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- Pure JS AAMS Calendar Component (Rule 16) -->
+    <script th:src="@{/js/aams_calendar.js}" src="/js/aams_calendar.js"></script>
+
+    <!-- Page Specific Script for w_ja010m3 -->
+    <script th:inline="javascript">
+        (function() {
+            const currentScript = document.currentScript;
+            const pane = currentScript ? (currentScript.closest('.tab-pane') || currentScript.closest('.view-container')) : null;
+
+            let grid = null;
+            let isInitialized = false;
+            let lastLoadedMasterKey = null;
+            let currentSelectedRowData = null;
+            let currentReportUrl = "";
+
+            // Corporate Group Resolver (Guideline 1: No default hardcoded value)
+            function resolveCorpGr() {
+                if (window.currentCorpGr) return window.currentCorpGr;
+                const m = document.cookie.match(/(^|;)\s*savedCorpGr=([^;]+)/) || document.cookie.match(/(^|;)\s*corpGr=([^;]+)/);
+                if (m) return decodeURIComponent(m[2]);
+                const selectEl = pane ? pane.querySelector("#filterCorpGr") : document.getElementById("filterCorpGr");
+                if (selectEl && selectEl.value) return selectEl.value;
+                const globalSelect = document.getElementById("topCorpGrSelect") || document.getElementById("filterCorpGr");
+                if (globalSelect && globalSelect.value) return globalSelect.value;
+                return "";
+            }
+
+            function getFilterValues() {
+                const ymdInput = pane ? pane.querySelector("#filterYmd") : document.getElementById("filterYmd");
+                const dddwSelect = pane ? pane.querySelector("#filterDddw") : document.getElementById("filterDddw");
+                let ymd = ymdInput ? (ymdInput.value || "") : "";
+                let sortGb = dddwSelect ? (dddwSelect.value || "1") : "1";
+                return {
+                    gyulYmd: ymd.replace(/\./g, '-'),
+                    sortGb: sortGb
+                };
+            }
+
+            // Init Filter DDDW Options (f_dddwctl: 1,고객명순,,2,결산일순,)
+            function initFilterDddw() {
+                const selectEl = pane ? pane.querySelector("#filterDddw") : document.getElementById("filterDddw");
+                if (!selectEl) return;
+                selectEl.innerHTML = `
+                    <option value="1" selected>1 : 고객명순</option>
+                    <option value="2">2 : 결산일순</option>
+                `;
+            }
+
+            // Cell edit helper for selection (Rule 8)
+            function aamsCellEdit(e, cell) {
+                const row = cell.getRow();
+                if (row && (!row.isSelected || !row.isSelected())) {
+                    row.select();
+                }
+            }
+
+            // Number Formatter Helpers
+            function numFormatter(cell) {
+                const val = cell.getValue();
+                if (val == null || val === "" || isNaN(val)) return "0";
+                return Math.round(Number(val)).toLocaleString();
+            }
+
+            function percentFormatter(cell) {
+                const val = cell.getValue();
+                if (val == null || val === "" || isNaN(val)) return "0.00";
+                return Number(val).toFixed(2);
+            }
+
+            // Editable rule for cells: only allow editing if tblGb === 'a'
+            function isCellEditable(cell) {
+                const data = cell.getRow().getData();
+                return data && data.tblGb === 'a';
+            }
+
+            // Columns definition based on d_ja010m3.srd
+            const columns = [
+                {
+                    title: "No.",
+                    field: "fseq",
+                    formatter: "rownum",
+                    width: 50,
+                    hozAlign: "center",
+                    headerHozAlign: "center",
+                    frozen: true
+                },
+                {
+                    title: "고객명",
+                    field: "xxFundCd",
+                    minWidth: 160,
+                    hozAlign: "left",
+                    headerHozAlign: "center",
+                    frozen: true
+                },
+                {
+                    title: "결산일자",
+                    field: "gyulYmd",
+                    width: 95,
+                    hozAlign: "center",
+                    headerHozAlign: "center",
+                    formatter: cell => formatDateVal(cell.getValue())
+                },
+                {
+                    title: "수익률(%)",
+                    field: "pjSuikPer",
+                    width: 85,
+                    hozAlign: "right",
+                    headerHozAlign: "center",
+                    formatter: percentFormatter
+                },
+                {
+                    title: "보수합계",
+                    field: "totalBosu",
+                    width: 110,
+                    hozAlign: "right",
+                    headerHozAlign: "center",
+                    formatter: numFormatter
+                },
+                {
+                    title: "투자일임수수료",
+                    field: "basicBosu",
+                    width: 110,
+                    hozAlign: "right",
+                    headerHozAlign: "center",
+                    formatter: numFormatter,
+                    editor: "number",
+                    editable: isCellEditable,
+                    cellClick: aamsCellEdit,
+                    cellEdited: function(cell) {
+                        const row = cell.getRow();
+                        const data = row.getData();
+                        const basic = parseFloat(cell.getValue()) || 0;
+                        const success = parseFloat(data.successBosu) || 0;
+                        row.update({
+                            basicBosu: basic,
+                            totalBosu: basic + success,
+                            isUpdated: true
+                        });
+                    }
+                },
+                {
+                    title: "성과수수료",
+                    field: "successBosu",
+                    width: 110,
+                    hozAlign: "right",
+                    headerHozAlign: "center",
+                    formatter: numFormatter,
+                    editor: "number",
+                    editable: isCellEditable,
+                    cellClick: aamsCellEdit,
+                    cellEdited: function(cell) {
+                        const row = cell.getRow();
+                        const data = row.getData();
+                        const success = parseFloat(cell.getValue()) || 0;
+                        const basic = parseFloat(data.basicBosu) || 0;
+                        row.update({
+                            successBosu: success,
+                            totalBosu: basic + success,
+                            isUpdated: true
+                        });
+                    }
+                },
+                {
+                    title: "재계약액",
+                    field: "recontractAek",
+                    width: 110,
+                    hozAlign: "right",
+                    headerHozAlign: "center",
+                    formatter: numFormatter,
+                    editor: "number",
+                    editable: isCellEditable,
+                    cellClick: aamsCellEdit,
+                    cellEdited: function(cell) {
+                        cell.getRow().update({ isUpdated: true });
+                    }
+                },
+                {
+                    title: "관리번호",
+                    field: "fundCd",
+                    width: 80,
+                    hozAlign: "center",
+                    headerHozAlign: "center"
+                },
+                {
+                    title: "선취(%)",
+                    field: "preBasic",
+                    width: 65,
+                    hozAlign: "center",
+                    headerHozAlign: "center",
+                    formatter: percentFormatter
+                },
+                {
+                    title: "후취(%)",
+                    field: "basicPer",
+                    width: 65,
+                    hozAlign: "center",
+                    headerHozAlign: "center",
+                    formatter: percentFormatter
+                },
+                {
+                    title: "BM(%)",
+                    field: "bmPer",
+                    width: 65,
+                    hozAlign: "center",
+                    headerHozAlign: "center",
+                    formatter: percentFormatter
+                },
+                {
+                    title: "성과보수(%)",
+                    field: "successPer",
+                    width: 75,
+                    hozAlign: "center",
+                    headerHozAlign: "center",
+                    formatter: percentFormatter
+                },
+                {
+                    title: "워터마크 일임액",
+                    field: "wmSeoljAek",
+                    width: 110,
+                    hozAlign: "right",
+                    headerHozAlign: "center",
+                    formatter: numFormatter,
+                    editor: "number",
+                    editable: isCellEditable,
+                    cellClick: aamsCellEdit,
+                    cellEdited: function(cell) {
+                        cell.getRow().update({ isUpdated: true });
+                    }
+                },
+                {
+                    title: "워터마크 손익액",
+                    field: "wmSonik",
+                    width: 110,
+                    hozAlign: "right",
+                    headerHozAlign: "center",
+                    formatter: numFormatter,
+                    editor: "number",
+                    editable: isCellEditable,
+                    cellClick: aamsCellEdit,
+                    cellEdited: function(cell) {
+                        cell.getRow().update({ isUpdated: true });
+                    }
+                },
+                {
+                    title: "재계약 공문서번호",
+                    field: "docNo",
+                    width: 120,
+                    hozAlign: "left",
+                    headerHozAlign: "center",
+                    editor: "input",
+                    editable: isCellEditable,
+                    cellClick: aamsCellEdit,
+                    cellEdited: function(cell) {
+                        cell.getRow().update({ isUpdated: true });
+                    }
+                },
+                {
+                    title: "해지사유",
+                    field: "haejiSayu",
+                    width: 130,
+                    hozAlign: "left",
+                    headerHozAlign: "center",
+                    editor: "input",
+                    editable: isCellEditable,
+                    cellClick: aamsCellEdit,
+                    cellEdited: function(cell) {
+                        cell.getRow().update({ isUpdated: true });
+                    }
+                },
+                {
+                    title: "평잔액",
+                    field: "tujaPj",
+                    width: 110,
+                    hozAlign: "right",
+                    headerHozAlign: "center",
+                    formatter: numFormatter
+                },
+                {
+                    title: "투자원금",
+                    field: "tujaAek",
+                    width: 110,
+                    hozAlign: "right",
+                    headerHozAlign: "center",
+                    formatter: numFormatter
+                },
+                {
+                    title: "순자산액",
+                    field: "nav",
+                    width: 110,
+                    hozAlign: "right",
+                    headerHozAlign: "center",
+                    formatter: numFormatter
+                },
+                {
+                    title: "손익액",
+                    field: "sonik",
+                    width: 110,
+                    hozAlign: "right",
+                    headerHozAlign: "center",
+                    formatter: numFormatter
+                }
+            ];
+
+            // Detail Synchronizer: Update Memo & Load RD Report (Rule 8, 10)
+            function syncDetail(row, rowData) {
+                if (!row) return;
+                if (!row.isSelected || !row.isSelected()) {
+                    row.select();
+                }
+                const data = rowData || (row.getData ? row.getData() : null);
+                if (!data) return;
+
+                const currentKey = (data.corpGr || "") + "_" + (data.fundCd || "") + "_" + (data.gyulYmd || "") + "_" + (data.tblGb || "");
+                if (lastLoadedMasterKey === currentKey) return;
+                lastLoadedMasterKey = currentKey;
+
+                // If previous row had memo edited, sync it back
+                if (currentSelectedRowData && currentSelectedRowData._memoEdited) {
+                    const prevRow = grid.getRows().find(r => r.getData() === currentSelectedRowData);
+                    if (prevRow) {
+                        prevRow.update({
+                            contractCondition: currentSelectedRowData.contractCondition,
+                            isUpdated: true
+                        });
+                    }
+                }
+
+                currentSelectedRowData = data;
+
+                // 1) Bind Memo (mle_cond)
+                const memoEl = pane ? pane.querySelector("#ja010m3-memo") : document.getElementById("ja010m3-memo");
+                const nameEl = pane ? pane.querySelector("#memo-fund-name") : document.getElementById("memo-fund-name");
+                if (nameEl) {
+                    nameEl.textContent = `${data.xxFundCd || ''} (${data.fundCd || ''}) - ${data.gyulYmd || ''}`;
+                }
+                if (memoEl) {
+                    memoEl.value = data.contractCondition || "";
+                    // Only editable if tblGb == 'a'
+                    memoEl.readOnly = (data.tblGb === 'b');
+                    memoEl.style.backgroundColor = (data.tblGb === 'b') ? "#f1f5f9" : "#ffffff";
+                }
+
+                // 2) Bind RD Report Preview (ole_rd)
+                loadRdReportPreview(data);
+            }
+
+            // RD Report Preview Loader
+            function loadRdReportPreview(data) {
+                const container = pane ? pane.querySelector("#report-frame-container") : document.getElementById("report-frame-container");
+                const placeholder = pane ? pane.querySelector("#report-placeholder") : document.getElementById("report-placeholder");
+                const frame = pane ? pane.querySelector("#report-preview-frame") : document.getElementById("report-preview-frame");
+                const btnNewTab = pane ? pane.querySelector("#btn-open-report-newtab") : document.getElementById("btn-open-report-newtab");
+
+                if (!data || data.tblGb === 'b' || !data.mrdNm) {
+                    if (frame) frame.style.display = "none";
+                    if (placeholder) {
+                        placeholder.style.display = "block";
+                        placeholder.innerHTML = `<i class="fa-regular fa-file-lines" style="font-size: 32px; margin-bottom: 8px; display: block;"></i>결산보고서가 존재하지 않는 항목입니다.`;
+                    }
+                    currentReportUrl = "";
+                    if (btnNewTab) btnNewTab.style.display = "none";
+                    return;
+                }
+
+                // RD PDF Endpoint
+                const mrd = data.mrdNm.trim();
+                const params = `fund_cd[${data.fundCd}] gyul_ymd[${data.gyulYmd.replace(/-/g, '.')}]`;
+                const url = `/api/rd/pdf?mrd=${encodeURIComponent(mrd)}&param=${encodeURIComponent(params)}`;
+                currentReportUrl = url;
+
+                if (placeholder) placeholder.style.display = "none";
+                if (frame) {
+                    frame.style.display = "block";
+                    frame.src = url;
+                }
+                if (btnNewTab) {
+                    btnNewTab.style.display = "inline-block";
+                }
+            }
+
+            // Grid Data Loader
+            function loadGrid() {
+                const corpGr = resolveCorpGr();
+                const filters = getFilterValues();
+                if (!corpGr) {
+                    if (window.AamsModal) window.AamsModal.alert("회사그룹을 선택해주세요.");
+                    return;
+                }
+
+                lastLoadedMasterKey = null;
+                currentSelectedRowData = null;
+
+                const countEl = pane ? pane.querySelector("#grid-count") : document.getElementById("grid-count");
+                const memoEl = pane ? pane.querySelector("#ja010m3-memo") : document.getElementById("ja010m3-memo");
+                const nameEl = pane ? pane.querySelector("#memo-fund-name") : document.getElementById("memo-fund-name");
+                if (nameEl) nameEl.textContent = "선택된 펀드 없음";
+                if (memoEl) memoEl.value = "";
+                loadRdReportPreview(null);
+
+                let url = `/api/daily/ja010m3/list?corpGr=${encodeURIComponent(corpGr)}&sortGb=${encodeURIComponent(filters.sortGb)}`;
+                if (filters.gyulYmd) {
+                    url += `&gyulYmd=${encodeURIComponent(filters.gyulYmd)}`;
+                }
+
+                fetch(url)
+                    .then(res => res.json())
+                    .then(data => {
+                        grid.setData(data || []);
+                        if (countEl) {
+                            countEl.textContent = (data ? data.length : 0) + "건";
+                        }
+                        // Rule 8, 15: Select first row automatically
+                        if (data && data.length > 0) {
+                            const rows = grid.getRows();
+                            if (rows && rows.length > 0) {
+                                rows[0].select();
+                                syncDetail(rows[0], data[0]);
+                            }
+                        }
+                    })
+                    .catch(err => {
+                        console.error("Failed to load ja010m3 data:", err);
+                        grid.clearData();
+                        if (countEl) countEl.textContent = "0건";
+                    });
+            }
+
+            // Initialization Function
+            function init() {
+                initFilterDddw();
+
+                const gridEl = pane ? pane.querySelector("#ja010m3-grid") : document.getElementById("ja010m3-grid");
+                if (!gridEl) return;
+
+                grid = new Tabulator(gridEl, {
+                    data: [],
+                    layout: "fitDataFill",
+                    selectable: 1,
+                    columns: columns,
+                    height: "100%",
+                    placeholder: "조회된 결산현황 데이터가 없습니다.",
+                    rowFormatter: function(row) {
+                        const data = row.getData();
+                        if (data && data.tblGb === 'b') {
+                            row.getElement().style.backgroundColor = "#fef2f2"; // 파워빌더 'b' 구분 강조색
+                        }
+                    }
+                });
+
+                // Rule 8: Triple Fallback Row Selection
+                if (typeof setupTabulatorRowSelection === 'function') {
+                    setupTabulatorRowSelection(grid, function(row, data) {
+                        syncDetail(row, data);
+                    });
+                }
+                grid.on("rowClick", function(e, row) {
+                    syncDetail(row, row ? row.getData() : null);
+                });
+                grid.on("rowSelectionChanged", function(data, rows) {
+                    if (rows && rows.length > 0) {
+                        syncDetail(rows[0], rows[0].getData());
+                    }
+                });
+
+                // Memo Edit Handler
+                const memoEl = pane ? pane.querySelector("#ja010m3-memo") : document.getElementById("ja010m3-memo");
+                if (memoEl) {
+                    memoEl.addEventListener("input", function() {
+                        if (currentSelectedRowData && currentSelectedRowData.tblGb === 'a') {
+                            currentSelectedRowData.contractCondition = memoEl.value;
+                            currentSelectedRowData._memoEdited = true;
+                            currentSelectedRowData.isUpdated = true;
+                        }
+                    });
+                }
+
+                // New Tab Button Handler
+                const btnNewTab = pane ? pane.querySelector("#btn-open-report-newtab") : document.getElementById("btn-open-report-newtab");
+                if (btnNewTab) {
+                    btnNewTab.addEventListener("click", function() {
+                        if (currentReportUrl) {
+                            window.open(currentReportUrl, "_blank");
+                        }
+                    });
+                }
+
+                // Initial Load
+                setTimeout(loadGrid, 100);
+            }
+
+            // Save Function (Rule 9)
+            function save() {
+                if (!grid) return;
+                
+                // Sync current memo value before save
+                const memoEl = pane ? pane.querySelector("#ja010m3-memo") : document.getElementById("ja010m3-memo");
+                if (memoEl && currentSelectedRowData && currentSelectedRowData.tblGb === 'a') {
+                    currentSelectedRowData.contractCondition = memoEl.value;
+                }
+
+                const rows = grid.getData();
+                const updatedList = rows.filter(r => r.isUpdated && r.tblGb === 'a');
+
+                if (!updatedList || updatedList.length === 0) {
+                    if (window.AamsModal) window.AamsModal.alert("수정된 결산 정보가 없습니다.");
+                    return;
+                }
+
+                const corpGr = resolveCorpGr();
+                const saveDto = {
+                    updatedList: updatedList.map(r => ({
+                        corpGr: corpGr,
+                        gyulYmd: r.gyulYmd,
+                        fundCd: r.fundCd,
+                        basicBosu: r.basicBosu,
+                        successBosu: r.successBosu,
+                        totalBosu: r.totalBosu,
+                        recontractAek: r.recontractAek,
+                        wmSeoljAek: r.wmSeoljAek,
+                        wmSonik: r.wmSonik,
+                        docNo: r.docNo,
+                        haejiSayu: r.haejiSayu,
+                        sendMailAddr: r.sendMailAddr,
+                        sendCcAddr: r.sendCcAddr,
+                        productNm: r.productNm,
+                        contractCondition: r.contractCondition,
+                        tblGb: r.tblGb
+                    }))
+                };
+
+                const doSave = function() {
+                    fetch("/api/daily/ja010m3/save", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json"
+                        },
+                        body: JSON.stringify(saveDto)
+                    })
+                    .then(res => res.json())
+                    .then(res => {
+                        if (res.success) {
+                            if (window.AamsModal) {
+                                window.AamsModal.alert("저장이 완료되었습니다.", () => {
+                                    loadGrid();
+                                });
+                            } else {
+                                alert("저장이 완료되었습니다.");
+                                loadGrid();
+                            }
+                        } else {
+                            if (window.AamsModal) window.AamsModal.alert(res.message || "저장 중 오류가 발생했습니다.");
+                            else alert(res.message || "저장 중 오류가 발생했습니다.");
+                        }
+                    })
+                    .catch(err => {
+                        console.error("Failed to save:", err);
+                        if (window.AamsModal) window.AamsModal.alert("저장 통신 오류가 발생했습니다.");
+                        else alert("저장 통신 오류가 발생했습니다.");
+                    });
+                };
+
+                if (window.AamsModal) {
+                    window.AamsModal.confirm("수정된 결산현황 데이터를 저장하시겠습니까?", doSave);
+                } else {
+                    if (confirm("수정된 결산현황 데이터를 저장하시겠습니까?")) {
+                        doSave();
+                    }
+                }
+            }
+
+            // Toolbar Contract Binding (Rule 9)
+            if (pane) {
+                pane.onSearch = function() {
+                    loadGrid();
+                };
+                pane.onSave = function() {
+                    save();
+                };
+                // 공통버튼 지침: 새로고침은 조회 전 초기화 상태로 되돌린다.
+                pane.onRefresh = function() {
+                    if (grid) grid.clearData();
+                    currentSelectedRowData = null;
+                    lastLoadedMasterKey = null;
+                    const ymdInput = pane ? pane.querySelector("#filterYmd") : document.getElementById("filterYmd");
+                    if (ymdInput) {
+                        const today = new Date();
+                        const yyyy = today.getFullYear();
+                        const mm = String(today.getMonth() + 1).padStart(2, '0');
+                        const dd = String(today.getDate()).padStart(2, '0');
+                        ymdInput.value = `${yyyy}-${mm}-${dd}`;
+                    }
+                    const memoEl = pane ? pane.querySelector("#ja010m3-memo") : document.getElementById("ja010m3-memo");
+                    if (memoEl) memoEl.value = "";
+                    const countEl = pane ? pane.querySelector("#ja010m3-count") : document.getElementById("ja010m3-count");
+                    if (countEl) countEl.textContent = "0건";
+                    if (typeof showToast === "function") showToast("화면이 초기화되었습니다.", "info");
+                };
+                pane.onCorpGrChange = function() {
+                    if (grid) grid.clearData();
+                    initFilterDddw();
+                    loadGrid();
+                };
+            }
+
+            // Rule 11: Single Entry Point (isInitialized guard)
+            function startInit() {
+                if (isInitialized) return;
+                isInitialized = true;
+                init();
+
+                // AamsCalendar 초기화
+                if (typeof AamsCalendar !== 'undefined' && typeof AamsCalendar.initSimple === 'function') {
+                    AamsCalendar.initSimple('filterYmd', { pane: pane });
+                }
+
+                // eb_direct_retrieve = true 명세 반영 자동 조회
+                setTimeout(() => {
+                    loadGrid();
+                }, 100);
+            }
+
+            if (document.readyState === "complete" || document.readyState === "interactive") {
+                startInit();
+            } else {
+                document.addEventListener("DOMContentLoaded", startInit);
+            }
+
+        })();
+    </script>
+</div>
+</html>

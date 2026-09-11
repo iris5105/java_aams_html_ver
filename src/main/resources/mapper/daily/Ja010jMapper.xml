@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.kfp.aams.domain.daily.mapper.Ja010jMapper">
+
+    <!-- 공모청약 수요예측 참여표(회사) 참여그룹 목록 (d_ja010j1) -->
+    <select id="selectJa010jList" resultType="com.kfp.aams.domain.daily.dto.Ja010jDto">
+        SELECT t1.corp_gr                                       AS corpGr
+             , t1.company_name || '-고유공모계좌'                AS companyName
+             , '0'                                             AS fundCd
+             , ''                                              AS fundNm
+          FROM SZX0AA t1
+         WHERE t1.corp_gr LIKE #{corpGr}
+        UNION ALL
+        SELECT t1.corp_gr
+             , t1.company_name || '(' || MIN(ia.fund_nm) || ' 외 ' || TO_CHAR(COUNT(*) - 1) || ' 계좌)'
+             , '1'
+             , MIN(ia.fund_nm) || ' 외 ' || TO_CHAR(COUNT(*) - 1) || ' 계좌'
+          FROM SZX0AA t1
+             , SZM0IA ia
+             , UZM0UH uh
+         WHERE t1.corp_gr                      LIKE #{corpGr}
+           AND t1.corp_gr                      = '2202'
+           AND ia.corp_gr                      = t1.corp_gr
+           AND NVL(ia.haeji_ymd, TO_DATE('2999-12-31', 'YYYY-MM-DD')) >= TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
+           AND uh.corp_gr                      = t1.corp_gr
+           AND uh.fund_cd                      = ia.fund_cd
+           AND uh.ymd                          = TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
+           AND uh.type_gb                      NOT IN ('0','5','6')
+         GROUP BY t1.corp_gr, t1.company_name
+        UNION ALL
+        SELECT t1.corp_gr
+             , t1.company_name || '(' || MIN(ia.fund_nm) || ' 외 ' || TO_CHAR(COUNT(*) - 1) || ' 개인계좌)'
+             , '1'
+             , MIN(ia.fund_nm) || ' 외 ' || TO_CHAR(COUNT(*) - 1) || ' 개인계좌'
+          FROM SZX0AA t1
+             , SZM0IA ia
+             , UZM0UH uh
+         WHERE t1.corp_gr                      LIKE #{corpGr}
+           AND t1.corp_gr                      != '2202'
+           AND ia.corp_gr                      = t1.corp_gr
+           AND NVL(ia.haeji_ymd, TO_DATE('2999-12-31', 'YYYY-MM-DD')) >= TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
+           AND uh.corp_gr                      = t1.corp_gr
+           AND uh.fund_cd                      = ia.fund_cd
+           AND uh.ymd                          = TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
+           AND uh.type_gb                      = '1'
+         GROUP BY t1.corp_gr, t1.company_name
+        UNION ALL
+        SELECT t1.corp_gr
+             , t1.company_name || '(' || MIN(ia.fund_nm) || ' 외 ' || TO_CHAR(COUNT(*) - 1) || ' 법인계좌)'
+             , '2'
+             , MIN(ia.fund_nm) || ' 외 ' || TO_CHAR(COUNT(*) - 1) || ' 법인계좌'
+          FROM SZX0AA t1
+             , SZM0IA ia
+             , UZM0UH uh
+         WHERE t1.corp_gr                      LIKE #{corpGr}
+           AND t1.corp_gr                      != '2202'
+           AND ia.corp_gr                      = t1.corp_gr
+           AND NVL(ia.haeji_ymd, TO_DATE('2999-12-31', 'YYYY-MM-DD')) >= TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
+           AND uh.corp_gr                      = t1.corp_gr
+           AND uh.fund_cd                      = ia.fund_cd
+           AND uh.ymd                          = TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
+           AND uh.type_gb                      = '2'
+         GROUP BY t1.corp_gr, t1.company_name
+        UNION ALL
+        SELECT t1.corp_gr
+             , t1.company_name || '(' || ia.fund_nm || ')-개인별공모참여'
+             , ia.fund_cd
+             , ia.fund_nm
+          FROM SZX0AA t1
+             , SZM0IA ia
+             , UZM0UH uh
+         WHERE t1.corp_gr                      LIKE #{corpGr}
+           AND ia.corp_gr                      = t1.corp_gr
+           AND NVL(ia.haeji_ymd, TO_DATE('2999-12-31', 'YYYY-MM-DD')) >= TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
+           AND uh.corp_gr                      = t1.corp_gr
+           AND uh.fund_cd                      = ia.fund_cd
+           AND uh.ymd                          = TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
+           AND uh.type_gb                      = '5'
+        UNION ALL
+        SELECT t1.corp_gr
+             , t1.company_name || '(' || ia.fund_nm || ')-법인별공모참여'
+             , ia.fund_cd
+             , ia.fund_nm
+          FROM SZX0AA t1
+             , SZM0IA ia
+             , UZM0UH uh
+         WHERE t1.corp_gr                      LIKE #{corpGr}
+           AND ia.corp_gr                      = t1.corp_gr
+           AND NVL(ia.haeji_ymd, TO_DATE('2999-12-31', 'YYYY-MM-DD')) >= TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
+           AND uh.corp_gr                      = t1.corp_gr
+           AND uh.fund_cd                      = ia.fund_cd
+           AND uh.ymd                          = TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
+           AND uh.type_gb                      = '6'
+         ORDER BY 1 ASC, 3 ASC
+    </select>
+
+</mapper>

@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.kfp.aams.domain.daily.mapper.Ja010m3Mapper">
+
+    <select id="selectJa010m3List" resultType="com.kfp.aams.domain.daily.dto.Ja010m3Dto">
+        SELECT t1.CORP_GR
+             , TO_CHAR(t1.GYUL_YMD, 'YYYY-MM-DD') AS gyul_ymd
+             , t1.FUND_CD
+             , ia.FUND_NM AS xx_fund_cd
+             , gs.MRD_NM
+             , t1.TUJA_AEK
+             , t1.TUJA_PJ
+             , t1.NAV
+             , t1.SONIK
+             , t1.PJ_SUIK_PER
+             , t1.TOTAL_BOSU
+             , t1.BASIC_BOSU
+             , t1.SUCCESS_BOSU
+             , gs.PRE_BASIC
+             , gs.BASIC_PER
+             , gs.BM_PER
+             , gs.SUCCESS_PER
+             , t1.DOC_NO
+             , t1.PRODUCT_NM
+             , t1.CONTRACT_CONDITION
+             , t1.SEND_MAIL_ADDR
+             , t1.SEND_CC_ADDR
+             , TO_CHAR(t1.SEND_DT, 'YYYY-MM-DD HH24:MI:SS') AS send_dt
+             , t1.SEND_USER
+             , gs.CONTRACT_AEK
+             , t1.RECONTRACT_AEK
+             , t1.WM_SEOLJ_AEK
+             , t1.WM_SONIK
+             , t1.HAEJI_SAYU
+             , 'a' AS tbl_gb
+          FROM SKT1GS_INDATA t1
+     LEFT JOIN SKT1GS gs
+            ON gs.corp_gr = t1.CORP_GR
+           AND gs.fund_cd = t1.fund_cd
+           AND gs.gyul_ymd = t1.gyul_ymd
+          JOIN SZM0IA ia
+            ON ia.CORP_GR = t1.CORP_GR
+           AND ia.fund_cd = t1.fund_cd
+         WHERE t1.CORP_GR = #{corpGr}
+        <if test="gyulYmd != null and gyulYmd != ''">
+           AND t1.gyul_ymd >= TO_DATE(#{gyulYmd}, 'YYYY-MM-DD')
+        </if>
+        UNION ALL
+        SELECT t1.CORP_GR
+             , TO_CHAR(t1.GYUL_YMD, 'YYYY-MM-DD') AS gyul_ymd
+             , t1.FUND_CD
+             , ia.FUND_NM AS xx_fund_cd
+             , NULL AS MRD_NM
+             , t1.TUJA_AEK
+             , t1.TUJA_PJ
+             , t1.NAV
+             , t1.SONIK
+             , t1.PJ_SUIK_PER
+             , t1.TOTAL_BOSU
+             , t1.BASIC_BOSU
+             , t1.SUCCESS_BOSU
+             , t1.PRE_BASIC
+             , t1.BASIC_PER
+             , t1.BM_PER
+             , t1.SUCCESS_PER
+             , t1.DOC_NO
+             , t1.PRODUCT_NM
+             , t1.CONTRACT_CONDITION
+             , NULL AS SEND_MAIL_ADDR
+             , NULL AS SEND_CC_ADDR
+             , NULL AS send_dt
+             , NULL AS SEND_USER
+             , t1.CONTRACT_AEK
+             , t1.RECONTRACT_AEK
+             , t1.WM_SEOLJ_AEK
+             , t1.WM_SONIK
+             , NULL AS HAEJI_SAYU
+             , 'b' AS tbl_gb
+          FROM SKT1GS t1
+          JOIN SZM0IA ia
+            ON ia.CORP_GR = t1.CORP_GR
+           AND ia.fund_cd = t1.fund_cd
+         WHERE t1.CORP_GR = #{corpGr}
+        <if test="gyulYmd != null and gyulYmd != ''">
+           AND t1.gyul_ymd >= TO_DATE(#{gyulYmd}, 'YYYY-MM-DD')
+        </if>
+           AND #{chk} = 'b'
+        <choose>
+            <when test="sortGb == '1'">
+                ORDER BY xx_fund_cd ASC, gyul_ymd DESC, tbl_gb ASC
+            </when>
+            <otherwise>
+                ORDER BY gyul_ymd DESC, xx_fund_cd ASC, tbl_gb ASC
+            </otherwise>
+        </choose>
+    </select>
+
+    <update id="updateJa010m3">
+        UPDATE SKT1GS_INDATA
+           SET basic_bosu = #{basicBosu},
+               success_bosu = #{successBosu},
+               total_bosu = #{totalBosu},
+               recontract_aek = #{recontractAek},
+               wm_seolj_aek = #{wmSeoljAek},
+               wm_sonik = #{wmSonik},
+               doc_no = #{docNo},
+               haeji_sayu = #{haejiSayu},
+               send_mail_addr = #{sendMailAddr},
+               send_cc_addr = #{sendCcAddr},
+               product_nm = #{productNm},
+               contract_condition = #{contractCondition},
+               send_dt = SYSDATE
+         WHERE corp_gr = #{corpGr}
+           AND gyul_ymd = TO_DATE(#{gyulYmd}, 'YYYY-MM-DD')
+           AND fund_cd = #{fundCd}
+    </update>
+
+</mapper>

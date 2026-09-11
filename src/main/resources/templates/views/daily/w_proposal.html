@@ -347,6 +347,7 @@
                         { 
                             title: "개발 의뢰내용", 
                             field: "title", 
+                            hozAlign: "left",
                             minWidth: 200, 
                             editor: "input",
                             editable: isProposalEditable
@@ -435,7 +436,7 @@
                         { 
                             title: "입력자", 
                             field: "sbNm", 
-                            hozAlign: "center", 
+                            hozAlign: "left", 
                             width: 85,
                             formatter: cell => {
                                 const row = cell.getRow().getData();
@@ -448,6 +449,7 @@
                         { 
                             title: "댓  글  내  용", 
                             field: "appending", 
+                            hozAlign: "left",
                             minWidth: 200,
                             editor: "input",
                             editable: isCommentEditable,
@@ -753,6 +755,29 @@
                 }
             }
 
+            // Register standard toolbar & CorpGr contracts (Guideline 8, 9)
+            if (pane) {
+                pane.onSearch = function() { loadProposalMaster(); };
+                pane.onRetrieve = function() { loadProposalMaster(); };
+                // 공통버튼 지침: 새로고침은 조회 전 초기화 상태로 되돌린다.
+                pane.onRefresh = function() {
+                    if (gridMaster) gridMaster.clearData();
+                    if (gridComment) gridComment.clearData();
+                    resetDetailPanel();
+                    if (typeof showToast === "function") showToast("화면이 초기화되었습니다.", "info");
+                };
+                pane.onCorpGrChange = function(val) {
+                    if (gridMaster) gridMaster.clearData();
+                    if (gridComment) gridComment.clearData();
+                    loadProposalMaster();
+                };
+                pane.addEventListener("corpGrChanged", function() {
+                    if (gridMaster) gridMaster.clearData();
+                    if (gridComment) gridComment.clearData();
+                    loadProposalMaster();
+                });
+            }
+
             // Guideline 10: Single initialization entry point with isInitialized guard
             let isInitialized = false;
             function startInit() {
@@ -761,6 +786,11 @@
                 initMasterGrid();
                 initCommentGrid();
                 initCommentTools();
+
+                // eb_direct_retrieve = true 명세 반영 자동 조회
+                setTimeout(() => {
+                    loadProposalMaster();
+                }, 100);
             }
 
             document.addEventListener("DOMContentLoaded", startInit);

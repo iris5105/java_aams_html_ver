@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<div class="view-container layout-single ja010g-container" th:fragment="ja010gView" style="display: flex; flex-direction: column; height: 100%; width: 100%; overflow: hidden;">
+
+    <!-- 1. Top Action Control Bar (Row 1: 공통 툴바 표준 계약) -->
+    <div class="view-toolbar">
+        <div class="toolbar-left">
+            <div th:replace="~{fragments/tab_header :: toolbarButtons}"></div>
+        </div>
+        <div th:replace="~{fragments/tab_header :: toolbarBreadcrumb}"></div>
+    </div>
+
+    <!-- 2. Sub Filter Bar (Row 2: dc_ymd 공통 프래그먼트 + 차액반영 액션 버튼) -->
+    <div class="filter-bar">
+        <div class="filter-left">
+            <th:block th:replace="~{fragments/filter/dc_ymd :: filter(label='점검일자')}"></th:block>
+        </div>
+        <div class="filter-actions d-flex align-items-center gap-1">
+            <!-- 파워빌더 cb_2 (기본 disabled = true, 당일 조회 시에만 활성화) -->
+            <button type="button" id="btnConfirmDiff" class="t-btn btn-action" disabled style="background: #94a3b8; color: #ffffff; border-color: #64748b; cursor: not-allowed; opacity: 0.6; transition: all 0.2s ease;">
+                <i class="fa-solid fa-circle-check me-1"></i> 차액반영
+            </button>
+        </div>
+    </div>
+
+    <!-- 3. Guidance Alert (dw_c tag) -->
+    <div class="alert alert-info py-1 px-3 mb-1 mx-2 small" style="background-color: #f0fdf4; border-color: #bbf7d0; color: #166534; flex-shrink: 0;">
+        <i class="fa-solid fa-circle-info me-1"></i> 주식 미수입금/미지급금은 LOAD순자산에 반영되어 있지 않으므로 조정됩니다.
+    </div>
+
+    <!-- 4. Main Grid Section (d_ja010g1_common.srd / sht0ye + uzm0uh) -->
+    <div class="grid-section" style="flex: 1 1 auto; height: calc(100% - 110px); min-height: 0; padding: 0 8px 8px 8px; display: flex; flex-direction: column;">
+        <div class="grid-table-wrapper" style="flex: 1 1 auto; height: 100%; width: 100%; border: 1px solid #cbd5e1; border-radius: 4px; overflow: hidden; background: #fff;">
+            <div id="ja010g-grid" class="tabulator-aams-grid" style="height: 100%; width: 100%;"></div>
+        </div>
+    </div>
+
+    <script th:src="@{/js/f_dddwctl.js}" src="/js/f_dddwctl.js"></script>
+    <script th:src="@{/js/aams_calendar.js}" src="/js/aams_calendar.js"></script>
+    <script th:inline="javascript">
+        (function () {
+            var pane = document.currentScript.closest('.tab-pane') || document;
+            var grid = null;
+            var isInitialized = false;
+            var dddwOptionsMap = {};
+
+            var serverCorpGr = /*[[${corpGr}]]*/ '';
+            var serverYmd = /*[[${ymd}]]*/ '';
+
+            function getTodayYmd() {
+                var d = new Date();
+                var yyyy = d.getFullYear();
+                var mm = String(d.getMonth() + 1).padStart(2, '0');
+                var dd = String(d.getDate()).padStart(2, '0');
+                return yyyy + '-' + mm + '-' + dd;
+            }
+
+            // 다중 폴백 회사그룹 취득 (서버 전달값 -> 전역변수 -> MDI/헤더 셀렉트박스 -> 쿠키)
+            function getFilterCorpGr() {
+                if (serverCorpGr && serverCorpGr.trim()) return serverCorpGr.trim();
+                if (window.currentCorpGr && window.currentCorpGr.trim()) return window.currentCorpGr.trim();
+                if (typeof g_corp_gr !== 'undefined' && g_corp_gr) return g_corp_gr;
+
+                var el = pane.querySelector('#filterCorpGr') || document.querySelector('#filterCorpGr')
+                      || pane.querySelector('#corpGrSelect') || document.querySelector('#corpGrSelect');
+                if (el && el.value && el.value.trim()) return el.value.trim();
+
+                if (typeof getCookie === 'function') {
+                    var c = getCookie('savedCorpGr') || getCookie('corpGr') || getCookie('AAMS_CORP_GR');
+                    if (c && c.trim()) return c.trim();
+                }
+                var matchSaved = document.cookie.match(/(?:^|;\s*)savedCorpGr=([^;]*)/);
+                if (matchSaved && matchSaved[1]) return decodeURIComponent(matchSaved[1]).trim();
+
+                var matchCorp = document.cookie.match(/(?:^|;\s*)corpGr=([^;]*)/);
+                if (matchCorp && matchCorp[1]) return decodeURIComponent(matchCorp[1]).trim();
+
+                return '';
+            }
+
+            function getFilterYmd() {
+                var el = pane.querySelector('#filterYmd') || pane.querySelector('input[name="ymd"]');
+                if (el && el.value) return el.value.replace(/[^0-9]/g, '');
+                if (serverYmd && serverYmd.trim()) return serverYmd.replace(/[^0-9]/g, '');
+                return getTodayYmd().replace(/[^0-9]/g, '');
+            }
+
+            // 파워빌더 cb_2.Enabled = (Object.ymd[1] = idt_workdate) 명세 반영
+            function updateButtonState() {
+                var btnConfirm = pane.querySelector('#btnConfirmDiff');
+                if (!btnConfirm) return;
+
+                var currentYmd = getFilterYmd();
+                var todayYmd = getTodayYmd().replace(/[^0-9]/g, '');
+                var hasData = grid && grid.getData() && grid.getData().length > 0;
+
+                // 점검일자가 오늘(작업일자)이고 조회된 데이터가 있는 경우에만 활성화
+                if (currentYmd === todayYmd && hasData) {
+                    btnConfirm.disabled = false;
+                    btnConfirm.style.background = '#2563eb';
+                    btnConfirm.style.borderColor = '#1d4ed8';
+                    btnConfirm.style.cursor = 'pointer';
+                    btnConfirm.style.opacity = '1';
+                } else {
+                    btnConfirm.disabled = true;
+                    btnConfirm.style.background = '#94a3b8';
+                    btnConfirm.style.borderColor = '#64748b';
+                    btnConfirm.style.cursor = 'not-allowed';
+                    btnConfirm.style.opacity = '0.6';
+                }
+            }
+
+            function diffFormatter(cell) {
+                var val = cell.getValue();
+                if (val === null || val === undefined || isNaN(val)) return "0";
+                var num = Number(val);
+                var text = num.toLocaleString();
+                if (num > 0) {
+                    return '<span style="color: #2563eb; font-weight: 600;">' + text + '</span>';
+                } else if (num < 0) {
+                    return '<span style="color: #dc2626; font-weight: 600;">' + text + '</span>';
+                }
+                return text;
+            }
+
+            // 규칙 7: f_dddwctl 초기화 (증권사 tr_co_cd)
+            function initDddw() {
+                var corpGr = getFilterCorpGr();
+                if (typeof window.f_dddwctl === 'function') {
+                    window.f_dddwctl('tr_co_cd', corpGr, '', 1, '').then(function (options) {
+                        dddwOptionsMap['tr_co_cd'] = options || [];
+                        if (grid) grid.redraw(true);
+                    }).catch(function (e) {
+                        console.warn('[w_ja010g] f_dddwctl tr_co_cd load error:', e);
+                    });
+                }
+            }
+
+            // 달력 초기화: dw_c.ue_getdate 이벤트 미존재이므로 순정 AamsCalendar (initSimple) 연동
+            function initCalendar() {
+                var ymdInp = pane.querySelector('#filterYmd');
+                if (ymdInp) {
+                    if (serverYmd && serverYmd.trim()) {
+                        ymdInp.value = serverYmd;
+                    } else if (!ymdInp.value) {
+                        ymdInp.value = getTodayYmd();
+                    }
+                }
+
+                if (typeof AamsCalendar !== 'undefined' && typeof AamsCalendar.initSimple === 'function') {
+                    AamsCalendar.initSimple('filterYmd', {
+                        pane: pane,
+                        onSelect: function (selectedYmd) {
+                            updateButtonState();
+                        }
+                    });
+                }
+
+                if (ymdInp) {
+                    ymdInp.addEventListener('change', updateButtonState);
+                    ymdInp.addEventListener('input', updateButtonState);
+                }
+            }
+
+            // 그리드 초기화: d_ja010g1_common.srd 명세 100% 준수 (x좌표 순서대로 반영)
+            function initGrid() {
+                var gridEl = pane.querySelector('#ja010g-grid');
+                if (!gridEl) return;
+
+                grid = new Tabulator(gridEl, {
+                    height: "100%",
+                    layout: "fitDataFill",
+                    selectable: 1,
+                    data: [],
+                    columns: [
+                        { title: "No.", formatter: "rownum", width: 50, hozAlign: "center", headerHozAlign: "center" },
+                        {
+                            title: "증권사",
+                            field: "trCoCd",
+                            width: 90,
+                            hozAlign: "center",
+                            headerHozAlign: "center",
+                            formatter: function (cell) {
+                                var val = cell.getValue();
+                                if (!val) return '';
+                                var opts = dddwOptionsMap['tr_co_cd'] || [];
+                                for (var i = 0; i < opts.length; i++) {
+                                    if ((opts[i].code || opts[i].cd) === val) {
+                                        return opts[i].name || opts[i].nm || val;
+                                    }
+                                }
+                                return val;
+                            }
+                        },
+                        { title: "고객명", field: "fundNm", minWidth: 140, hozAlign: "left", headerHozAlign: "center" },
+                        { title: "(LOAD) 순자산액", field: "yeTotAek", width: 130, hozAlign: "right", headerHozAlign: "center", formatter: "money", formatterParams: { precision: 0 } },
+                        { title: "(원장생성) 순자산액", field: "uhNav", width: 135, hozAlign: "right", headerHozAlign: "center", formatter: "money", formatterParams: { precision: 0 } },
+                        {
+                            title: "순자산차액",
+                            field: "navCha",
+                            width: 120,
+                            hozAlign: "right",
+                            headerHozAlign: "center",
+                            formatter: diffFormatter,
+                            mutator: function (value, data) {
+                                // Compute: (ye_tot_aek + misu_baed_aek + gsonik + uh_stock_gongmo) - uh_nav
+                                var yeTot = Number(data.yeTotAek || 0);
+                                var misu = Number(data.misuBaedAek || 0);
+                                var gsonik = Number(data.gsonik || 0);
+                                var gongmo = Number(data.uhStockGongmo || 0);
+                                var uhNav = Number(data.uhNav || 0);
+                                return (yeTot + misu + gsonik + gongmo) - uhNav;
+                            }
+                        },
+                        { title: "(LOAD) 주식시가액", field: "yeStockAek", width: 130, hozAlign: "right", headerHozAlign: "center", formatter: "money", formatterParams: { precision: 0 } },
+                        { title: "(원장생성) 주식시가액", field: "uhStockAek", width: 135, hozAlign: "right", headerHozAlign: "center", formatter: "money", formatterParams: { precision: 0 } },
+                        {
+                            title: "주식차액",
+                            field: "stockCha",
+                            width: 110,
+                            hozAlign: "right",
+                            headerHozAlign: "center",
+                            formatter: diffFormatter,
+                            mutator: function (value, data) {
+                                // Compute: ye_stock_aek - uh_stock_aek + uh_stock_gongmo + gaek
+                                var yeStock = Number(data.yeStockAek || 0);
+                                var uhStock = Number(data.uhStockAek || 0);
+                                var gongmo = Number(data.uhStockGongmo || 0);
+                                var gaek = Number(data.gaek || 0);
+                                return yeStock - uhStock + gongmo + gaek;
+                            }
+                        },
+                        { title: "공모 미상장주식", field: "uhStockGongmo", width: 120, hozAlign: "right", headerHozAlign: "center", formatter: "money", formatterParams: { precision: 0 } },
+                        { title: "(계산배당) 미수배당", field: "misuBaedAek", width: 125, hozAlign: "right", headerHozAlign: "center", formatter: "money", formatterParams: { precision: 0 } },
+                        { title: "(LOAD) 채권시가액", field: "yeBondAek", width: 130, hozAlign: "right", headerHozAlign: "center", formatter: "money", formatterParams: { precision: 0 } },
+                        { title: "(원장생성) 채권시가액", field: "uhBondAek", width: 135, hozAlign: "right", headerHozAlign: "center", formatter: "money", formatterParams: { precision: 0 } },
+                        {
+                            title: "채권차액",
+                            field: "bondCha",
+                            width: 110,
+                            hozAlign: "right",
+                            headerHozAlign: "center",
+                            formatter: diffFormatter,
+                            mutator: function (value, data) {
+                                // Compute: ye_bond_aek - uh_bond_aek
+                                var yeBond = Number(data.yeBondAek || 0);
+                                var uhBond = Number(data.uhBondAek || 0);
+                                return yeBond - uhBond;
+                            }
+                        },
+                        { title: "현금자산 시 가 액", field: "cashAek", width: 130, hozAlign: "right", headerHozAlign: "center", formatter: "money", formatterParams: { precision: 0 } },
+                        { title: "미수입 (지급)액", field: "mijigubAek", width: 120, hozAlign: "right", headerHozAlign: "center", formatter: "money", formatterParams: { precision: 0 } },
+                        { title: "관리번호", field: "fundCd", width: 90, hozAlign: "center", headerHozAlign: "center" },
+                        { title: "계좌번호", field: "acctNo", width: 140, hozAlign: "center", headerHozAlign: "center" }
+                    ]
+                });
+
+                // 규칙 8번 삼중 안전망 연결
+                if (typeof setupTabulatorRowSelection === "function") {
+                    setupTabulatorRowSelection(grid);
+                }
+                grid.on("rowClick", function (e, row) {
+                    if (row && (!row.isSelected || !row.isSelected())) {
+                        row.select();
+                    }
+                });
+                grid.on("rowSelectionChanged", function (data, rows) {
+                    // 단일 행 선택 유지
+                });
+            }
+
+            function loadData() {
+                var corpGr = getFilterCorpGr();
+                var ymd = getFilterYmd();
+
+                if (!corpGr) {
+                    if (typeof showToast === "function") showToast("회사그룹을 선택해주세요.", "warning");
+                    return;
+                }
+
+                var url = "/api/daily/ja010g/list?corpGr=" + encodeURIComponent(corpGr) + "&ymd=" + encodeURIComponent(ymd);
+                fetch(url)
+                    .then(function (res) { return res.json(); })
+                    .then(function (data) {
+                        if (grid) {
+                            grid.setData(data || []).then(function () {
+                                var rows = grid.getRows();
+                                if (rows && rows.length > 0) {
+                                    rows[0].select();
+                                }
+                                updateButtonState();
+                            });
+                        }
+                    })
+                    .catch(function (err) {
+                        console.error("[w_ja010g] 순자산점검 조회 실패:", err);
+                        if (typeof showToast === "function") showToast("조회 중 오류가 발생했습니다.", "error");
+                        updateButtonState();
+                    });
+            }
+
+            function confirmDiff() {
+                var corpGr = getFilterCorpGr();
+                var ymd = getFilterYmd();
+
+                if (!corpGr) {
+                    if (typeof showToast === "function") showToast("회사그룹을 선택해주세요.", "warning");
+                    return;
+                }
+
+                if (!confirm("차액을 반영하시겠습니까?\n(원장생성을 하시면 LOAD된 예수금으로 예수금을 반영합니다.)")) {
+                    return;
+                }
+
+                fetch("/api/daily/ja010g/confirm", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ corpGr: corpGr, ymd: ymd })
+                })
+                    .then(function (res) { return res.json(); })
+                    .then(function (res) {
+                        if (res.success) {
+                            if (typeof showToast === "function") {
+                                showToast(res.message || "차액반영 완료", "success");
+                            } else {
+                                alert(res.message || "차액반영 완료");
+                            }
+                            loadData();
+                        } else {
+                            if (typeof showToast === "function") showToast(res.message || "반영 실패", "error");
+                            else alert("반영 실패: " + res.message);
+                        }
+                    })
+                    .catch(function (err) {
+                        console.error("[w_ja010g] 차액반영 오류:", err);
+                        if (typeof showToast === "function") showToast("처리 중 오류가 발생했습니다.", "error");
+                    });
+            }
+
+            function startInit() {
+                if (isInitialized) return;
+                isInitialized = true;
+
+                initCalendar();
+                initDddw();
+                initGrid();
+
+                var btnConfirm = pane.querySelector('#btnConfirmDiff');
+                if (btnConfirm) {
+                    btnConfirm.addEventListener('click', confirmDiff);
+                }
+
+                // 상단 툴바 표준 계약 (규칙 9 & 신규 개발지침)
+                pane.onSearch = function () {
+                    loadData();
+                };
+                pane.onRetrieve = function () {
+                    loadData();
+                };
+                pane.onCorpGrChange = function (newCorp) {
+                    if (newCorp) serverCorpGr = newCorp;
+                    initDddw();
+                    var targetCorp = getFilterCorpGr();
+                    if (targetCorp) {
+                        fetch('/api/daily/ja010g/workdate?corpGr=' + encodeURIComponent(targetCorp))
+                            .then(function (res) { return res.json(); })
+                            .then(function (res) {
+                                if (res && res.workDate) {
+                                    serverYmd = res.workDate;
+                                    var ymdInp = pane.querySelector('#filterYmd');
+                                    if (ymdInp) ymdInp.value = res.workDate;
+                                }
+                                updateButtonState();
+                            })
+                            .catch(function () {
+                                updateButtonState();
+                            });
+                    } else {
+                        updateButtonState();
+                    }
+                };
+
+                // 신규 지침: 새로고침 버튼은 수정사항이나 조회 내용을 초기화하여 조회 전 상태로 되돌린다.
+                pane.onRefresh = function () {
+                    if (grid) {
+                        grid.clearData();
+                    }
+                    var ymdInp = pane.querySelector('#filterYmd');
+                    if (ymdInp) {
+                        ymdInp.value = serverYmd || getTodayYmd();
+                    }
+                    updateButtonState();
+                    if (typeof showToast === "function") {
+                        showToast("화면이 조회 전 상태로 초기화되었습니다.", "info");
+                    }
+                };
+
+                // 지침 준수: boolean eb_direct_retrieve = true 구문이 없으므로 자동 조회를 실행하지 않음!
+                updateButtonState();
+            }
+
+            if (document.readyState === "loading") {
+                document.addEventListener("DOMContentLoaded", startInit);
+            } else {
+                startInit();
+            }
+        })();
+    </script>
+</div>
+</html>

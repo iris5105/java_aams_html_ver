@@ -1,0 +1,753 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<div class="view-container layout-split ja990c-container" th:fragment="ja990cView">
+
+    <!-- Top Action Control Bar (Row 1) -->
+    <div class="view-toolbar">
+        <div class="toolbar-left">
+            <!-- Reusable Common Toolbar Buttons Fragment -->
+            <div th:replace="~{fragments/tab_header :: toolbarButtons}"></div>
+        </div>
+        <!-- Reusable Common Breadcrumb Fragment -->
+        <div th:replace="~{fragments/tab_header :: toolbarBreadcrumb}"></div>
+    </div>
+
+    <!-- Filter Bar (Row 2): Optional quick search bar -->
+    <div class="filter-bar">
+        <div class="filter-left">
+            <div class="filter-item">
+                <label for="filterSearchBalh">발행기관 검색</label>
+                <input type="text" id="filterSearchBalh" class="filter-input" placeholder="발행기관 코드 또는 명칭" style="width: 220px;" />
+            </div>
+        </div>
+    </div>
+
+    <!-- Split Master-Detail Layout (Vertical Split: Upper Master, Lower History Detail) -->
+    <div class="split-content-container" style="flex: 1 1 auto; height: calc(100% - 90px); padding: 8px 12px; overflow: hidden; display: flex; flex-direction: column; gap: 8px;">
+        
+        <!-- Upper Master Section (d_ja990c1) -->
+        <div class="grid-section master-section" style="flex: 1 1 60%; min-height: 200px; display: flex; flex-direction: column; overflow: hidden;">
+            <div class="section-header" style="padding: 4px 8px; font-weight: 600; font-size: 13px; color: #1e293b; background: #e2e8f0; border-radius: 4px 4px 0 0; display: flex; justify-content: space-between; align-items: center;">
+                <span><i class="fa-solid fa-building-columns"></i> 발행기관 기본정보 목록</span>
+                <span id="master-count" style="font-size: 11px; color: #64748b; font-weight: normal;">0건</span>
+            </div>
+            <div class="grid-table-wrapper" style="flex: 1 1 auto; height: 100%; width: 100%; border: 1px solid #cbd5e1; border-top: none; border-radius: 0 0 4px 4px; overflow: hidden; background-color: #fff;">
+                <div id="ja990c-master-grid" class="tabulator-aams-grid" style="height: 100%;"></div>
+            </div>
+        </div>
+
+        <!-- Lower History Detail Section (d_ja990c2) -->
+        <div class="grid-section detail-section" style="flex: 0 0 40%; min-height: 150px; display: flex; flex-direction: column; overflow: hidden;">
+            <div class="section-header" style="padding: 4px 8px; font-weight: 600; font-size: 13px; color: #1e293b; background: #e2e8f0; border-radius: 4px 4px 0 0; display: flex; justify-content: space-between; align-items: center;">
+                <span><i class="fa-solid fa-clock-rotate-left"></i> 변경이력 내역 (<span id="selected-balh-name" style="color: #2563eb;">선택된 기관 없음</span>)</span>
+                <span id="detail-count" style="font-size: 11px; color: #64748b; font-weight: normal;">0건</span>
+            </div>
+            <div class="grid-table-wrapper" style="flex: 1 1 auto; height: 100%; width: 100%; border: 1px solid #cbd5e1; border-top: none; border-radius: 0 0 4px 4px; overflow: hidden; background-color: #fff;">
+                <div id="ja990c-detail-grid" class="tabulator-aams-grid" style="height: 100%;"></div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Pure JS AAMS Calendar Component (Rule 16) -->
+    <script th:src="@{/js/aams_calendar.js}" src="/js/aams_calendar.js"></script>
+
+    <!-- DDDW Control Component (Rule 7) -->
+    <script th:src="@{/js/f_dddwctl.js}" src="/js/f_dddwctl.js"></script>
+
+    <!-- Page Specific Script for w_ja990c -->
+    <script th:inline="javascript">
+        (function() {
+            const currentScript = document.currentScript;
+            const pane = currentScript ? (currentScript.closest('.tab-pane') || currentScript.closest('.view-container')) : null;
+
+            let gridMaster = null;
+            let gridDetail = null;
+            let isInitialized = false;
+            let lastLoadedMasterKey = null;
+            let currentSelectedMaster = null;
+
+            let historyLogList = [];
+            let deletedMasterList = [];
+
+            let dddwOptionsMap = {
+                tr_stop_gb: [],
+                sosok_gb: []
+            };
+
+            // Corporate Group Resolver (Guideline 1: No default hardcoded value)
+            function resolveCorpGr() {
+                if (window.currentCorpGr) return window.currentCorpGr;
+                const m = document.cookie.match(/(^|;)\s*savedCorpGr=([^;]+)/) || document.cookie.match(/(^|;)\s*corpGr=([^;]+)/);
+                if (m) return decodeURIComponent(m[2]);
+                const selectEl = pane ? pane.querySelector("#filterCorpGr") : document.getElementById("filterCorpGr");
+                if (selectEl && selectEl.value) return selectEl.value;
+                const globalSelect = document.getElementById("topCorpGrSelect") || document.getElementById("filterCorpGr");
+                if (globalSelect && globalSelect.value) return globalSelect.value;
+                return "";
+            }
+
+            // Cell edit helper for selection (Rule 8)
+            function aamsCellEdit(e, cell) {
+                const row = cell.getRow();
+                if (row && (!row.isSelected || !row.isSelected())) {
+                    row.select();
+                }
+            }
+
+            // Number Formatter
+            function numFormatter(cell) {
+                const val = cell.getValue();
+                if (val == null || val === "" || isNaN(val)) return "0";
+                return Math.round(Number(val)).toLocaleString();
+            }
+
+            // DDDW Loaders (Rule 7: 2-Column format)
+            function retrieveDddw() {
+                const targetCorpGr = resolveCorpGr();
+                if (typeof window.f_dddwctl === 'function') {
+                    window.f_dddwctl('tr_stop_gb', 1, targetCorpGr, '', '').then(list => {
+                        dddwOptionsMap.tr_stop_gb = list || [];
+                        if (gridMaster) gridMaster.redraw(true);
+                    }).catch(e => console.error(e));
+
+                    window.f_dddwctl('sosok_gb', 1, targetCorpGr, '', '').then(list => {
+                        dddwOptionsMap.sosok_gb = list || [];
+                        if (gridMaster) gridMaster.redraw(true);
+                    }).catch(e => console.error(e));
+                }
+            }
+
+            function formatDateVal(val) {
+                if (!val) return "";
+                var s = String(val).replace(/[^0-9]/g, "");
+                if (s.length === 8) return s.substring(0, 4) + "." + s.substring(4, 6) + "." + s.substring(6, 8);
+                if (String(val).length >= 10 && String(val).indexOf("-") > 0) return String(val).substring(0, 10).replace(/-/g, ".");
+                return val;
+            }
+
+            function formatDateTimeVal(val) {
+                if (!val) return "";
+                if (typeof val === "string") {
+                    if (val.length >= 19) return val.substring(0, 10).replace(/-/g, ".") + " " + val.substring(11, 19);
+                    if (val.length >= 10 && val.indexOf("-") > 0) return val.substring(0, 10).replace(/-/g, ".");
+                }
+                return val;
+            }
+
+            function getDddwOptions(dddwKey) {
+                const list = dddwOptionsMap[dddwKey] || [];
+                return list.map(item => {
+                    const code = (item.code != null ? item.code : (item.SEBU_CD != null ? item.SEBU_CD : (item.cd != null ? item.cd : ''))).toString().trim();
+                    const name = (item.name != null ? item.name : (item.SEBU_CD_NM != null ? item.SEBU_CD_NM : (item.dscr != null ? item.dscr : code))).toString().trim();
+                    return { 
+                        label: name, 
+                        value: code,
+                        code: code,
+                        name: name
+                    };
+                });
+            }
+
+            function getDddwLabel(dddwKey, codeVal) {
+                if (codeVal == null || codeVal === "") return "";
+                const list = dddwOptionsMap[dddwKey] || [];
+                const found = list.find(item => {
+                    const c = (item.code != null ? item.code : (item.SEBU_CD != null ? item.SEBU_CD : item.cd));
+                    return String(c).trim() === String(codeVal).trim();
+                });
+                if (found) {
+                    return found.name != null ? found.name : (found.SEBU_CD_NM != null ? found.SEBU_CD_NM : found.dscr);
+                }
+                return String(codeVal);
+            }
+
+            // Master Columns (d_ja990c1.srd)
+            const masterColumns = [
+                {
+                    title: "No.",
+                    field: "fseq",
+                    formatter: "rownum",
+                    width: 50,
+                    hozAlign: "center",
+                    headerHozAlign: "center",
+                    frozen: true
+                },
+                {
+                    title: "삭제",
+                    field: "delYn",
+                    width: 55,
+                    hozAlign: "center",
+                    headerHozAlign: "center",
+                    formatter: function(cell) {
+                        const checked = cell.getValue() === "Y";
+                        return `<input type="checkbox" ${checked ? "checked" : ""} style="cursor: pointer;" />`;
+                    },
+                    cellClick: function(e, cell) {
+                        aamsCellEdit(e, cell);
+                        const current = cell.getValue() === "Y" ? "0" : "Y";
+                        cell.setValue(current);
+                        cell.getRow().update({ isUpdated: true });
+                    }
+                },
+                {
+                    title: "국가",
+                    field: "balhNation",
+                    width: 65,
+                    hozAlign: "center",
+                    headerHozAlign: "center",
+                    editor: "input",
+                    cellClick: aamsCellEdit
+                },
+                {
+                    title: "발행기관",
+                    field: "balhCo",
+                    width: 80,
+                    hozAlign: "center",
+                    headerHozAlign: "center",
+                    editor: function(cell) {
+                        return cell.getRow().getData().isNew ? "input" : false;
+                    },
+                    cellClick: aamsCellEdit
+                },
+                {
+                    title: "발행기관명",
+                    field: "balhNm",
+                    minWidth: 180,
+                    hozAlign: "left",
+                    headerHozAlign: "center",
+                    editor: "input",
+                    cellClick: aamsCellEdit
+                },
+                {
+                    title: "결산월",
+                    field: "gyulMm",
+                    width: 65,
+                    hozAlign: "center",
+                    headerHozAlign: "center",
+                    editor: "input",
+                    cellClick: aamsCellEdit
+                },
+                {
+                    title: "거래정지",
+                    field: "trStopGb",
+                    width: 90,
+                    hozAlign: "center",
+                    headerHozAlign: "center",
+                    formatter: function(cell) {
+                        return getDddwLabel('tr_stop_gb', cell.getValue());
+                    },
+                    editor: "list",
+                    editorParams: {
+                        values: function() {
+                            return getDddwOptions('tr_stop_gb');
+                        }
+                    },
+                    cellClick: aamsCellEdit
+                },
+                {
+                    title: "소속구분",
+                    field: "sosokGb",
+                    width: 100,
+                    hozAlign: "center",
+                    headerHozAlign: "center",
+                    formatter: function(cell) {
+                        return getDddwLabel('sosok_gb', cell.getValue());
+                    },
+                    editor: "list",
+                    editorParams: {
+                        values: function() {
+                            return getDddwOptions('sosok_gb');
+                        }
+                    },
+                    cellClick: aamsCellEdit
+                },
+                {
+                    title: "액면",
+                    field: "aekm",
+                    width: 90,
+                    hozAlign: "right",
+                    headerHozAlign: "center",
+                    formatter: numFormatter,
+                    editor: "number",
+                    cellClick: aamsCellEdit
+                },
+                {
+                    title: "KOSCOM",
+                    field: "compCd",
+                    width: 90,
+                    hozAlign: "center",
+                    headerHozAlign: "center",
+                    editor: "input",
+                    cellClick: aamsCellEdit
+                },
+                {
+                    title: "발행기관분류",
+                    field: "grBalhGb",
+                    width: 100,
+                    hozAlign: "center",
+                    headerHozAlign: "center",
+                    editor: "input",
+                    cellClick: aamsCellEdit
+                },
+                {
+                    title: "ISIN",
+                    field: "isinCd",
+                    width: 100,
+                    hozAlign: "center",
+                    headerHozAlign: "center",
+                    editor: "input",
+                    cellClick: aamsCellEdit
+                },
+                {
+                    title: "법인등록번호",
+                    field: "bubinNo",
+                    width: 120,
+                    hozAlign: "center",
+                    headerHozAlign: "center",
+                    editor: "input",
+                    cellClick: aamsCellEdit
+                },
+                {
+                    title: "부도일자",
+                    field: "budoYmd",
+                    width: 100,
+                    hozAlign: "center",
+                    headerHozAlign: "center",
+                    formatter: cell => formatDateVal(cell.getValue()),
+                    editor: "date",
+                    cellClick: aamsCellEdit
+                },
+                {
+                    title: "",
+                    field: "p_dd_budo_ymd",
+                    width: 40,
+                    hozAlign: "center",
+                    headerHozAlign: "center",
+                    formatter: function() {
+                        return `<button type="button" class="btn btn-sm btn-light" style="padding: 0 4px; border: none; background: transparent;"><i class="fa-regular fa-calendar-days" style="color: #2563eb;"></i></button>`;
+                    },
+                    cellClick: function(e, cell) {
+                        aamsCellEdit(e, cell);
+                        const row = cell.getRow();
+                        if (window.AamsCalendar && window.AamsCalendar.pickDate) {
+                            window.AamsCalendar.pickDate(row.getData().budoYmd, function(selectedDate) {
+                                row.update({ budoYmd: selectedDate, isUpdated: true });
+                            });
+                        }
+                    }
+                }
+            ];
+
+            // Detail Columns (d_ja990c2.srd)
+            const detailColumns = [
+                {
+                    title: "No.",
+                    field: "fseq",
+                    formatter: "rownum",
+                    width: 50,
+                    hozAlign: "center",
+                    headerHozAlign: "center"
+                },
+                {
+                    title: "변경컬럼",
+                    field: "chgColumn",
+                    width: 130,
+                    hozAlign: "left",
+                    headerHozAlign: "center"
+                },
+                {
+                    title: "변경일시",
+                    field: "ymd",
+                    width: 150,
+                    hozAlign: "center",
+                    headerHozAlign: "center",
+                    formatter: cell => formatDateTimeVal(cell.getValue())
+                },
+                {
+                    title: "변경전자료",
+                    field: "bfData",
+                    minWidth: 150,
+                    hozAlign: "center",
+                    headerHozAlign: "center"
+                },
+                {
+                    title: "변경후자료",
+                    field: "afData",
+                    minWidth: 150,
+                    hozAlign: "center",
+                    headerHozAlign: "center"
+                },
+                {
+                    title: "보유계정변경",
+                    field: "skt0bu",
+                    width: 95,
+                    hozAlign: "center",
+                    headerHozAlign: "center",
+                    formatter: function(cell) {
+                        return cell.getValue() === "Y" ? "Y" : "N";
+                    }
+                },
+                {
+                    title: "작업자",
+                    field: "updUser",
+                    width: 90,
+                    hozAlign: "center",
+                    headerHozAlign: "center"
+                }
+            ];
+
+            // Detail Synchronizer (Rule 8, 10)
+            function syncDetail(row, masterRowData) {
+                if (!row) return;
+                if (!row.isSelected || !row.isSelected()) {
+                    row.select();
+                }
+                const data = masterRowData || (row.getData ? row.getData() : null);
+                if (!data) return;
+
+                const currentKey = data.balhCo || "";
+                if (lastLoadedMasterKey === currentKey) return;
+                lastLoadedMasterKey = currentKey;
+                currentSelectedMaster = data;
+
+                const nameEl = pane ? pane.querySelector("#selected-balh-name") : document.getElementById("selected-balh-name");
+                if (nameEl) {
+                    nameEl.textContent = `${data.balhNm || ''} (${data.balhCo || ''})`;
+                }
+
+                loadDetailGrid(data.balhCo);
+            }
+
+            // Detail Grid Data Loader
+            function loadDetailGrid(balhCo) {
+                if (!gridDetail) return;
+                const countEl = pane ? pane.querySelector("#detail-count") : document.getElementById("detail-count");
+
+                if (!balhCo) {
+                    gridDetail.clearData();
+                    if (countEl) countEl.textContent = "0건";
+                    return;
+                }
+
+                const url = `/api/daily/ja990c/detail?balhCo=${encodeURIComponent(balhCo)}`;
+
+                fetch(url)
+                    .then(res => res.json())
+                    .then(data => {
+                        gridDetail.setData(data || []);
+                        if (countEl) {
+                            countEl.textContent = (data ? data.length : 0) + "건";
+                        }
+                    })
+                    .catch(err => {
+                        console.error("Failed to load detail history:", err);
+                        gridDetail.clearData();
+                        if (countEl) countEl.textContent = "0건";
+                    });
+            }
+
+            // Master Grid Data Loader
+            function loadMasterGrid() {
+                lastLoadedMasterKey = null;
+                currentSelectedMaster = null;
+                deletedMasterList = [];
+                historyLogList = [];
+                if (gridDetail) gridDetail.clearData();
+
+                const masterCountEl = pane ? pane.querySelector("#master-count") : document.getElementById("master-count");
+                const detailCountEl = pane ? pane.querySelector("#detail-count") : document.getElementById("detail-count");
+                const nameEl = pane ? pane.querySelector("#selected-balh-name") : document.getElementById("selected-balh-name");
+                if (nameEl) nameEl.textContent = "선택된 기관 없음";
+                if (detailCountEl) detailCountEl.textContent = "0건";
+
+                const url = `/api/daily/ja990c/master`;
+
+                fetch(url)
+                    .then(res => res.json())
+                    .then(data => {
+                        gridMaster.setData(data || []);
+                        if (masterCountEl) {
+                            masterCountEl.textContent = (data ? data.length : 0) + "건";
+                        }
+                        // Rule 8, 15: Select first row automatically
+                        if (data && data.length > 0) {
+                            const rows = gridMaster.getRows();
+                            if (rows && rows.length > 0) {
+                                rows[0].select();
+                                syncDetail(rows[0], data[0]);
+                            }
+                        }
+                    })
+                    .catch(err => {
+                        console.error("Failed to load master ja990c data:", err);
+                        gridMaster.clearData();
+                        if (masterCountEl) masterCountEl.textContent = "0건";
+                    });
+            }
+
+            // Initialization Function
+            function initGrids() {
+                retrieveDddw();
+
+                const masterEl = pane ? pane.querySelector("#ja990c-master-grid") : document.getElementById("ja990c-master-grid");
+                const detailEl = pane ? pane.querySelector("#ja990c-detail-grid") : document.getElementById("ja990c-detail-grid");
+
+                if (!masterEl || !detailEl) return;
+
+                // 1) Initialize Master Grid
+                gridMaster = new Tabulator(masterEl, {
+                    data: [],
+                    layout: "fitDataFill",
+                    selectable: 1,
+                    columns: masterColumns,
+                    height: "100%",
+                    placeholder: "조회된 발행기관 목록이 없습니다.",
+                    cellEdited: function(cell) {
+                        const field = cell.getField();
+                        const oldVal = cell.getOldValue();
+                        const newVal = cell.getValue();
+                        const row = cell.getRow();
+                        const data = row.getData();
+
+                        if (oldVal !== newVal) {
+                            row.update({ isUpdated: true });
+                            if (!data.isNew) {
+                                // Record change history (like PowerBuilder itemchanged event)
+                                historyLogList.push({
+                                    balhCo: data.balhCo,
+                                    chgColumn: field,
+                                    bfData: String(oldVal || ''),
+                                    afData: String(newVal || ''),
+                                    skt0bu: (field === 'sosokGb') ? 'N' : 'N'
+                                });
+                            }
+                        }
+                    }
+                });
+
+                // Rule 8: Triple Fallback Row Selection for Master Grid
+                if (typeof setupTabulatorRowSelection === 'function') {
+                    setupTabulatorRowSelection(gridMaster, function(row, data) {
+                        syncDetail(row, data);
+                    });
+                }
+                gridMaster.on("rowClick", function(e, row) {
+                    syncDetail(row, row ? row.getData() : null);
+                });
+                gridMaster.on("rowSelectionChanged", function(data, rows) {
+                    if (rows && rows.length > 0) {
+                        syncDetail(rows[0], rows[0].getData());
+                    }
+                });
+
+                // Quick Search Handler
+                const searchInput = pane ? pane.querySelector("#filterSearchBalh") : document.getElementById("filterSearchBalh");
+                if (searchInput) {
+                    searchInput.addEventListener("input", function() {
+                        const val = searchInput.value.trim().toLowerCase();
+                        if (!val) {
+                            gridMaster.clearFilter();
+                        } else {
+                            gridMaster.setFilter(function(data) {
+                                const cd = (data.balhCo || "").toLowerCase();
+                                const nm = (data.balhNm || "").toLowerCase();
+                                return cd.includes(val) || nm.includes(val);
+                            });
+                        }
+                    });
+                }
+
+                // 2) Initialize Detail Grid
+                gridDetail = new Tabulator(detailEl, {
+                    data: [],
+                    layout: "fitDataFill",
+                    selectable: 1,
+                    columns: detailColumns,
+                    height: "100%",
+                    placeholder: "조회된 변경이력이 없습니다."
+                });
+
+                if (typeof setupTabulatorRowSelection === 'function') {
+                    setupTabulatorRowSelection(gridDetail);
+                }
+
+                // Initial Load
+                setTimeout(loadMasterGrid, 100);
+            }
+
+            // Input Function (신규 행 추가)
+            function inputRow() {
+                if (!gridMaster) return;
+                const newRowData = {
+                    balhNation: "KR",
+                    balhCo: "",
+                    balhNm: "",
+                    gyulMm: "12",
+                    trStopGb: "1",
+                    sosokGb: "B",
+                    aekm: 0,
+                    delYn: "0",
+                    isNew: true
+                };
+
+                gridMaster.addRow(newRowData, true).then(row => {
+                    row.select();
+                    syncDetail(row, newRowData);
+                    setTimeout(() => {
+                        const cell = row.getCell("balhCo");
+                        if (cell) cell.edit();
+                    }, 100);
+                });
+            }
+
+            // Delete Function (삭제 처리)
+            function deleteRow() {
+                if (!gridMaster) return;
+                const selectedRows = gridMaster.getSelectedRows();
+                if (!selectedRows || selectedRows.length === 0) {
+                    if (window.AamsModal) window.AamsModal.alert("삭제할 행을 선택해주세요.");
+                    return;
+                }
+
+                const row = selectedRows[0];
+                const data = row.getData();
+
+                const doDelete = function() {
+                    if (data.isNew) {
+                        row.delete();
+                    } else {
+                        deletedMasterList.push(data);
+                        row.delete();
+                    }
+                };
+
+                if (window.AamsModal) {
+                    window.AamsModal.confirm("선택한 발행기관을 삭제하시겠습니까?", doDelete);
+                } else {
+                    if (confirm("선택한 발행기관을 삭제하시겠습니까?")) {
+                        doDelete();
+                    }
+                }
+            }
+
+            // Save Function (Rule 9)
+            function save() {
+                if (!gridMaster) return;
+
+                const masterRows = gridMaster.getData();
+                const insertedList = masterRows.filter(r => r.isNew);
+                const updatedList = masterRows.filter(r => !r.isNew && r.isUpdated);
+
+                if (insertedList.length === 0 && updatedList.length === 0 && deletedMasterList.length === 0) {
+                    if (window.AamsModal) window.AamsModal.alert("수정 또는 변경된 데이터가 없습니다.");
+                    return;
+                }
+
+                // Validation
+                for (const item of insertedList) {
+                    if (!item.balhCo || item.balhCo.trim() === "") {
+                        if (window.AamsModal) window.AamsModal.alert("발행기관코드를 입력해주세요.");
+                        return;
+                    }
+                    if (!item.balhNm || item.balhNm.trim() === "") {
+                        if (window.AamsModal) window.AamsModal.alert("발행기관명을 입력해주세요.");
+                        return;
+                    }
+                }
+
+                const saveDto = {
+                    insertedList: insertedList,
+                    updatedList: updatedList,
+                    deletedList: deletedMasterList,
+                    historyList: historyLogList
+                };
+
+                const doSave = function() {
+                    fetch("/api/daily/ja990c/save", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json"
+                        },
+                        body: JSON.stringify(saveDto)
+                    })
+                    .then(res => res.json())
+                    .then(res => {
+                        if (res.success) {
+                            if (window.AamsModal) {
+                                window.AamsModal.alert("저장이 완료되었습니다.", () => {
+                                    loadMasterGrid();
+                                });
+                            } else {
+                                alert("저장이 완료되었습니다.");
+                                loadMasterGrid();
+                            }
+                        } else {
+                            if (window.AamsModal) window.AamsModal.alert(res.message || "저장 중 오류가 발생했습니다.");
+                            else alert(res.message || "저장 중 오류가 발생했습니다.");
+                        }
+                    })
+                    .catch(err => {
+                        console.error("Failed to save ja990c:", err);
+                        if (window.AamsModal) window.AamsModal.alert("저장 통신 오류가 발생했습니다.");
+                        else alert("저장 통신 오류가 발생했습니다.");
+                    });
+                };
+
+                if (window.AamsModal) {
+                    window.AamsModal.confirm("발행기관 정보를 저장하시겠습니까?", doSave);
+                } else {
+                    if (confirm("발행기관 정보를 저장하시겠습니까?")) {
+                        doSave();
+                    }
+                }
+            }
+
+            // Toolbar Contract Binding (Rule 9)
+            if (pane) {
+                pane.onSearch = function() {
+                    loadMasterGrid();
+                };
+                pane.onInput = function() {
+                    inputRow();
+                };
+                pane.onDelete = function() {
+                    deleteRow();
+                };
+                pane.onSave = function() {
+                    save();
+                };
+                pane.onCorpGrChange = function() {
+                    loadMasterGrid();
+                };
+                pane.onRefresh = function() {
+                    if (gridMaster) gridMaster.clearData();
+                    if (gridDetail) gridDetail.clearData();
+                    currentSelectedMaster = null;
+                    lastLoadedMasterKey = null;
+                    if (typeof showToast === "function") {
+                        showToast("화면이 초기화되었습니다.", "info");
+                    }
+                };
+            }
+
+            // Rule 11: Single Entry Point (isInitialized guard)
+            function startInit() {
+                if (isInitialized) return;
+                isInitialized = true;
+                initGrids();
+                setTimeout(() => {
+                    loadMasterGrid();
+                }, 100);
+            }
+
+            if (document.readyState === "complete" || document.readyState === "interactive") {
+                startInit();
+            } else {
+                document.addEventListener("DOMContentLoaded", startInit);
+            }
+
+        })();
+    </script>
+</div>
+</html>
