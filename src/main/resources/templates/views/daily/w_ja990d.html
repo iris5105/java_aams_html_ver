@@ -389,6 +389,9 @@
     <!-- DDDW Control Component (Rule 7) -->
     <script th:src="@{/js/f_dddwctl.js}" src="/js/f_dddwctl.js"></script>
 
+    <!-- Dynamic Code Search Component (u_dynamiccodesearch) -->
+    <script th:src="@{/js/dynamic_code_search.js}" src="/js/dynamic_code_search.js"></script>
+
     <!-- Page Specific Script for w_ja990d -->
     <script th:inline="javascript">
         (function() {
@@ -579,17 +582,29 @@
                 { title: "종목코드", field: "jmCd", width: 105, hozAlign: "center", headerHozAlign: "center", editor: function(cell){ return cell.getRow().getData().isNew ? "input" : false; }, cellClick: aamsCellEdit },
                 { title: "발행기관", field: "balhCo", width: 75, hozAlign: "center", headerHozAlign: "center", editor: "input", cellClick: aamsCellEdit },
                 {
-                    title: "", field: "p_xx_balh_co", width: 35, hozAlign: "center", headerHozAlign: "center",
+                    title: "",
+                    field: "p_xx_balh_co",
+                    width: 36,
+                    minWidth: 36,
+                    maxWidth: 36,
+                    hozAlign: "center",
+                    headerHozAlign: "center",
+                    headerSort: false,
+                    resizable: false,
                     formatter: function() {
-                        return `<button type="button" class="btn btn-sm" style="padding: 0 3px; border: none; background: transparent; cursor: pointer;" title="발행기관 검색"><i class="fa-solid fa-magnifying-glass" style="color: #2563eb;"></i></button>`;
+                        return `<button type="button" class="btn-grid-addon btn-search" title="발행기관 검색"><i class="fa-solid fa-magnifying-glass"></i></button>`;
                     },
                     cellClick: function(e, cell) {
                         aamsCellEdit(e, cell);
                         const row = cell.getRow();
-                        if (window.AamsCodeSearch) {
-                            window.AamsCodeSearch.open("balh_co", function(selected) {
-                                if (selected) {
-                                    row.update({ balhCo: selected.code, balhNm: selected.name, isUpdated: true });
+                        if (window.DynamicCodeSearch && typeof window.DynamicCodeSearch.openModal === 'function') {
+                            window.DynamicCodeSearch.openModal({
+                                columnNm: "balh_co",
+                                seq: 1,
+                                corpGr: resolveCorpGr(),
+                                initialKeyword: row.getData().balhCo || "",
+                                onSelect: function(code, name) {
+                                    row.update({ balhCo: code, balhNm: name, isUpdated: true });
                                 }
                             });
                         }
@@ -617,9 +632,17 @@
                 { title: "총발행주수", field: "sangjJusu", width: 100, hozAlign: "right", headerHozAlign: "center", formatter: numFormatter, editor: "number", cellClick: aamsCellEdit },
                 { title: "권리발생일", field: "kweonriYmd", width: 95, hozAlign: "center", headerHozAlign: "center", formatter: dateFormatter, editor: "date", cellClick: aamsCellEdit },
                 {
-                    title: "", field: "p_dd_kweonri_ymd", width: 35, hozAlign: "center", headerHozAlign: "center",
+                    title: "",
+                    field: "p_dd_kweonri_ymd",
+                    width: 36,
+                    minWidth: 36,
+                    maxWidth: 36,
+                    hozAlign: "center",
+                    headerHozAlign: "center",
+                    headerSort: false,
+                    resizable: false,
                     formatter: function() {
-                        return `<button type="button" class="btn btn-sm" style="padding: 0 3px; border: none; background: transparent; cursor: pointer;" title="권리발생일 선택"><i class="fa-regular fa-calendar-days" style="color: #2563eb;"></i></button>`;
+                        return `<button type="button" class="btn-grid-addon btn-calendar" title="권리발생일 선택"><i class="fa-regular fa-calendar-days"></i></button>`;
                     },
                     cellClick: function(e, cell) {
                         aamsCellEdit(e, cell);
@@ -633,9 +656,17 @@
                 },
                 { title: "상장일", field: "sangjYmd", width: 95, hozAlign: "center", headerHozAlign: "center", formatter: dateFormatter, editor: "date", cellClick: aamsCellEdit },
                 {
-                    title: "", field: "p_dd_sangj_ymd", width: 35, hozAlign: "center", headerHozAlign: "center",
+                    title: "",
+                    field: "p_dd_sangj_ymd",
+                    width: 36,
+                    minWidth: 36,
+                    maxWidth: 36,
+                    hozAlign: "center",
+                    headerHozAlign: "center",
+                    headerSort: false,
+                    resizable: false,
                     formatter: function() {
-                        return `<button type="button" class="btn btn-sm" style="padding: 0 3px; border: none; background: transparent; cursor: pointer;" title="상장일 선택"><i class="fa-regular fa-calendar-days" style="color: #2563eb;"></i></button>`;
+                        return `<button type="button" class="btn-grid-addon btn-calendar" title="상장일 선택"><i class="fa-regular fa-calendar-days"></i></button>`;
                     },
                     cellClick: function(e, cell) {
                         aamsCellEdit(e, cell);
@@ -785,18 +816,18 @@
                 const btnBalh = getEl("btn-balh-search");
                 if (btnBalh) {
                     btnBalh.addEventListener("click", function() {
-                        if (window.AamsCodeSearch) {
-                            window.AamsCodeSearch.open("balh_co", function(selected) {
-                                if (selected) {
-                                    if (getEl("form-balhCo")) getEl("form-balhCo").value = selected.code || "";
-                                    if (getEl("form-balhNm")) getEl("form-balhNm").value = selected.name || "";
-                                    if (selectedStockRow) {
-                                        selectedStockRow.update({
-                                            balhCo: selected.code,
-                                            balhNm: selected.name,
-                                            isUpdated: true
-                                        });
-                                    }
+                        if (window.DynamicCodeSearch && typeof window.DynamicCodeSearch.openModal === 'function') {
+                            const curVal = getEl("form-balhCo") ? getEl("form-balhCo").value.trim() : "";
+                            window.DynamicCodeSearch.openModal({
+                                columnNm: "balh_co",
+                                seq: 1,
+                                corpGr: resolveCorpGr(),
+                                initialKeyword: curVal,
+                                onSelect: function(code, name) {
+                                    if (getEl("form-balhCo")) getEl("form-balhCo").value = code || "";
+                                    if (getEl("form-balhNm")) getEl("form-balhNm").value = name || "";
+                                    syncFormToGrid("balhCo", code || "");
+                                    syncFormToGrid("balhNm", name || "");
                                 }
                             });
                         }
@@ -807,18 +838,18 @@
                 const btnUpj = getEl("btn-upj-search");
                 if (btnUpj) {
                     btnUpj.addEventListener("click", function() {
-                        if (window.AamsCodeSearch) {
-                            window.AamsCodeSearch.open("upj_cd", function(selected) {
-                                if (selected) {
-                                    if (getEl("form-upjCd")) getEl("form-upjCd").value = selected.code || "";
-                                    if (getEl("form-upjFnm")) getEl("form-upjFnm").value = selected.name || "";
-                                    if (selectedStockRow) {
-                                        selectedStockRow.update({
-                                            upjCd: selected.code,
-                                            upjFnm: selected.name,
-                                            isUpdated: true
-                                        });
-                                    }
+                        if (window.DynamicCodeSearch && typeof window.DynamicCodeSearch.openModal === 'function') {
+                            const curVal = getEl("form-upjCd") ? getEl("form-upjCd").value.trim() : "";
+                            window.DynamicCodeSearch.openModal({
+                                columnNm: "upj_cd",
+                                seq: 1,
+                                corpGr: resolveCorpGr(),
+                                initialKeyword: curVal,
+                                onSelect: function(code, name) {
+                                    if (getEl("form-upjCd")) getEl("form-upjCd").value = code || "";
+                                    if (getEl("form-upjFnm")) getEl("form-upjFnm").value = name || "";
+                                    syncFormToGrid("upjCd", code || "");
+                                    syncFormToGrid("upjFnm", name || "");
                                 }
                             });
                         }

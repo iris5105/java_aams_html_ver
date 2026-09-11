@@ -17,7 +17,12 @@
         <div class="filter-left">
             <div class="filter-item">
                 <label for="filterSearchBalh">발행기관 검색</label>
-                <input type="text" id="filterSearchBalh" class="filter-input" placeholder="발행기관 코드 또는 명칭" style="width: 220px;" />
+                <div style="display: inline-flex; align-items: center; gap: 4px;">
+                    <input type="text" id="filterSearchBalh" class="filter-input" placeholder="발행기관 코드 또는 명칭" style="width: 200px;" />
+                    <button type="button" id="btnFilterBalhSearch" class="btn btn-sm btn-outline-primary" style="height: 28px; padding: 0 8px; display: inline-flex; align-items: center; justify-content: center;" title="발행기관 코드 검색">
+                        <i class="fa-solid fa-magnifying-glass"></i>
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -54,6 +59,9 @@
 
     <!-- DDDW Control Component (Rule 7) -->
     <script th:src="@{/js/f_dddwctl.js}" src="/js/f_dddwctl.js"></script>
+
+    <!-- Dynamic Code Search Component (u_dynamiccodesearch) -->
+    <script th:src="@{/js/dynamic_code_search.js}" src="/js/dynamic_code_search.js"></script>
 
     <!-- Page Specific Script for w_ja990c -->
     <script th:inline="javascript">
@@ -321,11 +329,15 @@
                 {
                     title: "",
                     field: "p_dd_budo_ymd",
-                    width: 40,
+                    width: 36,
+                    minWidth: 36,
+                    maxWidth: 36,
                     hozAlign: "center",
                     headerHozAlign: "center",
+                    headerSort: false,
+                    resizable: false,
                     formatter: function() {
-                        return `<button type="button" class="btn btn-sm btn-light" style="padding: 0 4px; border: none; background: transparent;"><i class="fa-regular fa-calendar-days" style="color: #2563eb;"></i></button>`;
+                        return `<button type="button" class="btn-grid-addon btn-calendar" title="부도일자 선택"><i class="fa-regular fa-calendar-days"></i></button>`;
                     },
                     cellClick: function(e, cell) {
                         aamsCellEdit(e, cell);
@@ -557,6 +569,26 @@
                                 const cd = (data.balhCo || "").toLowerCase();
                                 const nm = (data.balhNm || "").toLowerCase();
                                 return cd.includes(val) || nm.includes(val);
+                            });
+                        }
+                    });
+                }
+
+                // Dynamic Code Search Popup Handler for Filter
+                const btnFilterSearch = pane ? pane.querySelector("#btnFilterBalhSearch") : document.getElementById("btnFilterBalhSearch");
+                if (btnFilterSearch) {
+                    btnFilterSearch.addEventListener("click", function() {
+                        if (window.DynamicCodeSearch && typeof window.DynamicCodeSearch.openModal === 'function') {
+                            window.DynamicCodeSearch.openModal({
+                                columnNm: "balh_co",
+                                seq: 1,
+                                initialKeyword: searchInput ? searchInput.value.trim() : "",
+                                onSelect: function(code, name) {
+                                    if (searchInput) {
+                                        searchInput.value = name || code;
+                                        searchInput.dispatchEvent(new Event('input'));
+                                    }
+                                }
                             });
                         }
                     });
