@@ -280,13 +280,19 @@
                 var ymd = getFilterYmd();
                 var seriesGb = getFilterSeriesGb();
                 var corpGr = getFilterCorpGr();
-                var baseUrl = "/api/daily/ja020k/preview?seriesGb=" + encodeURIComponent(seriesGb) +
-                    "&ymd=" + encodeURIComponent(ymd) +
-                    (corpGr ? "&corpGr=" + encodeURIComponent(corpGr) : "") +
-                    "&t=" + new Date().getTime();
-                return (window.AamsReport && typeof window.AamsReport.formatPreviewUrl === 'function')
-                    ? window.AamsReport.formatPreviewUrl(baseUrl)
-                    : baseUrl + "#toolbar=1&navpanes=0&zoom=120";
+
+                var mrdName = (seriesGb === '1110') ? 'rd_ja020k1.mrd' : ((seriesGb === '1120') ? 'rd_ja020k2.mrd' : 'rd_ja020k3.mrd');
+                var ymdDot = (ymd && ymd.length === 8) ? (ymd.substring(0, 4) + '.' + ymd.substring(4, 6) + '.' + ymd.substring(6, 8)) : (ymd || '');
+
+                var params = {
+                    series_gb: seriesGb,
+                    gubun: (seriesGb === '1110') ? '2' : ((seriesGb === '1120') ? '1' : ''),
+                    ymd: ymdDot
+                };
+
+                return (window.AamsReport && typeof window.AamsReport.buildPreviewUrl === 'function')
+                    ? window.AamsReport.buildPreviewUrl(mrdName, params, { corpGr: corpGr })
+                    : "/api/daily/ja020k/preview?seriesGb=" + encodeURIComponent(seriesGb) + "&ymd=" + encodeURIComponent(ymd) + (corpGr ? "&corpGr=" + encodeURIComponent(corpGr) : "");
             }
 
             function loadReport() {

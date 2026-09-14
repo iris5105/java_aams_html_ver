@@ -43,9 +43,7 @@
             ON ia.CORP_GR = t1.CORP_GR
            AND ia.fund_cd = t1.fund_cd
          WHERE t1.CORP_GR = #{corpGr}
-        <if test="gyulYmd != null and gyulYmd != ''">
            AND t1.gyul_ymd >= TO_DATE(#{gyulYmd}, 'YYYY-MM-DD')
-        </if>
         UNION ALL
         SELECT t1.CORP_GR
              , TO_CHAR(t1.GYUL_YMD, 'YYYY-MM-DD') AS gyul_ymd
@@ -82,9 +80,7 @@
             ON ia.CORP_GR = t1.CORP_GR
            AND ia.fund_cd = t1.fund_cd
          WHERE t1.CORP_GR = #{corpGr}
-        <if test="gyulYmd != null and gyulYmd != ''">
            AND t1.gyul_ymd >= TO_DATE(#{gyulYmd}, 'YYYY-MM-DD')
-        </if>
            AND #{chk} = 'b'
         <choose>
             <when test="sortGb == '1'">

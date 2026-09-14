@@ -297,6 +297,7 @@
 
     <!-- Pure JS AAMS Calendar Component (Rule 16) -->
     <script th:src="@{/js/aams_calendar.js}" src="/js/aams_calendar.js"></script>
+    <script th:src="@{/js/f_dddwctl.js}" src="/js/f_dddwctl.js"></script>
 
     <!-- Page Specific Script for w_ja010m3 -->
     <script th:inline="javascript">
@@ -326,21 +327,47 @@
                 const ymdInput = pane ? pane.querySelector("#filterYmd") : document.getElementById("filterYmd");
                 const dddwSelect = pane ? pane.querySelector("#filterDddw") : document.getElementById("filterDddw");
                 let ymd = ymdInput ? (ymdInput.value || "") : "";
-                let sortGb = dddwSelect ? (dddwSelect.value || "1") : "1";
+                let rawSort = dddwSelect ? (dddwSelect.value || "1") : "1";
+                // 고객명순: sortGb = "1", 결산일순: sortGb = "2"
+                let sortGb = (String(rawSort).trim() === "2" || String(rawSort).includes("결산일")) ? "2" : "1";
                 return {
                     gyulYmd: ymd.replace(/\./g, '-'),
                     sortGb: sortGb
                 };
             }
 
-            // Init Filter DDDW Options (f_dddwctl: 1,고객명순,,2,결산일순,)
+            // Init Filter DDDW Options
+            // 파워빌더 소스 원본: f_dddwctl (THIS, 'dddw | dual', gaa.corp_gr, "1,고객명순,,2,결산일순,", 1, "")
+            // 웹 프로젝트 변환 호출 규격: f_dddwctl ('dddw | dual', gaa.corp_gr, "1,고객명순,,2,결산일순,", 1, "")
             function initFilterDddw() {
                 const selectEl = pane ? pane.querySelector("#filterDddw") : document.getElementById("filterDddw");
-                if (!selectEl) return;
-                selectEl.innerHTML = `
-                    <option value="1" selected>1 : 고객명순</option>
-                    <option value="2">2 : 결산일순</option>
-                `;
+                if (!selectEl) return Promise.resolve();
+                const corpGr = resolveCorpGr();
+
+                if (typeof window.f_dddwctl === 'function') {
+                    // 웹 프로젝트 변환 f_dddwctl 호출을 통해 dual 데이터 생성
+                    return window.f_dddwctl('dddw | dual', corpGr, "1,고객명순,,2,결산일순,", 1, "").then(list => {
+                        // 2-Column DDDW 드롭다운 위젯 적용 (개발지침 Rule 7: 코드, 코드명 2칸 분할)
+                        if (typeof window.f_dddwctl.get2ColItemFormatter === 'function') {
+                            window.f_dddwctl.get2ColItemFormatter(selectEl, list, {
+                                codeTitle: "구분",
+                                nameTitle: "정렬순서",
+                                defaultVal: selectEl.value || (list && list[0] ? list[0].code : "1"),
+                                onSelect: function(code, name) {
+                                    selectEl.value = code;
+                                    loadGrid();
+                                }
+                            });
+                        } else {
+                            selectEl.innerHTML = list.map(item => `<option value="${item.code}">${item.code} : ${item.name}</option>`).join("");
+                            selectEl.value = (list && list[0] ? list[0].code : "1");
+                        }
+                        return list;
+                    }).catch(err => {
+                        console.error("[initFilterDddw] f_dddwctl load error:", err);
+                    });
+                }
+                return Promise.resolve();
             }
 
             // Date Formatter Helper (Fixed missing formatDateVal runtime error)

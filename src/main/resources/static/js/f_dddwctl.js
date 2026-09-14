@@ -16,107 +16,124 @@
     /**
      * PowerBuilder f_dddwctl Core Helper
      * Dynamically retrieves DropDownDataWindow code/name options via REST API (/api/common/dddw)
+     * or generates static options directly from add_data for 'dual' table (matching PowerBuilder f_dddwctl).
      *
-     * Overload Signatures:
-     *   f_dddwctl(dddwId, seq, corpGr, addWhere, addOrderBy)
-     *   f_dddwctl(dddwId, seq, addWhere, addOrderBy)
+     * PowerBuilder Source Signature:
+     *   f_dddwctl (THIS, dddw_id, corp_gr, add_data, iseq, swhere)
+     * Web Project Call Signatures:
+     *   f_dddwctl ('dddw | dual', gaa.corp_gr, "1,고객명순,,2,결산일순,", 1, "")
+     *   f_dddwctl (dddwId, corpGr, addData, seq, addWhere)
+     *   f_dddwctl (dddwId, seq, corpGr, addWhere, addOrderBy)
      *
-     * @param {string} dddwId DropDownDataWindow ID (e.g. 'CORP_GR', 'series_g1', 'type_gb', 'mg_cd')
-     * @param {number|string} [seq=1] Sequence number
-     * @param {string} [corpGr=""] Query variable value (e.g. targetCorpGr / "2200") to replace :corp_gr
-     * @param {string} [addWhere=""] Dynamic WHERE clause (e.g. "corp_gr='2200'")
-     * @param {string} [addOrderBy=""] Dynamic ORDER BY clause
+     * @param {string|Object} dddwId DropDownDataWindow ID (e.g. 'dddw | dual', 'CORP_GR', 'series_g1') or PB THIS
+     * @param {string|number} [param2] corp_gr or seq
+     * @param {string} [param3] add_data (e.g. "1,고객명순,,2,결산일순," or "%,전체,") or corp_gr
+     * @param {number|string} [param4] seq or addWhere
+     * @param {string} [param5] addWhere or addOrderBy
      * @returns {Promise<Array<{code: string, name: string}>>}
      */
     function f_dddwctl(dddwId, param2, param3, param4, param5) {
-        let actualDddwId = dddwId;
-        let targetSeq = null;
+        // 0. 파워빌더 첫 번째 인자(THIS/dw)가 전달된 경우 인자 쉬프트 (호환성 보장)
+        if (dddwId != null && typeof dddwId !== 'string' && typeof param2 === 'string') {
+            return f_dddwctl.apply(this, Array.prototype.slice.call(arguments, 1));
+        }
+
+        // 1. 파워빌더 소스: dddw_ID에서 ls_dddw_id 분리 (' | ' 기준)
+        // IF PosA (dddw_ID, ' | ')>0 THEN ls_dddw_id = MidA (dddw_ID, PosA (dddw_ID, ' | ') + 3)
+        let actualDddwId = (dddwId || "").toString().trim();
+        let ls_dddw_id = actualDddwId;
+        if (actualDddwId.indexOf(' | ') > -1) {
+            ls_dddw_id = actualDddwId.split(' | ')[1].trim();
+        } else if (actualDddwId.includes('|')) {
+            ls_dddw_id = actualDddwId.split('|').pop().trim();
+        } else if (/^(fr_|to_|xx_)/i.test(actualDddwId)) {
+            ls_dddw_id = actualDddwId.substring(3);
+        }
+
+        // 파라미터 매핑
         let actualCorpGr = "";
+        let add_data = "";
+        let targetSeq = 1;
         let actualWhere = "";
         let actualOrderBy = "";
-        let prependHeaderItem = null;
 
-        // Check if 3rd parameter (param3) contains ',' to prepend header option item (e.g. '%,전체,')
-        if (typeof param3 === 'string' && param3.includes(',')) {
-            const parts = param3.split(',').map(s => s.trim());
-            const codeVal = parts[0] || "";
-            const nameVal = parts[1] || codeVal || "";
-            // Ignore if only commas with no content (e.g. ',,', ',')
-            if (codeVal !== "" || nameVal !== "") {
-                prependHeaderItem = {
-                    code: codeVal,
-                    name: nameVal,
-                    SEBU_CD: codeVal,
-                    SEBU_CD_NM: nameVal,
-                    cd: codeVal,
-                    dscr: nameVal
-                };
-            }
-        }
-
-        // Helper to read cookie value
-        function getCookieVal(name) {
-            const value = `; ${document.cookie}`;
-            const parts = value.split(`; ${name}=`);
-            if (parts.length === 2) return decodeURIComponent(parts.pop().split(';').shift());
-            return "";
-        }
-
-        const cookieAdmin = getCookieVal("admin") || getCookieVal("adminYn") || getCookieVal("role") || "";
-        const isAdmin = (cookieAdmin === "Y" || cookieAdmin === "true" || cookieAdmin === "1" || String(cookieAdmin).toUpperCase() === "ADMIN");
-
-        // 1. Standard JS signature: f_dddwctl(dddwId, seq, corpGr, addWhere, addOrderBy)
+        // 시그니처 1: f_dddwctl(dddwId, seq, corpGr, addWhere, addOrderBy)
         if (typeof param2 === 'number' || (typeof param2 === 'string' && /^\d{1,2}$/.test(param2.trim()) && (param4 == null || isNaN(Number(param4))))) {
             targetSeq = parseInt(param2, 10);
             actualCorpGr = (param3 && !param3.includes(',')) ? param3 : "";
             actualWhere = param4 || "";
             actualOrderBy = param5 || "";
         } 
-        // 2. HTML screen PB-mapped signature (without THIS): f_dddwctl(dddwId, corpGr, addWhere1, seq, addWhere2)
-        //    [1] dddwId   : 'series_g1' / 'gugan'
-        //    [2] corpGr   : targetCorpGr / ''
-        //    [3] addWhere1/prependHeader: '%,전체,' / ',,' / ''
-        //    [4] seq      : 1 / 9
-        //    [5] addWhere2: "corp_gr='2402'" / '' (5th parameter WHERE clause - added ONLY IF NOT ADMIN)
+        // 시그니처 2 (PB 1:1 매핑): f_dddwctl(dddwId, corpGr, add_data, seq, addWhere)
+        // e.g. f_dddwctl ('dddw | dual', gaa.corp_gr, "1,고객명순,,2,결산일순,", 1, "")
         else {
             actualCorpGr = param2 || "";
+            add_data = param3 || "";
             targetSeq = (param4 != null && !isNaN(Number(param4))) ? parseInt(param4, 10) : 1;
-            
-            // 5th parameter (param5) WHERE clause handling:
-            // Omit ONLY IF it is strictly a direct single corp_gr='...' equality clause for ADMIN (e.g. "corp_gr='2402'").
-            // Complex subqueries (e.g. "tr_co_cd in (select mg_cd from szm0ia where corp_gr='...')"), multi-column, or general conditions are ALWAYS included for everyone!
+
             if (param5) {
                 const isDirectCorpGrOnly = /^\s*corp_gr\s*=\s*'[^']*'\s*$/i.test(param5.trim());
                 if (isDirectCorpGrOnly) {
-                    if (!isAdmin) {
-                        actualWhere = param5;
-                    } else {
-                        actualWhere = ""; // Omit ONLY pure single corp_gr='...' clause for Admin
-                    }
+                    const cookieAdmin = (`; ${document.cookie}`).split('; admin=').length === 2 || (`; ${document.cookie}`).split('; role=ADMIN').length === 2;
+                    if (!cookieAdmin) actualWhere = param5;
                 } else {
-                    actualWhere = param5; // Always include complex subqueries or general conditions
+                    actualWhere = param5;
                 }
-            } else if (param3 && !param3.includes(',')) {
-                actualWhere = param3;
             }
         }
 
-        // Apply fallback seq 1 only if seq was omitted by caller
         if (targetSeq == null || isNaN(targetSeq)) {
             targetSeq = 1;
         }
 
-        // Strip 'dddw |' if present and extract key text after '|'
-        if (typeof actualDddwId === 'string' && actualDddwId.includes('|')) {
-            actualDddwId = actualDddwId.split('|').pop().trim();
+        // 2. 파워빌더 소스: IF NOT F_NULL (add_data) THEN ... STEP 3 데이터 행 생성
+        //    lAdd = F_GET_ARRAY (add_data, ',', la_data)
+        //    FOR ll = 1 TO lAdd STEP 3
+        //       ldwc.SetItem (lR, 1, la_data [ll])
+        //       ldwc.SetItem (lR, 2, la_data [ll + 1])
+        //       ldwc.SetItem (lR, 3, la_data [ll + 2])
+        let addDataItems = [];
+        if (add_data && typeof add_data === 'string' && add_data.includes(',')) {
+            let la_data = add_data.split(',').map(s => s.trim());
+            for (let ll = 0; ll < la_data.length; ll += 3) {
+                let code = la_data[ll];
+                let name = la_data[ll + 1];
+                let attr = la_data[ll + 2];
+                if (code !== undefined && name !== undefined && (code !== "" || name !== "")) {
+                    let rowItem = {
+                        code: code,
+                        name: name || code,
+                        attr: attr || "",
+                        isDefault: (attr && attr.toLowerCase() === 'default'),
+                        SEBU_CD: code,
+                        SEBU_CD_NM: name || code,
+                        cd: code,
+                        dscr: name || code
+                    };
+                    if (name === '전체') {
+                        addDataItems.unshift(rowItem);
+                    } else {
+                        addDataItems.push(rowItem);
+                    }
+                }
+            }
         }
 
-        let url = `/api/common/dddw?dddwId=${encodeURIComponent(actualDddwId || 'corp_gr')}&seq=${encodeURIComponent(targetSeq)}`;
+        // 3. 파워빌더 소스: IF ls_dddw_id<>'dual' THEN ... (dual인 경우 DB WDDDWCTL 조회 없이 add_data만 반환)
+        if (ls_dddw_id.toLowerCase() === 'dual') {
+            if (addDataItems.length > 0) {
+                let def = addDataItems.find(it => it.isDefault) || addDataItems[0];
+                addDataItems.defaultVal = def ? def.code : "";
+            }
+            return Promise.resolve(addDataItems);
+        }
+
+        // 4. ls_dddw_id <> 'dual' 인 경우 DB WDDDWCTL 조회
+        let url = `/api/common/dddw?dddwId=${encodeURIComponent(ls_dddw_id || 'corp_gr')}&seq=${encodeURIComponent(targetSeq)}`;
         if (actualCorpGr) url += `&corpGr=${encodeURIComponent(actualCorpGr)}`;
         if (actualWhere) url += `&addWhere=${encodeURIComponent(actualWhere)}`;
         if (actualOrderBy) url += `&addOrderBy=${encodeURIComponent(actualOrderBy)}`;
 
-        // Use safeFetchJson if available, otherwise native fetch
         const fetchPromise = (typeof global.safeFetchJson === 'function')
             ? global.safeFetchJson(url)
             : fetch(url).then(res => res.ok ? res.json() : []);
@@ -130,7 +147,6 @@
                     return {
                         code: c,
                         name: n,
-                        // Backward-compatible aliases for legacy access
                         SEBU_CD: c,
                         SEBU_CD_NM: n,
                         cd: c,
@@ -138,28 +154,22 @@
                     };
                 });
 
-                // 항상 앞의 코드(code) 값을 기준으로 오름차순 정렬 (자연어/숫자 인식)
                 normalizedList.sort((a, b) => {
                     const codeA = (a.code || '').toString().trim();
                     const codeB = (b.code || '').toString().trim();
                     return codeA.localeCompare(codeB, undefined, { numeric: true, sensitivity: 'base' });
                 });
 
-                if (prependHeaderItem) {
-                    normalizedList.unshift({
-                        code: prependHeaderItem.code,
-                        name: prependHeaderItem.name,
-                        SEBU_CD: prependHeaderItem.code,
-                        SEBU_CD_NM: prependHeaderItem.name,
-                        cd: prependHeaderItem.code,
-                        dscr: prependHeaderItem.name
-                    });
+                if (addDataItems.length > 0) {
+                    for (let i = addDataItems.length - 1; i >= 0; i--) {
+                        normalizedList.unshift(addDataItems[i]);
+                    }
                 }
                 return normalizedList;
             })
             .catch(err => {
-                console.warn(`[f_dddwctl] Error loading DDDW (${actualDddwId}):`, err);
-                return prependHeaderItem ? [{ code: prependHeaderItem.code, name: prependHeaderItem.name }] : [];
+                console.warn(`[f_dddwctl] Error loading DDDW (${ls_dddw_id}):`, err);
+                return addDataItems.length > 0 ? addDataItems : [];
             });
     }
 
@@ -401,6 +411,13 @@
             return codeA.localeCompare(codeB, undefined, { numeric: true, sensitivity: 'base' });
         });
         let activeItemEl = null;
+
+        // 원본 <select> 엘리먼트의 <option> 목록 동기화 (select.value 참조 안전성 보장)
+        el.innerHTML = optList.map(item => {
+            const code = (item.code != null ? item.code : (item.SEBU_CD != null ? item.SEBU_CD : (item.cd != null ? item.cd : ''))).toString().trim();
+            const name = (item.name != null ? item.name : (item.SEBU_CD_NM != null ? item.SEBU_CD_NM : (item.dscr != null ? item.dscr : code))).toString().trim();
+            return `<option value="${code}">${code} : ${name}</option>`;
+        }).join("");
 
         optList.forEach(item => {
             const code = (item.code != null ? item.code : (item.SEBU_CD != null ? item.SEBU_CD : (item.cd != null ? item.cd : ''))).toString().trim();

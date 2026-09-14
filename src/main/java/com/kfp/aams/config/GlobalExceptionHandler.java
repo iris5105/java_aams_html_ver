@@ -42,9 +42,28 @@ public class GlobalExceptionHandler {
         log.debug("Client aborted connection at [{}]: {}", request.getRequestURI(), ex.getMessage());
     }
 
+    /**
+     * 서블릿 응답 스트림(Writer/OutputStream) 중복 호출 예외 발생 시(예: 템플릿 렌더링 중단 후 에러 페이지 전송 시도)
+     * 2차 연쇄 예외로 인한 불필요한 500 풀 스택트레이스를 억제합니다.
+     */
+    @ExceptionHandler(IllegalStateException.class)
+    public Object handleIllegalStateException(IllegalStateException ex, HttpServletRequest request, HttpServletResponse response) {
+        String msg = ex.getMessage();
+        if (msg != null && (msg.contains("getWriter()") || msg.contains("getOutputStream()"))) {
+            log.warn("Response stream/writer state conflict at [{}]: {}", request.getRequestURI(), msg);
+            return null;
+        }
+        return handleAllExceptions(ex, request, response);
+    }
+
     @ExceptionHandler(Exception.class)
     public Object handleAllExceptions(Exception ex, HttpServletRequest request, HttpServletResponse response) {
         log.error("Unhandled Exception at [{}] : {}", request.getRequestURI(), ex.getMessage(), ex);
+
+        if (response.isCommitted()) {
+            log.warn("Response already committed for [{}], skipping error response body.", request.getRequestURI());
+            return null;
+        }
 
         String uri = request.getRequestURI();
         boolean isApiRequest = uri.startsWith("/api/") ||
@@ -65,9 +84,7 @@ public class GlobalExceptionHandler {
                     .body(body);
         } else {
             // HTML View Requests: Return error view cleanly
-            if (!response.isCommitted()) {
-                response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-            }
+            response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
             ModelAndView mav = new ModelAndView();
             mav.addObject("errorMessage", ex.getMessage());
             mav.addObject("path", uri);

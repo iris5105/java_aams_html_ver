@@ -1,10 +1,12 @@
 package com.kfp.aams.domain.daily.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kfp.aams.security.UserPrincipal;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.Builder;
 import lombok.Getter;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.security.core.Authentication;
@@ -23,19 +25,23 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Crownix Report (MRD) 기반 자체 파일 변환 및 내보내기 서비스
- * 외부 절대경로 및 .mrq 파일 없이 클래스패스 내장 리소스(classpath:/rd/*.mrd)를 기반으로 동작
- * lib 폴더의 독립형 URLClassLoader를 통해 어떤 런타임 환경에서도 안정적으로 구동
- * 지원 포맷: PDF, Excel(XLSX), MS Word(DOC), PowerPoint(PPTX), 한글(HWP)
+ * Crownix Report (MRD) 기반 자체 파일 변환 및 내보내기 공통 서비스
+ * - 가변 Key-Value(Map 또는 JSON) 파라미터를 받아 RD 규격 파라미터(/rv key[val] ...)로 동적 변환
+ * - 클래스패스 내장 리소스(classpath:/rd/*.mrd) 기반으로 동작
+ * - lib 폴더의 독립형 URLClassLoader를 통해 어떤 런타임 환경에서도 안정적으로 구동
+ * - 지원 포맷: PDF, Excel(XLSX), MS Word(DOC), PowerPoint(PPTX), 한글(HWP)
  */
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class RdReportService {
 
+    private final ObjectMapper objectMapper;
     private static final Map<String, Path> TEMPLATE_CACHE = new ConcurrentHashMap<>();
     private static volatile URLClassLoader rdClassLoader = null;
 
@@ -167,34 +173,109 @@ public class RdReportService {
         return target;
     }
 
+    // =========================================================================
+    // 1. 가변 Key-Value 파라미터 기반 범용 RD 리포트 생성 코어 (Universal Engine)
+    // =========================================================================
+
     /**
-     * 자산명세표 (w_ja010h) 리포트 파일 생성
+     * Map 또는 JSON 기반 Key-Value 데이터를 RD 파라미터 문자열(/rv key[val] ...)로 동적 변환
      */
-    public ExportResult generateJa010hReport(boolean isColl, String corpGr, String ymd, String bfYmd,
-                                            String fundCd, String fundNm, String format) throws Exception {
+    public String buildRdParam(String corpGr, Map<String, Object> params) {
         corpGr = resolveCorpGr(corpGr);
-        String mrdName = isColl ? "rd_ja010h_coll.mrd" : "rd_ja010h.mrd";
-        Path mrdPath = getTemplatePath(mrdName);
+        StringBuilder sb = new StringBuilder();
+        sb.append("/rv ");
 
-        // 일자 포맷 변환 (yyyy.mm.dd)
-        String ymdDot = (ymd != null) ? ymd.replace("-", ".") : "";
-        String bfYmdDot = (bfYmd != null) ? bfYmd.replace("-", ".") : "";
-        String ymdClean = (ymd != null) ? ymd.replace("-", "").replace(".", "") : "";
+        boolean hasCorpGr = false;
+        boolean hasZoom = false;
+        boolean hasMessageBoxShow = false;
 
-        // 파라미터 구성: /rv corp_gr[...] ymd[...] bf_ymd[...] fund_cd[...] /rmessageboxshow [0]
-        StringBuilder param = new StringBuilder();
-        param.append("/rv ");
-        if (corpGr != null && !corpGr.isBlank()) param.append("corp_gr[").append(corpGr).append("] ");
-        if (!ymdDot.isBlank()) param.append("ymd[").append(ymdDot).append("] ");
-        if (!bfYmdDot.isBlank()) param.append("bf_ymd[").append(bfYmdDot).append("] ");
-        if (fundCd != null && !fundCd.isBlank()) param.append("fund_cd[").append(fundCd).append("] ");
-        param.append("/rzoom [120] /rmessageboxshow [0]");
+        if (params != null) {
+            for (Map.Entry<String, Object> entry : params.entrySet()) {
+                String key = entry.getKey();
+                Object valObj = entry.getValue();
+                if (key == null || key.isBlank() || valObj == null) continue;
 
-        log.info("RD 리포트 생성 시작 - MRD: {}, Param: {}, Format: {}", mrdName, param, format);
+                String k = key.trim();
+                String v = String.valueOf(valObj).trim();
 
+                // 예약어 및 시스템 제어 옵션 처리
+                if ("corp_gr".equalsIgnoreCase(k)) {
+                    hasCorpGr = true;
+                    String targetCorp = (corpGr != null && !corpGr.isBlank()) ? corpGr : v;
+                    sb.append("corp_gr[").append(targetCorp).append("] ");
+                    continue;
+                }
+                if ("/rzoom".equalsIgnoreCase(k) || "rzoom".equalsIgnoreCase(k)) {
+                    hasZoom = true;
+                    sb.append("/rzoom [").append(v).append("] ");
+                    continue;
+                }
+                if ("/rmessageboxshow".equalsIgnoreCase(k) || "rmessageboxshow".equalsIgnoreCase(k)) {
+                    hasMessageBoxShow = true;
+                    sb.append("/rmessageboxshow [").append(v).append("] ");
+                    continue;
+                }
+
+                // 일반 RD 파라미터
+                sb.append(k).append("[").append(v).append("] ");
+            }
+        }
+
+        if (!hasCorpGr && corpGr != null && !corpGr.isBlank()) {
+            sb.append("corp_gr[").append(corpGr).append("] ");
+        }
+        if (!hasZoom) {
+            sb.append("/rzoom [120] ");
+        }
+        if (!hasMessageBoxShow) {
+            sb.append("/rmessageboxshow [0]");
+        }
+
+        return sb.toString().trim();
+    }
+
+    /**
+     * 가변 파라미터(Map) 기반 범용 RD 리포트 생성
+     * @param corpGr 회사 그룹 코드 (null이면 자동 해석)
+     * @param mrdName 대상 MRD 파일명 (예: "rd_ja010q.mrd")
+     * @param params 가변 Key-Value 파라미터 맵
+     * @param format 변환 포맷 (pdf, excel/xlsx, word/doc, ppt/pptx, hwp)
+     * @param downloadFilename 저장/다운로드 파일명
+     */
+    public ExportResult generateReport(String corpGr, String mrdName, Map<String, Object> params,
+                                       String format, String downloadFilename) throws Exception {
+        if (mrdName == null || mrdName.isBlank()) {
+            throw new IllegalArgumentException("MRD 파일명이 지정되지 않았습니다.");
+        }
+        corpGr = resolveCorpGr(corpGr);
+        Path mrdPath = getTemplatePath(mrdName.trim());
+        String paramStr = buildRdParam(corpGr, params);
+
+        log.info("RD 범용 리포트 생성 - MRD: {}, Param: {}, Format: {}", mrdName, paramStr, format);
+        return executeRdEngine(mrdPath, paramStr, format, downloadFilename);
+    }
+
+    /**
+     * 가변 파라미터(JSON 문자열) 기반 범용 RD 리포트 생성
+     */
+    @SuppressWarnings("unchecked")
+    public ExportResult generateReportFromJson(String corpGr, String mrdName, String jsonParams,
+                                               String format, String downloadFilename) throws Exception {
+        Map<String, Object> params = new LinkedHashMap<>();
+        if (jsonParams != null && !jsonParams.isBlank()) {
+            params = objectMapper.readValue(jsonParams, LinkedHashMap.class);
+        }
+        return generateReport(corpGr, mrdName, params, format, downloadFilename);
+    }
+
+    /**
+     * Crownix RD 엔진 구동 및 멀티 포맷 파일 변환 공통 실행 메소드
+     */
+    private ExportResult executeRdEngine(Path mrdPath, String paramStr, String format, String downloadFilename) throws Exception {
         String normalizedFormat = (format != null) ? format.trim().toLowerCase() : "pdf";
         String ext;
         String contentType;
+        String saveMethodName;
 
         switch (normalizedFormat) {
             case "excel":
@@ -202,30 +283,34 @@ public class RdReportService {
             case "xls":
                 ext = ".xlsx";
                 contentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+                saveMethodName = "SaveAsXlsxFile";
                 break;
             case "word":
             case "doc":
             case "docx":
                 ext = ".doc";
                 contentType = "application/msword";
+                saveMethodName = "SaveAsWordFile";
                 break;
             case "ppt":
             case "pptx":
                 ext = ".pptx";
                 contentType = "application/vnd.openxmlformats-officedocument.presentationml.presentation";
+                saveMethodName = "SaveAsPptxFile";
                 break;
             case "hwp":
                 ext = ".hwp";
                 contentType = "application/x-hwp";
+                saveMethodName = "SaveAsHwpFile";
                 break;
             case "pdf":
             default:
                 ext = ".pdf";
                 contentType = "application/pdf";
+                saveMethodName = "SaveAsPdfFile";
                 break;
         }
 
-        // 임시 출력 파일 생성
         Path tempOut = Files.createTempFile("rd_export_", ext);
         ClassLoader originalClassLoader = Thread.currentThread().getContextClassLoader();
         try {
@@ -242,351 +327,107 @@ public class RdReportService {
             applyLicMethod.invoke(rdCtrl, "0.0.0.0");
 
             Method fileOpenMethod = rdCtrl.getClass().getMethod("FileOpen", String.class, String.class);
-            Object openedObj = fileOpenMethod.invoke(rdCtrl, mrdPath.toAbsolutePath().toString(), param.toString());
-            boolean opened = Boolean.TRUE.equals(openedObj);
-            if (!opened) {
-                throw new IllegalStateException("MRD 파일을 열 수 없습니다: " + mrdPath);
+            Object openedObj = fileOpenMethod.invoke(rdCtrl, mrdPath.toAbsolutePath().toString(), paramStr);
+            if (!Boolean.TRUE.equals(openedObj)) {
+                Method getErrMsgMethod = rdCtrl.getClass().getMethod("GetLastErrorMessage");
+                String errMsg = (String) getErrMsgMethod.invoke(rdCtrl);
+                throw new RuntimeException("RD FileOpen 실패 (" + mrdPath.getFileName() + "): " + errMsg);
             }
-
-            // 비동기 처리 안정성을 위한 짧은 대기
-            Thread.sleep(500);
 
             String outFilePath = tempOut.toAbsolutePath().toString();
-            String saveMethodName;
-            switch (normalizedFormat) {
-                case "excel":
-                case "xlsx":
-                case "xls":
-                    saveMethodName = "SaveAsXlsxFile";
-                    break;
-                case "word":
-                case "doc":
-                case "docx":
-                    saveMethodName = "SaveAsWordFile";
-                    break;
-                case "ppt":
-                case "pptx":
-                    saveMethodName = "SaveAsPptxFile";
-                    break;
-                case "hwp":
-                    saveMethodName = "SaveAsHwpFile";
-                    break;
-                case "pdf":
-                default:
-                    saveMethodName = "SaveAsPdfFile";
-                    break;
-            }
-
             Method saveMethod = rdCtrl.getClass().getMethod(saveMethodName, String.class);
             Object savedObj = saveMethod.invoke(rdCtrl, outFilePath);
-            boolean saved = Boolean.TRUE.equals(savedObj);
-
-            if (!saved || !Files.exists(tempOut) || Files.size(tempOut) == 0) {
-                throw new RuntimeException("리포트 변환 파일 생성 실패 (" + normalizedFormat + ")");
+            if (!Boolean.TRUE.equals(savedObj) || !Files.exists(tempOut) || Files.size(tempOut) == 0) {
+                throw new RuntimeException("리포트 파일 변환 실패 (" + normalizedFormat + ")");
             }
 
             byte[] fileBytes = Files.readAllBytes(tempOut);
-            String safeFundNm = (fundNm != null && !fundNm.isBlank()) ? fundNm.trim().replaceAll("[\\\\/:*?\"<>|]", "_") : "자산명세표";
-            String downloadName = ymdClean + "_" + safeFundNm + "(" + fundCd + ")" + ext;
+            String finalName = (downloadFilename != null && !downloadFilename.isBlank())
+                    ? (downloadFilename.endsWith(ext) ? downloadFilename : downloadFilename + ext)
+                    : ("report_" + System.currentTimeMillis() + ext);
 
-            log.info("RD 리포트 생성 성공: {} (크기: {} bytes)", downloadName, fileBytes.length);
+            log.info("RD 리포트 생성 성공: {} (크기: {} bytes)", finalName, fileBytes.length);
 
             return ExportResult.builder()
                     .data(fileBytes)
-                    .filename(downloadName)
+                    .filename(finalName)
                     .contentType(contentType)
                     .build();
-
         } finally {
             Thread.currentThread().setContextClassLoader(originalClassLoader);
             try {
                 Files.deleteIfExists(tempOut);
-            } catch (Exception ignored) {
-            }
+            } catch (Exception ignored) {}
         }
+    }
+
+    // =========================================================================
+    // 2. 기존 화면별 개별 메소드 (하위 호환성 100% 유지 위임 메소드)
+    // =========================================================================
+
+    /**
+     * 자산명세표 (w_ja010h) 리포트 파일 생성
+     */
+    public ExportResult generateJa010hReport(boolean isColl, String corpGr, String ymd, String bfYmd,
+                                            String fundCd, String fundNm, String format) throws Exception {
+        String mrdName = isColl ? "rd_ja010h_coll.mrd" : "rd_ja010h.mrd";
+        String ymdDot = (ymd != null) ? ymd.replace("-", ".") : "";
+        String bfYmdDot = (bfYmd != null) ? bfYmd.replace("-", ".") : "";
+        String ymdClean = (ymd != null) ? ymd.replace("-", "").replace(".", "") : "";
+
+        Map<String, Object> params = new LinkedHashMap<>();
+        if (!ymdDot.isBlank()) params.put("ymd", ymdDot);
+        if (!bfYmdDot.isBlank()) params.put("bf_ymd", bfYmdDot);
+        if (fundCd != null && !fundCd.isBlank()) params.put("fund_cd", fundCd);
+
+        String safeFundNm = (fundNm != null && !fundNm.isBlank()) ? fundNm.trim().replaceAll("[\\\\/:*?\"<>|]", "_") : "자산명세서";
+        String downloadName = ymdClean + "_" + safeFundNm + "(" + fundCd + ")";
+
+        return generateReport(corpGr, mrdName, params, format, downloadName);
     }
 
     /**
      * 자산명세표 (w_ja010h1) 리포트 파일 생성 (rd_ja010h1.mrd)
      */
     public ExportResult generateJa010h1Report(String corpGr, String ymd, String fundCd, String fundNm, String format) throws Exception {
-        corpGr = resolveCorpGr(corpGr);
-        String mrdName = "rd_ja010h1.mrd";
-        Path mrdPath = getTemplatePath(mrdName);
-
         String ymdDot = (ymd != null) ? ymd.replace("-", ".") : "";
         String ymdClean = (ymd != null) ? ymd.replace("-", "").replace(".", "") : "";
 
-        StringBuilder param = new StringBuilder();
-        param.append("/rv ");
-        if (corpGr != null && !corpGr.isBlank()) param.append("corp_gr[").append(corpGr).append("] ");
-        if (!ymdDot.isBlank()) param.append("ymd[").append(ymdDot).append("] ");
-        if (fundCd != null && !fundCd.isBlank()) param.append("fund_cd[").append(fundCd).append("] ");
-        param.append("/rzoom [120] /rmessageboxshow [0]");
+        Map<String, Object> params = new LinkedHashMap<>();
+        if (!ymdDot.isBlank()) params.put("ymd", ymdDot);
+        if (fundCd != null && !fundCd.isBlank()) params.put("fund_cd", fundCd);
 
-        log.info("RD w_ja010h1 리포트 생성 시작 - MRD: {}, Param: {}, Format: {}", mrdName, param, format);
+        String safeFundNm = (fundNm != null && !fundNm.isBlank()) ? fundNm.trim().replaceAll("[\\\\/:*?\"<>|]", "_") : "자산명세표";
+        String downloadName = ymdClean + "_" + safeFundNm + "(" + fundCd + ")";
 
-        String normalizedFormat = (format != null) ? format.trim().toLowerCase() : "pdf";
-        String ext;
-        String contentType;
-
-        switch (normalizedFormat) {
-            case "excel":
-            case "xlsx":
-            case "xls":
-                ext = ".xlsx";
-                contentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
-                break;
-            case "word":
-            case "doc":
-            case "docx":
-                ext = ".doc";
-                contentType = "application/msword";
-                break;
-            case "ppt":
-            case "pptx":
-                ext = ".pptx";
-                contentType = "application/vnd.openxmlformats-officedocument.presentationml.presentation";
-                break;
-            case "hwp":
-                ext = ".hwp";
-                contentType = "application/x-hwp";
-                break;
-            case "pdf":
-            default:
-                ext = ".pdf";
-                contentType = "application/pdf";
-                break;
-        }
-
-        Path tempOut = Files.createTempFile("rd_export_h1_", ext);
-        ClassLoader originalClassLoader = Thread.currentThread().getContextClassLoader();
-        try {
-            URLClassLoader classLoader = getRdClassLoader();
-            Thread.currentThread().setContextClassLoader(classLoader);
-
-            Class<?> ssrdClass = classLoader.loadClass("m2soft.javard.gui.ServerSideRD");
-            Object ssrd = ssrdClass.getDeclaredConstructor().newInstance();
-
-            Method getRdCtrlMethod = ssrdClass.getMethod("getRdControl");
-            Object rdCtrl = getRdCtrlMethod.invoke(ssrd);
-
-            Method applyLicMethod = rdCtrl.getClass().getMethod("ApplyLicense", String.class);
-            applyLicMethod.invoke(rdCtrl, "0.0.0.0");
-
-            Method fileOpenMethod = rdCtrl.getClass().getMethod("FileOpen", String.class, String.class);
-            Object openedObj = fileOpenMethod.invoke(rdCtrl, mrdPath.toAbsolutePath().toString(), param.toString());
-            boolean opened = Boolean.TRUE.equals(openedObj);
-
-            if (!opened) {
-                Method getErrMsgMethod = rdCtrl.getClass().getMethod("GetLastErrorMessage");
-                String errMsg = (String) getErrMsgMethod.invoke(rdCtrl);
-                throw new RuntimeException("RD FileOpen 실패: " + errMsg);
-            }
-
-            String outFilePath = tempOut.toAbsolutePath().toString();
-            String saveMethodName;
-
-            switch (normalizedFormat) {
-                case "excel":
-                case "xlsx":
-                case "xls":
-                    saveMethodName = "SaveAsXlsxFile";
-                    break;
-                case "word":
-                case "doc":
-                case "docx":
-                    saveMethodName = "SaveAsWordFile";
-                    break;
-                case "ppt":
-                case "pptx":
-                    saveMethodName = "SaveAsPptxFile";
-                    break;
-                case "hwp":
-                    saveMethodName = "SaveAsHwpFile";
-                    break;
-                case "pdf":
-                default:
-                    saveMethodName = "SaveAsPdfFile";
-                    break;
-            }
-
-            Method saveMethod = rdCtrl.getClass().getMethod(saveMethodName, String.class);
-            Object savedObj = saveMethod.invoke(rdCtrl, outFilePath);
-            boolean saved = Boolean.TRUE.equals(savedObj);
-
-            if (!saved || !Files.exists(tempOut) || Files.size(tempOut) == 0) {
-                throw new RuntimeException("리포트 변환 파일 생성 실패 (" + normalizedFormat + ")");
-            }
-
-            byte[] fileBytes = Files.readAllBytes(tempOut);
-            String safeFundNm = (fundNm != null && !fundNm.isBlank()) ? fundNm.trim().replaceAll("[\\\\/:*?\"<>|]", "_") : "자산명세표";
-            String downloadName = ymdClean + "_" + safeFundNm + "(" + fundCd + ")" + ext;
-
-            log.info("RD 리포트 생성 성공: {} (크기: {} bytes)", downloadName, fileBytes.length);
-
-            return ExportResult.builder()
-                    .data(fileBytes)
-                    .filename(downloadName)
-                    .contentType(contentType)
-                    .build();
-
-        } finally {
-            Thread.currentThread().setContextClassLoader(originalClassLoader);
-            try {
-                Files.deleteIfExists(tempOut);
-            } catch (Exception ignored) {
-            }
-        }
+        return generateReport(corpGr, "rd_ja010h1.mrd", params, format, downloadName);
     }
 
     /**
-     * 보유자산 종합 리포트 생성 (rd_ja010h_00_2402.mrd / rd_ja010h_00.mrd)
      * 파워빌더 cb_1 보유자산종합엑셀생성 명세
      */
     public ExportResult generateJa010hTotalReport(String corpGr, String ymd, String sunJasan, String format) throws Exception {
         corpGr = resolveCorpGr(corpGr);
         String mrdName = "2402".equals(corpGr) ? "rd_ja010h_00_2402.mrd" : "rd_ja010h_00.mrd";
-        Path mrdPath = getTemplatePath(mrdName);
-
         String ymdDot = (ymd != null) ? ymd.replace("-", ".") : "";
         String ymdClean = (ymd != null) ? ymd.replace("-", "").replace(".", "") : "";
 
-        StringBuilder param = new StringBuilder();
-        param.append("/rv ");
-        if (corpGr != null && !corpGr.isBlank()) param.append("corp_gr[").append(corpGr).append("] ");
-        if (!ymdDot.isBlank()) param.append("ymd[").append(ymdDot).append("] ");
-        if (sunJasan != null && !sunJasan.isBlank()) param.append("sun_jasan[").append(sunJasan).append("] ");
-        param.append("/rzoom [120] /rmessageboxshow [0]");
+        Map<String, Object> params = new LinkedHashMap<>();
+        if (!ymdDot.isBlank()) params.put("ymd", ymdDot);
+        if (sunJasan != null && !sunJasan.isBlank()) params.put("sun_jasan", sunJasan);
 
-        log.info("RD 보유자산 종합 리포트 생성 시작 - MRD: {}, Param: {}, Format: {}", mrdName, param, format);
-
-        String normalizedFormat = (format != null) ? format.trim().toLowerCase() : "excel";
-        String ext;
-        String contentType;
-
-        switch (normalizedFormat) {
-            case "pdf":
-                ext = ".pdf";
-                contentType = "application/pdf";
-                break;
-            case "word":
-            case "doc":
-            case "docx":
-                ext = ".doc";
-                contentType = "application/msword";
-                break;
-            case "ppt":
-            case "pptx":
-                ext = ".pptx";
-                contentType = "application/vnd.openxmlformats-officedocument.presentationml.presentation";
-                break;
-            case "hwp":
-                ext = ".hwp";
-                contentType = "application/x-hwp";
-                break;
-            case "excel":
-            case "xlsx":
-            case "xls":
-            default:
-                ext = ".xlsx";
-                contentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
-                break;
-        }
-
-        Path tempOut = Files.createTempFile("rd_export_total_", ext);
-        ClassLoader originalClassLoader = Thread.currentThread().getContextClassLoader();
-        try {
-            URLClassLoader classLoader = getRdClassLoader();
-            Thread.currentThread().setContextClassLoader(classLoader);
-
-            Class<?> ssrdClass = classLoader.loadClass("m2soft.javard.gui.ServerSideRD");
-            Object ssrd = ssrdClass.getDeclaredConstructor().newInstance();
-
-            Method getRdCtrlMethod = ssrdClass.getMethod("getRdControl");
-            Object rdCtrl = getRdCtrlMethod.invoke(ssrd);
-
-            Method applyLicMethod = rdCtrl.getClass().getMethod("ApplyLicense", String.class);
-            applyLicMethod.invoke(rdCtrl, "0.0.0.0");
-
-            Method fileOpenMethod = rdCtrl.getClass().getMethod("FileOpen", String.class, String.class);
-            Object openedObj = fileOpenMethod.invoke(rdCtrl, mrdPath.toAbsolutePath().toString(), param.toString());
-            boolean opened = Boolean.TRUE.equals(openedObj);
-
-            if (!opened) {
-                Method getErrMsgMethod = rdCtrl.getClass().getMethod("GetLastErrorMessage");
-                String errMsg = (String) getErrMsgMethod.invoke(rdCtrl);
-                throw new RuntimeException("RD FileOpen 실패: " + errMsg);
-            }
-
-            String outFilePath = tempOut.toAbsolutePath().toString();
-            String saveMethodName;
-
-            switch (normalizedFormat) {
-                case "pdf":
-                    saveMethodName = "SaveAsPdfFile";
-                    break;
-                case "word":
-                case "doc":
-                case "docx":
-                    saveMethodName = "SaveAsWordFile";
-                    break;
-                case "ppt":
-                case "pptx":
-                    saveMethodName = "SaveAsPptxFile";
-                    break;
-                case "hwp":
-                    saveMethodName = "SaveAsHwpFile";
-                    break;
-                case "excel":
-                case "xlsx":
-                case "xls":
-                default:
-                    saveMethodName = "SaveAsXlsxFile";
-                    break;
-            }
-
-            Method saveMethod = rdCtrl.getClass().getMethod(saveMethodName, String.class);
-            Object savedObj = saveMethod.invoke(rdCtrl, outFilePath);
-            boolean saved = Boolean.TRUE.equals(savedObj);
-
-            if (!saved || !Files.exists(tempOut) || Files.size(tempOut) == 0) {
-                throw new RuntimeException("종합 리포트 변환 파일 생성 실패 (" + normalizedFormat + ")");
-            }
-
-            byte[] fileBytes = Files.readAllBytes(tempOut);
-            String downloadName = "보유자산종합현황(" + ymdClean + ")" + ext;
-
-            log.info("RD 종합 리포트 생성 성공: {} (크기: {} bytes)", downloadName, fileBytes.length);
-
-            return ExportResult.builder()
-                    .data(fileBytes)
-                    .filename(downloadName)
-                    .contentType(contentType)
-                    .build();
-
-        } finally {
-            Thread.currentThread().setContextClassLoader(originalClassLoader);
-            try {
-                Files.deleteIfExists(tempOut);
-            } catch (Exception ignored) {
-            }
-        }
+        String downloadName = ymdClean + "_보유자산종합";
+        return generateReport(corpGr, mrdName, params, format, downloadName);
     }
 
     /**
-     * 일(종목)별 운용현황 (w_ja020k) 리포트 파일 생성
-     * series_gb == '1110' -> rd_ja020k1.mrd
-     * series_gb == '1120' -> rd_ja020k2.mrd
-     * 그 외 -> rd_ja020k3.mrd
+     * 주간 운용현황 (w_ja020k) 리포트 파일 생성
      */
     public ExportResult generateJa020kReport(String seriesGb, String ymd, String format) throws Exception {
         return generateJa020kReport(null, seriesGb, ymd, format);
     }
 
     public ExportResult generateJa020kReport(String corpGr, String seriesGb, String ymd, String format) throws Exception {
-        corpGr = resolveCorpGr(corpGr);
-
         String mrdName;
         if ("1110".equals(seriesGb)) {
             mrdName = "rd_ja020k1.mrd";
@@ -595,7 +436,6 @@ public class RdReportService {
         } else {
             mrdName = "rd_ja020k3.mrd";
         }
-        Path mrdPath = getTemplatePath(mrdName);
 
         String ymdClean = (ymd != null) ? ymd.replace("-", "").replace(".", "") : "";
         String ymdDot = ymdClean;
@@ -603,143 +443,27 @@ public class RdReportService {
             ymdDot = ymdClean.substring(0, 4) + "." + ymdClean.substring(4, 6) + "." + ymdClean.substring(6, 8);
         }
 
-        StringBuilder param = new StringBuilder();
-        param.append("/rv ");
-        if (corpGr != null && !corpGr.isBlank()) {
-            param.append("corp_gr[").append(corpGr).append("] ");
-        }
+        Map<String, Object> params = new LinkedHashMap<>();
         if (seriesGb != null && !seriesGb.isBlank()) {
-            param.append("series_gb[").append(seriesGb).append("] ");
-            // gubun 매핑 (1110 -> 2, 1120 -> 1, 파워빌더 rd_ja020k1.mrq 호환)
+            params.put("series_gb", seriesGb);
             if ("1110".equals(seriesGb)) {
-                param.append("gubun[2] ");
+                params.put("gubun", "2");
             } else if ("1120".equals(seriesGb)) {
-                param.append("gubun[1] ");
+                params.put("gubun", "1");
             }
         }
         if (!ymdDot.isBlank()) {
-            param.append("ymd[").append(ymdDot).append("] ");
-        }
-        param.append("/rzoom [120] /rmessageboxshow [0]");
-
-        log.info("RD w_ja020k 리포트 생성 시작 - MRD: {}, Param: {}, Format: {}", mrdName, param, format);
-
-        String normalizedFormat = (format != null) ? format.trim().toLowerCase() : "pdf";
-        String ext;
-        String contentType;
-
-        switch (normalizedFormat) {
-            case "excel":
-            case "xlsx":
-            case "xls":
-                ext = ".xlsx";
-                contentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
-                break;
-            case "word":
-            case "doc":
-            case "docx":
-                ext = ".doc";
-                contentType = "application/msword";
-                break;
-            case "ppt":
-            case "pptx":
-                ext = ".pptx";
-                contentType = "application/vnd.openxmlformats-officedocument.presentationml.presentation";
-                break;
-            case "hwp":
-                ext = ".hwp";
-                contentType = "application/x-hwp";
-                break;
-            case "pdf":
-            default:
-                ext = ".pdf";
-                contentType = "application/pdf";
-                break;
+            params.put("ymd", ymdDot);
         }
 
-        Path tempOut = Files.createTempFile("rd_export_20k_", ext);
-        ClassLoader originalClassLoader = Thread.currentThread().getContextClassLoader();
-        try {
-            URLClassLoader classLoader = getRdClassLoader();
-            Thread.currentThread().setContextClassLoader(classLoader);
+        String reportTitle = "1110".equals(seriesGb) ? "주간운용현황(공모)" : ("1120".equals(seriesGb) ? "주간운용현황(사모)" : "주간운용현황(일임)");
+        String downloadName = ymdClean + "_" + reportTitle;
 
-            Class<?> ssrdClass = classLoader.loadClass("m2soft.javard.gui.ServerSideRD");
-            Object ssrd = ssrdClass.getDeclaredConstructor().newInstance();
-
-            Method getRdCtrlMethod = ssrdClass.getMethod("getRdControl");
-            Object rdCtrl = getRdCtrlMethod.invoke(ssrd);
-
-            Method applyLicMethod = rdCtrl.getClass().getMethod("ApplyLicense", String.class);
-            applyLicMethod.invoke(rdCtrl, "0.0.0.0");
-
-            Method fileOpenMethod = rdCtrl.getClass().getMethod("FileOpen", String.class, String.class);
-            Object openedObj = fileOpenMethod.invoke(rdCtrl, mrdPath.toAbsolutePath().toString(), param.toString());
-            boolean opened = Boolean.TRUE.equals(openedObj);
-
-            if (!opened) {
-                Method getErrMsgMethod = rdCtrl.getClass().getMethod("GetLastErrorMessage");
-                String errMsg = (String) getErrMsgMethod.invoke(rdCtrl);
-                throw new RuntimeException("RD FileOpen 실패: " + errMsg);
-            }
-
-            String outFilePath = tempOut.toAbsolutePath().toString();
-            String saveMethodName;
-
-            switch (normalizedFormat) {
-                case "excel":
-                case "xlsx":
-                case "xls":
-                    saveMethodName = "SaveAsXlsxFile";
-                    break;
-                case "word":
-                case "doc":
-                case "docx":
-                    saveMethodName = "SaveAsWordFile";
-                    break;
-                case "ppt":
-                case "pptx":
-                    saveMethodName = "SaveAsPptxFile";
-                    break;
-                case "hwp":
-                    saveMethodName = "SaveAsHwpFile";
-                    break;
-                case "pdf":
-                default:
-                    saveMethodName = "SaveAsPdfFile";
-                    break;
-            }
-
-            Method saveMethod = rdCtrl.getClass().getMethod(saveMethodName, String.class);
-            Object savedObj = saveMethod.invoke(rdCtrl, outFilePath);
-            boolean saved = Boolean.TRUE.equals(savedObj);
-
-            if (!saved || !Files.exists(tempOut) || Files.size(tempOut) == 0) {
-                throw new RuntimeException("리포트 변환 파일 생성 실패 (" + normalizedFormat + ")");
-            }
-
-            byte[] fileBytes = Files.readAllBytes(tempOut);
-            String downloadName = ymdClean + "_일별운용현황(" + seriesGb + ")" + ext;
-
-            log.info("RD 리포트 생성 성공: {} (크기: {} bytes)", downloadName, fileBytes.length);
-
-            return ExportResult.builder()
-                    .data(fileBytes)
-                    .filename(downloadName)
-                    .contentType(contentType)
-                    .build();
-
-        } finally {
-            Thread.currentThread().setContextClassLoader(originalClassLoader);
-            try {
-                Files.deleteIfExists(tempOut);
-            } catch (Exception ignored) {
-            }
-        }
+        return generateReport(corpGr, mrdName, params, format, downloadName);
     }
 
     /**
      * 계좌(종목)별 주간 운용현황 (w_ja020k1) 리포트 파일 생성
-     * mrd: rd_ja020k1w.mrd, rd_ja020k2w.mrd, rd_ja020k3w.mrd
      */
     public ExportResult generateJa020k1Report(String mrdName, String fundCd, String fundNm,
                                              String guganText, String fymd, String tymd, String format) throws Exception {
@@ -748,136 +472,20 @@ public class RdReportService {
 
     public ExportResult generateJa020k1Report(String corpGr, String mrdName, String fundCd, String fundNm,
                                              String guganText, String fymd, String tymd, String format) throws Exception {
-        corpGr = resolveCorpGr(corpGr);
-        Path mrdPath = getTemplatePath(mrdName);
-
         String fymdClean = (fymd != null) ? fymd.replace("-", "").replace(".", "") : "";
         String tymdClean = (tymd != null) ? tymd.replace("-", "").replace(".", "") : "";
 
-        StringBuilder param = new StringBuilder();
-        param.append("/rv ");
-        if (corpGr != null && !corpGr.isBlank()) param.append("corp_gr[").append(corpGr).append("] ");
-        if (fundCd != null && !fundCd.isBlank()) param.append("fund_cd[").append(fundCd).append("] ");
-        if (fundNm != null && !fundNm.isBlank()) param.append("fund_nm[").append(fundNm).append("] ");
-        if (guganText != null && !guganText.isBlank()) param.append("gugan[").append(guganText).append("] ");
-        if (!fymdClean.isBlank()) param.append("fymd[").append(fymdClean).append("] ");
-        if (!tymdClean.isBlank()) param.append("tymd[").append(tymdClean).append("] ");
-        param.append("/rzoom [120] /rmessageboxshow [0]");
+        Map<String, Object> params = new LinkedHashMap<>();
+        if (fundCd != null && !fundCd.isBlank()) params.put("fund_cd", fundCd);
+        if (fundNm != null && !fundNm.isBlank()) params.put("fund_nm", fundNm);
+        if (guganText != null && !guganText.isBlank()) params.put("gugan", guganText);
+        if (!fymdClean.isBlank()) params.put("fymd", fymdClean);
+        if (!tymdClean.isBlank()) params.put("tymd", tymdClean);
 
-        log.info("RD w_ja020k1 리포트 생성 시작 - MRD: {}, Param: {}, Format: {}", mrdName, param, format);
+        String safeFundNm = (fundNm != null && !fundNm.isBlank()) ? fundNm.trim().replaceAll("[\\\\/:*?\"<>|]", "_") : "주간운용현황";
+        String downloadName = tymdClean + "_" + safeFundNm + "(" + fundCd + ")";
 
-        String normalizedFormat = (format != null) ? format.trim().toLowerCase() : "pdf";
-        String ext;
-        String contentType;
-
-        switch (normalizedFormat) {
-            case "excel":
-            case "xlsx":
-            case "xls":
-                ext = ".xlsx";
-                contentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
-                break;
-            case "word":
-            case "doc":
-            case "docx":
-                ext = ".doc";
-                contentType = "application/msword";
-                break;
-            case "ppt":
-            case "pptx":
-                ext = ".pptx";
-                contentType = "application/vnd.openxmlformats-officedocument.presentationml.presentation";
-                break;
-            case "hwp":
-                ext = ".hwp";
-                contentType = "application/x-hwp";
-                break;
-            case "pdf":
-            default:
-                ext = ".pdf";
-                contentType = "application/pdf";
-                break;
-        }
-
-        Path tempOut = Files.createTempFile("rd_export_20k1_", ext);
-        ClassLoader originalClassLoader = Thread.currentThread().getContextClassLoader();
-        try {
-            URLClassLoader classLoader = getRdClassLoader();
-            Thread.currentThread().setContextClassLoader(classLoader);
-
-            Class<?> ssrdClass = classLoader.loadClass("m2soft.javard.gui.ServerSideRD");
-            Object ssrd = ssrdClass.getDeclaredConstructor().newInstance();
-
-            Method getRdCtrlMethod = ssrdClass.getMethod("getRdControl");
-            Object rdCtrl = getRdCtrlMethod.invoke(ssrd);
-
-            Method applyLicMethod = rdCtrl.getClass().getMethod("ApplyLicense", String.class);
-            applyLicMethod.invoke(rdCtrl, "0.0.0.0");
-
-            Method fileOpenMethod = rdCtrl.getClass().getMethod("FileOpen", String.class, String.class);
-            Object openedObj = fileOpenMethod.invoke(rdCtrl, mrdPath.toAbsolutePath().toString(), param.toString());
-            boolean opened = Boolean.TRUE.equals(openedObj);
-
-            if (!opened) {
-                Method getErrMsgMethod = rdCtrl.getClass().getMethod("GetLastErrorMessage");
-                String errMsg = (String) getErrMsgMethod.invoke(rdCtrl);
-                throw new RuntimeException("RD FileOpen 실패: " + errMsg);
-            }
-
-            String outFilePath = tempOut.toAbsolutePath().toString();
-            String saveMethodName;
-
-            switch (normalizedFormat) {
-                case "excel":
-                case "xlsx":
-                case "xls":
-                    saveMethodName = "SaveAsXlsxFile";
-                    break;
-                case "word":
-                case "doc":
-                case "docx":
-                    saveMethodName = "SaveAsWordFile";
-                    break;
-                case "ppt":
-                case "pptx":
-                    saveMethodName = "SaveAsPptxFile";
-                    break;
-                case "hwp":
-                    saveMethodName = "SaveAsHwpFile";
-                    break;
-                case "pdf":
-                default:
-                    saveMethodName = "SaveAsPdfFile";
-                    break;
-            }
-
-            Method saveMethod = rdCtrl.getClass().getMethod(saveMethodName, String.class);
-            Object savedObj = saveMethod.invoke(rdCtrl, outFilePath);
-            boolean saved = Boolean.TRUE.equals(savedObj);
-
-            if (!saved || !Files.exists(tempOut) || Files.size(tempOut) == 0) {
-                throw new RuntimeException("리포트 변환 파일 생성 실패 (" + normalizedFormat + ")");
-            }
-
-            byte[] fileBytes = Files.readAllBytes(tempOut);
-            String safeFundNm = (fundNm != null && !fundNm.isBlank()) ? fundNm.trim().replaceAll("[\\\\/:*?\"<>|]", "_") : "주간운용현황";
-            String downloadName = tymdClean + "_" + safeFundNm + "(" + fundCd + ")" + ext;
-
-            log.info("RD 리포트 생성 성공: {} (크기: {} bytes)", downloadName, fileBytes.length);
-
-            return ExportResult.builder()
-                    .data(fileBytes)
-                    .filename(downloadName)
-                    .contentType(contentType)
-                    .build();
-
-        } finally {
-            Thread.currentThread().setContextClassLoader(originalClassLoader);
-            try {
-                Files.deleteIfExists(tempOut);
-            } catch (Exception ignored) {
-            }
-        }
+        return generateReport(corpGr, mrdName, params, format, downloadName);
     }
 
     /**
@@ -890,276 +498,42 @@ public class RdReportService {
 
     public ExportResult generateJa010qReport(String corpGr, String fundCd, String fundNm, String ymd,
                                             String bf, String af, String format) throws Exception {
-        corpGr = resolveCorpGr(corpGr);
-        Path mrdPath = getTemplatePath(mrdName);
-
         String ymdClean = (ymd != null) ? ymd.replace("-", "").replace(".", "") : "";
         String bfDot = (bf != null) ? bf.replace("-", ".") : "";
         String afDot = (af != null) ? af.replace("-", ".") : "";
 
-        StringBuilder param = new StringBuilder();
-        param.append("/rv ");
-        if (corpGr != null && !corpGr.isBlank()) param.append("corp_gr[").append(corpGr).append("] ");
-        if (fundCd != null && !fundCd.isBlank()) param.append("fund_cd[").append(fundCd).append("] ");
-        if (!ymdClean.isBlank()) param.append("ymd[").append(ymdClean).append("] ");
-        if (!bfDot.isBlank()) param.append("bf[").append(bfDot).append("] ");
-        if (!afDot.isBlank()) param.append("af[").append(afDot).append("] ");
-        param.append("/rzoom [120] /rmessageboxshow [0]");
+        Map<String, Object> params = new LinkedHashMap<>();
+        if (fundCd != null && !fundCd.isBlank()) params.put("fund_cd", fundCd);
+        if (!ymdClean.isBlank()) params.put("ymd", ymdClean);
+        if (!bfDot.isBlank()) params.put("bf", bfDot);
+        if (!afDot.isBlank()) params.put("af", afDot);
 
-        log.info("RD w_ja010q 리포트 생성 시작 - MRD: {}, Param: {}, Format: {}", mrdName, param, format);
+        String safeFundNm = (fundNm != null && !fundNm.isBlank()) ? fundNm.trim().replaceAll("[\\\\/:*?\"<>|]", "_") : "성과보수상세";
+        String downloadName = ymdClean + "_" + safeFundNm + "(" + fundCd + ")";
 
-        String normalizedFormat = (format != null) ? format.trim().toLowerCase() : "pdf";
-        String ext;
-        String contentType;
-
-        switch (normalizedFormat) {
-            case "excel":
-            case "xlsx":
-            case "xls":
-                ext = ".xlsx";
-                contentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
-                break;
-            case "word":
-            case "doc":
-            case "docx":
-                ext = ".doc";
-                contentType = "application/msword";
-                break;
-            case "ppt":
-            case "pptx":
-                ext = ".pptx";
-                contentType = "application/vnd.openxmlformats-officedocument.presentationml.presentation";
-                break;
-            case "hwp":
-                ext = ".hwp";
-                contentType = "application/x-hwp";
-                break;
-            case "pdf":
-            default:
-                ext = ".pdf";
-                contentType = "application/pdf";
-                break;
-        }
-
-        Path tempOut = Files.createTempFile("rd_export_10q_", ext);
-        ClassLoader originalClassLoader = Thread.currentThread().getContextClassLoader();
-        try {
-            URLClassLoader classLoader = getRdClassLoader();
-            Thread.currentThread().setContextClassLoader(classLoader);
-
-            Class<?> ssrdClass = classLoader.loadClass("m2soft.javard.gui.ServerSideRD");
-            Object ssrd = ssrdClass.getDeclaredConstructor().newInstance();
-
-            Method getRdCtrlMethod = ssrdClass.getMethod("getRdControl");
-            Object rdCtrl = getRdCtrlMethod.invoke(ssrd);
-
-            Method applyLicMethod = rdCtrl.getClass().getMethod("ApplyLicense", String.class);
-            applyLicMethod.invoke(rdCtrl, "0.0.0.0");
-
-            Method fileOpenMethod = rdCtrl.getClass().getMethod("FileOpen", String.class, String.class);
-            Object openedObj = fileOpenMethod.invoke(rdCtrl, mrdPath.toAbsolutePath().toString(), param.toString());
-            boolean opened = Boolean.TRUE.equals(openedObj);
-
-            if (!opened) {
-                Method getErrMsgMethod = rdCtrl.getClass().getMethod("GetLastErrorMessage");
-                String errMsg = (String) getErrMsgMethod.invoke(rdCtrl);
-                throw new RuntimeException("RD FileOpen 실패: " + errMsg);
-            }
-
-            String outFilePath = tempOut.toAbsolutePath().toString();
-            String saveMethodName;
-
-            switch (normalizedFormat) {
-                case "excel":
-                case "xlsx":
-                case "xls":
-                    saveMethodName = "SaveAsXlsxFile";
-                    break;
-                case "word":
-                case "doc":
-                case "docx":
-                    saveMethodName = "SaveAsWordFile";
-                    break;
-                case "ppt":
-                case "pptx":
-                    saveMethodName = "SaveAsPptxFile";
-                    break;
-                case "hwp":
-                    saveMethodName = "SaveAsHwpFile";
-                    break;
-                case "pdf":
-                default:
-                    saveMethodName = "SaveAsPdfFile";
-                    break;
-            }
-
-            Method saveMethod = rdCtrl.getClass().getMethod(saveMethodName, String.class);
-            Object savedObj = saveMethod.invoke(rdCtrl, outFilePath);
-            boolean saved = Boolean.TRUE.equals(savedObj);
-
-            if (!saved || !Files.exists(tempOut) || Files.size(tempOut) == 0) {
-                throw new RuntimeException("리포트 변환 파일 생성 실패 (" + normalizedFormat + ")");
-            }
-
-            byte[] fileBytes = Files.readAllBytes(tempOut);
-            String safeFundNm = (fundNm != null && !fundNm.isBlank()) ? fundNm.trim().replaceAll("[\\\\/:*?\"<>|]", "_") : "성과보수상세";
-            String downloadName = ymdClean + "_" + safeFundNm + "(" + fundCd + ")" + ext;
-
-            log.info("RD 리포트 생성 성공: {} (크기: {} bytes)", downloadName, fileBytes.length);
-
-            return ExportResult.builder()
-                    .data(fileBytes)
-                    .filename(downloadName)
-                    .contentType(contentType)
-                    .build();
-
-        } finally {
-            Thread.currentThread().setContextClassLoader(originalClassLoader);
-            try {
-                Files.deleteIfExists(tempOut);
-            } catch (Exception ignored) {
-            }
-        }
+        return generateReport(corpGr, "rd_ja010q.mrd", params, format, downloadName);
     }
 
     /**
-     * 채권/현금 만기현황 (w_ja010p1) 리포트 파일 생성 (rd_ja010p1.mrd)
+     * 일별수익률현황 (w_ja010p1) 리포트 파일 생성 (rd_ja010p1.mrd)
      */
     public ExportResult generateJa010p1Report(String ymd, String format) throws Exception {
         return generateJa010p1Report(null, ymd, format);
     }
 
     public ExportResult generateJa010p1Report(String corpGr, String ymd, String format) throws Exception {
-        corpGr = resolveCorpGr(corpGr);
-        String mrdName = "rd_ja010p1.mrd";
-        Path mrdPath = getTemplatePath(mrdName);
-
         String ymdDot = (ymd != null) ? ymd.replace("-", ".") : "";
         String ymdClean = (ymd != null) ? ymd.replace("-", "").replace(".", "") : "";
 
-        StringBuilder param = new StringBuilder();
-        param.append("/rv ");
-        if (corpGr != null && !corpGr.isBlank()) param.append("corp_gr[").append(corpGr).append("] ");
-        if (!ymdDot.isBlank()) param.append("ymd[").append(ymdDot).append("] ");
-        param.append("/rzoom [120] /rmessageboxshow [0]");
+        Map<String, Object> params = new LinkedHashMap<>();
+        if (!ymdDot.isBlank()) params.put("ymd", ymdDot);
 
-        log.info("RD w_ja010p1 리포트 생성 시작 - MRD: {}, Param: {}, Format: {}", mrdName, param, format);
-
-        String normalizedFormat = (format != null) ? format.trim().toLowerCase() : "pdf";
-        String ext;
-        String contentType;
-
-        switch (normalizedFormat) {
-            case "excel":
-            case "xlsx":
-            case "xls":
-                ext = ".xlsx";
-                contentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
-                break;
-            case "word":
-            case "doc":
-            case "docx":
-                ext = ".doc";
-                contentType = "application/msword";
-                break;
-            case "ppt":
-            case "pptx":
-                ext = ".pptx";
-                contentType = "application/vnd.openxmlformats-officedocument.presentationml.presentation";
-                break;
-            case "hwp":
-                ext = ".hwp";
-                contentType = "application/x-hwp";
-                break;
-            case "pdf":
-            default:
-                ext = ".pdf";
-                contentType = "application/pdf";
-                break;
-        }
-
-        Path tempOut = Files.createTempFile("rd_export_10p1_", ext);
-        ClassLoader originalClassLoader = Thread.currentThread().getContextClassLoader();
-        try {
-            URLClassLoader classLoader = getRdClassLoader();
-            Thread.currentThread().setContextClassLoader(classLoader);
-
-            Class<?> ssrdClass = classLoader.loadClass("m2soft.javard.gui.ServerSideRD");
-            Object ssrd = ssrdClass.getDeclaredConstructor().newInstance();
-
-            Method getRdCtrlMethod = ssrdClass.getMethod("getRdControl");
-            Object rdCtrl = getRdCtrlMethod.invoke(ssrd);
-
-            Method applyLicMethod = rdCtrl.getClass().getMethod("ApplyLicense", String.class);
-            applyLicMethod.invoke(rdCtrl, "0.0.0.0");
-
-            Method fileOpenMethod = rdCtrl.getClass().getMethod("FileOpen", String.class, String.class);
-            Object openedObj = fileOpenMethod.invoke(rdCtrl, mrdPath.toAbsolutePath().toString(), param.toString());
-            boolean opened = Boolean.TRUE.equals(openedObj);
-
-            if (!opened) {
-                Method getErrMsgMethod = rdCtrl.getClass().getMethod("GetLastErrorMessage");
-                String errMsg = (String) getErrMsgMethod.invoke(rdCtrl);
-                throw new RuntimeException("RD FileOpen 실패: " + errMsg);
-            }
-
-            String outFilePath = tempOut.toAbsolutePath().toString();
-            String saveMethodName;
-
-            switch (normalizedFormat) {
-                case "excel":
-                case "xlsx":
-                case "xls":
-                    saveMethodName = "SaveAsXlsxFile";
-                    break;
-                case "word":
-                case "doc":
-                case "docx":
-                    saveMethodName = "SaveAsWordFile";
-                    break;
-                case "ppt":
-                case "pptx":
-                    saveMethodName = "SaveAsPptxFile";
-                    break;
-                case "hwp":
-                    saveMethodName = "SaveAsHwpFile";
-                    break;
-                case "pdf":
-                default:
-                    saveMethodName = "SaveAsPdfFile";
-                    break;
-            }
-
-            Method saveMethod = rdCtrl.getClass().getMethod(saveMethodName, String.class);
-            Object savedObj = saveMethod.invoke(rdCtrl, outFilePath);
-            boolean saved = Boolean.TRUE.equals(savedObj);
-
-            if (!saved || !Files.exists(tempOut) || Files.size(tempOut) == 0) {
-                throw new RuntimeException("리포트 변환 파일 생성 실패 (" + normalizedFormat + ")");
-            }
-
-            byte[] fileBytes = Files.readAllBytes(tempOut);
-            String downloadName = ymdClean + "_만기현황" + ext;
-
-            log.info("RD 리포트 생성 성공: {} (크기: {} bytes)", downloadName, fileBytes.length);
-
-            return ExportResult.builder()
-                    .data(fileBytes)
-                    .filename(downloadName)
-                    .contentType(contentType)
-                    .build();
-
-        } finally {
-            Thread.currentThread().setContextClassLoader(originalClassLoader);
-            try {
-                Files.deleteIfExists(tempOut);
-            } catch (Exception ignored) {
-            }
-        }
+        String downloadName = ymdClean + "_일별수익률";
+        return generateReport(corpGr, "rd_ja010p1.mrd", params, format, downloadName);
     }
 
     /**
-     * 공모청약 수요예측 참여표(회사) (w_ja010j) 리포트 파일 생성
+     * 일보 (w_ja010j) 리포트 파일 생성
      */
     public ExportResult generateJa010jReport(String corpGr, String fundCd, String title,
                                             String fymd, String tymd, String format) throws Exception {
@@ -1175,273 +549,39 @@ public class RdReportService {
             mrdName = "rd_ja010j_6.mrd";
         }
 
-        Path mrdPath = getTemplatePath(mrdName);
-
         String fymdDot = (fymd != null) ? fymd.replace("-", ".") : "";
         String tymdDot = (tymd != null) ? tymd.replace("-", ".") : "";
         String tymdClean = (tymd != null) ? tymd.replace("-", "").replace(".", "") : "";
 
-        StringBuilder param = new StringBuilder();
-        param.append("/rv ");
-        if (corpGr != null && !corpGr.isBlank()) param.append("corp_gr[").append(corpGr).append("] ");
-        if (title != null && !title.isBlank()) param.append("title[").append(title).append("] ");
-        if (!"0".equals(fundCd) && !"1".equals(fundCd) && !"2".equals(fundCd) && fundCd != null && !fundCd.isBlank()) {
-            param.append("fund_cd[").append(fundCd).append("] ");
-        }
-        if (!fymdDot.isBlank()) param.append("fymd[").append(fymdDot).append("] ");
-        if (!tymdDot.isBlank()) param.append("tymd[").append(tymdDot).append("] ");
-        param.append("/rzoom [120] /rmessageboxshow [0]");
+        Map<String, Object> params = new LinkedHashMap<>();
+        if (fundCd != null && !fundCd.isBlank()) params.put("fund_cd", fundCd);
+        if (title != null && !title.isBlank()) params.put("title", title);
+        if (!fymdDot.isBlank()) params.put("fymd", fymdDot);
+        if (!tymdDot.isBlank()) params.put("tymd", tymdDot);
 
-        log.info("RD w_ja010j 리포트 생성 시작 - MRD: {}, Param: {}, Format: {}", mrdName, param, format);
+        String safeTitle = (title != null && !title.isBlank()) ? title.trim().replaceAll("[\\\\/:*?\"<>|]", "_") : "일보";
+        String downloadName = tymdClean + "_" + safeTitle;
 
-        String normalizedFormat = (format != null) ? format.trim().toLowerCase() : "pdf";
-        String ext;
-        String contentType;
-
-        switch (normalizedFormat) {
-            case "excel":
-            case "xlsx":
-            case "xls":
-                ext = ".xlsx";
-                contentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
-                break;
-            case "word":
-            case "doc":
-            case "docx":
-                ext = ".doc";
-                contentType = "application/msword";
-                break;
-            case "ppt":
-            case "pptx":
-                ext = ".pptx";
-                contentType = "application/vnd.openxmlformats-officedocument.presentationml.presentation";
-                break;
-            case "hwp":
-                ext = ".hwp";
-                contentType = "application/x-hwp";
-                break;
-            case "pdf":
-            default:
-                ext = ".pdf";
-                contentType = "application/pdf";
-                break;
-        }
-
-        Path tempOut = Files.createTempFile("rd_export_10j_", ext);
-        ClassLoader originalClassLoader = Thread.currentThread().getContextClassLoader();
-        try {
-            URLClassLoader classLoader = getRdClassLoader();
-            Thread.currentThread().setContextClassLoader(classLoader);
-
-            Class<?> ssrdClass = classLoader.loadClass("m2soft.javard.gui.ServerSideRD");
-            Object ssrd = ssrdClass.getDeclaredConstructor().newInstance();
-
-            Method getRdCtrlMethod = ssrdClass.getMethod("getRdControl");
-            Object rdCtrl = getRdCtrlMethod.invoke(ssrd);
-
-            Method applyLicMethod = rdCtrl.getClass().getMethod("ApplyLicense", String.class);
-            applyLicMethod.invoke(rdCtrl, "0.0.0.0");
-
-            Method fileOpenMethod = rdCtrl.getClass().getMethod("FileOpen", String.class, String.class);
-            Object openedObj = fileOpenMethod.invoke(rdCtrl, mrdPath.toAbsolutePath().toString(), param.toString());
-            boolean opened = Boolean.TRUE.equals(openedObj);
-
-            if (!opened) {
-                Method getErrMsgMethod = rdCtrl.getClass().getMethod("GetLastErrorMessage");
-                String errMsg = (String) getErrMsgMethod.invoke(rdCtrl);
-                throw new RuntimeException("RD FileOpen 실패: " + errMsg);
-            }
-
-            String outFilePath = tempOut.toAbsolutePath().toString();
-            String saveMethodName;
-
-            switch (normalizedFormat) {
-                case "excel":
-                case "xlsx":
-                case "xls":
-                    saveMethodName = "SaveAsXlsxFile";
-                    break;
-                case "word":
-                case "doc":
-                case "docx":
-                    saveMethodName = "SaveAsWordFile";
-                    break;
-                case "ppt":
-                case "pptx":
-                    saveMethodName = "SaveAsPptxFile";
-                    break;
-                case "hwp":
-                    saveMethodName = "SaveAsHwpFile";
-                    break;
-                case "pdf":
-                default:
-                    saveMethodName = "SaveAsPdfFile";
-                    break;
-            }
-
-            Method saveMethod = rdCtrl.getClass().getMethod(saveMethodName, String.class);
-            Object savedObj = saveMethod.invoke(rdCtrl, outFilePath);
-            boolean saved = Boolean.TRUE.equals(savedObj);
-
-            if (!saved || !Files.exists(tempOut) || Files.size(tempOut) == 0) {
-                throw new RuntimeException("리포트 변환 파일 생성 실패 (" + normalizedFormat + ")");
-            }
-
-            byte[] fileBytes = Files.readAllBytes(tempOut);
-            String downloadName = tymdClean + "_수요예측참여표_" + fundCd + ext;
-
-            log.info("RD 리포트 생성 성공: {} (크기: {} bytes)", downloadName, fileBytes.length);
-
-            return ExportResult.builder()
-                    .data(fileBytes)
-                    .filename(downloadName)
-                    .contentType(contentType)
-                    .build();
-
-        } finally {
-            Thread.currentThread().setContextClassLoader(originalClassLoader);
-            try {
-                Files.deleteIfExists(tempOut);
-            } catch (Exception ignored) {
-            }
-        }
+        return generateReport(corpGr, mrdName, params, format, downloadName);
     }
 
     /**
-     * 성과보수 상세내역 결산보고서 (w_ja010m3) 리포트 파일 생성
-     * mrdName: d_ja010m3.srd의 gs.MRD_NM (예: rd_ja010m31_2202.mrd, rd_ja010m3_2402.mrd 등)
+     * 주식매매(매도)내역 (w_ja010m3) 리포트 파일 생성
      */
     public ExportResult generateJa010m3Report(String corpGr, String mrdName, String fundCd, String fundNm,
                                              String gyulYmd, String format) throws Exception {
         corpGr = resolveCorpGr(corpGr);
-        String targetMrd = (mrdName != null && !mrdName.isBlank()) ? mrdName.trim() : "rd_ja010m3_2402.mrd";
-        Path mrdPath = getTemplatePath(targetMrd);
-
-        String gyulYmdDot = (gyulYmd != null) ? gyulYmd.replace("-", ".") : "";
+        String targetMrd = (mrdName != null && !mrdName.isBlank()) ? mrdName : ("2402".equals(corpGr) ? "rd_ja010m3_2402.mrd" : "rd_ja010m3_2201.mrd");
         String gyulYmdClean = (gyulYmd != null) ? gyulYmd.replace("-", "").replace(".", "") : "";
 
-        // 파워빌더 w_ja010m3.srw 명세:
-        // uf_fileopen (dw_list.object.mrd_nm [row], 'fund_cd[' + fund_cd + '] gyul_ymd[' + gyul_ymd('yyyy.mm.dd') + ']')
-        StringBuilder param = new StringBuilder();
-        param.append("/rv ");
-        if (fundCd != null && !fundCd.isBlank()) param.append("fund_cd[").append(fundCd).append("] ");
-        if (!gyulYmdDot.isBlank()) param.append("gyul_ymd[").append(gyulYmdDot).append("] ");
-        if (corpGr != null && !corpGr.isBlank()) param.append("corp_gr[").append(corpGr).append("] ");
-        param.append("/rzoom [120] /rmessageboxshow [0]");
+        Map<String, Object> params = new LinkedHashMap<>();
+        if (fundCd != null && !fundCd.isBlank()) params.put("fund_cd", fundCd);
+        if (fundNm != null && !fundNm.isBlank()) params.put("fund_nm", fundNm);
+        if (!gyulYmdClean.isBlank()) params.put("gyul_ymd", gyulYmdClean);
 
-        log.info("RD w_ja010m3 리포트 생성 시작 - MRD: {}, Param: {}, Format: {}", targetMrd, param, format);
+        String safeFundNm = (fundNm != null && !fundNm.isBlank()) ? fundNm.trim().replaceAll("[\\\\/:*?\"<>|]", "_") : "체결내역";
+        String downloadName = gyulYmdClean + "_" + safeFundNm + "(" + fundCd + ")";
 
-        String normalizedFormat = (format != null) ? format.trim().toLowerCase() : "pdf";
-        String ext;
-        String contentType;
-
-        switch (normalizedFormat) {
-            case "excel":
-            case "xlsx":
-            case "xls":
-                ext = ".xlsx";
-                contentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
-                break;
-            case "word":
-            case "doc":
-            case "docx":
-                ext = ".doc";
-                contentType = "application/msword";
-                break;
-            case "ppt":
-            case "pptx":
-                ext = ".pptx";
-                contentType = "application/vnd.openxmlformats-officedocument.presentationml.presentation";
-                break;
-            case "hwp":
-                ext = ".hwp";
-                contentType = "application/x-hwp";
-                break;
-            case "pdf":
-            default:
-                ext = ".pdf";
-                contentType = "application/pdf";
-                break;
-        }
-
-        URLClassLoader classLoader = getRdClassLoader();
-        ClassLoader originalClassLoader = Thread.currentThread().getContextClassLoader();
-        Path tempOut = Files.createTempFile("rd_out_", ext);
-
-        try {
-            Thread.currentThread().setContextClassLoader(classLoader);
-            Class<?> ssrdClass = classLoader.loadClass("m2soft.javard.gui.ServerSideRD");
-            Object ssrd = ssrdClass.getDeclaredConstructor().newInstance();
-
-            Method getRdCtrlMethod = ssrdClass.getMethod("getRdControl");
-            Object rdCtrl = getRdCtrlMethod.invoke(ssrd);
-
-            Method applyLicMethod = rdCtrl.getClass().getMethod("ApplyLicense", String.class);
-            applyLicMethod.invoke(rdCtrl, "0.0.0.0");
-
-            Method fileOpenMethod = rdCtrl.getClass().getMethod("FileOpen", String.class, String.class);
-            Object openedObj = fileOpenMethod.invoke(rdCtrl, mrdPath.toAbsolutePath().toString(), param.toString());
-            boolean opened = Boolean.TRUE.equals(openedObj);
-            if (!opened) {
-                throw new IllegalStateException("MRD 파일을 열 수 없습니다: " + mrdPath);
-            }
-
-            Thread.sleep(500);
-
-            String outFilePath = tempOut.toAbsolutePath().toString();
-            String saveMethodName;
-
-            switch (normalizedFormat) {
-                case "excel":
-                case "xlsx":
-                case "xls":
-                    saveMethodName = "SaveAsXlsxFile";
-                    break;
-                case "word":
-                case "doc":
-                case "docx":
-                    saveMethodName = "SaveAsWordFile";
-                    break;
-                case "ppt":
-                case "pptx":
-                    saveMethodName = "SaveAsPptxFile";
-                    break;
-                case "hwp":
-                    saveMethodName = "SaveAsHwpFile";
-                    break;
-                case "pdf":
-                default:
-                    saveMethodName = "SaveAsPdfFile";
-                    break;
-            }
-
-            Method saveMethod = rdCtrl.getClass().getMethod(saveMethodName, String.class);
-            Object savedObj = saveMethod.invoke(rdCtrl, outFilePath);
-            boolean saved = Boolean.TRUE.equals(savedObj);
-
-            if (!saved || !Files.exists(tempOut) || Files.size(tempOut) == 0) {
-                throw new RuntimeException("리포트 변환 파일 생성 실패 (" + normalizedFormat + ")");
-            }
-
-            byte[] fileBytes = Files.readAllBytes(tempOut);
-            String safeFundNm = (fundNm != null && !fundNm.isBlank())
-                    ? fundNm.trim().replaceAll("[\\\\/:*?\"<>|]", "_") : "결산보고서";
-            String downloadName = gyulYmdClean + "_" + safeFundNm + "(" + (fundCd != null ? fundCd : "") + ")" + ext;
-
-            log.info("RD w_ja010m3 리포트 생성 성공: {} (크기: {} bytes)", downloadName, fileBytes.length);
-
-            return ExportResult.builder()
-                    .data(fileBytes)
-                    .filename(downloadName)
-                    .contentType(contentType)
-                    .build();
-
-        } finally {
-            Thread.currentThread().setContextClassLoader(originalClassLoader);
-            try {
-                Files.deleteIfExists(tempOut);
-            } catch (Exception ignored) {
-            }
-        }
+        return generateReport(corpGr, targetMrd, params, format, downloadName);
     }
 }

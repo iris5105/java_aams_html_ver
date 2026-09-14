@@ -142,6 +142,34 @@ trigger: always_on
      - `pane.onCorpGrChange`: 회사그룹 변경 시 관련 필터 및 리포트 상태 초기화 후 재조회.
      - `pane.onRefresh`: `iframe.src = "about:blank"`, 상태 텍스트 초기화 및 그리드 데이터 클리어로 화면 진입 초기 상태로 복원.
 
+5. 가변 파라미터(JSON/Map) 기반 범용 RD 리포트 표준 규격:
+   - **백엔드 범용 서비스 및 공통 엔드포인트 재사용 원칙**:
+     - 신규 화면이나 MRD 파일이 추가될 때마다 백엔드에 개별 컨트롤러/서비스 메소드를 중복 생성하지 않고, 가변 Key-Value Map 또는 JSON을 기반으로 RD 파라미터(`/rv key[val] ... /rzoom [120] /rmessageboxshow [0]`)를 동적 빌드하는 공통 컨트롤러(`RdReportController`) 및 서비스(`RdReportService.generateReport`)를 우선 재사용한다.
+     - **공통 미리보기 엔드포인트**: `GET /api/common/rd/preview?mrdName=xxx.mrd&corpGr=...&key1=val1&key2=val2...`
+     - **공통 내보내기 엔드포인트**: `GET /api/common/rd/export?mrdName=xxx.mrd&format=xlsx&downloadName=...&key1=val1...`
+     - **JSON Body 엔드포인트**: `POST /api/common/rd/preview`, `POST /api/common/rd/export` (`{ mrdName, corpGr, params: { key: val }, format, downloadName }`)
+   - **프론트엔드 URL 생성 표준 유틸리티 (`AamsReport`)**:
+     - 클라이언트 화면에서 직접 URL 문자열을 하드코딩하지 않고 `common.js`의 `AamsReport.buildPreviewUrl` 및 `AamsReport.buildExportUrl`을 표준으로 사용한다:
+       ```javascript
+       // 1) 미리보기 URL 생성 (120% 줌 및 타임스탬프 자동 부착)
+       var previewUrl = AamsReport.buildPreviewUrl('rd_파일명.mrd', {
+           fund_cd: data.fundCd,
+           ymd: ymdClean,
+           param1: data.val1
+       }, { corpGr: getFilterCorpGr() });
+       AamsReport.setFrameSrc(iframe, previewUrl);
+
+       // 2) 내보내기 URL 생성 (다운로드 파일명 및 포맷 지정)
+       var exportUrl = AamsReport.buildExportUrl('rd_파일명.mrd', {
+           fund_cd: data.fundCd,
+           ymd: ymdClean
+       }, format, { corpGr: getFilterCorpGr(), downloadName: downloadName });
+       window.location.href = exportUrl;
+       ```
+   - **파워빌더 원본 대응 1:1 파라미터 매핑 절차**:
+     - 파워빌더 소스(`.srw`)에서 `ole_rd.uf_fileopen('rd_xxx.mrd', 'corp_gr[' + is_corp_gr + '] ymd[' + ls_ymd + '] ...')`에 나열된 모든 변수명을 확인하여 JavaScript 파라미터 객체의 Key-Value로 1:1 매핑한다.
+     - `corp_gr`은 `options.corpGr`로 넘기거나 파라미터에 포함하면 자동으로 세션/쿠키와 함께 해석되며, `/rzoom [120]`과 `/rmessageboxshow [0]`은 공통 빌더에서 자동으로 주입된다.
+
 
 
 

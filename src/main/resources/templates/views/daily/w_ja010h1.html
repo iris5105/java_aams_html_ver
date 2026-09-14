@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
-<div class="view-container layout-split ja010h1-container" th:fragment="ja010h1View" style="display: flex; flex-direction: column; height: 100%; width: 100%; overflow: hidden;">
+<div class="view-container layout-split ja010h1-container" th:fragment="ja010h1View"
+     th:data-initial-ymd="${initialYmd}" th:data-corp-gr="${corpGr}"
+     style="display: flex; flex-direction: column; height: 100%; width: 100%; overflow: hidden;">
 
     <style>
         .ja010h1-container .split-body {
@@ -270,11 +272,11 @@
 
     <script th:src="@{/js/f_dddwctl.js}" src="/js/f_dddwctl.js"></script>
     <script th:src="@{/js/aams_calendar.js}" src="/js/aams_calendar.js"></script>
-    <script th:inline="javascript">
+    <script>
         (function () {
-            var pane = document.currentScript.closest('.tab-pane') || document;
-            var initialYmd = /*[[${initialYmd}]]*/ '';
-            var serverCorpGr = /*[[${corpGr}]]*/ '';
+            var pane = (document.currentScript && document.currentScript.closest) ? document.currentScript.closest('.tab-pane') : (document.querySelector('.tab-pane.active') || document);
+            var initialYmd = (pane && pane.getAttribute) ? (pane.getAttribute('data-initial-ymd') || '') : '';
+            var serverCorpGr = (pane && pane.getAttribute) ? (pane.getAttribute('data-corp-gr') || '') : '';
             var grid = null;
             var isInitialized = false;
             var lastLoadedMasterKey = null;
@@ -303,19 +305,33 @@
                 return '';
             }
 
-            // 달력 컴포넌트 초기화 (AamsCalendar 표준 규격 연동)
+            // 엑세스 쿠키의 현재 영업일 추출
+            function getCookieWorkDate() {
+                var matchWork = document.cookie.match(/(?:^|;\s*)workDate=([^;]*)/);
+                if (matchWork && matchWork[1]) return decodeURIComponent(matchWork[1]);
+                var matchHyun = document.cookie.match(/(?:^|;\s*)hyunYmd=([^;]*)/);
+                if (matchHyun && matchHyun[1]) return decodeURIComponent(matchHyun[1]);
+                return '';
+            }
+
+            // 달력 컴포넌트 초기화 (wue_lastopen 명세 연동)
             function initCalendar() {
                 var filterYmdInput = pane.querySelector('#filterYmd');
                 if (!filterYmdInput) return;
 
-                if (initialYmd && !filterYmdInput.value) {
-                    filterYmdInput.value = initialYmd;
+                var corpGr = getFilterCorpGr();
+                var targetYmd = filterYmdInput.value || initialYmd;
+                if (!targetYmd && corpGr !== '2402') {
+                    targetYmd = getCookieWorkDate();
+                }
+                if (targetYmd) {
+                    filterYmdInput.value = targetYmd;
                 }
 
                 if (typeof AamsCalendar !== 'undefined' && typeof AamsCalendar.initSimple === 'function') {
                     AamsCalendar.initSimple('filterYmd', {
                         pane: pane,
-                        initialYmd: filterYmdInput.value || initialYmd,
+                        initialYmd: filterYmdInput.value || targetYmd,
                         onSelect: function (ymd) {
                             loadFunds();
                         }
@@ -510,14 +526,14 @@
                 if (statusEl) statusEl.innerText = "조회일자: " + ymd;
                 if (loadingEl) loadingEl.style.display = 'block';
 
-                var rawPreviewUrl = "/api/daily/ja010h1/preview?corpGr=" + encodeURIComponent(corpGr) +
-                    "&ymd=" + encodeURIComponent(ymd) +
-                    "&fundCd=" + encodeURIComponent(fundCd) +
-                    "&fundNm=" + encodeURIComponent(fundNm) +
-                    "&t=" + new Date().getTime();
-                var previewUrl = (window.AamsReport && typeof window.AamsReport.formatPreviewUrl === 'function')
-                    ? window.AamsReport.formatPreviewUrl(rawPreviewUrl)
-                    : rawPreviewUrl + "#toolbar=1&navpanes=0&zoom=120";
+                var params = {
+                    fund_cd: fundCd,
+                    fund_nm: fundNm,
+                    ymd: (ymd || '').replace(/-/g, '.')
+                };
+                var previewUrl = (window.AamsReport && typeof window.AamsReport.buildPreviewUrl === 'function')
+                    ? window.AamsReport.buildPreviewUrl('rd_ja010h1.mrd', params, { corpGr: corpGr })
+                    : "/api/daily/ja010h1/preview?corpGr=" + encodeURIComponent(corpGr) + "&ymd=" + encodeURIComponent(ymd) + "&fundCd=" + encodeURIComponent(fundCd);
 
                 if (iframe) {
                     iframe.src = previewUrl;
@@ -648,11 +664,17 @@
                 var fundCd = currentSelectedRowData.fundCd || '';
                 var fundNm = currentSelectedRowData.fundNm || '';
 
-                var url = "/api/daily/ja010h1/export?corpGr=" + encodeURIComponent(corpGr) +
-                    "&ymd=" + encodeURIComponent(ymd) +
-                    "&fundCd=" + encodeURIComponent(fundCd) +
-                    "&fundNm=" + encodeURIComponent(fundNm) +
-                    "&format=" + encodeURIComponent(format);
+                var params = {
+                    fund_cd: fundCd,
+                    fund_nm: fundNm,
+                    ymd: (ymd || '').replace(/-/g, '.')
+                };
+                var safeFundNm = fundNm ? fundNm.trim().replace(/[\\/:*?"<>|]/g, "_") : "자산명세표";
+                var downloadName = (ymd || '').replace(/[-.]/g, '') + "_" + safeFundNm + "(" + fundCd + ")";
+
+                var url = (window.AamsReport && typeof window.AamsReport.buildExportUrl === 'function')
+                    ? window.AamsReport.buildExportUrl('rd_ja010h1.mrd', params, format, { corpGr: corpGr, downloadName: downloadName })
+                    : "/api/daily/ja010h1/export?corpGr=" + encodeURIComponent(corpGr) + "&ymd=" + encodeURIComponent(ymd) + "&fundCd=" + encodeURIComponent(fundCd) + "&format=" + encodeURIComponent(format);
 
                 window.location.href = url;
             }
@@ -668,13 +690,14 @@
                 var fundCd = currentSelectedRowData.fundCd || '';
                 var fundNm = currentSelectedRowData.fundNm || '';
 
-                var rawPreviewUrl = "/api/daily/ja010h1/preview?corpGr=" + encodeURIComponent(corpGr) +
-                    "&ymd=" + encodeURIComponent(ymd) +
-                    "&fundCd=" + encodeURIComponent(fundCd) +
-                    "&fundNm=" + encodeURIComponent(fundNm);
-                var previewUrl = (window.AamsReport && typeof window.AamsReport.formatPreviewUrl === 'function')
-                    ? window.AamsReport.formatPreviewUrl(rawPreviewUrl)
-                    : rawPreviewUrl + "#toolbar=1&navpanes=0&zoom=120";
+                var params = {
+                    fund_cd: fundCd,
+                    fund_nm: fundNm,
+                    ymd: (ymd || '').replace(/-/g, '.')
+                };
+                var previewUrl = (window.AamsReport && typeof window.AamsReport.buildPreviewUrl === 'function')
+                    ? window.AamsReport.buildPreviewUrl('rd_ja010h1.mrd', params, { corpGr: corpGr })
+                    : "/api/daily/ja010h1/preview?corpGr=" + encodeURIComponent(corpGr) + "&ymd=" + encodeURIComponent(ymd) + "&fundCd=" + encodeURIComponent(fundCd);
 
                 window.open(previewUrl, "_blank");
             }
@@ -719,7 +742,7 @@
                 if (btnMobPdf) btnMobPdf.addEventListener('click', function () { exportReport('pdf'); });
 
                 var btnMobExcel = pane.querySelector('#btnMobileExportExcel');
-                if (btnMobileExportExcel) btnMobExcel.addEventListener('click', function () { exportReport('xlsx'); });
+                if (btnMobExcel) btnMobExcel.addEventListener('click', function () { exportReport('xlsx'); });
 
                 var btnMobWord = pane.querySelector('#btnMobileExportWord');
                 if (btnMobWord) btnMobWord.addEventListener('click', function () { exportReport('doc'); });
@@ -783,11 +806,32 @@
                 };
 
                 // 회사그룹 변경 이벤트: 해당 회사의 기준일자를 비동기로 조회하여 달력 및 그리드 갱신
+                // 회사그룹 변경 이벤트: wue_lastopen 명세(2402는 전용일자, 기타는 엑세스 쿠키 현재 영업일) 반영
                 pane.onCorpGrChange = function () {
                     if (grid) grid.clearData();
                     var corpGr = getFilterCorpGr();
 
-                    fetch("/api/common/workdate?corpGr=" + encodeURIComponent(corpGr))
+                    // corp_gr != '2402'인 경우 엑세스 쿠키에 있는 현재 영업일을 즉시 반영
+                    if (corpGr !== '2402') {
+                        var cookieDate = getCookieWorkDate();
+                        if (cookieDate) {
+                            var filterYmdInput = pane.querySelector('#filterYmd');
+                            if (filterYmdInput) {
+                                filterYmdInput.value = cookieDate;
+                                if (typeof AamsCalendar !== 'undefined' && typeof AamsCalendar.initSimple === 'function') {
+                                    AamsCalendar.initSimple('filterYmd', {
+                                        pane: pane,
+                                        initialYmd: cookieDate,
+                                        onSelect: function (ymd) {
+                                            loadFunds();
+                                        }
+                                    });
+                                }
+                            }
+                        }
+                    }
+
+                    fetch("/api/daily/ja010h1/workdate?corpGr=" + encodeURIComponent(corpGr))
                         .then(function (res) { return res.json(); })
                         .then(function (data) {
                             if (data && data.workDate) {
@@ -809,7 +853,7 @@
                             loadFunds();
                         })
                         .catch(function (err) {
-                            console.warn("회사 기준일자 조회 오류:", err);
+                            console.warn("[w_ja010h1] 회사 기준일자 조회 오류:", err);
                             initDddw();
                             loadFunds();
                         });

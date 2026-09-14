@@ -86,6 +86,48 @@ public class Ja010hService {
     }
 
     /**
+     * 2402 회사 전용일자 조회 (SZX0AA.JUNYONG_YMD)
+     */
+    public String getJunyongYmd(String corpGr) {
+        if (corpGr == null || corpGr.isBlank()) {
+            return null;
+        }
+        return ja010hMapper.selectJunyongYmd(corpGr.trim());
+    }
+
+    /**
+     * 파워빌더 w_ja010h1.srw wue_lastopen 명세:
+     * IF gaa.corp_gr='2402' Then
+     *     SELECT JUNYONG_YMD INTO :ldt FROM SZX0AA aa WHERE aa.corp_gr = :gaa.corp_gr;
+     *     dw_c.object.ymd [1] = SQLCA.getitemdatetime (1)
+     * Else
+     *     dw_c.object.ymd [1] = idt_workdate (엑세스 쿠키 / 현재 영업일)
+     * End IF
+     */
+    public String getInitialWorkDate(String corpGr, String cookieWorkDate) {
+        if ("2402".equals(corpGr)) {
+            String junyongYmd = getJunyongYmd("2402");
+            if (junyongYmd != null && !junyongYmd.isBlank()) {
+                return normalizeYmd(junyongYmd);
+            }
+        }
+        // 그 외의 경우: 엑세스 쿠키에 있는 현재 영업일 사용
+        if (cookieWorkDate != null && !cookieWorkDate.isBlank()) {
+            return normalizeYmd(cookieWorkDate);
+        }
+        return workDateService.getWorkDateOrDefault(corpGr);
+    }
+
+    private String normalizeYmd(String ymd) {
+        if (ymd == null || ymd.isBlank()) return ymd;
+        String clean = ymd.replaceAll("[^0-9]", "");
+        if (clean.length() == 8) {
+            return clean.substring(0, 4) + "-" + clean.substring(4, 6) + "-" + clean.substring(6, 8);
+        }
+        return ymd;
+    }
+
+    /**
      * 2402 회사 원장생성 검증 (w_ja010h1.srw ole_rd::ue_retrieve)
      * 불일치 발생 시 작업자 및 작업시간을 담은 경고 메시지 반환, 정상일 경우 null 반환
      */

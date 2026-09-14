@@ -31,15 +31,15 @@ public class Ja010m3Service {
         }
 
         String chk = isAdmin ? "b" : "a";
-        String formattedYmd = (gyulYmd != null && !gyulYmd.trim().isEmpty())
-                ? gyulYmd.replace("-", "") : null;
+        String normalizedSortGb = (sortGb != null && !sortGb.trim().isEmpty()) ? sortGb.trim() : "1";
 
-        // 고객명순(sortGb='1')일 때 pb 스크립트에서는 날짜를 null로 주어 최초설정일부터 전수조회
-        if ("1".equals(sortGb)) {
-            formattedYmd = null;
+        // Mapper의 TO_DATE(#{gyulYmd}, 'YYYY-MM-DD')에 맞추어 YYYY-MM-DD 포맷 유지
+        String formattedYmd = (gyulYmd != null && !gyulYmd.trim().isEmpty()) ? gyulYmd.trim() : "";
+        if (formattedYmd.length() == 8 && !formattedYmd.contains("-")) {
+            formattedYmd = formattedYmd.substring(0, 4) + "-" + formattedYmd.substring(4, 6) + "-" + formattedYmd.substring(6, 8);
         }
 
-        return ja010m3Mapper.selectJa010m3List(corpGr, formattedYmd, sortGb, chk);
+        return ja010m3Mapper.selectJa010m3List(corpGr, formattedYmd, normalizedSortGb, chk);
     }
 
     @Transactional

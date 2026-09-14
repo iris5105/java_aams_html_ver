@@ -18,6 +18,14 @@ public class Ja010qService {
 
     private final Ja010qMapper ja010qMapper;
     private final RdReportService rdReportService;
+    private final com.kfp.aams.domain.common.service.WorkDateService workDateService;
+
+    /**
+     * 회사그룹별 기준일자 조회 (SZX0AA.JUNYONG_YMD 또는 HYUN_YMD)
+     */
+    public String getWorkDate(String corpGr) {
+        return workDateService.getWorkDate(corpGr);
+    }
 
     public List<Ja010qDto> selectJa010qList(String corpGr, String ymd) {
         if (corpGr == null || corpGr.isBlank() || ymd == null || ymd.isBlank()) {

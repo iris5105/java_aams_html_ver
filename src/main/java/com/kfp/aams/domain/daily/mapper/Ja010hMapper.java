@@ -51,4 +51,9 @@ public interface Ja010hMapper {
      * 총 순자산시가액 조회 (w_ja010h1.srw cb_1 종합 엑셀용)
      */
     String selectSunJasanSigaAek(@Param("corpGr") String corpGr, @Param("ymd") String ymd);
+
+    /**
+     * 2402 회사 전용일자 조회 (w_ja010h1.srw wue_lastopen 명세)
+     */
+    String selectJunyongYmd(@Param("corpGr") String corpGr);
 }

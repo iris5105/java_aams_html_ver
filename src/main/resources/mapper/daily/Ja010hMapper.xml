@@ -147,4 +147,11 @@
            </choose>
     </select>
 
+    <!-- 파워빌더 w_ja010h1.srw wue_lastopen 명세: corp_gr='2402' 전용일자 조회 -->
+    <select id="selectJunyongYmd" resultType="java.lang.String">
+        SELECT TO_CHAR(aa.JUNYONG_YMD, 'YYYY-MM-DD')
+          FROM SZX0AA aa
+         WHERE aa.corp_gr = #{corpGr}
+    </select>
+
 </mapper>

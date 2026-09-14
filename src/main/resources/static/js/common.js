@@ -1356,6 +1356,59 @@ window.AamsReport = {
     DEFAULT_ZOOM: 120,
 
     /**
+     * 가변 파라미터 기반 범용 RD 리포트 미리보기 URL 생성
+     * @param {string} mrdName - 대상 MRD 파일명 (예: "rd_ja010q.mrd")
+     * @param {Object} [params] - 가변 Key-Value 파라미터 객체 { fund_cd: '...', ymd: '...' }
+     * @param {Object} [options] - 옵션 { corpGr, downloadName, zoom, timestamp: true }
+     * @returns {string} 완성된 미리보기 URL (120% 줌 해시 포함)
+     */
+    buildPreviewUrl: function(mrdName, params, options) {
+        options = options || {};
+        var qs = ['mrdName=' + encodeURIComponent(mrdName)];
+        if (options.corpGr) qs.push('corpGr=' + encodeURIComponent(options.corpGr));
+        if (options.downloadName) qs.push('downloadName=' + encodeURIComponent(options.downloadName));
+        if (options.timestamp !== false) qs.push('t=' + new Date().getTime());
+
+        if (params && typeof params === 'object') {
+            for (var k in params) {
+                if (params.hasOwnProperty(k) && params[k] !== undefined && params[k] !== null) {
+                    qs.push(encodeURIComponent(k) + '=' + encodeURIComponent(params[k]));
+                }
+            }
+        }
+
+        var rawUrl = '/api/common/rd/preview?' + qs.join('&');
+        return this.formatPreviewUrl(rawUrl, options.zoom);
+    },
+
+    /**
+     * 가변 파라미터 기반 범용 RD 리포트 파일 내보내기/다운로드 URL 생성
+     * @param {string} mrdName - 대상 MRD 파일명 (예: "rd_ja010q.mrd")
+     * @param {Object} [params] - 가변 Key-Value 파라미터 객체
+     * @param {string} [format] - 포맷 (pdf, excel/xlsx, word/doc, ppt/pptx, hwp)
+     * @param {Object} [options] - 옵션 { corpGr, downloadName }
+     * @returns {string} 완성된 다운로드 URL
+     */
+    buildExportUrl: function(mrdName, params, format, options) {
+        options = options || {};
+        var qs = ['mrdName=' + encodeURIComponent(mrdName)];
+        qs.push('format=' + encodeURIComponent(format || 'pdf'));
+        if (options.corpGr) qs.push('corpGr=' + encodeURIComponent(options.corpGr));
+        if (options.downloadName) qs.push('downloadName=' + encodeURIComponent(options.downloadName));
+        qs.push('t=' + new Date().getTime());
+
+        if (params && typeof params === 'object') {
+            for (var k in params) {
+                if (params.hasOwnProperty(k) && params[k] !== undefined && params[k] !== null) {
+                    qs.push(encodeURIComponent(k) + '=' + encodeURIComponent(params[k]));
+                }
+            }
+        }
+
+        return '/api/common/rd/export?' + qs.join('&');
+    },
+
+    /**
      * 리포트 미리보기 URL에 표준 PDF 파라미터(기본 zoom=120, toolbar, navpanes)를 부착
      * @param {string} url - 원본 리포트 URL
      * @param {number|string} [zoom] - 지정 확대 배율 (기본값: DEFAULT_ZOOM = 120)
@@ -1363,8 +1416,14 @@ window.AamsReport = {
      */
     formatPreviewUrl: function(url, zoom) {
         if (!url || url === 'about:blank') return url || '';
-        var targetZoom = (zoom !== undefined && zoom !== null) ? zoom : this.DEFAULT_ZOOM;
         var cleanUrl = url.split('#')[0];
+        if (zoom === 'fit' || zoom === 'page-fit' || zoom === 'Fit') {
+            return cleanUrl + '#toolbar=1&navpanes=0&view=Fit';
+        }
+        if (zoom === 'width' || zoom === 'page-width' || zoom === 'FitH') {
+            return cleanUrl + '#toolbar=1&navpanes=0&view=FitH';
+        }
+        var targetZoom = (zoom !== undefined && zoom !== null) ? zoom : this.DEFAULT_ZOOM;
         return cleanUrl + '#toolbar=1&navpanes=0&zoom=' + encodeURIComponent(targetZoom);
     },
 

@@ -38,6 +38,8 @@ public class Ja010h1Controller {
                              @RequestParam(name = "ymd", required = false) String paramYmd,
                              @CookieValue(name = "savedCorpGr", required = false) String cookieCorpGr1,
                              @CookieValue(name = "corpGr", required = false) String cookieCorpGr2,
+                             @CookieValue(name = "workDate", required = false) String cookieWorkDate,
+                             jakarta.servlet.http.HttpServletRequest request,
                              Model model,
                              HttpSession session) {
         UserPrincipal principal = (principalObj instanceof UserPrincipal p) ? p : null;
@@ -50,26 +52,44 @@ public class Ja010h1Controller {
         }
         String fullpgm2 = (menuDto != null) ? menuDto.getFullpgm2() : "사무관리 > 자문일일 > 자산명세표1";
 
-        // 파워빌더 w_ja010h1.srw (wue_lastopen) 명세: SZX0AA.JUNYONG_YMD(2402) 또는 HYUN_YMD(기타) 작업일자 반영
-        String workDate = (paramYmd != null && !paramYmd.isBlank()) ? paramYmd : ja010hService.getWorkDate(corpGr);
+        // 파워빌더 w_ja010h1.srw (wue_lastopen) 명세:
+        // IF gaa.corp_gr='2402' Then
+        //     SELECT JUNYONG_YMD INTO :ldt FROM SZX0AA aa WHERE aa.corp_gr = :gaa.corp_gr;
+        //     dw_c.object.ymd [1] = SQLCA.getitemdatetime (1)
+        // Else
+        //     dw_c.object.ymd [1] = idt_workdate (엑세스 쿠키에 있는 현재 영업일)
+        // End IF
+        String effectiveCookieWorkDate = resolveCookieWorkDate(cookieWorkDate, principal, request);
+        String workDate;
+        if (paramYmd != null && !paramYmd.isBlank()) {
+            workDate = paramYmd;
+        } else {
+            workDate = ja010hService.getInitialWorkDate(corpGr, effectiveCookieWorkDate);
+        }
         if (workDate == null || workDate.isBlank()) {
             workDate = java.time.LocalDate.now().toString();
         }
 
         model.addAttribute("fullpgm2", fullpgm2);
         model.addAttribute("corpGr", corpGr);
+        model.addAttribute("ymd", workDate);
         model.addAttribute("initialYmd", workDate);
 
         return "views/daily/w_ja010h1";
     }
 
     /**
-     * 회사 변경 시 해당 회사의 기준일자 조회 API
+     * 회사 변경 시 해당 회사의 기준일자 조회 API (wue_lastopen 명세 반영)
      */
     @GetMapping("/api/daily/ja010h1/workdate")
     @ResponseBody
-    public ResponseEntity<Map<String, String>> getWorkDate(@RequestParam(name = "corpGr", required = false) String corpGr) {
-        String workDate = ja010hService.getWorkDate(corpGr);
+    public ResponseEntity<Map<String, String>> getWorkDate(@RequestParam(name = "corpGr", required = false) String corpGr,
+                                                           @CookieValue(name = "workDate", required = false) String cookieWorkDate,
+                                                           @AuthenticationPrincipal Object principalObj,
+                                                           jakarta.servlet.http.HttpServletRequest request) {
+        UserPrincipal principal = (principalObj instanceof UserPrincipal p) ? p : null;
+        String effectiveCookieWorkDate = resolveCookieWorkDate(cookieWorkDate, principal, request);
+        String workDate = ja010hService.getInitialWorkDate(corpGr, effectiveCookieWorkDate);
         if (workDate == null || workDate.isBlank()) {
             workDate = java.time.LocalDate.now().toString();
         }
@@ -202,6 +222,28 @@ public class Ja010h1Controller {
         if (cookieCorpGr != null && !cookieCorpGr.isBlank()) return cookieCorpGr.trim();
         if (principal != null && principal.getCorpGr() != null && !principal.getCorpGr().isBlank()) {
             return principal.getCorpGr().trim();
+        }
+        return null;
+    }
+
+    /**
+     * 엑세스 쿠키 / 토큰에서 현재 영업일 추출
+     */
+    private String resolveCookieWorkDate(String cookieWorkDate, UserPrincipal principal, jakarta.servlet.http.HttpServletRequest request) {
+        if (cookieWorkDate != null && !cookieWorkDate.isBlank()) {
+            return cookieWorkDate.trim();
+        }
+        if (principal != null && principal.getHyunYmd() != null && !principal.getHyunYmd().isBlank()) {
+            return principal.getHyunYmd().trim();
+        }
+        if (request != null && request.getCookies() != null) {
+            for (jakarta.servlet.http.Cookie c : request.getCookies()) {
+                if ("workDate".equals(c.getName()) || "hyunYmd".equals(c.getName())) {
+                    if (c.getValue() != null && !c.getValue().isBlank()) {
+                        return c.getValue().trim();
+                    }
+                }
+            }
         }
         return null;
     }

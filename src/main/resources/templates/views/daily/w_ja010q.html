@@ -1,23 +1,54 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
-<div class="view-container layout-split ja010q-container" th:fragment="ja010qView" style="display: flex; flex-direction: column; height: 100%; width: 100%; overflow: hidden;">
+<div class="view-container layout-split ja010q-container" th:fragment="ja010qView"
+     th:data-initial-ymd="${initialYmd}"
+     th:data-corp-gr="${corpGr}"
+     style="display: flex; flex-direction: column; height: 100%; width: 100%; overflow: hidden;">
 
     <style>
+        /* 1. 상단 툴바: 스크린샷과 동일하게 [닫기], [조회], [엑셀] 3개 버튼만 노출 */
+        .ja010q-container .btn-refresh,
+        .ja010q-container .btn-input,
+        .ja010q-container .btn-delete,
+        .ja010q-container .btn-save {
+            display: none !important;
+        }
+
+        .ja010q-container .btn-excel {
+            display: inline-flex !important;
+        }
+
+        /* 2. 필터바 스타일 */
+        .ja010q-container .filter-bar {
+            background-color: #ffffff;
+            border-bottom: 1px solid #cbd5e1;
+            padding: 5px 12px;
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            flex-shrink: 0;
+        }
+
+        /* 3. 공통 서비스 표준 분할 레이아웃 (layout-split 규격) */
         .ja010q-container .split-body {
             display: flex;
             flex-direction: row;
             flex: 1 1 auto;
-            height: calc(100% - 90px);
+            height: calc(100% - 92px);
             width: 100%;
             overflow: hidden;
             padding: 8px;
             gap: 8px;
             background-color: #f8fafc;
+            box-sizing: border-box;
         }
 
+        /* 좌측 마스터 그리드 패널 */
         .ja010q-container .left-pane {
-            flex: 1 1 45%;
-            min-width: 380px;
+            flex: 0 0 520px;
+            min-width: 440px;
+            max-width: 600px;
+            height: 100%;
             display: flex;
             flex-direction: column;
             background: #ffffff;
@@ -27,9 +58,19 @@
             box-shadow: 0 1px 3px rgba(0,0,0,0.05);
         }
 
+        .ja010q-container .left-pane .pane-body {
+            flex: 1 1 auto;
+            height: 100%;
+            width: 100%;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* 우측 RD 리포트 미리보기 패널 */
         .ja010q-container .right-pane {
-            flex: 1 1 55%;
-            min-width: 380px;
+            flex: 1 1 auto;
+            min-width: 400px;
+            height: 100%;
             display: flex;
             flex-direction: column;
             background: #ffffff;
@@ -40,13 +81,14 @@
         }
 
         .ja010q-container .pane-header {
-            padding: 8px 12px;
+            padding: 6px 12px;
             background: #f8fafc;
-            border-bottom: 1px solid #e2e8f0;
+            border-bottom: 1px solid #cbd5e1;
             display: flex;
             justify-content: space-between;
             align-items: center;
             flex-shrink: 0;
+            min-height: 41px;
         }
 
         .ja010q-container .pane-body {
@@ -55,20 +97,97 @@
             width: 100%;
             overflow: hidden;
             position: relative;
+            background-color: #525659;
         }
 
+        /* 리포트 내보내기 버튼 그룹 (W_JA010H1 스타일 규격) */
+        .ja010q-container .export-button-group {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            flex-wrap: wrap;
+        }
+
+        .ja010q-container .btn-export-format {
+            padding: 3px 8px;
+            font-size: 11px;
+            font-weight: 600;
+            border-radius: 4px;
+            background: #ffffff;
+            cursor: pointer;
+            transition: all 0.15s ease-in-out;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            line-height: 1.2;
+        }
+
+        .ja010q-container .btn-export-format:hover {
+            opacity: 0.85;
+            transform: translateY(-1px);
+        }
+
+        /* 4. 좌측 Tabulator 그리드 스타일링 */
+        .ja010q-container #ja010q-grid {
+            border: none;
+            font-size: 12px;
+            background-color: #ffffff;
+        }
+
+        .ja010q-container #ja010q-grid .tabulator-header {
+            background-color: #f1f5f9;
+            border-bottom: 1px solid #cbd5e1;
+            font-weight: 600;
+            color: #334155;
+        }
+
+        .ja010q-container #ja010q-grid .tabulator-col {
+            border-right: 1px solid #e2e8f0;
+            background-color: #f1f5f9;
+        }
+
+        .ja010q-container #ja010q-grid .tabulator-row {
+            border-bottom: 1px solid #e2e8f0;
+            min-height: 27px;
+            cursor: pointer;
+        }
+
+        .ja010q-container #ja010q-grid .tabulator-row:nth-child(even) {
+            background-color: #fafbfc;
+        }
+
+        .ja010q-container #ja010q-grid .tabulator-row:hover {
+            background-color: #f1f5f9;
+        }
+
+        /* 선택된 행 하이라이트 (스크린샷 하늘색 #cbe9fe 일치) */
+        .ja010q-container #ja010q-grid .tabulator-row.tabulator-selected {
+            background-color: #cbe9fe !important;
+        }
+
+        .ja010q-container #ja010q-grid .tabulator-row.tabulator-selected .tabulator-cell {
+            background-color: #cbe9fe !important;
+        }
+
+        .ja010q-container #ja010q-grid .tabulator-cell {
+            padding: 4px 6px;
+            border-right: 1px solid #e2e8f0;
+            display: flex;
+            align-items: center;
+        }
+
+        /* 반응형 모바일 규격 (width <= 876px) */
         @media (max-width: 876px) {
             .ja010q-container .split-body {
                 flex-direction: column !important;
                 padding: 4px !important;
-                height: calc(100% - 110px) !important;
             }
 
             .ja010q-container .left-pane {
                 flex: 1 1 100% !important;
                 width: 100% !important;
-                min-width: 0 !important;
-                height: 100% !important;
+                max-width: 100% !important;
+                border-right: 1px solid #cbd5e1 !important;
             }
 
             .ja010q-container .right-pane {
@@ -77,7 +196,7 @@
         }
     </style>
 
-    <!-- 1. 상단 공통 툴바 (Row 1) -->
+    <!-- 1. 상단 공통 툴바 (Row 1: [닫기] [조회] [엑셀] + 브레드크럼) -->
     <div class="view-toolbar">
         <div class="toolbar-left">
             <div th:replace="~{fragments/tab_header :: toolbarButtons}"></div>
@@ -85,53 +204,58 @@
         <div th:replace="~{fragments/tab_header :: toolbarBreadcrumb}"></div>
     </div>
 
-    <!-- 2. 상단 필터바 (규칙 14, 17: dc_ymd) -->
+    <!-- 2. 상단 필터바 (Row 2: 조회기준일 dc_ymd 프래그먼트) -->
     <div class="filter-bar">
-        <div class="filter-left">
-            <th:block th:replace="~{fragments/filter/dc_ymd :: filter(label='조회기일')}"></th:block>
-        </div>
-        <div class="filter-actions d-flex align-items-center gap-1">
-            <div class="btn-group btn-group-sm">
-                <button type="button" class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
-                    <i class="fas fa-file-export me-1"></i> 리포트 내보내기
-                </button>
-                <ul class="dropdown-menu dropdown-menu-end shadow-sm">
-                    <li><a class="dropdown-item export-btn" href="#" data-format="pdf"><i class="far fa-file-pdf text-danger me-2"></i>PDF 저장</a></li>
-                    <li><a class="dropdown-item export-btn" href="#" data-format="excel"><i class="far fa-file-excel text-success me-2"></i>Excel 저장</a></li>
-                    <li><a class="dropdown-item export-btn" href="#" data-format="word"><i class="far fa-file-word text-primary me-2"></i>Word 저장</a></li>
-                    <li><a class="dropdown-item export-btn" href="#" data-format="hwp"><i class="far fa-file-alt text-info me-2"></i>한글(HWP) 저장</a></li>
-                </ul>
-            </div>
-        </div>
+        <th:block th:replace="~{fragments/filter/dc_ymd :: filter(label='조회기준일')}"></th:block>
     </div>
 
-    <!-- 3. 메인 레이아웃 (좌: d_ja010q 계좌 목록, 우: RD 성과보수 상세내역 리포트) -->
+    <!-- 3. 메인 분할 영역 (좌: d_ja010q 그리드, 우: RD 리포트 뷰어) -->
     <div class="split-body">
-        <!-- 좌측 그리드 -->
+        <!-- 좌측: 펀드 목록 그리드 -->
         <div class="left-pane">
-            <div class="pane-header">
-                <span class="fw-bold small text-secondary"><i class="fas fa-list me-1"></i> 계좌 목록</span>
-                <span id="fund-count-badge" class="badge bg-primary rounded-pill">0건</span>
-            </div>
             <div class="pane-body">
                 <div id="ja010q-grid" class="tabulator-aams-grid" style="height: 100%; width: 100%;"></div>
             </div>
         </div>
 
-        <!-- 우측 RD 미리보기 뷰어 -->
+        <!-- 우측: RD Report 리포트 미리보기 뷰어 -->
         <div class="right-pane">
             <div class="pane-header">
-                <span class="fw-bold small text-secondary" id="preview-header-title">
-                    <i class="fas fa-file-invoice me-1"></i> 성과보수 상세내역 리포트
-                </span>
-                <span id="preview-status" class="small text-muted">선택된 계좌 없음</span>
-            </div>
-            <div class="pane-body" style="background-color: #525659;">
-                <div id="preview-loading" class="position-absolute top-50 start-50 translate-middle text-white text-center d-none" style="z-index: 10;">
-                    <div class="spinner-border text-light mb-2" role="status"></div>
-                    <div class="small">보고서를 생성 중입니다...</div>
+                <div>
+                    <span class="fw-bold small text-secondary" id="preview-header-title">
+                        <i class="fa-solid fa-file-invoice" style="margin-right: 4px;"></i> 성과보수 상세내역
+                    </span>
+                    <span id="preview-status" class="small text-muted ms-2"></span>
                 </div>
-                <iframe id="report-frame" class="w-100 h-100 border-0" src="about:blank"></iframe>
+                <div style="display: flex; align-items: center; gap: 6px;">
+                    <div class="export-button-group">
+                        <button type="button" class="btn-export-format export-format-btn" data-format="pdf" title="PDF 저장" style="border: 1px solid #ef4444; color: #dc2626;">
+                            <i class="fa-solid fa-file-pdf" style="color: #ef4444;"></i>PDF
+                        </button>
+                        <button type="button" class="btn-export-format export-format-btn" data-format="excel" title="Excel 저장" style="border: 1px solid #10b981; color: #059669;">
+                            <i class="fa-solid fa-file-excel" style="color: #10b981;"></i>Excel
+                        </button>
+                        <button type="button" class="btn-export-format export-format-btn" data-format="word" title="Word 저장" style="border: 1px solid #3b82f6; color: #2563eb;">
+                            <i class="fa-solid fa-file-word" style="color: #3b82f6;"></i>Word
+                        </button>
+                        <button type="button" class="btn-export-format export-format-btn" data-format="ppt" title="PPT 저장" style="border: 1px solid #f59e0b; color: #d97706;">
+                            <i class="fa-solid fa-file-powerpoint" style="color: #f59e0b;"></i>PPT
+                        </button>
+                        <button type="button" class="btn-export-format export-format-btn" data-format="hwp" title="한글(HWP) 저장" style="border: 1px solid #06b6d4; color: #0891b2;">
+                            <i class="fa-solid fa-file-lines" style="color: #06b6d4;"></i>한글
+                        </button>
+                    </div>
+                    <button type="button" id="btnOpenNewWindow" class="t-btn btn-action" style="padding: 3px 6px; font-size: 11px; border: 1px solid #cbd5e1; background: #ffffff; color: #475569;" title="새 창으로 리포트 열기">
+                        <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="pane-body">
+                <div id="preview-loading" style="display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; color: #ffffff; z-index: 10;">
+                    <i class="fa-solid fa-spinner fa-spin fa-2x mb-2"></i>
+                    <div style="font-size: 12px; font-weight: 600;">리포트를 불러오는 중입니다...</div>
+                </div>
+                <iframe id="report-frame" style="width: 100%; height: 100%; border: none; background-color: #525659;" src="about:blank"></iframe>
             </div>
         </div>
     </div>
@@ -147,77 +271,113 @@
             var currentSelectedRowData = null;
 
             function getFilterCorpGr() {
+                var container = currentPane.querySelector('.ja010q-container') || currentPane;
+                var datasetCorpGr = container ? container.getAttribute('data-corp-gr') : '';
+                if (datasetCorpGr) return datasetCorpGr.trim();
+
                 var el = currentPane.querySelector('#corpGrSelect') || document.querySelector('#corpGrSelect');
-                if (el && el.value) return el.value;
-                if (typeof g_corp_gr !== 'undefined' && g_corp_gr) return g_corp_gr;
+                if (el && el.value) return el.value.trim();
+                if (typeof g_corp_gr !== 'undefined' && g_corp_gr) return String(g_corp_gr).trim();
                 return '';
             }
 
             function getFilterYmd() {
                 var el = currentPane.querySelector('#filterYmd') || currentPane.querySelector('input[name="ymd"]');
-                if (el && el.value) return el.value.replace(/-/g, '');
-                return (new Date()).toISOString().slice(0, 10).replace(/-/g, '');
+                if (el && el.value) return el.value.replace(/[-.]/g, '').trim();
+                return (new Date()).toISOString().slice(0, 10).replace(/[-.]/g, '');
+            }
+
+            function formatDateDot(val) {
+                if (!val) return "";
+                var s = String(val).replace(/[-.]/g, '').trim();
+                if (s.length === 8) {
+                    return s.substring(0, 4) + "." + s.substring(4, 6) + "." + s.substring(6, 8);
+                }
+                return val;
             }
 
             function initGrid() {
                 var gridEl = currentPane.querySelector('#ja010q-grid');
                 if (!gridEl) return;
 
+                // srd 명세 및 스크린샷 1:1 일치 컬럼 정의 (fitColumns로 패널 내 완벽 밀착)
                 grid = new Tabulator(gridEl, {
                     height: "100%",
-                    layout: "fitDataFill",
+                    layout: "fitColumns",
                     selectable: 1,
                     data: [],
+                    columnDefaults: {
+                        vertAlign: "middle"
+                    },
                     columns: [
-                        { title: "No.", formatter: "rownum", width: 45, hozAlign: "center", headerHozAlign: "center" },
-                        { title: "관리번호", field: "fundCd", width: 85, hozAlign: "center", headerHozAlign: "center" },
-                        { title: "계좌명", field: "fundNm", minWidth: 150, hozAlign: "left", headerHozAlign: "center" },
-                        { 
-                            title: "전결산일", 
-                            field: "bfGyulYmd", 
-                            width: 95, 
-                            hozAlign: "center", 
+                        {
+                            title: "No.",
+                            formatter: "rownum",
+                            width: 45,
+                            hozAlign: "center",
+                            headerHozAlign: "center"
+                        },
+                        {
+                            title: "펀드코드",
+                            field: "fundCd",
+                            width: 75,
+                            hozAlign: "center",
                             headerHozAlign: "center",
-                            formatter: function(cell) {
-                                var val = cell.getValue();
-                                if (!val) return "";
-                                var s = String(val).replace(/-/g, '');
-                                if (s.length === 8) return s.substring(0, 4) + "." + s.substring(4, 6) + "." + s.substring(6, 8);
-                                return val;
+                            titleFormatter: function () {
+                                return '<span style="color: #15803d; font-weight: 600;">펀드코드</span>';
+                            },
+                            formatter: function (cell) {
+                                var val = cell.getValue() || '';
+                                return '<span style="color: #15803d; font-weight: 600;">' + val + '</span>';
                             }
                         },
-                        { 
-                            title: "후결산일", 
-                            field: "afGyulYmd", 
-                            width: 95, 
-                            hozAlign: "center", 
+                        {
+                            title: "펀드명",
+                            field: "fundNm",
+                            minWidth: 130,
+                            hozAlign: "left",
+                            headerHozAlign: "center"
+                        },
+                        {
+                            title: "전결산일",
+                            field: "bfGyulYmd",
+                            width: 90,
+                            hozAlign: "center",
                             headerHozAlign: "center",
-                            formatter: function(cell) {
-                                var val = cell.getValue();
-                                if (!val) return "";
-                                var s = String(val).replace(/-/g, '');
-                                if (s.length === 8) return s.substring(0, 4) + "." + s.substring(4, 6) + "." + s.substring(6, 8);
-                                return val;
+                            formatter: function (cell) {
+                                return formatDateDot(cell.getValue());
                             }
                         },
-                        { 
-                            title: "해지일", 
-                            field: "haejiYmd", 
-                            width: 95, 
-                            hozAlign: "center", 
+                        {
+                            title: "후결산일",
+                            field: "afGyulYmd",
+                            width: 90,
+                            hozAlign: "center",
                             headerHozAlign: "center",
-                            formatter: function(cell) {
+                            formatter: function (cell) {
+                                return formatDateDot(cell.getValue());
+                            }
+                        },
+                        {
+                            title: "계약해지일",
+                            field: "haejiYmd",
+                            width: 90,
+                            hozAlign: "center",
+                            headerHozAlign: "center",
+                            titleFormatter: function () {
+                                return '<span style="color: #dc2626; font-weight: 600;">계약해지일</span>';
+                            },
+                            formatter: function (cell) {
                                 var val = cell.getValue();
                                 if (!val) return "";
-                                var s = String(val).replace(/-/g, '');
-                                if (s.length === 8) return s.substring(0, 4) + "." + s.substring(4, 6) + "." + s.substring(6, 8);
-                                return val;
+                                var fmt = formatDateDot(val);
+                                return '<span style="color: #dc2626; font-weight: 600;">' + fmt + '</span>';
                             }
                         }
                     ]
                 });
 
-                // 규칙 8번 삼중 안전망
+                // 개발지침 규칙 8번: 삼중 안전망 (setupTabulatorRowSelection + rowClick + rowSelectionChanged)
                 if (typeof setupTabulatorRowSelection === "function") {
                     setupTabulatorRowSelection(grid, function (row, data) {
                         syncDetail(row, data);
@@ -245,6 +405,7 @@
                 var ymd = getFilterYmd();
                 var currentKey = corpGr + "_" + ymd + "_" + (data.fundCd || "");
 
+                // 규칙 10: 동일 키 중복 호출 방지 가드
                 if (lastLoadedMasterKey === currentKey) return;
                 lastLoadedMasterKey = currentKey;
                 currentSelectedRowData = data;
@@ -252,34 +413,101 @@
                 loadReportPreview(data);
             }
 
-            function loadReportPreview(data) {
-                var ymd = getFilterYmd();
-                var fundCd = data.fundCd || '';
-                var fundNm = data.fundNm || '';
+            /**
+             * 파워빌더 w_ja010q.srw (ole_rd::ue_retrieve) 조건부 파라미터 계산
+             */
+            function buildReportParams(data) {
+                var filterYmd = getFilterYmd(); // YYYYMMDD
+                var filterClean = (filterYmd || '').replace(/[-.]/g, '');
+                var haejiClean = (data.haejiYmd || '').replace(/[-.]/g, '');
+                var afGyulClean = (data.afGyulYmd || '').replace(/[-.]/g, '');
 
-                var statusEl = currentPane.querySelector('#preview-status');
-                var titleEl = currentPane.querySelector('#preview-header-title');
+                var ldt = '';
+                if (!haejiClean) {
+                    if (afGyulClean && afGyulClean < filterClean) {
+                        ldt = afGyulClean;
+                    } else {
+                        ldt = filterClean;
+                    }
+                } else {
+                    var afClean = (data.af || '').replace(/[-.]/g, '');
+                    if (afClean) {
+                        ldt = afClean;
+                    } else if (haejiClean) {
+                        var d = new Date(haejiClean.substring(0, 4) + '-' + haejiClean.substring(4, 6) + '-' + haejiClean.substring(6, 8));
+                        d.setDate(d.getDate() - 1);
+                        ldt = d.toISOString().slice(0, 10).replace(/[-.]/g, '');
+                    } else {
+                        ldt = filterClean;
+                    }
+                }
+
+                var ymdParam = ldt;
+                var afParam = (ldt.length === 8)
+                    ? (ldt.substring(0, 4) + '.' + ldt.substring(4, 6) + '.' + ldt.substring(6, 8))
+                    : ldt;
+
+                var bfParam = '';
+                if (data.bfStart) {
+                    var bfClean = data.bfStart.replace(/[-.]/g, '');
+                    if (bfClean.length === 8) {
+                        bfParam = bfClean.substring(0, 4) + '.' + bfClean.substring(4, 6) + '.' + bfClean.substring(6, 8);
+                    } else {
+                        bfParam = data.bfStart.replace(/-/g, '.');
+                    }
+                } else if (data.bfGyulYmd) {
+                    var bfGyulClean = data.bfGyulYmd.replace(/[-.]/g, '');
+                    var d2 = new Date(bfGyulClean.substring(0, 4) + '-' + bfGyulClean.substring(4, 6) + '-' + bfGyulClean.substring(6, 8));
+                    d2.setDate(d2.getDate() + 1);
+                    bfParam = d2.toISOString().slice(0, 10).replace(/-/g, '.');
+                }
+
+                return {
+                    fund_cd: data.fundCd || '',
+                    fund_nm: data.fundNm || '',
+                    ymd: ymdParam,
+                    bf: bfParam,
+                    af: afParam
+                };
+            }
+
+            function loadReportPreview(data) {
                 var loadingEl = currentPane.querySelector('#preview-loading');
                 var iframe = currentPane.querySelector('#report-frame');
+                var titleEl = currentPane.querySelector('#preview-header-title');
+                var statusEl = currentPane.querySelector('#preview-status');
+                if (!iframe) return;
 
-                if (titleEl) titleEl.innerHTML = '<i class="fas fa-file-invoice me-1"></i> ' + fundNm + ' (' + fundCd + ') 성과보수 상세내역';
-                if (statusEl) statusEl.innerText = "조회기일: " + ymd;
-                if (loadingEl) loadingEl.classList.remove('d-none');
+                if (loadingEl) loadingEl.style.display = 'block';
 
-                var previewUrl = "/api/daily/ja010q/preview?fundCd=" + encodeURIComponent(fundCd) +
-                    "&fundNm=" + encodeURIComponent(fundNm) +
-                    "&ymd=" + encodeURIComponent(ymd) +
-                    "&haejiYmd=" + encodeURIComponent(data.haejiYmd || "") +
-                    "&afGyulYmd=" + encodeURIComponent(data.afGyulYmd || "") +
-                    "&bfStart=" + encodeURIComponent(data.bfStart || "") +
-                    "&af=" + encodeURIComponent(data.af || "") +
-                    "&t=" + new Date().getTime();
+                var params = buildReportParams(data);
+                var corpGr = getFilterCorpGr();
 
-                iframe.src = (window.AamsReport && typeof window.AamsReport.formatPreviewUrl === 'function')
-                    ? window.AamsReport.formatPreviewUrl(previewUrl)
-                    : previewUrl + "#toolbar=1&navpanes=0&zoom=120";
+                if (titleEl) {
+                    titleEl.innerHTML = '<i class="fa-solid fa-file-invoice" style="margin-right: 4px;"></i> ' + (data.fundNm || '') + ' (' + (data.fundCd || '') + ') 성과보수 상세내역';
+                }
+                if (statusEl) {
+                    statusEl.innerText = "기준일: " + formatDateDot(params.ymd);
+                }
+
+                // 공통 서비스 규격: 너비 맞춤(page-width/FitH) 배율 적용으로 잘림 없이 온전하게 표출
+                var previewUrl = (window.AamsReport && typeof window.AamsReport.buildPreviewUrl === 'function')
+                    ? window.AamsReport.buildPreviewUrl('rd_ja010q.mrd', params, { corpGr: corpGr, zoom: 'page-width' })
+                    : ("/api/daily/ja010q/preview?fundCd=" + encodeURIComponent(data.fundCd || '') +
+                       "&ymd=" + encodeURIComponent(params.ymd) +
+                       "&haejiYmd=" + encodeURIComponent(data.haejiYmd || '') +
+                       "&afGyulYmd=" + encodeURIComponent(data.afGyulYmd || '') +
+                       "&bfStart=" + encodeURIComponent(params.bf) +
+                       "&af=" + encodeURIComponent(params.af));
+
+                if (window.AamsReport && typeof window.AamsReport.setFrameSrc === 'function') {
+                    window.AamsReport.setFrameSrc(iframe, previewUrl, 'page-width');
+                } else {
+                    iframe.src = previewUrl;
+                }
+
                 iframe.onload = function () {
-                    if (loadingEl) loadingEl.classList.add('d-none');
+                    if (loadingEl) loadingEl.style.display = 'none';
                 };
             }
 
@@ -297,19 +525,19 @@
                     .then(function (res) { return res.json(); })
                     .then(function (data) {
                         var list = data || [];
-                        var badge = currentPane.querySelector('#fund-count-badge');
-                        if (badge) badge.innerText = list.length + "건";
-
                         lastLoadedMasterKey = null;
                         if (grid) {
                             grid.setData(list).then(function () {
                                 var rows = grid.getRows();
+                                // 규칙 15: 데이터 조회 후 첫 번째 행 기본 선택 및 리포트 자동 표출
                                 if (rows && rows.length > 0) {
-                                rows[0].select();
+                                    rows[0].select();
                                     syncDetail(rows[0], rows[0].getData());
                                 } else {
                                     var iframe = currentPane.querySelector('#report-frame');
                                     if (iframe) iframe.src = "about:blank";
+                                    var titleEl = currentPane.querySelector('#preview-header-title');
+                                    if (titleEl) titleEl.innerHTML = '<i class="fa-solid fa-file-invoice" style="margin-right: 4px;"></i> 성과보수 상세내역';
                                     var statusEl = currentPane.querySelector('#preview-status');
                                     if (statusEl) statusEl.innerText = "조회 결과 없음";
                                 }
@@ -322,26 +550,51 @@
                     });
             }
 
-            function exportReport(format) {
+            function exportFormat(format) {
                 if (!currentSelectedRowData) {
-                    alert("내보낼 계좌를 먼저 선택해주세요.");
+                    if (format === 'excel' && grid && grid.getData().length > 0) {
+                        grid.download("xlsx", "성과보수_계좌목록.xlsx");
+                        return;
+                    }
+                    if (typeof showToast === "function") {
+                        showToast("내보낼 계좌를 먼저 선택해주세요.", "warning");
+                    } else {
+                        alert("내보낼 계좌를 먼저 선택해주세요.");
+                    }
                     return;
                 }
 
-                var ymd = getFilterYmd();
-                var fundCd = currentSelectedRowData.fundCd || '';
-                var fundNm = currentSelectedRowData.fundNm || '';
+                var params = buildReportParams(currentSelectedRowData);
+                var corpGr = getFilterCorpGr();
+                var safeFundNm = (currentSelectedRowData.fundNm || '').trim().replace(/[\\/:*?"<>|]/g, "_") || "성과보수상세";
+                var downloadName = params.ymd + "_" + safeFundNm + "(" + (currentSelectedRowData.fundCd || '') + ")";
 
-                var url = "/api/daily/ja010q/export?fundCd=" + encodeURIComponent(fundCd) +
-                    "&fundNm=" + encodeURIComponent(fundNm) +
-                    "&ymd=" + encodeURIComponent(ymd) +
-                    "&haejiYmd=" + encodeURIComponent(currentSelectedRowData.haejiYmd || "") +
-                    "&afGyulYmd=" + encodeURIComponent(currentSelectedRowData.afGyulYmd || "") +
-                    "&bfStart=" + encodeURIComponent(currentSelectedRowData.bfStart || "") +
-                    "&af=" + encodeURIComponent(currentSelectedRowData.af || "") +
-                    "&format=" + encodeURIComponent(format);
+                var exportUrl = (window.AamsReport && typeof window.AamsReport.buildExportUrl === 'function')
+                    ? window.AamsReport.buildExportUrl('rd_ja010q.mrd', params, format, { corpGr: corpGr, downloadName: downloadName })
+                    : ("/api/daily/ja010q/export?fundCd=" + encodeURIComponent(currentSelectedRowData.fundCd || '') +
+                       "&ymd=" + encodeURIComponent(params.ymd) +
+                       "&haejiYmd=" + encodeURIComponent(currentSelectedRowData.haejiYmd || '') +
+                       "&afGyulYmd=" + encodeURIComponent(currentSelectedRowData.afGyulYmd || '') +
+                       "&bfStart=" + encodeURIComponent(params.bf) +
+                       "&af=" + encodeURIComponent(params.af) +
+                       "&format=" + encodeURIComponent(format));
 
-                window.location.href = url;
+                window.location.href = exportUrl;
+            }
+
+            function openReportInNewWindow() {
+                if (!currentSelectedRowData) {
+                    if (typeof showToast === "function") showToast("계좌를 먼저 선택해주세요.", "warning");
+                    else alert("계좌를 먼저 선택해주세요.");
+                    return;
+                }
+                var params = buildReportParams(currentSelectedRowData);
+                var corpGr = getFilterCorpGr();
+                var previewUrl = (window.AamsReport && typeof window.AamsReport.buildPreviewUrl === 'function')
+                    ? window.AamsReport.buildPreviewUrl('rd_ja010q.mrd', params, { corpGr: corpGr, zoom: 'page-width' })
+                    : ("/api/daily/ja010q/preview?fundCd=" + encodeURIComponent(currentSelectedRowData.fundCd || '') + "&ymd=" + encodeURIComponent(params.ymd));
+
+                window.open(previewUrl, "_blank");
             }
 
             function startInit() {
@@ -350,37 +603,80 @@
 
                 initGrid();
 
-                var exportBtns = currentPane.querySelectorAll('.export-btn');
+                // 5포맷 내보내기 버튼 바인딩
+                var exportBtns = currentPane.querySelectorAll('.export-format-btn');
                 exportBtns.forEach(function (btn) {
                     btn.addEventListener('click', function (e) {
                         e.preventDefault();
-                        var format = this.getAttribute('data-format');
-                        exportReport(format);
+                        var fmt = this.getAttribute('data-format');
+                        exportFormat(fmt);
                     });
                 });
 
-                // 개발지침 규칙 9: 표준 계약 함수 연결
+                // 새 창 열기 버튼
+                var btnNewWindow = currentPane.querySelector('#btnOpenNewWindow');
+                if (btnNewWindow) {
+                    btnNewWindow.addEventListener('click', function (e) {
+                        e.preventDefault();
+                        openReportInNewWindow();
+                    });
+                }
+
+                // 개발지침 규칙 9: 상단 공통 툴바 표준 계약 함수 연결
                 currentPane.onRetrieve = currentPane.onSearch = function () {
                     loadFunds();
                 };
-                currentPane.onCorpGrChange = function () {
-                    loadFunds();
+
+                // 상단 공통 [엑셀] 버튼 클릭 시 성과보수 리포트 Excel 다운로드
+                currentPane.onExcel = function () {
+                    exportFormat('excel');
                 };
+
+                // 회사그룹 변경 시 기준일자 갱신 및 재조회
+                currentPane.onCorpGrChange = function () {
+                    var newCorpGr = getFilterCorpGr();
+                    if (!newCorpGr) return;
+
+                    fetch("/api/daily/ja010q/workdate?corpGr=" + encodeURIComponent(newCorpGr))
+                        .then(function (res) { return res.json(); })
+                        .then(function (resData) {
+                            if (resData && resData.workDate) {
+                                var ymdInput = currentPane.querySelector('#filterYmd') || currentPane.querySelector('input[name="ymd"]');
+                                if (ymdInput) ymdInput.value = resData.workDate;
+                            }
+                            loadFunds();
+                        })
+                        .catch(function () {
+                            loadFunds();
+                        });
+                };
+
+                // 새로고침 시 초기화
                 currentPane.onRefresh = function () {
+                    var container = currentPane.querySelector('.ja010q-container');
+                    var initialYmd = container ? container.getAttribute('data-initial-ymd') : '';
+                    var ymdInput = currentPane.querySelector('#filterYmd') || currentPane.querySelector('input[name="ymd"]');
+                    if (ymdInput && initialYmd) {
+                        ymdInput.value = initialYmd;
+                    }
+
                     if (grid) grid.clearData();
                     currentSelectedRowData = null;
                     lastLoadedMasterKey = null;
+
                     var frame = currentPane.querySelector('#report-frame');
                     if (frame) frame.src = 'about:blank';
                     var statusEl = currentPane.querySelector('#preview-status');
-                    if (statusEl) statusEl.textContent = '선택된 계좌 없음';
-                    var badge = currentPane.querySelector('#fund-count-badge');
-                    if (badge) badge.textContent = '0건';
+                    if (statusEl) statusEl.textContent = '';
+                    var titleEl = currentPane.querySelector('#preview-header-title');
+                    if (titleEl) titleEl.innerHTML = '<i class="fa-solid fa-file-invoice" style="margin-right: 4px;"></i> 성과보수 상세내역';
+
                     if (typeof showToast === "function") {
                         showToast("화면이 초기화되었습니다.", "info");
                     }
                 };
 
+                // 파워빌더 eb_direct_retrieve = true 규격: 화면 진입 시 자동 조회
                 setTimeout(function () {
                     loadFunds();
                 }, 100);
@@ -395,3 +691,4 @@
     </script>
 </div>
 </html>
+

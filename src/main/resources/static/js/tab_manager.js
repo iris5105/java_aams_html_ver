@@ -244,10 +244,14 @@ class TabManager {
                     // Execute scripts if present inside loaded HTML
                     const scripts = pane.querySelectorAll("script");
                     scripts.forEach(oldScript => {
-                        const newScript = document.createElement("script");
-                        Array.from(oldScript.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value));
-                        newScript.appendChild(document.createTextNode(oldScript.innerHTML));
-                        oldScript.parentNode.replaceChild(newScript, oldScript);
+                        try {
+                            const newScript = document.createElement("script");
+                            Array.from(oldScript.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value));
+                            newScript.appendChild(document.createTextNode(oldScript.innerHTML));
+                            oldScript.parentNode.replaceChild(newScript, oldScript);
+                        } catch (scriptErr) {
+                            console.error(`[TabManager] Script execution error in tab [${tabObj.pgmNo || tabObj.pgmId || tabTitle}]:`, scriptErr);
+                        }
                     });
 
                     // Auto-initialize Range Calendars inside loaded view pane if present

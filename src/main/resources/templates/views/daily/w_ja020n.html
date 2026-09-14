@@ -2,62 +2,301 @@
 <html xmlns:th="http://www.thymeleaf.org">
 <div class="view-container layout-single ja020n-container" th:fragment="ja020nView">
 
-    <!-- Top Action Control Bar (Row 1) -->
+    <!-- Top Action Control Bar (Row 1: 닫기, 엑셀 버튼만 노출) -->
     <div class="view-toolbar">
         <div class="toolbar-left">
-            <!-- Reusable Common Toolbar Buttons Fragment (닫기, 새로고침, 조회, 입력, 저장, 엑셀) -->
+            <!-- Reusable Common Toolbar Buttons Fragment -->
             <div th:replace="~{fragments/tab_header :: toolbarButtons}"></div>
         </div>
         <!-- Reusable Common Breadcrumb Fragment -->
         <div th:replace="~{fragments/tab_header :: toolbarBreadcrumb}"></div>
     </div>
 
-    <!-- Filter Bar (Row 2): dc_ymd fragment (LOAD기준일) + Mode Tabs -->
-    <div class="filter-bar">
-        <div class="filter-left">
-            <div th:replace="~{fragments/filter/dc_ymd :: filter(label='LOAD기일')}"></div>
-        </div>
-
-        <!-- Mode Selection Tabs (처리결과조회 / LOAD잔고내역 / LOAD체결내역) -->
-        <div class="filter-actions ja020n-mode-tabs" style="display: flex; align-items: center; gap: 4px;">
-            <button type="button" class="btn-mode active" data-mode="status" style="padding: 4px 12px; font-size: 12px; font-weight: 600; border: 1px solid #2563eb; background: #2563eb; color: #ffffff; border-radius: 4px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;">
-                <i class="fa-solid fa-list-check"></i> 처리결과조회
-            </button>
-            <button type="button" class="btn-mode" data-mode="siga" style="padding: 4px 12px; font-size: 12px; font-weight: 600; border: 1px solid #cbd5e1; background: #ffffff; color: #475569; border-radius: 4px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;">
-                <i class="fa-solid fa-coins"></i> LOAD잔고내역
-            </button>
-            <button type="button" class="btn-mode" data-mode="tr" style="padding: 4px 12px; font-size: 12px; font-weight: 600; border: 1px solid #cbd5e1; background: #ffffff; color: #475569; border-radius: 4px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;">
-                <i class="fa-solid fa-file-invoice-dollar"></i> LOAD체결내역
-            </button>
-            <button type="button" id="btnHtsGuide" style="padding: 4px 10px; font-size: 12px; font-weight: 500; border: 1px solid #94a3b8; background: #f1f5f9; color: #334155; border-radius: 4px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; margin-left: 8px;">
-                <i class="fa-solid fa-circle-info" style="color: #0284c7;"></i> HTS 화면안내
-            </button>
+    <!-- Filter Bar (Row 2: LOAD기준일 - 연두색 외곽선 박스 및 노란색 입력창) -->
+    <div class="filter-bar ja020n-filter-bar">
+        <div class="ja020n-filter-box">
+            <div th:replace="~{fragments/filter/dc_ymd :: filter(label='LOAD기준일')}"></div>
         </div>
     </div>
 
-    <!-- HTS Screen Code Guide Panel (Expandable) -->
-    <div id="htsGuidePanel" style="display: none; background: #f0fdf4; border-bottom: 1px solid #bbf7d0; padding: 8px 16px; font-size: 11px; color: #166534; line-height: 1.6;">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-            <div>
-                <strong>[주요 증권사 HTS 화면번호 안내]</strong><br>
-                미래에셋: 잔고 <code>#2885</code> / 체결 <code>#2893</code> (<code>#0650</code>) |
-                한국금융: 잔고 <code>#0717</code> / 체결 <code>#0712</code> |
-                삼성증권: 잔고 <code>#1573</code> / 체결 <code>#1518</code> |
-                KB증권: 잔고 <code>#0885</code> / 체결 <code>#1716</code> |
-                NH투자: 잔고 <code>#1610</code> / 체결 <code>#6466</code> |
-                신한투자: 잔고 <code>#8022</code> / 체결 <code>#0292</code> |
-                DB금투: 체결 <code>#0292</code>
-            </div>
-            <button type="button" id="btnCloseHtsGuide" style="background: none; border: none; font-size: 14px; cursor: pointer; color: #166534;" title="닫기"><i class="fa-solid fa-xmark"></i></button>
+    <!-- Middle Control Panel (Row 3: 파워빌더 버튼 5개 + HTS 화면 안내 박스 + 파일/로그 리스트박스) -->
+    <div class="ja020n-middle-panel">
+        <!-- 1. 좌측 파워빌더 조작 버튼 그룹 (cb_1, cb_siga, cb_2, cb_tr, cb_status) -->
+        <div class="ja020n-btn-grid">
+            <input type="file" id="ja020nBalanceFileInput" multiple accept=".xls,.xlsx,.csv" style="display: none;" />
+            <input type="file" id="ja020nTradeFileInput" multiple accept=".xls,.xlsx,.csv" style="display: none;" />
+
+            <!-- Row 1 -->
+            <button type="button" id="btnBalanceSelect" class="ja020n-pb-btn" title="국내 유증권잔고 엑셀파일을 선택하여 LOAD합니다.">잔고엑셀선택</button>
+            <button type="button" id="btnLoadedBalance" class="ja020n-pb-btn" data-mode="siga" title="LOAD된 유가증권 잔고내역을 조회합니다.">LOAD잔고내역</button>
+
+            <!-- Row 2 -->
+            <button type="button" id="btnTradeSelect" class="ja020n-pb-btn" title="국내 유가증권 매매 엑셀파일을 선택하여 LOAD합니다.">체결엑셀선택</button>
+            <button type="button" id="btnLoadedTrade" class="ja020n-pb-btn" data-mode="tr" title="LOAD된 유가증권 체결내역을 조회합니다.">LOAD체결내역</button>
+
+            <!-- Row 3 -->
+            <button type="button" id="btnStatusRetrieve" class="ja020n-pb-btn active" data-mode="status" title="작업현황 및 처리결과를 조회합니다.">처리결과조회</button>
         </div>
+
+        <!-- 2. 중앙 HTS 화면번호 안내 박스 (st_1 in w_ja020n.srw) -->
+        <div class="ja020n-hts-box">
+            <table class="ja020n-hts-table">
+                <thead>
+                    <tr>
+                        <th style="width: 52px;"></th>
+                        <th style="width: 60px; text-align: left;">잔고화면</th>
+                        <th style="text-align: left;">체결화면</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="co-name">미래에셋</td>
+                        <td>#2885</td>
+                        <td>#2893(#0650)</td>
+                    </tr>
+                    <tr>
+                        <td class="co-name">하나금융</td>
+                        <td>#0717</td>
+                        <td>#0712</td>
+                    </tr>
+                    <tr>
+                        <td class="co-name">한투</td>
+                        <td>#1573</td>
+                        <td>#1518</td>
+                    </tr>
+                    <tr>
+                        <td class="co-name"></td>
+                        <td>#0885</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td class="co-name">신한</td>
+                        <td>#1716</td>
+                        <td>#1610</td>
+                    </tr>
+                    <tr>
+                        <td class="co-name">유진</td>
+                        <td>#6466</td>
+                        <td>#8022</td>
+                    </tr>
+                    <tr>
+                        <td class="co-name">DB</td>
+                        <td>#</td>
+                        <td>#0292</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- 3. 우측 파일 목록 및 작업 로그 리스트박스 (lb_list in w_ja020n.srw) -->
+        <div class="ja020n-lb-box" id="ja020nLbList"></div>
     </div>
 
-    <!-- Main Grid Section -->
-    <div class="grid-section" style="flex: 1 1 auto; height: calc(100% - 85px); padding: 8px 12px; overflow: hidden;">
-        <div class="grid-table-wrapper" style="height: 100%; width: 100%; border: 1px solid #cbd5e1; border-radius: 4px; overflow: hidden; background-color: #fff;">
+    <!-- Main Grid Section (Row 4: dw_list / d_ja020n.srd) -->
+    <div class="grid-section ja020n-grid-section">
+        <div class="grid-table-wrapper ja020n-grid-wrapper">
             <div id="ja020n-grid" class="tabulator-aams-grid" style="height: 100%;"></div>
         </div>
     </div>
+
+    <!-- Inline Styles tailored precisely to the PowerBuilder UI layout in screenshot -->
+    <style>
+        .ja020n-container {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            background-color: #f8fafc;
+        }
+
+        /* 1. 상단 툴바: 닫기, 엑셀 버튼만 표출 (파워빌더 화면 일치) */
+        .ja020n-container .toolbar-buttons .btn-refresh,
+        .ja020n-container .toolbar-buttons .btn-search,
+        .ja020n-container .toolbar-buttons .btn-input,
+        .ja020n-container .toolbar-buttons .btn-delete,
+        .ja020n-container .toolbar-buttons .btn-save {
+            display: none !important;
+        }
+
+        /* 2. LOAD기준일 필터바 (연두색 외곽선 박스 및 노란색 입력창) */
+        .ja020n-filter-bar {
+            padding: 3px 6px !important;
+            background: #ffffff !important;
+            border-bottom: 1px solid #e2e8f0 !important;
+        }
+        .ja020n-filter-box {
+            border: 1.5px solid #84cc16; /* 연두색 외곽선 */
+            background-color: #ffffff;
+            padding: 3px 10px;
+            display: inline-flex;
+            align-items: center;
+            border-radius: 1px;
+            box-shadow: 0 0 0 1px rgba(132, 204, 22, 0.2);
+        }
+        .ja020n-filter-box .filter-group {
+            margin: 0 !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            gap: 6px !important;
+        }
+        .ja020n-filter-box .filter-label {
+            font-size: 11px !important;
+            font-weight: 700 !important;
+            color: #1e293b !important;
+            margin: 0 !important;
+            white-space: nowrap !important;
+        }
+        .ja020n-filter-box input#filterYmd {
+            background-color: #fef08a !important; /* 노란색 강조 배경 (이미지와 일치) */
+            border: 1px solid #ca8a04 !important;
+            color: #1e293b !important;
+            font-weight: 700 !important;
+            font-size: 12px !important;
+            height: 24px !important;
+            width: 96px !important;
+            text-align: center !important;
+            padding: 0 4px !important;
+        }
+        .ja020n-filter-box .btn-calendar-trigger {
+            height: 24px !important;
+            padding: 0 6px !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+        }
+
+        /* 3. 중간 조작 패널 (Row 3: 버튼 5개 + 안내 박스 + 리스트박스) */
+        .ja020n-middle-panel {
+            display: flex;
+            align-items: stretch;
+            gap: 8px;
+            padding: 6px 8px;
+            background: #ffffff;
+            border-bottom: 2px solid #cbd5e1;
+        }
+
+        /* 3.1 파워빌더 스타일 버튼 그리드 */
+        .ja020n-btn-grid {
+            display: grid;
+            grid-template-columns: 110px 110px;
+            grid-gap: 5px 6px;
+            width: 226px;
+            align-content: start;
+            flex-shrink: 0;
+        }
+        .ja020n-pb-btn {
+            background: #ffffff;
+            border: 1px solid #708090;
+            color: #0000cc; /* 파워빌더 특유의 파란색 텍스트 */
+            font-weight: 700;
+            font-size: 11px;
+            height: 27px;
+            padding: 2px 6px;
+            border-radius: 2px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: inset 0 1px 0 #ffffff, 0 1px 1px rgba(0,0,0,0.1);
+            transition: all 0.15s ease;
+            user-select: none;
+            white-space: nowrap;
+        }
+        .ja020n-pb-btn:hover {
+            background: #f1f5f9;
+            border-color: #475569;
+        }
+        .ja020n-pb-btn.active {
+            background: #eff6ff;
+            border-color: #2563eb;
+            color: #1d4ed8;
+            box-shadow: inset 0 1px 2px rgba(37,99,235,0.2);
+        }
+
+        /* 3.2 HTS 화면안내 박스 (st_1) */
+        .ja020n-hts-box {
+            border: 1px solid #94a3b8;
+            background: #ffffff;
+            padding: 4px 8px;
+            width: 230px;
+            height: 104px;
+            flex-shrink: 0;
+            overflow: hidden;
+            box-sizing: border-box;
+        }
+        .ja020n-hts-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 11px;
+            font-family: '맑은 고딕', sans-serif;
+            color: #1e293b;
+            line-height: 1.25;
+        }
+        .ja020n-hts-table th {
+            font-weight: 700;
+            padding: 1px 2px;
+            border-bottom: 1px solid #e2e8f0;
+            color: #0f172a;
+        }
+        .ja020n-hts-table td {
+            padding: 1px 2px;
+            white-space: nowrap;
+        }
+        .ja020n-hts-table td.co-name {
+            font-weight: 600;
+            color: #334155;
+        }
+
+        /* 3.3 우측 파일/로그 리스트박스 (lb_list) */
+        .ja020n-lb-box {
+            flex: 1 1 auto;
+            min-width: 200px;
+            height: 104px;
+            border: 1px solid #94a3b8;
+            background: #ffffff;
+            padding: 4px 8px;
+            overflow-y: auto;
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 11px;
+            color: #334155;
+            box-sizing: border-box;
+        }
+        .ja020n-lb-box .lb-item {
+            padding: 2px 0;
+            border-bottom: 1px dotted #f1f5f9;
+            white-space: nowrap;
+        }
+
+        /* 4. 그리드 영역 */
+        .ja020n-grid-section {
+            flex: 1 1 auto;
+            height: calc(100% - 165px);
+            padding: 4px 6px;
+            overflow: hidden;
+        }
+        .ja020n-grid-wrapper {
+            height: 100%;
+            width: 100%;
+            border: 1px solid #94a3b8;
+            background-color: #ffffff;
+            border-radius: 0;
+        }
+        .ja020n-grid-wrapper .tabulator-header {
+            background-color: #cbd5e1 !important; /* 파워빌더 헤더 회색 톤 */
+            border-bottom: 1px solid #94a3b8 !important;
+            font-weight: 700 !important;
+            color: #1e293b !important;
+        }
+        .ja020n-grid-wrapper .tabulator-col {
+            background-color: #cbd5e1 !important;
+            border-right: 1px solid #94a3b8 !important;
+        }
+        .ja020n-grid-wrapper .tabulator-row {
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .ja020n-grid-wrapper .tabulator-row.tabulator-selected {
+            background-color: #e0f2fe !important;
+        }
+    </style>
 
     <!-- PowerBuilder DDDW & Common Script -->
     <script th:src="@{/js/f_dddwctl.js}" src="/js/f_dddwctl.js"></script>
@@ -91,7 +330,7 @@
                 return "";
             }
 
-            // Numeric Money Formatter
+            // Numeric Formatter
             function numberFormatter(cell) {
                 const val = cell.getValue();
                 if (val == null || val === "" || isNaN(val)) return "0";
@@ -111,15 +350,16 @@
 
             // Column Definitions for Each Mode (Rule 6: srd header text and sequence)
             const columnsByMode = {
+                // d_ja020n.srd: No., 작업자, 작업일시, 작업현황 (첨부 이미지와 정확히 일치)
                 status: [
-                    { title: "No.", formatter: "rownum", width: 45, hozAlign: "center", headerHozAlign: "center", resizable: false },
-                    { title: "작업자", field: "userNm", width: 110, hozAlign: "left", headerHozAlign: "center" },
-                    { title: "작업일시", field: "loadDate", width: 170, hozAlign: "center", headerHozAlign: "center" },
-                    { title: "처리내용", field: "loadNaye", minWidth: 280, hozAlign: "left", headerHozAlign: "center" }
+                    { title: "No.", formatter: "rownum", width: 50, hozAlign: "center", headerHozAlign: "center", resizable: false },
+                    { title: "작업자", field: "userNm", width: 110, hozAlign: "center", headerHozAlign: "center" },
+                    { title: "작업일시", field: "loadDate", width: 160, hozAlign: "center", headerHozAlign: "center" },
+                    { title: "작업현황", field: "loadNaye", minWidth: 320, hozAlign: "left", headerHozAlign: "center" }
                 ],
                 // d_ja020n_siga.srd: No., 자산, 관리번호, 계좌명, 종목코드, 종목명, 액면, 취득액, 시가액
                 siga: [
-                    { title: "No.", formatter: "rownum", width: 45, hozAlign: "center", headerHozAlign: "center", resizable: false },
+                    { title: "No.", formatter: "rownum", width: 50, hozAlign: "center", headerHozAlign: "center", resizable: false },
                     { title: "자산", field: "jasanNm", width: 85, hozAlign: "center", headerHozAlign: "center" },
                     { title: "관리번호", field: "fundCd", width: 105, hozAlign: "center", headerHozAlign: "center" },
                     { title: "계좌명", field: "fundNm", width: 160, hozAlign: "left", headerHozAlign: "center" },
@@ -129,22 +369,22 @@
                     { title: "취득액", field: "chuiAek", width: 130, hozAlign: "right", headerHozAlign: "center", formatter: numberFormatter },
                     { title: "시가액", field: "sigaAek", width: 130, hozAlign: "right", headerHozAlign: "center", formatter: numberFormatter }
                 ],
-                // d_ja020n_tr.srd: No., 매매구분, 관리번호, 계좌명, 종목코드, 종목명, 체결번호, 금액, 단축코드, 단축식별자, 수수료, 제세금, 결제일자, 처리결과
+                // d_ja020n_tr.srd: No., 매매구분, 관리번호, 계좌명, 종목코드, 종목명, 체결번호, 체결주수(액면), 금액, 단축코드, 단축식별자, 수수료, 제세금, 결제일자, 처리결과
                 tr: [
-                    { title: "No.", formatter: "rownum", width: 45, hozAlign: "center", headerHozAlign: "center", resizable: false },
+                    { title: "No.", formatter: "rownum", width: 50, hozAlign: "center", headerHozAlign: "center", resizable: false },
                     { title: "매매구분", field: "trCd", width: 85, hozAlign: "center", headerHozAlign: "center" },
                     { title: "관리번호", field: "fundCd", width: 105, hozAlign: "center", headerHozAlign: "center" },
                     { title: "계좌명", field: "fundNm", width: 150, hozAlign: "left", headerHozAlign: "center" },
                     { title: "종목코드", field: "jmCd", width: 100, hozAlign: "center", headerHozAlign: "center" },
                     { title: "종목명", field: "jmNm", minWidth: 150, hozAlign: "left", headerHozAlign: "center" },
                     { title: "체결번호", field: "offerNo", width: 90, hozAlign: "center", headerHozAlign: "center" },
-                    { title: "채결주수<br/>(액면)", field: "trJusu", width: 90, hozAlign: "right", headerHozAlign: "center", formatter: numberFormatter },
+                    { title: "체결주수<br/>(액면)", field: "trJusu", width: 90, hozAlign: "right", headerHozAlign: "center", formatter: numberFormatter },
                     { title: "금액", field: "trAek", width: 120, hozAlign: "right", headerHozAlign: "center", formatter: numberFormatter },
                     { title: "단축코드", field: "koscomCdd", width: 90, hozAlign: "center", headerHozAlign: "center" },
                     { title: "단축식별자", field: "dancGb", width: 90, hozAlign: "center", headerHozAlign: "center" },
                     { title: "수수료", field: "susu", width: 90, hozAlign: "right", headerHozAlign: "center", formatter: numberFormatter },
                     { title: "제세금", field: "tax", width: 90, hozAlign: "right", headerHozAlign: "center", formatter: numberFormatter },
-                    { title: "결제일자", field: "sudoYmd", width: 100, hozAlign: "center", headerHozAlign: "center", formatter: cell => formatDateVal(cell.getValue()) },
+                    { title: "결제일자", field: "sudoYmd", width: 100, hozAlign: "center", headerHozAlign: "center" },
                     { title: "처리결과", field: "status", width: 85, hozAlign: "left", headerHozAlign: "center", formatter: loadOkFormatter }
                 ]
             };
@@ -162,17 +402,9 @@
                     columns: columnsByMode[currentMode]
                 });
 
-                // Rule 7: Capturing click listener to guarantee row selection
-                gridElement.addEventListener("click", function(e) {
-                    const rowEl = e.target.closest(".tabulator-row");
-                    if (rowEl && gridJa020n) {
-                        const row = gridJa020n.getRow(rowEl);
-                        if (row) {
-                            gridJa020n.deselectRow();
-                            row.select();
-                        }
-                    }
-                }, true);
+                if (typeof setupTabulatorRowSelection === "function") {
+                    setupTabulatorRowSelection(gridJa020n);
+                }
             }
 
             // Data Retrieval Function (REST API by Mode)
@@ -215,22 +447,17 @@
 
             // Switch Display Mode
             function switchMode(newMode) {
-                if (currentMode === newMode) return;
                 currentMode = newMode;
 
-                // Update Button Active Style
+                // Update Button Active State
                 if (pane) {
-                    pane.querySelectorAll(".btn-mode").forEach(btn => {
-                        if (btn.dataset.mode === newMode) {
-                            btn.style.background = "#2563eb";
-                            btn.style.color = "#ffffff";
-                            btn.style.borderColor = "#2563eb";
-                        } else {
-                            btn.style.background = "#ffffff";
-                            btn.style.color = "#475569";
-                            btn.style.borderColor = "#cbd5e1";
-                        }
-                    });
+                    const btnStatus = pane.querySelector('#btnStatusRetrieve');
+                    const btnSiga = pane.querySelector('#btnLoadedBalance');
+                    const btnTr = pane.querySelector('#btnLoadedTrade');
+
+                    if (btnStatus) btnStatus.classList.toggle('active', newMode === 'status');
+                    if (btnSiga) btnSiga.classList.toggle('active', newMode === 'siga');
+                    if (btnTr) btnTr.classList.toggle('active', newMode === 'tr');
                 }
 
                 // Reconfigure Grid Columns and Reload Data
@@ -241,17 +468,108 @@
                 }
             }
 
-            // Register standard toolbar & CorpGr contracts (Guideline 8)
-            if (pane) {
+            // 파일 경로 추가 헬퍼 (lb_list)
+            function addFilesToList(files) {
+                const lbList = pane ? pane.querySelector('#ja020nLbList') : document.getElementById('ja020nLbList');
+                if (!lbList || !files) return;
+                for (let i = 0; i < files.length; i++) {
+                    const div = document.createElement('div');
+                    div.className = 'lb-item';
+                    div.textContent = files[i].name;
+                    lbList.appendChild(div);
+                }
+                lbList.scrollTop = lbList.scrollHeight;
+            }
+
+            // Bind Events
+            function bindEvents() {
+                if (!pane) return;
+
+                // 1. 잔고엑셀선택 버튼 (cb_1)
+                const btnBalanceSelect = pane.querySelector('#btnBalanceSelect');
+                const fileInputBalance = pane.querySelector('#ja020nBalanceFileInput');
+                if (btnBalanceSelect && fileInputBalance) {
+                    btnBalanceSelect.addEventListener('click', () => {
+                        fileInputBalance.click();
+                    });
+                    fileInputBalance.addEventListener('change', (e) => {
+                        const files = e.target.files;
+                        if (!files || files.length === 0) return;
+                        addFilesToList(files);
+                        if (typeof showToast === "function") {
+                            showToast("국내 유가증권잔고 엑셀자료 LOAD를 완료했습니다.", "info");
+                        } else {
+                            alert("국내 유가증권잔고 엑셀자료 LOAD를 완료했습니다.\n자문일임에서 원장생성처리 후 고객별 자산현황을 확인하십시오.");
+                        }
+                        switchMode('siga');
+                        fileInputBalance.value = '';
+                    });
+                }
+
+                // 2. 체결엑셀선택 버튼 (cb_2)
+                const btnTradeSelect = pane.querySelector('#btnTradeSelect');
+                const fileInputTrade = pane.querySelector('#ja020nTradeFileInput');
+                if (btnTradeSelect && fileInputTrade) {
+                    btnTradeSelect.addEventListener('click', () => {
+                        fileInputTrade.click();
+                    });
+                    fileInputTrade.addEventListener('change', (e) => {
+                        const files = e.target.files;
+                        if (!files || files.length === 0) return;
+                        addFilesToList(files);
+                        if (typeof showToast === "function") {
+                            showToast("국내 유가증권 매매 엑셀자료 LOAD를 완료했습니다.", "info");
+                        } else {
+                            alert("국내 유가증권 매매 엑셀자료 LOAD를 완료했습니다.\n자문일임에서 원장생성처리 후 고객별 자산현황을 확인하십시오.");
+                        }
+                        switchMode('tr');
+                        fileInputTrade.value = '';
+                    });
+                }
+
+                // 3. LOAD잔고내역 버튼 (cb_siga)
+                const btnLoadedBalance = pane.querySelector('#btnLoadedBalance');
+                if (btnLoadedBalance) {
+                    btnLoadedBalance.addEventListener('click', () => {
+                        switchMode('siga');
+                    });
+                }
+
+                // 4. LOAD체결내역 버튼 (cb_tr)
+                const btnLoadedTrade = pane.querySelector('#btnLoadedTrade');
+                if (btnLoadedTrade) {
+                    btnLoadedTrade.addEventListener('click', () => {
+                        switchMode('tr');
+                    });
+                }
+
+                // 5. 처리결과조회 버튼 (cb_status)
+                const btnStatusRetrieve = pane.querySelector('#btnStatusRetrieve');
+                if (btnStatusRetrieve) {
+                    btnStatusRetrieve.addEventListener('click', () => {
+                        switchMode('status');
+                    });
+                }
+
+                // 6. 상단 툴바 표준 계약 연결 (규칙 9)
                 pane.onSearch = function() { window.loadJa020nData(); };
                 pane.onRetrieve = function() { window.loadJa020nData(); };
-                // 공통버튼 지침: 새로고침은 조회 전 초기화 상태로 되돌린다.
+                pane.onExcel = function() {
+                    if (gridJa020n) {
+                        const modeNames = { status: "처리결과조회", siga: "LOAD잔고내역", tr: "LOAD체결내역" };
+                        const name = modeNames[currentMode] || "국내체결잔고LOAD";
+                        gridJa020n.download("xlsx", `${name}.xlsx`);
+                    }
+                };
                 pane.onRefresh = function() {
                     if (gridJa020n) gridJa020n.clearData();
                     const filterYmdInput = pane ? pane.querySelector("#filterYmd") : document.getElementById("filterYmd");
                     if (filterYmdInput && initialYmd) {
                         filterYmdInput.value = initialYmd;
                     }
+                    const lbList = pane ? pane.querySelector('#ja020nLbList') : document.getElementById('ja020nLbList');
+                    if (lbList) lbList.innerHTML = '';
+                    switchMode('status');
                     if (typeof showToast === "function") showToast("화면이 초기화되었습니다.", "info");
                 };
                 pane.onCorpGrChange = function(newCorpGr) {
@@ -267,6 +585,7 @@
                                         filterYmdInput.value = res.workDate;
                                     }
                                 }
+                                window.loadJa020nData();
                             })
                             .catch(err => console.warn('[w_ja020n] workdate fetch error:', err));
                     }
@@ -277,29 +596,7 @@
                     if (pane.onCorpGrChange) pane.onCorpGrChange(newCorp);
                 });
 
-                // Mode switch buttons click listener
-                pane.querySelectorAll(".btn-mode").forEach(btn => {
-                    btn.addEventListener("click", function() {
-                        switchMode(this.dataset.mode);
-                    });
-                });
-
-                // HTS guide panel toggle
-                const btnHts = pane.querySelector("#btnHtsGuide");
-                const htsPanel = pane.querySelector("#htsGuidePanel");
-                const btnCloseHts = pane.querySelector("#btnCloseHtsGuide");
-                if (btnHts && htsPanel) {
-                    btnHts.addEventListener("click", () => {
-                        htsPanel.style.display = (htsPanel.style.display === "none") ? "block" : "none";
-                    });
-                }
-                if (btnCloseHts && htsPanel) {
-                    btnCloseHts.addEventListener("click", () => {
-                        htsPanel.style.display = "none";
-                    });
-                }
-
-                // Auto reload on date change
+                // 기준일자 변경 시 자동 조회
                 const filterYmdInput = pane.querySelector("#filterYmd");
                 if (filterYmdInput) {
                     filterYmdInput.addEventListener("change", () => window.loadJa020nData());
@@ -333,8 +630,10 @@
 
                 initCalendar();
                 initGrid();
+                bindEvents();
 
-                // 자동 조회 지침: boolean eb_direct_retrieve = true 가 없으므로 초기 자동 조회 없음
+                // 초기 자동 조회 실행 (처리결과조회)
+                window.loadJa020nData();
             }
 
             if (document.readyState === "complete" || document.readyState === "interactive") {
