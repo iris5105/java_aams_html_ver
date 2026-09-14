@@ -2,173 +2,6 @@
 <html xmlns:th="http://www.thymeleaf.org">
 <div class="view-container layout-split ja010m3-container" th:fragment="ja010m3View" style="display: flex; flex-direction: column; height: 100%; width: 100%; overflow: hidden;">
 
-    <style>
-        .ja010m3-container .split-body {
-            display: flex;
-            flex-direction: row;
-            flex: 1 1 auto;
-            min-height: 0;
-            height: calc(100% - 90px);
-            width: 100%;
-            overflow: hidden;
-            padding: 8px;
-            gap: 8px;
-            background-color: #f8fafc;
-            box-sizing: border-box;
-        }
-
-        .ja010m3-container .left-pane {
-            flex: 1 1 58%;
-            min-width: 380px;
-            display: flex;
-            flex-direction: column;
-            background: #ffffff;
-            border: 1px solid #cbd5e1;
-            border-radius: 6px;
-            overflow: hidden;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-        }
-
-        .ja010m3-container .right-pane {
-            flex: 1 1 42%;
-            min-width: 380px;
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-            overflow: hidden;
-        }
-
-        .ja010m3-container .memo-card {
-            flex: 0 0 145px;
-            display: flex;
-            flex-direction: column;
-            background: #ffffff;
-            border: 1px solid #cbd5e1;
-            border-radius: 6px;
-            overflow: hidden;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-        }
-
-        .ja010m3-container .report-card {
-            flex: 1 1 auto;
-            min-height: 0;
-            display: flex;
-            flex-direction: column;
-            background: #ffffff;
-            border: 1px solid #cbd5e1;
-            border-radius: 6px;
-            overflow: hidden;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-        }
-
-        .ja010m3-container .pane-header {
-            padding: 6px 12px;
-            background: #f8fafc;
-            border-bottom: 1px solid #e2e8f0;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-shrink: 0;
-            flex-wrap: wrap;
-            gap: 6px;
-        }
-
-        .ja010m3-container .pane-body {
-            flex: 1 1 auto;
-            min-height: 0;
-            width: 100%;
-            overflow: hidden;
-            position: relative;
-        }
-
-        /* 5 포맷 내보내기 버튼 그룹 (개발지침 리포트 뷰어 표준 규격) */
-        .ja010m3-container .export-button-group {
-            display: flex;
-            align-items: center;
-            gap: 5px;
-            flex-wrap: wrap;
-        }
-
-        .ja010m3-container .btn-export-format {
-            padding: 3px 8px;
-            font-size: 11px;
-            font-weight: 600;
-            border-radius: 4px;
-            background: #ffffff;
-            cursor: pointer;
-            transition: all 0.15s ease-in-out;
-            display: inline-flex;
-            align-items: center;
-            gap: 4px;
-            line-height: 1.2;
-        }
-
-        .ja010m3-container .btn-export-format:hover {
-            opacity: 0.85;
-            transform: translateY(-1px);
-        }
-
-        /* 모바일 전용 모달 (width <= 876px) */
-        .ja010m3-modal-backdrop {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            background-color: rgba(0, 0, 0, 0.5);
-            z-index: 9999;
-            justify-content: center;
-            align-items: center;
-        }
-
-        .ja010m3-modal-dialog {
-            width: 95%;
-            height: 90%;
-            background: #ffffff;
-            border-radius: 8px;
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
-        }
-
-        .ja010m3-modal-header {
-            padding: 10px 14px;
-            background: #f1f5f9;
-            border-bottom: 1px solid #cbd5e1;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .ja010m3-modal-body {
-            flex: 1 1 auto;
-            background: #525659;
-            position: relative;
-        }
-
-        @media (max-width: 876px) {
-            .ja010m3-container .split-body {
-                flex-direction: column !important;
-                padding: 4px !important;
-                height: calc(100% - 110px) !important;
-            }
-
-            .ja010m3-container .left-pane {
-                flex: 1 1 100% !important;
-                width: 100% !important;
-                min-width: 0 !important;
-                max-width: 100% !important;
-                height: 100% !important;
-            }
-
-            .ja010m3-container .right-pane {
-                display: none !important;
-            }
-        }
-    </style>
-
     <!-- 1. 상단 공통 툴바 (Row 1: 공통 액션 버튼 + 네비게이션 브레드크럼) -->
     <div class="view-toolbar">
         <div class="toolbar-left">
@@ -184,11 +17,11 @@
         </div>
     </div>
 
-    <!-- 3. 마스터-디테일 본문 영역 (Horizontal Split) -->
-    <div class="split-body">
+    <!-- 3. 마스터-디테일 본문 영역 (Horizontal Split: 기본 60:40 비율 및 드래그 조절) -->
+    <div class="layout-split-h split-body" data-split-key="W_JA010M3">
         
         <!-- 좌측: 결산현황 목록 그리드 (d_ja010m3) -->
-        <div class="left-pane">
+        <div class="pane-left left-pane">
             <div class="pane-header">
                 <div style="display: flex; align-items: center; gap: 6px;">
                     <span style="font-weight: 600; font-size: 13px; color: #1e293b;">
@@ -203,7 +36,7 @@
         </div>
 
         <!-- 우측: 계약조건 메모 (mle_cond) 및 결산보고서 미리보기 (ole_rd) -->
-        <div class="right-pane">
+        <div class="pane-right right-pane">
             
             <!-- 상단: 계약조건 메모 (mle_cond) -->
             <div class="memo-card">

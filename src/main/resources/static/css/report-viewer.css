@@ -1,0 +1,205 @@
+/* ==========================================================================
+   AAMS Common MRD Report Viewer Stylesheet
+   File: report-viewer.css
+   Description: Standard Crownix HTML5 MRD Report Viewer & Export Buttons & Modal
+   ========================================================================== */
+
+/* 1. Report Card Container */
+.report-card {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    box-sizing: border-box;
+    position: relative;
+}
+
+/* 2. Report Frame & Placeholder & Loading */
+.report-frame {
+    width: 100%;
+    height: 100%;
+    border: none;
+    background-color: #525659;
+}
+
+.report-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    color: #cbd5e1;
+    font-size: 13px;
+    text-align: center;
+    background: #475569;
+}
+
+.report-placeholder i {
+    font-size: 36px;
+    margin-bottom: 8px;
+}
+
+.report-loading {
+    display: none;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(15, 23, 42, 0.8);
+    color: #ffffff;
+    padding: 12px 20px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 500;
+    z-index: 50;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+}
+
+.report-loading i {
+    margin-right: 6px;
+}
+
+/* 3. 5 Format Export Button Group (Rule: PDF, Excel, Word, PPT, HWP) */
+.export-button-group {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-wrap: wrap;
+}
+
+.btn-export-format {
+    padding: 3px 8px;
+    font-size: 11px;
+    font-weight: 600;
+    border-radius: 4px;
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    cursor: pointer;
+    transition: all 0.15s ease-in-out;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    line-height: 1.2;
+}
+
+.btn-export-format:hover {
+    opacity: 0.88;
+    transform: translateY(-1px);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.btn-export-format.btn-pdf {
+    color: #dc2626;
+    border-color: #fca5a5;
+    background-color: #fef2f2;
+}
+.btn-export-format.btn-pdf:hover {
+    background-color: #fee2e2;
+}
+
+.btn-export-format.btn-excel {
+    color: #16a34a;
+    border-color: #86efac;
+    background-color: #f0fdf4;
+}
+.btn-export-format.btn-excel:hover {
+    background-color: #dcfce7;
+}
+
+.btn-export-format.btn-word {
+    color: #2563eb;
+    border-color: #93c5fd;
+    background-color: #eff6ff;
+}
+.btn-export-format.btn-word:hover {
+    background-color: #dbeafe;
+}
+
+.btn-export-format.btn-ppt {
+    color: #ea580c;
+    border-color: #fdba74;
+    background-color: #fff7ed;
+}
+.btn-export-format.btn-ppt:hover {
+    background-color: #ffedd5;
+}
+
+.btn-export-format.btn-hwp {
+    color: #0284c7;
+    border-color: #7dd3fc;
+    background-color: #f0f9ff;
+}
+.btn-export-format.btn-hwp:hover {
+    background-color: #e0f2fe;
+}
+
+.btn-export-format.btn-window {
+    color: #475569;
+    border-color: #cbd5e1;
+    background-color: #f8fafc;
+}
+.btn-export-format.btn-window:hover {
+    background-color: #f1f5f9;
+}
+
+/* 4. Mobile Fullscreen Modal (<= 876px) */
+.report-modal-backdrop,
+.ja010m3-modal-backdrop,
+.ja010h1-modal-backdrop,
+.ja010j-modal-backdrop {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(0, 0, 0, 0.55);
+    z-index: 9999;
+    justify-content: center;
+    align-items: center;
+}
+
+.report-modal-dialog,
+.ja010m3-modal-dialog,
+.ja010h1-modal-dialog,
+.ja010j-modal-dialog {
+    width: 96%;
+    height: 92%;
+    background: #ffffff;
+    border-radius: 8px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.35);
+}
+
+.report-modal-header,
+.ja010m3-modal-header,
+.ja010h1-modal-header,
+.ja010j-modal-header {
+    padding: 10px 14px;
+    background: #f1f5f9;
+    border-bottom: 1px solid #cbd5e1;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 13px;
+    font-weight: 600;
+    color: #1e293b;
+}
+
+.report-modal-body,
+.ja010m3-modal-body,
+.ja010h1-modal-body,
+.ja010j-modal-body {
+    flex: 1 1 auto;
+    background: #525659;
+    position: relative;
+    overflow: hidden;
+}

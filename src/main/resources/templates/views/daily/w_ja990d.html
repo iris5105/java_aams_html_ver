@@ -92,6 +92,32 @@
         .btn-search-icon:hover, .btn-cal-icon:hover {
             background: #e2e8f0;
         }
+        .btn-grid-addon {
+            background: transparent;
+            border: none;
+            padding: 2px 4px;
+            cursor: pointer;
+            color: #475569;
+            border-radius: 3px;
+            font-size: 12px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            line-height: 1;
+            transition: color 0.15s ease, background-color 0.15s ease, transform 0.1s ease;
+        }
+        .btn-grid-addon:hover {
+            color: #2563eb;
+            background-color: #eff6ff;
+            transform: scale(1.1);
+        }
+        .btn-grid-addon.btn-calendar, .btn-grid-addon.btn-cal {
+            color: #2563eb;
+        }
+        .btn-grid-addon.btn-calendar:hover, .btn-grid-addon.btn-cal:hover {
+            color: #1d4ed8;
+            background-color: #eff6ff;
+        }
 
         /* 반응형: 태블릿/모바일 (width <= 876px) 우측 폼 하단 배치 */
         @media (max-width: 876px) {
@@ -595,16 +621,22 @@
                         return `<button type="button" class="btn-grid-addon btn-search" title="발행기관 검색"><i class="fa-solid fa-magnifying-glass"></i></button>`;
                     },
                     cellClick: function(e, cell) {
+                        e.stopPropagation();
                         aamsCellEdit(e, cell);
                         const row = cell.getRow();
+                        const rowData = row.getData();
                         if (window.DynamicCodeSearch && typeof window.DynamicCodeSearch.openModal === 'function') {
                             window.DynamicCodeSearch.openModal({
                                 columnNm: "balh_co",
                                 seq: 1,
                                 corpGr: resolveCorpGr(),
-                                initialKeyword: row.getData().balhCo || "",
+                                initialKeyword: rowData.balhCo || "",
                                 onSelect: function(code, name) {
-                                    row.update({ balhCo: code, balhNm: name, isUpdated: true });
+                                    const updateObj = { balhCo: code, balhNm: name, isUpdated: true };
+                                    if (!rowData.jjNm) {
+                                        updateObj.jjNm = name;
+                                    }
+                                    row.update(updateObj);
                                 }
                             });
                         }
@@ -630,7 +662,7 @@
                 { title: "단축코드", field: "koscomCd", width: 85, hozAlign: "center", headerHozAlign: "center", editor: "input", cellClick: aamsCellEdit },
                 { title: "발행가", field: "balhGa", width: 90, hozAlign: "right", headerHozAlign: "center", formatter: numFormatter, editor: "number", cellClick: aamsCellEdit },
                 { title: "총발행주수", field: "sangjJusu", width: 100, hozAlign: "right", headerHozAlign: "center", formatter: numFormatter, editor: "number", cellClick: aamsCellEdit },
-                { title: "권리발생일", field: "kweonriYmd", width: 95, hozAlign: "center", headerHozAlign: "center", formatter: dateFormatter, editor: "date", cellClick: aamsCellEdit },
+                { title: "권리발생일", field: "kweonriYmd", width: 95, hozAlign: "center", headerHozAlign: "center", formatter: dateFormatter, editor: "input", cellClick: aamsCellEdit },
                 {
                     title: "",
                     field: "p_dd_kweonri_ymd",
@@ -642,19 +674,31 @@
                     headerSort: false,
                     resizable: false,
                     formatter: function() {
-                        return `<button type="button" class="btn-grid-addon btn-calendar" title="권리발생일 선택"><i class="fa-regular fa-calendar-days"></i></button>`;
+                        return `<button type="button" class="btn-grid-addon btn-cal btn-calendar" title="권리발생일 선택"><i class="fa-regular fa-calendar-days"></i></button>`;
                     },
                     cellClick: function(e, cell) {
+                        e.stopPropagation();
                         aamsCellEdit(e, cell);
                         const row = cell.getRow();
-                        if (window.AamsCalendar && window.AamsCalendar.pickDate) {
-                            window.AamsCalendar.pickDate(row.getData().kweonriYmd, function(selectedDate) {
-                                row.update({ kweonriYmd: selectedDate, isUpdated: true });
+                        const curVal = row.getData().kweonriYmd || "";
+                        const anchorEl = (e.target && e.target.closest) ? (e.target.closest("button") || cell.getElement()) : cell.getElement();
+                        if (window.AamsCalendar && typeof window.AamsCalendar.openDatePicker === 'function') {
+                            window.AamsCalendar.openDatePicker({
+                                anchorEl: anchorEl,
+                                initialYmd: curVal,
+                                format: 'raw',
+                                onSelect: function(rawYmd, dotYmd, dashYmd) {
+                                    row.update({ kweonriYmd: rawYmd, isUpdated: true });
+                                }
                             });
+                        } else if (window.AamsCalendar && typeof window.AamsCalendar.pickDate === 'function') {
+                            window.AamsCalendar.pickDate(curVal, function(selectedDate) {
+                                row.update({ kweonriYmd: selectedDate, isUpdated: true });
+                            }, anchorEl);
                         }
                     }
                 },
-                { title: "상장일", field: "sangjYmd", width: 95, hozAlign: "center", headerHozAlign: "center", formatter: dateFormatter, editor: "date", cellClick: aamsCellEdit },
+                { title: "상장일", field: "sangjYmd", width: 95, hozAlign: "center", headerHozAlign: "center", formatter: dateFormatter, editor: "input", cellClick: aamsCellEdit },
                 {
                     title: "",
                     field: "p_dd_sangj_ymd",
@@ -666,15 +710,27 @@
                     headerSort: false,
                     resizable: false,
                     formatter: function() {
-                        return `<button type="button" class="btn-grid-addon btn-calendar" title="상장일 선택"><i class="fa-regular fa-calendar-days"></i></button>`;
+                        return `<button type="button" class="btn-grid-addon btn-cal btn-calendar" title="상장일 선택"><i class="fa-regular fa-calendar-days"></i></button>`;
                     },
                     cellClick: function(e, cell) {
+                        e.stopPropagation();
                         aamsCellEdit(e, cell);
                         const row = cell.getRow();
-                        if (window.AamsCalendar && window.AamsCalendar.pickDate) {
-                            window.AamsCalendar.pickDate(row.getData().sangjYmd, function(selectedDate) {
-                                row.update({ sangjYmd: selectedDate, isUpdated: true });
+                        const curVal = row.getData().sangjYmd || "";
+                        const anchorEl = (e.target && e.target.closest) ? (e.target.closest("button") || cell.getElement()) : cell.getElement();
+                        if (window.AamsCalendar && typeof window.AamsCalendar.openDatePicker === 'function') {
+                            window.AamsCalendar.openDatePicker({
+                                anchorEl: anchorEl,
+                                initialYmd: curVal,
+                                format: 'raw',
+                                onSelect: function(rawYmd, dotYmd, dashYmd) {
+                                    row.update({ sangjYmd: rawYmd, isUpdated: true });
+                                }
                             });
+                        } else if (window.AamsCalendar && typeof window.AamsCalendar.pickDate === 'function') {
+                            window.AamsCalendar.pickDate(curVal, function(selectedDate) {
+                                row.update({ sangjYmd: selectedDate, isUpdated: true });
+                            }, anchorEl);
                         }
                     }
                 },
@@ -812,10 +868,12 @@
                 bindInput("form-isinCd", "isinCd");
                 bindCheckbox("form-a0231", "a0231");
 
-                // 발행기관 검색 모달 버튼
+                // 발행기관 검색 모달 버튼 (p_xx_balh_co)
                 const btnBalh = getEl("btn-balh-search");
                 if (btnBalh) {
-                    btnBalh.addEventListener("click", function() {
+                    btnBalh.addEventListener("click", function(e) {
+                        e.preventDefault();
+                        e.stopPropagation();
                         if (window.DynamicCodeSearch && typeof window.DynamicCodeSearch.openModal === 'function') {
                             const curVal = getEl("form-balhCo") ? getEl("form-balhCo").value.trim() : "";
                             window.DynamicCodeSearch.openModal({
@@ -828,16 +886,22 @@
                                     if (getEl("form-balhNm")) getEl("form-balhNm").value = name || "";
                                     syncFormToGrid("balhCo", code || "");
                                     syncFormToGrid("balhNm", name || "");
+                                    if (getEl("form-jjNm") && !getEl("form-jjNm").value.trim()) {
+                                        getEl("form-jjNm").value = name || "";
+                                        syncFormToGrid("jjNm", name || "");
+                                    }
                                 }
                             });
                         }
                     });
                 }
 
-                // 업종코드 검색 모달 버튼
+                // 업종코드 검색 모달 버튼 (p_xx_upj_cd)
                 const btnUpj = getEl("btn-upj-search");
                 if (btnUpj) {
-                    btnUpj.addEventListener("click", function() {
+                    btnUpj.addEventListener("click", function(e) {
+                        e.preventDefault();
+                        e.stopPropagation();
                         if (window.DynamicCodeSearch && typeof window.DynamicCodeSearch.openModal === 'function') {
                             const curVal = getEl("form-upjCd") ? getEl("form-upjCd").value.trim() : "";
                             window.DynamicCodeSearch.openModal({
@@ -856,17 +920,30 @@
                     });
                 }
 
-                // 달력 선택 버튼 바인딩 헬퍼 (Rule 16)
+                // 달력 선택 버튼 바인딩 헬퍼 (Rule 16 - p_dd_...)
                 const bindCalendarBtn = (btnId, inputId, fieldName) => {
                     const btn = getEl(btnId);
                     const inp = getEl(inputId);
                     if (!btn || !inp) return;
-                    btn.addEventListener("click", function() {
-                        if (window.AamsCalendar && window.AamsCalendar.pickDate) {
-                            window.AamsCalendar.pickDate(inp.value, function(newDate) {
+                    btn.addEventListener("click", function(e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        const curVal = inp.value.trim();
+                        if (window.AamsCalendar && typeof window.AamsCalendar.openDatePicker === 'function') {
+                            window.AamsCalendar.openDatePicker({
+                                anchorEl: btn,
+                                initialYmd: curVal,
+                                format: 'dot',
+                                onSelect: function(dotDate, rawDate, dashDate) {
+                                    inp.value = dotDate;
+                                    syncFormToGrid(fieldName, dashDate || formatDateHyphen(rawDate));
+                                }
+                            });
+                        } else if (window.AamsCalendar && typeof window.AamsCalendar.pickDate === 'function') {
+                            window.AamsCalendar.pickDate(curVal, function(newDate) {
                                 inp.value = formatDateDot(newDate);
                                 syncFormToGrid(fieldName, formatDateHyphen(newDate));
-                            });
+                            }, btn);
                         }
                     });
                 };
@@ -1026,6 +1103,16 @@
                         height: "100%",
                         placeholder: "조회된 신주인수권 종목이 없습니다.",
                         cellEdited: function(cell) {
+                            const field = cell.getField();
+                            if (field === "kweonriYmd" || field === "sangjYmd") {
+                                const val = cell.getValue();
+                                if (val) {
+                                    const clean = String(val).replace(/\D/g, "");
+                                    if (clean.length === 8) {
+                                        cell.setValue(clean, true);
+                                    }
+                                }
+                            }
                             cell.getRow().update({ isUpdated: true });
                         }
                     });

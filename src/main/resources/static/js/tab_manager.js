@@ -260,6 +260,13 @@ class TabManager {
                             window.AamsCalendar.autoInitRanges(pane);
                         }, 50);
                     }
+
+                    // Auto-initialize AAMS Splitters inside loaded view pane if present
+                    if (window.AamsSplitter && typeof window.AamsSplitter.init === 'function') {
+                        setTimeout(() => {
+                            window.AamsSplitter.init(pane);
+                        }, 60);
+                    }
                 })
                 .catch(err => {
                     console.error("Error loading tab view:", err);

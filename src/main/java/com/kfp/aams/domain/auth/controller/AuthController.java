@@ -135,6 +135,19 @@ public class AuthController {
             response.addCookie(savedCorpGrCookie);
         }
 
+        // Set userId Cookie for client scripts (30 days)
+        if (userDto.getUserId() != null && !userDto.getUserId().isBlank()) {
+            Cookie userIdCookie = new Cookie("userId", userDto.getUserId());
+            userIdCookie.setPath("/");
+            userIdCookie.setMaxAge(30 * 24 * 60 * 60);
+            response.addCookie(userIdCookie);
+
+            Cookie userIdSnakeCookie = new Cookie("user_id", userDto.getUserId());
+            userIdSnakeCookie.setPath("/");
+            userIdSnakeCookie.setMaxAge(30 * 24 * 60 * 60);
+            response.addCookie(userIdSnakeCookie);
+        }
+
         // Set userNm Cookie for client scripts (30 days)
         if (userDto.getUserNm() != null && !userDto.getUserNm().isBlank()) {
             Cookie userNmCookie = new Cookie("userNm", java.net.URLEncoder.encode(userDto.getUserNm(), java.nio.charset.StandardCharsets.UTF_8));
@@ -239,6 +252,18 @@ public class AuthController {
         workDateCookie.setMaxAge(30 * 24 * 60 * 60);
         response.addCookie(workDateCookie);
 
+        if (principal.getUserId() != null && !principal.getUserId().isBlank()) {
+            Cookie userIdCookie = new Cookie("userId", principal.getUserId());
+            userIdCookie.setPath("/");
+            userIdCookie.setMaxAge(30 * 24 * 60 * 60);
+            response.addCookie(userIdCookie);
+
+            Cookie userIdSnakeCookie = new Cookie("user_id", principal.getUserId());
+            userIdSnakeCookie.setPath("/");
+            userIdSnakeCookie.setMaxAge(30 * 24 * 60 * 60);
+            response.addCookie(userIdSnakeCookie);
+        }
+
         log.info("User {} switched company corpGr to {}, workDate: {}", principal.getUserId(), newCorpGr, switchedWorkDate);
 
         return ResponseEntity.ok(Map.of("success", true, "corpGr", newCorpGr, "workDate", switchedWorkDate));
@@ -265,6 +290,16 @@ public class AuthController {
         workDateCookie.setPath("/");
         workDateCookie.setMaxAge(0);
         response.addCookie(workDateCookie);
+
+        Cookie userIdCookie = new Cookie("userId", null);
+        userIdCookie.setPath("/");
+        userIdCookie.setMaxAge(0);
+        response.addCookie(userIdCookie);
+
+        Cookie userIdSnakeCookie = new Cookie("user_id", null);
+        userIdSnakeCookie.setPath("/");
+        userIdSnakeCookie.setMaxAge(0);
+        response.addCookie(userIdSnakeCookie);
 
         return ResponseEntity.ok(LoginResponseDto.builder()
                 .success(true)

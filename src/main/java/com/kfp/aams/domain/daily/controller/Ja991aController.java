@@ -34,6 +34,7 @@ public class Ja991aController {
                              @RequestParam(name = "corpGr", required = false) String paramCorpGr,
                              @CookieValue(name = "savedCorpGr", required = false) String cookieCorpGr1,
                              @CookieValue(name = "corpGr", required = false) String cookieCorpGr2,
+                             @CookieValue(name = "workDate", required = false) String cookieWorkDate,
                              Model model) {
         UserPrincipal principal = (principalObj instanceof UserPrincipal p) ? p : null;
         String cookieCorpGr = (cookieCorpGr1 != null && !cookieCorpGr1.isBlank()) ? cookieCorpGr1 : cookieCorpGr2;
@@ -47,11 +48,13 @@ public class Ja991aController {
                 ? menuDto.getFullpgm2()
                 : "사무관리 > 기준정보관리 > 주식 종가조회";
 
-        String defaultYmd = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+        String effectiveWorkDate = (cookieWorkDate != null && !cookieWorkDate.isBlank())
+                ? cookieWorkDate
+                : LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
 
         model.addAttribute("fullpgm2", fullpgm2);
         model.addAttribute("corpGr", corpGr);
-        model.addAttribute("ymd", defaultYmd);
+        model.addAttribute("workDate", effectiveWorkDate);
 
         return "views/daily/w_ja991a";
     }
@@ -60,9 +63,16 @@ public class Ja991aController {
     @ResponseBody
     public ResponseEntity<List<Ja991aMasterDto>> getMasterList(
             @RequestParam(name = "corpGr", required = false) String corpGr,
-            @RequestParam(name = "ymd", required = false) String ymd) {
+            @RequestParam(name = "ymd", required = false) String ymd,
+            @CookieValue(name = "workDate", required = false) String cookieWorkDate,
+            @CookieValue(name = "savedCorpGr", required = false) String cookieCorpGr1,
+            @CookieValue(name = "corpGr", required = false) String cookieCorpGr2) {
 
-        List<Ja991aMasterDto> list = ja991aService.getMasterList(corpGr, ymd);
+        String cookieCorpGr = (cookieCorpGr1 != null && !cookieCorpGr1.isBlank()) ? cookieCorpGr1 : cookieCorpGr2;
+        String effectiveCorpGr = (corpGr != null && !corpGr.isBlank()) ? corpGr : cookieCorpGr;
+        String effectiveYmd = (ymd != null && !ymd.isBlank()) ? ymd : cookieWorkDate;
+
+        List<Ja991aMasterDto> list = ja991aService.getMasterList(effectiveCorpGr, effectiveYmd);
         return ResponseEntity.ok(list);
     }
 
@@ -70,13 +80,16 @@ public class Ja991aController {
     @ResponseBody
     public ResponseEntity<List<Ja991aDetailDto>> getDetailList(
             @RequestParam(name = "koscomCd") String koscomCd,
-            @RequestParam(name = "ymd", required = false) String ymd) {
+            @RequestParam(name = "ymd", required = false) String ymd,
+            @CookieValue(name = "workDate", required = false) String cookieWorkDate) {
 
         if (koscomCd == null || koscomCd.isBlank()) {
             return ResponseEntity.ok(Collections.emptyList());
         }
 
-        List<Ja991aDetailDto> list = ja991aService.getDetailList(koscomCd, ymd);
+        String effectiveYmd = (ymd != null && !ymd.isBlank()) ? ymd : cookieWorkDate;
+
+        List<Ja991aDetailDto> list = ja991aService.getDetailList(koscomCd, effectiveYmd);
         return ResponseEntity.ok(list);
     }
 

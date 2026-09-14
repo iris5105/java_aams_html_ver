@@ -144,6 +144,11 @@
                     localStorage.setItem('userNm', data.userNm || '');
                     localStorage.setItem('corpGr', data.corpGr);
 
+                    if (data.userId) {
+                        document.cookie = "userId=" + encodeURIComponent(data.userId) + "; path=/; max-age=2592000";
+                        document.cookie = "user_id=" + encodeURIComponent(data.userId) + "; path=/; max-age=2592000";
+                    }
+
                     if (data.userNm) {
                         document.cookie = "userNm=" + encodeURIComponent(data.userNm) + "; path=/; max-age=2592000";
                     }

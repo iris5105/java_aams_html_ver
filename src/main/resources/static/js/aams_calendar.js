@@ -1139,6 +1139,17 @@ window.AamsCalendar = (function() {
          *   - onSelect: function(formattedYmd, rawYmd, dotYmd)
          *   - format: 'dot' ('YYYY.MM.DD') | 'dash' ('YYYY-MM-DD') | 'raw' ('YYYYMMDD')
          */
+        pickDate: function(initialYmd, onSelect, anchorEl, options) {
+            let opts = {};
+            if (options && typeof options === 'object') {
+                opts = Object.assign({}, options);
+            }
+            opts.initialYmd = initialYmd;
+            opts.onSelect = onSelect;
+            opts.anchorEl = anchorEl || (typeof window !== 'undefined' && window.event ? (window.event.target || window.event.srcElement) : document.body);
+            this.openDatePicker(opts);
+        },
+
         openDatePicker: function(options) {
             options = options || {};
             const anchorEl = options.anchorEl;
