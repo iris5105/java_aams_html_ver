@@ -1,7 +1,7 @@
-package com.kfp.aams.domain.daily.service;
+package com.kfp.aams.domain.DailyAdvisory.service;
 
-import com.kfp.aams.domain.daily.dto.Ja010gDto;
-import com.kfp.aams.domain.daily.mapper.Ja010gMapper;
+import com.kfp.aams.domain.DailyAdvisory.dto.Ja010gDto;
+import com.kfp.aams.domain.DailyAdvisory.mapper.Ja010gMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -16,7 +16,7 @@ import java.util.List;
 public class Ja010gService {
 
     private final Ja010gMapper ja010gMapper;
-    private final com.kfp.aams.domain.common.service.WorkDateService workDateService;
+    private final com.kfp.aams.common.service.WorkDateService workDateService;
 
     @Transactional(readOnly = true)
     public List<Ja010gDto> selectJa010gList(String corpGr, String ymd) {

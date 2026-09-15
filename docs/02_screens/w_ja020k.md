@@ -1,4 +1,4 @@
-# w_ja020k : 일(종목)별 운용현황 데이터 조회 및 리포트 연동 가이드
+﻿# w_ja020k : 일(종목)별 운용현황 데이터 조회 및 리포트 연동 가이드
 
 ## 1. 화면 개요 및 파워빌더 대응 정보
 
@@ -47,7 +47,7 @@
 
 ## 3. 계층별 세부 코드 및 구성 분석
 
-### 3.1 화면 및 클라이언트 스크립트 ([w_ja020k.html](file:///d:/work/java_aams_html_ver/src/main/resources/templates/views/daily/w_ja020k.html))
+### 3.1 화면 및 클라이언트 스크립트 ([w_ja020k.html](file:///d:/work/java_aams_html_ver/src/main/resources/templates/views/DailyAdvisory/w_ja020k.html))
 
 - **필터바 구성**:
   - `filterYmd`: `AamsCalendar.initSimple` 바인딩, 작업일자 자동 주입

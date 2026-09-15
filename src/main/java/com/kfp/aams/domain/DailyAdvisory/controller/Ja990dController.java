@@ -1,9 +1,9 @@
-package com.kfp.aams.domain.daily.controller;
+package com.kfp.aams.domain.DailyAdvisory.controller;
 
-import com.kfp.aams.domain.daily.dto.Ja990dDto;
-import com.kfp.aams.domain.daily.dto.Ja990dSaveDto;
-import com.kfp.aams.domain.daily.service.Ja990dService;
-import com.kfp.aams.domain.menu.service.MenuService;
+import com.kfp.aams.domain.DailyAdvisory.dto.Ja990dDto;
+import com.kfp.aams.domain.DailyAdvisory.dto.Ja990dSaveDto;
+import com.kfp.aams.domain.DailyAdvisory.service.Ja990dService;
+import com.kfp.aams.menu.service.MenuService;
 import com.kfp.aams.security.UserPrincipal;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -24,7 +24,7 @@ public class Ja990dController {
     private final Ja990dService ja990dService;
     private final MenuService menuService;
 
-    @GetMapping({"/views/w_ja990d", "/views/daily/w_ja990d"})
+    @GetMapping({"/views/w_ja990d", "/views/DailyAdvisory/w_ja990d"})
     public String viewJa990d(@AuthenticationPrincipal Object principalObj,
                              @RequestParam(name = "corpGr", required = false) String paramCorpGr,
                              @CookieValue(name = "savedCorpGr", required = false) String cookieCorpGr1,
@@ -45,7 +45,7 @@ public class Ja990dController {
         model.addAttribute("fullpgm2", fullpgm2);
         model.addAttribute("corpGr", corpGr);
 
-        return "views/daily/w_ja990d";
+        return "views/DailyAdvisory/w_ja990d";
     }
 
     @GetMapping("/api/daily/ja990d/stocks")

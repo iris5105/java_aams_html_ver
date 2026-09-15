@@ -1,8 +1,8 @@
-package com.kfp.aams.domain.daily.service;
+package com.kfp.aams.domain.DailyAdvisory.service;
 
-import com.kfp.aams.domain.daily.dto.RunCheckResultDto;
-import com.kfp.aams.domain.daily.dto.RunItemDto;
-import com.kfp.aams.domain.daily.mapper.RunMapper;
+import com.kfp.aams.domain.DailyAdvisory.dto.RunCheckResultDto;
+import com.kfp.aams.domain.DailyAdvisory.dto.RunItemDto;
+import com.kfp.aams.domain.DailyAdvisory.mapper.RunMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;

@@ -1,8 +1,8 @@
-package com.kfp.aams.domain.daily.service;
+package com.kfp.aams.domain.DailyAdvisory.service;
 
-import com.kfp.aams.domain.daily.dto.ProposalCommentDto;
-import com.kfp.aams.domain.daily.dto.ProposalMasterDto;
-import com.kfp.aams.domain.daily.repository.ProposalQueryDslRepository;
+import com.kfp.aams.domain.DailyAdvisory.dto.ProposalCommentDto;
+import com.kfp.aams.domain.DailyAdvisory.dto.ProposalMasterDto;
+import com.kfp.aams.domain.DailyAdvisory.repository.ProposalQueryDslRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

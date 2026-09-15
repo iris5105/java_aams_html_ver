@@ -1,9 +1,9 @@
-package com.kfp.aams.domain.daily.controller;
+package com.kfp.aams.domain.DailyAdvisory.controller;
 
-//import com.kfp.aams.domain.common.service.DddwService;
-import com.kfp.aams.domain.daily.dto.Ja030cDto;
-import com.kfp.aams.domain.daily.service.Ja030cService;
-import com.kfp.aams.domain.menu.service.MenuService;
+//import com.kfp.aams.common.service.DddwService;
+import com.kfp.aams.domain.DailyAdvisory.dto.Ja030cDto;
+import com.kfp.aams.domain.DailyAdvisory.service.Ja030cService;
+import com.kfp.aams.menu.service.MenuService;
 import com.kfp.aams.security.UserPrincipal;
 import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
@@ -30,7 +30,7 @@ public class Ja030cController {
     private final MenuService menuService;
     // private final DddwService dddwService;
 
-    @GetMapping({ "/views/w_ja030c", "/views/daily/w_ja030c" })
+    @GetMapping({ "/views/w_ja030c", "/views/DailyAdvisory/w_ja030c" })
     public String viewJa030c(@AuthenticationPrincipal Object principalObj,
             @RequestParam(name = "corpGr", required = false) String paramCorpGr,
             @RequestParam(name = "ymd", required = false) String paramYmd,
@@ -61,7 +61,7 @@ public class Ja030cController {
         model.addAttribute("dddw", paramDddw != null ? paramDddw : "J15");
         model.addAttribute("trDates", trDates);
 
-        return "views/daily/w_ja030c";
+        return "views/DailyAdvisory/w_ja030c";
     }
 
     /**

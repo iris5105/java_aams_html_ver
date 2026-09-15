@@ -1,4 +1,4 @@
-# w_ja010j : 공모청약 수요예측 참여표 데이터 조회 및 리포트 연동 가이드
+﻿# w_ja010j : 공모청약 수요예측 참여표 데이터 조회 및 리포트 연동 가이드
 
 ## 1. 화면 개요 및 파워빌더 대응 정보
 
@@ -51,7 +51,7 @@
 
 ## 3. 계층별 세부 코드 및 구성 분석
 
-### 3.1 화면 및 클라이언트 스크립트 ([w_ja010j.html](file:///d:/work/java_aams_html_ver/src/main/resources/templates/views/daily/w_ja010j.html))
+### 3.1 화면 및 클라이언트 스크립트 ([w_ja010j.html](file:///d:/work/java_aams_html_ver/src/main/resources/templates/views/DailyAdvisory/w_ja010j.html))
 
 ```javascript
 function syncDetail(row, data) {

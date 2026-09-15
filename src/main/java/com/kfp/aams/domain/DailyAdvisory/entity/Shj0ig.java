@@ -1,4 +1,4 @@
-package com.kfp.aams.domain.daily.entity;
+package com.kfp.aams.domain.DailyAdvisory.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;

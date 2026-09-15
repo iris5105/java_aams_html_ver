@@ -1,7 +1,7 @@
-package com.kfp.aams.domain.daily.service;
+package com.kfp.aams.domain.DailyAdvisory.service;
 
-import com.kfp.aams.domain.daily.dto.Ja030cDto;
-import com.kfp.aams.domain.daily.mapper.Ja030cMapper;
+import com.kfp.aams.domain.DailyAdvisory.dto.Ja030cDto;
+import com.kfp.aams.domain.DailyAdvisory.mapper.Ja030cMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

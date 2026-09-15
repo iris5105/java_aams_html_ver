@@ -1,4 +1,4 @@
-package com.kfp.aams.domain.daily.entity;
+package com.kfp.aams.domain.DailyAdvisory.entity;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;

@@ -1,9 +1,9 @@
-package com.kfp.aams.domain.daily.controller;
+package com.kfp.aams.domain.DailyAdvisory.controller;
 
-import com.kfp.aams.domain.daily.dto.RunCheckResultDto;
-import com.kfp.aams.domain.daily.dto.RunExecuteRequestDto;
-import com.kfp.aams.domain.daily.dto.RunItemDto;
-import com.kfp.aams.domain.daily.service.RunService;
+import com.kfp.aams.domain.DailyAdvisory.dto.RunCheckResultDto;
+import com.kfp.aams.domain.DailyAdvisory.dto.RunExecuteRequestDto;
+import com.kfp.aams.domain.DailyAdvisory.dto.RunItemDto;
+import com.kfp.aams.domain.DailyAdvisory.service.RunService;
 import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -23,9 +23,9 @@ public class RunController {
 
     private final RunService runService;
 
-    @GetMapping({"/views/w_run", "/views/daily/w_run"})
+    @GetMapping({"/views/w_run", "/views/DailyAdvisory/w_run"})
     public String runView(Model model) {
-        return "views/daily/w_run";
+        return "views/DailyAdvisory/w_run";
     }
 
     @GetMapping("/api/daily/run/programs")

@@ -1,8 +1,8 @@
-package com.kfp.aams.domain.daily.repository;
+package com.kfp.aams.domain.DailyAdvisory.repository;
 
-import com.kfp.aams.domain.daily.dto.Shj0igDetailDto;
-import com.kfp.aams.domain.daily.entity.QShj0ig;
-import com.kfp.aams.domain.daily.entity.Shj0ig;
+import com.kfp.aams.domain.DailyAdvisory.dto.Shj0igDetailDto;
+import com.kfp.aams.domain.DailyAdvisory.entity.QShj0ig;
+import com.kfp.aams.domain.DailyAdvisory.entity.Shj0ig;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;

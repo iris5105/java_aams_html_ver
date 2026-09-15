@@ -1,8 +1,8 @@
-package com.kfp.aams.domain.daily.controller;
+package com.kfp.aams.domain.DailyAdvisory.controller;
 
-import com.kfp.aams.domain.daily.service.Ja020kService;
-import com.kfp.aams.domain.daily.service.RdReportService;
-import com.kfp.aams.domain.menu.service.MenuService;
+import com.kfp.aams.domain.DailyAdvisory.service.Ja020kService;
+import com.kfp.aams.domain.DailyAdvisory.service.RdReportService;
+import com.kfp.aams.menu.service.MenuService;
 import com.kfp.aams.security.UserPrincipal;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -31,7 +31,7 @@ public class Ja020kController {
     private final RdReportService rdReportService;
     private final MenuService menuService;
 
-    @GetMapping({"/views/w_ja020k", "/views/daily/w_ja020k"})
+    @GetMapping({"/views/w_ja020k", "/views/DailyAdvisory/w_ja020k"})
     public String ja020kView(@AuthenticationPrincipal Object principalObj,
                              @RequestParam(name = "corpGr", required = false) String paramCorpGr,
                              @RequestParam(name = "ymd", required = false) String paramYmd,
@@ -59,7 +59,7 @@ public class Ja020kController {
         model.addAttribute("initialYmd", workDate);
         model.addAttribute("ymd", workDate);
 
-        return "views/daily/w_ja020k";
+        return "views/DailyAdvisory/w_ja020k";
     }
 
     /**

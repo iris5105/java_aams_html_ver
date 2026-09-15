@@ -1,4 +1,4 @@
-# w_ja010h : 자산명세표 데이터 조회 및 반응형 모바일 모달 가이드
+﻿# w_ja010h : 자산명세표 데이터 조회 및 반응형 모바일 모달 가이드
 
 ## 1. 화면 개요 및 파워빌더 대응 정보
 
@@ -49,7 +49,7 @@
 
 ## 3. 계층별 세부 코드 및 구성 분석
 
-### 3.1 화면 및 반응형 스크립트 ([w_ja010h.html](file:///d:/work/java_aams_html_ver/src/main/resources/templates/views/daily/w_ja010h.html))
+### 3.1 화면 및 반응형 스크립트 ([w_ja010h.html](file:///d:/work/java_aams_html_ver/src/main/resources/templates/views/DailyAdvisory/w_ja010h.html))
 
 - **데스크톱 / 모바일 반응형 분기**:
   ```javascript
@@ -99,7 +99,7 @@ public ResponseEntity<byte[]> previewReport(
 ### 3.3 매퍼 SQL 계층 (`Ja010hMapper.xml`)
 
 ```xml
-<select id="selectFundList" resultType="com.kfp.aams.domain.daily.dto.Ja010hFundDto">
+<select id="selectFundList" resultType="com.kfp.aams.domain.DailyAdvisory.dto.Ja010hFundDto">
     SELECT A.CORP_GR     AS corpGr,
            A.FUND_CD     AS fundCd,
            A.FUND_NM     AS fundNm,

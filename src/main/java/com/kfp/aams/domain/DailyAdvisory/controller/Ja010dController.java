@@ -1,7 +1,7 @@
-package com.kfp.aams.domain.daily.controller;
+package com.kfp.aams.domain.DailyAdvisory.controller;
 
-import com.kfp.aams.domain.daily.dto.Ja010dDto;
-import com.kfp.aams.domain.daily.service.Ja010dService;
+import com.kfp.aams.domain.DailyAdvisory.dto.Ja010dDto;
+import com.kfp.aams.domain.DailyAdvisory.service.Ja010dService;
 import com.kfp.aams.security.UserPrincipal;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -21,10 +21,10 @@ import java.util.List;
 public class Ja010dController {
 
     private final Ja010dService ja010dService;
-    private final com.kfp.aams.domain.menu.service.MenuService menuService;
-    private final com.kfp.aams.domain.common.service.DddwService dddwService;
+    private final com.kfp.aams.menu.service.MenuService menuService;
+    private final com.kfp.aams.common.service.DddwService dddwService;
 
-    @GetMapping({"/views/w_ja010d", "/views/daily/w_ja010d"})
+    @GetMapping({"/views/w_ja010d", "/views/DailyAdvisory/w_ja010d"})
     public String viewJa010d(@AuthenticationPrincipal Object principalObj,
             @RequestParam(name = "corpGr", required = false) String paramCorpGr,
             @RequestParam(name = "trYmd", required = false) String paramTrYmd,
@@ -58,7 +58,7 @@ public class Ja010dController {
         String fullpgm2 = (menuDto != null) ? menuDto.getFullpgm2() : null;
         model.addAttribute("fullpgm2", fullpgm2);
 
-        return "views/daily/w_ja010d";
+        return "views/DailyAdvisory/w_ja010d";
     }
 
     @GetMapping("/api/account/ja010d/list")

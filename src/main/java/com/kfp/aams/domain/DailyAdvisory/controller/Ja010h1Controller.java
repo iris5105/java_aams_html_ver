@@ -1,9 +1,9 @@
-package com.kfp.aams.domain.daily.controller;
+package com.kfp.aams.domain.DailyAdvisory.controller;
 
-import com.kfp.aams.domain.daily.dto.Ja010hMasterDto;
-import com.kfp.aams.domain.daily.service.Ja010hService;
-import com.kfp.aams.domain.daily.service.RdReportService;
-import com.kfp.aams.domain.menu.service.MenuService;
+import com.kfp.aams.domain.DailyAdvisory.dto.Ja010hMasterDto;
+import com.kfp.aams.domain.DailyAdvisory.service.Ja010hService;
+import com.kfp.aams.domain.DailyAdvisory.service.RdReportService;
+import com.kfp.aams.menu.service.MenuService;
 import com.kfp.aams.security.UserPrincipal;
 import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
@@ -32,7 +32,7 @@ public class Ja010h1Controller {
     private final RdReportService rdReportService;
     private final MenuService menuService;
 
-    @GetMapping({"/views/w_ja010h1", "/views/daily/w_ja010h1"})
+    @GetMapping({"/views/w_ja010h1", "/views/DailyAdvisory/w_ja010h1"})
     public String ja010h1View(@AuthenticationPrincipal Object principalObj,
                              @RequestParam(name = "corpGr", required = false) String paramCorpGr,
                              @RequestParam(name = "ymd", required = false) String paramYmd,
@@ -75,7 +75,7 @@ public class Ja010h1Controller {
         model.addAttribute("ymd", workDate);
         model.addAttribute("initialYmd", workDate);
 
-        return "views/daily/w_ja010h1";
+        return "views/DailyAdvisory/w_ja010h1";
     }
 
     /**

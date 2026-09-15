@@ -1,7 +1,7 @@
-package com.kfp.aams.domain.daily.service;
+package com.kfp.aams.domain.DailyAdvisory.service;
 
-import com.kfp.aams.domain.daily.dto.Ja010hMasterDto;
-import com.kfp.aams.domain.daily.mapper.Ja010hMapper;
+import com.kfp.aams.domain.DailyAdvisory.dto.Ja010hMasterDto;
+import com.kfp.aams.domain.DailyAdvisory.mapper.Ja010hMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -21,7 +21,7 @@ public class Ja010hService {
 
     private final Ja010hMapper ja010hMapper;
     private final RdReportService rdReportService;
-    private final com.kfp.aams.domain.common.service.WorkDateService workDateService;
+    private final com.kfp.aams.common.service.WorkDateService workDateService;
 
     /**
      * 펀드 목록 조회 (d_szm0ia.srd)

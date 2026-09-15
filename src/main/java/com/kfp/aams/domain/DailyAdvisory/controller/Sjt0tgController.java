@@ -1,10 +1,10 @@
-package com.kfp.aams.domain.daily.controller;
+package com.kfp.aams.domain.DailyAdvisory.controller;
 
-import com.kfp.aams.domain.daily.dto.Sjt0tgDto;
-import com.kfp.aams.domain.daily.dto.Sjt0tgFilterDto;
-import com.kfp.aams.domain.daily.dto.Sjt0tgSaveDto;
-import com.kfp.aams.domain.daily.service.Sjt0tgService;
-import com.kfp.aams.domain.menu.service.MenuService;
+import com.kfp.aams.domain.DailyAdvisory.dto.Sjt0tgDto;
+import com.kfp.aams.domain.DailyAdvisory.dto.Sjt0tgFilterDto;
+import com.kfp.aams.domain.DailyAdvisory.dto.Sjt0tgSaveDto;
+import com.kfp.aams.domain.DailyAdvisory.service.Sjt0tgService;
+import com.kfp.aams.menu.service.MenuService;
 import com.kfp.aams.security.UserPrincipal;
 import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
@@ -35,7 +35,7 @@ public class Sjt0tgController {
     /**
      * 뷰 템플릿 렌더링
      */
-    @GetMapping({"/views/w_sjt0tg", "/views/daily/w_sjt0tg"})
+    @GetMapping({"/views/w_sjt0tg", "/views/DailyAdvisory/w_sjt0tg"})
     public String viewSjt0tg(@AuthenticationPrincipal Object principalObj,
                              @RequestParam(name = "corpGr", required = false) String paramCorpGr,
                              @RequestParam(name = "ymd", required = false) String paramYmd,
@@ -62,7 +62,7 @@ public class Sjt0tgController {
         model.addAttribute("corpGr", corpGr);
         model.addAttribute("ymd", ymd);
 
-        return "views/daily/w_sjt0tg";
+        return "views/DailyAdvisory/w_sjt0tg";
     }
 
     /**

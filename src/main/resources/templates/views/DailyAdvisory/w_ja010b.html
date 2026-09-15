@@ -3,8 +3,8 @@
 <div class="view-container layout-split-tb ja010b-container" th:fragment="ja010bView">
 
     <style>
-        .ja010b-container .tabulator-row.row-completed,
-        .ja010b-container .tabulator-row.row-completed .tabulator-cell {
+        .ja010b-container .tabulator-row.row-completed:not(.tabulator-selected),
+        .ja010b-container .tabulator-row.row-completed:not(.tabulator-selected) .tabulator-cell {
             color: #94a3b8 !important;
             background-color: #f8fafc !important;
         }
@@ -355,6 +355,7 @@
                     layout: "fitDataFill",
                     height: "100%",
                     selectableRows: 1,
+                    selectableRowsRollingSelection: true,
                     placeholder: "<span>조회된 계좌 계약정보가 없습니다.</span>",
                     columnDefaults: { vertAlign: "middle", headerSortTristate: true },
                     rowFormatter: function(row) {
@@ -379,13 +380,11 @@
                                 clearable: true,
                                 itemFormatter: f_dddwctl.get2ColItemFormatter("코드", "증권사명")
                             },
-                            cellClick: function(e, cell) {
-                                cell.edit(true);
-                            }
+                            cellClick: aamsCellEdit
                         },
-                        { title: "고객명", field: "fundNm", hozAlign: "left", minWidth: 120, editor: "input", cellClick: (e, cell) => cell.edit(true) },
+                        { title: "고객명", field: "fundNm", hozAlign: "left", minWidth: 120, editor: "input", cellClick: aamsCellEdit },
                         { title: "<span style='color: #0d9488;'>관리번호</span>", field: "fundCd", hozAlign: "center", width: 75 },
-                        { title: "계좌번호", field: "acctNo", hozAlign: "center", minWidth: 105, formatter: cell => cell.getValue() || '-', editor: "input", cellClick: (e, cell) => cell.edit(true) },
+                        { title: "계좌번호", field: "acctNo", hozAlign: "center", minWidth: 105, formatter: cell => cell.getValue() || '-', editor: "input", cellClick: aamsCellEdit },
                         { 
                             title: "계좌관리그룹", 
                             field: "seriesGb", 
@@ -400,9 +399,7 @@
                                 clearable: true,
                                 itemFormatter: f_dddwctl.get2ColItemFormatter("코드", "그룹명")
                             },
-                            cellClick: function(e, cell) {
-                                cell.edit(true);
-                            }
+                            cellClick: aamsCellEdit
                         },
                         { 
                             title: "고객<br/>유형", 
@@ -418,20 +415,18 @@
                                 clearable: true,
                                 itemFormatter: f_dddwctl.get2ColItemFormatter("코드", "유형명")
                             },
-                            cellClick: function(e, cell) {
-                                cell.edit(true);
-                            }
+                            cellClick: aamsCellEdit
                         },
                         {
                             title: "수수료(%)",
                             headerHozAlign: "center",
                             columns: [
-                                { title: "<span style='color: #2563eb;'>선취</span>", field: "preBasic", hozAlign: "right", minWidth: 55, editor: "number", editorParams: { step: 0.01 }, cellClick: (e, cell) => cell.edit(true) },
-                                { title: "<span style='color: #2563eb;'>후취</span>", field: "basicPer", hozAlign: "right", minWidth: 55, editor: "number", editorParams: { step: 0.01 }, cellClick: (e, cell) => cell.edit(true) }
+                                { title: "<span style='color: #2563eb;'>선취</span>", field: "preBasic", hozAlign: "right", minWidth: 55, editor: "number", editorParams: { step: 0.01 }, cellClick: aamsCellEdit },
+                                { title: "<span style='color: #2563eb;'>후취</span>", field: "basicPer", hozAlign: "right", minWidth: 55, editor: "number", editorParams: { step: 0.01 }, cellClick: aamsCellEdit }
                             ]
                         },
-                        { title: "<span style='color: #2563eb;'>목표<br/>수익(%)</span>", field: "bmPer", hozAlign: "right", minWidth: 75, editor: "number", editorParams: { step: 0.01 }, cellClick: (e, cell) => cell.edit(true) },
-                        { title: "<span style='color: #2563eb;'>성과<br/>보수(%)</span>", field: "successPer", hozAlign: "right", minWidth: 75, editor: "number", editorParams: { step: 0.01 }, cellClick: (e, cell) => cell.edit(true) },
+                        { title: "<span style='color: #2563eb;'>목표<br/>수익(%)</span>", field: "bmPer", hozAlign: "right", minWidth: 75, editor: "number", editorParams: { step: 0.01 }, cellClick: aamsCellEdit },
+                        { title: "<span style='color: #2563eb;'>성과<br/>보수(%)</span>", field: "successPer", hozAlign: "right", minWidth: 75, editor: "number", editorParams: { step: 0.01 }, cellClick: aamsCellEdit },
                         { 
                             title: "성과보수<br/>대상자산", 
                             field: "targetJasan", 
@@ -446,9 +441,7 @@
                                 clearable: true,
                                 itemFormatter: f_dddwctl.get2ColItemFormatter("코드", "자산구분명")
                             },
-                            cellClick: function(e, cell) {
-                                cell.edit(true);
-                            }
+                            cellClick: aamsCellEdit
                         },
                         { 
                             title: "최 초<br/>계약일", 
@@ -458,11 +451,9 @@
                             formatter: cell => formatDateVal(cell.getValue()),
                             editor: "input",
                             editable: (cell) => !cell.getValue() || cell.getRow().getData().isNew,
-                            cellClick: function(e, cell) {
-                                cell.edit(true);
-                            }
+                            cellClick: aamsCellEdit
                         },
-                        { title: "<span style='color: #2563eb;'>(재)<br/>계약일</span>", field: "reSeoljYmd", hozAlign: "center", minWidth: 85, formatter: cell => `<span style="color: #2563eb; font-weight: 500;">${formatDateVal(cell.getValue())}</span>`, editor: "input", cellClick: (e, cell) => cell.edit(true) },
+                        { title: "<span style='color: #2563eb;'>(재)<br/>계약일</span>", field: "reSeoljYmd", hozAlign: "center", minWidth: 85, formatter: cell => `<span style="color: #2563eb; font-weight: 500;">${formatDateVal(cell.getValue())}</span>`, editor: "input", cellClick: aamsCellEdit },
                         // p_dd_re_seolj_ymd (Grid Internal Rule 3, 4: Empty column with calendar popup button)
                         {
                             title: "",
@@ -505,7 +496,7 @@
                             }
                         },
                         { title: "계약<br/>횟수", field: "gyulGi", hozAlign: "center", minWidth: 60 },
-                        { title: "계약<br/>기간", field: "sintakGigan", hozAlign: "center", minWidth: 60, editor: "number", cellClick: (e, cell) => cell.edit(true) },
+                        { title: "계약<br/>기간", field: "sintakGigan", hozAlign: "center", minWidth: 60, editor: "number", cellClick: aamsCellEdit },
                         { title: "만기예정일", field: "afGyulYmd", hozAlign: "center", minWidth: 85, formatter: cell => formatDateVal(cell.getValue()) },
                         { title: "<span style='color: #ef4444;'>계약종료일</span>", field: "haejiYmd", hozAlign: "center", minWidth: 85, formatter: cell => `<span style="color: #ef4444; font-weight: 500;">${formatDateVal(cell.getValue())}</span>`, editor: "input", cellClick: aamsCellEdit },
                         { 
@@ -546,11 +537,16 @@
                 });
 
                 function syncJa010bDetail(row, data) {
-                    if (!data) return;
-                    const specialNote = data.specialNote || "";
+                    if (!row) return;
+                    if (!row.isSelected || !row.isSelected()) {
+                        row.select();
+                    }
+                    const d = data || (row.getData ? row.getData() : null);
+                    if (!d) return;
+                    const specialNote = d.specialNote || "";
                     const mle = pane ? pane.querySelector("#mleSpecialNote") : document.getElementById("mleSpecialNote");
                     if (mle) mle.value = specialNote;
-                    fetchJa010bSubGrids(data.fundCd, data);
+                    fetchJa010bSubGrids(d.fundCd, d);
                 }
 
                 // 1. AAMS Standard: Register global row selection callback
@@ -558,8 +554,11 @@
                     syncJa010bDetail(row, data);
                 });
 
-                // 2. Tabulator standard rowClick fallback
+                // 2. Tabulator standard rowClick fallback (guarantees visual selection)
                 gridMaster.on("rowClick", function(e, row) {
+                    if (row && (!row.isSelected || !row.isSelected())) {
+                        row.select();
+                    }
                     const data = row ? row.getData() : null;
                     syncJa010bDetail(row, data);
                 });

@@ -1,4 +1,4 @@
-# w_ja020n : 기준일자 공통 쿼리(SZX0AA_YMD) 연동 가이드
+﻿# w_ja020n : 기준일자 공통 쿼리(SZX0AA_YMD) 연동 가이드
 
 ## 1. 화면 개요 및 공통 쿼리 전환 배경
 
@@ -15,7 +15,7 @@
 ### 2.1 공통 SQL 조각 정의
 ```xml
 <!-- src/main/resources/mapper/common/CommonMapper.xml -->
-<mapper namespace="com.kfp.aams.domain.common.mapper.CommonMapper">
+<mapper namespace="com.kfp.aams.common.mapper.CommonMapper">
 
     <!-- 전사 공통 펀드 기준일자 추출 서브쿼리 -->
     <sql id="SZX0AA_YMD">
@@ -33,14 +33,14 @@
 
 ### 2.2 `Ja020nMapper.xml`에서의 공통 쿼리 재참조 (`<include>`)
 ```xml
-<!-- src/main/resources/mapper/daily/Ja020nMapper.xml -->
-<select id="selectFundWorkDateList" resultType="com.kfp.aams.domain.daily.dto.Ja020nDto">
+<!-- src/main/resources/mapper/DailyAdvisory/Ja020nMapper.xml -->
+<select id="selectFundWorkDateList" resultType="com.kfp.aams.domain.DailyAdvisory.dto.Ja020nDto">
     SELECT M.CORP_GR  AS corpGr,
            M.FUND_CD  AS fundCd,
            M.WORK_YMD AS workYmd,
            F.FUND_NM  AS fundNm
       FROM (
-          <include refid="com.kfp.aams.domain.common.mapper.CommonMapper.SZX0AA_YMD"/>
+          <include refid="com.kfp.aams.common.mapper.CommonMapper.SZX0AA_YMD"/>
       ) M
       JOIN SZX0AA F ON M.CORP_GR = F.CORP_GR AND M.FUND_CD = F.FUND_CD
      ORDER BY M.FUND_CD ASC
@@ -80,6 +80,6 @@
 ## 4. 유지보수 가이드 및 개발 규칙 준수
 
 1. **동일 쿼리 신규 개발 금지**:
-   - 펀드별 기준일자(`JUNYONG_YMD`/`HYUN_YMD`) 조건이 필요한 다른 신규 화면 개발 시 인라인 서브쿼리를 새로 작성하지 않고 반드시 `<include refid="com.kfp.aams.domain.common.mapper.CommonMapper.SZX0AA_YMD"/>`를 참조해야 합니다.
+   - 펀드별 기준일자(`JUNYONG_YMD`/`HYUN_YMD`) 조건이 필요한 다른 신규 화면 개발 시 인라인 서브쿼리를 새로 작성하지 않고 반드시 `<include refid="com.kfp.aams.common.mapper.CommonMapper.SZX0AA_YMD"/>`를 참조해야 합니다.
 2. **기준일자 산출 로직 변경 시**:
    - `CommonMapper.xml`의 해당 `<sql>` 태그 한 곳만 수정하면 이를 참조하는 모든 화면(`w_ja020n`, `w_ja010g`, `w_ja010h` 등)에 안전하게 일괄 적용됩니다.

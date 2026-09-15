@@ -1,8 +1,8 @@
-package com.kfp.aams.domain.daily.service;
+package com.kfp.aams.domain.DailyAdvisory.service;
 
-import com.kfp.aams.domain.daily.dto.GuganDto;
-import com.kfp.aams.domain.daily.dto.Uzm0hyDto;
-import com.kfp.aams.domain.daily.mapper.Uzm0hyMapper;
+import com.kfp.aams.domain.DailyAdvisory.dto.GuganDto;
+import com.kfp.aams.domain.DailyAdvisory.dto.Uzm0hyDto;
+import com.kfp.aams.domain.DailyAdvisory.mapper.Uzm0hyMapper;
 import lombok.Builder;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
@@ -22,7 +22,7 @@ public class Ja020k1Service {
 
     private final Uzm0hyMapper uzm0hyMapper;
     private final RdReportService rdReportService;
-    private final com.kfp.aams.domain.common.service.WorkDateService workDateService;
+    private final com.kfp.aams.common.service.WorkDateService workDateService;
 
     /**
      * 회사그룹별 기준일자 조회

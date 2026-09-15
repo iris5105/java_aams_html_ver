@@ -1,10 +1,10 @@
-package com.kfp.aams.domain.daily.controller;
+package com.kfp.aams.domain.DailyAdvisory.controller;
 
-import com.kfp.aams.domain.daily.dto.Shm1pgDto;
-import com.kfp.aams.domain.daily.dto.Shm1pgFilterDto;
-import com.kfp.aams.domain.daily.dto.Shm1pgSaveDto;
-import com.kfp.aams.domain.daily.service.Shm1pgService;
-import com.kfp.aams.domain.menu.service.MenuService;
+import com.kfp.aams.domain.DailyAdvisory.dto.Shm1pgDto;
+import com.kfp.aams.domain.DailyAdvisory.dto.Shm1pgFilterDto;
+import com.kfp.aams.domain.DailyAdvisory.dto.Shm1pgSaveDto;
+import com.kfp.aams.domain.DailyAdvisory.service.Shm1pgService;
+import com.kfp.aams.menu.service.MenuService;
 import com.kfp.aams.security.UserPrincipal;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -28,7 +28,7 @@ public class Shm1pgController {
     private final Shm1pgService shm1pgService;
     private final MenuService menuService;
 
-    @GetMapping({"/views/w_shm1pg", "/views/daily/w_shm1pg"})
+    @GetMapping({"/views/w_shm1pg", "/views/DailyAdvisory/w_shm1pg"})
     public String viewShm1pg(@AuthenticationPrincipal Object principalObj,
                              @RequestParam(name = "corpGr", required = false) String paramCorpGr,
                              @RequestParam(name = "ymd", required = false) String paramYmd,
@@ -54,7 +54,7 @@ public class Shm1pgController {
         model.addAttribute("corpGr", corpGr);
         model.addAttribute("ymd", ymd);
 
-        return "views/daily/w_shm1pg";
+        return "views/DailyAdvisory/w_shm1pg";
     }
 
     @GetMapping("/api/daily/shm1pg/list")

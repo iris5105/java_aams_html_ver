@@ -1,9 +1,9 @@
 package com.kfp.aams;
 
-import com.kfp.aams.domain.daily.dto.Ja020nSigaDto;
-import com.kfp.aams.domain.daily.dto.Ja020nStatusDto;
-import com.kfp.aams.domain.daily.dto.Ja020nTrDto;
-import com.kfp.aams.domain.daily.service.Ja020nService;
+import com.kfp.aams.domain.DailyAdvisory.dto.Ja020nSigaDto;
+import com.kfp.aams.domain.DailyAdvisory.dto.Ja020nStatusDto;
+import com.kfp.aams.domain.DailyAdvisory.dto.Ja020nTrDto;
+import com.kfp.aams.domain.DailyAdvisory.service.Ja020nService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;

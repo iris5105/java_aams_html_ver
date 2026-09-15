@@ -1,7 +1,7 @@
-package com.kfp.aams.domain.daily.mapper;
+package com.kfp.aams.domain.DailyAdvisory.mapper;
 
-import com.kfp.aams.domain.daily.dto.Ja990cDetailDto;
-import com.kfp.aams.domain.daily.dto.Ja990cMasterDto;
+import com.kfp.aams.domain.DailyAdvisory.dto.Ja990cDetailDto;
+import com.kfp.aams.domain.DailyAdvisory.dto.Ja990cMasterDto;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 

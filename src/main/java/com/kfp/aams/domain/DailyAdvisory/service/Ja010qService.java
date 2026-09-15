@@ -1,7 +1,7 @@
-package com.kfp.aams.domain.daily.service;
+package com.kfp.aams.domain.DailyAdvisory.service;
 
-import com.kfp.aams.domain.daily.dto.Ja010qDto;
-import com.kfp.aams.domain.daily.mapper.Ja010qMapper;
+import com.kfp.aams.domain.DailyAdvisory.dto.Ja010qDto;
+import com.kfp.aams.domain.DailyAdvisory.mapper.Ja010qMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -18,7 +18,7 @@ public class Ja010qService {
 
     private final Ja010qMapper ja010qMapper;
     private final RdReportService rdReportService;
-    private final com.kfp.aams.domain.common.service.WorkDateService workDateService;
+    private final com.kfp.aams.common.service.WorkDateService workDateService;
 
     /**
      * 회사그룹별 기준일자 조회 (SZX0AA.JUNYONG_YMD 또는 HYUN_YMD)

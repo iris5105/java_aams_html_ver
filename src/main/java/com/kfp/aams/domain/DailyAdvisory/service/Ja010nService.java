@@ -1,8 +1,8 @@
-package com.kfp.aams.domain.daily.service;
+package com.kfp.aams.domain.DailyAdvisory.service;
 
-import com.kfp.aams.domain.daily.dto.Ja010nDto;
-import com.kfp.aams.domain.daily.dto.Ja010nSaveDto;
-import com.kfp.aams.domain.daily.mapper.Ja010nMapper;
+import com.kfp.aams.domain.DailyAdvisory.dto.Ja010nDto;
+import com.kfp.aams.domain.DailyAdvisory.dto.Ja010nSaveDto;
+import com.kfp.aams.domain.DailyAdvisory.mapper.Ja010nMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;

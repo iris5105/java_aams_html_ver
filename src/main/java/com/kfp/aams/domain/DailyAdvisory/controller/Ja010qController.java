@@ -1,8 +1,8 @@
-package com.kfp.aams.domain.daily.controller;
+package com.kfp.aams.domain.DailyAdvisory.controller;
 
-import com.kfp.aams.domain.daily.dto.Ja010qDto;
-import com.kfp.aams.domain.daily.service.Ja010qService;
-import com.kfp.aams.domain.daily.service.RdReportService;
+import com.kfp.aams.domain.DailyAdvisory.dto.Ja010qDto;
+import com.kfp.aams.domain.DailyAdvisory.service.Ja010qService;
+import com.kfp.aams.domain.DailyAdvisory.service.RdReportService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
@@ -24,9 +24,9 @@ import java.util.List;
 public class Ja010qController {
 
     private final Ja010qService ja010qService;
-    private final com.kfp.aams.domain.menu.service.MenuService menuService;
+    private final com.kfp.aams.menu.service.MenuService menuService;
 
-    @GetMapping({"/views/w_ja010q", "/views/daily/w_ja010q"})
+    @GetMapping({"/views/w_ja010q", "/views/DailyAdvisory/w_ja010q"})
     public String ja010qView(@org.springframework.security.core.annotation.AuthenticationPrincipal Object principalObj,
                              @RequestParam(name = "corpGr", required = false) String paramCorpGr,
                              @RequestParam(name = "ymd", required = false) String paramYmd,
@@ -54,7 +54,7 @@ public class Ja010qController {
         model.addAttribute("ymd", workDate);
         model.addAttribute("initialYmd", workDate);
 
-        return "views/daily/w_ja010q";
+        return "views/DailyAdvisory/w_ja010q";
     }
 
     /**

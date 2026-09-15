@@ -1,4 +1,4 @@
-package com.kfp.aams.domain.daily.dto;
+package com.kfp.aams.domain.DailyAdvisory.dto;
 
 import lombok.*;
 

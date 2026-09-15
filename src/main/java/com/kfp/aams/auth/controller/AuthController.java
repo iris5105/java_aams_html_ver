@@ -1,0 +1,396 @@
+package com.kfp.aams.auth.controller;
+
+import com.kfp.aams.auth.dto.LoginRequestDto;
+import com.kfp.aams.auth.dto.LoginResponseDto;
+import com.kfp.aams.auth.dto.UserDto;
+import com.kfp.aams.auth.repository.UserQueryDslRepository;
+import com.kfp.aams.security.JwtProvider;
+import com.kfp.aams.security.UserPrincipal;
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.Map;
+
+@Slf4j
+@Controller
+@RequiredArgsConstructor
+public class AuthController {
+
+    private final JwtProvider jwtProvider;
+    private final UserQueryDslRepository userQueryDslRepository;
+    private final com.kfp.aams.common.service.WorkDateService workDateService;
+
+    @GetMapping({ "/login", "/w_login_aams" })
+    public String loginPage() {
+        return "w_login_aams";
+    }
+
+    @GetMapping("/api/auth/check-user-info")
+    @ResponseBody
+    public ResponseEntity<?> checkUserInfo(@RequestParam(name = "userId", required = false) String userId) {
+        if (userId == null || userId.isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("exists", false, "message", "아이디를 입력해주세요."));
+        }
+        UserDto userDto = userQueryDslRepository.findUserRoleAndCorpGr(userId.trim());
+        if (userDto == null) {
+            return ResponseEntity.ok(Map.of("exists", false));
+        }
+        return ResponseEntity.ok(Map.of(
+                "exists", true,
+                "userId", userDto.getUserId() != null ? userDto.getUserId() : "",
+                "corpGr", userDto.getCorpGr() != null ? userDto.getCorpGr() : "",
+                "adminYn", userDto.getAdminYn() != null ? userDto.getAdminYn() : "N"));
+    }
+
+    @PostMapping("/api/auth/login")
+    @ResponseBody
+    public ResponseEntity<LoginResponseDto> login(@RequestBody LoginRequestDto request, HttpServletRequest httpRequest,
+            HttpServletResponse response) {
+        String userId = request.getUserId();
+        String password = request.getPassword();
+
+        if (userId == null || userId.isBlank()) {
+            return ResponseEntity.badRequest().body(LoginResponseDto.builder()
+                    .success(false)
+                    .message("아이디를 입력해주세요.")
+                    .build());
+        }
+
+        // Query user info from FW_USER_MST via QueryDSL Repository
+        UserDto userDto = null;
+        try {
+            userDto = userQueryDslRepository.findUserForLogin(userId, password);
+        } catch (Exception e) {
+            log.warn("DB user query for userId {} failed: {}", userId, e.getMessage());
+        }
+
+        // If user not found in FW_USER_MST or corpGr is missing, fail login
+        if (userDto == null || userDto.getCorpGr() == null || userDto.getCorpGr().isBlank()) {
+            return ResponseEntity.badRequest().body(LoginResponseDto.builder()
+                    .success(false)
+                    .message("가입되지 않은 회원이거나 아이디/비밀번호가 올바르지 않습니다.")
+                    .build());
+        }
+
+        // Admin check for corpGr: If admin (adminYn == 'Y'), use savedCorpGr cookie if
+        // present; if non-admin (adminYn == 'N'), use user's DB corpGr
+        String effectiveCorpGr = userDto.getCorpGr();
+        boolean isAdmin = "Y".equalsIgnoreCase(userDto.getAdminYn());
+        if (isAdmin && httpRequest != null && httpRequest.getCookies() != null) {
+            for (Cookie c : httpRequest.getCookies()) {
+                if ("savedCorpGr".equals(c.getName()) && c.getValue() != null && !c.getValue().isBlank()) {
+                    effectiveCorpGr = c.getValue();
+                    break;
+                }
+            }
+        }
+        userDto.setCorpGr(effectiveCorpGr);
+
+        // Issue JWT Access Token (with all UserDto claims) and Refresh Token (1 week)
+        String accessToken = jwtProvider.createAccessToken(userDto);
+        String refreshToken = jwtProvider.createRefreshToken(userDto.getUserId(), userDto.getCorpGr());
+
+        // Store user in SecurityContextHolder
+        UserPrincipal principal = new UserPrincipal(userDto);
+        UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(principal, null,
+                principal.getAuthorities());
+        SecurityContextHolder.getContext().setAuthentication(authentication);
+
+        // Set Access Token Cookie (1 hour = 3600s)
+        Cookie accessCookie = new Cookie("accessToken", accessToken);
+        accessCookie.setHttpOnly(true);
+        accessCookie.setPath("/");
+        accessCookie.setMaxAge(60 * 60);
+        response.addCookie(accessCookie);
+
+        // Set Refresh Token Cookie (1 week = 604800s)
+        Cookie refreshCookie = new Cookie("refreshToken", refreshToken);
+        refreshCookie.setHttpOnly(true);
+        refreshCookie.setPath("/");
+        refreshCookie.setMaxAge(7 * 24 * 60 * 60);
+        response.addCookie(refreshCookie);
+
+        // Set savedEmail Cookie for login auto-fill (30 days)
+        if (userDto.getEncEMail() != null && !userDto.getEncEMail().isBlank()) {
+            Cookie savedEmailCookie = new Cookie("savedEmail", userDto.getEncEMail());
+            savedEmailCookie.setPath("/");
+            savedEmailCookie.setMaxAge(30 * 24 * 60 * 60);
+            response.addCookie(savedEmailCookie);
+        }
+
+        // Set savedCorpGr Cookie for login logo & active corpGr (30 days)
+        if (userDto.getCorpGr() != null && !userDto.getCorpGr().isBlank()) {
+            Cookie savedCorpGrCookie = new Cookie("savedCorpGr", userDto.getCorpGr());
+            savedCorpGrCookie.setPath("/");
+            savedCorpGrCookie.setMaxAge(30 * 24 * 60 * 60);
+            response.addCookie(savedCorpGrCookie);
+        }
+
+        // Set userId Cookie for client scripts (30 days)
+        if (userDto.getUserId() != null && !userDto.getUserId().isBlank()) {
+            Cookie userIdCookie = new Cookie("userId", userDto.getUserId());
+            userIdCookie.setPath("/");
+            userIdCookie.setMaxAge(30 * 24 * 60 * 60);
+            response.addCookie(userIdCookie);
+
+            Cookie userIdSnakeCookie = new Cookie("user_id", userDto.getUserId());
+            userIdSnakeCookie.setPath("/");
+            userIdSnakeCookie.setMaxAge(30 * 24 * 60 * 60);
+            response.addCookie(userIdSnakeCookie);
+        }
+
+        // Set userNm Cookie for client scripts (30 days)
+        if (userDto.getUserNm() != null && !userDto.getUserNm().isBlank()) {
+            Cookie userNmCookie = new Cookie("userNm", java.net.URLEncoder.encode(userDto.getUserNm(), java.nio.charset.StandardCharsets.UTF_8));
+            userNmCookie.setPath("/");
+            userNmCookie.setMaxAge(30 * 24 * 60 * 60);
+            response.addCookie(userNmCookie);
+
+            Cookie userNameCookie = new Cookie("userName", java.net.URLEncoder.encode(userDto.getUserNm(), java.nio.charset.StandardCharsets.UTF_8));
+            userNameCookie.setPath("/");
+            userNameCookie.setMaxAge(30 * 24 * 60 * 60);
+            response.addCookie(userNameCookie);
+        }
+
+        // Set workDate Cookie for client scripts (30 days)
+        String workDate = workDateService.getWorkDateOrDefault(userDto.getCorpGr());
+        Cookie workDateCookie = new Cookie("workDate", workDate);
+        workDateCookie.setPath("/");
+        workDateCookie.setMaxAge(30 * 24 * 60 * 60);
+        response.addCookie(workDateCookie);
+
+        log.info("User {} logged in successfully (adminYn: {}). Assigned corpGr: {}, workDate: {}.", userDto.getUserId(),
+                userDto.getAdminYn(), userDto.getCorpGr(), workDate);
+
+        return ResponseEntity.ok(LoginResponseDto.builder()
+                .success(true)
+                .message("로그인 성공")
+                .accessToken(accessToken)
+                .refreshToken(refreshToken)
+                .userId(userDto.getUserId())
+                .userNm(userDto.getUserNm())
+                .corpGr(userDto.getCorpGr())
+                .encEMail(userDto.getEncEMail())
+                .companyName(userDto.getCompanyName())
+                .hyunYmd(userDto.getHyunYmd())
+                .workDate(workDate)
+                .customerGr(userDto.getCustomerGr())
+                .build());
+    }
+
+    @PostMapping("/api/auth/switch-company")
+    @ResponseBody
+    public ResponseEntity<?> switchCompany(@RequestBody Map<String, String> request,
+            @AuthenticationPrincipal UserPrincipal principal,
+            HttpServletResponse response) {
+        if (principal == null || principal.getAdminYn() == null
+                || !"Y".equalsIgnoreCase(principal.getAdminYn().trim())) {
+            return ResponseEntity.status(403).body(Map.of("success", false, "message", "관리자 권한이 필요합니다."));
+        }
+
+        String newCorpGr = request != null ? request.get("corpGr") : null;
+        if (newCorpGr == null || newCorpGr.isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("success", false, "message", "변경할 회사 코드가 필요합니다."));
+        }
+
+        UserDto updatedUserDto = UserDto.builder()
+                .userId(principal.getUserId())
+                .userNm(principal.getUserNm())
+                .outYmd(principal.getOutYmd())
+                .deptCd(principal.getDeptCd())
+                .deptNm(principal.getDeptNm())
+                .inYmd(principal.getInYmd())
+                .corpGr(newCorpGr)
+                .adminYn(principal.getAdminYn())
+                .managerYn(principal.getManagerYn())
+                .watchmanYn(principal.getWatchmanYn())
+                .bookmarkStart(principal.getBookmarkStart())
+                .lastConnect(principal.getLastConnect())
+                .encEMail(principal.getEncEMail())
+                .companyName(principal.getCompanyName())
+                .hyunYmd(principal.getHyunYmd())
+                .customerGr(principal.getCustomerGr())
+                .build();
+
+        String newAccessToken = jwtProvider.createAccessToken(updatedUserDto);
+        String newRefreshToken = jwtProvider.createRefreshToken(principal.getUserId(), newCorpGr);
+
+        UserPrincipal updatedPrincipal = new UserPrincipal(updatedUserDto);
+        UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(updatedPrincipal,
+                null, updatedPrincipal.getAuthorities());
+        SecurityContextHolder.getContext().setAuthentication(authentication);
+
+        Cookie accessCookie = new Cookie("accessToken", newAccessToken);
+        accessCookie.setHttpOnly(true);
+        accessCookie.setPath("/");
+        accessCookie.setMaxAge(60 * 60);
+        response.addCookie(accessCookie);
+
+        Cookie refreshCookie = new Cookie("refreshToken", newRefreshToken);
+        refreshCookie.setHttpOnly(true);
+        refreshCookie.setPath("/");
+        refreshCookie.setMaxAge(7 * 24 * 60 * 60);
+        response.addCookie(refreshCookie);
+
+        Cookie savedCorpGrCookie = new Cookie("savedCorpGr", newCorpGr);
+        savedCorpGrCookie.setPath("/");
+        savedCorpGrCookie.setMaxAge(30 * 24 * 60 * 60);
+        response.addCookie(savedCorpGrCookie);
+
+        String switchedWorkDate = workDateService.getWorkDateOrDefault(newCorpGr);
+        Cookie workDateCookie = new Cookie("workDate", switchedWorkDate);
+        workDateCookie.setPath("/");
+        workDateCookie.setMaxAge(30 * 24 * 60 * 60);
+        response.addCookie(workDateCookie);
+
+        if (principal.getUserId() != null && !principal.getUserId().isBlank()) {
+            Cookie userIdCookie = new Cookie("userId", principal.getUserId());
+            userIdCookie.setPath("/");
+            userIdCookie.setMaxAge(30 * 24 * 60 * 60);
+            response.addCookie(userIdCookie);
+
+            Cookie userIdSnakeCookie = new Cookie("user_id", principal.getUserId());
+            userIdSnakeCookie.setPath("/");
+            userIdSnakeCookie.setMaxAge(30 * 24 * 60 * 60);
+            response.addCookie(userIdSnakeCookie);
+        }
+
+        log.info("User {} switched company corpGr to {}, workDate: {}", principal.getUserId(), newCorpGr, switchedWorkDate);
+
+        return ResponseEntity.ok(Map.of("success", true, "corpGr", newCorpGr, "workDate", switchedWorkDate));
+    }
+
+    @PostMapping("/api/auth/logout")
+    @ResponseBody
+    public ResponseEntity<LoginResponseDto> logout(HttpServletResponse response) {
+        SecurityContextHolder.clearContext();
+
+        Cookie accessCookie = new Cookie("accessToken", null);
+        accessCookie.setHttpOnly(true);
+        accessCookie.setPath("/");
+        accessCookie.setMaxAge(0);
+        response.addCookie(accessCookie);
+
+        Cookie refreshCookie = new Cookie("refreshToken", null);
+        refreshCookie.setHttpOnly(true);
+        refreshCookie.setPath("/");
+        refreshCookie.setMaxAge(0);
+        response.addCookie(refreshCookie);
+
+        Cookie workDateCookie = new Cookie("workDate", null);
+        workDateCookie.setPath("/");
+        workDateCookie.setMaxAge(0);
+        response.addCookie(workDateCookie);
+
+        Cookie userIdCookie = new Cookie("userId", null);
+        userIdCookie.setPath("/");
+        userIdCookie.setMaxAge(0);
+        response.addCookie(userIdCookie);
+
+        Cookie userIdSnakeCookie = new Cookie("user_id", null);
+        userIdSnakeCookie.setPath("/");
+        userIdSnakeCookie.setMaxAge(0);
+        response.addCookie(userIdSnakeCookie);
+
+        return ResponseEntity.ok(LoginResponseDto.builder()
+                .success(true)
+                .message("로그아웃 되었습니다.")
+                .build());
+    }
+
+    /**
+     * Check current Access Token remaining expiration time
+     */
+    @GetMapping("/api/auth/token-status")
+    @ResponseBody
+    public ResponseEntity<?> getTokenStatus(HttpServletRequest request) {
+        String token = null;
+        if (request.getCookies() != null) {
+            for (Cookie c : request.getCookies()) {
+                if ("accessToken".equals(c.getName())) {
+                    token = c.getValue();
+                    break;
+                }
+            }
+        }
+
+        if (token == null || token.isBlank() || !jwtProvider.validateToken(token)) {
+            return ResponseEntity.ok(Map.of("success", false, "expired", true, "remainingSeconds", 0));
+        }
+
+        long remainingMillis = jwtProvider.getRemainingExpirationMillis(token);
+        long remainingSeconds = remainingMillis / 1000;
+
+        return ResponseEntity.ok(Map.of(
+                "success", true,
+                "expired", remainingSeconds <= 0,
+                "remainingSeconds", remainingSeconds));
+    }
+
+    /**
+     * Extend Access Token lifetime by an additional 1 hour (3,600 seconds)
+     */
+    @PostMapping("/api/auth/extend-token")
+    @ResponseBody
+    public ResponseEntity<?> extendToken(@AuthenticationPrincipal UserPrincipal principal,
+            @RequestBody(required = false) Map<String, String> requestBody,
+            HttpServletResponse response) {
+        if (principal == null || principal.getUserDto() == null) {
+            return ResponseEntity.status(401).body(Map.of("success", false, "message", "로그인이 필요합니다."));
+        }
+
+        String password = (requestBody != null) ? requestBody.get("password") : null;
+        if (password == null || password.isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("success", false, "message", "비밀번호를 입력해주세요."));
+        }
+
+        UserDto userDto = principal.getUserDto();
+
+        // Verify password using UserQueryDslRepository
+        UserDto verifyDto = null;
+        try {
+            verifyDto = userQueryDslRepository.findUserForLogin(userDto.getUserId(), password);
+        } catch (Exception e) {
+            log.warn("Password verification error for user {}: {}", userDto.getUserId(), e.getMessage());
+        }
+
+        if (verifyDto == null) {
+            return ResponseEntity.badRequest().body(Map.of("success", false, "message", "비밀번호가 올바르지 않습니다."));
+        }
+
+        // Extend Access Token by 1 hour (60 * 60 * 1000L = 3,600,000 ms)
+        long extendMillis = 60 * 60 * 1000L;
+        int extendSeconds = 60 * 60;
+
+        String newAccessToken = jwtProvider.createAccessToken(userDto, extendMillis);
+
+        // Update Security Context
+        UserPrincipal updatedPrincipal = new UserPrincipal(userDto);
+        UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(updatedPrincipal,
+                null, updatedPrincipal.getAuthorities());
+        SecurityContextHolder.getContext().setAuthentication(authentication);
+
+        // Set updated Access Token Cookie (1 hour = 3600s)
+        Cookie accessCookie = new Cookie("accessToken", newAccessToken);
+        accessCookie.setHttpOnly(true);
+        accessCookie.setPath("/");
+        accessCookie.setMaxAge(extendSeconds);
+        response.addCookie(accessCookie);
+
+        log.info("User {} extended Access Token lifetime by 1 hour.", userDto.getUserId());
+
+        return ResponseEntity.ok(Map.of(
+                "success", true,
+                "message", "액세스 토큰이 1시간 연장되었습니다.",
+                "remainingSeconds", extendSeconds));
+    }
+}

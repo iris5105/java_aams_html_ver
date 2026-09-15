@@ -1,7 +1,7 @@
-package com.kfp.aams.domain.daily.controller;
+package com.kfp.aams.domain.DailyAdvisory.controller;
 
-import com.kfp.aams.domain.daily.dto.Szx0seDto;
-import com.kfp.aams.domain.daily.service.Szx0seService;
+import com.kfp.aams.domain.DailyAdvisory.dto.Szx0seDto;
+import com.kfp.aams.domain.DailyAdvisory.service.Szx0seService;
 import com.kfp.aams.security.UserPrincipal;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -19,10 +19,10 @@ import java.util.List;
 public class Szx0seController {
 
     private final Szx0seService szx0seService;
-    private final com.kfp.aams.domain.menu.service.MenuService menuService;
-    private final com.kfp.aams.domain.common.service.DddwService dddwService;
+    private final com.kfp.aams.menu.service.MenuService menuService;
+    private final com.kfp.aams.common.service.DddwService dddwService;
 
-    @GetMapping({"/views/w_szx0se", "/views/daily/w_szx0se"})
+    @GetMapping({"/views/w_szx0se", "/views/DailyAdvisory/w_szx0se"})
     public String viewSzx0se(@AuthenticationPrincipal Object principalObj,
             @RequestParam(name = "corpGr", required = false) String paramCorpGr,
             @CookieValue(name = "savedCorpGr", required = false) String cookieCorpGr1,
@@ -50,7 +50,7 @@ public class Szx0seController {
         String fullpgm2 = (menuDto != null) ? menuDto.getFullpgm2() : null;
         model.addAttribute("fullpgm2", fullpgm2);
 
-        return "views/daily/w_szx0se";
+        return "views/DailyAdvisory/w_szx0se";
     }
 
     @GetMapping("/api/account/szx0se/list")

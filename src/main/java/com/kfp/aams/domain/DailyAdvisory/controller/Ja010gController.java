@@ -1,10 +1,10 @@
-package com.kfp.aams.domain.daily.controller;
+package com.kfp.aams.domain.DailyAdvisory.controller;
 
 import com.kfp.aams.security.UserPrincipal;
-import com.kfp.aams.domain.daily.dto.Ja010gDto;
-import com.kfp.aams.domain.daily.dto.Ja010gFilterDto;
-import com.kfp.aams.domain.daily.service.Ja010gService;
-import com.kfp.aams.domain.menu.service.MenuService;
+import com.kfp.aams.domain.DailyAdvisory.dto.Ja010gDto;
+import com.kfp.aams.domain.DailyAdvisory.dto.Ja010gFilterDto;
+import com.kfp.aams.domain.DailyAdvisory.service.Ja010gService;
+import com.kfp.aams.menu.service.MenuService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -25,7 +25,7 @@ public class Ja010gController {
     private final Ja010gService ja010gService;
     private final MenuService menuService;
 
-    @GetMapping({"/views/w_ja010g", "/views/daily/w_ja010g"})
+    @GetMapping({"/views/w_ja010g", "/views/DailyAdvisory/w_ja010g"})
     public String ja010gView(@AuthenticationPrincipal Object principalObj,
                              @RequestParam(name = "corpGr", required = false) String paramCorpGr,
                              @RequestParam(name = "ymd", required = false) String paramYmd,
@@ -49,7 +49,7 @@ public class Ja010gController {
         model.addAttribute("corpGr", corpGr);
         model.addAttribute("ymd", workDate);
 
-        return "views/daily/w_ja010g";
+        return "views/DailyAdvisory/w_ja010g";
     }
 
     @GetMapping("/api/daily/ja010g/workdate")

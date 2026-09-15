@@ -1229,12 +1229,33 @@ function setupTabulatorRowSelection(table, onRowChange, options = {}) {
             }
         });
 
-        // 3. Tabulator standard rowClick fallback (avoids duplicate execution)
+        // 3. Tabulator standard rowClick fallback (avoids duplicate execution while guaranteeing selection)
         table.on("rowClick", function(e, row) {
+            // Even if callback was dispatched recently via pointerdown capture,
+            // ensure the row remains visually selected in case Tabulator's native click handler deselected it.
+            if (row && typeof row.isSelected === 'function' && !row.isSelected()) {
+                if (typeof table.deselectRow === 'function') table.deselectRow();
+                if (typeof row.select === 'function') row.select();
+            }
+
             if (table._aamsLastDispatchedRow === row && Date.now() - (table._aamsLastDispatchedTime || 0) < 200) {
                 return;
             }
             if (row) doSelect(row, false, e);
+        });
+
+        // 3-1. Tabulator rowDeselected fallback: Prevent single-select grid from deselecting to 0 rows on click
+        table.on("rowDeselected", function(row) {
+            if (table.options.selectableRows === 1 || table.options.selectable === 1) {
+                setTimeout(() => {
+                    const selected = typeof table.getSelectedRows === 'function' ? table.getSelectedRows() : [];
+                    if (selected.length === 0 && lastSelectedRow) {
+                        if (typeof lastSelectedRow.select === 'function') {
+                            lastSelectedRow.select();
+                        }
+                    }
+                }, 10);
+            }
         });
 
         // 4. Reset lastSelectedRow and auto select first row on data load
@@ -1310,6 +1331,11 @@ function aamsCellEdit(e, cell) {
             }
             if (!options.columnDefaults.vertAlign) {
                 options.columnDefaults.vertAlign = "middle";
+            }
+
+            // When single row selection is configured, enable rolling selection to prevent deselecting on click
+            if ((options.selectableRows === 1 || options.selectable === 1) && options.selectableRowsRollingSelection === undefined) {
+                options.selectableRowsRollingSelection = true;
             }
 
             // Instantiate original Tabulator

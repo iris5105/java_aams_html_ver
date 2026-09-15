@@ -1,7 +1,7 @@
-package com.kfp.aams.domain.daily.controller;
+package com.kfp.aams.domain.DailyAdvisory.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.kfp.aams.domain.daily.service.RdReportService;
+import com.kfp.aams.domain.DailyAdvisory.service.RdReportService;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

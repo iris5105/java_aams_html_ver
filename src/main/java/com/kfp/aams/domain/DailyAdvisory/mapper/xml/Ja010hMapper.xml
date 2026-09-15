@@ -1,0 +1,157 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.kfp.aams.domain.DailyAdvisory.mapper.Ja010hMapper">
+
+    <!-- 1. Master Fund List (d_szm0ia.srd / SZM0IA + UZM0UI UNION SKT0GS) -->
+    <select id="selectFundList" resultType="com.kfp.aams.domain.DailyAdvisory.dto.Ja010hMasterDto">
+        SELECT t1.corp_gr                                    AS corpGr
+             , t1.fund_cd                                    AS fundCd
+             , t1.fund_nm                                    AS fundNm
+             , ''                                            AS workGb
+             , TO_CHAR(t1.bf_gyul_ymd + 1, 'YYYY-MM-DD')     AS bfYmd
+             , TO_CHAR(t1.af_gyul_ymd, 'YYYY-MM-DD')         AS afGyulYmd
+             , t1.mg_cd                                      AS secCd
+             , TO_CHAR(TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD'), 'YYYY-MM-DD') AS ymd
+          FROM SZM0IA t1
+         WHERE t1.corp_gr       = #{corpGr}
+           AND t1.fund_cd       IN (SELECT fund_cd
+                                      FROM UZM0UI ta
+                                     WHERE corp_gr = #{corpGr}
+                                       AND ymd     = F_UZM0UI_YMD(#{corpGr}, TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')))
+           AND t1.fst_seolj_ymd &lt;= TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
+           AND NVL(t1.haeji_ymd, TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD') + 1) &gt; TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
+        UNION ALL
+        SELECT ia.corp_gr                                    AS corpGr
+             , ia.fund_cd                                    AS fundCd
+             , ia.fund_nm                                    AS fundNm
+             , '결산'                                         AS workGb
+             , TO_CHAR(ia.bf_gyul_ymd + 1, 'YYYY-MM-DD')     AS bfYmd
+             , TO_CHAR(gi.gyul_ymd, 'YYYY-MM-DD')            AS afGyulYmd
+             , ia.mg_cd                                      AS secCd
+             , TO_CHAR(gi.gyul_ymd, 'YYYY-MM-DD')            AS ymd
+          FROM SKT0GS gi
+             , SZM0IA ia
+         WHERE gi.corp_gr       = #{corpGr}
+           AND gi.gyul_ymd      BETWEEN TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
+                                    AND F_OPEN_YMD(TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD'), '+1') - 1
+           AND ia.corp_gr       = gi.corp_gr
+           AND ia.fund_cd       = gi.fund_cd
+           AND ia.fst_seolj_ymd &lt;= TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
+          ORDER BY secCd ASC, fundNm ASC, fundCd ASC, workGb ASC
+    </select>
+
+    <!-- 2. Check Collateral Count (w_ja010h.srw ole_rd::ue_retrieve) -->
+    <select id="checkCollCount" resultType="int">
+        SELECT NVL(SUM(1), 0)
+          FROM SJM0JM t1
+         WHERE t1.CORP_GR = #{corpGr}
+           AND t1.ymd     = TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
+           AND t1.fund_cd = #{fundCd}
+           AND (NVL(coll_pass, 0) &lt;&gt; 0 OR NVL(coll_up, 0) &lt;&gt; 0 OR NVL(coll_dw, 0) &lt;&gt; 0)
+    </select>
+
+    <!-- 3. Available Dates for Calendar Highlight (UZM0UI) -->
+    <select id="selectDistinctDates" resultType="string">
+        SELECT DISTINCT TO_CHAR(t1.ymd, 'YYYY-MM-DD') AS ymd
+          FROM UZM0UI t1
+         WHERE t1.corp_gr = #{corpGr}
+         ORDER BY ymd DESC
+    </select>
+
+    <!-- 4. Single Fund Info Query -->
+    <select id="selectFundInfo" resultType="com.kfp.aams.domain.DailyAdvisory.dto.Ja010hMasterDto">
+        SELECT t1.corp_gr                                    AS corpGr
+             , t1.fund_cd                                    AS fundCd
+             , t1.fund_nm                                    AS fundNm
+             , ''                                            AS workGb
+             , TO_CHAR(t1.bf_gyul_ymd + 1, 'YYYY-MM-DD')     AS bfYmd
+             , TO_CHAR(t1.af_gyul_ymd, 'YYYY-MM-DD')         AS afGyulYmd
+             , t1.mg_cd                                      AS secCd
+             , TO_CHAR(TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD'), 'YYYY-MM-DD') AS ymd
+          FROM SZM0IA t1
+         WHERE t1.corp_gr = #{corpGr}
+           AND t1.fund_cd = #{fundCd}
+    </select>
+
+    <!-- 평잔 재계산 프로시저 호출 (SR_PYUNGJAN) -->
+    <select id="callSrPyungjan" statementType="CALLABLE">
+        {CALL SR_PYUNGJAN(
+            #{corpGr, mode=IN, jdbcType=VARCHAR},
+            #{fundCd, mode=IN, jdbcType=VARCHAR},
+            TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
+        )}
+    </select>
+
+    <!-- 2402 회사 원장생성 불일치 건수 체크 (UZM0UI NAV vs SKT0GI sun_jasan_aek) -->
+    <select id="checkLedgerDiffCount" resultType="java.lang.Integer">
+        SELECT NVL(COUNT(*), 0)
+          FROM (
+            SELECT tt.fund_cd
+              FROM (SELECT t1.FUND_CD
+                         , SUM(t1.SIGA_AEK)  AS NAV
+                         , 0                 AS SUN_JASAN_AEK
+                      FROM UZM0UI t1
+                         , SZM0IA ia
+                     WHERE t1.CORP_GR       = #{corpGr}
+                       AND t1.ymd           = TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
+                       AND ia.CORP_GR       = t1.CORP_GR
+                       AND ia.fund_cd       = t1.fund_cd
+                       AND ia.fst_seolj_ymd &lt;= TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
+                       AND NVL(ia.haeji_ymd, TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD') + 1) &gt; TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
+                     GROUP BY t1.fund_cd
+                    UNION ALL
+                    SELECT t1.fund_cd
+                         , 0
+                         , t1.sun_jasan_aek
+                      FROM SKT0GI t1
+                         , SZM0IA ia
+                     WHERE t1.CORP_GR       = #{corpGr}
+                       AND t1.ymd           = TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
+                       AND t1.work_gb       = 'A'
+                       AND ia.CORP_GR       = t1.CORP_GR
+                       AND ia.fund_cd       = t1.fund_cd
+                       AND ia.fst_seolj_ymd &lt;= TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
+                       AND NVL(ia.haeji_ymd, TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD') + 1) &gt; TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')) tt
+             GROUP BY tt.fund_cd
+            HAVING NVL(SUM(tt.NAV), 0) &lt;&gt; NVL(SUM(tt.SUN_JASAN_AEK), 0)
+          ) diff_list
+    </select>
+
+    <!-- 최종 원장작업자 및 작업시간 조회 -->
+    <select id="selectLastLedgerWorker" resultType="java.util.Map">
+        SELECT TO_CHAR(MAX(t1.dt), 'HH24:MI:SS') AS RUN_DT
+             , MAX(u1.USER_NM)                    AS USER_NM
+          FROM GIJUN_GA_COM t1
+             , FW_USER_MST  u1
+         WHERE t1.CORP_GR    = #{corpGr}
+           AND t1.ymd        = TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
+           AND t1.dt         = (SELECT MAX(dt) FROM GIJUN_GA_COM WHERE CORP_GR = #{corpGr} AND ymd = TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD'))
+           AND u1.CORP_GR    IN ('2200', t1.CORP_GR)
+           AND u1.enc_e_mail = TO_ENCRYPTS(t1.userid)
+    </select>
+
+    <!-- 총 순자산시가액 조회 (w_ja010h1.srw cb_1 종합 엑셀용) -->
+    <select id="selectSunJasanSigaAek" resultType="java.lang.String">
+        SELECT TO_CHAR(NVL(SUM(sun_jasan_siga_aek), 0))
+          FROM UZM0UI t1
+         WHERE t1.CORP_GR = #{corpGr}
+           AND t1.ymd     = TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
+           <choose>
+               <when test="corpGr == '2402'">
+                   AND t1.type_gb NOT IN ('5', 'X')
+               </when>
+               <otherwise>
+                   AND t1.type_gb NOT IN ('5', '6', 'X')
+               </otherwise>
+           </choose>
+    </select>
+
+    <!-- 파워빌더 w_ja010h1.srw wue_lastopen 명세: corp_gr='2402' 전용일자 조회 -->
+    <select id="selectJunyongYmd" resultType="java.lang.String">
+        SELECT TO_CHAR(aa.JUNYONG_YMD, 'YYYY-MM-DD')
+          FROM SZX0AA aa
+         WHERE aa.corp_gr = #{corpGr}
+    </select>
+
+</mapper>

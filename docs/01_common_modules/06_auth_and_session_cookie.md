@@ -1,4 +1,4 @@
-# AAMS 인증 토큰(JWT) 및 쿠키(Cookie) 가이드
+﻿# AAMS 인증 토큰(JWT) 및 쿠키(Cookie) 가이드
 
 AAMS 웹 시스템은 JWT(JSON Web Token) 및 HTTP 쿠키를 활용하여 무상태(Stateless) 인증 및 화면 설정 상태를 관리합니다.  
 본 문서는 **액세스 토큰과 쿠키에 저장된 정보 명세**와 **백엔드(Spring Boot) 및 프론트엔드(JavaScript)에서 각 값을 불러오는 방법**을 설명합니다.
@@ -110,7 +110,7 @@ import org.springframework.ui.Model;
 @Controller
 public class SampleViewController {
 
-    @GetMapping("/views/daily/sample")
+    @GetMapping("/views/DailyAdvisory/sample")
     public String sampleView(
             @CookieValue(name = "userId", required = false) String userId,
             @CookieValue(name = "savedCorpGr", required = false) String corpGr,
@@ -121,7 +121,7 @@ public class SampleViewController {
         model.addAttribute("corpGr", corpGr);
         model.addAttribute("workDate", workDate);
 
-        return "views/daily/sample";
+        return "views/DailyAdvisory/sample";
     }
 }
 ```
@@ -173,7 +173,7 @@ const workDate = getCookie('workDate') || getCookie('hyunYmd') || '';      // "2
 ```
 
 ### 방법 2: 정규표현식(RegExp) 인라인 추출 방식
-기존 AAMS 프로젝트의 화면 템플릿([w_ja010h1.html](file:///d:/work/java_aams_html_ver/src/main/resources/templates/views/daily/w_ja010h1.html), [w_ja991a.html](file:///d:/work/java_aams_html_ver/src/main/resources/templates/views/daily/w_ja991a.html))에서 널리 사용하는 패턴입니다:
+기존 AAMS 프로젝트의 화면 템플릿([w_ja010h1.html](file:///d:/work/java_aams_html_ver/src/main/resources/templates/views/DailyAdvisory/w_ja010h1.html), [w_ja991a.html](file:///d:/work/java_aams_html_ver/src/main/resources/templates/views/DailyAdvisory/w_ja991a.html))에서 널리 사용하는 패턴입니다:
 
 ```javascript
 // 회사코드 추출

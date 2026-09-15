@@ -1,8 +1,8 @@
-package com.kfp.aams.domain.daily.controller;
+package com.kfp.aams.domain.DailyAdvisory.controller;
 
-import com.kfp.aams.domain.daily.dto.Ja010fDto;
-import com.kfp.aams.domain.daily.service.Ja010fService;
-import com.kfp.aams.domain.menu.service.MenuService;
+import com.kfp.aams.domain.DailyAdvisory.dto.Ja010fDto;
+import com.kfp.aams.domain.DailyAdvisory.service.Ja010fService;
+import com.kfp.aams.menu.service.MenuService;
 import com.kfp.aams.security.UserPrincipal;
 import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
@@ -28,7 +28,7 @@ public class Ja010fController {
     private final Ja010fService ja010fService;
     private final MenuService menuService;
 
-    @GetMapping({"/views/w_ja010f", "/views/daily/w_ja010f"})
+    @GetMapping({"/views/w_ja010f", "/views/DailyAdvisory/w_ja010f"})
     public String viewJa010f(@AuthenticationPrincipal Object principalObj,
                              @RequestParam(name = "corpGr", required = false) String paramCorpGr,
                              @RequestParam(name = "ymd", required = false) String paramYmd,
@@ -57,7 +57,7 @@ public class Ja010fController {
         model.addAttribute("dddw", paramDddw != null ? paramDddw : "%");
         model.addAttribute("trDates", trDates);
 
-        return "views/daily/w_ja010f";
+        return "views/DailyAdvisory/w_ja010f";
     }
 
     /**

@@ -1,4 +1,4 @@
-# w_ja010g : 매매내역 데이터 조회 가이드
+﻿# w_ja010g : 매매내역 데이터 조회 가이드
 
 ## 1. 화면 개요 및 파워빌더 대응 정보
 
@@ -40,7 +40,7 @@
 
 ## 3. 계층별 세부 코드 및 구성 분석
 
-### 3.1 화면 및 클라이언트 스크립트 ([w_ja010g.html](file:///d:/work/java_aams_html_ver/src/main/resources/templates/views/daily/w_ja010g.html))
+### 3.1 화면 및 클라이언트 스크립트 ([w_ja010g.html](file:///d:/work/java_aams_html_ver/src/main/resources/templates/views/DailyAdvisory/w_ja010g.html))
 
 - **필터바 및 달력 연동**:
   ```javascript
@@ -59,7 +59,7 @@
 ### 3.2 매퍼 SQL 계층 (`Ja010gMapper.xml`)
 
 ```xml
-<select id="selectTradeList" resultType="com.kfp.aams.domain.daily.dto.Ja010gDto">
+<select id="selectTradeList" resultType="com.kfp.aams.domain.DailyAdvisory.dto.Ja010gDto">
     SELECT T.CORP_GR    AS corpGr,
            T.TR_YMD     AS trYmd,
            T.FUND_CD    AS fundCd,

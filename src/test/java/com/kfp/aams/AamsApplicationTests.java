@@ -7,7 +7,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 class AamsApplicationTests {
 
 	@org.springframework.beans.factory.annotation.Autowired
-	private com.kfp.aams.domain.menu.service.MenuService menuService;
+	private com.kfp.aams.menu.service.MenuService menuService;
 
 	@Test
 	void contextLoads() {

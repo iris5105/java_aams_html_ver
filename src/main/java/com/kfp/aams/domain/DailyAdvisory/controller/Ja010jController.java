@@ -1,10 +1,10 @@
-package com.kfp.aams.domain.daily.controller;
+package com.kfp.aams.domain.DailyAdvisory.controller;
 
-import com.kfp.aams.domain.common.service.WorkDateService;
-import com.kfp.aams.domain.daily.dto.Ja010jDto;
-import com.kfp.aams.domain.daily.service.Ja010jService;
-import com.kfp.aams.domain.daily.service.RdReportService;
-import com.kfp.aams.domain.menu.service.MenuService;
+import com.kfp.aams.common.service.WorkDateService;
+import com.kfp.aams.domain.DailyAdvisory.dto.Ja010jDto;
+import com.kfp.aams.domain.DailyAdvisory.service.Ja010jService;
+import com.kfp.aams.domain.DailyAdvisory.service.RdReportService;
+import com.kfp.aams.menu.service.MenuService;
 import com.kfp.aams.security.UserPrincipal;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -35,7 +35,7 @@ public class Ja010jController {
     private final WorkDateService workDateService;
     private final MenuService menuService;
 
-    @GetMapping({"/views/w_ja010j", "/views/daily/w_ja010j"})
+    @GetMapping({"/views/w_ja010j", "/views/DailyAdvisory/w_ja010j"})
     public String ja010jView(@AuthenticationPrincipal Object principalObj,
                              @RequestParam(name = "corpGr", required = false) String paramCorpGr,
                              @RequestParam(name = "fymd", required = false) String paramFymd,
@@ -72,7 +72,7 @@ public class Ja010jController {
         model.addAttribute("tymd", tymd);
         model.addAttribute("fymd", fymd);
 
-        return "views/daily/w_ja010j";
+        return "views/DailyAdvisory/w_ja010j";
     }
 
     /**

@@ -1,11 +1,11 @@
-package com.kfp.aams.domain.daily.repository;
+package com.kfp.aams.domain.DailyAdvisory.repository;
 
-import com.kfp.aams.domain.daily.dto.ProposalCommentDto;
-import com.kfp.aams.domain.daily.dto.ProposalMasterDto;
-import com.kfp.aams.domain.daily.entity.ProposalAppend;
-import com.kfp.aams.domain.daily.entity.QProposalAppend;
-import com.kfp.aams.domain.home.entity.Proposal;
-import com.kfp.aams.domain.home.entity.QProposal;
+import com.kfp.aams.domain.DailyAdvisory.dto.ProposalCommentDto;
+import com.kfp.aams.domain.DailyAdvisory.dto.ProposalMasterDto;
+import com.kfp.aams.domain.DailyAdvisory.entity.ProposalAppend;
+import com.kfp.aams.domain.DailyAdvisory.entity.QProposalAppend;
+import com.kfp.aams.home.entity.Proposal;
+import com.kfp.aams.home.entity.QProposal;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;

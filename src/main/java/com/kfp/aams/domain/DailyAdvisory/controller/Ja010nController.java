@@ -1,9 +1,9 @@
-package com.kfp.aams.domain.daily.controller;
+package com.kfp.aams.domain.DailyAdvisory.controller;
 
-import com.kfp.aams.domain.daily.dto.Ja010nDto;
-import com.kfp.aams.domain.daily.dto.Ja010nSaveDto;
-import com.kfp.aams.domain.daily.service.Ja010nService;
-import com.kfp.aams.domain.menu.service.MenuService;
+import com.kfp.aams.domain.DailyAdvisory.dto.Ja010nDto;
+import com.kfp.aams.domain.DailyAdvisory.dto.Ja010nSaveDto;
+import com.kfp.aams.domain.DailyAdvisory.service.Ja010nService;
+import com.kfp.aams.menu.service.MenuService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -22,7 +22,7 @@ public class Ja010nController {
     private final Ja010nService ja010nService;
     private final MenuService menuService;
 
-    @GetMapping({"/views/w_ja010n", "/views/daily/w_ja010n"})
+    @GetMapping({"/views/w_ja010n", "/views/DailyAdvisory/w_ja010n"})
     public String viewJa010n(Model model) {
         var menuDto = menuService.getMenuByPgmId("W_JA010N");
         if (menuDto == null) {
@@ -34,7 +34,7 @@ public class Ja010nController {
 
         model.addAttribute("fullpgm2", fullpgm2);
 
-        return "views/daily/w_ja010n";
+        return "views/DailyAdvisory/w_ja010n";
     }
 
     @GetMapping("/api/daily/ja010n/list")

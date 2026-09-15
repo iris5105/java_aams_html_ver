@@ -1,10 +1,10 @@
-package com.kfp.aams.domain.daily.controller;
+package com.kfp.aams.domain.DailyAdvisory.controller;
 
-import com.kfp.aams.domain.daily.dto.Ja010kDetailDto;
-import com.kfp.aams.domain.daily.dto.Ja010kMasterDto;
-import com.kfp.aams.domain.daily.dto.Ja010kSaveDto;
-import com.kfp.aams.domain.daily.service.Ja010kService;
-import com.kfp.aams.domain.menu.service.MenuService;
+import com.kfp.aams.domain.DailyAdvisory.dto.Ja010kDetailDto;
+import com.kfp.aams.domain.DailyAdvisory.dto.Ja010kMasterDto;
+import com.kfp.aams.domain.DailyAdvisory.dto.Ja010kSaveDto;
+import com.kfp.aams.domain.DailyAdvisory.service.Ja010kService;
+import com.kfp.aams.menu.service.MenuService;
 import com.kfp.aams.security.UserPrincipal;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -28,7 +28,7 @@ public class Ja010kController {
     private final Ja010kService ja010kService;
     private final MenuService menuService;
 
-    @GetMapping({"/views/w_ja010k", "/views/daily/w_ja010k"})
+    @GetMapping({"/views/w_ja010k", "/views/DailyAdvisory/w_ja010k"})
     public String viewJa010k(@AuthenticationPrincipal Object principalObj,
                              @RequestParam(name = "corpGr", required = false) String paramCorpGr,
                              @RequestParam(name = "fymd", required = false) String paramFymd,
@@ -59,7 +59,7 @@ public class Ja010kController {
         model.addAttribute("fymd", fymd);
         model.addAttribute("tymd", tymd);
 
-        return "views/daily/w_ja010k";
+        return "views/DailyAdvisory/w_ja010k";
     }
 
     @GetMapping("/api/daily/ja010k/master")

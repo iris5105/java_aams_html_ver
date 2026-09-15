@@ -1,9 +1,9 @@
-package com.kfp.aams.domain.daily.service;
+package com.kfp.aams.domain.DailyAdvisory.service;
 
-import com.kfp.aams.domain.daily.dto.Ja020nSigaDto;
-import com.kfp.aams.domain.daily.dto.Ja020nStatusDto;
-import com.kfp.aams.domain.daily.dto.Ja020nTrDto;
-import com.kfp.aams.domain.daily.mapper.Ja020nMapper;
+import com.kfp.aams.domain.DailyAdvisory.dto.Ja020nSigaDto;
+import com.kfp.aams.domain.DailyAdvisory.dto.Ja020nStatusDto;
+import com.kfp.aams.domain.DailyAdvisory.dto.Ja020nTrDto;
+import com.kfp.aams.domain.DailyAdvisory.mapper.Ja020nMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -22,7 +22,7 @@ import java.util.List;
 public class Ja020nService {
 
     private final Ja020nMapper ja020nMapper;
-    private final com.kfp.aams.domain.common.service.WorkDateService workDateService;
+    private final com.kfp.aams.common.service.WorkDateService workDateService;
 
     /**
      * Retrieve Load Status list (d_ja020n.srd)

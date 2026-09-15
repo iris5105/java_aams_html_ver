@@ -1,0 +1,42 @@
+package com.kfp.aams.menu.controller;
+
+import com.kfp.aams.menu.dto.MenuDto;
+import com.kfp.aams.menu.service.MenuService;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
+@Slf4j
+@RestController
+@RequestMapping("/api/menu")
+@RequiredArgsConstructor
+public class MenuController {
+
+    private final MenuService menuService;
+
+    /**
+     * Get Header top menu list
+     */
+    @GetMapping("/top")
+    public List<MenuDto> getTopMenu() {
+        return menuService.getTopMenuList();
+    }
+
+    /**
+     * Get Side navigation menu list for specified parent/top pgmNo
+     */
+    @GetMapping("/side")
+    public List<MenuDto> getSideMenu(@RequestParam(name = "pgmNo", required = false) String pgmNo) {
+        return menuService.getSideMenuList(pgmNo);
+    }
+
+    /**
+     * Get all menu items for global search
+     */
+    @GetMapping("/all")
+    public List<MenuDto> getAllMenu() {
+        return menuService.getAllMenuList();
+    }
+}

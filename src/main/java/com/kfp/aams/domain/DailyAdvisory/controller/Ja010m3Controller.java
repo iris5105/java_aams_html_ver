@@ -1,11 +1,11 @@
-package com.kfp.aams.domain.daily.controller;
+package com.kfp.aams.domain.DailyAdvisory.controller;
 
-import com.kfp.aams.domain.common.service.WorkDateService;
-import com.kfp.aams.domain.daily.dto.Ja010m3Dto;
-import com.kfp.aams.domain.daily.dto.Ja010m3SaveDto;
-import com.kfp.aams.domain.daily.service.Ja010m3Service;
-import com.kfp.aams.domain.daily.service.RdReportService;
-import com.kfp.aams.domain.menu.service.MenuService;
+import com.kfp.aams.common.service.WorkDateService;
+import com.kfp.aams.domain.DailyAdvisory.dto.Ja010m3Dto;
+import com.kfp.aams.domain.DailyAdvisory.dto.Ja010m3SaveDto;
+import com.kfp.aams.domain.DailyAdvisory.service.Ja010m3Service;
+import com.kfp.aams.domain.DailyAdvisory.service.RdReportService;
+import com.kfp.aams.menu.service.MenuService;
 import com.kfp.aams.security.UserPrincipal;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -35,7 +35,7 @@ public class Ja010m3Controller {
     private final WorkDateService workDateService;
     private final MenuService menuService;
 
-    @GetMapping({"/views/w_ja010m3", "/views/daily/w_ja010m3"})
+    @GetMapping({"/views/w_ja010m3", "/views/DailyAdvisory/w_ja010m3"})
     public String viewJa010m3(@AuthenticationPrincipal Object principalObj,
                              @RequestParam(name = "corpGr", required = false) String paramCorpGr,
                              @RequestParam(name = "ymd", required = false) String paramYmd,
@@ -72,7 +72,7 @@ public class Ja010m3Controller {
         model.addAttribute("ymd", ymd);
         model.addAttribute("dddw", dddw);
 
-        return "views/daily/w_ja010m3";
+        return "views/DailyAdvisory/w_ja010m3";
     }
 
     @GetMapping("/api/daily/ja010m3/list")

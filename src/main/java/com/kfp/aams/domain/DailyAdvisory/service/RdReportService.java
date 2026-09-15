@@ -1,4 +1,4 @@
-package com.kfp.aams.domain.daily.service;
+package com.kfp.aams.domain.DailyAdvisory.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kfp.aams.security.UserPrincipal;

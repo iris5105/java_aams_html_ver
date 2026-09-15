@@ -1,6 +1,6 @@
-package com.kfp.aams.domain.daily.mapper;
+package com.kfp.aams.domain.DailyAdvisory.mapper;
 
-import com.kfp.aams.domain.daily.dto.Shm1pgDto;
+import com.kfp.aams.domain.DailyAdvisory.dto.Shm1pgDto;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 

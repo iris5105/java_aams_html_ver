@@ -1,9 +1,9 @@
-package com.kfp.aams.domain.daily.controller;
+package com.kfp.aams.domain.DailyAdvisory.controller;
 
-import com.kfp.aams.domain.daily.dto.Ja991aDetailDto;
-import com.kfp.aams.domain.daily.dto.Ja991aMasterDto;
-import com.kfp.aams.domain.daily.service.Ja991aService;
-import com.kfp.aams.domain.menu.service.MenuService;
+import com.kfp.aams.domain.DailyAdvisory.dto.Ja991aDetailDto;
+import com.kfp.aams.domain.DailyAdvisory.dto.Ja991aMasterDto;
+import com.kfp.aams.domain.DailyAdvisory.service.Ja991aService;
+import com.kfp.aams.menu.service.MenuService;
 import com.kfp.aams.security.UserPrincipal;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -29,7 +29,7 @@ public class Ja991aController {
     private final Ja991aService ja991aService;
     private final MenuService menuService;
 
-    @GetMapping({"/views/w_ja991a", "/views/daily/w_ja991a"})
+    @GetMapping({"/views/w_ja991a", "/views/DailyAdvisory/w_ja991a"})
     public String viewJa991a(@AuthenticationPrincipal Object principalObj,
                              @RequestParam(name = "corpGr", required = false) String paramCorpGr,
                              @CookieValue(name = "savedCorpGr", required = false) String cookieCorpGr1,
@@ -56,7 +56,7 @@ public class Ja991aController {
         model.addAttribute("corpGr", corpGr);
         model.addAttribute("workDate", effectiveWorkDate);
 
-        return "views/daily/w_ja991a";
+        return "views/DailyAdvisory/w_ja991a";
     }
 
     @GetMapping("/api/daily/ja991a/master")

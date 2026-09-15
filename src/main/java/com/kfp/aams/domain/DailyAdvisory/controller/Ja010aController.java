@@ -1,8 +1,8 @@
-package com.kfp.aams.domain.daily.controller;
+package com.kfp.aams.domain.DailyAdvisory.controller;
 
-import com.kfp.aams.domain.daily.dto.Ja010aDetailDto;
-import com.kfp.aams.domain.daily.dto.Ja010aMasterDto;
-import com.kfp.aams.domain.daily.service.Ja010aService;
+import com.kfp.aams.domain.DailyAdvisory.dto.Ja010aDetailDto;
+import com.kfp.aams.domain.DailyAdvisory.dto.Ja010aMasterDto;
+import com.kfp.aams.domain.DailyAdvisory.service.Ja010aService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -17,9 +17,9 @@ import java.util.List;
 public class Ja010aController {
 
     private final Ja010aService ja010aService;
-    private final com.kfp.aams.domain.menu.service.MenuService menuService;
+    private final com.kfp.aams.menu.service.MenuService menuService;
 
-    @GetMapping({"/views/w_ja010a", "/views/daily/w_ja010a"})
+    @GetMapping({"/views/w_ja010a", "/views/DailyAdvisory/w_ja010a"})
     public String viewJa010a(Model model) {
         model.addAttribute("masterList", ja010aService.getMasterList());
 
@@ -27,7 +27,7 @@ public class Ja010aController {
         String fullpgm2 = (menuDto != null) ? menuDto.getFullpgm2() : "자분관리 > 일별작업 > 1001 회사 기본정보 관리";
         model.addAttribute("fullpgm2", fullpgm2);
 
-        return "views/daily/w_ja010a";
+        return "views/DailyAdvisory/w_ja010a";
     }
 
     @GetMapping("/api/company/ja010a/master")
