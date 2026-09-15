@@ -1,4 +1,4 @@
-package com.kfp.aams.auth.repository;
+package com.kfp.aams.auth.mapper.queryDSL;
 
 import com.kfp.aams.auth.dto.UserDto;
 import com.kfp.aams.auth.entity.QFwUserMst;

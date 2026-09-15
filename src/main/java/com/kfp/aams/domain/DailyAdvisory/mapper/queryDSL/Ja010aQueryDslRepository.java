@@ -1,4 +1,4 @@
-package com.kfp.aams.domain.DailyAdvisory.repository;
+package com.kfp.aams.domain.DailyAdvisory.mapper.queryDSL;
 
 import com.kfp.aams.domain.DailyAdvisory.dto.Ja010aDetailDto;
 import com.kfp.aams.domain.DailyAdvisory.dto.Ja010aMasterDto;

@@ -1,4 +1,4 @@
-package com.kfp.aams.home.repository;
+package com.kfp.aams.home.mapper.queryDSL;
 
 import com.kfp.aams.home.dto.CompanyDto;
 import com.kfp.aams.home.dto.DayTrDto;

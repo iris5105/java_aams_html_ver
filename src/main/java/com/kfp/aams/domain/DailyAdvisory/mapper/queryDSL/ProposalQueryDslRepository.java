@@ -1,4 +1,4 @@
-package com.kfp.aams.domain.DailyAdvisory.repository;
+package com.kfp.aams.domain.DailyAdvisory.mapper.queryDSL;
 
 import com.kfp.aams.domain.DailyAdvisory.dto.ProposalCommentDto;
 import com.kfp.aams.domain.DailyAdvisory.dto.ProposalMasterDto;

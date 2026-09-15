@@ -2,7 +2,7 @@ package com.kfp.aams.domain.DailyAdvisory.service;
 
 import com.kfp.aams.domain.DailyAdvisory.dto.Ja010aDetailDto;
 import com.kfp.aams.domain.DailyAdvisory.dto.Ja010aMasterDto;
-import com.kfp.aams.domain.DailyAdvisory.repository.Ja010aQueryDslRepository;
+import com.kfp.aams.domain.DailyAdvisory.mapper.queryDSL.Ja010aQueryDslRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
