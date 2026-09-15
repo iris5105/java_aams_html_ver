@@ -1,0 +1,107 @@
+d:\work\java_aams_html_ver\
+├── pom.xml                                   # Maven 빌드 설정 (src/main/java 내 XML 자동 포함)
+│
+├── src\main\resources\
+│   ├── application.properties               # mybatis.mapper-locations=classpath*:com/kfp/aams/**/*.xml
+│   ├── static\                              # 정적 웹 리소스
+│   │   ├── css\                             # 전역 스타일시트
+│   │   └── js\                              # 공통 JS (common.js, tab_manager.js, f_dddwctl.js 등)
+│   └── templates\                           # Thymeleaf 뷰 템플릿
+│       ├── w_login_aams.html                # 로그인 화면
+│       ├── w_home5.html                     # 메인 홈 대시보드
+│       ├── fragments\                       # 공통 컴포넌트 (top_header, side_menu, filter, modal 등)
+│       └── views\
+│           ├── DailyAdvisory\               # 자문일일 화면 HTML 뷰 (w_ja010b.html 등)
+│           ├── AssetManagement\             # 자산관리 화면 HTML 뷰
+│           ├── CodeManagement\              # 코드관리 화면 HTML 뷰
+│           ├── DifferentialProfit\          # 차액손익 화면 HTML 뷰
+│           ├── ForeignAssetManagement\      # 외화자산관리 화면 HTML 뷰
+│           ├── FrameManagement\             # 프레임관리 화면 HTML 뷰
+│           ├── LedgerInquiry\               # 원장조회 화면 HTML 뷰
+│           ├── ReportManagement\            # 보고서관리 화면 HTML 뷰
+│           ├── SubscriptionRights\          # 청약권리 화면 HTML 뷰
+│           ├── SystemManagement\            # 시스템관리 화면 HTML 뷰
+│           └── UsPortfolioModel\            # 미국포트폴리오모델 화면 HTML 뷰
+│
+└── src\main\java\com\kfp\aams\
+    ├── AamsApplication.java                 # Spring Boot 애플리케이션 엔트리포인트
+    │
+    ├── config\                              # 시스템 전역 인프라 설정
+    │   ├── SecurityConfig.java              # Spring Security 설정
+    │   ├── QueryDslConfig.java              # JPAQueryFactory 빈 설정
+    │   ├── MybatisSqlLogInterceptor.java    # MyBatis 쿼리 실행 로깅 인터셉터
+    │   ├── WebConfig.java                   # 웹 MVC 및 리소스 매핑 설정
+    │   └── GlobalExceptionHandler.java      # 전역 예외 처리기
+    │
+    ├── security\                            # 인증/인가 보안 모듈
+    │   ├── JwtProvider.java, JwtAuthenticationFilter.java, UserPrincipal.java ...
+    │
+    ├── util\                                # 공통 유틸리티
+    │   └── QueryDslUtils.java, DateUtils.java ...
+    │
+    │  ========================================================================
+    │  [시스템 공통 / 기반 서비스 계층]
+    │  ========================================================================
+    ├── auth\                                # 인증/사용자 서비스
+    │   ├── controller\                      # AuthController.java
+    │   ├── dto\                             # UserDto, LoginRequestDto ...
+    │   ├── entity\                          # FwUserMst.java ...
+    │   └── mapper\
+    │       └── queryDSL\                    # UserQueryDslRepository.java (단일 조회 QueryDSL)
+    │
+    ├── home\                                # 메인 대시보드 서비스
+    │   ├── controller\                      # HomeController.java
+    │   ├── dto\                             # CompanyDto, DayTrDto, ProposalDto ...
+    │   ├── entity\                          # Szx0aa, FwDayTr, Proposal ...
+    │   ├── mapper\
+    │   │   ├── HomeMapper.java              # 복합 쿼리 MyBatis 인터페이스
+    │   │   ├── queryDSL\                    # HomeQueryDslRepository.java (단일 테이블 QueryDSL)
+    │   │   └── xml\                         # HomeMapper.xml (MyBatis 쿼리 XML)
+    │   └── service\                         # HomeService.java
+    │
+    ├── menu\                                # 사이드바 / 트리 메뉴 서비스
+    │   ├── controller\                      # MenuController.java
+    │   ├── dto\                             # MenuItemDto.java ...
+    │   ├── mapper\
+    │   │   ├── MenuMapper.java
+    │   │   └── xml\                         # MenuMapper.xml
+    │   └── service\                         # MenuService.java
+    │
+    ├── common\                              # 전역 공통 모듈 (DDDW, 기준일자, 동적코드검색)
+    │   ├── controller\                      # DddwController, WorkDateController ...
+    │   ├── dto\                             # DddwDto, WorkDateDto ...
+    │   ├── mapper\
+    │   │   ├── DddwMapper.java, DynamicCodeSearchMapper.java, WorkDateMapper.java
+    │   │   └── xml\                         # DddwMapper.xml, DynamicCodeSearchMapper.xml, WorkDateMapper.xml
+    │   └── service\                         # DddwService, WorkDateService ...
+    │
+    │  ========================================================================
+    │  [업무 비즈니스 도메인 계층 (domain)]
+    │  ========================================================================
+    └── domain\
+        │
+        ├── DailyAdvisory\                   # [자문일일 업무 패키지] (표준 모델)
+        │   ├── controller\                  # 화면별 Controller (Ja010bController, Szx0seController 등 27개)
+        │   ├── dto\                         # 화면별 DTO 클래스 (70여 개)
+        │   ├── entity\                      # JPA 엔티티 및 복합키 ID 클래스 (Szx0se, ProposalAppend 등)
+        │   ├── mapper\
+        │   │   ├── *Mapper.java             # MyBatis 매퍼 인터페이스 (26개)
+        │   │   ├── queryDSL\                # 단일 조회 QueryDSL 레포지토리 (4개)
+        │   │   │   ├── Ja010aQueryDslRepository.java
+        │   │   │   ├── ProposalQueryDslRepository.java
+        │   │   │   ├── Shj0igQueryDslRepository.java
+        │   │   │   └── Szx0seQueryDslRepository.java
+        │   │   └── xml\                     # MyBatis XML 파일 (26개)
+        │   └── service\                     # 화면별 Service 클래스 (27개)
+        │
+        │  [향후 화면 개발 예정 도메인 분류 폴더]
+        ├── AssetManagement\                 # 자산관리
+        ├── CodeManagement\                  # 코드관리
+        ├── DifferentialProfit\              # 차액손익
+        ├── ForeignAssetManagement\          # 외화자산관리
+        ├── FrameManagement\                 # 프레임관리
+        ├── LedgerInquiry\                   # 원장조회
+        ├── ReportManagement\                # 보고서관리
+        ├── SubscriptionRights\              # 청약권리
+        ├── SystemManagement\                # 시스템관리
+        └── UsPortfolioModel\                # 미국포트폴리오모델
