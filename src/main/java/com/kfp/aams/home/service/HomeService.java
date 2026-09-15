@@ -3,7 +3,7 @@ package com.kfp.aams.home.service;
 import com.kfp.aams.home.dto.*;
 
 import com.kfp.aams.home.mapper.HomeMapper;
-import com.kfp.aams.home.mapper.queryDSL.HomeQueryDslRepository;
+import com.kfp.aams.home.mapper.querydsl.HomeQueryDslRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

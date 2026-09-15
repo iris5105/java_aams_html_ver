@@ -3,7 +3,7 @@ package com.kfp.aams.auth.controller;
 import com.kfp.aams.auth.dto.LoginRequestDto;
 import com.kfp.aams.auth.dto.LoginResponseDto;
 import com.kfp.aams.auth.dto.UserDto;
-import com.kfp.aams.auth.mapper.queryDSL.UserQueryDslRepository;
+import com.kfp.aams.auth.mapper.querydsl.UserQueryDslRepository;
 import com.kfp.aams.security.JwtProvider;
 import com.kfp.aams.security.UserPrincipal;
 import jakarta.servlet.http.Cookie;

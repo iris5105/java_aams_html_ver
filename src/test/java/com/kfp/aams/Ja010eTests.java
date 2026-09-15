@@ -1,7 +1,7 @@
 package com.kfp.aams;
 
-import com.kfp.aams.domain.DailyAdvisory.dto.Ja010eDto;
-import com.kfp.aams.domain.DailyAdvisory.service.Ja010eService;
+import com.kfp.aams.domain.dailyadvisory.dto.Ja010eDto;
+import com.kfp.aams.domain.dailyadvisory.service.Ja010eService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;

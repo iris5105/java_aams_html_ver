@@ -20,37 +20,38 @@ public class MenuService {
     /**
      * Header top menu list
      */
-    public List<MenuDto> getTopMenuList() {
-        return menuMapper.selectTopMenuList();
+    public List<MenuDto> getTopMenuList(String userId, String userNm) {
+        return menuMapper.selectTopMenuList(userId, userNm);
     }
 
     /**
      * Side navigation menu list for a given header pgmNo
      */
-    public List<MenuDto> getSideMenuList(String pgmNo) {
+    public List<MenuDto> getSideMenuList(String pgmNo, String userId, String userNm) {
         if (pgmNo == null || pgmNo.isBlank()) {
-            List<MenuDto> topList = getTopMenuList();
+            List<MenuDto> topList = getTopMenuList(userId, userNm);
             if (!topList.isEmpty()) {
                 pgmNo = topList.get(0).getPgmNo();
             } else {
                 pgmNo = "00804";
             }
         }
-        return menuMapper.selectSideMenuList(pgmNo);
+        return menuMapper.selectSideMenuList(pgmNo, userId, userNm);
     }
 
     /**
      * Get menu DTO by PGM_ID to fetch FULLPGM2
      */
     public MenuDto getMenuByPgmId(String pgmId) {
-        if (pgmId == null || pgmId.isBlank()) return null;
+        if (pgmId == null || pgmId.isBlank())
+            return null;
         return menuMapper.selectMenuByPgmId(pgmId);
     }
 
     /**
      * Get all menu items for global sidebar search
      */
-    public List<MenuDto> getAllMenuList() {
-        return menuMapper.selectAllMenuList();
+    public List<MenuDto> getAllMenuList(String userId, String userNm) {
+        return menuMapper.selectAllMenuList(userId, userNm);
     }
 }

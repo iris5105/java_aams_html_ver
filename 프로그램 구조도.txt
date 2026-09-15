@@ -11,17 +11,17 @@ d:\work\java_aams_html_ver\
 │       ├── w_home5.html                     # 메인 홈 대시보드
 │       ├── fragments\                       # 공통 컴포넌트 (top_header, side_menu, filter, modal 등)
 │       └── views\
-│           ├── DailyAdvisory\               # 자문일일 화면 HTML 뷰 (w_ja010b.html 등)
-│           ├── AssetManagement\             # 자산관리 화면 HTML 뷰
-│           ├── CodeManagement\              # 코드관리 화면 HTML 뷰
-│           ├── DifferentialProfit\          # 차액손익 화면 HTML 뷰
-│           ├── ForeignAssetManagement\      # 외화자산관리 화면 HTML 뷰
-│           ├── FrameManagement\             # 프레임관리 화면 HTML 뷰
-│           ├── LedgerInquiry\               # 원장조회 화면 HTML 뷰
-│           ├── ReportManagement\            # 보고서관리 화면 HTML 뷰
-│           ├── SubscriptionRights\          # 청약권리 화면 HTML 뷰
-│           ├── SystemManagement\            # 시스템관리 화면 HTML 뷰
-│           └── UsPortfolioModel\            # 미국포트폴리오모델 화면 HTML 뷰
+│           ├── dailyadvisory\               # 자문일일 화면 HTML 뷰 (w_ja010b.html 등 27개)
+│           ├── assetmanagement\             # 자산관리 화면 HTML 뷰 (.gitkeep)
+│           ├── codemanagement\              # 코드관리 화면 HTML 뷰 (.gitkeep)
+│           ├── differentialprofit\          # 차액손익 화면 HTML 뷰 (.gitkeep)
+│           ├── foreignassetmanagement\      # 외화자산관리 화면 HTML 뷰 (.gitkeep)
+│           ├── framemanagement\             # 프레임관리 화면 HTML 뷰 (.gitkeep)
+│           ├── ledgerinquiry\               # 원장조회 화면 HTML 뷰 (.gitkeep)
+│           ├── reportmanagement\            # 보고서관리 화면 HTML 뷰 (.gitkeep)
+│           ├── subscriptionrights\          # 청약권리 화면 HTML 뷰 (.gitkeep)
+│           ├── systemmanagement\            # 시스템관리 화면 HTML 뷰 (.gitkeep)
+│           └── usportfoliomodel\            # 미국포트폴리오모델 화면 HTML 뷰 (.gitkeep)
 │
 └── src\main\java\com\kfp\aams\
     ├── AamsApplication.java                 # Spring Boot 애플리케이션 엔트리포인트
@@ -47,7 +47,7 @@ d:\work\java_aams_html_ver\
     │   ├── dto\                             # UserDto, LoginRequestDto ...
     │   ├── entity\                          # FwUserMst.java ...
     │   └── mapper\
-    │       └── queryDSL\                    # UserQueryDslRepository.java (단일 조회 QueryDSL)
+    │       └── querydsl\                    # UserQueryDslRepository.java (단일 조회 QueryDSL)
     │
     ├── home\                                # 메인 대시보드 서비스
     │   ├── controller\                      # HomeController.java
@@ -55,7 +55,7 @@ d:\work\java_aams_html_ver\
     │   ├── entity\                          # Szx0aa, FwDayTr, Proposal ...
     │   ├── mapper\
     │   │   ├── HomeMapper.java              # 복합 쿼리 MyBatis 인터페이스
-    │   │   ├── queryDSL\                    # HomeQueryDslRepository.java (단일 테이블 QueryDSL)
+    │   │   ├── querydsl\                    # HomeQueryDslRepository.java (단일 테이블 QueryDSL)
     │   │   └── xml\                         # HomeMapper.xml (MyBatis 쿼리 XML)
     │   └── service\                         # HomeService.java
     │
@@ -80,13 +80,13 @@ d:\work\java_aams_html_ver\
     │  ========================================================================
     └── domain\
         │
-        ├── DailyAdvisory\                   # [자문일일 업무 패키지] (표준 모델)
+        ├── dailyadvisory\                   # [자문일일 업무 패키지] (표준 모델)
         │   ├── controller\                  # 화면별 Controller (Ja010bController, Szx0seController 등 27개)
         │   ├── dto\                         # 화면별 DTO 클래스 (70여 개)
         │   ├── entity\                      # JPA 엔티티 및 복합키 ID 클래스 (Szx0se, ProposalAppend 등)
         │   ├── mapper\
         │   │   ├── *Mapper.java             # MyBatis 매퍼 인터페이스 (26개)
-        │   │   ├── queryDSL\                # 단일 조회 QueryDSL 레포지토리 (4개)
+        │   │   ├── querydsl\                # 단일 조회 QueryDSL 레포지토리 (4개)
         │   │   │   ├── Ja010aQueryDslRepository.java
         │   │   │   ├── ProposalQueryDslRepository.java
         │   │   │   ├── Shj0igQueryDslRepository.java
@@ -94,14 +94,14 @@ d:\work\java_aams_html_ver\
         │   │   └── xml\                     # MyBatis XML 파일 (26개)
         │   └── service\                     # 화면별 Service 클래스 (27개)
         │
-        │  [향후 화면 개발 예정 도메인 분류 폴더]
-        ├── AssetManagement\                 # 자산관리
-        ├── CodeManagement\                  # 코드관리
-        ├── DifferentialProfit\              # 차액손익
-        ├── ForeignAssetManagement\          # 외화자산관리
-        ├── FrameManagement\                 # 프레임관리
-        ├── LedgerInquiry\                   # 원장조회
-        ├── ReportManagement\                # 보고서관리
-        ├── SubscriptionRights\              # 청약권리
-        ├── SystemManagement\                # 시스템관리
-        └── UsPortfolioModel\                # 미국포트폴리오모델
+        │  [신규 도메인 - 5대 레이어 스캐폴딩 및 .gitkeep 적용 완료]
+        ├── assetmanagement\                 # 자산관리 (controller, dto, entity, mapper/querydsl, mapper/xml, service)
+        ├── codemanagement\                  # 코드관리 (controller, dto, entity, mapper/querydsl, mapper/xml, service)
+        ├── differentialprofit\              # 차액손익 (controller, dto, entity, mapper/querydsl, mapper/xml, service)
+        ├── foreignassetmanagement\          # 외화자산관리 (controller, dto, entity, mapper/querydsl, mapper/xml, service)
+        ├── framemanagement\                 # 프레임관리 (controller, dto, entity, mapper/querydsl, mapper/xml, service)
+        ├── ledgerinquiry\                   # 원장조회 (controller, dto, entity, mapper/querydsl, mapper/xml, service)
+        ├── reportmanagement\                # 보고서관리 (controller, dto, entity, mapper/querydsl, mapper/xml, service)
+        ├── subscriptionrights\              # 청약권리 (controller, dto, entity, mapper/querydsl, mapper/xml, service)
+        ├── systemmanagement\                # 시스템관리 (controller, dto, entity, mapper/querydsl, mapper/xml, service)
+        └── usportfoliomodel\                # 미국포트폴리오모델 (controller, dto, entity, mapper/querydsl, mapper/xml, service)

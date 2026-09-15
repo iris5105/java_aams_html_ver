@@ -1,48 +1,66 @@
-﻿<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.kfp.aams.menu.mapper.MenuMapper">
 
     <!-- 1. Header Top Menu List -->
     <select id="selectTopMenuList" resultType="com.kfp.aams.menu.dto.MenuDto">
-        SELECT PGM_NO        AS pgmNo
-             , PGM_ID        AS pgmId
-             , PGM_NM        AS pgmNm
-             , PGM_GO        AS pgmGo
-             , PARENT_PGM    AS parentPgm
-             , PGM_KIND_CODE AS pgmKindCode
-             , SORT_ORDER    AS sortOrder
-             , UPD_ID        AS updId
-          FROM FW_PGM_MST
-         WHERE PGM_KIND_CODE = 'M'
-           AND PARENT_PGM = '00000'
-           AND MENU_USE_YN = 'Y'
-           AND PGM_USE_YN = 'Y'
+        SELECT T1.PGM_NO        AS pgmNo
+             , T1.PGM_ID        AS pgmId
+             , T1.PGM_NM        AS pgmNm
+             , T1.PGM_GO        AS pgmGo
+             , T1.PARENT_PGM    AS parentPgm
+             , T1.PGM_KIND_CODE AS pgmKindCode
+             , T1.SORT_ORDER    AS sortOrder
+             , T1.UPD_ID        AS updId
+          FROM FW_PGM_MST T1
+             , FW_ROLE_PGM T2
+             , FW_ROLE_MEMB  T3
+             , FW_USER_MST T4
+         WHERE T1.PGM_NO = T2.PGM_NO
+           AND T2.ROLE_NO = T3.ROLE_NO
+           AND T3.MEMB_CODE1 = T4.CORP_GR
+           AND T4.USER_ID = #{userId}
+           AND T4.USER_NM = #{userNm}
+           AND T1.PGM_KIND_CODE = 'M'
+           AND T1.PARENT_PGM = '00000'
+           AND T1.MENU_USE_YN = 'Y'
+           AND T1.PGM_USE_YN = 'Y'
          ORDER BY SORT_ORDER
     </select>
 
     <!-- 2. Side Navigation Menu List -->
     <select id="selectSideMenuList" resultType="com.kfp.aams.menu.dto.MenuDto">
-        SELECT PGM_NO        AS pgmNo
-             , PGM_ID        AS pgmId
-             , PGM_NM        AS pgmNm
-             , PGM_GO        AS pgmGo
-             , PARENT_PGM    AS parentPgm
-             , PGM_KIND_CODE AS pgmKindCode
-             , SORT_ORDER    AS sortOrder
-             , TREE_LEVEL    AS treeLevel
-             , TREE_LINE     AS treeLine
-             , FULLPGM       AS fullpgm
-             , FULLPGM1      AS fullpgm1
-             , FULLPGM2      AS fullpgm2
-          FROM FW_PGM_MST
-         WHERE PGM_KIND_CODE IN ('M', 'P')
-           AND MENU_USE_YN = 'Y'
-           AND PGM_USE_YN = 'Y'
-           AND PARENT_PGM != '00000'
-         START WITH PGM_NO = #{pgmNo}
-        CONNECT BY PRIOR PGM_NO = PARENT_PGM
-         ORDER SIBLINGS BY NVL(SORT_ORDER, 0)
+        SELECT t1.PGM_NO        AS pgmNo
+             , t1.PGM_NM        AS pgmNm
+             , t1.PGM_ID        AS pgmId
+             , t1.PGM_GO        AS pgmGo
+             , t1.PARENT_PGM    AS parentPgm
+             , t1.PGM_KIND_CODE AS pgmKindCode
+             , t1.SORT_ORDER    AS sortOrder
+             , t1.TREE_LEVEL    AS treeLevel
+             , t1.TREE_LINE     AS treeLine
+             , t1.FULLPGM       AS fullpgm
+             , t1.FULLPGM1      AS fullpgm1
+             , t1.FULLPGM2      AS fullpgm2
+          FROM FW_PGM_MST t1
+             , ( select t2.PGM_NO
+                  from FW_ROLE_PGM T2
+                     , FW_ROLE_MEMB  T3
+                     , FW_USER_MST T4
+                 WHERE T2.ROLE_NO = T3.ROLE_NO
+                   AND T3.MEMB_CODE1 = T4.CORP_GR
+                   AND T4.USER_ID = #{userId}
+                   AND T4.USER_NM = #{userNm}
+                ) t2
+         WHERE t1.PGM_NO = t2.PGM_NO
+           and t1.PGM_KIND_CODE IN ('M', 'P')
+           AND t1.MENU_USE_YN = 'Y'
+           AND t1.PGM_USE_YN = 'Y'
+           AND t1.PARENT_PGM != '00000'
+         START WITH t1.PGM_NO = #{pgmNo}
+        CONNECT BY PRIOR t1.PGM_NO = t1.PARENT_PGM
+         ORDER SIBLINGS BY NVL(t1.SORT_ORDER, 0)
     </select>
 
     <!-- 3. Get Menu Info by PGM_ID -->
@@ -61,21 +79,29 @@
 
     <!-- 4. Select All Programs for Global Search -->
     <select id="selectAllMenuList" resultType="com.kfp.aams.menu.dto.MenuDto">
-        SELECT PGM_NO        AS pgmNo
-             , PGM_ID        AS pgmId
-             , PGM_NM        AS pgmNm
-             , PGM_GO        AS pgmGo
-             , PARENT_PGM    AS parentPgm
-             , PGM_KIND_CODE AS pgmKindCode
-             , SORT_ORDER    AS sortOrder
-             , FULLPGM       AS fullpgm
-             , FULLPGM1      AS fullpgm1
-             , FULLPGM2      AS fullpgm2
-          FROM FW_PGM_MST
-         WHERE PGM_KIND_CODE = 'P'
-           AND MENU_USE_YN = 'Y'
-           AND PGM_USE_YN = 'Y'
-         ORDER BY NVL(SORT_ORDER, 0), PGM_GO
+        SELECT T1.PGM_NO        AS pgmNo
+             , T1.PGM_ID        AS pgmId
+             , T1.PGM_NM        AS pgmNm
+             , T1.PGM_GO        AS pgmGo
+             , T1.PARENT_PGM    AS parentPgm
+             , T1.PGM_KIND_CODE AS pgmKindCode
+             , T1.SORT_ORDER    AS sortOrder
+             , T1.FULLPGM       AS fullpgm
+             , T1.FULLPGM1      AS fullpgm1
+             , T1.FULLPGM2      AS fullpgm2
+          FROM FW_PGM_MST t1
+             , FW_ROLE_PGM T2
+             , FW_ROLE_MEMB  T3
+             , FW_USER_MST T4
+         WHERE T1.PGM_NO = T2.PGM_NO
+           AND T2.ROLE_NO = T3.ROLE_NO
+           AND T3.MEMB_CODE1 = T4.CORP_GR
+           AND T4.USER_ID = #{userId}
+           AND T4.USER_NM = #{userNm}
+           AND T1.PGM_KIND_CODE = 'P'
+           AND T1.MENU_USE_YN = 'Y'
+           AND T1.PGM_USE_YN = 'Y'
+         ORDER BY NVL(T1.SORT_ORDER, 0), T1.PGM_GO
     </select>
 
 </mapper>

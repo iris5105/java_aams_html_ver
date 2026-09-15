@@ -162,6 +162,11 @@ public class JwtProvider {
         return claims.get("corpGr", String.class);
     }
 
+    public String getUserNm(String token) {
+        Claims claims = getClaims(token);
+        return claims.get("userNm", String.class);
+    }
+
     /**
      * Build UserPrincipal from JWT claims
      */

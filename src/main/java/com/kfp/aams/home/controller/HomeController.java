@@ -20,7 +20,7 @@ public class HomeController {
     private final HomeService homeService;
     private final MenuService menuService;
 
-    @GetMapping({ "/", "/home", "/w_home5" })
+    @GetMapping("/")
     public String homePage(@AuthenticationPrincipal UserPrincipal principal,
             @RequestParam(name = "corpGr", required = false) String paramCorpGr,
             Model model) {
@@ -37,9 +37,9 @@ public class HomeController {
         String today = java.time.LocalDateTime.now()
                 .format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"));
 
-        List<MenuDto> topMenuList = menuService.getTopMenuList();
+        List<MenuDto> topMenuList = menuService.getTopMenuList(userId, userNm);
         String activePgmNo = (topMenuList != null && !topMenuList.isEmpty()) ? topMenuList.get(0).getPgmNo() : "00804";
-        List<MenuDto> sideMenuList = menuService.getSideMenuList(activePgmNo);
+        List<MenuDto> sideMenuList = menuService.getSideMenuList(activePgmNo, userId, userNm);
 
         model.addAttribute("corpGr", corpGr);
         model.addAttribute("companyName", principal.getCompanyName());
@@ -56,6 +56,14 @@ public class HomeController {
         model.addAttribute("gyulList", homeService.getGyulAccountList(corpGr));
         model.addAttribute("noticeList", homeService.getNoticeList(userId));
         return "w_home5";
+    }
+
+    @GetMapping({ "/home", "/w_home5" })
+    public String redirectToRoot(@RequestParam(name = "corpGr", required = false) String corpGr) {
+        if (corpGr != null && !corpGr.isBlank()) {
+            return "redirect:/?corpGr=" + corpGr;
+        }
+        return "redirect:/";
     }
 
     @GetMapping("/api/home/companies")
