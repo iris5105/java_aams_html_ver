@@ -133,27 +133,34 @@
             function retrieveDddw() {
                 const targetCorpGr = resolveCorpGr();
                 if (typeof window.f_dddwctl === 'function') {
-                    window.f_dddwctl('pg_cd', 1, targetCorpGr, '', '').then(list => {
+                    return window.f_dddwctl('pg_cd', 1, targetCorpGr, '', '').then(list => {
                         dddwOptionsMap.pg_cd = list || [];
                         if (gridDetail) {
-                            gridDetail.redraw(true);
+                            gridDetail.reformat();
                         }
+                        return list;
                     }).catch(err => {
                         console.error("Failed to retrieve DDDW options for pg_cd:", err);
+                        return [];
                     });
                 }
+                return Promise.resolve([]);
             }
 
             function getDddwOptions(dddwKey) {
+                if (!dddwOptionsMap[dddwKey] || dddwOptionsMap[dddwKey].length === 0) {
+                    retrieveDddw();
+                }
                 const list = dddwOptionsMap[dddwKey] || [];
                 return list.map(item => {
                     const code = (item.code != null ? item.code : (item.SEBU_CD != null ? item.SEBU_CD : (item.cd != null ? item.cd : ''))).toString().trim();
-                    const name = (item.name != null ? item.name : (item.SEBU_CD_NM != null ? item.SEBU_CD_NM : (item.dscr != null ? item.dscr : code))).toString().trim();
+                    let name = (item.name != null ? item.name : (item.SEBU_CD_NM != null ? item.SEBU_CD_NM : (item.dscr != null ? item.dscr : code))).toString().trim();
+                    if (!name && code === '0998') name = '미평가';
                     return { 
-                        label: `${code} / (${name})`, 
+                        label: name || code, 
                         value: code,
                         code: code,
-                        name: name
+                        name: name || code
                     };
                 });
             }
@@ -170,22 +177,26 @@
                 };
             }
 
+            // Rule 7: 화면(그리드 셀)에는 코드명이 나오게끔 처리
             function getDddwLabel(dddwKey, codeVal) {
                 if (codeVal == null || codeVal === "") return "";
-                if (typeof window.f_dddwctl === 'function' && typeof window.f_dddwctl.getLabel === 'function') {
-                    const l = window.f_dddwctl.getLabel(dddwOptionsMap, dddwKey, codeVal);
-                    if (l) return `${codeVal} / (${l})`;
-                }
+                const strCode = String(codeVal).trim();
                 const list = dddwOptionsMap[dddwKey] || [];
                 const found = list.find(item => {
                     const c = (item.code != null ? item.code : (item.SEBU_CD != null ? item.SEBU_CD : item.cd));
-                    return String(c).trim() === String(codeVal).trim();
+                    return String(c).trim() === strCode;
                 });
                 if (found) {
-                    const n = found.name != null ? found.name : (found.SEBU_CD_NM != null ? found.SEBU_CD_NM : found.dscr);
-                    return `${codeVal} / (${n})`;
+                    let n = (found.name != null ? found.name : (found.SEBU_CD_NM != null ? found.SEBU_CD_NM : found.dscr));
+                    n = n ? String(n).trim() : "";
+                    if (n) return n;
                 }
-                return String(codeVal);
+                if (typeof window.f_dddwctl === 'function' && typeof window.f_dddwctl.getLabel === 'function') {
+                    const lbl = window.f_dddwctl.getLabel(dddwOptionsMap, dddwKey, codeVal);
+                    if (lbl && lbl !== strCode && lbl.trim() !== "") return lbl.trim();
+                }
+                if (strCode === "0998") return "미평가";
+                return strCode;
             }
 
             // Master Columns (d_scm1pg_1.srd)
@@ -254,15 +265,16 @@
                     headerHozAlign: "center",
                     editor: "list",
                     editorParams: {
-                        values: function() { return getDddwOptions('pg_cd'); },
+                        valuesLookup: () => getDddwOptions('pg_cd'),
                         itemFormatter: createDddw2ColFormatter(60, "코드", "등급명"),
-                        autocomplete: true,
+                        autocomplete: false,
                         listOnEmpty: true,
-                        freetext: false
+                        clearable: false
                     },
                     formatter: function(cell) {
                         return getDddwLabel('pg_cd', cell.getValue());
                     },
+                    editable: true,
                     cellClick: typeof aamsCellEdit !== 'undefined' ? aamsCellEdit : undefined,
                     cellEdited: function(cell) {
                         const row = cell.getRow();
@@ -611,8 +623,9 @@
                 pane.onCorpGrChange = function(newCorpGr) {
                     if (gridMaster) gridMaster.clearData();
                     if (gridDetail) gridDetail.clearData();
-                    retrieveDddw();
-                    loadMaster();
+                    retrieveDddw().then(() => {
+                        loadMaster();
+                    });
                 };
             }
 
