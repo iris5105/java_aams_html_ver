@@ -142,10 +142,13 @@
                         pane: pane,
                         getCorpGr: resolveCorpGr,
                         onSelect: function(code, name, rowData) {
-                            if (code) {
-                                loadJa010oData(true);
-                            } else {
-                                if (gridJa010o) gridJa010o.clearData();
+                            // 모달창에서 관리번호 선택 시 자동 조회를 실행하지 않고, 상단 조회 버튼 클릭 시에만 실행되도록 설정
+                            if (gridJa010o) {
+                                gridJa010o.clearData();
+                            }
+                            lastFundCd = null;
+                            if (window.ButtonRole && typeof window.ButtonRole.setSearchState === "function") {
+                                window.ButtonRole.setSearchState(pane, false);
                             }
                         }
                     });
@@ -428,6 +431,10 @@
                         lastYmd = ymd;
                         lastFundCd = fundCd;
 
+                        if (window.ButtonRole && typeof window.ButtonRole.setSearchState === "function") {
+                            window.ButtonRole.setSearchState(pane, true);
+                        }
+
                         if (gridJa010o) {
                             gridJa010o.setData(data || []).then(() => {
                                 // Rule 15: Select first row automatically on data binding
@@ -616,7 +623,14 @@
                         initialYmd: /*[[${ymd}]]*/ '',
                         pane: pane,
                         onSelect: function(selectedYmd) {
-                            loadJa010oData(true);
+                            // 날짜 변경 시 자동 조회를 실행하지 않고, 상단 조회 버튼 클릭 시에만 실행되도록 설정
+                            if (gridJa010o) {
+                                gridJa010o.clearData();
+                            }
+                            lastYmd = null;
+                            if (window.ButtonRole && typeof window.ButtonRole.setSearchState === "function") {
+                                window.ButtonRole.setSearchState(pane, false);
+                            }
                         }
                     });
                 }
@@ -641,6 +655,11 @@
                     if (gridJa010o) {
                         gridJa010o.clearData();
                     }
+                    lastCorpGr = null;
+                    lastFundCd = null;
+                    if (window.ButtonRole && typeof window.ButtonRole.setSearchState === "function") {
+                        window.ButtonRole.setSearchState(pane, false);
+                    }
                 };
                 pane.onRefresh = function() {
                     if (codeSearchInstance) {
@@ -648,6 +667,12 @@
                     }
                     if (gridJa010o) {
                         gridJa010o.clearData();
+                    }
+                    lastCorpGr = null;
+                    lastFundCd = null;
+                    lastYmd = null;
+                    if (window.ButtonRole && typeof window.ButtonRole.setSearchState === "function") {
+                        window.ButtonRole.setSearchState(pane, false);
                     }
                     if (typeof showToast === "function") {
                         showToast("화면이 초기화되었습니다.", "info");
@@ -665,6 +690,10 @@
                 initCodeSearch();
                 initExcelImport();
                 bindToolbarActions();
+
+                if (window.ButtonRole && typeof window.ButtonRole.setSearchState === "function") {
+                    window.ButtonRole.setSearchState(pane, false);
+                }
             }
 
             if (document.readyState === "loading") {
