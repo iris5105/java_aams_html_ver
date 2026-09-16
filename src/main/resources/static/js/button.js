@@ -32,6 +32,7 @@ function onToolbarClose(btn) {
  * @param {HTMLElement} btn
  */
 function onToolbarInput(btn) {
+    if (btn && (btn.disabled || btn.classList.contains('disabled'))) return;
     const pane = getActiveTabPane(btn);
     if (!pane) return;
 
@@ -101,6 +102,7 @@ function onToolbarInput(btn) {
  */
 function clearAllTabulatorsInPane(pane) {
     if (!pane) return 0;
+    pane._isClearingTabulator = true;
 
     const tablesToClear = new Set();
 
@@ -178,6 +180,10 @@ function clearAllTabulatorsInPane(pane) {
         }
     });
 
+    setTimeout(() => {
+        if (pane) pane._isClearingTabulator = false;
+    }, 200);
+
     return tablesToClear.size;
 }
 
@@ -188,8 +194,14 @@ function clearAllTabulatorsInPane(pane) {
  * @param {HTMLElement} btn
  */
 function onToolbarRefresh(btn) {
+    if (btn && (btn.disabled || btn.classList.contains('disabled'))) return;
     const pane = getActiveTabPane(btn);
     if (!pane) return;
+
+    // 0. 버튼 권한 모듈: 조회 전 초기 상태로 되돌림 (닫기, 조회만 활성화, 나머지 비활성화)
+    if (window.ButtonRole && typeof window.ButtonRole.setSearchState === 'function') {
+        window.ButtonRole.setSearchState(pane, false);
+    }
 
     // 1. [선행 안전망] 어떤 화면이든 무조건 해당 탭 내의 모든 Tabulator 그리드 데이터 초기화
     clearAllTabulatorsInPane(pane);
@@ -254,8 +266,14 @@ function onToolbarRefresh(btn) {
  * @param {HTMLElement} btn
  */
 function onToolbarSearch(btn) {
+    if (btn && (btn.disabled || btn.classList.contains('disabled'))) return;
     const pane = getActiveTabPane(btn);
     if (!pane) return;
+
+    // 조회 실행 완료 상태 전환 (조회 버튼 비활성화, 나머지 권한 버튼 활성화)
+    if (window.ButtonRole && typeof window.ButtonRole.setSearchState === 'function') {
+        window.ButtonRole.setSearchState(pane, true);
+    }
 
     if (typeof pane.onSearch === 'function') {
         pane.onSearch(btn);
@@ -282,6 +300,7 @@ function onToolbarSearch(btn) {
  * @param {HTMLElement} btn
  */
 function onToolbarSave(btn) {
+    if (btn && (btn.disabled || btn.classList.contains('disabled'))) return;
     const pane = getActiveTabPane(btn);
     if (!pane) return;
 
@@ -302,6 +321,7 @@ function onToolbarSave(btn) {
  * @param {HTMLElement} btn
  */
 function onToolbarExcel(btn) {
+    if (btn && (btn.disabled || btn.classList.contains('disabled'))) return;
     const pane = getActiveTabPane(btn);
     if (!pane) return;
 
@@ -344,6 +364,7 @@ function onToolbarExcel(btn) {
  * @param {HTMLElement} btn
  */
 function onToolbarCopy(btn) {
+    if (btn && (btn.disabled || btn.classList.contains('disabled'))) return;
     const pane = getActiveTabPane(btn);
     if (!pane) return;
 
@@ -427,6 +448,7 @@ function onToolbarCopy(btn) {
  * @param {HTMLElement} btn
  */
 function onToolbarDelete(btn) {
+    if (btn && (btn.disabled || btn.classList.contains('disabled'))) return;
     const pane = getActiveTabPane(btn);
     if (!pane) return;
 
@@ -499,6 +521,7 @@ function getPaneTitle(pane) {
  * @param {HTMLElement} btn
  */
 function onToolbarPrint(btn) {
+    if (btn && (btn.disabled || btn.classList.contains('disabled'))) return;
     const pane = getActiveTabPane(btn);
     if (!pane) return;
 

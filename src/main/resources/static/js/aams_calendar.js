@@ -223,6 +223,14 @@ window.AamsCalendar = (function() {
         },
 
         toggle: function(inputId, e) {
+            // disabled 또는 filter-disabled 상태인 경우 달력 열기 방지
+            if (e && e.target) {
+                const triggerEl = e.target.closest ? (e.target.closest('button') || e.target.closest('input')) : e.target;
+                if (triggerEl && (triggerEl.disabled || triggerEl.classList.contains('disabled') || triggerEl.classList.contains('filter-disabled'))) {
+                    return;
+                }
+            }
+
             if (inputId && typeof inputId === 'object' && inputId.nodeType === 1) {
                 inputId = inputId.id || inputId.getAttribute('name') || 'filterYmd';
             }
@@ -984,6 +992,14 @@ window.AamsCalendar = (function() {
         },
 
         toggleRange: function(rangeId, e) {
+            // disabled 또는 filter-disabled 상태인 경우 달력 열기 방지
+            if (e && e.target) {
+                const triggerEl = e.target.closest ? (e.target.closest('button') || e.target.closest('input')) : e.target;
+                if (triggerEl && (triggerEl.disabled || triggerEl.classList.contains('disabled') || triggerEl.classList.contains('filter-disabled'))) {
+                    return;
+                }
+            }
+
             if (e && typeof e.stopPropagation === 'function') {
                 e.stopPropagation();
             }

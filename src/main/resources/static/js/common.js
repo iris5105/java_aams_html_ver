@@ -1271,6 +1271,19 @@ function setupTabulatorRowSelection(table, onRowChange, options = {}) {
                     }, 50);
                 }
             }
+
+            // 5. 마스터 그리드 조회 완료 시 버튼 상태 동기화 (조회 버튼 비활성화, 나머지 권한 보유 버튼 활성화)
+            if (options.isMaster !== false) {
+                // 초기 그리드 생성(빈 배열) 시의 오작동 방지: 실제 데이터가 1건 이상 로드된 경우에만 동기화
+                if (Array.isArray(data) && data.length > 0) {
+                    const pane = table.element ? (table.element.closest('.tab-pane') || table.element.closest('.view-container')) : null;
+                    if (pane && window.ButtonRole && typeof window.ButtonRole.setSearchState === 'function') {
+                        if (pane._isClearingTabulator !== true) {
+                            window.ButtonRole.setSearchState(pane, true);
+                        }
+                    }
+                }
+            }
         });
     }
 

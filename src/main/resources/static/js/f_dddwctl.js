@@ -488,6 +488,9 @@
 
         btn.addEventListener("click", (e) => {
             e.stopPropagation();
+            if (btn.disabled || wrapper.classList.contains("disabled") || el.disabled) {
+                return;
+            }
             if (wrapper.classList.contains("open")) {
                 closePopup();
             } else {

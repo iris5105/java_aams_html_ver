@@ -241,6 +241,11 @@ class TabManager {
                         }
                     });
 
+                    // Apply PowerBuilder pf_n_buttonrole common button authority control
+                    if (window.ButtonRole && typeof window.ButtonRole.apply === 'function') {
+                        window.ButtonRole.apply(pane, tabObj.pgmNo);
+                    }
+
                     // Execute scripts if present inside loaded HTML
                     const scripts = pane.querySelectorAll("script");
                     scripts.forEach(oldScript => {

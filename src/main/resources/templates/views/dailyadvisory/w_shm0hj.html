@@ -840,6 +840,10 @@
                     return;
                 }
 
+                if (window.ButtonRole && typeof window.ButtonRole.setSearchState === 'function') {
+                    window.ButtonRole.setSearchState(pane, true);
+                }
+
                 const url = `/api/shm0hj/master?corpGr=${encodeURIComponent(corpGr)}&ymd=${encodeURIComponent(ymd)}&cashCd=${encodeURIComponent(cashCd)}`;
 
                 fetch(url)
@@ -1064,9 +1068,7 @@
                 const btnInterest = pane ? pane.querySelector("#btnGenerateInterest") : document.getElementById("btnGenerateInterest");
                 if (btnInterest) btnInterest.onclick = generateInterest;
 
-                // Toolbar Common Retrieve button
-                const btnToolbarRetrieve = pane ? (pane.querySelector(".btn-search") || pane.querySelector(".t-btn[title='조회']")) : null;
-                if (btnToolbarRetrieve) btnToolbarRetrieve.onclick = loadMasterList;
+
 
                 // Filter input enter key
                 const filterYmd = pane ? pane.querySelector("#filterYmd") : document.getElementById("filterYmd");

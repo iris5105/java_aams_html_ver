@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.kfp.aams.common.mapper.ButtonAuthMapper">
+
+    <!-- 1. 사용자의 유효한 role_no 목록 조회 (n_authority.of_getuserroleinfo 대응) -->
+    <select id="selectUserRoleNos" resultType="java.lang.String">
+        SELECT DISTINCT a.role_no
+          FROM fw_role_memb a
+             , fw_role_mst b
+         WHERE a.sys_id = 'SY'
+           AND a.sys_id = b.sys_id
+           AND a.role_no = b.role_no
+           AND (
+                a.memb_code1 = #{corpGr}
+                OR a.memb_code1 IN (SELECT corp_gr FROM fw_user_mst WHERE user_id = #{userId})
+           )
+           AND (a.memb_code2 IS NULL OR a.memb_code2 = #{userId})
+           AND (CASE a.valid_dt_yn WHEN 'Y' THEN (CASE WHEN #{today} BETWEEN a.valid_dt_from AND a.valid_dt_to THEN 'true' ELSE 'false' END) ELSE 'true' END) = 'true'
+    </select>
+
+    <!-- 2. fw_d_commbtnauth.srd 원본 쿼리: role_no 목록 및 pgm_no로 버튼 권한 조회 -->
+    <select id="selectButtonAuthList" resultType="com.kfp.aams.common.dto.ButtonAuthRawDto">
+        SELECT a.role_no           AS roleNo
+             , a.pgm_no            AS pgmNo
+             , a.comm_btn_auth_yn  AS commBtnAuthYn
+             , a.cancel_auth_yn    AS cancelAuthYn
+             , a.retrieve_auth_yn  AS retrieveAuthYn
+             , a.input_auth_yn     AS inputAuthYn
+             , a.ext1_auth_yn      AS ext1AuthYn
+             , a.update_auth_yn    AS updateAuthYn
+             , a.delete_auth_yn    AS deleteAuthYn
+             , a.print_auth_yn     AS printAuthYn
+             , a.excel_auth_yn     AS excelAuthYn
+             , a.execute_auth_yn   AS executeAuthYn
+             , a.indiv_btn_auth_yn AS indivBtnAuthYn
+          FROM fw_role_pgm a
+         WHERE a.sys_id = 'SY'
+           AND a.role_no IN
+           <foreach item="item" collection="roleNos" open="(" separator="," close=")">
+               #{item}
+           </foreach>
+           AND a.pgm_no = #{pgmNo}
+           AND (CASE a.valid_dt_yn WHEN 'Y' THEN (CASE WHEN #{today} BETWEEN a.valid_dt_from AND a.valid_dt_to THEN 'true' ELSE 'false' END) ELSE 'true' END) = 'true'
+    </select>
+
+    <!-- 3. userId 및 pgmNo를 통한 원스톱 조회 (fw_d_commbtnauth.srd + fw_role_memb 조인) -->
+    <select id="selectButtonAuthListByUser" resultType="com.kfp.aams.common.dto.ButtonAuthRawDto">
+        SELECT a.role_no           AS roleNo
+             , a.pgm_no            AS pgmNo
+             , a.comm_btn_auth_yn  AS commBtnAuthYn
+             , a.cancel_auth_yn    AS cancelAuthYn
+             , a.retrieve_auth_yn  AS retrieveAuthYn
+             , a.input_auth_yn     AS inputAuthYn
+             , a.ext1_auth_yn      AS ext1AuthYn
+             , a.update_auth_yn    AS updateAuthYn
+             , a.delete_auth_yn    AS deleteAuthYn
+             , a.print_auth_yn     AS printAuthYn
+             , a.excel_auth_yn     AS excelAuthYn
+             , a.execute_auth_yn   AS executeAuthYn
+             , a.indiv_btn_auth_yn AS indivBtnAuthYn
+          FROM fw_role_pgm a
+         WHERE a.sys_id = 'SY'
+           AND a.role_no IN (
+               SELECT DISTINCT m.role_no
+                 FROM fw_role_memb m
+                WHERE m.sys_id = 'SY'
+                  AND (
+                       m.memb_code1 = #{corpGr}
+                       OR m.memb_code1 IN (SELECT corp_gr FROM fw_user_mst WHERE user_id = #{userId})
+                  )
+                  AND (m.memb_code2 IS NULL OR m.memb_code2 = #{userId})
+                  AND (CASE m.valid_dt_yn WHEN 'Y' THEN (CASE WHEN #{today} BETWEEN m.valid_dt_from AND m.valid_dt_to THEN 'true' ELSE 'false' END) ELSE 'true' END) = 'true'
+           )
+           AND a.pgm_no = #{pgmNo}
+           AND (CASE a.valid_dt_yn WHEN 'Y' THEN (CASE WHEN #{today} BETWEEN a.valid_dt_from AND a.valid_dt_to THEN 'true' ELSE 'false' END) ELSE 'true' END) = 'true'
+    </select>
+
+</mapper>
