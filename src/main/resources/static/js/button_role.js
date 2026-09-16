@@ -183,87 +183,94 @@
         /**
          * filter-bar 내부의 마스터그리드 조건 컨트롤과 서브 액션 버튼 활성화/비활성화
          * @param {HTMLElement} container - 탭 패널 컨테이너
-         * @param {boolean} isSearched - true: 조회 완료(조건 비활성화, 액션 활성화), false: 조회 전(조건 활성화, 액션 비활성화)
+         * @param {boolean} isSearched - true: 조회 완료(조건 비활성화), false: 조회 전(조건 활성화)
          */
         _updateFilterBarState: function(container, isSearched) {
             if (!container) return;
             const filterBars = container.querySelectorAll('.filter-bar');
             if (!filterBars || filterBars.length === 0) return;
 
-            const isConditionEnabled = !isSearched; // 조회 전 활성화, 조회 후 비활성화
-            const isActionEnabled = !!isSearched;   // 조회 전 비활성화, 조회 후 활성화
+            const isConditionEnabled = !isSearched; // 마스터그리드 조건: 조회 전 활성화, 조회 후 비활성화
+
+            // Calendar, DDDW, Dynamic Search 관련 요소 판별 헬퍼
+            function isConditionControl(el) {
+                if (!el) return false;
+
+                // 1. Calendar 관련 판별
+                if (el.classList.contains('btn-calendar') ||
+                    el.classList.contains('btn-range-calendar') ||
+                    el.closest('.aams-calendar-wrapper') ||
+                    el.closest('.range-calendar-wrapper') ||
+                    (el.getAttribute('onclick') && el.getAttribute('onclick').includes('AamsCalendar')) ||
+                    (el.id && (el.id.toLowerCase().includes('calendar') || el.id.toLowerCase().includes('ymd'))) ||
+                    (el.name && (el.name.toLowerCase().includes('ymd') || el.name.toLowerCase().includes('date'))) ||
+                    (el.querySelector && (el.querySelector('.fa-calendar') || el.querySelector('.fa-calendar-days') || el.querySelector('.fa-calendar-week')))) {
+                    return true;
+                }
+
+                // 2. DDDW 관련 판별
+                if (el.classList.contains('dddw-select-btn') ||
+                    el.classList.contains('dddw-select-custom') ||
+                    el.closest('.dddw-select-custom') ||
+                    (el.tagName === 'SELECT' && !el.classList.contains('btn-action')) ||
+                    (el.id && (el.id.toLowerCase().includes('dddw') || el.id.toLowerCase().includes('corpgr'))) ||
+                    (el.name && (el.name.toLowerCase().includes('dddw') || el.name.toLowerCase().includes('corp_gr')))) {
+                    return true;
+                }
+
+                // 3. Dynamic Search 관련 판별
+                if (el.classList.contains('btn-search-icon') ||
+                    el.classList.contains('code-search-btn') ||
+                    el.closest('.code-search-wrapper') ||
+                    (el.getAttribute('onclick') && (el.getAttribute('onclick').includes('Search') || el.getAttribute('onclick').includes('CodeSearch') || el.getAttribute('onclick').includes('openSearch'))) ||
+                    (el.id && (el.id.toLowerCase().includes('search') && !el.id.toLowerCase().includes('action'))) ||
+                    (el.querySelector && (el.querySelector('.fa-magnifying-glass') || el.querySelector('.fa-search')) && (el.title && el.title.includes('검색') || el.classList.contains('btn-search-icon') || !el.textContent.trim()))) {
+                    return true;
+                }
+
+                return false;
+            }
 
             filterBars.forEach(function(filterBar) {
-                // (1) 서브 액션 버튼 (평잔재계산, 엑셀로드, 종합엑셀생성 등) 식별
-                const actionButtons = [];
-                const actionCandidates = filterBar.querySelectorAll(
-                    '.filter-actions button, ' +
-                    '.filter-actions .t-btn, ' +
-                    'button.btn-action, ' +
-                    'button.btn-pyungjan, ' +
-                    'button[id^="btnLoad"], ' +
-                    'button[id^="btnGenerate"], ' +
-                    'button[id^="btnTotal"], ' +
-                    'button[id^="btnImport"]'
-                );
+                // (1) calendar, dddw, dynamicsearch와 연관되지 않은 다른 목적을 가진 모든 버튼들 식별
+                // (예: NEW체결, 체결등록, 잔고LOAD, 예수금LOAD, 신용/대출잔고LOAD, 종가LOAD, 평잔재계산 등)
+                const allButtons = filterBar.querySelectorAll('button, input[type="button"], input[type="submit"], .t-btn');
+                const otherActionButtons = [];
 
-                actionCandidates.forEach(function(btn) {
-                    // 캘린더 열기 버튼이나 검색 돋보기 버튼, DDDW 커스텀 버튼은 조건 컨트롤이므로 액션 버튼에서 제외
-                    if (btn.classList.contains('btn-calendar') ||
-                        btn.classList.contains('btn-range-calendar') ||
-                        btn.classList.contains('btn-search-icon') ||
-                        btn.classList.contains('dddw-select-btn') ||
-                        (btn.getAttribute('onclick') && (btn.getAttribute('onclick').includes('AamsCalendar') || btn.getAttribute('onclick').includes('Search'))) ||
-                        btn.querySelector('.fa-calendar') ||
-                        btn.querySelector('.fa-calendar-days') ||
-                        btn.querySelector('.fa-magnifying-glass')) {
-                        return;
+                allButtons.forEach(function(btn) {
+                    if (!isConditionControl(btn)) {
+                        otherActionButtons.push(btn);
                     }
-                    actionButtons.push(btn);
                 });
 
-                // 서브 액션 버튼 활성화/비활성화 적용
-                actionButtons.forEach(function(btn) {
-                    ButtonRole._setElementEnabled(btn, isActionEnabled);
+                // 요구사항 반영: filter-bar에 위치한 다른 목적의 버튼들은 조회 여부와 상관없이 항상 활성화 상태 유지
+                otherActionButtons.forEach(function(btn) {
+                    ButtonRole._setElementEnabled(btn, true);
                 });
 
-                // (2) 마스터그리드 조건 컨트롤 (날짜, 달력 팝업, DDDW, 검색 등) 식별
+                // (2) 마스터그리드 조건 컨트롤 (날짜 인풋, 달력 버튼, DDDW 셀렉트/버튼, 검색 인풋/돋보기 버튼 등) 식별
                 const conditionElements = [];
-                const allInputs = filterBar.querySelectorAll('input, select, textarea');
+                const allInputs = filterBar.querySelectorAll('input:not([type="button"]):not([type="submit"]), select, textarea');
                 allInputs.forEach(function(input) {
-                    if (!actionButtons.includes(input)) {
+                    if (!otherActionButtons.includes(input)) {
                         conditionElements.push(input);
                     }
                 });
 
-                const calAndSearchButtons = filterBar.querySelectorAll(
-                    '.btn-calendar, ' +
-                    '.btn-range-calendar, ' +
-                    '.btn-search-icon, ' +
-                    '.dddw-select-btn, ' +
-                    'button[onclick*="AamsCalendar"], ' +
-                    'button[id*="Calendar"], ' +
-                    'button[id*="Search"], ' +
-                    'button[title*="검색"], ' +
-                    'button:has(i.fa-calendar), ' +
-                    'button:has(i.fa-calendar-days), ' +
-                    'button:has(i.fa-magnifying-glass)'
-                );
-
-                calAndSearchButtons.forEach(function(btn) {
-                    if (!actionButtons.includes(btn)) {
+                allButtons.forEach(function(btn) {
+                    if (isConditionControl(btn) && !otherActionButtons.includes(btn)) {
                         conditionElements.push(btn);
                     }
                 });
 
-                // 마스터그리드 조건 컨트롤 활성화/비활성화 적용
+                // 마스터그리드 조건 컨트롤 활성화/비활성화 적용 (조회 전 활성화, 조회 후 비활성화)
                 conditionElements.forEach(function(el) {
                     ButtonRole._setFilterControlEnabled(el, isConditionEnabled);
                 });
 
-                // 래퍼 컨테이너(.aams-calendar-wrapper, .range-calendar-wrapper, .dddw-select-custom) 비활성화 스타일 클래스 동기화
+                // 래퍼 컨테이너(.aams-calendar-wrapper, .range-calendar-wrapper, .dddw-select-custom, .code-search-wrapper) 비활성화 스타일 클래스 동기화
                 const wrappers = filterBar.querySelectorAll(
-                    '.aams-calendar-wrapper, .range-calendar-wrapper, .dddw-select-custom'
+                    '.aams-calendar-wrapper, .range-calendar-wrapper, .dddw-select-custom, .code-search-wrapper'
                 );
                 wrappers.forEach(function(w) {
                     if (isConditionEnabled) {
