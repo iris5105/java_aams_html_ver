@@ -34,7 +34,7 @@ public class ButtonAuthController {
      */
     @GetMapping
     public ButtonAuthDto getButtonAuth(@RequestParam(name = "pgmNo") String pgmNo,
-                                       @AuthenticationPrincipal UserPrincipal principal) {
+            @AuthenticationPrincipal UserPrincipal principal) {
         if (principal == null || principal.getUserId() == null || principal.getUserId().isBlank()) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "인증되지 않은 접근입니다.");
         }
@@ -43,7 +43,7 @@ public class ButtonAuthController {
                 principal.getUserId(),
                 principal.getCorpGr(),
                 principal.getAdminYn(),
-                pgmNo
-        );
+                principal.getUserNm(),
+                pgmNo);
     }
 }

@@ -129,6 +129,20 @@
         },
 
         /**
+         * 화면 컨테이너에 실제로 노출되는 새로고침 버튼이 존재하는지 여부 확인
+         * @param {HTMLElement} container
+         * @returns {boolean}
+         */
+        _hasVisibleRefreshButton: function(container) {
+            if (!container) return false;
+            const btnRefresh = container.querySelector('.btn-refresh');
+            if (!btnRefresh) return false;
+            const isInlineNone = btnRefresh.style.display === 'none' || btnRefresh.classList.contains('d-none');
+            const computedDisplay = (window.getComputedStyle && btnRefresh.isConnected) ? window.getComputedStyle(btnRefresh).display : '';
+            return (!isInlineNone && computedDisplay !== 'none');
+        },
+
+        /**
          * 마스터그리드 조회 실행 상태(isSearched)에 따른 버튼 및 필터 활성화/비활성화 제어
          * @param {HTMLElement} pane - 화면 컨테이너 (탭 패널)
          * @param {boolean} isSearched - true: 조회 실행 완료, false: 조회 실행 전(초기화 상태)
@@ -145,13 +159,18 @@
                 '.toolbar-buttons .t-btn:not(.btn-search)'
             );
 
+            // 새로고침 버튼 존재 및 실제 노출 여부 확인
+            const hasRefreshButton = this._hasVisibleRefreshButton(container);
+
             if (isSearched) {
                 // [조회 실행 완료 후]
                 // 1) 닫기 버튼: 활성화
                 if (btnClose) this._setElementEnabled(btnClose, true);
 
-                // 2) 조회 버튼: 비활성화
-                if (btnSearch) this._setElementEnabled(btnSearch, false);
+                // 2) 조회 버튼: 새로고침 버튼이 없는 경우에는 항상 활성화 상태 유지, 새로고침이 있는 경우만 비활성화
+                if (btnSearch) {
+                    this._setElementEnabled(btnSearch, !hasRefreshButton);
+                }
 
                 // 3) 조회 버튼을 제외한 나머지 권한 버튼들: 활성화
                 otherButtons.forEach(function(btn) {
@@ -190,7 +209,11 @@
             const filterBars = container.querySelectorAll('.filter-bar');
             if (!filterBars || filterBars.length === 0) return;
 
-            const isConditionEnabled = !isSearched; // 마스터그리드 조건: 조회 전 활성화, 조회 후 비활성화
+            // 새로고침 버튼 존재 및 실제 노출 여부 확인
+            const hasRefreshButton = this._hasVisibleRefreshButton(container);
+
+            // 요구사항 반영: 새로고침 버튼이 없는 경우에는 filter부분은 항상 활성화 상태 유지
+            const isConditionEnabled = !hasRefreshButton ? true : !isSearched;
 
             // Calendar, DDDW, Dynamic Search 관련 요소 판별 헬퍼
             function isConditionControl(el) {

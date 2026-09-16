@@ -31,7 +31,8 @@ public class ButtonAuthService {
      * @param pgmNo   프로그램 번호 (예: '00052', '00804')
      * @return ButtonAuthDto 최종 버튼별 boolean 권한 결과
      */
-    public ButtonAuthDto getButtonAuth(String userId, String corpGr, String adminYn, String pgmNo) {
+    @SuppressWarnings("null")
+    public ButtonAuthDto getButtonAuth(String userId, String corpGr, String adminYn, String userNm, String pgmNo) {
         if (pgmNo == null || pgmNo.trim().isEmpty()) {
             return ButtonAuthDto.allAllowed(pgmNo);
         }
@@ -39,7 +40,8 @@ public class ButtonAuthService {
         String today = LocalDate.now().format(DateTimeFormatter.BASIC_ISO_DATE); // yyyyMMdd
 
         // 1. 파워빌더 fw_d_commbtnauth.srd 쿼리 결과 조회
-        List<ButtonAuthRawDto> authList = buttonAuthMapper.selectButtonAuthListByUser(userId, corpGr, pgmNo.trim(), today);
+        List<ButtonAuthRawDto> authList = buttonAuthMapper.selectButtonAuthListByUser(userId, corpGr, pgmNo.trim(),
+                today, userNm);
 
         // 2. 권한 데이터가 존재하지 않는 경우
         if (authList == null || authList.isEmpty()) {
@@ -53,10 +55,11 @@ public class ButtonAuthService {
         }
 
         // 3. pf_n_buttonrole.sru의 of_getcolumnmeanvalue 로직 재현:
-        //    조회된 복수 행 중 하나라도 'Y'이면 True, 그렇지 않으면 False
+        // 조회된 복수 행 중 하나라도 'Y'이면 True, 그렇지 않으면 False
         boolean commBtnAuthYn = isAnyColumnY(authList, ButtonAuthRawDto::getCommBtnAuthYn);
 
-        // comm_btn_auth_yn이 False인 경우 모든 공통 버튼 권한은 False 처리 (pf_n_buttonrole Line 79-97 동일)
+        // comm_btn_auth_yn이 False인 경우 모든 공통 버튼 권한은 False 처리 (pf_n_buttonrole Line 79-97
+        // 동일)
         if (!commBtnAuthYn) {
             return ButtonAuthDto.disabled(pgmNo);
         }
@@ -64,15 +67,15 @@ public class ButtonAuthService {
         return ButtonAuthDto.builder()
                 .pgmNo(pgmNo)
                 .commBtnAuthYn(true)
-                .cancelAuthYn(isAnyColumnY(authList, ButtonAuthRawDto::getCancelAuthYn))     // 새로고침 (.btn-refresh)
+                .cancelAuthYn(isAnyColumnY(authList, ButtonAuthRawDto::getCancelAuthYn)) // 새로고침 (.btn-refresh)
                 .retrieveAuthYn(isAnyColumnY(authList, ButtonAuthRawDto::getRetrieveAuthYn)) // 조회 (.btn-search)
-                .inputAuthYn(isAnyColumnY(authList, ButtonAuthRawDto::getInputAuthYn))       // 입력 (.btn-input)
-                .ext1AuthYn(isAnyColumnY(authList, ButtonAuthRawDto::getExt1AuthYn))         // 복사 (.btn-copy)
-                .updateAuthYn(isAnyColumnY(authList, ButtonAuthRawDto::getUpdateAuthYn))     // 저장 (.btn-save)
-                .deleteAuthYn(isAnyColumnY(authList, ButtonAuthRawDto::getDeleteAuthYn))     // 삭제 (.btn-delete)
-                .printAuthYn(isAnyColumnY(authList, ButtonAuthRawDto::getPrintAuthYn))       // 인쇄 (.btn-print)
-                .excelAuthYn(isAnyColumnY(authList, ButtonAuthRawDto::getExcelAuthYn))       // 엑셀 (.btn-excel)
-                .executeAuthYn(isAnyColumnY(authList, ButtonAuthRawDto::getExecuteAuthYn))   // 실행
+                .inputAuthYn(isAnyColumnY(authList, ButtonAuthRawDto::getInputAuthYn)) // 입력 (.btn-input)
+                .ext1AuthYn(isAnyColumnY(authList, ButtonAuthRawDto::getExt1AuthYn)) // 복사 (.btn-copy)
+                .updateAuthYn(isAnyColumnY(authList, ButtonAuthRawDto::getUpdateAuthYn)) // 저장 (.btn-save)
+                .deleteAuthYn(isAnyColumnY(authList, ButtonAuthRawDto::getDeleteAuthYn)) // 삭제 (.btn-delete)
+                .printAuthYn(isAnyColumnY(authList, ButtonAuthRawDto::getPrintAuthYn)) // 인쇄 (.btn-print)
+                .excelAuthYn(isAnyColumnY(authList, ButtonAuthRawDto::getExcelAuthYn)) // 엑셀 (.btn-excel)
+                .executeAuthYn(isAnyColumnY(authList, ButtonAuthRawDto::getExecuteAuthYn)) // 실행
                 .indivBtnAuthYn(isAnyColumnY(authList, ButtonAuthRawDto::getIndivBtnAuthYn)) // 개별버튼 권한
                 .build();
     }
@@ -82,8 +85,10 @@ public class ButtonAuthService {
      * 행 목록 중 지정한 컬럼 값이 하나라도 'Y'이면 true 반환
      */
     private boolean isAnyColumnY(List<ButtonAuthRawDto> list, Function<ButtonAuthRawDto, String> getter) {
-        if (list == null || list.isEmpty()) return false;
+        if (list == null || list.isEmpty())
+            return false;
         return list.stream()
+                .filter(java.util.Objects::nonNull)
                 .map(getter)
                 .anyMatch(val -> val != null && "Y".equalsIgnoreCase(val.trim()));
     }

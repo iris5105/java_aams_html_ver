@@ -64,14 +64,12 @@
            AND a.role_no IN (
                SELECT DISTINCT m.role_no
                  FROM fw_role_memb m
-                WHERE m.sys_id = 'SY'
-                  AND (
-                       m.memb_code1 = #{corpGr}
-                       OR m.memb_code1 IN (SELECT corp_gr FROM fw_user_mst WHERE user_id = #{userId})
-                  )
-                  AND (m.memb_code2 IS NULL OR m.memb_code2 = #{userId})
+                    , fw_user_mst u
+                WHERE u.user_id = #{userId}
+                  and u.user_nm = #{userNm}
+                  and u.corp_gr = m.memb_code1
                   AND (CASE m.valid_dt_yn WHEN 'Y' THEN (CASE WHEN #{today} BETWEEN m.valid_dt_from AND m.valid_dt_to THEN 'true' ELSE 'false' END) ELSE 'true' END) = 'true'
-           )
+                  )
            AND a.pgm_no = #{pgmNo}
            AND (CASE a.valid_dt_yn WHEN 'Y' THEN (CASE WHEN #{today} BETWEEN a.valid_dt_from AND a.valid_dt_to THEN 'true' ELSE 'false' END) ELSE 'true' END) = 'true'
     </select>
