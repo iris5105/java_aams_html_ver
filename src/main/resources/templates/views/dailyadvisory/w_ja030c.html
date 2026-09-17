@@ -26,55 +26,6 @@
         </div>
     </div>
 
-    <style>
-        .ja030c-container .tabulator-row.tabulator-selected {
-            background-color: #dbeafe !important;
-        }
-        .ja030c-container .tabulator-row.tabulator-selected .tabulator-cell {
-            background-color: #dbeafe !important;
-        }
-        .ja030c-container .tabulator-row.aams-new-row:not(.tabulator-selected) {
-            background-color: #f0fdf4 !important;
-        }
-        .ja030c-container .tabulator-row.aams-new-row:not(.tabulator-selected) .tabulator-cell {
-            background-color: #f0fdf4 !important;
-        }
-        .ja030c-container .tabulator-row {
-            cursor: pointer;
-        }
-
-        /* Tabulator Inline Editing Cell 4-Sided Border & Input Layout Fix */
-        .ja030c-container .tabulator-cell.tabulator-editing {
-            padding: 0 !important;
-            border: 2px solid #2563eb !important;
-            z-index: 10 !important;
-            background-color: #ffffff !important;
-            outline: none !important;
-            overflow: hidden !important;
-        }
-
-        .ja030c-container .tabulator-cell.tabulator-editing input,
-        .ja030c-container .tabulator-cell.tabulator-editing select {
-            width: 100% !important;
-            height: 100% !important;
-            box-sizing: border-box !important;
-            padding: 2px 6px !important;
-            margin: 0 !important;
-            border: none !important;
-            outline: none !important;
-            background-color: #ffffff !important;
-            color: #1e293b !important;
-            font-size: 11px !important;
-            border-radius: 0 !important;
-            box-shadow: none !important;
-        }
-    </style>
-
-    <!-- PowerBuilder DDDW Dynamic Control Script -->
-    <script th:src="@{/js/f_dddwctl.js}" src="/js/f_dddwctl.js"></script>
-
-    <!-- Pure JS AAMS Calendar Component (Rule 16) -->
-    <script th:src="@{/js/aams_calendar.js}" src="/js/aams_calendar.js"></script>
 
     <!-- Page Specific Script for w_ja030c -->
     <script th:inline="javascript">
@@ -176,17 +127,6 @@
                 }).catch(err => {
                     console.error("Failed to retrieve DDDW options for w_ja030c:", err);
                 });
-            }
-
-            function resolveCorpGr() {
-                const filterCorp = pane ? pane.querySelector("#filterCorpGr") : document.getElementById("filterCorpGr");
-                if (filterCorp && filterCorp.value) return filterCorp.value;
-                const value = `; ${document.cookie}`;
-                const parts = value.split(`; savedCorpGr=`);
-                if (parts.length === 2) return decodeURIComponent(parts.pop().split(';').shift());
-                const parts2 = value.split(`; corpGr=`);
-                if (parts2.length === 2) return decodeURIComponent(parts2.pop().split(';').shift());
-                return "";
             }
 
             function numFmt(val) {

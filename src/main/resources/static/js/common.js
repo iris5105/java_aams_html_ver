@@ -552,6 +552,23 @@ function verifyCorpGrCookie() {
     return true;
 }
 
+/**
+ * Safe Resolution for Current corpGr
+ * Resolves corpGr in priority:
+ * 1. window.currentCorpGr
+ * 2. savedCorpGr / corpGr cookie
+ * 3. #filterCorpGr or #corpGrSelect element within pane / document
+ */
+function resolveCorpGr(pane) {
+    if (window.currentCorpGr) return window.currentCorpGr;
+    const m = document.cookie.match(/(^|;)\s*savedCorpGr=([^;]+)/) || document.cookie.match(/(^|;)\s*corpGr=([^;]+)/);
+    if (m) return decodeURIComponent(m[2]);
+    const selectEl = pane ? (pane.querySelector("#filterCorpGr") || pane.querySelector("#corpGrSelect")) : (document.getElementById("filterCorpGr") || document.getElementById("corpGrSelect"));
+    if (selectEl && selectEl.value) return selectEl.value;
+    return "";
+}
+window.resolveCorpGr = resolveCorpGr;
+
 // Auto-load side menu for active top nav item on DOMContentLoaded (supports F5 refresh persistence)
 document.addEventListener("DOMContentLoaded", function() {
     if (!window.location.pathname.includes('/login') && !window.location.pathname.includes('/w_login_aams')) {

@@ -54,14 +54,6 @@
 
     </div>
 
-    <!-- Pure JS AAMS Calendar Component (Rule 16) -->
-    <script th:src="@{/js/aams_calendar.js}" src="/js/aams_calendar.js"></script>
-
-    <!-- DDDW Control Component (Rule 7) -->
-    <script th:src="@{/js/f_dddwctl.js}" src="/js/f_dddwctl.js"></script>
-
-    <!-- Dynamic Code Search Component (u_dynamiccodesearch) -->
-    <script th:src="@{/js/dynamic_code_search.js}" src="/js/dynamic_code_search.js"></script>
 
     <!-- Page Specific Script for w_ja990c -->
     <script th:inline="javascript">
@@ -83,25 +75,6 @@
                 sosok_gb: []
             };
 
-            // Corporate Group Resolver (Guideline 1: No default hardcoded value)
-            function resolveCorpGr() {
-                if (window.currentCorpGr) return window.currentCorpGr;
-                const m = document.cookie.match(/(^|;)\s*savedCorpGr=([^;]+)/) || document.cookie.match(/(^|;)\s*corpGr=([^;]+)/);
-                if (m) return decodeURIComponent(m[2]);
-                const selectEl = pane ? pane.querySelector("#filterCorpGr") : document.getElementById("filterCorpGr");
-                if (selectEl && selectEl.value) return selectEl.value;
-                const globalSelect = document.getElementById("topCorpGrSelect") || document.getElementById("filterCorpGr");
-                if (globalSelect && globalSelect.value) return globalSelect.value;
-                return "";
-            }
-
-            // Cell edit helper for selection (Rule 8)
-            function aamsCellEdit(e, cell) {
-                const row = cell.getRow();
-                if (row && (!row.isSelected || !row.isSelected())) {
-                    row.select();
-                }
-            }
 
             // Number Formatter
             function numFormatter(cell) {

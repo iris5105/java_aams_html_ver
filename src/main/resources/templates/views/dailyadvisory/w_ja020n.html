@@ -293,16 +293,8 @@
         .ja020n-grid-wrapper .tabulator-row {
             border-bottom: 1px solid #e2e8f0;
         }
-        .ja020n-grid-wrapper .tabulator-row.tabulator-selected {
-            background-color: #e0f2fe !important;
-        }
     </style>
 
-    <!-- PowerBuilder DDDW & Common Script -->
-    <script th:src="@{/js/f_dddwctl.js}" src="/js/f_dddwctl.js"></script>
-
-    <!-- Pure JS AAMS Calendar Component (Rule 16) -->
-    <script th:src="@{/js/aams_calendar.js}" src="/js/aams_calendar.js"></script>
 
     <!-- Page Specific Script for w_ja020n -->
     <script th:inline="javascript">
@@ -313,22 +305,6 @@
             let gridJa020n = null;
             let currentMode = "status"; // 'status' | 'siga' | 'tr'
 
-            // Corporate Group Resolver (Guideline 1: No default hardcoded value)
-            function resolveCorpGr() {
-                const globalSelect = document.getElementById("corpGrSelect");
-                if (globalSelect && globalSelect.value) return globalSelect.value;
-
-                const matchSaved = document.cookie.match(/(?:^|;\s*)savedCorpGr=([^;]*)/);
-                if (matchSaved && matchSaved[1]) return decodeURIComponent(matchSaved[1]);
-
-                const matchCorp = document.cookie.match(/(?:^|;\s*)corpGr=([^;]*)/);
-                if (matchCorp && matchCorp[1]) return decodeURIComponent(matchCorp[1]);
-
-                const serverVal = /*[[${corpGr}]]*/ null;
-                if (serverVal) return serverVal;
-
-                return "";
-            }
 
             // Numeric Formatter
             function numberFormatter(cell) {

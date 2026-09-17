@@ -20,25 +20,6 @@
         </div>
     </div>
 
-    <style>
-        /* Selected row style */
-        .tabulator-row.tabulator-selected {
-            background-color: #dbeafe !important;
-        }
-        .tabulator-row.tabulator-selected .tabulator-cell {
-            background-color: #dbeafe !important;
-        }
-        /* New row style */
-        .tabulator-row.aams-new-row:not(.tabulator-selected) {
-            background-color: #f0fdf4 !important;
-        }
-        .tabulator-row.aams-new-row:not(.tabulator-selected) .tabulator-cell {
-            background-color: #f0fdf4 !important;
-        }
-        .tabulator-row {
-            cursor: pointer;
-        }
-    </style>
 
     <!-- Split Master-Detail Layout (Vertical Split: Upper Master, Lower Detail) -->
     <div class="layout-split-v split-body" data-split-key="W_SHM0HJ" data-default-ratio="55:45">
@@ -67,38 +48,6 @@
 
     </div>
 
-    <style>
-        /* Tabulator Inline Editing Cell 4-Sided Border & Input Layout Fix */
-        .tabulator-aams-grid .tabulator-cell.tabulator-editing {
-            padding: 0 !important;
-            border: 2px solid #2563eb !important;
-            z-index: 10 !important;
-            background-color: #ffffff !important;
-            outline: none !important;
-            overflow: hidden !important;
-        }
-
-        .tabulator-aams-grid .tabulator-cell.tabulator-editing input,
-        .tabulator-aams-grid .tabulator-cell.tabulator-editing select {
-            width: 100% !important;
-            height: 100% !important;
-            box-sizing: border-box !important;
-            padding: 2px 6px !important;
-            margin: 0 !important;
-            border: none !important;
-            outline: none !important;
-            background-color: #ffffff !important;
-            color: #1e293b !important;
-            font-size: 11px !important;
-            border-radius: 0 !important;
-            box-shadow: none !important;
-        }
-    </style>
-
-    <!-- DDDW Controller Script -->
-    <script th:src="@{/js/f_dddwctl.js}" src="/js/f_dddwctl.js"></script>
-    <!-- Pure JS AAMS Calendar Component (Rule 16) -->
-    <script th:src="@{/js/aams_calendar.js}" src="/js/aams_calendar.js"></script>
     <!-- Inline Script for w_shm0hj View with Tabulator Grids -->
     <script th:inline="javascript">
         (function() {
@@ -128,13 +77,6 @@
                 return String(val).substring(0, 10);
             }
 
-            function resolveCorpGr() {
-                const getCookieVal = name => {
-                    const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
-                    return match ? decodeURIComponent(match[2]) : null;
-                };
-                return (sessionStorage.getItem("corp_gr") || getCookieVal("savedCorpGr") || getCookieVal("corpGr") || getCookieVal("corp_gr") || "");
-            }
             // DDDW Option Caches (Populated via ue_dddw_retrieve and f_dddwctl)
             let dddwOptionsMap = {
                 filter_dddw: [],

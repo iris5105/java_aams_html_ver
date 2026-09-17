@@ -51,12 +51,6 @@
         </div>
     </div>
 
-    <!-- AAMS Calendar JS -->
-    <script th:src="@{/js/aams_calendar.js}" src="/js/aams_calendar.js"></script>
-
-    <!-- PowerBuilder DDDW Dynamic Control Script -->
-    <script th:src="@{/js/f_dddwctl.js}" src="/js/f_dddwctl.js"></script>
-
     <!-- Page Specific Script for w_ja010f -->
     <script th:inline="javascript">
         (function() {
@@ -65,23 +59,6 @@
 
             let gridJa010f = null;
             let brokerOptionsMap = {}; // tr_co_cd code -> name cache
-
-            // Corporate Group Resolver (Guideline 1: No default hardcoded value)
-            function resolveCorpGr() {
-                const globalSelect = document.getElementById("corpGrSelect");
-                if (globalSelect && globalSelect.value) return globalSelect.value;
-
-                const matchSaved = document.cookie.match(/(?:^|;\s*)savedCorpGr=([^;]*)/);
-                if (matchSaved && matchSaved[1]) return decodeURIComponent(matchSaved[1]);
-
-                const matchCorp = document.cookie.match(/(?:^|;\s*)corpGr=([^;]*)/);
-                if (matchCorp && matchCorp[1]) return decodeURIComponent(matchCorp[1]);
-
-                const serverVal = /*[[${corpGr}]]*/ null;
-                if (serverVal) return serverVal;
-
-                return "";
-            }
 
             // Numeric Money Formatter
             function numberFormatter(cell) {

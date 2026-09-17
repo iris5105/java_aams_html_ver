@@ -34,11 +34,6 @@
     <!-- SheetJS for Excel Reading (cb_1 client parsing) -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
-    <!-- Pure JS AAMS Calendar Component (Rule 16) -->
-    <script th:src="@{/js/aams_calendar.js}" src="/js/aams_calendar.js"></script>
-
-    <!-- Dynamic Code Search Component (u_dynamiccodesearch) -->
-    <script th:src="@{/js/dynamic_code_search.js}" src="/js/dynamic_code_search.js"></script>
 
     <!-- Page Specific Script for w_scm1sm -->
     <script th:inline="javascript">
@@ -52,14 +47,6 @@
             let lastCorpGr = null;
             let deletedList = [];
 
-            // Corporate Group Resolver (Guideline 1: No default hardcoded value)
-            function resolveCorpGr() {
-                if (window.currentCorpGr) return window.currentCorpGr;
-                const filterSelect = pane ? pane.querySelector(".filter-bar select[name='corpGr'], .filter-bar select[name='corp_gr']") : null;
-                if (filterSelect && filterSelect.value) return filterSelect.value;
-                const m = document.cookie.match(/(^|;)\s*savedCorpGr=([^;]+)/) || document.cookie.match(/(^|;)\s*corpGr=([^;]+)/);
-                return m ? decodeURIComponent(m[2]) : "";
-            }
 
             // Date Resolver
             function resolveYmd() {

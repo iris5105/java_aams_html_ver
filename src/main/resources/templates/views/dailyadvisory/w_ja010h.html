@@ -176,9 +176,6 @@
         </div>
     </div>
 
-    <!-- Scripts -->
-    <script th:src="@{/js/f_dddwctl.js}" src="/js/f_dddwctl.js"></script>
-    <script th:src="@{/js/aams_calendar.js}" src="/js/aams_calendar.js"></script>
 
     <script th:inline="javascript">
         (function() {
@@ -196,18 +193,6 @@
             const initialTrDates = /*[[${trDates}]]*/ [];
             let currentCorpGr = /*[[${corpGr}]]*/ '';
 
-            // Helper to resolve current valid corpGr without getting lost
-            function resolveCorpGr() {
-                if (currentCorpGr && currentCorpGr.trim() !== "") return currentCorpGr.trim();
-                const matchSaved = document.cookie.match(/(?:^|;\s*)savedCorpGr=([^;]*)/);
-                if (matchSaved && matchSaved[1]) return decodeURIComponent(matchSaved[1]).trim();
-                const matchCorp = document.cookie.match(/(?:^|;\s*)corpGr=([^;]*)/);
-                if (matchCorp && matchCorp[1]) return decodeURIComponent(matchCorp[1]).trim();
-                if (window.g_currentCorpGr && window.g_currentCorpGr.trim() !== "") return window.g_currentCorpGr.trim();
-                const serverVal = /*[[${corpGr}]]*/ '';
-                if (serverVal && String(serverVal).trim() !== "") return String(serverVal).trim();
-                return "";
-            }
 
             // Helper to check if currently in mobile view (태블릿-S / 876px 이하)
             function isMobileView() {

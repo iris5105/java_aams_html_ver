@@ -68,19 +68,6 @@
 
     <!-- Responsive Layout Style for Small Screens -->
     <style>
-        @media (max-width: 876px) {
-            .ja010k-container .split-content-container {
-                flex-direction: column !important;
-            }
-            .ja010k-container .master-section {
-                flex: 0 0 40% !important;
-                min-height: 220px;
-            }
-            .ja010k-container .detail-section {
-                flex: 1 1 60% !important;
-                min-height: 280px;
-            }
-        }
         /* Style for editable venture old shares (vc_old) */
         .ja010k-container .col-vc-old-header {
             color: #2563eb !important;
@@ -92,9 +79,6 @@
             font-weight: 600;
         }
     </style>
-
-    <!-- Pure JS AAMS Calendar Component (Rule 16) -->
-    <script th:src="@{/js/aams_calendar.js}" src="/js/aams_calendar.js"></script>
 
     <!-- Page Specific Script for w_ja010k -->
     <script th:inline="javascript">
@@ -109,17 +93,6 @@
             let currentSelectedMaster = null;
             let masterAllData = [];
 
-            // Corporate Group Resolver (Guideline 1: No default hardcoded value)
-            function resolveCorpGr() {
-                if (window.currentCorpGr) return window.currentCorpGr;
-                const m = document.cookie.match(/(^|;)\s*savedCorpGr=([^;]+)/) || document.cookie.match(/(^|;)\s*corpGr=([^;]+)/);
-                if (m) return decodeURIComponent(m[2]);
-                const selectEl = pane ? pane.querySelector("#filterCorpGr") : document.getElementById("filterCorpGr");
-                if (selectEl && selectEl.value) return selectEl.value;
-                const globalSelect = document.getElementById("topCorpGrSelect") || document.getElementById("filterCorpGr");
-                if (globalSelect && globalSelect.value) return globalSelect.value;
-                return "";
-            }
 
             function getFilterDates() {
                 const fInput = pane ? pane.querySelector("#filterFYmd") : document.getElementById("filterFYmd");
@@ -132,13 +105,6 @@
                 };
             }
 
-            // Cell edit helper for selection (Rule 8)
-            function aamsCellEdit(e, cell) {
-                const row = cell.getRow();
-                if (row && (!row.isSelected || !row.isSelected())) {
-                    row.select();
-                }
-            }
 
             // Date Formatter Helper
             function formatDateVal(val) {

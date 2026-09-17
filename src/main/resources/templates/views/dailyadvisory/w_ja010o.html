@@ -33,11 +33,6 @@
     <!-- SheetJS for Excel Reading (cb_1 client parsing) -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
-    <!-- Pure JS AAMS Calendar Component (Rule 16) -->
-    <script th:src="@{/js/aams_calendar.js}" src="/js/aams_calendar.js"></script>
-
-    <!-- Dynamic Code Search Component (u_dynamiccodesearch) -->
-    <script th:src="@{/js/dynamic_code_search.js}" src="/js/dynamic_code_search.js"></script>
 
     <!-- Page Specific Script for w_ja010o -->
     <script th:inline="javascript">
@@ -51,24 +46,6 @@
             let lastYmd = null;
             let lastCorpGr = null;
 
-            // Corporate Group Resolver (Guideline 1: No default hardcoded value)
-            function resolveCorpGr() {
-                if (window.currentCorpGr) return window.currentCorpGr;
-
-                const globalSelect = document.getElementById("corpGrSelect");
-                if (globalSelect && globalSelect.value) return globalSelect.value;
-
-                const matchSaved = document.cookie.match(/(?:^|;\s*)savedCorpGr=([^;]*)/);
-                if (matchSaved && matchSaved[1]) return decodeURIComponent(matchSaved[1]);
-
-                const matchCorp = document.cookie.match(/(?:^|;\s*)corpGr=([^;]*)/);
-                if (matchCorp && matchCorp[1]) return decodeURIComponent(matchCorp[1]);
-
-                const serverVal = /*[[${corpGr}]]*/ null;
-                if (serverVal) return serverVal;
-
-                return "";
-            }
 
             // Numeric Formatter
             function numberFormatter(cell) {
