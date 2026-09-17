@@ -100,31 +100,6 @@
             color: #0f172a;
         }
 
-        /* File badges in Master Grid */
-        .file-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 3px;
-            padding: 1px 4px;
-            border-radius: 3px;
-            font-size: 10.5px;
-            font-weight: 700;
-        }
-
-        .file-badge.badge-img {
-            background-color: #fee2e2;
-            color: #dc2626;
-        }
-
-        .file-badge.badge-excel {
-            background-color: #dcfce7;
-            color: #166534;
-        }
-
-        .file-badge.badge-file {
-            background-color: #e0f2fe;
-            color: #0369a1;
-        }
 
     </style>
 
@@ -350,7 +325,7 @@
                                 if (val == null || String(val).trim() === "") {
                                     val = resolveCurrentUserNm();
                                 }
-                                return `<span style="color: #2563eb; font-weight: 600;">${val || ''}</span>`;
+                                return `<span class="cell-text-blue">${val || ''}</span>`;
                             }
                         },
                         { title: "완료일시", field: "contentYmd", hozAlign: "center", width: 125, formatter: cell => formatDateVal(cell.getValue()) },
@@ -429,7 +404,7 @@
                             formatter: cell => {
                                 const row = cell.getRow().getData();
                                 if (row && row.color === 16711680) {
-                                    return `<span style="color: #2563eb; font-weight: 700;">${cell.getValue() || ''}</span>`;
+                                    return `<span class="cell-text-blue">${cell.getValue() || ''}</span>`;
                                 }
                                 return cell.getValue() || '';
                             }
@@ -444,7 +419,7 @@
                             formatter: cell => {
                                 const row = cell.getRow().getData();
                                 if (row && row.color === 16711680) {
-                                    return `<span style="color: #2563eb; font-weight: 600;">${cell.getValue() || ''}</span>`;
+                                    return `<span class="cell-text-blue">${cell.getValue() || ''}</span>`;
                                 }
                                 return cell.getValue() || '';
                             }

@@ -247,12 +247,10 @@
                             width: 75,
                             hozAlign: "center",
                             headerHozAlign: "center",
-                            titleFormatter: function () {
-                                return '<span style="color: #15803d; font-weight: 600;">펀드코드</span>';
-                            },
+                            headerCssClass: "col-hdr-green",
                             formatter: function (cell) {
                                 var val = cell.getValue() || '';
-                                return '<span style="color: #15803d; font-weight: 600;">' + val + '</span>';
+                                return '<span class="cell-text-green">' + val + '</span>';
                             }
                         },
                         {
@@ -288,14 +286,12 @@
                             width: 90,
                             hozAlign: "center",
                             headerHozAlign: "center",
-                            titleFormatter: function () {
-                                return '<span style="color: #dc2626; font-weight: 600;">계약해지일</span>';
-                            },
+                            headerCssClass: "col-hdr-red",
                             formatter: function (cell) {
                                 var val = cell.getValue();
                                 if (!val) return "";
                                 var fmt = formatDateDot(val);
-                                return '<span style="color: #dc2626; font-weight: 600;">' + fmt + '</span>';
+                                return '<span class="cell-text-red">' + fmt + '</span>';
                             }
                         }
                     ]
