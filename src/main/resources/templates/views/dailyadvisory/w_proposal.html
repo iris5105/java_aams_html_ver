@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
-<div class="view-container layout-split-lr proposal-container" th:fragment="proposalView">
+<div class="view-container layout-split proposal-container" th:fragment="proposalView">
 
     <style>
         .proposal-right-pane .matter-section {
@@ -147,10 +147,10 @@
     </div>
 
     <!-- Main Left/Right Split Layout Container -->
-    <div class="split-lr-container proposal-main-content">
+    <div class="layout-split-h split-body proposal-main-content" data-split-key="W_PROPOSAL" data-default-ratio="38:62">
 
         <!-- LEFT COLUMN: Filter Bar + Master Grid -->
-        <div class="split-left-section proposal-left-pane">
+        <div class="pane-left proposal-left-pane">
             <!-- Sub Filter Bar: Common 운용사 Select Box (dddwId='CORP_GR', seq=1) -->
             <div class="filter-bar">
                 <div class="filter-left">
@@ -159,19 +159,16 @@
             </div>
 
             <!-- Master Grid Section -->
-            <div class="master-grid-wrapper">
-                <div id="master-grid" class="tabulator-aams-grid"></div>
+            <div class="master-grid-wrapper" style="flex: 1; height: calc(100% - 42px); min-height: 0; padding: 2px;">
+                <div id="master-grid" class="tabulator-aams-grid" style="height: 100%;"></div>
             </div>
         </div>
 
-        <!-- Vertical Divider -->
-        <div class="split-v-divider proposal-v-divider"></div>
-
         <!-- RIGHT COLUMN: Matter Text + Content Text + Comment Grid -->
-        <div class="split-right-section proposal-right-pane">
+        <div class="pane-right proposal-right-pane" style="display: flex; flex-direction: column; gap: 6px; overflow: hidden; padding: 6px; background-color: #f8fafc;">
 
             <!-- Top Right Section: 개발 의뢰내용 (Matter) -->
-            <div class="right-section matter-section">
+            <div class="right-section matter-section" style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 4px; display: flex; flex-direction: column; overflow: hidden;">
                 <div class="section-header-bar">
                     <span class="header-help-text">머리글 수준 <span class="kbd">Ctrl</span> 증가[->], 감소[<-], 모양변경(최근사용분부터) <span class="kbd">Ctrl</span> [Home, ↑]/[↓, End] 선택줄이동-SPACE</span>
                 </div>
@@ -179,7 +176,7 @@
             </div>
 
             <!-- Middle Right Section: 처리 내용 (Content) -->
-            <div class="right-section content-section">
+            <div class="right-section content-section" style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 4px; display: flex; flex-direction: column; overflow: hidden;">
                 <div class="section-header-bar">
                     <span class="header-title">※ 수정완료</span>
                 </div>
@@ -187,7 +184,7 @@
             </div>
 
             <!-- Bottom Right Section: 댓글현황 (Comment Grid) -->
-            <div class="right-section comment-section">
+            <div class="right-section comment-section" style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 4px; display: flex; flex-direction: column; overflow: hidden;">
                 <div class="comment-grid-header">
                     <span class="grid-title">■ 댓글현황</span>
                     <div class="comment-tools">

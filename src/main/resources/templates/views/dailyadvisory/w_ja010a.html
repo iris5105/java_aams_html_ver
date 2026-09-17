@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
-<div class="view-container layout-split-tb ja010a-container" th:fragment="ja010aView">
+<div class="view-container layout-split ja010a-container" th:fragment="ja010aView">
 
     <!-- Top Action Control Bar (Row 1) -->
     <div class="view-toolbar">
@@ -12,26 +12,29 @@
         <div th:replace="~{fragments/tab_header :: toolbarBreadcrumb}"></div>
     </div>
 
-    <!-- Upper Master Grid Section (dw_list / d_ja010a1.srd / SZX0AA) -->
-    <div class="grid-section split-top-section">
-        <div class="grid-table-wrapper">
-            <div id="master-grid" class="tabulator-aams-grid"></div>
-        </div>
-    </div>
+    <!-- Split Master-Detail Layout (Vertical Split: Upper Master, Lower History Detail) -->
+    <div class="layout-split-v split-body" data-split-key="W_JA010A" data-default-ratio="50:50">
 
-    <!-- Split Bar Separator -->
-    <div class="split-h-divider"></div>
-
-    <!-- Lower Split Panels (dw_detail / d_ja010a2.srd / SZX0AB) -->
-    <div class="grid-section split-bottom-section">
-        <div class="split-panel" style="flex: 1;">
-            <div class="sub-grid-header">
-                <span class="sub-title"><i class="fa-solid fa-file-contract"></i> 회사 계약 및 변경 이력</span>
+        <!-- Upper Master Grid Section (dw_list / d_ja010a1.srd / SZX0AA) -->
+        <div class="pane-top master-section">
+            <div class="pane-header">
+                <span><i class="fa-solid fa-list-check"></i> 회사별 수익율기능 설정 목록</span>
             </div>
-            <div class="grid-table-wrapper">
-                <div id="grid-ja010a-detail" class="tabulator-aams-grid"></div>
+            <div class="pane-body">
+                <div id="master-grid" class="tabulator-aams-grid" style="height: 100%;"></div>
             </div>
         </div>
+
+        <!-- Lower Split Panels (dw_detail / d_ja010a2.srd / SZX0AB) -->
+        <div class="pane-bottom detail-section">
+            <div class="pane-header">
+                <span><i class="fa-solid fa-file-contract"></i> 회사 계약 및 변경 이력</span>
+            </div>
+            <div class="pane-body">
+                <div id="grid-ja010a-detail" class="tabulator-aams-grid" style="height: 100%;"></div>
+            </div>
+        </div>
+
     </div>
 
     <!-- Inline Script for Ja010a View with Tabulator Grids -->

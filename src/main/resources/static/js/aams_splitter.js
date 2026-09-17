@@ -18,6 +18,34 @@
         MIN_PANEL_PX: 200,
 
         /**
+         * 드래그 조절 중 iframe(ReportViewer 등)이 마우스 이벤트를 가로채지 못하도록 차단
+         */
+        disableIframePointerEvents: function () {
+            document.body.classList.add('is-splitter-resizing');
+            const iframes = document.querySelectorAll('iframe');
+            iframes.forEach(iframe => {
+                iframe.dataset.origPointerEvents = iframe.style.pointerEvents || '';
+                iframe.style.pointerEvents = 'none';
+            });
+        },
+
+        /**
+         * 드래그 종료 후 iframe 마우스 이벤트 복원
+         */
+        enableIframePointerEvents: function () {
+            document.body.classList.remove('is-splitter-resizing');
+            const iframes = document.querySelectorAll('iframe');
+            iframes.forEach(iframe => {
+                if (iframe.dataset.origPointerEvents !== undefined) {
+                    iframe.style.pointerEvents = iframe.dataset.origPointerEvents;
+                    delete iframe.dataset.origPointerEvents;
+                } else {
+                    iframe.style.pointerEvents = '';
+                }
+            });
+        },
+
+        /**
          * Initialize all split layouts inside a given container (or document)
          * @param {HTMLElement|Document} rootEl Root DOM element to search within
          */
@@ -92,8 +120,8 @@
             if (container._aamsSplitterInit) return;
             container._aamsSplitterInit = true;
 
-            const leftPane = container.querySelector(':scope > .pane-left, :scope > .master-section');
-            const rightPane = container.querySelector(':scope > .pane-right, :scope > .detail-section');
+            const leftPane = container.querySelector(':scope > .pane-left, :scope > .left-pane, :scope > .master-section');
+            const rightPane = container.querySelector(':scope > .pane-right, :scope > .right-pane, :scope > .detail-section');
             if (!leftPane || !rightPane) return;
 
             // Ensure Gutter exists between left and right panes
@@ -143,10 +171,14 @@
 
             const onMouseDown = (e) => {
                 if (window.innerWidth <= 876) return; // Disable in mobile mode
+                if (e.button !== 0) return; // Only respond to left click
                 isDragging = true;
                 gutter.classList.add('is-dragging');
                 document.body.style.cursor = 'col-resize';
                 document.body.style.userSelect = 'none';
+
+                // iframe(ReportViewer) 마우스 이벤트 탈취 차단
+                AamsSplitter.disableIframePointerEvents();
 
                 startX = e.clientX;
                 startLeftWidth = leftPane.getBoundingClientRect().width;
@@ -154,6 +186,7 @@
 
                 document.addEventListener('mousemove', onMouseMove);
                 document.addEventListener('mouseup', onMouseUp);
+                window.addEventListener('blur', onMouseUp);
                 e.preventDefault();
             };
 
@@ -181,8 +214,12 @@
                 document.body.style.cursor = '';
                 document.body.style.userSelect = '';
 
+                // iframe 마우스 이벤트 정상 복원
+                AamsSplitter.enableIframePointerEvents();
+
                 document.removeEventListener('mousemove', onMouseMove);
                 document.removeEventListener('mouseup', onMouseUp);
+                window.removeEventListener('blur', onMouseUp);
 
                 // Save to localStorage
                 localStorage.setItem(storageKey, String(currentRatio));
@@ -199,8 +236,8 @@
             if (container._aamsSplitterInit) return;
             container._aamsSplitterInit = true;
 
-            const topPane = container.querySelector(':scope > .pane-top, :scope > .split-top-section');
-            const bottomPane = container.querySelector(':scope > .pane-bottom, :scope > .split-bottom-section');
+            const topPane = container.querySelector(':scope > .pane-top, :scope > .top-pane, :scope > .split-top-section');
+            const bottomPane = container.querySelector(':scope > .pane-bottom, :scope > .bottom-pane, :scope > .split-bottom-section');
             if (!topPane || !bottomPane) return;
 
             // Ensure Gutter exists between top and bottom panes
@@ -250,10 +287,14 @@
 
             const onMouseDown = (e) => {
                 if (window.innerWidth <= 876) return; // Disable in mobile mode
+                if (e.button !== 0) return; // Only respond to left click
                 isDragging = true;
                 gutter.classList.add('is-dragging');
                 document.body.style.cursor = 'row-resize';
                 document.body.style.userSelect = 'none';
+
+                // iframe(ReportViewer) 마우스 이벤트 탈취 차단
+                AamsSplitter.disableIframePointerEvents();
 
                 startY = e.clientY;
                 startTopHeight = topPane.getBoundingClientRect().height;
@@ -261,6 +302,7 @@
 
                 document.addEventListener('mousemove', onMouseMove);
                 document.addEventListener('mouseup', onMouseUp);
+                window.addEventListener('blur', onMouseUp);
                 e.preventDefault();
             };
 
@@ -288,8 +330,12 @@
                 document.body.style.cursor = '';
                 document.body.style.userSelect = '';
 
+                // iframe 마우스 이벤트 정상 복원
+                AamsSplitter.enableIframePointerEvents();
+
                 document.removeEventListener('mousemove', onMouseMove);
                 document.removeEventListener('mouseup', onMouseUp);
+                window.removeEventListener('blur', onMouseUp);
 
                 // Save to localStorage
                 localStorage.setItem(storageKey, String(currentRatio));

@@ -162,3 +162,16 @@
         display: none !important;
     }
 }
+
+/* 7. Resizing State: Prevent iframe/plugins from capturing mouse events during splitter drag */
+body.is-splitter-resizing {
+    user-select: none !important;
+    -webkit-user-select: none !important;
+}
+
+body.is-splitter-resizing iframe,
+body.is-splitter-resizing embed,
+body.is-splitter-resizing object {
+    pointer-events: none !important;
+}
+

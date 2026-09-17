@@ -165,11 +165,11 @@
     <!-- Tab Content Wrapper -->
     <div class="tab-content-area" style="flex: 1 1 auto; height: calc(100% - 130px); padding: 8px 12px; overflow: hidden; display: flex; flex-direction: column;">
         
-        <!-- Tab 1: Stock Panel (Horizontal Split: 좌측 그리드 70% + 우측 폼 390px) -->
-        <div id="panel-stock" class="sub-panel" style="flex: 1 1 auto; height: 100%; display: flex; flex-direction: row; gap: 12px; overflow: hidden;">
+        <!-- Tab 1: Stock Panel (Horizontal Split: 좌측 그리드 + 우측 폼) -->
+        <div id="panel-stock" class="sub-panel layout-split-h split-body" data-split-key="W_JA990D_STOCK" data-default-ratio="65:35" style="flex: 1 1 auto; height: 100%; display: flex; flex-direction: row; gap: 0; padding: 0; overflow: hidden;">
             
             <!-- Left: 주식 종목 목록 그리드 (d_ja990d_t1a) -->
-            <div class="stock-left-pane" style="flex: 1 1 70%; display: flex; flex-direction: column; min-width: 0; height: 100%; overflow: hidden;">
+            <div class="pane-left stock-left-pane" style="display: flex; flex-direction: column; min-width: 0; height: 100%; overflow: hidden;">
                 <div class="section-header" style="padding: 4px 8px; font-weight: 600; font-size: 13px; color: #1e293b; background: #e2e8f0; border-radius: 4px 4px 0 0; display: flex; justify-content: space-between; align-items: center;">
                     <span><i class="fa-solid fa-list"></i> 주식 종목 목록</span>
                     <span id="stock-count" style="font-size: 11px; color: #64748b; font-weight: normal;">0건</span>
@@ -180,7 +180,7 @@
             </div>
 
             <!-- Right: 주식 종목 상세 폼 패널 (d_ja990d_t1b) -->
-            <div class="stock-right-pane" style="flex: 0 0 390px; width: 390px; display: flex; flex-direction: column; height: 100%; background: #fff; border: 1px solid #cbd5e1; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); overflow: hidden;">
+            <div class="pane-right stock-right-pane" style="display: flex; flex-direction: column; height: 100%; background: #fff; border: 1px solid #cbd5e1; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); overflow: hidden;">
                 <div class="section-header" style="padding: 4px 8px; font-weight: 600; font-size: 13px; color: #1e293b; background: #e2e8f0; border-bottom: 1px solid #cbd5e1; display: flex; align-items: center; gap: 6px;">
                     <i class="fa-solid fa-file-pen" style="color: #2563eb;"></i>
                     <span>주식 종목 상세정보</span>
@@ -992,6 +992,9 @@
                     pnlStock.style.display = "flex";
                     pnlRight.style.display = "none";
                     if (gridStock) gridStock.redraw(true);
+                    if (window.AamsSplitter && window.AamsSplitter.init) {
+                        window.AamsSplitter.init(pnlStock);
+                    }
                 } else {
                     btnRight.style.background = "#fff";
                     btnRight.style.borderColor = "#cbd5e1";
