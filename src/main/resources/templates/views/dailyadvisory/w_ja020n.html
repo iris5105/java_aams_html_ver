@@ -549,7 +549,6 @@
                     if (typeof showToast === "function") showToast("화면이 초기화되었습니다.", "info");
                 };
                 pane.onCorpGrChange = function(newCorpGr) {
-                    if (gridJa020n) gridJa020n.clearData();
                     const targetCorp = newCorpGr || resolveCorpGr();
                     if (targetCorp) {
                         fetch('/api/common/workdate?corpGr=' + encodeURIComponent(targetCorp))
@@ -561,7 +560,6 @@
                                         filterYmdInput.value = res.workDate;
                                     }
                                 }
-                                window.loadJa020nData();
                             })
                             .catch(err => console.warn('[w_ja020n] workdate fetch error:', err));
                     }
@@ -571,12 +569,6 @@
                     const newCorp = e.detail ? e.detail.corpGr : "";
                     if (pane.onCorpGrChange) pane.onCorpGrChange(newCorp);
                 });
-
-                // 기준일자 변경 시 자동 조회
-                const filterYmdInput = pane.querySelector("#filterYmd");
-                if (filterYmdInput) {
-                    filterYmdInput.addEventListener("change", () => window.loadJa020nData());
-                }
             }
 
             const initialYmd = /*[[${ymd}]]*/ '';
@@ -590,10 +582,7 @@
                 if (typeof AamsCalendar !== 'undefined') {
                     AamsCalendar.initSimple('filterYmd', {
                         pane: pane,
-                        initialYmd: initialYmd || (filterYmdInput ? filterYmdInput.value : ''),
-                        onSelect: function(selectedYmd) {
-                            window.loadJa020nData();
-                        }
+                        initialYmd: initialYmd || (filterYmdInput ? filterYmdInput.value : '')
                     });
                 }
             }

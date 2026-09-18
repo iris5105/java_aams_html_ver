@@ -465,10 +465,6 @@ window.DynamicCodeSearch = (function() {
                 if (input) input.value = code;
                 if (textLabel) textLabel.textContent = `(${code}) ${name}`;
                 if (input) input.dispatchEvent(new Event("change", { bubbles: true }));
-                const pane = btn.closest(".tab-pane");
-                if (pane && typeof pane.onSearch === "function") {
-                    pane.onSearch();
-                }
             }
         });
     });
@@ -503,10 +499,6 @@ window.DynamicCodeSearch = (function() {
                     input.value = code;
                     if (textLabel) textLabel.textContent = `(${code}) ${name}`;
                     input.dispatchEvent(new Event("change", { bubbles: true }));
-                    const pane = input.closest(".tab-pane");
-                    if (pane && typeof pane.onSearch === "function") {
-                        pane.onSearch();
-                    }
                 }
             });
             return;
@@ -519,10 +511,6 @@ window.DynamicCodeSearch = (function() {
                     input.value = data.code;
                     if (textLabel) textLabel.textContent = data.display || `(${data.code}) ${data.codeName || ''}`;
                     input.dispatchEvent(new Event("change", { bubbles: true }));
-                    const pane = input.closest(".tab-pane");
-                    if (pane && typeof pane.onSearch === "function") {
-                        pane.onSearch();
-                    }
                 } else {
                     openModal({
                         columnNm: columnNm,
@@ -533,10 +521,6 @@ window.DynamicCodeSearch = (function() {
                             input.value = code;
                             if (textLabel) textLabel.textContent = `(${code}) ${name}`;
                             input.dispatchEvent(new Event("change", { bubbles: true }));
-                            const pane = input.closest(".tab-pane");
-                            if (pane && typeof pane.onSearch === "function") {
-                                pane.onSearch();
-                            }
                         }
                     });
                 }

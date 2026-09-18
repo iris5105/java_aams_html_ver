@@ -1134,13 +1134,7 @@ window.AamsCalendar = (function() {
                     const rangeId = fromInput.id + "_" + toInput.id;
                     if (!AamsCalendar.rangeInstances[rangeId]) {
                         AamsCalendar.initRange(fromInput.id, toInput.id, {
-                            pane: (scope.closest && scope.closest('.tab-pane')) ? scope.closest('.tab-pane') : (fromInput.closest ? fromInput.closest('.tab-pane') : null),
-                            onSelect: function(fYmd, tYmd) {
-                                const pane = fromInput.closest('.tab-pane') || document.querySelector('.tab-pane.active') || document;
-                                if (pane && typeof pane.onSearch === 'function') {
-                                    pane.onSearch();
-                                }
-                            }
+                            pane: (scope.closest && scope.closest('.tab-pane')) ? scope.closest('.tab-pane') : (fromInput.closest ? fromInput.closest('.tab-pane') : null)
                         });
                     }
                 }

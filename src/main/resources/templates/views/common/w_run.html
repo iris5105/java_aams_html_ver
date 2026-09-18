@@ -532,10 +532,7 @@
                 // AAMS Range Calendar 초기화
                 if (window.AamsCalendar && typeof window.AamsCalendar.initRange === 'function') {
                     window.AamsCalendar.initRange('filterFYmd', 'filterTYmd', {
-                        pane: pane,
-                        onSelect: function (fYmd, tYmd) {
-                            loadPrograms();
-                        }
+                        pane: pane
                     });
                 }
 
@@ -557,7 +554,6 @@
                 };
                 pane.onCorpGrChange = function () {
                     initDddw();
-                    loadPrograms();
                 };
                 pane.onRefresh = function () {
                     if (grid) grid.clearData();

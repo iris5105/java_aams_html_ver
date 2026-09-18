@@ -18,9 +18,9 @@
             <div th:replace="~{fragments/filter/dc_ftymd :: filter(label='조회일자구간', fYmd=${fymd}, tYmd=${tymd})}"></div>
         </div>
         <div class="filter-actions">
-            <!-- Optional quick search input -->
+            <!-- Quick search input for Detail Grid -->
             <div class="filter-item">
-                <input type="text" id="filterFundKeyword" class="filter-input" placeholder="펀드코드/명칭 검색" style="width: 160px; font-size: 12px;" />
+                <input type="text" id="filterFundKeyword" class="filter-input" placeholder="종목/펀드 검색 (코드, 명칭)" style="width: 180px; font-size: 12px;" />
             </div>
         </div>
     </div>
@@ -80,6 +80,7 @@
             let lastLoadedMasterKey = null;
             let currentSelectedMaster = null;
             let masterAllData = [];
+            let detailAllData = [];
 
 
             function getFilterDates() {
@@ -347,16 +348,15 @@
                 fetch(url)
                     .then(res => res.json())
                     .then(data => {
-                        gridDetail.setData(data || []).then(() => {
-                            gridDetail.redraw(true);
+                        detailAllData = data || [];
+                        gridDetail.setData(detailAllData).then(() => {
+                            applyDetailFilter();
                         });
-                        if (countEl) {
-                            countEl.textContent = (data ? data.length : 0) + "건";
-                        }
                     })
                     .catch(err => {
                         console.error("Failed to load detail data:", err);
                         gridDetail.clearData();
+                        detailAllData = [];
                         if (countEl) countEl.textContent = "0건";
                     });
             }
@@ -377,6 +377,7 @@
                 lastLoadedMasterKey = null;
                 currentSelectedMaster = null;
                 if (gridDetail) gridDetail.clearData();
+                detailAllData = [];
 
                 const masterCountEl = pane ? pane.querySelector("#master-count") : document.getElementById("master-count");
                 const detailCountEl = pane ? pane.querySelector("#detail-count") : document.getElementById("detail-count");
@@ -390,7 +391,18 @@
                     .then(res => res.json())
                     .then(data => {
                         masterAllData = data || [];
-                        applyMasterFilter();
+                        gridMaster.setData(masterAllData).then(() => {
+                            if (masterCountEl) {
+                                masterCountEl.textContent = masterAllData.length + "건";
+                            }
+                            if (masterAllData && masterAllData.length > 0) {
+                                const rows = gridMaster.getRows();
+                                if (rows && rows.length > 0) {
+                                    rows[0].select();
+                                    syncDetail(rows[0], rows[0].getData());
+                                }
+                            }
+                        });
                     })
                     .catch(err => {
                         console.error("Failed to load master data:", err);
@@ -400,37 +412,30 @@
                     });
             }
 
-            function applyMasterFilter() {
-                if (!gridMaster) return;
+            // Detail Grid Quick Search Filter (종목코드, 종목명, 펀드코드, 자산구분, 소속 등 실시간 필터)
+            function applyDetailFilter() {
+                if (!gridDetail) return;
                 const kwInput = pane ? pane.querySelector("#filterFundKeyword") : document.getElementById("filterFundKeyword");
                 const kw = kwInput ? kwInput.value.trim().toLowerCase() : "";
+                const countEl = pane ? pane.querySelector("#detail-count") : document.getElementById("detail-count");
 
-                let filtered = masterAllData;
-                if (kw) {
-                    filtered = masterAllData.filter(d => {
-                        const cd = (d.fundCd || "").toLowerCase();
-                        const nm = (d.fundNm || "").toLowerCase();
-                        return cd.includes(kw) || nm.includes(kw);
+                if (!kw) {
+                    gridDetail.clearFilter();
+                } else {
+                    gridDetail.setFilter(function(data) {
+                        const jmCd = (data.jmCd || "").toLowerCase();
+                        const jmNm = (data.jmNm || "").toLowerCase();
+                        const fundCd = (data.fundCd || "").toLowerCase();
+                        const gubun = (data.gubun || "").toLowerCase();
+                        const dancGb = (data.dancGb || "").toLowerCase();
+                        return jmCd.includes(kw) || jmNm.includes(kw) || fundCd.includes(kw) || gubun.includes(kw) || dancGb.includes(kw);
                     });
                 }
 
-                const masterCountEl = pane ? pane.querySelector("#master-count") : document.getElementById("master-count");
-                gridMaster.setData(filtered).then(() => {
-                    if (masterCountEl) {
-                        masterCountEl.textContent = filtered.length + "건";
-                    }
-                    if (filtered && filtered.length > 0) {
-                        const rows = gridMaster.getRows();
-                        if (rows && rows.length > 0) {
-                            rows[0].select();
-                            syncDetail(rows[0], rows[0].getData());
-                        }
-                    } else {
-                        if (gridDetail) gridDetail.clearData();
-                        const detailCountEl = pane ? pane.querySelector("#detail-count") : document.getElementById("detail-count");
-                        if (detailCountEl) detailCountEl.textContent = "0건";
-                    }
-                });
+                const visibleRows = gridDetail.getRows("visible");
+                if (countEl) {
+                    countEl.textContent = (visibleRows ? visibleRows.length : 0) + "건";
+                }
             }
 
             // Initialization Function
@@ -479,17 +484,11 @@
                     setupTabulatorRowSelection(gridDetail);
                 }
 
-                // Filter keyword input
+                // Filter keyword input for Detail Grid
                 const kwInput = pane ? pane.querySelector("#filterFundKeyword") : document.getElementById("filterFundKeyword");
                 if (kwInput) {
-                    kwInput.addEventListener("input", applyMasterFilter);
+                    kwInput.addEventListener("input", applyDetailFilter);
                 }
-
-                // Date filter change
-                const fInput = pane ? pane.querySelector("#filterFYmd") : document.getElementById("filterFYmd");
-                const tInput = pane ? pane.querySelector("#filterTYmd") : document.getElementById("filterTYmd");
-                if (fInput) fInput.addEventListener("change", loadMasterGrid);
-                if (tInput) tInput.addEventListener("change", loadMasterGrid);
 
                 // Detail Sub Buttons
                 bindSubButtons();
@@ -608,7 +607,8 @@
                     save();
                 };
                 pane.onCorpGrChange = function() {
-                    loadMasterGrid();
+                    currentSelectedMaster = null;
+                    lastLoadedMasterKey = null;
                 };
                 pane.onExcel = function() {
                     if (gridDetail) {
@@ -617,9 +617,21 @@
                 };
                 pane.onRefresh = function() {
                     if (gridMaster) gridMaster.clearData();
-                    if (gridDetail) gridDetail.clearData();
+                    if (gridDetail) {
+                        gridDetail.clearFilter();
+                        gridDetail.clearData();
+                    }
+                    detailAllData = [];
                     currentSelectedMaster = null;
                     lastLoadedMasterKey = null;
+                    const kwInput = pane ? pane.querySelector("#filterFundKeyword") : document.getElementById("filterFundKeyword");
+                    if (kwInput) kwInput.value = "";
+                    const detailCountEl = pane ? pane.querySelector("#detail-count") : document.getElementById("detail-count");
+                    if (detailCountEl) detailCountEl.textContent = "0건";
+                    const masterCountEl = pane ? pane.querySelector("#master-count") : document.getElementById("master-count");
+                    if (masterCountEl) masterCountEl.textContent = "0건";
+                    const nameEl = pane ? pane.querySelector("#selected-fund-name") : document.getElementById("selected-fund-name");
+                    if (nameEl) nameEl.textContent = "선택된 펀드 없음";
                     if (typeof showToast === "function") {
                         showToast("화면이 초기화되었습니다.", "info");
                     }

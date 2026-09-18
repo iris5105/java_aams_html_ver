@@ -98,10 +98,7 @@
                             highlightDates: /*[[${trDates}]]*/ [],
                             datesApiUrl: '/api/daily/ja010f/dates',
                             corpGr: corpGr,
-                            historyTitle: "예수금 내역 존재",
-                            onSelect: function(ymd) {
-                                window.loadJa010fData();
-                            }
+                            historyTitle: "예수금 내역 존재"
                         });
                     } else {
                         setTimeout(doInit, 50);
@@ -142,7 +139,7 @@
                                     nameTitle: "증권사명",
                                     defaultVal: "%",
                                     onSelect: function(val) {
-                                        window.loadJa010fData();
+                                        dddwSelect.value = val;
                                     }
                                 });
                             }
@@ -370,7 +367,6 @@
                     if (typeof showToast === "function") showToast("화면이 초기화되었습니다.", "info");
                 };
                 pane.onCorpGrChange = function(val) {
-                    if (gridJa010f) gridJa010f.clearData();
                     if (typeof AamsCalendar !== 'undefined') {
                         AamsCalendar.loadHighlightDates('filterJa010fYmd', '/api/daily/ja010f/dates', val);
                     }
@@ -379,23 +375,11 @@
 
                 pane.addEventListener("corpGrChanged", function(e) {
                     const val = e.detail ? e.detail.corpGr : resolveCorpGr();
-                    if (gridJa010f) gridJa010f.clearData();
                     if (typeof AamsCalendar !== 'undefined') {
                         AamsCalendar.loadHighlightDates('filterJa010fYmd', '/api/daily/ja010f/dates', val);
                     }
                     initDddwOptions();
                 });
-
-                // Date and DDDW change events
-                const filterYmdInput = pane ? (pane.querySelector("#filterJa010fYmd") || pane.querySelector("#filterYmd")) : (document.getElementById("filterJa010fYmd") || document.getElementById("filterYmd"));
-                if (filterYmdInput) {
-                    filterYmdInput.addEventListener("change", () => window.loadJa010fData());
-                }
-
-                const filterDddwSelect = pane.querySelector("#filterDddw");
-                if (filterDddwSelect) {
-                    filterDddwSelect.addEventListener("change", () => window.loadJa010fData());
-                }
 
                 // Sub action buttons
                 const btnLoad = pane.querySelector("#btnLoad");

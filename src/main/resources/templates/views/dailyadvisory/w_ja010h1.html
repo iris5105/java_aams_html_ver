@@ -216,16 +216,9 @@
                 if (typeof AamsCalendar !== 'undefined' && typeof AamsCalendar.initSimple === 'function') {
                     AamsCalendar.initSimple('filterYmd', {
                         pane: pane,
-                        initialYmd: filterYmdInput.value || targetYmd,
-                        onSelect: function (ymd) {
-                            loadFunds();
-                        }
+                        initialYmd: filterYmdInput.value || targetYmd
                     });
                 }
-
-                filterYmdInput.addEventListener('change', function () {
-                    loadFunds();
-                });
             }
 
             // 증권사 DDDW 초기화: f_dddwctl (THIS, 'sec_cd | tr_co_cd', gaa.corp_gr, '', 1, '')
@@ -664,15 +657,6 @@
                     var filterYmdInput = pane.querySelector('#filterYmd');
                     if (filterYmdInput && initialYmd) {
                         filterYmdInput.value = initialYmd;
-                        if (typeof AamsCalendar !== 'undefined' && typeof AamsCalendar.initSimple === 'function') {
-                            AamsCalendar.initSimple('filterYmd', {
-                                pane: pane,
-                                initialYmd: initialYmd,
-                                onSelect: function (ymd) {
-                                    loadFunds();
-                                }
-                            });
-                        }
                     }
 
                     var iframe = pane.querySelector('#report-frame');
@@ -690,10 +674,8 @@
                     if (typeof showToast === "function") showToast("화면이 초기화되었습니다.", "info");
                 };
 
-                // 회사그룹 변경 이벤트: 해당 회사의 기준일자를 비동기로 조회하여 달력 및 그리드 갱신
-                // 회사그룹 변경 이벤트: wue_lastopen 명세(2402는 전용일자, 기타는 엑세스 쿠키 현재 영업일) 반영
+                // 회사그룹 변경 이벤트: 해당 회사의 기준일자를 비동기로 조회하여 달력 갱신
                 pane.onCorpGrChange = function () {
-                    if (grid) grid.clearData();
                     var corpGr = getFilterCorpGr();
 
                     // corp_gr != '2402'인 경우 엑세스 쿠키에 있는 현재 영업일을 즉시 반영
@@ -703,15 +685,6 @@
                             var filterYmdInput = pane.querySelector('#filterYmd');
                             if (filterYmdInput) {
                                 filterYmdInput.value = cookieDate;
-                                if (typeof AamsCalendar !== 'undefined' && typeof AamsCalendar.initSimple === 'function') {
-                                    AamsCalendar.initSimple('filterYmd', {
-                                        pane: pane,
-                                        initialYmd: cookieDate,
-                                        onSelect: function (ymd) {
-                                            loadFunds();
-                                        }
-                                    });
-                                }
                             }
                         }
                     }
@@ -723,24 +696,13 @@
                                 var filterYmdInput = pane.querySelector('#filterYmd');
                                 if (filterYmdInput) {
                                     filterYmdInput.value = data.workDate;
-                                    if (typeof AamsCalendar !== 'undefined' && typeof AamsCalendar.initSimple === 'function') {
-                                        AamsCalendar.initSimple('filterYmd', {
-                                            pane: pane,
-                                            initialYmd: data.workDate,
-                                            onSelect: function (ymd) {
-                                                loadFunds();
-                                            }
-                                        });
-                                    }
                                 }
                             }
                             initDddw();
-                            loadFunds();
                         })
                         .catch(function (err) {
                             console.warn("[w_ja010h1] 회사 기준일자 조회 오류:", err);
                             initDddw();
-                            loadFunds();
                         });
                 };
 

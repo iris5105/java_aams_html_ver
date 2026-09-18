@@ -174,7 +174,6 @@
                                 defaultVal: selectEl.value || (list && list[0] ? list[0].code : "1"),
                                 onSelect: function(code, name) {
                                     selectEl.value = code;
-                                    loadGrid();
                                 }
                             });
                         } else {
@@ -715,12 +714,6 @@
                     });
                 }
 
-                // Filter Change Listeners
-                const ymdInput = pane ? pane.querySelector("#filterYmd") : document.getElementById("filterYmd");
-                const dddwSelect = pane ? pane.querySelector("#filterDddw") : document.getElementById("filterDddw");
-                if (ymdInput) ymdInput.addEventListener("change", loadGrid);
-                if (dddwSelect) dddwSelect.addEventListener("change", loadGrid);
-
                 // Initial Load (Rule: eb_direct_retrieve = true)
                 setTimeout(loadGrid, 100);
             }
@@ -854,12 +847,10 @@
                                 if (ymdInput) ymdInput.value = data.ymd;
                             }
                             initFilterDddw();
-                            loadGrid();
                         })
                         .catch(err => {
                             console.error("Failed to load workdate:", err);
                             initFilterDddw();
-                            loadGrid();
                         });
                 };
                 pane.onExcel = function() {

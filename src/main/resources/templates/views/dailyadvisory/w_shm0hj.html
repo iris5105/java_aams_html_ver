@@ -981,9 +981,7 @@
                         return { isNew: true };
                     };
                     pane.onCorpGrChange = function(newCorpGr) {
-                        ue_dddw_retrieve(newCorpGr).then(() => {
-                            loadMasterList();
-                        });
+                        ue_dddw_retrieve(newCorpGr);
                     };
                     pane.onRefresh = function() {
                         if (gridMaster) gridMaster.clearData();
@@ -1031,11 +1029,6 @@
                         filterYmd.value = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}`;
                     }
                 }
-
-                const filterDddw = pane ? pane.querySelector("#filterDddw") : document.getElementById("filterDddw");
-                if (filterDddw) {
-                    filterDddw.addEventListener("change", loadMasterList);
-                }
             }
 
             // Pure JS Simple Calendar (Rule 16: dw_c.ue_getdate 미존재 시 순정상태 달력)
@@ -1045,10 +1038,7 @@
                     const initialYmd = filterYmd ? filterYmd.value : "";
                     AamsCalendar.initSimple('filterYmd', {
                         pane: pane,
-                        initialYmd: initialYmd,
-                        onSelect: function(selectedYmd) {
-                            loadMasterList();
-                        }
+                        initialYmd: initialYmd
                     });
                 }
             }

@@ -146,7 +146,7 @@
                                     nameTitle: "증권사명",
                                     defaultVal: "%",
                                     onSelect: function(val) {
-                                        window.loadJa010eData();
+                                        dddwSelect.value = val;
                                     }
                                 });
                             }
@@ -526,10 +526,7 @@
                         highlightDates: initialTrDates,
                         datesApiUrl: datesUrl,
                         corpGr: corp,
-                        historyTitle: "체결 데이터 존재",
-                        onSelect: function(selectedYmd) {
-                            window.loadJa010eData();
-                        }
+                        historyTitle: "체결 데이터 존재"
                     });
                 }
             }
@@ -545,7 +542,6 @@
                     if (typeof showToast === "function") showToast("화면이 초기화되었습니다.", "info");
                 };
                 pane.onCorpGrChange = function() {
-                    if (gridJa010e) gridJa010e.clearData();
                     initDddwOptions().then(() => {
                         const corp = resolveCorpGr();
                         if (typeof AamsCalendar !== 'undefined') {
@@ -561,12 +557,7 @@
                     if (pane.onCorpGrChange) pane.onCorpGrChange();
                 });
 
-                // Date and DDDW change events
-                const filterYmdInput = pane.querySelector("#filterYmd");
-                if (filterYmdInput) {
-                    filterYmdInput.addEventListener("change", () => window.loadJa010eData());
-                }
-
+                // DDDW change event: 증권사 변경 시 달력 하이라이트 날짜 갱신 (자동 조회는 수행하지 않음)
                 const filterDddwSelect = pane.querySelector("#filterDddw");
                 if (filterDddwSelect) {
                     filterDddwSelect.addEventListener("change", () => {
@@ -576,7 +567,6 @@
                         if (typeof AamsCalendar !== 'undefined') {
                             AamsCalendar.loadHighlightDates('filterYmd', datesUrl, corp);
                         }
-                        window.loadJa010eData();
                     });
                 }
 

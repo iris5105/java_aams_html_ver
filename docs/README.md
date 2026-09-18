@@ -50,6 +50,12 @@
    - 전역 회사 그룹(`savedCorpGr`) 및 기준 작업일자(`workDate`) 쿠키 관리
    - 관리자 전용 회사 전환 (`/api/auth/switch-company`) 및 즉각적인 토큰/쿠키 갱신
 
+7. **[07. 반응형 스플리터 및 그리드 표준 색상/스타일 규격 (`aams_splitter.js`, `tabulator-custom.css`)](./01_common_modules/07_splitter_and_tabulator_styling.md)**
+   - `aams_splitter.js`를 활용한 좌우(`.layout-split-h`)/상하(`.layout-split-v`) 드래그 리사이징 및 iframe 오버레이 보호
+   - Tabulator 인라인 스타일 절대 금지 원칙(Zero-Inline-Style)
+   - 파워빌더 색상 매핑 표준 헤더(`col-hdr-*`) 및 데이터 셀(`cell-text-*`, `cell-price-*`, `cell-tr-*`, `badge-status-*`)
+   - MDI 탭 조각 뷰 내 공통 스크립트 중복 선언 금지 및 전역 객체 직접 호출(Zero-Garbage Code)
+
 ---
 
 ### Part 2. 화면별 데이터 조회 흐름 및 연동 아키텍처 (`docs/02_screens/`)
@@ -79,15 +85,20 @@
 
 ---
 
-## 3. 개발 및 유지보수 10대 핵심 규칙 (Cheat Sheet)
+## 3. 개발 및 유지보수 13대 핵심 규칙 (Cheat Sheet)
 
-1. **회사코드(`corp_gr`) 하드코딩 금지**: 반드시 쿠키(`savedCorpGr`) 또는 세션에서 추출하여 사용.
+1. **회사코드(`corp_gr`) 하드코딩 금지**: 반드시 `resolveCorpGr(pane)` 전역 헬퍼를 호출하여 쿠키/세션/필터에서 동적 추출.
 2. **단일 테이블 단순 조회는 QueryDSL, 복수 테이블 조인은 MyBatis XML** 사용.
 3. **그리드 행 선택 표준 규격**: `setupTabulatorRowSelection` + `rowClick` + `rowSelectionChanged` 삼중 안전망 필수 적용.
 4. **중복 API 호출 방지**: 행 클릭 시 `lastLoadedMasterKey === currentKey` 검증 가드 필수.
 5. **MDI 동적 로딩 중복 방지**: `isInitialized` 플래그 및 단일 진입점 `startInit` 함수 사용.
 6. **DDDW 드롭다운 2칸 분할 규격**: `f_dddwctl`은 앞 코드, 뒤 코드명 분할 및 선택 시 코드명만 표출.
 7. **달력 모드 자동 분기**: `dw_c`에 범위일자가 있으면 Range 모드, `ue_getdate`가 있으면 Highlight 모드.
-8. **리포트 뷰어 확대 배율**: `AamsReport.formatPreviewUrl(url)`을 통해 기본 120% (`#zoom=120`) 강제 적용.
+8. **리포트 뷰어 확대 배율**: `AamsReport.formatPreviewUrl(url)` 및 `AamsReport.buildPreviewUrl`을 통해 기본 120% (`#zoom=120`) 강제 적용.
 9. **반응형 브레이크포인트**: 1415px(태블릿-L), 876px(태블릿-S/모바일 - 리포트 패널 숨김 및 모달 전환).
 10. **상단 툴바 표준 계약**: 개별 액션 버튼 대신 상단 툴바 프래그먼트와 `pane.onSearch`, `pane.onRefresh`, `pane.onCorpGrChange` 바인딩.
+11. **공통 CSS 표준 클래스 준수 (Zero-Inline-Style)**: 그리드 헤더/셀에 인라인 스타일 작성 금지. `tabulator-custom.css`의 `headerCssClass`(`col-hdr-*`), `cell-text-*`, `cell-price-*` 표준 클래스 사용.
+12. **공통 스크립트 중복 호출 금지 (Zero-Garbage Code)**: `w_home5.html`에 전역 로드된 5대 스크립트(`common.js`, `aams_calendar.js`, `f_dddwctl.js`, `dynamic_code_search.js`, `aams_splitter.js`)는 조각 뷰에 `<script src="...">`로 중복 선언하지 않고 전역 객체 즉시 호출.
+13. **상단 필터 및 조회 버튼 상시 활성화 (웹 표준 UX 정책)**: 상단 필터바(날짜, 달력, DDDW, 코드검색 등)와 [조회] 버튼은 조회 실행 여부와 관계없이 항상 활성화 상태를 유지하여 언제든지 조건 변경 후 재조회 가능하도록 보장.
+
+

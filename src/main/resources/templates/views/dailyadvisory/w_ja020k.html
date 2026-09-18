@@ -168,16 +168,9 @@
                 if (typeof AamsCalendar !== 'undefined' && typeof AamsCalendar.initSimple === 'function') {
                     AamsCalendar.initSimple('filterYmd', {
                         pane: pane,
-                        initialYmd: filterYmdInput.value || initialYmd,
-                        onSelect: function (ymd) {
-                            loadReport();
-                        }
+                        initialYmd: filterYmdInput.value || initialYmd
                     });
                 }
-
-                filterYmdInput.addEventListener('change', function () {
-                    loadReport();
-                });
             }
 
             // DDDW 초기화: f_dddwctl 2칸(코드, 코드명) 분할 표출 및 선택 시 코드명만 표출 규격 적용 (규칙 7)
@@ -215,7 +208,7 @@
                             nameTitle: "자료구분",
                             defaultVal: targetVal,
                             onSelect: function (code, name) {
-                                loadReport();
+                                dddwSelect.value = code;
                             }
                         });
                     }
@@ -374,14 +367,6 @@
                     });
                 }
 
-                // 자료구분 변경 시 자동 리포트 갱신 연동
-                var dddwSelect = pane.querySelector('#filterDddw') || pane.querySelector('select[name="dddw"]');
-                if (dddwSelect) {
-                    dddwSelect.addEventListener('change', function () {
-                        loadReport();
-                    });
-                }
-
                 // 4. 상단 툴바 표준 계약 (규칙 9)
                 pane.onSearch = function () {
                     loadReport();
@@ -404,21 +389,16 @@
                                     if (typeof AamsCalendar !== 'undefined' && typeof AamsCalendar.initSimple === 'function') {
                                         AamsCalendar.initSimple('filterYmd', {
                                             pane: pane,
-                                            initialYmd: data.workDate,
-                                            onSelect: function (ymd) {
-                                                loadReport();
-                                            }
+                                            initialYmd: data.workDate
                                         });
                                     }
                                 }
                             }
                             initDddw();
-                            loadReport();
                         })
                         .catch(function (err) {
                             console.warn('[w_ja020k] workdate fetch error:', err);
                             initDddw();
-                            loadReport();
                         });
                 };
                 pane.onRefresh = function () {
@@ -428,10 +408,7 @@
                         if (typeof AamsCalendar !== 'undefined' && typeof AamsCalendar.initSimple === 'function') {
                             AamsCalendar.initSimple('filterYmd', {
                                 pane: pane,
-                                initialYmd: initialYmd,
-                                onSelect: function (ymd) {
-                                    loadReport();
-                                }
+                                initialYmd: initialYmd
                             });
                         }
                     }

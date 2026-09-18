@@ -270,7 +270,6 @@
                 if (newCorpGr && currentCorpGr !== newCorpGr) {
                     currentCorpGr = newCorpGr;
                     loadSecDddw();
-                    loadData();
                 }
             };
 
@@ -301,10 +300,7 @@
                     if (typeof AamsCalendar !== 'undefined') {
                         AamsCalendar.initSimple('filterJa010hYmd', {
                             pane: container,
-                            initialYmd: initialYmd,
-                            onSelect: function(selectedYmd) {
-                                loadData();
-                            }
+                            initialYmd: initialYmd
                         });
                     } else {
                         setTimeout(doInit, 50);
@@ -634,9 +630,6 @@
             if (btnMobHwp) btnMobHwp.addEventListener('click', () => exportReport('hwp'));
 
             const ymdInput = container.querySelector('#filterJa010hYmd');
-            if (ymdInput) {
-                ymdInput.addEventListener('change', () => loadData());
-            }
 
             // Window resize responsive sync
             window.addEventListener('resize', function() {

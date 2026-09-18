@@ -542,12 +542,9 @@
                 pane.onRetrieve = function() { window.loadProposalMaster(); };
                 pane.onCorpGrChange = function(val) {
                     lastLoadedProposalKey = null;
-                    window.loadProposalMaster(val);
                 };
                 pane.addEventListener("corpGrChanged", function(e) {
                     lastLoadedProposalKey = null;
-                    const selectedVal = (e.detail && e.detail.corpGr) ? e.detail.corpGr : "";
-                    window.loadProposalMaster(selectedVal);
                 });
 
                 // Provide default initial data when [입력] toolbar button is clicked
@@ -730,14 +727,8 @@
                     if (typeof showToast === "function") showToast("화면이 초기화되었습니다.", "info");
                 };
                 pane.onCorpGrChange = function(val) {
-                    if (gridMaster) gridMaster.clearData();
-                    if (gridComment) gridComment.clearData();
-                    loadProposalMaster();
                 };
                 pane.addEventListener("corpGrChanged", function() {
-                    if (gridMaster) gridMaster.clearData();
-                    if (gridComment) gridComment.clearData();
-                    loadProposalMaster();
                 });
             }
 

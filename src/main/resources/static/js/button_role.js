@@ -167,10 +167,8 @@
                 // 1) 닫기 버튼: 활성화
                 if (btnClose) this._setElementEnabled(btnClose, true);
 
-                // 2) 조회 버튼: 새로고침 버튼이 없는 경우에는 항상 활성화 상태 유지, 새로고침이 있는 경우만 비활성화
-                if (btnSearch) {
-                    this._setElementEnabled(btnSearch, !hasRefreshButton);
-                }
+                // 2) 조회 버튼: 조건 변경 후 언제든지 재조회할 수 있도록 항상 활성화 유지 (웹 표준 UX 방안 A)
+                if (btnSearch) this._setElementEnabled(btnSearch, true);
 
                 // 3) 조회 버튼을 제외한 나머지 권한 버튼들: 활성화
                 otherButtons.forEach(function(btn) {
@@ -202,18 +200,15 @@
         /**
          * filter-bar 내부의 마스터그리드 조건 컨트롤과 서브 액션 버튼 활성화/비활성화
          * @param {HTMLElement} container - 탭 패널 컨테이너
-         * @param {boolean} isSearched - true: 조회 완료(조건 비활성화), false: 조회 전(조건 활성화)
+         * @param {boolean} isSearched - 조회 실행 여부 (방안 A: 필터는 항상 활성화 유지)
          */
         _updateFilterBarState: function(container, isSearched) {
             if (!container) return;
             const filterBars = container.querySelectorAll('.filter-bar');
             if (!filterBars || filterBars.length === 0) return;
 
-            // 새로고침 버튼 존재 및 실제 노출 여부 확인
-            const hasRefreshButton = this._hasVisibleRefreshButton(container);
-
-            // 요구사항 반영: 새로고침 버튼이 없는 경우에는 filter부분은 항상 활성화 상태 유지
-            const isConditionEnabled = !hasRefreshButton ? true : !isSearched;
+            // 웹 표준 UX 방안 A: 상단 filter 부분(달력, 날짜, DDDW, 코드검색 등)은 조회 여부와 관계없이 항상 활성화 상태 유지
+            const isConditionEnabled = true;
 
             // Calendar, DDDW, Dynamic Search 관련 요소 판별 헬퍼
             function isConditionControl(el) {

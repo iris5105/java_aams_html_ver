@@ -165,16 +165,9 @@
                 if (typeof AamsCalendar !== 'undefined' && typeof AamsCalendar.initSimple === 'function') {
                     AamsCalendar.initSimple('filterYmd', {
                         pane: pane,
-                        initialYmd: filterYmdInput.value || initialYmd,
-                        onSelect: function (ymd) {
-                            loadReport();
-                        }
+                        initialYmd: filterYmdInput.value || initialYmd
                     });
                 }
-
-                filterYmdInput.addEventListener('change', function () {
-                    loadReport();
-                });
             }
 
             function buildPreviewUrl() {
@@ -263,10 +256,9 @@
                                     filterYmdInput.value = data.workDate;
                                 }
                             }
-                            loadReport();
                         })
-                        .catch(function () {
-                            loadReport();
+                        .catch(function (err) {
+                            console.error("회사그룹 작업일자 조회 실패:", err);
                         });
                 };
 

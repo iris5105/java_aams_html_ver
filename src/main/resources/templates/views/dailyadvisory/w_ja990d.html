@@ -958,7 +958,10 @@
 
                     pnlStock.style.display = "flex";
                     pnlRight.style.display = "none";
-                    if (gridStock) gridStock.redraw(true);
+                    if (gridStock) {
+                        gridStock.redraw(true);
+                        applyQuickFilter();
+                    }
                     if (window.AamsSplitter && window.AamsSplitter.init) {
                         window.AamsSplitter.init(pnlStock);
                     }
@@ -973,52 +976,94 @@
 
                     pnlStock.style.display = "none";
                     pnlRight.style.display = "flex";
-                    if (gridRight) gridRight.redraw(true);
+                    if (gridRight) {
+                        gridRight.redraw(true);
+                    }
                     loadRightList();
+                }
+            }
+
+            // Quick Search Filter (w_ja990c 표준과 동일한 실시간 필터)
+            function applyQuickFilter() {
+                const targetGrid = (currentTab === "stock") ? gridStock : gridRight;
+                if (!targetGrid) return;
+
+                const searchInput = pane ? pane.querySelector("#ja990d-search") : document.getElementById("ja990d-search");
+                const val = searchInput ? searchInput.value.trim().toLowerCase() : "";
+                const countEl = pane ? pane.querySelector(currentTab === "stock" ? "#stock-count" : "#right-count") 
+                                     : document.getElementById(currentTab === "stock" ? "stock-count" : "right-count");
+
+                if (!val) {
+                    targetGrid.clearFilter();
+                } else {
+                    targetGrid.setFilter(function(data) {
+                        const jmCd = (data.jmCd || "").toLowerCase();
+                        const koscomCd = (data.koscomCd || "").toLowerCase();
+                        const jjNm = (data.jjNm || "").toLowerCase();
+                        const jjFnm = (data.jjFnm || "").toLowerCase();
+                        const balhNm = (data.balhNm || "").toLowerCase();
+                        return jmCd.includes(val) || koscomCd.includes(val) || jjNm.includes(val) || jjFnm.includes(val) || balhNm.includes(val);
+                    });
+                }
+
+                // 필터링 후 가시적인 행 수 계산 및 첫 번째 행 동기화
+                const visibleRows = targetGrid.getRows("visible");
+                const count = visibleRows ? visibleRows.length : 0;
+                if (countEl) {
+                    countEl.textContent = count + "건";
+                }
+
+                if (currentTab === "stock") {
+                    if (visibleRows && visibleRows.length > 0) {
+                        visibleRows[0].select();
+                        syncDetail(visibleRows[0], visibleRows[0].getData());
+                    } else {
+                        selectedStockRow = null;
+                        lastLoadedMasterKey = null;
+                        bindStockForm({});
+                    }
+                } else {
+                    if (visibleRows && visibleRows.length > 0) {
+                        visibleRows[0].select();
+                    }
                 }
             }
 
             // Load Data
             function loadStockList() {
-                const searchInput = pane ? pane.querySelector("#ja990d-search") : document.getElementById("ja990d-search");
-                const keyword = searchInput ? searchInput.value.trim() : "";
                 const countEl = pane ? pane.querySelector("#stock-count") : document.getElementById("stock-count");
 
-                fetch(`/api/daily/ja990d/stocks?searchKeyword=${encodeURIComponent(keyword)}`)
+                fetch(`/api/daily/ja990d/stocks`)
                     .then(r => r.json())
                     .then(data => {
-                        gridStock.setData(data || []);
-                        if (countEl) countEl.textContent = (data ? data.length : 0) + "건";
-                        // Rule 15: Select first row automatically
-                        if (data && data.length > 0) {
-                            const rows = gridStock.getRows();
-                            if (rows && rows.length > 0) {
-                                rows[0].select();
-                                syncDetail(rows[0], rows[0].getData());
-                            }
-                        } else {
-                            bindStockForm({});
+                        if (gridStock) {
+                            gridStock.setData(data || []).then(() => {
+                                applyQuickFilter();
+                            });
                         }
                     })
-                    .catch(e => console.error(e));
+                    .catch(e => {
+                        console.error(e);
+                        if (countEl) countEl.textContent = "0건";
+                    });
             }
 
             function loadRightList() {
-                const searchInput = pane ? pane.querySelector("#ja990d-search") : document.getElementById("ja990d-search");
-                const keyword = searchInput ? searchInput.value.trim() : "";
                 const countEl = pane ? pane.querySelector("#right-count") : document.getElementById("right-count");
 
-                fetch(`/api/daily/ja990d/rights?searchKeyword=${encodeURIComponent(keyword)}`)
+                fetch(`/api/daily/ja990d/rights`)
                     .then(r => r.json())
                     .then(data => {
-                        gridRight.setData(data || []);
-                        if (countEl) countEl.textContent = (data ? data.length : 0) + "건";
-                        if (data && data.length > 0) {
-                            const rows = gridRight.getRows();
-                            if (rows && rows.length > 0) rows[0].select();
+                        if (gridRight) {
+                            gridRight.setData(data || []).then(() => {
+                                applyQuickFilter();
+                            });
                         }
                     })
-                    .catch(e => console.error(e));
+                    .catch(e => {
+                        console.error(e);
+                        if (countEl) countEl.textContent = "0건";
+                    });
             }
 
             function loadData() {
@@ -1097,11 +1142,16 @@
                 if (btnStock) btnStock.addEventListener("click", () => switchTab("stock"));
                 if (btnRight) btnRight.addEventListener("click", () => switchTab("right"));
 
-                // Search Keyup
+                // Quick Search Handler (w_ja990c 표준과 동일하게 input 이벤트로 실시간 필터 적용)
                 const searchInput = pane ? pane.querySelector("#ja990d-search") : document.getElementById("ja990d-search");
                 if (searchInput) {
+                    searchInput.addEventListener("input", function() {
+                        applyQuickFilter();
+                    });
                     searchInput.addEventListener("keyup", function(e) {
-                        if (e.key === "Enter") loadData();
+                        if (e.key === "Enter") {
+                            loadData();
+                        }
                     });
                 }
 
@@ -1277,10 +1327,19 @@
                 pane.onInput = function() { inputRow(); };
                 pane.onDelete = function() { deleteRow(); };
                 pane.onSave = function() { save(); };
-                pane.onCorpGrChange = function() { loadData(); };
+                pane.onCorpGrChange = function() {
+                    selectedStockRow = null;
+                    lastLoadedMasterKey = null;
+                };
                 pane.onRefresh = function() {
-                    if (gridStock) gridStock.clearData();
-                    if (gridRight) gridRight.clearData();
+                    if (gridStock) {
+                        gridStock.clearFilter();
+                        gridStock.clearData();
+                    }
+                    if (gridRight) {
+                        gridRight.clearFilter();
+                        gridRight.clearData();
+                    }
                     selectedStockRow = null;
                     lastLoadedMasterKey = null;
                     bindStockForm({});
@@ -1288,6 +1347,10 @@
                     deletedRightList = [];
                     const searchInput = pane ? pane.querySelector("#ja990d-search") : document.getElementById("ja990d-search");
                     if (searchInput) searchInput.value = "";
+                    const stockCount = pane ? pane.querySelector("#stock-count") : document.getElementById("stock-count");
+                    const rightCount = pane ? pane.querySelector("#right-count") : document.getElementById("right-count");
+                    if (stockCount) stockCount.textContent = "0건";
+                    if (rightCount) rightCount.textContent = "0건";
                     if (typeof showToast === "function") {
                         showToast("화면이 초기화되었습니다.", "info");
                     }

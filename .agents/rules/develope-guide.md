@@ -59,6 +59,153 @@ trigger: always_on
 15. 데이터 조회(fetch) 후 또는 초기 데이터 바인딩 시 마스터 그리드(또는 단일 그리드)에 데이터가 존재할 경우 제일 첫 번째 행을 기본으로 선택(row.select())하여 상세 정보 및 연계 패널(디테일 그리드, 메모 등)이 자동으로 표출되도록 처리한다.
 16. srw파일에서 dw_c.ue_getdate 이벤트가 존재한다면 하이라이트 모드로 넘겨주고 dw_c.getdate 이벤트가 없다면 순정상태의 달력으로 표시하게해줘
 17. 상단 필터바(filter-bar) 구성 시, 필터 영역을 임의로 직접 작성하지 않고 항상 참조하는 srw 파일의 dw_c 컨트롤이 사용하는 데이터윈도우 객체(dataobject, 예: dc_ymd, dc_ymd_dddw, dc_xx_ymd 등)를 확인한 후, `templates/fragments/filter/` 디렉토리 내에서 동일한 파일명의 공통 프래그먼트(`th:replace="~{fragments/filter/{dataobject} :: filter(...)}"`)를 찾아 연동하여 공통 필터 컴포넌트를 일관되게 재사용한다.
+18. **공통 모듈 및 전역 자원 최대 활용 원칙 (Zero-Garbage Code):**
+    - 신규 화면(MDI 탭 조각 뷰)을 생성할 때 공통 CSS(`tabulator-custom.css`, `report-viewer.css`, `style.css`)와 공통 JS(`common.js`, `aams_calendar.js`, `f_dddwctl.js`, `dynamic_code_search.js`, `aams_splitter.js`)에 이미 구현된 기능은 절대로 화면 내에 중복 작성하거나 인라인 스타일/함수로 재정의하지 않고 공통 모듈을 직접 호출한다.
+19. **상단 필터 및 조회 버튼 상시 활성화 및 수동 조회 단일 정책 규격 (웹 표준 UX 정책):**
+    - 상단 필터바(날짜 input, 달력 팝업 버튼, DDDW 드롭다운, 다이나믹 코드 검색 등) 및 상단 툴바의 [조회] 버튼은 **데이터 조회 실행 여부와 관계없이 항상 활성화(enabled) 상태를 유지**한다.
+    - 레거시 파워빌더처럼 조회 후 필터나 조회 버튼을 비활성화(disabled/lock)하여 새로고침을 강제하지 않으며, 사용자가 언제든지 날짜나 조건을 변경하고 곧바로 다시 [조회] 버튼을 눌러 재조회할 수 있도록 한다.
+    - **필터 조건 변경 시 자동 조회 절대 금지:** 상단 필터바의 날짜 선택(달력 팝업 선택, 날짜 input change/input), DDDW 드롭다운 선택, 다이나믹 코드 검색 모달 선택, 회사그룹 변경(`pane.onCorpGrChange`) 등 **필터 조건이 변경될 때 자동으로 조회를 실행(API fetch, loadData 등)하지 않는다.**
+    - **필터 변경 시 기존 데이터 유지 규격:** 사용자가 필터 조건(날짜, DDDW, 코드검색, 회사그룹 등)을 변경하더라도, 테이블(그리드)이나 상세 패널에 보여지는 데이터는 사용자가 상단 툴바의 [조회] 버튼을 클릭하여 새로운 조회가 완료되기 전까지 **기존 데이터를 그대로 유지하여 표출**한다. 필터 변경 이벤트(onCorpGrChange, 날짜 선택, 코드 선택 등)에서 `grid.clearData()` 등으로 기존 데이터를 비우지 않는다.
+    - 필터 조작 시에는 해당 UI 요소의 값 바인딩(input 값 갱신, 하이라이트 달력 날짜 목록 갱신 등)만 수행하며, 실제 데이터 조회 및 테이블 갱신은 **사용자가 상단 툴바의 [조회] 버튼(`pane.onSearch`)을 클릭했을 때에만 단독으로 실행**되도록 한다. (단, 파워빌더 화면 원본에 `boolean eb_direct_retrieve = true` 구문이 있는 경우 화면 초기 진입 시 1회 자동 조회는 정상 유지)
+    - 상단 툴바의 [새로고침] 버튼은 조회된 그리드 데이터나 수정 중인 폼을 초기 상태로 되돌리는 용도로만 동작하며, 이 때에만 `clearData()`를 수행한다.
+
+---
+
+공통 CSS 및 스타일링 표준 규격 (Zero-Inline-Style 원칙)
+
+1. **그리드 인라인 스타일 작성 절대 금지:**
+   - Tabulator 그리드의 컬럼 헤더(`title`)나 셀 포매터(`formatter`) 내부에 `style="color:..."` 등의 인라인 스타일을 직접 작성하지 않는다.
+   - 모든 색상, 배지, 정렬, 강조 표시는 [tabulator-custom.css](file:///d:/work/java_aams_html_ver/src/main/resources/static/css/tabulator-custom.css)의 **AAMS Tabulator Grid Standard Color System** 클래스를 사용한다.
+
+2. **컬럼 헤더 타이틀 색상 클래스 (`headerCssClass`):**
+   - Tabulator 컬럼 정의 시 `title: "<span style='color:...'>..."`와 같이 인라인 HTML 태그를 넣지 않고, `headerCssClass` 속성을 부여한다:
+     ```javascript
+     // 올바른 예:
+     { title: "종목명", field: "itemNm", headerCssClass: "col-hdr-blue", ... }
+     { title: "상환일", field: "payYmd", headerCssClass: "col-hdr-red", ... }
+     { title: "펀드코드", field: "fundCd", headerCssClass: "col-hdr-green", ... }
+     { title: "발행정보", field: "balhInfo", headerCssClass: "col-hdr-balh", ... }
+     ```
+   - 파워빌더 DataWindow(.srd) 색상 매핑:
+     - PB `color="16711680"` (파랑) -> `headerCssClass: "col-hdr-blue"` (주요 식별 컬럼: 종목명, 매입일, 종목코드 등)
+     - PB `color="128"` / `"255"` (빨강) -> `headerCssClass: "col-hdr-red"` (만기/종료일: 상환일, 계약해지일, 계약종료일, 관리종료일 등)
+     - PB `color="32768"` (초록) -> `headerCssClass: "col-hdr-green"` (펀드 고유 식별자: 펀드코드 등)
+     - 주황색 헤더 -> `headerCssClass: "col-hdr-balh"`
+
+3. **데이터 셀 텍스트 색상 클래스 (`formatter` 반환 span):**
+   - 데이터 셀 포매터에서 특정 텍스트를 강조할 때는 공통 클래스를 부여한 `<span>` 태그를 반환한다:
+     - 파란색 텍스트: `<span class="cell-text-blue">`
+     - 빨간색 텍스트: `<span class="cell-text-red">`
+     - 초록색 텍스트: `<span class="cell-text-green">`
+     - 회색 비활성 텍스트: `<span class="cell-text-muted">`
+
+4. **가격 및 등락률 표준 클래스 (`formatter`):**
+   - 상승/플러스 변동(빨간색, `▲`): `<span class="cell-price-up">`
+   - 하락/마이너스 변동(파란색, `▼`): `<span class="cell-price-down">`
+   - 보합(회색, `-`): `<span class="cell-text-muted">`
+
+5. **거래구분 및 상태/파일 배지 클래스:**
+   - 매수/매도/입고/출고/인수 거래구분: `.cell-tr-buy`, `.cell-tr-sell`, `.cell-tr-in`, `.cell-tr-out`, `.cell-tr-acquire`
+   - 상태 알약 배지: `.badge-status-success` (정상/초록), `.badge-status-error` (오류/빨강)
+   - 첨부파일 클립 배지: `.file-badge`
+   - 완료/해지 행 시각적 잠금: `row.getElement().classList.add('row-completed');`
+
+6. **개별 화면 내 중복 `<style>` 블록 생성 금지:**
+   - 행 선택 하이라이트(`.tabulator-selected`), 인라인 편집 셀 테두리(`.cell-editable-blue`), MRD 리포트 내보내기 버튼(`.btn-export-format`, `.report-export-group`), 분할 스플리터 레이아웃 등은 이미 공통 CSS에 완전 구현되어 있으므로 각 화면 템플릿에 로컬 `<style>` 블록을 중복 작성하지 않는다.
+
+---
+
+공통 JavaScript 유틸리티 및 모듈 재사용 규격
+
+1. **회사그룹(corpGr) 추출 함수 개별 작성 금지:**
+   - 화면마다 `function resolveCorpGr()`을 중복 정의하지 않는다.
+   - [common.js](file:///d:/work/java_aams_html_ver/src/main/resources/static/js/common.js)의 전역 헬퍼 함수 `resolveCorpGr(pane)`을 무조건 호출한다:
+     ```javascript
+     var corpGr = resolveCorpGr(pane);
+     ```
+
+2. **인라인 편집 셀 선행 선택 핸들러:**
+   - 편집 가능 셀 클릭 시 행 선택을 보장하기 위한 핸들러를 화면마다 만들지 않고, `common.js`의 `aamsCellEdit` 전역 함수를 컬럼 설정에 지정한다:
+     ```javascript
+     { title: "비고", field: "remark", editor: "input", cellClick: aamsCellEdit }
+     ```
+
+3. **MRD 리포트 URL 빌더 (`AamsReport`):**
+   - 리포트 미리보기/내보내기 URL을 하드코딩하거나 문자열을 직접 조합하지 않고 `common.js`의 `AamsReport` 유틸리티를 표준으로 사용한다:
+     ```javascript
+     // 미리보기 (120% 줌 및 타임스탬프 자동 부착)
+     var previewUrl = AamsReport.buildPreviewUrl('rd_파일명.mrd', params, { corpGr: resolveCorpGr(pane) });
+     AamsReport.setFrameSrc(iframe, previewUrl);
+
+     // 내보내기 (5종 포맷 다운로드)
+     var exportUrl = AamsReport.buildExportUrl('rd_파일명.mrd', params, format, { corpGr: resolveCorpGr(pane), downloadName: fileName });
+     window.location.href = exportUrl;
+     ```
+
+4. **공통 UI 팝업 및 알림:**
+   - 단순 알림이나 토스트 표출 시 브라우저 내장 `alert` 대신 `showToast(message, type)` 또는 `showAlert(message)` 공통 함수를 사용한다.
+
+---
+
+MDI 환경 스크립트 및 조각 뷰 작성 규칙 (가비지 코드 방지)
+
+1. **공통 전역 스크립트 재호출 태그 중복 삽입 금지:**
+   - 메인 프레임워크인 [w_home5.html](file:///d:/work/java_aams_html_ver/src/main/resources/templates/views/home/w_home5.html)의 `<head>`에 전역 스크립트가 이미 로드되어 있다:
+     - `common.js`
+     - `aams_calendar.js`
+     - `f_dddwctl.js`
+     - `dynamic_code_search.js`
+     - `aams_splitter.js`
+   - MDI 탭으로 동적 로드되는 조각 템플릿(`.html`) 내부에 상기 5개 공통 스크립트에 대한 `<script src="...">` 태그를 절대로 중복 삽입하지 않는다.
+   - 조각 템플릿의 `<script>` 블록에서는 이미 메모리에 로드된 전역 객체(`AamsCalendar`, `f_dddwctl`, `openDynamicSearchModal`, `AamsSplitter`, `resolveCorpGr` 등)를 즉시 호출한다.
+   - 특정 화면 전용 외부 라이브러리(예: `xlsx.full.min.js` 등 엑셀 변환용 라이브러리)가 필요한 경우에만 해당 라이브러리 1개에 한해 태그를 선언한다.
+
+2. **단일 진입점 초기화 패턴 준수:**
+   - 탭이 열리거나 전환될 때 다중 초기화(이벤트 중복 바인딩)를 방지하기 위해 각 화면 스크립트는 `isInitialized` 플래그 및 `pane` 컨텍스트를 기반으로 작성한다.
+
+---
+
+화면 패널 분할 규격 (AamsSplitter 표준 연동)
+
+1. **드래그 리사이징 스플리터 표준 적용:**
+   - 좌우(마스터-상세 그리드, 마스터-리포트 등) 또는 상하(마스터-서브그리드 등)로 화면이 분할되는 경우, 임의의 고정 너비나 간격을 주지 않고 `aams_splitter.js` 표준 레이아웃을 적용하여 사용자가 패널 크기를 자유롭게 조절할 수 있도록 한다.
+
+2. **HTML 레이아웃 구조 표준:**
+   - **좌우 분할 (Horizontal Split)**:
+     ```html
+     <div class="layout-split-h" data-split-key="화면식별키">
+         <div class="split-pane split-left">
+             <!-- 좌측 그리드 / 마스터 영역 -->
+         </div>
+         <div class="splitter-gutter splitter-gutter-h" title="좌우 드래그하여 크기 조절"></div>
+         <div class="split-pane split-right">
+             <!-- 우측 그리드 / 상세 패널 / 리포트 뷰어 -->
+         </div>
+     </div>
+     ```
+   - **상하 분할 (Vertical Split)**:
+     ```html
+     <div class="layout-split-v" data-split-key="화면식별키">
+         <div class="split-pane split-top">
+             <!-- 상단 마스터 그리드 -->
+         </div>
+         <div class="splitter-gutter splitter-gutter-v" title="상하 드래그하여 크기 조절"></div>
+         <div class="split-pane split-bottom">
+             <!-- 하단 상세 그리드 / 폼 -->
+         </div>
+     </div>
+     ```
+
+3. **클라이언트 JS 초기화:**
+   - 화면 초기화 진입점(`startInit` 등)에서 다음과 같이 1줄로 스플리터를 초기화한다:
+     ```javascript
+     if (window.AamsSplitter && typeof window.AamsSplitter.init === 'function') {
+         AamsSplitter.init(pane);
+     }
+     ```
+   - `AamsSplitter`는 사용자의 조절 비율을 `localStorage`에 자동 저장/복원하며, 우측 패널에 `iframe`(리포트 뷰어)이 존재할 경우 리사이징 시 마우스 이벤트가 가로채이지 않도록 자동 오버레이 보호 메커니즘(`is-splitter-resizing`)을 자체 내장하고 있다.
+
+---
 
 예외상황
 

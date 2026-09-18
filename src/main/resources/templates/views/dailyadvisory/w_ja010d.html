@@ -157,10 +157,8 @@
                     if (typeof showToast === "function") showToast("화면이 초기화되었습니다.", "info");
                 };
                 pane.onCorpGrChange = function(val) {
-                    if (gridJa010d) gridJa010d.clearData();
                 };
                 pane.addEventListener("corpGrChanged", function(e) {
-                    if (gridJa010d) gridJa010d.clearData();
                 });
             }
 
@@ -181,12 +179,10 @@
             function initCalendarComponent() {
                 if (typeof AamsCalendar !== 'undefined') {
                     AamsCalendar.init('filterTrYmd', {
+                        pane: pane,
                         initialYmd: /*[[${trYmd}]]*/ "",
                         highlightDates: /*[[${trDates}]]*/ [],
-                        datesApiUrl: '/api/account/ja010d/dates',
-                        onSelect: function(ymd) {
-                            loadJa010dData();
-                        }
+                        datesApiUrl: '/api/account/ja010d/dates'
                     });
                 }
             }

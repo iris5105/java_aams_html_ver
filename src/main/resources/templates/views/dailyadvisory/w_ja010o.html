@@ -119,14 +119,7 @@
                         pane: pane,
                         getCorpGr: resolveCorpGr,
                         onSelect: function(code, name, rowData) {
-                            // 모달창에서 관리번호 선택 시 자동 조회를 실행하지 않고, 상단 조회 버튼 클릭 시에만 실행되도록 설정
-                            if (gridJa010o) {
-                                gridJa010o.clearData();
-                            }
                             lastFundCd = null;
-                            if (window.ButtonRole && typeof window.ButtonRole.setSearchState === "function") {
-                                window.ButtonRole.setSearchState(pane, false);
-                            }
                         }
                     });
                 } else if (retryCount < 20) {
@@ -598,17 +591,7 @@
                 if (typeof window.AamsCalendar === "object" && typeof window.AamsCalendar.initSimple === "function") {
                     window.AamsCalendar.initSimple("filterYmd", {
                         initialYmd: /*[[${ymd}]]*/ '',
-                        pane: pane,
-                        onSelect: function(selectedYmd) {
-                            // 날짜 변경 시 자동 조회를 실행하지 않고, 상단 조회 버튼 클릭 시에만 실행되도록 설정
-                            if (gridJa010o) {
-                                gridJa010o.clearData();
-                            }
-                            lastYmd = null;
-                            if (window.ButtonRole && typeof window.ButtonRole.setSearchState === "function") {
-                                window.ButtonRole.setSearchState(pane, false);
-                            }
-                        }
+                        pane: pane
                     });
                 }
             }
@@ -629,14 +612,8 @@
                     if (codeSearchInstance) {
                         codeSearchInstance.clear();
                     }
-                    if (gridJa010o) {
-                        gridJa010o.clearData();
-                    }
                     lastCorpGr = null;
                     lastFundCd = null;
-                    if (window.ButtonRole && typeof window.ButtonRole.setSearchState === "function") {
-                        window.ButtonRole.setSearchState(pane, false);
-                    }
                 };
                 pane.onRefresh = function() {
                     if (codeSearchInstance) {

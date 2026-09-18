@@ -182,15 +182,9 @@
 
                 if (window.AamsCalendar && typeof window.AamsCalendar.initRange === 'function') {
                     window.AamsCalendar.initRange('filterFYmd', 'filterTYmd', {
-                        pane: currentPane,
-                        onSelect: function (f, t) {
-                            loadList();
-                        }
+                        pane: currentPane
                     });
                 }
-
-                if (fEl) fEl.addEventListener('change', function () { loadList(); });
-                if (tEl) tEl.addEventListener('change', function () { loadList(); });
             }
 
             function initGrid() {
@@ -445,10 +439,9 @@
                                 if (fEl && data.fymd) fEl.value = data.fymd;
                                 if (tEl && data.tymd) tEl.value = data.tymd;
                             }
-                            loadList();
                         })
-                        .catch(function () {
-                            loadList();
+                        .catch(function (err) {
+                            console.error("작업일자 조회 실패:", err);
                         });
                 };
 

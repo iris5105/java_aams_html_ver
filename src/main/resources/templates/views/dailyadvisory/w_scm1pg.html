@@ -340,15 +340,6 @@
                     });
                 }
 
-                // Date filter change
-                const ymdInput = pane ? pane.querySelector("#filterYmd") : document.getElementById("filterYmd");
-                if (ymdInput) {
-                    ymdInput.addEventListener("change", function() {
-                        lastLoadedMasterKey = null;
-                        loadMaster();
-                    });
-                }
-
                 // Attach sub button events in detail section header
                 bindSubButtons();
             }
@@ -588,11 +579,7 @@
                     if (typeof showToast === "function") showToast("화면이 초기화되었습니다.", "info");
                 };
                 pane.onCorpGrChange = function(newCorpGr) {
-                    if (gridMaster) gridMaster.clearData();
-                    if (gridDetail) gridDetail.clearData();
-                    retrieveDddw().then(() => {
-                        loadMaster();
-                    });
+                    retrieveDddw();
                 };
             }
 
