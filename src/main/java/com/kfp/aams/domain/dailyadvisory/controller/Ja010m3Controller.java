@@ -22,6 +22,9 @@ import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.Collections;
+import com.kfp.aams.security.JwtProvider;
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletRequest;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -34,6 +37,7 @@ public class Ja010m3Controller {
     private final Ja010m3Service ja010m3Service;
     private final WorkDateService workDateService;
     private final MenuService menuService;
+    private final JwtProvider jwtProvider;
 
     @GetMapping({"/views/w_ja010m3", "/views/dailyadvisory/w_ja010m3"})
     public String viewJa010m3(@AuthenticationPrincipal Object principalObj,
@@ -82,8 +86,10 @@ public class Ja010m3Controller {
             @RequestParam(name = "gyulYmd", required = false) String gyulYmd,
             @RequestParam(name = "sortGb", required = false, defaultValue = "1") String sortGb,
             @AuthenticationPrincipal Object principalObj,
+            @CookieValue(name = "accessToken", required = false) String accessToken,
             @CookieValue(name = "savedCorpGr", required = false) String cookieCorpGr1,
-            @CookieValue(name = "corpGr", required = false) String cookieCorpGr2) {
+            @CookieValue(name = "corpGr", required = false) String cookieCorpGr2,
+            HttpServletRequest request) {
 
         UserPrincipal principal = (principalObj instanceof UserPrincipal p) ? p : null;
         String cookieCorpGr = (cookieCorpGr1 != null && !cookieCorpGr1.isBlank()) ? cookieCorpGr1 : cookieCorpGr2;
@@ -93,11 +99,38 @@ public class Ja010m3Controller {
             return ResponseEntity.ok(Collections.emptyList());
         }
 
-        boolean isAdmin = (principal != null && principal.getAuthorities() != null &&
-                principal.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN")));
+        // 엑세스 쿠키(accessToken) 및 Principal의 adminYn을 기반으로 어드민 여부 판단
+        boolean isAdmin = checkIsAdmin(principal, accessToken, request);
 
         List<Ja010m3Dto> list = ja010m3Service.getList(corpGr, gyulYmd, sortGb, isAdmin);
         return ResponseEntity.ok(list);
+    }
+
+    private boolean checkIsAdmin(UserPrincipal principal, String accessToken, HttpServletRequest request) {
+        if (principal != null && "Y".equalsIgnoreCase(principal.getAdminYn())) {
+            return true;
+        }
+        if (accessToken != null && !accessToken.isBlank()) {
+            try {
+                UserPrincipal p = jwtProvider.getUserPrincipal(accessToken);
+                if (p != null && "Y".equalsIgnoreCase(p.getAdminYn())) {
+                    return true;
+                }
+            } catch (Exception ignored) {}
+        }
+        if (request != null && request.getCookies() != null) {
+            for (Cookie c : request.getCookies()) {
+                if ("accessToken".equals(c.getName()) && c.getValue() != null && !c.getValue().isBlank()) {
+                    try {
+                        UserPrincipal p = jwtProvider.getUserPrincipal(c.getValue());
+                        if (p != null && "Y".equalsIgnoreCase(p.getAdminYn())) {
+                            return true;
+                        }
+                    } catch (Exception ignored) {}
+                }
+            }
+        }
+        return false;
     }
 
     @PostMapping("/api/daily/ja010m3/save")

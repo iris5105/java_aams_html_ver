@@ -28,9 +28,12 @@ public class ButtonAuthService {
      * @param userId  사용자 ID
      * @param corpGr  회사 그룹 코드
      * @param adminYn 슈퍼관리자 여부 ('Y'/'N')
-     * @param pgmNo   프로그램 번호 (예: '00052', '00804')
      * @return ButtonAuthDto 최종 버튼별 boolean 권한 결과
      */
+    public ButtonAuthDto getButtonAuth(String userId, String corpGr, String adminYn, String pgmNo) {
+        return getButtonAuth(userId, corpGr, adminYn, null, pgmNo);
+    }
+
     @SuppressWarnings("null")
     public ButtonAuthDto getButtonAuth(String userId, String corpGr, String adminYn, String userNm, String pgmNo) {
         if (pgmNo == null || pgmNo.trim().isEmpty()) {

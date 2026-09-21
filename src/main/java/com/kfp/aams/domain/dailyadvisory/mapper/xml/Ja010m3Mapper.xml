@@ -43,7 +43,10 @@
             ON ia.CORP_GR = t1.CORP_GR
            AND ia.fund_cd = t1.fund_cd
          WHERE t1.CORP_GR = #{corpGr}
+        <if test='sortGb != "1" and gyulYmd != null and gyulYmd != ""'>
            AND t1.gyul_ymd >= TO_DATE(#{gyulYmd}, 'YYYY-MM-DD')
+        </if>
+        <if test='chk != null and "b".equals(chk)'>
         UNION ALL
         SELECT t1.CORP_GR
              , TO_CHAR(t1.GYUL_YMD, 'YYYY-MM-DD') AS gyul_ymd
@@ -80,8 +83,10 @@
             ON ia.CORP_GR = t1.CORP_GR
            AND ia.fund_cd = t1.fund_cd
          WHERE t1.CORP_GR = #{corpGr}
+        <if test='sortGb != "1" and gyulYmd != null and gyulYmd != ""'>
            AND t1.gyul_ymd >= TO_DATE(#{gyulYmd}, 'YYYY-MM-DD')
-           AND #{chk} = 'b'
+        </if>
+        </if>
         <choose>
             <when test='sortGb == "1"'>
                 ORDER BY xx_fund_cd ASC, gyul_ymd DESC, tbl_gb ASC

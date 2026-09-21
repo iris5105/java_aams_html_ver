@@ -89,6 +89,73 @@
     text-align: center;
 }
 
+/* ==========================================================================
+   3-1. Multi-level Column Header (Group Header) 50:50 Split Styling
+   - 복합 헤더(부모 헤더 + 하위 자식 헤더)의 높이를 상하 50:50으로 균등 분할
+   ========================================================================== */
+.tabulator .tabulator-header .tabulator-col.tabulator-col-group {
+    display: inline-flex !important;
+    flex-direction: column !important;
+    justify-content: flex-start !important;
+    overflow: hidden !important;
+}
+
+/* 1) 상단 부모 헤더 영역: 정확히 50% 높이 차지 및 하단 구분선 */
+.tabulator .tabulator-header .tabulator-col.tabulator-col-group > .tabulator-col-content {
+    flex: 0 0 50% !important;
+    height: 50% !important;
+    max-height: 50% !important;
+    min-height: 50% !important;
+    box-sizing: border-box !important;
+    padding: 2px 4px !important;
+    border-bottom: 1px solid #cbd5e1 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+/* 2) 하단 자식 헤더 컨테이너: 정확히 50% 높이 차지 */
+.tabulator .tabulator-header .tabulator-col.tabulator-col-group > .tabulator-col-group-cols {
+    flex: 0 0 50% !important;
+    height: 50% !important;
+    max-height: 50% !important;
+    min-height: 50% !important;
+    box-sizing: border-box !important;
+    display: flex !important;
+    flex-direction: row !important;
+    border-top: none !important;
+    margin-right: 0 !important;
+}
+
+/* 3) 하단 자식 헤더 개별 컬럼: 자식 컨테이너 높이 100% 채움 */
+.tabulator .tabulator-header .tabulator-col.tabulator-col-group > .tabulator-col-group-cols > .tabulator-col {
+    height: 100% !important;
+    min-height: 100% !important;
+    max-height: 100% !important;
+    box-sizing: border-box !important;
+    display: inline-flex !important;
+    flex-direction: column !important;
+    justify-content: center !important;
+    border-right: 1px solid #cbd5e1 !important;
+}
+
+.tabulator .tabulator-header .tabulator-col.tabulator-col-group > .tabulator-col-group-cols > .tabulator-col:last-child {
+    border-right: none !important;
+}
+
+/* 4) 하단 자식 헤더의 내용물 영역: 100% 높이 및 가운데 정렬 */
+.tabulator .tabulator-header .tabulator-col.tabulator-col-group > .tabulator-col-group-cols > .tabulator-col > .tabulator-col-content {
+    flex: 1 1 100% !important;
+    height: 100% !important;
+    max-height: 100% !important;
+    box-sizing: border-box !important;
+    padding: 2px 4px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+
 /* 4. Grid Rows & Alternating Colors */
 .tabulator-aams-grid .tabulator-row,
 .tabulator-dw-grid .tabulator-row {
@@ -445,19 +512,37 @@
    ========================================================================== */
 
 /* 11-1. 컬럼 헤더 전용 색상 클래스 (headerCssClass 또는 cssClass) */
+.tabulator .tabulator-col.col-hdr-blue,
 .tabulator .tabulator-col.col-hdr-blue .tabulator-col-title,
+.tabulator .tabulator-col.col-hdr-blue .tabulator-col-content,
+.tabulator .tabulator-col.col-hdr-blue *,
+.tabulator .tabulator-header .tabulator-col.col-hdr-blue,
+.tabulator .tabulator-header .tabulator-col.col-hdr-blue .tabulator-col-title,
+.tabulator-aams-grid .tabulator-header .tabulator-col.col-hdr-blue .tabulator-col-title,
 .tabulator .tabulator-col.stock-header-code .tabulator-col-title,
 .tabulator .tabulator-col.col-vc-old-header .tabulator-col-title {
     color: #2563eb !important;
     font-weight: 700 !important;
 }
 
-.tabulator .tabulator-col.col-hdr-red .tabulator-col-title {
+.tabulator .tabulator-col.col-hdr-red,
+.tabulator .tabulator-col.col-hdr-red .tabulator-col-title,
+.tabulator .tabulator-col.col-hdr-red .tabulator-col-content,
+.tabulator .tabulator-col.col-hdr-red *,
+.tabulator .tabulator-header .tabulator-col.col-hdr-red,
+.tabulator .tabulator-header .tabulator-col.col-hdr-red .tabulator-col-title,
+.tabulator-aams-grid .tabulator-header .tabulator-col.col-hdr-red .tabulator-col-title {
     color: #dc2626 !important;
     font-weight: 700 !important;
 }
 
-.tabulator .tabulator-col.col-hdr-green .tabulator-col-title {
+.tabulator .tabulator-col.col-hdr-green,
+.tabulator .tabulator-col.col-hdr-green .tabulator-col-title,
+.tabulator .tabulator-col.col-hdr-green .tabulator-col-content,
+.tabulator .tabulator-col.col-hdr-green *,
+.tabulator .tabulator-header .tabulator-col.col-hdr-green,
+.tabulator .tabulator-header .tabulator-col.col-hdr-green .tabulator-col-title,
+.tabulator-aams-grid .tabulator-header .tabulator-col.col-hdr-green .tabulator-col-title {
     color: #047857 !important;
     font-weight: 700 !important;
 }
@@ -467,6 +552,13 @@
     background-color: #dbeafe !important;
     color: #1e40af !important;
     font-weight: 600 !important;
+}
+
+/* 셀에 cssClass로 전파된 헤더 전용 클래스(col-hdr-*)의 데이터 셀 색상 오염 방지 가드 */
+.tabulator .tabulator-cell.col-hdr-blue:not(.cell-text-blue),
+.tabulator .tabulator-cell.col-hdr-red:not(.cell-text-red),
+.tabulator .tabulator-cell.col-hdr-green:not(.cell-text-green) {
+    color: inherit;
 }
 
 /* 11-2. 데이터 셀 텍스트 색상 클래스 */

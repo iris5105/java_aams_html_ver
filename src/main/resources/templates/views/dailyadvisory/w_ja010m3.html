@@ -230,20 +230,29 @@
                     frozen: true
                 },
                 {
-                    title: "고객명",
+                    title: "펀드명",
                     field: "xxFundCd",
                     minWidth: 150,
                     hozAlign: "left",
                     headerHozAlign: "center",
-                    frozen: true
+                    frozen: true,
+                    // 파워빌더 d_ja010m3 visible="1~tif(tbl_gb='a',1,0)": tbl_gb='b'는 빈칸 표출
+                    formatter: cell => {
+                        const d = cell.getRow().getData();
+                        return (d && d.tblGb === 'b') ? "" : (cell.getValue() || "");
+                    }
                 },
                 {
-                    title: "결산일자",
+                    title: "결산원자",
                     field: "gyulYmd",
                     width: 95,
                     hozAlign: "center",
                     headerHozAlign: "center",
-                    formatter: cell => formatDateVal(cell.getValue())
+                    // 파워빌더 d_ja010m3 visible="0~tif(tbl_gb='a',1,0)": tbl_gb='b'는 빈칸 표출
+                    formatter: cell => {
+                        const d = cell.getRow().getData();
+                        return (d && d.tblGb === 'b') ? "" : formatDateVal(cell.getValue());
+                    }
                 },
                 {
                     title: "수익률(%)",
@@ -259,12 +268,14 @@
                     width: 105,
                     hozAlign: "right",
                     headerHozAlign: "center",
-                    formatter: numFormatter
+                    cssClass: "col-hdr-blue",
+                    headerCssClass: "col-hdr-blue",
+                    formatter: cell => '<span class="cell-text-blue">' + numFormatter(cell) + '</span>'
                 },
                 {
-                    title: "투자일임수수료",
+                    title: "투자일임<br>수수료",
                     field: "basicBosu",
-                    width: 110,
+                    width: 100,
                     hozAlign: "right",
                     headerHozAlign: "center",
                     formatter: numFormatter,
@@ -306,9 +317,9 @@
                     }
                 },
                 {
-                    title: "재계약액",
+                    title: "제계약액",
                     field: "recontractAek",
-                    width: 105,
+                    width: 110,
                     hozAlign: "right",
                     headerHozAlign: "center",
                     formatter: numFormatter,
@@ -320,30 +331,45 @@
                     }
                 },
                 {
-                    title: "관리번호",
+                    title: "펀드코드",
                     field: "fundCd",
                     width: 80,
                     hozAlign: "center",
-                    headerHozAlign: "center"
-                },
-                {
-                    title: "선취(%)",
-                    field: "preBasic",
-                    width: 65,
-                    hozAlign: "center",
                     headerHozAlign: "center",
-                    formatter: percentFormatter
+                    cssClass: "col-hdr-green",
+                    headerCssClass: "col-hdr-green",
+                    // 파워빌더 d_ja010m3 visible="1~tif(tbl_gb='a',1,0)": tbl_gb='b'는 빈칸 표출, 초록색 글씨
+                    formatter: cell => {
+                        const d = cell.getRow().getData();
+                        if (d && d.tblGb === 'b') return "";
+                        const v = cell.getValue() || "";
+                        return v ? `<span class="cell-text-green">${v}</span>` : "";
+                    }
                 },
                 {
-                    title: "후취(%)",
-                    field: "basicPer",
-                    width: 65,
-                    hozAlign: "center",
+                    title: "수수료(%)",
                     headerHozAlign: "center",
-                    formatter: percentFormatter
+                    columns: [
+                        {
+                            title: "선취",
+                            field: "preBasic",
+                            width: 50,
+                            hozAlign: "center",
+                            headerHozAlign: "center",
+                            formatter: percentFormatter
+                        },
+                        {
+                            title: "후취",
+                            field: "basicPer",
+                            width: 50,
+                            hozAlign: "center",
+                            headerHozAlign: "center",
+                            formatter: percentFormatter
+                        }
+                    ]
                 },
                 {
-                    title: "BM(%)",
+                    title: "BM<br>(%)",
                     field: "bmPer",
                     width: 65,
                     hozAlign: "center",
@@ -351,7 +377,7 @@
                     formatter: percentFormatter
                 },
                 {
-                    title: "성과보수(%)",
+                    title: "성과<br>보수(%)",
                     field: "successPer",
                     width: 75,
                     hozAlign: "center",
@@ -359,12 +385,14 @@
                     formatter: percentFormatter
                 },
                 {
-                    title: "워터마크 일임액",
+                    title: "워터마크<br>투자일임액",
                     field: "wmSeoljAek",
-                    width: 110,
+                    width: 120,
                     hozAlign: "right",
                     headerHozAlign: "center",
-                    formatter: numFormatter,
+                    cssClass: "col-hdr-red",
+                    headerCssClass: "col-hdr-red",
+                    formatter: cell => '<span class="cell-text-red">' + numFormatter(cell) + '</span>',
                     editor: "number",
                     editable: isCellEditable,
                     cellClick: aamsCellEdit,
@@ -378,7 +406,9 @@
                     width: 110,
                     hozAlign: "right",
                     headerHozAlign: "center",
-                    formatter: numFormatter,
+                    cssClass: "col-hdr-red",
+                    headerCssClass: "col-hdr-red",
+                    formatter: cell => '<span class="cell-text-red">' + numFormatter(cell) + '</span>',
                     editor: "number",
                     editable: isCellEditable,
                     cellClick: aamsCellEdit,
@@ -502,7 +532,37 @@
                 const loading = pane ? pane.querySelector("#preview-loading") : document.getElementById("preview-loading");
                 const statusEl = pane ? pane.querySelector("#preview-status") : document.getElementById("preview-status");
 
-                if (!data || data.tblGb === 'b' || !data.mrdNm) {
+                if (!data) {
+                    if (frame) {
+                        frame.style.display = "none";
+                        frame.src = "about:blank";
+                    }
+                    if (placeholder) {
+                        placeholder.style.display = "flex";
+                        placeholder.innerHTML = `<i class="fa-regular fa-file-lines" style="font-size: 36px; margin-bottom: 8px;"></i><span>선택된 결산건의 보고서가 여기에 표출됩니다.</span>`;
+                    }
+                    if (statusEl) statusEl.textContent = "선택된 건 없음";
+                    currentReportUrl = "";
+                    return;
+                }
+
+                // 파워빌더 w_ja010m3.srw: tbl_gb='b' 행 클릭 시에도 같은 건의 'a' 행 리포트를 연계하여 표출
+                if (data.tblGb === 'b') {
+                    if (grid) {
+                        const allRows = grid.getData();
+                        const pairRow = allRows.find(r => r.tblGb === 'a' && r.fundCd === data.fundCd && r.gyulYmd === data.gyulYmd);
+                        if (pairRow && pairRow.mrdNm) {
+                            data = pairRow;
+                        } else {
+                            // 기존 보고서 유지
+                            return;
+                        }
+                    } else {
+                        return;
+                    }
+                }
+
+                if (!data.mrdNm) {
                     if (frame) {
                         frame.style.display = "none";
                         frame.src = "about:blank";
@@ -653,7 +713,7 @@
                     rowFormatter: function(row) {
                         const data = row.getData();
                         if (data && data.tblGb === 'b') {
-                            row.getElement().style.backgroundColor = "#fef2f2"; // 파워빌더 'b' 구분 강조색
+                            row.getElement().style.backgroundColor = "#f8fafc"; // 파워빌더 'b' 행(계산 데이터) 포인트 음영
                         }
                     }
                 });
