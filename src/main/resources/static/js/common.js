@@ -678,10 +678,14 @@ function setupTabulatorRowSelection(table, onRowChange, options = {}) {
             }
         });
 
-        // 4. Reset lastSelectedRow and auto select first row on data load
+        // 4. Reset lastSelectedRow and auto select first row on data load (데스크톱만 자동 선택, 모바일은 자동 포커스 이동 방지)
         table.on("dataLoaded", function(data) {
             lastSelectedRow = null;
-            if (options.autoSelectFirst !== false) {
+            const isMobile = window.matchMedia('(max-width: 876px)').matches 
+                || window.innerWidth <= 876 
+                || (table.element && table.element.clientWidth > 0 && table.element.clientWidth <= 876);
+
+            if (options.autoSelectFirst !== false && !isMobile) {
                 if (Array.isArray(data) && data.length > 0) {
                     setTimeout(() => {
                         const rows = table.getRows();
@@ -690,6 +694,13 @@ function setupTabulatorRowSelection(table, onRowChange, options = {}) {
                         }
                     }, 50);
                 }
+            } else if (isMobile) {
+                // 모바일 환경: 조회 후 첫 번째 행으로 focus/select 자동 이동 방지
+                setTimeout(() => {
+                    if (typeof table.deselectRow === 'function') {
+                        table.deselectRow();
+                    }
+                }, 50);
             }
 
             // 5. 마스터 그리드 조회 완료 시 버튼 상태 동기화 (조회 버튼 비활성화, 나머지 권한 보유 버튼 활성화)

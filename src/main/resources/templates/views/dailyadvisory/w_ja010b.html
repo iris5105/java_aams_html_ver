@@ -88,85 +88,249 @@
             border-color: #fca5a5 !important;
         }
 
-        /* w_ja010b Dedicated Mobile Responsive Layout */
-        @media (max-width: 767px) {
+        /* 데스크톱 기본 하단 분할 레이아웃 (좌: 결산기별 이력 / 우: 특이사항 메모 + 입출금 내역) */
+        .ja010b-container .pane-bottom.detail-section.split-lr-container {
+            display: flex;
+            flex-direction: row;
+            gap: 8px;
+            padding: 6px;
+            overflow: hidden;
+            background-color: #f8fafc;
+            height: 100%;
+            box-sizing: border-box;
+        }
+
+        .ja010b-container .split-panel.panel-left {
+            flex: 1 1 50%;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            background: #ffffff;
+            box-sizing: border-box;
+        }
+
+        .ja010b-container .split-panel.panel-right {
+            flex: 1 1 50%;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            overflow: hidden;
+            box-sizing: border-box;
+        }
+
+        .ja010b-container .special-note-box {
+            flex: 0 0 130px;
+            display: flex;
+            flex-direction: column;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            background: #ffffff;
+            overflow: hidden;
+            box-sizing: border-box;
+        }
+
+        .ja010b-container .special-note-box textarea {
+            flex: 1 1 auto;
+            resize: none;
+            padding: 8px;
+            font-size: 12px;
+            border: none;
+            outline: none;
+            box-sizing: border-box;
+            background: #ffffff;
+        }
+
+        .ja010b-container .io-grid-box {
+            flex: 1 1 auto;
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            background: #ffffff;
+            overflow: hidden;
+            box-sizing: border-box;
+        }
+
+        .ja010b-container .panel-left .grid-table-wrapper,
+        .ja010b-container .io-grid-box .grid-table-wrapper {
+            flex: 1 1 auto;
+            height: calc(100% - 32px);
+            overflow: hidden;
+        }
+
+        /* w_ja010b 전용 모바일 반응형 레이아웃 (태블릿-S / 모바일 <= 876px) */
+        @media (max-width: 876px) {
+            /* 1) 최상위 컨테이너: 세로 스크롤 허용 및 고정 높이 해제 */
             .ja010b-container {
                 display: flex !important;
                 flex-direction: column !important;
-                height: auto !important;
-                min-height: 100% !important;
+                height: 100% !important;
+                max-height: 100% !important;
                 overflow-y: auto !important;
-                padding-bottom: 20px !important;
+                overflow-x: hidden !important;
+                -webkit-overflow-scrolling: touch !important;
+                padding-bottom: 36px !important;
+                box-sizing: border-box !important;
             }
 
-            .ja010b-container .split-top-section {
-                flex: 0 0 auto !important;
-                height: 240px !important;
-                min-height: 240px !important;
-            }
-
-            .ja010b-container .split-bottom-section {
+            /* 2) 레이아웃 스플릿: 세로 순차 배치 및 부모 높이 제한 해제 */
+            .ja010b-container .layout-split-v,
+            .ja010b-container.view-container .layout-split-v.split-body {
                 display: flex !important;
                 flex-direction: column !important;
                 flex: 0 0 auto !important;
+                width: 100% !important;
                 height: auto !important;
+                min-height: 0 !important;
+                max-height: none !important;
+                padding: 6px !important;
                 gap: 12px !important;
                 overflow: visible !important;
-                padding-bottom: 10px !important;
             }
 
-            .ja010b-container .split-panel.panel-left {
-                width: 100% !important;
-                height: 200px !important;
-                min-height: 200px !important;
-                flex: 0 0 auto !important;
-                overflow: hidden !important;
+            .ja010b-container .split-gutter-v {
+                display: none !important;
             }
 
-            .ja010b-container .split-panel.panel-right {
-                width: 100% !important;
-                height: auto !important;
-                min-height: 280px !important;
-                flex: 0 0 auto !important;
+            /* 3) 상단: 채권단가등록 목록 그리드 */
+            .ja010b-container .pane-top,
+            .ja010b-container .master-section {
                 display: flex !important;
                 flex-direction: column !important;
-                overflow: hidden !important;
+                flex: 0 0 250px !important;
+                width: 100% !important;
+                height: 250px !important;
+                min-height: 250px !important;
+                max-height: 250px !important;
                 border: 1px solid #cbd5e1 !important;
-                border-radius: 4px !important;
-                background-color: #fff !important;
+                border-radius: 6px !important;
+                overflow: hidden !important;
+                background: #ffffff !important;
+                box-sizing: border-box !important;
             }
 
-            .ja010b-container .special-note-box {
+            .ja010b-container .pane-top .pane-body {
+                height: calc(250px - 32px) !important;
+                overflow: hidden !important;
+            }
+
+            /* 4) 하단 상세 섹션: 세로 방향으로 자식 패널들 순차 배치 */
+            .ja010b-container .pane-bottom,
+            .ja010b-container .pane-bottom.detail-section,
+            .ja010b-container .pane-bottom.split-lr-container {
+                display: flex !important;
+                flex-direction: column !important;
                 flex: 0 0 auto !important;
+                width: 100% !important;
                 height: auto !important;
+                min-height: 0 !important;
+                max-height: none !important;
+                gap: 12px !important;
+                padding: 0 !important;
+                overflow: visible !important;
+                background: transparent !important;
+                border: none !important;
+                box-sizing: border-box !important;
+            }
+
+            /* 4-1) 결산기별 이력 패널 */
+            .ja010b-container .split-panel.panel-left,
+            .ja010b-container .split-left-section {
+                display: flex !important;
+                flex-direction: column !important;
+                flex: 0 0 230px !important;
+                width: 100% !important;
+                height: 230px !important;
+                min-height: 230px !important;
+                max-height: 230px !important;
+                border: 1px solid #cbd5e1 !important;
+                border-radius: 6px !important;
+                overflow: hidden !important;
+                background: #ffffff !important;
+                box-sizing: border-box !important;
+            }
+
+            .ja010b-container .split-panel.panel-left .grid-table-wrapper {
+                height: calc(230px - 32px) !important;
+                overflow: hidden !important;
+            }
+
+            /* 4-2) 우측 패널(특이사항 메모 + 입출금 내역 래퍼) */
+            .ja010b-container .split-panel.panel-right,
+            .ja010b-container .split-right-section {
+                display: flex !important;
+                flex-direction: column !important;
+                flex: 0 0 auto !important;
+                width: 100% !important;
+                height: auto !important;
+                min-height: 0 !important;
+                max-height: none !important;
+                gap: 12px !important;
+                padding: 0 !important;
+                overflow: visible !important;
+                border: none !important;
+                background: transparent !important;
+                box-sizing: border-box !important;
+            }
+
+            /* 4-3) 특이사항 메모 패널 */
+            .ja010b-container .special-note-box {
+                display: flex !important;
+                flex-direction: column !important;
+                flex: 0 0 140px !important;
+                width: 100% !important;
+                height: 140px !important;
+                min-height: 140px !important;
+                max-height: 140px !important;
+                border: 1px solid #cbd5e1 !important;
+                border-radius: 6px !important;
+                background: #ffffff !important;
+                overflow: hidden !important;
+                box-sizing: border-box !important;
             }
 
             .ja010b-container .special-note-box textarea {
-                height: 52px !important;
-                min-height: 52px !important;
+                flex: 1 1 auto !important;
+                width: 100% !important;
+                height: calc(140px - 32px) !important;
+                min-height: 70px !important;
+                padding: 8px !important;
+                box-sizing: border-box !important;
+                border: none !important;
+                outline: none !important;
+                resize: none !important;
+                font-size: 12px !important;
             }
 
+            /* 4-4) 입출금 내역 서브 그리드 패널 */
             .ja010b-container .io-grid-box {
-                flex: 0 0 auto !important;
-                height: 200px !important;
-                min-height: 200px !important;
                 display: flex !important;
                 flex-direction: column !important;
-                border-top: 1px solid #cbd5e1 !important;
+                flex: 0 0 230px !important;
+                width: 100% !important;
+                height: 230px !important;
+                min-height: 230px !important;
+                max-height: 230px !important;
+                border: 1px solid #cbd5e1 !important;
+                border-radius: 6px !important;
+                background: #ffffff !important;
                 overflow: hidden !important;
+                box-sizing: border-box !important;
             }
 
             .ja010b-container .io-grid-box .grid-table-wrapper {
-                flex: 1 1 auto !important;
-                height: calc(200px - 28px) !important;
-                min-height: 160px !important;
+                height: calc(230px - 32px) !important;
                 overflow: hidden !important;
             }
 
             .ja010b-container #grid-ja010b-io {
                 height: 100% !important;
-                min-height: 160px !important;
-                overflow: hidden !important;
+                min-height: 180px !important;
             }
         }
     </style>
@@ -203,9 +367,9 @@
         </div>
 
         <!-- Lower Detail Section (Bottom: Left History Detail + Right Notes/IO) -->
-        <div class="pane-bottom detail-section split-lr-container" style="display: flex; flex-direction: row; gap: 8px; padding: 6px; overflow: hidden; background-color: #f8fafc;">
+        <div class="pane-bottom detail-section split-lr-container">
             <!-- 2차 좌측 패널 (Left: 결산기별 이력 / SZM0GI) -->
-            <div class="split-left-section split-panel panel-left" style="flex: 1; display: flex; flex-direction: column; overflow: hidden; border: 1px solid #cbd5e1; border-radius: 6px; background: #ffffff;">
+            <div class="split-left-section split-panel panel-left">
                 <div class="sub-grid-header">
                     <span class="sub-title"><i class="fa-solid fa-list-ol"></i> 결산기별 이력</span>
                     <div class="sub-grid-actions">
@@ -220,23 +384,23 @@
                         </button>
                     </div>
                 </div>
-                <div class="grid-table-wrapper" style="flex: 1; height: calc(100% - 32px); overflow: hidden;">
+                <div class="grid-table-wrapper">
                     <div id="grid-ja010b-detail" class="tabulator-aams-grid" style="height: 100%;"></div>
                 </div>
             </div>
 
             <!-- 2차 우측 패널 (Right: 3차 상하 분할 적용) -->
-            <div class="split-right-section split-panel panel-right" style="flex: 1; display: flex; flex-direction: column; gap: 8px; overflow: hidden;">
+            <div class="split-right-section split-panel panel-right">
                 <!-- 3차 상단: 특이사항 메모 패널 (mle_special_note in w_ja010b.srw) -->
-                <div class="special-note-box" style="flex: 0 0 130px; display: flex; flex-direction: column; border: 1px solid #cbd5e1; border-radius: 6px; background: #ffffff; overflow: hidden;">
+                <div class="special-note-box">
                     <div class="sub-grid-header">
                         <span class="sub-title"><i class="fa-solid fa-pen-to-square"></i> 특이사항 메모</span>
                     </div>
-                    <textarea id="mleSpecialNote" class="aams-textarea" placeholder="특이사항 메모를 입력하세요..." style="flex: 1; resize: none;"></textarea>
+                    <textarea id="mleSpecialNote" class="aams-textarea" placeholder="특이사항 메모를 입력하세요..."></textarea>
                 </div>
 
                 <!-- 3차 하단: 입출금 내역 서브 그리드 패널 (dw_1 / d_szt0io.srd / SZT0IO) -->
-                <div class="io-grid-box" style="flex: 1; display: flex; flex-direction: column; border: 1px solid #cbd5e1; border-radius: 6px; background: #ffffff; overflow: hidden;">
+                <div class="io-grid-box">
                     <div class="sub-grid-header">
                         <span class="sub-title"><i class="fa-solid fa-money-bill-transfer"></i> 입출금 내역</span>
                         <div class="sub-grid-actions">
@@ -251,7 +415,7 @@
                             </button>
                         </div>
                     </div>
-                    <div class="grid-table-wrapper" style="flex: 1; height: calc(100% - 32px); overflow: hidden;">
+                    <div class="grid-table-wrapper">
                         <div id="grid-ja010b-io" class="tabulator-aams-grid" style="height: 100%;"></div>
                     </div>
                 </div>
@@ -547,10 +711,15 @@
                     fetchJa010bSubGrids(d.fundCd, d);
                 }
 
-                // 1. AAMS Standard: Register global row selection callback
+                // Helper to check if currently in mobile view (width <= 876px)
+                function isMobileView() {
+                    return window.matchMedia('(max-width: 876px)').matches || window.innerWidth <= 876 || (pane && pane.clientWidth > 0 && pane.clientWidth <= 876);
+                }
+
+                // 1. AAMS Standard: Register global row selection callback (모바일 자동 선택 방지)
                 setupTabulatorRowSelection(gridMaster, function(row, data) {
                     syncJa010bDetail(row, data);
-                });
+                }, { autoSelectFirst: false });
 
                 // 2. Tabulator standard rowClick fallback (guarantees visual selection)
                 gridMaster.on("rowClick", function(e, row) {
@@ -568,7 +737,7 @@
                     }
                 });
 
-                // Auto select first row if exists
+                // Auto select first row if exists (Rule 15: 데이터 존재 시 첫 행 자동 선택 및 하단 상세 동기화)
                 gridMaster.on("tableBuilt", function() {
                     const rows = gridMaster.getRows();
                     if (rows && rows.length > 0) {
@@ -802,21 +971,28 @@
                                     if (rows && rows.length > 0) {
                                         rows[0].select();
                                         const d = rows[0].getData();
-                                        const mle = document.getElementById("mleSpecialNote");
+                                        const mle = pane ? pane.querySelector("#mleSpecialNote") : document.getElementById("mleSpecialNote");
                                         if (mle) mle.value = d.specialNote || "";
-                                        if (d.fundCd) fetchJa010bSubGrids(d.fundCd);
+                                        if (d.fundCd) fetchJa010bSubGrids(d.fundCd, d);
                                     }
                                 }, 100);
                             } else {
                                 if (gridDetail) gridDetail.setData([]);
                                 if (gridIo) gridIo.setData([]);
-                                const mle = document.getElementById("mleSpecialNote");
+                                const mle = pane ? pane.querySelector("#mleSpecialNote") : document.getElementById("mleSpecialNote");
                                 if (mle) mle.value = "";
                             }
                         }
                     })
                     .catch(err => console.error("Error loading master ja010b:", err));
             };
+
+            // Window resize responsive redraw
+            window.addEventListener("resize", function() {
+                if (gridMaster) gridMaster.redraw(true);
+                if (gridDetail) gridDetail.redraw(true);
+                if (gridIo) gridIo.redraw(true);
+            });
 
             let lastLoadedMasterKey = null;
             function fetchJa010bSubGrids(fundCd, masterRowData) {
@@ -839,14 +1015,20 @@
                 fetch(`/api/account/ja010b/detail?corpGr=${encodeURIComponent(corpGr)}&fundCd=${encodeURIComponent(targetFundCd)}`)
                     .then(res => res.json())
                     .then(data => {
-                        if (gridDetail) gridDetail.setData(Array.isArray(data) ? data : []);
+                        if (gridDetail) {
+                            gridDetail.setData(Array.isArray(data) ? data : []);
+                            setTimeout(() => { gridDetail.redraw(true); }, 50);
+                        }
                     })
                     .catch(err => console.error("Error fetching detail:", err));
 
                 fetch(`/api/account/ja010b/io?corpGr=${encodeURIComponent(corpGr)}&fundCd=${encodeURIComponent(targetFundCd)}`)
                     .then(res => res.json())
                     .then(data => {
-                        if (gridIo) gridIo.setData(Array.isArray(data) ? data : []);
+                        if (gridIo) {
+                            gridIo.setData(Array.isArray(data) ? data : []);
+                            setTimeout(() => { gridIo.redraw(true); }, 50);
+                        }
                     })
                     .catch(err => console.error("Error fetching IO:", err));
             }

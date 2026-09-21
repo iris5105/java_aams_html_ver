@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<!--
+====================================================================================================
+  AAMS 표준 모바일 반응형 세로 스택 레이아웃 템플릿 (Mobile Vertical Stack Layout Template)
+  참조 화면: w_ja010b.html, w_proposal.html
+  용도: 데스크톱에서는 2분할(좌우 또는 상하)이지만, 서브 영역에 여러 컴포넌트(메모, 폼, 서브 그리드 등)가
+        존재하여 모바일(width <= 876px)에서 전체가 위에서 아래로 차례대로 스택되고 세로 스크롤되어야 하는 화면
+====================================================================================================
+-->
+
+<div th:fragment="mobileStackGuide">
+    <!--
+      [1. 표준 HTML 마크업 구조 가이드]
+      - 최상위 컨테이너에 '.layout-mobile-stack-container' 클래스를 추가합니다.
+      - 분할 컨테이너에 '.layout-mobile-stack' 클래스를 추가합니다.
+      - 좌측/상단 마스터 패널은 '.master-section', 우측/하단 복합 패널은 '.detail-section' (또는 서브 섹션 클래스)로 지정합니다.
+    -->
+    <div class="view-container layout-split layout-mobile-stack-container sample-container">
+        
+        <!-- 1) 상단 공통 툴바 & 필터바 -->
+        <div class="view-toolbar">
+            <div class="toolbar-left">
+                <div th:replace="~{fragments/tab_header :: toolbarButtons}"></div>
+            </div>
+            <div th:replace="~{fragments/tab_header :: toolbarBreadcrumb}"></div>
+        </div>
+
+        <div class="filter-bar">
+            <div class="filter-left">
+                <!-- 회사/날짜 등 공통 필터 프래그먼트 -->
+                <div th:replace="~{fragments/filter/corp_filter :: corpFilter(dddwId='CORP_GR', seq=1, label='자산운용(자문)사')}"></div>
+            </div>
+        </div>
+
+        <!-- 2) 스플릿 컨테이너 (.layout-split-h 또는 .layout-split-v 에 .layout-mobile-stack 추가) -->
+        <div class="layout-split-h split-body layout-mobile-stack" data-split-key="SAMPLE_KEY" data-default-ratio="40:60">
+            
+            <!-- [마스터 패널]: 모바일에서 첫 번째 섹션 (기본 높이 250px) -->
+            <div class="pane-left master-section">
+                <div class="pane-header">
+                    <span><i class="fa-solid fa-list"></i> 마스터 목록</span>
+                </div>
+                <div class="pane-body">
+                    <div id="master-grid" class="tabulator-aams-grid" style="height: 100%;"></div>
+                </div>
+            </div>
+
+            <!-- [복합 서브 패널]: 모바일에서 마스터 하단으로 순차 배치 -->
+            <div class="pane-right detail-section multi-stack-pane">
+                
+                <!-- 서브 섹션 1 (예: 의뢰/특이사항 메모 폼 - 기본 높이 120~140px) -->
+                <div class="stack-card memo-stack-card">
+                    <div class="section-header">
+                        <span class="header-title">※ 특이사항 및 내용</span>
+                    </div>
+                    <textarea class="stack-textarea" placeholder="내용을 입력하세요."></textarea>
+                </div>
+
+                <!-- 서브 섹션 2 (예: 댓글 및 히스토리 서브 그리드 - 기본 높이 200~230px) -->
+                <div class="stack-card grid-stack-card">
+                    <div class="section-header">
+                        <span class="header-title">■ 상세 이력 / 댓글</span>
+                    </div>
+                    <div class="grid-table-wrapper">
+                        <div id="sub-grid" class="tabulator-aams-grid" style="height: 100%;"></div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+</div>
+
+<!--
+  [2. 모바일 반응형 표준 스타일 정의 (CSS 규격)]
+-->
+<style th:fragment="mobileStackCss">
+    /* ==========================================================================
+       AAMS 모바일 세로 스택 공통 레이아웃 규격 (Tablet-S / Mobile <= 876px)
+       ========================================================================== */
+    @media (max-width: 876px) {
+        /* 1) 최상위 컨테이너: 세로 스크롤 허용 및 100% 높이 유지 */
+        .layout-mobile-stack-container {
+            display: flex !important;
+            flex-direction: column !important;
+            height: 100% !important;
+            max-height: 100% !important;
+            overflow-y: auto !important;
+            overflow-x: hidden !important;
+            -webkit-overflow-scrolling: touch !important;
+            padding-bottom: 36px !important;
+            box-sizing: border-box !important;
+        }
+
+        /* 2) 분할 레이아웃 컨테이너: 고정 높이 해제 및 세로 순차 배치 */
+        .layout-mobile-stack {
+            display: flex !important;
+            flex-direction: column !important;
+            flex: 0 0 auto !important;
+            width: 100% !important;
+            height: auto !important;
+            min-height: 0 !important;
+            max-height: none !important;
+            padding: 6px !important;
+            gap: 12px !important;
+            overflow: visible !important;
+        }
+
+        .layout-mobile-stack > .split-gutter-h,
+        .layout-mobile-stack > .split-gutter-v {
+            display: none !important;
+        }
+
+        /* 3) 마스터 섹션: 모바일 기본 고정 높이 250px 및 내부 스크롤 보장 */
+        .layout-mobile-stack > .pane-left,
+        .layout-mobile-stack > .pane-top,
+        .layout-mobile-stack > .master-section {
+            display: flex !important;
+            flex-direction: column !important;
+            flex: 0 0 250px !important;
+            width: 100% !important;
+            height: 250px !important;
+            min-height: 250px !important;
+            max-height: 250px !important;
+            border: 1px solid #cbd5e1 !important;
+            border-radius: 6px !important;
+            overflow: hidden !important;
+            background: #ffffff !important;
+            box-sizing: border-box !important;
+        }
+
+        /* 4) 복합 서브 패널: 자체 높이 제한 해제 및 자식 카드 세로 순차 배치 */
+        .layout-mobile-stack > .pane-right,
+        .layout-mobile-stack > .pane-bottom,
+        .layout-mobile-stack > .detail-section,
+        .layout-mobile-stack > .multi-stack-pane {
+            display: flex !important;
+            flex-direction: column !important;
+            flex: 0 0 auto !important;
+            width: 100% !important;
+            height: auto !important;
+            min-height: 0 !important;
+            max-height: none !important;
+            gap: 12px !important;
+            padding: 0 !important;
+            overflow: visible !important;
+            background: transparent !important;
+            border: none !important;
+            box-sizing: border-box !important;
+        }
+
+        /* 4-1) 서브 메모/텍스트 카드 표준 높이 */
+        .layout-mobile-stack .memo-stack-card {
+            display: flex !important;
+            flex-direction: column !important;
+            flex: 0 0 140px !important;
+            width: 100% !important;
+            height: 140px !important;
+            min-height: 140px !important;
+            max-height: 140px !important;
+            border: 1px solid #cbd5e1 !important;
+            border-radius: 6px !important;
+            background: #ffffff !important;
+            overflow: hidden !important;
+            box-sizing: border-box !important;
+        }
+
+        .layout-mobile-stack .memo-stack-card textarea,
+        .layout-mobile-stack .stack-textarea {
+            flex: 1 1 auto !important;
+            width: 100% !important;
+            height: calc(140px - 32px) !important;
+            min-height: 70px !important;
+            padding: 8px !important;
+            box-sizing: border-box !important;
+            border: none !important;
+            outline: none !important;
+            resize: none !important;
+            font-size: 12px !important;
+        }
+
+        /* 4-2) 서브 그리드 카드 표준 높이 */
+        .layout-mobile-stack .grid-stack-card {
+            display: flex !important;
+            flex-direction: column !important;
+            flex: 0 0 220px !important;
+            width: 100% !important;
+            height: 220px !important;
+            min-height: 220px !important;
+            max-height: 220px !important;
+            border: 1px solid #cbd5e1 !important;
+            border-radius: 6px !important;
+            background: #ffffff !important;
+            overflow: hidden !important;
+            box-sizing: border-box !important;
+        }
+
+        .layout-mobile-stack .grid-stack-card .grid-table-wrapper {
+            flex: 1 1 auto !important;
+            height: calc(220px - 32px) !important;
+            overflow: hidden !important;
+        }
+    }
+</style>
+
+<!--
+  [3. 자바스크립트 표준 반응형 리드로우 & 연동 스크립트 규격]
+-->
+<script th:fragment="mobileStackScript">
+    /**
+     * 모바일 환경 여부 판별 (876px 이하)
+     */
+    function isMobileStackMode() {
+        return window.innerWidth <= 876;
+    }
+
+    /**
+     * 화면 내 모든 Tabulator 그리드 안전 리드로우(Redraw) 헬퍼
+     * @param {HTMLElement} scopePane - 현재 화면의 pane 컨텍스트
+     */
+    function redrawAllStackGrids(scopePane) {
+        const root = scopePane || document;
+        const gridEls = root.querySelectorAll('.tabulator');
+        gridEls.forEach(function(el) {
+            if (el.tabulator && typeof el.tabulator.redraw === 'function') {
+                el.tabulator.redraw(true);
+            }
+        });
+    }
+
+    /**
+     * 창 리사이즈 시 디바운스 적용 그리드 리드로우 바인딩
+     * @param {HTMLElement} scopePane - 현재 화면의 pane 컨텍스트
+     */
+    function setupMobileStackResizeHandler(scopePane) {
+        let resizeTimer = null;
+        window.addEventListener('resize', function() {
+            clearTimeout(resizeTimer);
+            resizeTimer = setTimeout(function() {
+                redrawAllStackGrids(scopePane);
+            }, 100);
+        });
+    }
+</script>
+</html>

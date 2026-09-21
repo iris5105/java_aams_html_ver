@@ -147,6 +147,14 @@
             }
 
             const applyRatio = (ratioPercent) => {
+                if (window.innerWidth <= 876) {
+                    leftPane.style.flex = '';
+                    leftPane.style.maxWidth = '';
+                    rightPane.style.flex = '';
+                    container.style.removeProperty('--left-size');
+                    this.redrawGrids(container);
+                    return;
+                }
                 leftPane.style.flex = `0 0 calc(${ratioPercent}% - 3px)`;
                 leftPane.style.maxWidth = `calc(100% - 240px)`;
                 rightPane.style.flex = '1 1 auto';
@@ -263,6 +271,14 @@
             }
 
             const applyRatio = (ratioPercent) => {
+                if (window.innerWidth <= 876) {
+                    topPane.style.flex = '';
+                    topPane.style.maxHeight = '';
+                    bottomPane.style.flex = '';
+                    container.style.removeProperty('--top-size');
+                    this.redrawGrids(container);
+                    return;
+                }
                 topPane.style.flex = `0 0 calc(${ratioPercent}% - 3px)`;
                 topPane.style.maxHeight = `calc(100% - 140px)`;
                 bottomPane.style.flex = '1 1 auto';

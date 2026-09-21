@@ -141,25 +141,111 @@
     .layout-split-h {
         flex-direction: column !important;
         padding: 4px !important;
+        gap: 6px !important;
         height: calc(100% - 110px) !important;
-    }
-
-    .layout-split-h > .pane-left,
-    .layout-split-h > .master-section {
-        flex: 1 1 100% !important;
-        width: 100% !important;
-        min-width: 0 !important;
-        max-width: 100% !important;
-        height: 100% !important;
     }
 
     .layout-split-h > .split-gutter-h {
         display: none !important;
     }
 
+    /* 6-A. 기본 규격 (우측 패널에 리포트 뷰어가 포함되어 있지 않은 경우): 좌측 패널 하단으로 우측 패널이 이동하여 상하 50:50 분할 표출 */
+    .layout-split-h > .pane-left,
+    .layout-split-h > .master-section {
+        flex: 1 1 50% !important;
+        width: 100% !important;
+        min-width: 0 !important;
+        max-width: 100% !important;
+        height: 50% !important;
+        min-height: 0 !important;
+    }
+
     .layout-split-h > .pane-right,
     .layout-split-h > .detail-section {
+        display: flex !important;
+        flex: 1 1 50% !important;
+        width: 100% !important;
+        min-width: 0 !important;
+        max-width: 100% !important;
+        height: 50% !important;
+        min-height: 0 !important;
+    }
+
+    /* 6-B. 우측 패널에 리포트 뷰어(report viewer)가 포함되어 있는 경우: 우측 패널을 숨기고 좌측 마스터 패널 100% 전폭 표출 (행 클릭 시 모달 팝업 연동) */
+    .layout-split-h:has(> .pane-right:has(.report-card, .report-frame, iframe, .export-button-group, .report-viewer, [id*="report"], [id*="Report"])),
+    .layout-split-h:has(> .detail-section:has(.report-card, .report-frame, iframe, .export-button-group, .report-viewer, [id*="report"], [id*="Report"])),
+    .layout-split-h:has(> .report-card),
+    .layout-split-h:has(> .report-viewer) {
+        gap: 0 !important;
+    }
+
+    .layout-split-h:has(> .pane-right:has(.report-card, .report-frame, iframe, .export-button-group, .report-viewer, [id*="report"], [id*="Report"])) > .pane-left,
+    .layout-split-h:has(> .pane-right:has(.report-card, .report-frame, iframe, .export-button-group, .report-viewer, [id*="report"], [id*="Report"])) > .master-section,
+    .layout-split-h:has(> .detail-section:has(.report-card, .report-frame, iframe, .export-button-group, .report-viewer, [id*="report"], [id*="Report"])) > .pane-left,
+    .layout-split-h:has(> .detail-section:has(.report-card, .report-frame, iframe, .export-button-group, .report-viewer, [id*="report"], [id*="Report"])) > .master-section,
+    .layout-split-h:has(> .report-card) > .pane-left,
+    .layout-split-h:has(> .report-card) > .master-section,
+    .layout-split-h:has(> .report-viewer) > .pane-left,
+    .layout-split-h:has(> .report-viewer) > .master-section {
+        flex: 1 1 100% !important;
+        height: 100% !important;
+        max-width: 100% !important;
+    }
+
+    .layout-split-h > .pane-right:has(.report-card, .report-frame, iframe, .export-button-group, .report-viewer, [id*="report"], [id*="Report"]),
+    .layout-split-h > .detail-section:has(.report-card, .report-frame, iframe, .export-button-group, .report-viewer, [id*="report"], [id*="Report"]),
+    .layout-split-h > .report-card,
+    .layout-split-h > .report-viewer {
         display: none !important;
+    }
+
+    /* 6-C. 복합 서브패널(다중 카드, 의뢰/처리 메모 박스, 댓글 서브 그리드 등)을 포함하거나 .layout-mobile-stack 클래스가 적용된 레이아웃: 높이 고정을 해제하여 전 항목 세로 순차 표출 및 스크롤 보장 */
+    .layout-split-h.layout-mobile-stack,
+    .layout-split-h:has(.proposal-right-pane),
+    .layout-split-h:has(.matter-section),
+    .layout-split-h:has(.comment-section),
+    .layout-split-h:has(.multi-stack-pane) {
+        height: auto !important;
+        min-height: 100% !important;
+        overflow: visible !important;
+        gap: 12px !important;
+    }
+
+    .layout-split-h.layout-mobile-stack > .pane-left,
+    .layout-split-h.layout-mobile-stack > .master-section,
+    .layout-split-h:has(.proposal-right-pane) > .pane-left,
+    .layout-split-h:has(.proposal-right-pane) > .master-section,
+    .layout-split-h:has(.matter-section) > .pane-left,
+    .layout-split-h:has(.matter-section) > .master-section,
+    .layout-split-h:has(.comment-section) > .pane-left,
+    .layout-split-h:has(.comment-section) > .master-section,
+    .layout-split-h:has(.multi-stack-pane) > .pane-left,
+    .layout-split-h:has(.multi-stack-pane) > .master-section {
+        flex: 0 0 250px !important;
+        height: 250px !important;
+        min-height: 250px !important;
+        max-height: 250px !important;
+    }
+
+    .layout-split-h.layout-mobile-stack > .pane-right,
+    .layout-split-h.layout-mobile-stack > .detail-section,
+    .layout-split-h:has(.proposal-right-pane) > .pane-right,
+    .layout-split-h:has(.proposal-right-pane) > .detail-section,
+    .layout-split-h:has(.matter-section) > .pane-right,
+    .layout-split-h:has(.matter-section) > .detail-section,
+    .layout-split-h:has(.comment-section) > .pane-right,
+    .layout-split-h:has(.comment-section) > .detail-section,
+    .layout-split-h:has(.multi-stack-pane) > .pane-right,
+    .layout-split-h:has(.multi-stack-pane) > .detail-section {
+        display: flex !important;
+        flex: 0 0 auto !important;
+        height: auto !important;
+        min-height: 0 !important;
+        max-height: none !important;
+        overflow: visible !important;
+        background: transparent !important;
+        border: none !important;
+        gap: 12px !important;
     }
 }
 

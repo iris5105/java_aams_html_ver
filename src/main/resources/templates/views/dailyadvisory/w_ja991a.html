@@ -2,6 +2,72 @@
 <html xmlns:th="http://www.thymeleaf.org">
 <div class="view-container layout-split ja991a-container" th:fragment="ja991aView">
 
+    <style>
+        /* 데스크톱: 우측 종가 이력 패널에 테두리 및 카드 스타일 부여 */
+        .ja991a-container .layout-split-h > .pane-right,
+        .ja991a-container .layout-split-h > .detail-section {
+            background: #ffffff;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        }
+
+        /* 반응형: 모바일 (width <= 876px / 태블릿-S) 시 w_ja990c 처럼 위아래(상하) 50:50 분할 */
+        @media (max-width: 876px) {
+            .ja991a-container .layout-split-h,
+            .ja991a-container.layout-split-h,
+            [data-split-key="W_JA991A"].layout-split-h {
+                flex-direction: column !important;
+                padding: 4px 6px !important;
+                gap: 6px !important;
+                height: calc(100% - 110px) !important;
+            }
+
+            .ja991a-container .layout-split-h > .pane-left,
+            .ja991a-container .layout-split-h > .master-section,
+            [data-split-key="W_JA991A"] > .pane-left,
+            [data-split-key="W_JA991A"] > .master-section {
+                flex: 1 1 50% !important;
+                width: 100% !important;
+                min-width: 0 !important;
+                max-width: 100% !important;
+                height: 50% !important;
+                max-height: 50% !important;
+                display: flex !important;
+                flex-direction: column !important;
+            }
+
+            .ja991a-container .layout-split-h > .split-gutter-h,
+            [data-split-key="W_JA991A"] > .split-gutter-h {
+                display: none !important;
+            }
+
+            .ja991a-container .layout-split-h > .pane-right,
+            .ja991a-container .layout-split-h > .detail-section,
+            [data-split-key="W_JA991A"] > .pane-right,
+            [data-split-key="W_JA991A"] > .detail-section {
+                display: flex !important;
+                flex: 1 1 50% !important;
+                width: 100% !important;
+                min-width: 0 !important;
+                max-width: 100% !important;
+                min-height: 0 !important;
+                height: 50% !important;
+                max-height: 50% !important;
+                flex-direction: column !important;
+            }
+
+            .ja991a-container .pane-body,
+            [data-split-key="W_JA991A"] .pane-body {
+                flex: 1 1 auto !important;
+                height: calc(100% - 32px) !important;
+                min-height: 0 !important;
+                overflow: hidden !important;
+            }
+        }
+    </style>
+
     <!-- Top Action Control Bar (Row 1) -->
     <div class="view-toolbar">
         <div class="toolbar-left">
@@ -329,6 +395,11 @@
                     });
                 }
 
+                // 개발지침: AamsSplitter 표준 연동
+                if (window.AamsSplitter && typeof window.AamsSplitter.init === 'function') {
+                    AamsSplitter.init(pane);
+                }
+
                 // Initial Data Load (eb_direct_retrieve = true 명세)
                 loadMasterList();
             }
@@ -375,6 +446,18 @@
             function startInit() {
                 if (isInitialized) return;
                 isInitialized = true;
+
+                // 개발지침: AamsSplitter 표준 연동
+                if (window.AamsSplitter && typeof window.AamsSplitter.init === 'function') {
+                    AamsSplitter.init(pane);
+                }
+
+                // Window resize responsive sync (모바일/데스크톱 전환 시 그리드 재계산)
+                window.addEventListener('resize', function() {
+                    if (gridMaster) gridMaster.redraw(true);
+                    if (gridDetail) gridDetail.redraw(true);
+                });
+
                 setTimeout(initGrids, 60);
             }
 

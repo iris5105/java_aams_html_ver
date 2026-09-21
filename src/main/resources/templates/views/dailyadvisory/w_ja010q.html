@@ -153,21 +153,11 @@
                 </div>
                 <div style="display: flex; align-items: center; gap: 6px;">
                     <div class="export-button-group">
-                        <button type="button" class="btn-export-format export-format-btn" data-format="pdf" title="PDF 저장" style="border: 1px solid #ef4444; color: #dc2626;">
-                            <i class="fa-solid fa-file-pdf" style="color: #ef4444;"></i>PDF
-                        </button>
-                        <button type="button" class="btn-export-format export-format-btn" data-format="excel" title="Excel 저장" style="border: 1px solid #10b981; color: #059669;">
-                            <i class="fa-solid fa-file-excel" style="color: #10b981;"></i>Excel
-                        </button>
-                        <button type="button" class="btn-export-format export-format-btn" data-format="word" title="Word 저장" style="border: 1px solid #3b82f6; color: #2563eb;">
-                            <i class="fa-solid fa-file-word" style="color: #3b82f6;"></i>Word
-                        </button>
-                        <button type="button" class="btn-export-format export-format-btn" data-format="ppt" title="PPT 저장" style="border: 1px solid #f59e0b; color: #d97706;">
-                            <i class="fa-solid fa-file-powerpoint" style="color: #f59e0b;"></i>PPT
-                        </button>
-                        <button type="button" class="btn-export-format export-format-btn" data-format="hwp" title="한글(HWP) 저장" style="border: 1px solid #06b6d4; color: #0891b2;">
-                            <i class="fa-solid fa-file-lines" style="color: #06b6d4;"></i>한글
-                        </button>
+                        <button type="button" class="btn-export-format export-format-btn btn-pdf" data-format="pdf" title="PDF 저장"><i class="fa-solid fa-file-pdf"></i> PDF</button>
+                        <button type="button" class="btn-export-format export-format-btn btn-excel" data-format="excel" title="Excel 저장"><i class="fa-solid fa-file-excel"></i> Excel</button>
+                        <button type="button" class="btn-export-format export-format-btn btn-word" data-format="word" title="Word 저장"><i class="fa-solid fa-file-word"></i> Word</button>
+                        <button type="button" class="btn-export-format export-format-btn btn-ppt" data-format="ppt" title="PowerPoint 저장"><i class="fa-solid fa-file-powerpoint"></i> PPT</button>
+                        <button type="button" class="btn-export-format export-format-btn btn-hwp" data-format="hwp" title="한글(HWP) 저장"><i class="fa-solid fa-file-lines"></i> 한글</button>
                     </div>
                     <button type="button" id="btnOpenNewWindow" class="t-btn btn-action" style="padding: 3px 6px; font-size: 11px; border: 1px solid #cbd5e1; background: #ffffff; color: #475569;" title="새 창으로 리포트 열기">
                         <i class="fa-solid fa-arrow-up-right-from-square"></i>
@@ -184,6 +174,29 @@
         </div>
     </div>
 
+    <!-- 모바일 전용 리포트 모달 (width <= 876px) -->
+    <div class="report-modal-backdrop" id="ja010qMobileModal">
+        <div class="report-modal-dialog">
+            <div class="report-modal-header">
+                <span class="mobile-modal-label" id="mobileModalLabel">성과보수 상세내역 리포트</span>
+                <button type="button" id="btnCloseMobileModal" class="btn-close-mobile-modal" title="닫기">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <!-- 모바일 모달 내보내기 버튼 바 -->
+            <div class="report-modal-actions">
+                <button type="button" class="btn-export-format btn-pdf mobile-export-btn" data-format="pdf" title="PDF 파일로 저장"><i class="fa-solid fa-file-pdf"></i> PDF</button>
+                <button type="button" class="btn-export-format btn-excel mobile-export-btn" data-format="excel" title="Excel(XLSX) 파일로 저장"><i class="fa-solid fa-file-excel"></i> Excel</button>
+                <button type="button" class="btn-export-format btn-word mobile-export-btn" data-format="word" title="MS Word(DOC) 파일로 저장"><i class="fa-solid fa-file-word"></i> Word</button>
+                <button type="button" class="btn-export-format btn-ppt mobile-export-btn" data-format="ppt" title="PowerPoint(PPTX) 파일로 저장"><i class="fa-solid fa-file-powerpoint"></i> PPT</button>
+                <button type="button" class="btn-export-format btn-hwp mobile-export-btn" data-format="hwp" title="한글(HWP) 파일로 저장"><i class="fa-solid fa-file-lines"></i> 한글(HWP)</button>
+            </div>
+            <div class="report-modal-body">
+                <iframe id="mobile-report-frame" class="mobile-report-frame" src="about:blank"></iframe>
+            </div>
+        </div>
+    </div>
+
     <script>
         (function () {
             var currentPane = document.currentScript.closest('.tab-pane');
@@ -193,6 +206,7 @@
             var isInitialized = false;
             var lastLoadedMasterKey = null;
             var currentSelectedRowData = null;
+            var isProgrammaticSelect = false;
 
             function getFilterCorpGr() {
                 var container = currentPane.querySelector('.ja010q-container') || currentPane;
@@ -300,20 +314,71 @@
                 // 개발지침 규칙 8번: 삼중 안전망 (setupTabulatorRowSelection + rowClick + rowSelectionChanged)
                 if (typeof setupTabulatorRowSelection === "function") {
                     setupTabulatorRowSelection(grid, function (row, data) {
-                        syncDetail(row, data);
-                    });
+                        if (!isProgrammaticSelect) {
+                            syncDetail(row, data, true);
+                        }
+                    }, { autoSelectFirst: false });
                 }
                 grid.on("rowClick", function (e, row) {
-                    syncDetail(row, row ? row.getData() : null);
+                    if (!isProgrammaticSelect) {
+                        syncDetail(row, row ? row.getData() : null, true);
+                    }
                 });
                 grid.on("rowSelectionChanged", function (data, rows) {
-                    if (rows && rows.length > 0) {
-                        syncDetail(rows[0], rows[0].getData());
+                    if (rows && rows.length > 0 && !isMobileView()) {
+                        syncDetail(rows[0], rows[0].getData(), false);
                     }
                 });
             }
 
-            function syncDetail(row, masterRowData) {
+            // Helper to check if currently in mobile view (태블릿-S / 876px 이하 또는 우측 패널 숨김)
+            function isMobileView() {
+                var right = currentPane.querySelector('.right-pane') || currentPane.querySelector('.split-right') || currentPane.querySelector('.report-card');
+                if (right && window.getComputedStyle(right).display === 'none') {
+                    return true;
+                }
+                return window.matchMedia('(max-width: 876px)').matches || window.innerWidth <= 876 || (currentPane.clientWidth > 0 && currentPane.clientWidth <= 876);
+            }
+
+            function openMobileReportModal(data) {
+                var modal = currentPane.querySelector('#ja010qMobileModal');
+                var modalFrame = currentPane.querySelector('#mobile-report-frame');
+                var modalLabel = currentPane.querySelector('#mobileModalLabel');
+                if (!modal || !modalFrame) return;
+
+                var params = buildReportParams(data);
+                var corpGr = getFilterCorpGr();
+
+                if (modalLabel) {
+                    modalLabel.textContent = (data.fundNm || '') + ' (' + (data.fundCd || '') + ') 성과보수 상세내역';
+                }
+
+                var previewUrl = (window.AamsReport && typeof window.AamsReport.buildPreviewUrl === 'function')
+                    ? window.AamsReport.buildPreviewUrl('rd_ja010q.mrd', params, { corpGr: corpGr, zoom: 'page-width' })
+                    : ("/api/daily/ja010q/preview?fundCd=" + encodeURIComponent(data.fundCd || '') +
+                       "&ymd=" + encodeURIComponent(params.ymd) +
+                       "&haejiYmd=" + encodeURIComponent(data.haejiYmd || '') +
+                       "&afGyulYmd=" + encodeURIComponent(data.afGyulYmd || '') +
+                       "&bfStart=" + encodeURIComponent(params.bf) +
+                       "&af=" + encodeURIComponent(params.af));
+
+                if (window.AamsReport && typeof window.AamsReport.setFrameSrc === 'function') {
+                    window.AamsReport.setFrameSrc(modalFrame, previewUrl, 'page-width');
+                } else {
+                    modalFrame.src = previewUrl;
+                }
+
+                modal.style.display = 'flex';
+            }
+
+            function closeMobileReportModal() {
+                var modal = currentPane.querySelector('#ja010qMobileModal');
+                var modalFrame = currentPane.querySelector('#mobile-report-frame');
+                if (modal) modal.style.display = 'none';
+                if (modalFrame) modalFrame.src = 'about:blank';
+            }
+
+            function syncDetail(row, masterRowData, isUserClick) {
                 if (!row) return;
                 if (!row.isSelected || !row.isSelected()) {
                     row.select();
@@ -321,16 +386,24 @@
                 var data = masterRowData || (row.getData ? row.getData() : null);
                 if (!data) return;
 
-                var corpGr = getFilterCorpGr();
-                var ymd = getFilterYmd();
-                var currentKey = corpGr + "_" + ymd + "_" + (data.fundCd || "");
-
-                // 규칙 10: 동일 키 중복 호출 방지 가드
-                if (lastLoadedMasterKey === currentKey) return;
-                lastLoadedMasterKey = currentKey;
                 currentSelectedRowData = data;
 
-                loadReportPreview(data);
+                if (isMobileView()) {
+                    // 모바일 환경: 우측 pane이 숨겨져 있을 때는 자동 조회를 막고, 사용자가 직접 클릭했을 때만 모달 표출 및 리포트 조회
+                    if (isUserClick) {
+                        openMobileReportModal(data);
+                    }
+                } else {
+                    // 데스크톱 환경: 우측 pane에 리포트 표출 (동일 키 중복 방지 가드)
+                    var corpGr = getFilterCorpGr();
+                    var ymd = getFilterYmd();
+                    var currentKey = corpGr + "_" + ymd + "_" + (data.fundCd || "");
+
+                    if (lastLoadedMasterKey === currentKey) return;
+                    lastLoadedMasterKey = currentKey;
+
+                    loadReportPreview(data);
+                }
             }
 
             /**
@@ -449,10 +522,23 @@
                         if (grid) {
                             grid.setData(list).then(function () {
                                 var rows = grid.getRows();
-                                // 규칙 15: 데이터 조회 후 첫 번째 행 기본 선택 및 리포트 자동 표출
+                                // 규칙 15: 데이터 조회 후 첫 번째 행 기본 선택 (데스크톱만, 모바일은 자동 포커스 방지)
                                 if (rows && rows.length > 0) {
-                                    rows[0].select();
-                                    syncDetail(rows[0], rows[0].getData());
+                                    if (!isMobileView()) {
+                                        isProgrammaticSelect = true;
+                                        rows[0].select();
+                                        syncDetail(rows[0], rows[0].getData(), false);
+                                        setTimeout(function () { isProgrammaticSelect = false; }, 150);
+                                    } else {
+                                        grid.deselectRow();
+                                        currentSelectedRowData = null;
+                                        lastLoadedMasterKey = null;
+                                        setTimeout(function () {
+                                            if (grid && typeof grid.deselectRow === 'function') {
+                                                grid.deselectRow();
+                                            }
+                                        }, 50);
+                                    }
                                 } else {
                                     var iframe = currentPane.querySelector('#report-frame');
                                     if (iframe) iframe.src = "about:blank";
@@ -523,14 +609,31 @@
 
                 initGrid();
 
-                // 5포맷 내보내기 버튼 바인딩
-                var exportBtns = currentPane.querySelectorAll('.export-format-btn');
+                // 5포맷 내보내기 버튼 바인딩 (데스크톱 및 모바일 모달)
+                var exportBtns = currentPane.querySelectorAll('.export-format-btn, .mobile-export-btn');
                 exportBtns.forEach(function (btn) {
                     btn.addEventListener('click', function (e) {
                         e.preventDefault();
                         var fmt = this.getAttribute('data-format');
                         exportFormat(fmt);
                     });
+                });
+
+                // 모바일 모달 닫기 버튼
+                var btnCloseMobile = currentPane.querySelector('#btnCloseMobileModal');
+                if (btnCloseMobile) {
+                    btnCloseMobile.addEventListener('click', closeMobileReportModal);
+                }
+
+                // Window resize responsive sync
+                window.addEventListener('resize', function () {
+                    if (grid) grid.redraw(true);
+                    if (!isMobileView()) {
+                        closeMobileReportModal();
+                        if (currentSelectedRowData) {
+                            loadReportPreview(currentSelectedRowData);
+                        }
+                    }
                 });
 
                 // 새 창 열기 버튼
@@ -552,7 +655,7 @@
                     exportFormat('excel');
                 };
 
-                // 회사그룹 변경 시 기준일자 갱신 및 재조회
+                // 회사그룹 변경 시 기준일자 갱신 (규칙 19번: 자동 조회 금지, 기준일자 값 갱신만 수행)
                 currentPane.onCorpGrChange = function () {
                     var newCorpGr = getFilterCorpGr();
                     if (!newCorpGr) return;
@@ -564,11 +667,8 @@
                                 var ymdInput = currentPane.querySelector('#filterYmd') || currentPane.querySelector('input[name="ymd"]');
                                 if (ymdInput) ymdInput.value = resData.workDate;
                             }
-                            loadFunds();
                         })
-                        .catch(function () {
-                            loadFunds();
-                        });
+                        .catch(function () {});
                 };
 
                 // 새로고침 시 초기화
@@ -580,6 +680,7 @@
                         ymdInput.value = initialYmd;
                     }
 
+                    closeMobileReportModal();
                     if (grid) grid.clearData();
                     currentSelectedRowData = null;
                     lastLoadedMasterKey = null;

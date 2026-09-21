@@ -132,6 +132,10 @@
         height: calc(100% - 110px) !important;
     }
 
+    .layout-split-v > .split-gutter-v {
+        display: none !important;
+    }
+
     .layout-split-v > .pane-top,
     .layout-split-v > .split-top-section {
         flex: 1 1 50% !important;
@@ -141,6 +145,37 @@
     .layout-split-v > .pane-bottom,
     .layout-split-v > .split-bottom-section {
         flex: 1 1 50% !important;
+    }
+
+    /* 6-B. 복합 서브패널(좌하/우하 다중 그리드, 특이사항 메모 박스 등)을 포함한 레이아웃: 높이 고정을 해제하여 전 항목 세로 순차 표출 및 스크롤 보장 */
+    .layout-split-v:has(.split-lr-container),
+    .layout-split-v:has(.special-note-box),
+    .layout-split-v:has(.io-grid-box) {
+        height: auto !important;
+        min-height: 100% !important;
+        overflow: visible !important;
+        gap: 12px !important;
+    }
+
+    .layout-split-v:has(.split-lr-container) > .pane-top,
+    .layout-split-v:has(.special-note-box) > .pane-top,
+    .layout-split-v:has(.io-grid-box) > .pane-top {
+        flex: 0 0 250px !important;
+        height: 250px !important;
+        min-height: 250px !important;
+        max-height: 250px !important;
+    }
+
+    .layout-split-v:has(.split-lr-container) > .pane-bottom,
+    .layout-split-v:has(.special-note-box) > .pane-bottom,
+    .layout-split-v:has(.io-grid-box) > .pane-bottom {
+        flex: 0 0 auto !important;
+        height: auto !important;
+        min-height: 0 !important;
+        max-height: none !important;
+        overflow: visible !important;
+        background: transparent !important;
+        border: none !important;
     }
 }
 

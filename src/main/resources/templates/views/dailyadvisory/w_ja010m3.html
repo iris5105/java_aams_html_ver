@@ -105,25 +105,53 @@
 
     </div>
 
-    <!-- 모바일 전용 리포트 모달 (width <= 876px) -->
-    <div class="ja010m3-modal-backdrop" id="ja010m3MobileModal">
-        <div class="ja010m3-modal-dialog">
-            <div class="ja010m3-modal-header">
-                <span style="font-weight: bold; font-size: 13px; color: #1e293b;" id="mobileModalLabel">결산보고서 리포트</span>
-                <button type="button" id="btnCloseMobileModal" style="background: none; border: none; font-size: 16px; cursor: pointer; color: #64748b;">
+    <!-- 모바일 전용 리포트 + 계약조건 메모 통합 모달 (width <= 876px) -->
+    <div class="report-modal-backdrop" id="ja010m3MobileModal">
+        <div class="report-modal-dialog">
+            <div class="report-modal-header">
+                <span class="mobile-modal-label" id="mobileModalLabel">결산보고서 및 계약조건 메모</span>
+                <button type="button" id="btnCloseMobileModal" class="btn-close-mobile-modal" title="닫기">
                     <i class="fa-solid fa-xmark"></i>
                 </button>
             </div>
-            <!-- 모바일 모달 내보내기 버튼 바 -->
-            <div style="padding: 6px 10px; background: #f8fafc; border-bottom: 1px solid #cbd5e1; display: flex; justify-content: flex-end; align-items: center; gap: 6px; flex-wrap: wrap;">
-                <button type="button" class="btn-export-format mobile-export-btn" data-format="pdf" title="PDF 파일로 저장" style="border: 1px solid #ef4444; color: #dc2626;"><i class="fa-solid fa-file-pdf" style="color: #ef4444;"></i> PDF</button>
-                <button type="button" class="btn-export-format mobile-export-btn" data-format="excel" title="Excel(XLSX) 파일로 저장" style="border: 1px solid #10b981; color: #059669;"><i class="fa-solid fa-file-excel" style="color: #10b981;"></i> Excel</button>
-                <button type="button" class="btn-export-format mobile-export-btn" data-format="word" title="MS Word(DOC) 파일로 저장" style="border: 1px solid #3b82f6; color: #2563eb;"><i class="fa-solid fa-file-word" style="color: #3b82f6;"></i> Word</button>
-                <button type="button" class="btn-export-format mobile-export-btn" data-format="ppt" title="PowerPoint(PPTX) 파일로 저장" style="border: 1px solid #f59e0b; color: #d97706;"><i class="fa-solid fa-file-powerpoint" style="color: #f59e0b;"></i> PPT</button>
-                <button type="button" class="btn-export-format mobile-export-btn" data-format="hwp" title="한글(HWP) 파일로 저장" style="border: 1px solid #06b6d4; color: #0891b2;"><i class="fa-solid fa-file-lines" style="color: #06b6d4;"></i> 한글</button>
+
+            <!-- 1. 상단: 계약조건 메모 영역 -->
+            <div class="modal-memo-section" style="flex: 0 0 auto; background: #ffffff; border-bottom: 1px solid #cbd5e1;">
+                <div style="padding: 6px 12px; background: #f8fafc; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-weight: 600; font-size: 12px; color: #1e293b;">
+                        <i class="fa-solid fa-pen-to-square" style="color: #0d9488; margin-right: 4px;"></i> 계약조건 메모
+                    </span>
+                    <span id="mobile-memo-fund-name" style="font-size: 11px; color: #2563eb; font-weight: normal;">선택된 펀드 없음</span>
+                </div>
+                <div style="padding: 6px 10px; height: 85px; box-sizing: border-box;">
+                    <textarea id="ja010m3-mobile-memo" style="width: 100%; height: 100%; resize: none; border: 1px solid #cbd5e1; border-radius: 4px; font-family: '맑은 고딕', sans-serif; font-size: 12px; padding: 6px; box-sizing: border-box;" placeholder="계약조건 내용이 표출됩니다."></textarea>
+                </div>
             </div>
-            <div class="ja010m3-modal-body">
-                <iframe id="mobile-report-frame" style="width: 100% !important; height: 100% !important; border: none; display: block;" src="about:blank"></iframe>
+
+            <!-- 2. 하단: 결산보고서 영역 헤더 및 내보내기 버튼 바 -->
+            <div class="report-modal-actions" style="border-top: none;">
+                <div style="margin-right: auto; font-weight: 600; font-size: 12px; color: #1e293b; display: flex; align-items: center; gap: 4px;">
+                    <i class="fa-solid fa-file-pdf" style="color: #dc2626;"></i>
+                    <span>결산보고서</span>
+                </div>
+                <button type="button" class="btn-export-format btn-pdf mobile-export-btn" data-format="pdf" title="PDF 파일로 저장"><i class="fa-solid fa-file-pdf"></i> PDF</button>
+                <button type="button" class="btn-export-format btn-excel mobile-export-btn" data-format="excel" title="Excel(XLSX) 파일로 저장"><i class="fa-solid fa-file-excel"></i> Excel</button>
+                <button type="button" class="btn-export-format btn-word mobile-export-btn" data-format="word" title="MS Word(DOC) 파일로 저장"><i class="fa-solid fa-file-word"></i> Word</button>
+                <button type="button" class="btn-export-format btn-ppt mobile-export-btn" data-format="ppt" title="PowerPoint(PPTX) 파일로 저장"><i class="fa-solid fa-file-powerpoint"></i> PPT</button>
+                <button type="button" class="btn-export-format btn-hwp mobile-export-btn" data-format="hwp" title="한글(HWP) 파일로 저장"><i class="fa-solid fa-file-lines"></i> 한글</button>
+            </div>
+
+            <!-- 3. 하단: 결산보고서 뷰어 바디 -->
+            <div class="report-modal-body" style="flex: 1 1 auto; height: 100%; min-height: 220px; position: relative; background: #525659;">
+                <div id="mobile-preview-loading" style="display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; color: #ffffff; z-index: 10;">
+                    <i class="fa-solid fa-spinner fa-spin fa-2x" style="margin-bottom: 8px;"></i>
+                    <div style="font-size: 12px;">보고서를 로드 중입니다...</div>
+                </div>
+                <div id="mobile-report-placeholder" style="display: none; flex-direction: column; align-items: center; justify-content: center; width: 100%; height: 100%; color: #cbd5e1; font-size: 13px; text-align: center; background: #475569;">
+                    <i class="fa-regular fa-file-lines" style="font-size: 36px; margin-bottom: 8px;"></i>
+                    <span id="mobile-placeholder-text">결산보고서가 존재하지 않는 항목입니다.</span>
+                </div>
+                <iframe id="mobile-report-frame" class="mobile-report-frame" style="width: 100%; height: 100%; border: none; background-color: #525659;" src="about:blank"></iframe>
             </div>
         </div>
     </div>
@@ -476,14 +504,31 @@
                 }
             ];
 
-            // Detail Synchronizer: Update Memo & Load RD Report (Rule 8, 10)
-            function syncDetail(row, rowData) {
+            let isProgrammaticSelect = false;
+
+            // Helper to check if currently in mobile view (태블릿-S / 876px 이하 또는 우측 패널 숨김)
+            function isMobileView() {
+                const right = pane ? (pane.querySelector('.pane-right') || pane.querySelector('.right-pane') || pane.querySelector('.split-right') || pane.querySelector('.report-card')) 
+                                   : (document.querySelector('.pane-right') || document.querySelector('.right-pane') || document.querySelector('.split-right') || document.querySelector('.report-card'));
+                if (right && window.getComputedStyle(right).display === 'none') {
+                    return true;
+                }
+                return window.matchMedia('(max-width: 876px)').matches || window.innerWidth <= 876 || (pane && pane.clientWidth > 0 && pane.clientWidth <= 876);
+            }
+
+            // Detail Synchronizer: Update Memo & Load RD Report (Rule 8, 10 및 모바일 자동 조회 방지)
+            function syncDetail(row, rowData, isUserClick) {
                 if (!row) return;
                 if (!row.isSelected || !row.isSelected()) {
                     row.select();
                 }
                 const data = rowData || (row.getData ? row.getData() : null);
                 if (!data) return;
+
+                // 1) 모바일 환경: 사용자가 직접 클릭했을 때 상단 메모 + 하단 결산보고서 통합 모달 오픈 (키 비교 이전 즉시 표출 보장)
+                if (isMobileView() && isUserClick) {
+                    openMobileModal(data);
+                }
 
                 const currentKey = (data.corpGr || "") + "_" + (data.fundCd || "") + "_" + (data.gyulYmd || "") + "_" + (data.tblGb || "");
                 if (lastLoadedMasterKey === currentKey) return;
@@ -503,7 +548,7 @@
                 currentSelectedRowData = data;
                 const corpGr = resolveCorpGr();
 
-                // 1) Bind Memo (mle_cond) & 권한 보호 (Rule 12: corpGr == '2402' 및 tblGb == 'a'만 수정 허용)
+                // 2) Bind Memo (mle_cond) & 권한 보호 (Rule 12: corpGr == '2402' 및 tblGb == 'a'만 수정 허용)
                 const memoEl = pane ? pane.querySelector("#ja010m3-memo") : document.getElementById("ja010m3-memo");
                 const nameEl = pane ? pane.querySelector("#memo-fund-name") : document.getElementById("memo-fund-name");
                 if (nameEl) {
@@ -516,12 +561,9 @@
                     memoEl.style.backgroundColor = isEditable ? "#ffffff" : "#f1f5f9";
                 }
 
-                // 2) Bind RD Report Preview (ole_rd: HTML5 MRD 표준 규격)
-                loadRdReportPreview(data);
-
-                // 모바일 환경 (width <= 876px)인 경우 행 클릭 시 모달 자동 표출
-                if (window.innerWidth <= 876 && data.tblGb !== 'b' && data.mrdNm) {
-                    openMobileModal(data);
+                // 3) 데스크톱 환경: 우측 pane에 리포트 자동 표출
+                if (!isMobileView()) {
+                    loadRdReportPreview(data);
                 }
             }
 
@@ -601,27 +643,86 @@
                 }
             }
 
-            // 모바일 모달 열기 (width <= 876px 규격)
+            // 모바일 통합 모달 열기 (상단: 계약조건 메모, 하단: 결산보고서)
             function openMobileModal(data) {
                 const modal = pane ? pane.querySelector("#ja010m3MobileModal") : document.getElementById("ja010m3MobileModal");
                 const modalFrame = pane ? pane.querySelector("#mobile-report-frame") : document.getElementById("mobile-report-frame");
                 const modalLabel = pane ? pane.querySelector("#mobileModalLabel") : document.getElementById("mobileModalLabel");
+                const mobileMemoEl = pane ? pane.querySelector("#ja010m3-mobile-memo") : document.getElementById("ja010m3-mobile-memo");
+                const mobileMemoFundEl = pane ? pane.querySelector("#mobile-memo-fund-name") : document.getElementById("mobile-memo-fund-name");
+                const loadingEl = pane ? pane.querySelector("#mobile-preview-loading") : document.getElementById("mobile-preview-loading");
+                const placeholderEl = pane ? pane.querySelector("#mobile-report-placeholder") : document.getElementById("mobile-report-placeholder");
+                const placeholderText = pane ? pane.querySelector("#mobile-placeholder-text") : document.getElementById("mobile-placeholder-text");
 
-                if (!modal || !modalFrame) return;
+                if (!modal) return;
 
                 const corpGr = resolveCorpGr();
-                const mrd = (data.mrdNm || "").trim();
                 const fundCd = data.fundCd || "";
                 const fundNm = data.xxFundCd || "";
                 const gyulYmd = (data.gyulYmd || "").replace(/\./g, '-');
 
-                const previewUrl = `/api/daily/ja010m3/preview?corpGr=${encodeURIComponent(corpGr)}&mrdName=${encodeURIComponent(mrd)}&fundCd=${encodeURIComponent(fundCd)}&fundNm=${encodeURIComponent(fundNm)}&gyulYmd=${encodeURIComponent(gyulYmd)}&t=${new Date().getTime()}`;
-
+                // 1) 모달 상단 타이틀
                 if (modalLabel) {
-                    modalLabel.textContent = `결산보고서 - ${fundNm} (${formatDateVal(gyulYmd)})`;
+                    modalLabel.textContent = `결산보고서 및 계약조건 - ${fundNm} (${formatDateVal(gyulYmd)})`;
                 }
-                modalFrame.src = previewUrl;
+
+                // 2) 상단 계약조건 메모 바인딩 & 권한 제어 (Rule 12: corpGr == '2402' 및 tblGb == 'a'만 수정 허용)
+                if (mobileMemoFundEl) {
+                    mobileMemoFundEl.textContent = `${fundNm} (${fundCd}) - ${formatDateVal(gyulYmd)}`;
+                }
+                if (mobileMemoEl) {
+                    mobileMemoEl.value = data.contractCondition || "";
+                    const isEditable = (corpGr === '2402' && data.tblGb === 'a');
+                    mobileMemoEl.readOnly = !isEditable;
+                    mobileMemoEl.style.backgroundColor = isEditable ? "#ffffff" : "#f1f5f9";
+                }
+
+                // 3) 하단 결산보고서 로딩 분기 (tbl_gb='b' 대응 및 mrdNm 체크)
+                let reportData = data;
+                if (reportData.tblGb === 'b' && grid) {
+                    const allRows = grid.getData();
+                    const pairRow = allRows.find(r => r.tblGb === 'a' && r.fundCd === data.fundCd && r.gyulYmd === data.gyulYmd);
+                    if (pairRow && pairRow.mrdNm) {
+                        reportData = pairRow;
+                    }
+                }
+
+                const mrd = (reportData.mrdNm || "").trim();
+
+                if (!mrd) {
+                    if (modalFrame) {
+                        modalFrame.style.display = "none";
+                        modalFrame.src = "about:blank";
+                    }
+                    if (loadingEl) loadingEl.style.display = "none";
+                    if (placeholderEl) {
+                        placeholderEl.style.display = "flex";
+                        if (placeholderText) placeholderText.textContent = "결산보고서가 존재하지 않는 항목입니다.";
+                    }
+                } else {
+                    if (placeholderEl) placeholderEl.style.display = "none";
+                    if (loadingEl) loadingEl.style.display = "block";
+                    if (modalFrame) {
+                        modalFrame.style.display = "block";
+                        const rptFundCd = reportData.fundCd || "";
+                        const rptFundNm = reportData.xxFundCd || "";
+                        const rptGyulYmd = (reportData.gyulYmd || "").replace(/\./g, '-');
+                        const previewUrl = `/api/daily/ja010m3/preview?corpGr=${encodeURIComponent(corpGr)}&mrdName=${encodeURIComponent(mrd)}&fundCd=${encodeURIComponent(rptFundCd)}&fundNm=${encodeURIComponent(rptFundNm)}&gyulYmd=${encodeURIComponent(rptGyulYmd)}&t=${new Date().getTime()}`;
+                        modalFrame.src = previewUrl;
+                        modalFrame.onload = function() {
+                            if (loadingEl) loadingEl.style.display = "none";
+                        };
+                    }
+                }
+
                 modal.style.display = "flex";
+            }
+
+            function closeMobileModal() {
+                const modal = pane ? pane.querySelector("#ja010m3MobileModal") : document.getElementById("ja010m3MobileModal");
+                const modalFrame = pane ? pane.querySelector("#mobile-report-frame") : document.getElementById("mobile-report-frame");
+                if (modal) modal.style.display = "none";
+                if (modalFrame) modalFrame.src = "about:blank";
             }
 
             // 리포트 내보내기 실행 (PDF, Excel, Word, PPT, HWP)
@@ -676,18 +777,32 @@
                     .then(data => {
                         grid.setData(data || []).then(() => {
                             grid.redraw(true);
-                        });
-                        if (countEl) {
-                            countEl.textContent = (data ? data.length : 0) + "건";
-                        }
-                        // Rule 8, 15: Select first row automatically
-                        if (data && data.length > 0) {
-                            const rows = grid.getRows();
-                            if (rows && rows.length > 0) {
-                                rows[0].select();
-                                syncDetail(rows[0], data[0]);
+                            if (countEl) {
+                                countEl.textContent = (data ? data.length : 0) + "건";
                             }
-                        }
+                            // Rule 8, 15: 데스크톱만 첫 행 자동 선택, 모바일 환경에서는 첫행 autofocus/select 완전 차단
+                            if (data && data.length > 0) {
+                                if (!isMobileView()) {
+                                    const rows = grid.getRows();
+                                    if (rows && rows.length > 0) {
+                                        isProgrammaticSelect = true;
+                                        rows[0].select();
+                                        syncDetail(rows[0], data[0], false);
+                                        setTimeout(() => { isProgrammaticSelect = false; }, 150);
+                                    }
+                                } else {
+                                    // 모바일 환경: 첫행 autofocus 및 자동 선택 방지 (선택 해제 및 마스터키 초기화)
+                                    grid.deselectRow();
+                                    currentSelectedRowData = null;
+                                    lastLoadedMasterKey = null;
+                                    setTimeout(() => {
+                                        if (grid && typeof grid.deselectRow === 'function') {
+                                            grid.deselectRow();
+                                        }
+                                    }, 50);
+                                }
+                            }
+                        });
                     })
                     .catch(err => {
                         console.error("Failed to load ja010m3 data:", err);
@@ -719,22 +834,29 @@
                 });
 
                 // Rule 8: Triple Fallback Row Selection for Master Grid
+                // 모바일 환경 자동 선택 방지: { autoSelectFirst: false } 옵션 지정 (common.js의 50ms 후 자동 doSelect 완전 차단)
                 if (typeof setupTabulatorRowSelection === 'function') {
                     setupTabulatorRowSelection(grid, function(row, data) {
-                        syncDetail(row, data);
-                    });
+                        if (!isProgrammaticSelect) {
+                            syncDetail(row, data, true);
+                        }
+                    }, { autoSelectFirst: false });
                 }
                 grid.on("rowClick", function(e, row) {
-                    syncDetail(row, row ? row.getData() : null);
+                    if (!isProgrammaticSelect) {
+                        syncDetail(row, row ? row.getData() : null, true);
+                    }
                 });
                 grid.on("rowSelectionChanged", function(data, rows) {
-                    if (rows && rows.length > 0) {
-                        syncDetail(rows[0], rows[0].getData());
+                    if (rows && rows.length > 0 && !isMobileView()) {
+                        syncDetail(rows[0], rows[0].getData(), false);
                     }
                 });
 
-                // Memo Edit Handler
+                // Memo Edit Handler (데스크톱 및 모바일 양방향 동기화)
                 const memoEl = pane ? pane.querySelector("#ja010m3-memo") : document.getElementById("ja010m3-memo");
+                const mobileMemoEl = pane ? pane.querySelector("#ja010m3-mobile-memo") : document.getElementById("ja010m3-mobile-memo");
+
                 if (memoEl) {
                     memoEl.addEventListener("input", function() {
                         const corpGr = resolveCorpGr();
@@ -742,6 +864,18 @@
                             currentSelectedRowData.contractCondition = memoEl.value;
                             currentSelectedRowData._memoEdited = true;
                             currentSelectedRowData.isUpdated = true;
+                            if (mobileMemoEl) mobileMemoEl.value = memoEl.value;
+                        }
+                    });
+                }
+                if (mobileMemoEl) {
+                    mobileMemoEl.addEventListener("input", function() {
+                        const corpGr = resolveCorpGr();
+                        if (currentSelectedRowData && corpGr === '2402' && currentSelectedRowData.tblGb === 'a') {
+                            currentSelectedRowData.contractCondition = mobileMemoEl.value;
+                            currentSelectedRowData._memoEdited = true;
+                            currentSelectedRowData.isUpdated = true;
+                            if (memoEl) memoEl.value = mobileMemoEl.value;
                         }
                     });
                 }
@@ -765,14 +899,40 @@
                     });
                 });
 
-                // Mobile Modal Close Button
-                const btnCloseMobile = pane ? pane.querySelector("#btnCloseMobileModal") : document.getElementById("#btnCloseMobileModal");
+                // Mobile Modal Close Button & Backdrop Handler
+                const btnCloseMobile = pane ? pane.querySelector("#btnCloseMobileModal") : document.getElementById("btnCloseMobileModal");
                 if (btnCloseMobile) {
                     btnCloseMobile.addEventListener("click", function() {
-                        const modal = pane ? pane.querySelector("#ja010m3MobileModal") : document.getElementById("ja010m3MobileModal");
-                        if (modal) modal.style.display = "none";
+                        closeMobileModal();
                     });
                 }
+
+                const modal = pane ? pane.querySelector("#ja010m3MobileModal") : document.getElementById("ja010m3MobileModal");
+                if (modal) {
+                    modal.addEventListener("click", function(e) {
+                        if (e.target === modal) {
+                            closeMobileModal();
+                        }
+                    });
+                }
+
+                // ESC key handler for modal
+                document.addEventListener("keydown", function(e) {
+                    if (e.key === "Escape") {
+                        closeMobileModal();
+                    }
+                });
+
+                // Window resize responsive sync
+                window.addEventListener('resize', function () {
+                    if (grid) grid.redraw(true);
+                    if (!isMobileView()) {
+                        closeMobileModal();
+                        if (currentSelectedRowData) {
+                            loadRdReportPreview(currentSelectedRowData);
+                        }
+                    }
+                });
 
                 // Initial Load (Rule: eb_direct_retrieve = true)
                 setTimeout(loadGrid, 100);
@@ -869,6 +1029,7 @@
                 };
                 // 공통버튼 지침: 새로고침은 조회 전 초기화 상태로 되돌린다.
                 pane.onRefresh = function() {
+                    closeMobileModal();
                     if (grid) grid.clearData();
                     currentSelectedRowData = null;
                     lastLoadedMasterKey = null;
