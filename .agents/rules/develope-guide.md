@@ -48,7 +48,7 @@ trigger: always_on
      }
      ```
    - 인라인 편집 셀의 경우 컬럼 설정에 `cellClick: aamsCellEdit`를 지정하여 셀 편집 진입 전 선행 행 선택을 보장한다.
-   - 데이터 조회 후(또는 초기 로드 시) 데이터가 존재할 경우 첫 번째 행을 자동 선택(`rows[0].select()`)하고 연계 상세 정보를 즉시 동기화 표출한다 (규칙 15 연계).
+   - 데이터 조회 후(또는 초기 로드/새로고침 시) 데이터가 존재할 경우 행 선택 및 포커스는 **규칙 15번의 rowfocus 2대 표준 정책**에 따라 자동 분기 처리된다.
    - 단일 그리드 화면에서도 행 선택 시 활성화 표시를 위해 `setupTabulatorRowSelection(grid)`를 적용한다.
 9. 화면 내에 [조회], [입력] 등의 액션 버튼을 중복 생성하지 않고, 상단 공통 툴바(fragments/tab_header :: toolbarButtons)를 사용하며 pane.onSearch, pane.onInput, pane.onSave, pane.onCorpGrChange 표준 계약 함수를 연결한다.
 10. 마스터-디테일 구조에서 마스터 행 클릭 시 동일한 키값에 대해 불필요한 중복 API 호출(fetch)이 발생하지 않도록 마지막 조회 키 비교 가드를 둔다.
@@ -56,7 +56,13 @@ trigger: always_on
 12. 데이터의 수정 권한이 특정 사용자(의뢰자/작성자 등)에게만 부여되는 경우, 그리드 셀의 editable뿐만 아니라 상세 패널(textarea, input 등)에도 readOnly 및 배경색 잠금 처리를 동기화하여 양방향 보호를 적용한다.
 13. 상단 필터바(fragments/filter/...) 사용 시 화면별로 라벨명을 변경해야 하는 경우, 프래그먼트 파라미터(예: `filter(label='LOAD기일')`, `filter(labelYmd='매매일자', labelDddw='거래구분')`), `th:with`, 또는 클라이언트 JS 함수(`setFilterLabel('filterYmd', 'LOAD기일')`)를 사용하여 동적으로 변경하도록 구성하며, 파라미터 미전달 시에는 표준 기본 라벨이 자동으로 표출되도록 한다.
 14. 상단 필터 프래그먼트(fragments/filter/...) 사용 시, 필터 영역과 화면 전용 서브 버튼(예: 체결등록, NEW체결, 평잔재계산 등)이 공존할 때 배경색 단절이 발생하지 않도록 전체 영역을 `<div class="filter-bar">`로 감싸고 좌측 필터는 `<div class="filter-left">`, 우측 액션 버튼은 `<div class="filter-actions">`로 구조화하여 통일된 .filter-bar 배경색(#f1f5f9) 및 하단 테두리가 전폭(100%)에 걸쳐 매끄럽게 적용되도록 한다.
-15. 데이터 조회(fetch) 후 또는 초기 데이터 바인딩 시 마스터 그리드(또는 단일 그리드)에 데이터가 존재할 경우 제일 첫 번째 행을 기본으로 선택(row.select())하여 상세 정보 및 연계 패널(디테일 그리드, 메모 등)이 자동으로 표출되도록 처리한다.
+15. **데이터 조회 및 새로고침 시 그리드 행 포커스(Row Focus / Select) 2대 표준 정책:**
+    1) **reportViewer가 있는 경우:**
+       - **1-1. 모바일 환경 (width <= 876px):** 이때는 조회 또는 새로고침 시에 **어디든 rowfocus를 강제하지 않는다** (첫 번째 행 자동 선택/포커스를 하지 않고 deselect 상태를 유지하여 모달 팝업 자동 오픈 방지).
+       - **1-2. PC 또는 태블릿 환경 (width > 876px):** 이때는 조회 또는 새로고침 시에 **모든 grid는 table의 첫 번째 행을 rowfocus (선택 및 포커스)**하여 우측 리포트에 첫 행 내용이 즉시 표출되도록 한다.
+    2) **reportViewer가 없는 경우:**
+       - PC, 태블릿, 모바일 모든 환경에서 **조회 또는 새로고침 시에 모든 grid는 table의 첫 번째 행을 rowfocus (선택 및 포커스: `rows[0].select()`)**하도록 하여 마스터-상세 그리드나 폼 패널의 연동 데이터가 즉시 표출되도록 한다.
+    - ※ 해당 정책은 `common.js`의 `setupTabulatorRowSelection(grid)`에 내장되어 화면 내 리포트 요소 존재 여부 및 뷰포트 크기를 감지하여 자동으로 적용된다.
 16. srw파일에서 dw_c.ue_getdate 이벤트가 존재한다면 하이라이트 모드로 넘겨주고 dw_c.getdate 이벤트가 없다면 순정상태의 달력으로 표시하게해줘
 17. 상단 필터바(filter-bar) 구성 시, 필터 영역을 임의로 직접 작성하지 않고 항상 참조하는 srw 파일의 dw_c 컨트롤이 사용하는 데이터윈도우 객체(dataobject, 예: dc_ymd, dc_ymd_dddw, dc_xx_ymd 등)를 확인한 후, `templates/fragments/filter/` 디렉토리 내에서 동일한 파일명의 공통 프래그먼트(`th:replace="~{fragments/filter/{dataobject} :: filter(...)}"`)를 찾아 연동하여 공통 필터 컴포넌트를 일관되게 재사용한다.
 18. **공통 모듈 및 전역 자원 최대 활용 원칙 (Zero-Garbage Code):**
@@ -118,7 +124,7 @@ trigger: always_on
 공통 JavaScript 유틸리티 및 모듈 재사용 규격
 
 1. **회사그룹(corpGr) 추출 함수 개별 작성 금지:**
-   - 화면마다 `function resolveCorpGr()`을 중복 정의하지 않는다.
+   - 화면마다 `function resolveCorpGr()`이나 `function getFilterCorpGr()`을 중복 정의하지 않는다.
    - [common.js](file:///d:/work/java_aams_html_ver/src/main/resources/static/js/common.js)의 전역 헬퍼 함수 `resolveCorpGr(pane)`을 무조건 호출한다:
      ```javascript
      var corpGr = resolveCorpGr(pane);
@@ -142,8 +148,79 @@ trigger: always_on
      window.location.href = exportUrl;
      ```
 
-4. **공통 UI 팝업 및 알림:**
-   - 단순 알림이나 토스트 표출 시 브라우저 내장 `alert` 대신 `showToast(message, type)` 또는 `showAlert(message)` 공통 함수를 사용한다.
+4. **MRD 일체형 리포트 제어 엔진 (`AamsReport.bindViewer`):**
+   - 개별 화면 스크립트에서 5종 내보내기 버튼(PDF, Excel, Word, PPT, HWP) 클릭 이벤트, 새 창 열기, 모바일 모달 팝업 열기/닫기, iframe 로딩 스피너 제어, 윈도우 리사이징 핸들러 등을 화면마다 중복으로 작성하지 않고 `AamsReport.bindViewer(pane, config)` 1개로 일괄 바인딩한다:
+     ```javascript
+     // 일체형 리포트 뷰어 바인딩 (5종 다운로드, 새창, 모바일 모달, 로딩 제어 일체화)
+     var reportViewer = (window.AamsReport && typeof window.AamsReport.bindViewer === 'function')
+         ? window.AamsReport.bindViewer(currentPane, {
+             reportFile: 'rd_파일명.mrd',
+             modalId: '화면IDMobileModal', // 모바일 모달 ID (생략 시 기본 reportMobileModal)
+             zoom: '120',                  // 기본 120, 'page-width' 등 지정 가능
+             getCorpGr: function () { return resolveCorpGr(currentPane); },
+             buildParams: function (data) {
+                 return {
+                     fund_cd: data.fundCd || '',
+                     fund_nm: data.fundNm || '',
+                     ymd: getFilterYmd().replace(/-/g, '.')
+                 };
+             },
+             getTitle: function (data) {
+                 return (data.fundNm || '') + ' (' + (data.fundCd || '') + ') 리포트명';
+             },
+             getStatus: function (data, params) {
+                 return "조회일자: " + getFilterYmd();
+             },
+             getDownloadName: function (data, params) {
+                 var safeNm = (data.fundNm || '').trim().replace(/[\\/:*?"<>|]/g, "_") || "리포트";
+                 return (getFilterYmd() || '') + "_" + safeNm + "(" + (data.fundCd || '') + ")";
+             },
+             onBeforePreview: function (data) {
+                 // 선택: 특정 회사(2402 등) 사전 원장생성 체크 필요 시 비동기 검증 호출
+             }
+         })
+         : null;
+
+     // 상세 동기화(syncDetail) 시 1줄로 호출:
+     if (AamsReport.isMobileView(currentPane)) {
+         if (isUserClick && reportViewer) reportViewer.openMobile(data);
+     } else {
+         if (reportViewer) reportViewer.loadPreview(data);
+     }
+
+     // 상단 공통 [엑셀] 버튼 클릭 연동:
+     currentPane.onExcel = function () {
+         if (reportViewer && currentSelectedRowData) {
+             reportViewer.exportFormat('excel');
+         }
+     };
+     ```
+
+5. **공통 UI 팝업 및 알림 (`showToast`, `showAlert`, `setupModalBackdrop`):**
+   - 단순 알림이나 토스트 표출 시 브라우저 내장 `alert` 대신 `showToast(message, type, duration)` 또는 `showAlert(message, callback)` 공통 함수를 사용한다.
+     ```javascript
+     // 1) 비동기 토스트 알림 (type: 'info' | 'success' | 'warning' | 'error', duration 기본 3000ms)
+     showToast("정상적으로 저장되었습니다.", "success");
+     showToast("필수 항목을 입력해주세요.", "warning", 5000);
+
+     // 2) 확인 대화상자 모달
+     showAlert("선택된 계좌의 원장이 생성되지 않았습니다.", function() {
+         console.log("확인 클릭됨");
+     });
+
+     // 3) 모달 백드롭 및 ESC 키 바인딩
+     setupModalBackdrop(modalElement, function() {
+         modalElement.style.display = 'none';
+     });
+     ```
+
+6. **전역 숫자/통화 및 백분율 포맷터 (`formatNumber`, `formatPercent`):**
+   - 그리드 포매터나 상세 패널 바인딩 시 금액, 수량, 수익률 등을 포맷팅할 때 전역 헬퍼를 사용한다:
+     ```javascript
+     formatNumber(1234567.89, 2); // "1,234,567.89"
+     formatNumber(1000000);        // "1,000,000"
+     formatPercent(12.345, 2);     // "12.35%"
+     ```
 
 ---
 
@@ -215,6 +292,15 @@ MDI 환경 스크립트 및 조각 뷰 작성 규칙 (가비지 코드 방지)
 
 1. 태블릿-L (width <= 1415px): top_header의 대분류 메뉴가 사라지고 side_menu에 통합되어 트리 폴더 형식으로 보여진다.
 2. 태블릿-S / 모바일 (width <= 876px): 해당 사이즈 이하부터 모바일 버전 형식으로 변경된다. (예: 마스터-상세/보고서 분할 화면의 경우 우측 상세 영역이 숨겨지고 마스터 그리드가 100% 전폭으로 표출되며, 행 선택 시 상세 내용이 팝업 모달로 표출된다. 또한 tab-content-container 내부의 액션 버튼들은 텍스트가 사라지고 아이콘만 표출되어 툴바 공간을 절약한다. 단, DDDW 드롭다운 선택 컴포넌트(`.dddw-select-btn`)의 경우 사용자가 선택한 명칭/텍스트와 화살표가 온전히 표출되어야 한다.)
+3. **복합 서브패널 모바일 세로 순차 스택 표준 규격 (`layout-mobile-stack`):**
+   - 다중 카드, 의뢰/처리 메모 박스, 댓글/입출금 서브 그리드 등 복합 상세 영역이 존재하는 분할 화면에서는 개별 화면마다 `@media (max-width: 876px)` 미디어 쿼리를 중복 작성하지 않는다.
+   - `layout-split-h.css` 및 `layout-split-v.css`에 내장된 표준 스택 클래스를 마크업에 지정하여 공통 모바일 세로 순차 배치 및 부모 스크롤을 보장한다:
+     - 최상위 컨테이너: `.view-container.layout-mobile-stack-container` (전체 세로 스크롤 허용)
+     - 분할 스플릿 컨테이너: `.layout-split-h.layout-mobile-stack` 또는 `.layout-split-v`
+     - 복합 서브패널 래퍼: `.split-pane.multi-stack-pane` (또는 `.detail-section`)
+     - 하위 메모 카드: `.memo-stack-card` (내부 `<textarea>`는 `.stack-textarea` 적용)
+     - 하위 서브 그리드 카드: `.grid-stack-card`
+     - 또는 사전 정의된 도메인 클래스: `.matter-section`, `.content-section`, `.comment-section`, `.special-note-box`, `.io-grid-box` 등.
 
 그리드 내부 구성
 
@@ -259,35 +345,100 @@ MDI 환경 스크립트 및 조각 뷰 작성 규칙 (가비지 코드 방지)
    - **원장생성 정합성 체크 API (선택)**:
      - 파워빌더 `ole_rd::ue_retrieve` 등에서 특정 회사(`corp_gr == '2402'`)에 대해 원장생성 여부를 사전 체크하는 로직이 있을 경우, 사전 검증 API(`/api/.../check-ledger`)를 호출하여 경고 메시지 토스트를 표출한다.
 
-3. 화면 레이아웃 및 뷰어 UI 구성:
-   - **마스터-리포트 분할 레이아웃 (`layout-split`)**:
-     - 좌측: 마스터 그리드(펀드/계좌/그룹 목록 등, 예: `d_szm0ia.srd`, `d_ja010j1.srd`)
-     - 우측: 리포트 미리보기 패널 (`.right-pane` 또는 `.report-card`)
-     - 우측 상단 헤더: 리포트 타이틀, 조회 상태 라벨(`조회일자: yyyy-mm-dd` 등), 멀티 포맷 내보내기 버튼 그룹(PDF, Excel, Word, PPT, HWP) 및 새 창 열기 버튼(`btnOpenNewWindow`).
-     - 우측 본문: 리포트 로딩 인디케이터/스피너 (`#preview-loading`, `#report-loading`) 및 `<iframe>` (`#report-frame`, `src="about:blank"`).
-   - **단일 리포트 화면 (마스터 그리드가 없는 경우, 예: `w_ja020k`)**:
-     - 상단 필터바 조건에 따라 리포트 패널이 화면 전체를 차지하며, 상단 툴바의 [조회] 또는 필터 변경 시 리포트를 직접 로드한다.
-   - **반응형 모바일 규격 (width <= 876px)**:
-     - 태블릿-S/모바일 사이즈에서는 우측 리포트 패널을 `display: none` 처리하고 좌측 마스터 그리드를 100% 전폭으로 표출한다.
-     - 그리드 행 클릭 시 모바일 전용 전체화면 모달(`.ja010h1-modal-backdrop` 등)을 띄워 내부 모달 `<iframe>`을 통해 리포트를 표출한다.
+3. 화면 레이아웃 및 뷰어 UI 구성 (공통 프래그먼트 필수 사용):
+   - **우측 리포트 미리보기 패널 및 모바일 모달 공통 프래그먼트 (`fragments/report/report_viewer.html`) 표준 적용**:
+     - 개별 화면마다 80~100줄에 달하는 우측 패널 카드 헤더, 5종 내보내기 버튼, 새 창 열기, 로딩 스피너, iframe, 모바일 팝업 모달 HTML을 인라인으로 직접 작성하는 것을 엄격히 금지한다.
+     - 항상 아래의 표준 공통 프래그먼트를 `th:replace`로 연동한다:
+       ```html
+       <!-- 1) 우측 리포트 패널 공통 프래그먼트 -->
+       <div class="pane-right right-pane"
+            th:replace="~{fragments/report/report_viewer :: reportViewerPane(reportTitle='보고서명', iconClass='fa-solid fa-file-invoice', defaultStatus='선택된 데이터 없음', minWidth='380px')}">
+       </div>
 
-4. 클라이언트 스크립트 연동 표준 규격:
-   - **그리드 행 선택 연동 (규칙 8, 10, 15 연계)**:
-     - 마스터 그리드에서 행 선택 시(`syncDetail`), 선택된 행의 데이터(`corpGr`, `ymd`, `fundCd` 등)를 기반으로 `currentKey`를 생성하고 중복 호출 방지 가드(`lastLoadedMasterKey === currentKey`)를 적용한다.
-     - 데이터 조회 후 첫 번째 행 자동 선택(`rows[0].select()`)을 통해 초기 리포트 미리보기가 자동 표출되도록 한다 (규칙 15 연계).
-     - 조회된 데이터가 없을 경우 `iframe.src = "about:blank"` 및 상태 라벨을 "조회 결과 없음"으로 초기화한다.
-   - **미리보기 URL 생성 및 로딩 인디케이터 처리**:
-     - 브라우저 캐싱으로 인한 화면 미갱신을 방지하기 위해 타임스탬프(`&t=" + new Date().getTime()`) 파라미터를 반드시 추가한다.
-     - URL 바인딩 전 로딩 엘리먼트를 표출(`loadingEl.style.display = 'block'`)하고, `iframe.onload = function() { loadingEl.style.display = 'none'; }` 이벤트에서 로딩을 숨긴다.
-   - **내보내기 버튼 이벤트 바인딩**:
-     - 내보내기 클릭 시 현재 선택된 행 데이터(`currentSelectedRowData`)가 없는 경우 사용자 알림(alert/showToast) 후 중단한다.
-     - `window.location.href = exportUrl`을 통해 브라우저 다운로드를 실행한다.
-   - **새 창 열기 (`btnOpenNewWindow`)**:
-     - `window.open(previewUrl, "_blank")`를 호출하여 리포트를 별도 탭/새 창에서 크게 볼 수 있도록 지원한다.
-   - **상단 툴바 표준 계약 (규칙 9)**:
-     - `pane.onSearch` / `pane.onRetrieve`: 마스터 그리드(또는 리포트) 재조회 호출.
-     - `pane.onCorpGrChange`: 회사그룹 변경 시 관련 필터 및 리포트 상태 초기화 후 재조회.
-     - `pane.onRefresh`: `iframe.src = "about:blank"`, 상태 텍스트 초기화 및 그리드 데이터 클리어로 화면 진입 초기 상태로 복원.
+       <!-- 2) 모바일/태블릿-S(<= 876px) 전용 리포트 모달 공통 프래그먼트 -->
+       <div th:replace="~{fragments/report/report_viewer :: reportMobileModal(modalId='화면IDMobileModal', modalTitle='보고서명')}"></div>
+
+       <!-- 3) 독립적인 내보내기 5버튼 그룹이 필요할 때 (선택) -->
+       <div th:replace="~{fragments/report/report_viewer :: exportButtons}"></div>
+       ```
+   - **반응형 모바일 규격 (width <= 876px)**:
+     - 태블릿-S/모바일 사이즈에서는 `layout-split-h.css`의 공통 규칙에 따라 우측 리포트 패널이 자동 `display: none` 처리되고 좌측 마스터 그리드가 100% 전폭으로 표출된다.
+     - 사용자가 마스터 그리드의 행을 직접 클릭했을 때 `reportViewer.openMobile(data)`를 호출하여 공통 모바일 모달(`reportMobileModal`)을 띄워 내부 모달 `<iframe>`을 통해 리포트를 표출한다.
+
+4. 클라이언트 스크립트 연동 표준 규격 (`AamsReport.bindViewer` 필수 사용):
+   - **일체형 제어 엔진을 통한 스크립트 중복 제거**:
+     - 5종 내보내기 버튼 이벤트, 새 창 열기, 모바일 모달 팝업 열기/닫기, iframe 로딩 인디케이터 제어, 윈도우 리사이징 반응형 동기화를 화면마다 수동으로 구현하지 않고 `AamsReport.bindViewer`를 사용한다:
+     ```javascript
+     // 1) 초기화 블록에서 바인더 생성
+     var reportViewer = (window.AamsReport && typeof window.AamsReport.bindViewer === 'function')
+         ? window.AamsReport.bindViewer(currentPane, {
+             reportFile: 'rd_파일명.mrd',
+             modalId: '화면IDMobileModal', // reportMobileModal에 지정한 modalId
+             zoom: '120',                  // 기본 120 (또는 'page-width')
+             getCorpGr: function () { return resolveCorpGr(currentPane); },
+             buildParams: function (data) {
+                 return {
+                     fund_cd: data.fundCd || '',
+                     fund_nm: data.fundNm || '',
+                     ymd: getFilterYmd().replace(/-/g, '.')
+                 };
+             },
+             getTitle: function (data) {
+                 return (data.fundNm || '') + ' (' + (data.fundCd || '') + ') 보고서명';
+             },
+             getStatus: function (data, params) {
+                 return "조회일자: " + getFilterYmd();
+             },
+             getDownloadName: function (data, params) {
+                 var safeNm = (data.fundNm || '').trim().replace(/[\\/:*?"<>|]/g, "_") || "보고서";
+                 return (getFilterYmd() || '') + "_" + safeNm + "(" + (data.fundCd || '') + ")";
+             },
+             onBeforePreview: function (data) {
+                 // 선택: 특정 회사 원장생성 여부 체크 비동기 API 호출
+             }
+         })
+         : null;
+
+     // 2) 행 선택(syncDetail) 시 삼중 안전망 연동 (규칙 8, 10, 15 연계)
+     function syncDetail(row, masterRowData, isUserClick) {
+         if (!row) return;
+         if (!row.isSelected || !row.isSelected()) row.select();
+         var data = masterRowData || (row.getData ? row.getData() : null);
+         if (!data) return;
+
+         currentSelectedRowData = data;
+
+         if (AamsReport.isMobileView(currentPane)) {
+             // 모바일 환경: 사용자가 행을 직접 클릭했을 때만 모달 표출 및 로드
+             if (isUserClick && reportViewer) reportViewer.openMobile(data);
+         } else {
+             // 데스크톱 환경: 동일 키 중복 호출 방지 가드 후 리포트 로드
+             var currentKey = resolveCorpGr(currentPane) + "_" + getFilterYmd() + "_" + (data.mainKey || data.fundCd || "");
+             if (lastLoadedMasterKey === currentKey) return;
+             lastLoadedMasterKey = currentKey;
+
+             if (reportViewer) reportViewer.loadPreview(data);
+         }
+     }
+
+     // 3) 상단 툴바 표준 계약 (규칙 9)
+     currentPane.onSearch = function () {
+         loadGridData();
+     };
+     currentPane.onExcel = function () {
+         if (reportViewer && currentSelectedRowData) {
+             reportViewer.exportFormat('excel');
+         } else if (grid && grid.getData().length > 0) {
+             grid.download("xlsx", "목록.xlsx");
+         }
+     };
+     currentPane.onRefresh = function () {
+         if (grid) grid.clearData();
+         currentSelectedRowData = null;
+         lastLoadedMasterKey = null;
+         if (reportViewer) reportViewer.reset();
+     };
+     ```
 
 5. 가변 파라미터(JSON/Map) 기반 범용 RD 리포트 표준 규격:
    - **백엔드 범용 서비스 및 공통 엔드포인트 재사용 원칙**:

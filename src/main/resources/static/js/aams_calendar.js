@@ -106,6 +106,28 @@ window.AamsCalendar = (function() {
                 if (pane && typeof pane.querySelector === 'function') {
                     const el = pane.querySelector('#' + inputId);
                     if (el) return el;
+
+                    // MDI tab isolation: Check wrapper context inside pane
+                    const wrapperEl = pane.querySelector('.aams-calendar-wrapper');
+                    if (wrapperEl) {
+                        if (inputId.includes('popover')) {
+                            const p = wrapperEl.querySelector('.calendar-popover');
+                            if (p) return p;
+                        }
+                        if (inputId.includes('title')) {
+                            const t = wrapperEl.querySelector('.calendar-title');
+                            if (t) return t;
+                        }
+                        if (inputId.includes('monthsGrid')) {
+                            const m = wrapperEl.querySelector('.calendar-months-grid');
+                            if (m) return m;
+                        }
+                        if (inputId.includes('daysGrid')) {
+                            const d = wrapperEl.querySelector('.calendar-days-grid');
+                            if (d) return d;
+                        }
+                    }
+                    return null;
                 }
             } catch (e) {
                 // Ignore querySelector syntax errors
@@ -167,30 +189,29 @@ window.AamsCalendar = (function() {
                 }
             }
 
-            // 2. Create or recreate Popover DOM
-            let popover = document.getElementById(inst.popoverId);
-            if (popover) {
-                popover.remove();
+            // 2. Create or recreate Popover DOM *only within this specific wrapper*
+            let popover = wrapper.querySelector('.calendar-popover');
+            if (!popover) {
+                popover = document.createElement('div');
+                popover.className = 'calendar-popover';
+                popover.style.cssText = 'display: none; position: absolute; top: 100%; left: 0; margin-top: 6px; z-index: 9999; background: #ffffff; border: 1px solid #708090; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2); width: 235px; padding: 4px; font-family: "맑은 고딕", sans-serif;';
+                wrapper.appendChild(popover);
             }
-
-            popover = document.createElement('div');
             popover.id = inst.popoverId;
-            popover.className = 'calendar-popover';
-            popover.style.cssText = 'display: none; position: absolute; top: 100%; left: 0; margin-top: 6px; z-index: 9999; background: #ffffff; border: 1px solid #708090; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2); width: 235px; padding: 4px; font-family: "맑은 고딕", sans-serif;';
 
             popover.innerHTML = `
                 <div style="display: flex; align-items: center; justify-content: space-between; padding: 4px 2px; border-bottom: 1px solid #e2e8f0; font-size: 13px;">
                     <div style="display: flex; align-items: center; gap: 3px;">
-                        <button type="button" onclick="AamsCalendar.prevYear('${inputId}')" title="이전 년도" style="background: none; border: none; cursor: pointer; color: #2563eb; font-weight: bold; font-size: 13px; padding: 0 2px;">«</button>
-                        <button type="button" onclick="AamsCalendar.prevMonth('${inputId}')" title="이전 월" style="background: none; border: none; cursor: pointer; color: #2563eb; font-weight: bold; font-size: 13px; padding: 0 2px;">‹</button>
-                        <span id="${inst.titleId}" style="font-weight: 700; font-size: 13px; color: #1e293b; margin: 0 4px;"></span>
-                        <button type="button" onclick="AamsCalendar.nextMonth('${inputId}')" title="다음 월" style="background: none; border: none; cursor: pointer; color: #2563eb; font-weight: bold; font-size: 13px; padding: 0 2px;">›</button>
-                        <button type="button" onclick="AamsCalendar.nextYear('${inputId}')" title="다음 년도" style="background: none; border: none; cursor: pointer; color: #2563eb; font-weight: bold; font-size: 13px; padding: 0 2px;">»</button>
+                        <button type="button" onclick="AamsCalendar.prevYear('${inputId}', event)" title="이전 년도" style="background: none; border: none; cursor: pointer; color: #2563eb; font-weight: bold; font-size: 13px; padding: 0 2px;">«</button>
+                        <button type="button" onclick="AamsCalendar.prevMonth('${inputId}', event)" title="이전 월" style="background: none; border: none; cursor: pointer; color: #2563eb; font-weight: bold; font-size: 13px; padding: 0 2px;">‹</button>
+                        <span id="${inst.titleId}" class="calendar-title" style="font-weight: 700; font-size: 13px; color: #1e293b; margin: 0 4px;"></span>
+                        <button type="button" onclick="AamsCalendar.nextMonth('${inputId}', event)" title="다음 월" style="background: none; border: none; cursor: pointer; color: #2563eb; font-weight: bold; font-size: 13px; padding: 0 2px;">›</button>
+                        <button type="button" onclick="AamsCalendar.nextYear('${inputId}', event)" title="다음 년도" style="background: none; border: none; cursor: pointer; color: #2563eb; font-weight: bold; font-size: 13px; padding: 0 2px;">»</button>
                     </div>
-                    <button type="button" onclick="AamsCalendar.setToday('${inputId}')" style="background: #ffffff; border: 1px solid #16a34a; color: #16a34a; font-weight: bold; padding: 1px 7px; font-size: 11px; cursor: pointer; border-radius: 2px;">오늘</button>
+                    <button type="button" onclick="AamsCalendar.setToday('${inputId}', event)" style="background: #ffffff; border: 1px solid #16a34a; color: #16a34a; font-weight: bold; padding: 1px 7px; font-size: 11px; cursor: pointer; border-radius: 2px;">오늘</button>
                 </div>
                 <div style="background-color: #3b4859; color: #ffffff; padding: 4px 3px; margin: 3px 0;">
-                    <div id="${inst.monthsGridId}" style="display: grid; grid-template-columns: repeat(6, 1fr); gap: 2px; text-align: center; font-size: 11px;"></div>
+                    <div id="${inst.monthsGridId}" class="calendar-months-grid" style="display: grid; grid-template-columns: repeat(6, 1fr); gap: 2px; text-align: center; font-size: 11px;"></div>
                 </div>
                 <div style="display: grid; grid-template-columns: repeat(7, 1fr); text-align: center; font-weight: 600; font-size: 12px; padding: 3px 0; background: #fafafa;">
                     <span style="color: #ef4444;">일</span>
@@ -201,10 +222,8 @@ window.AamsCalendar = (function() {
                     <span style="color: #334155;">금</span>
                     <span style="color: #2563eb;">토</span>
                 </div>
-                <div id="${inst.daysGridId}" style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 1px; text-align: center; font-size: 12px; padding: 2px 0;"></div>
+                <div id="${inst.daysGridId}" class="calendar-days-grid" style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 1px; text-align: center; font-size: 12px; padding: 2px 0;"></div>
             `;
-
-            wrapper.appendChild(popover);
         },
 
         loadHighlightDates: function(inputId, apiUrl, paramCorpGr) {
@@ -234,16 +253,21 @@ window.AamsCalendar = (function() {
             if (inputId && typeof inputId === 'object' && inputId.nodeType === 1) {
                 inputId = inputId.id || inputId.getAttribute('name') || 'filterYmd';
             }
+
+            // 1) 이벤트 발생 위치로부터 현재 wrapper 및 tab-pane 감지
+            const currentWrapper = (e && e.target && typeof e.target.closest === 'function') ? e.target.closest('.aams-calendar-wrapper') : null;
+            const eventPane = (currentWrapper && typeof currentWrapper.closest === 'function')
+                ? currentWrapper.closest('.tab-pane')
+                : ((e && e.target && typeof e.target.closest === 'function') ? e.target.closest('.tab-pane') : null);
+
             let inst = instances[inputId];
-            
-            // Event target에서 현재 활성 tab-pane 감지 및 인스턴스 pane 보정
-            const eventPane = (e && e.target && typeof e.target.closest === 'function') ? e.target.closest('.tab-pane') : null;
+
             if (eventPane) {
                 if (!inst) {
-                    const paneInput = eventPane.querySelector('#' + inputId);
+                    const paneInput = (currentWrapper ? currentWrapper.querySelector('input') : null) || eventPane.querySelector('#' + inputId);
                     this.initSimple(inputId, { pane: eventPane, initialYmd: paneInput ? paneInput.value : "" });
                     inst = instances[inputId];
-                } else if (inst.pane && inst.pane !== eventPane) {
+                } else {
                     inst.pane = eventPane;
                 }
             }
@@ -259,42 +283,76 @@ window.AamsCalendar = (function() {
                 console.warn("[AamsCalendar] No calendar instance registered for:", inputId);
                 return;
             }
-            let popover = this.getElement(inst.popoverId, inst.pane);
+
+            // 2) 현재 wrapper 내부에서 popover 찾기 (없으면 현재 wrapper에 즉시 생성)
+            let popover = null;
+            if (currentWrapper) {
+                popover = currentWrapper.querySelector('.calendar-popover');
+                if (!popover) {
+                    const inputVal = (currentWrapper.querySelector('input') ? currentWrapper.querySelector('input').value : "") || inst.initialYmd || "";
+                    this.buildDOM(inputId, inputVal);
+                    popover = currentWrapper.querySelector('.calendar-popover');
+                }
+            }
             if (!popover) {
-                this.buildDOM(inputId, inst.initialYmd || "");
                 popover = this.getElement(inst.popoverId, inst.pane);
+                if (!popover) {
+                    this.buildDOM(inputId, inst.initialYmd || "");
+                    popover = this.getElement(inst.popoverId, inst.pane);
+                }
             }
             if (!popover) return;
+
+            // 3) 다른 열려있는 모든 popover 닫기
+            document.querySelectorAll('.calendar-popover').forEach(function(p) {
+                if (p !== popover) p.style.display = 'none';
+            });
+
+            // 4) 현재 팝오버 토글
             if (popover.style.display === "none" || popover.style.display === "") {
-                this.render(inputId);
+                const currentInput = (currentWrapper ? currentWrapper.querySelector('input') : null) || this.getElement(inputId, inst.pane);
+                if (currentInput && currentInput.value) {
+                    const parts = currentInput.value.replace(/[^0-9]/g, '');
+                    if (parts.length === 8) {
+                        inst.calYear = parseInt(parts.substring(0, 4), 10);
+                        inst.calMonth = parseInt(parts.substring(4, 6), 10) - 1;
+                    }
+                }
+                this.render(inputId, popover);
                 popover.style.display = "block";
             } else {
                 popover.style.display = "none";
             }
         },
 
-        close: function(inputId) {
+        close: function(inputId, targetPopover) {
+            if (targetPopover) {
+                targetPopover.style.display = "none";
+                return;
+            }
             const inst = instances[inputId];
             if (!inst) return;
             const popover = this.getElement(inst.popoverId, inst.pane);
             if (popover) popover.style.display = "none";
         },
 
-        prevYear: function(inputId) {
+        prevYear: function(inputId, e) {
             const inst = instances[inputId];
             if (!inst) return;
             inst.calYear--;
-            this.render(inputId);
+            const popover = (e && e.target) ? e.target.closest('.calendar-popover') : null;
+            this.render(inputId, popover);
         },
 
-        nextYear: function(inputId) {
+        nextYear: function(inputId, e) {
             const inst = instances[inputId];
             if (!inst) return;
             inst.calYear++;
-            this.render(inputId);
+            const popover = (e && e.target) ? e.target.closest('.calendar-popover') : null;
+            this.render(inputId, popover);
         },
 
-        prevMonth: function(inputId) {
+        prevMonth: function(inputId, e) {
             const inst = instances[inputId];
             if (!inst) return;
             inst.calMonth--;
@@ -302,10 +360,11 @@ window.AamsCalendar = (function() {
                 inst.calMonth = 11;
                 inst.calYear--;
             }
-            this.render(inputId);
+            const popover = (e && e.target) ? e.target.closest('.calendar-popover') : null;
+            this.render(inputId, popover);
         },
 
-        nextMonth: function(inputId) {
+        nextMonth: function(inputId, e) {
             const inst = instances[inputId];
             if (!inst) return;
             inst.calMonth++;
@@ -313,17 +372,19 @@ window.AamsCalendar = (function() {
                 inst.calMonth = 0;
                 inst.calYear++;
             }
-            this.render(inputId);
+            const popover = (e && e.target) ? e.target.closest('.calendar-popover') : null;
+            this.render(inputId, popover);
         },
 
-        selectMonth: function(inputId, mIndex) {
+        selectMonth: function(inputId, mIndex, e) {
             const inst = instances[inputId];
             if (!inst) return;
             inst.calMonth = mIndex;
-            this.render(inputId);
+            const popover = (e && e.target) ? e.target.closest('.calendar-popover') : null;
+            this.render(inputId, popover);
         },
 
-        setToday: function(inputId) {
+        setToday: function(inputId, e) {
             const inst = instances[inputId];
             if (!inst) return;
             const now = new Date();
@@ -332,31 +393,36 @@ window.AamsCalendar = (function() {
             const d = String(now.getDate()).padStart(2, '0');
             const todayStr = `${y}-${m}-${d}`;
             
-            const inputEl = this.getElement(inputId, inst.pane);
+            const popover = (e && e.target) ? e.target.closest('.calendar-popover') : null;
+            const wrapper = popover ? popover.closest('.aams-calendar-wrapper') : null;
+            const inputEl = (wrapper ? wrapper.querySelector('input') : null) || this.getElement(inputId, inst.pane);
             if (inputEl) {
                 inputEl.value = todayStr;
                 try {
                     inputEl.dispatchEvent(new Event('input', { bubbles: true }));
                     inputEl.dispatchEvent(new Event('change', { bubbles: true }));
-                } catch(e) {}
+                } catch(err) {}
             }
 
             inst.calYear = y;
             inst.calMonth = now.getMonth();
-            this.close(inputId);
+            this.close(inputId, popover);
 
             if (typeof inst.onSelect === 'function') {
                 inst.onSelect(todayStr);
             }
         },
 
-        render: function(inputId) {
+        render: function(inputId, targetPopover) {
             const inst = instances[inputId];
             if (!inst) return;
 
-            const titleEl = this.getElement(inst.titleId, inst.pane);
-            const monthsGridEl = this.getElement(inst.monthsGridId, inst.pane);
-            const daysGridEl = this.getElement(inst.daysGridId, inst.pane);
+            const popover = targetPopover || (inst.pane ? (inst.pane.querySelector('.calendar-popover') || this.getElement(inst.popoverId, inst.pane)) : document.getElementById(inst.popoverId));
+            if (!popover) return;
+
+            const titleEl = popover.querySelector('.calendar-title') || this.getElement(inst.titleId, inst.pane);
+            const monthsGridEl = popover.querySelector('.calendar-months-grid') || this.getElement(inst.monthsGridId, inst.pane);
+            const daysGridEl = popover.querySelector('.calendar-days-grid') || this.getElement(inst.daysGridId, inst.pane);
             if (!titleEl || !monthsGridEl || !daysGridEl) return;
 
             // 1. Header Title
@@ -479,8 +545,10 @@ window.AamsCalendar = (function() {
             const self = this;
             btn.onclick = function(e) {
                 e.stopPropagation();
+                const popover = btn.closest('.calendar-popover');
+                const wrapper = popover ? popover.closest('.aams-calendar-wrapper') : null;
                 const inst = instances[inputId];
-                const inputEl = self.getElement(inputId, inst ? inst.pane : null);
+                const inputEl = (wrapper ? wrapper.querySelector('input') : null) || self.getElement(inputId, inst ? inst.pane : null);
                 if (inputEl) {
                     inputEl.value = ymd;
                     try {
@@ -488,7 +556,7 @@ window.AamsCalendar = (function() {
                         inputEl.dispatchEvent(new Event('change', { bubbles: true }));
                     } catch(err) {}
                 }
-                self.close(inputId);
+                self.close(inputId, popover);
 
                 if (inst && typeof inst.onSelect === 'function') {
                     inst.onSelect(ymd);
@@ -504,16 +572,15 @@ window.AamsCalendar = (function() {
 
             const self = this;
             document.addEventListener("click", function(e) {
-                const currentInst = instances[inputId];
-                if (!currentInst) return;
-                const popover = self.getElement(currentInst.popoverId, currentInst.pane);
-                const inputEl = self.getElement(inputId, currentInst.pane);
-                const wrapper = popover ? popover.closest(".aams-calendar-wrapper") : (inputEl ? inputEl.closest(".aams-calendar-wrapper") : null);
-                if (popover && popover.style.display === "block") {
-                    if (wrapper && !wrapper.contains(e.target)) {
-                        self.close(inputId);
+                const openPopovers = document.querySelectorAll('.calendar-popover');
+                openPopovers.forEach(function(popover) {
+                    if (popover.style.display === "block") {
+                        const wrapper = popover.closest(".aams-calendar-wrapper");
+                        if (wrapper && !wrapper.contains(e.target)) {
+                            popover.style.display = "none";
+                        }
                     }
-                }
+                });
             });
             inst.clickBound = true;
         },

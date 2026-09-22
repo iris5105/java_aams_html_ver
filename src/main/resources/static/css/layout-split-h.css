@@ -23,6 +23,7 @@
 
 /* 2. Left Pane (Default 60%, customizable via --left-size or style) */
 .layout-split-h > .pane-left,
+.layout-split-h > .left-pane,
 .layout-split-h > .master-section {
     flex: 0 0 var(--left-size, calc(60% - 3px));
     min-width: 240px;
@@ -83,6 +84,7 @@
 
 /* 4. Right Pane (Default 40%, customizable via --right-size or style) */
 .layout-split-h > .pane-right,
+.layout-split-h > .right-pane,
 .layout-split-h > .detail-section {
     flex: 1 1 auto;
     min-width: 280px;
@@ -138,6 +140,19 @@
 
 /* 6. Tablet-S / Mobile Responsive Layout (<= 876px) */
 @media (max-width: 876px) {
+    /* 6-0. 최상위 모바일 스택 컨테이너 규격 */
+    .layout-mobile-stack-container {
+        display: flex !important;
+        flex-direction: column !important;
+        height: 100% !important;
+        max-height: 100% !important;
+        overflow-y: auto !important;
+        overflow-x: hidden !important;
+        -webkit-overflow-scrolling: touch !important;
+        padding-bottom: 36px !important;
+        box-sizing: border-box !important;
+    }
+
     .layout-split-h {
         flex-direction: column !important;
         padding: 4px !important;
@@ -151,6 +166,7 @@
 
     /* 6-A. 기본 규격 (우측 패널에 리포트 뷰어가 포함되어 있지 않은 경우): 좌측 패널 하단으로 우측 패널이 이동하여 상하 50:50 분할 표출 */
     .layout-split-h > .pane-left,
+    .layout-split-h > .left-pane,
     .layout-split-h > .master-section {
         flex: 1 1 50% !important;
         width: 100% !important;
@@ -161,6 +177,7 @@
     }
 
     .layout-split-h > .pane-right,
+    .layout-split-h > .right-pane,
     .layout-split-h > .detail-section {
         display: flex !important;
         flex: 1 1 50% !important;
@@ -173,6 +190,7 @@
 
     /* 6-B. 우측 패널에 리포트 뷰어(report viewer)가 포함되어 있는 경우: 우측 패널을 숨기고 좌측 마스터 패널 100% 전폭 표출 (행 클릭 시 모달 팝업 연동) */
     .layout-split-h:has(> .pane-right:has(.report-card, .report-frame, iframe, .export-button-group, .report-viewer, [id*="report"], [id*="Report"])),
+    .layout-split-h:has(> .right-pane:has(.report-card, .report-frame, iframe, .export-button-group, .report-viewer, [id*="report"], [id*="Report"])),
     .layout-split-h:has(> .detail-section:has(.report-card, .report-frame, iframe, .export-button-group, .report-viewer, [id*="report"], [id*="Report"])),
     .layout-split-h:has(> .report-card),
     .layout-split-h:has(> .report-viewer) {
@@ -180,12 +198,19 @@
     }
 
     .layout-split-h:has(> .pane-right:has(.report-card, .report-frame, iframe, .export-button-group, .report-viewer, [id*="report"], [id*="Report"])) > .pane-left,
+    .layout-split-h:has(> .pane-right:has(.report-card, .report-frame, iframe, .export-button-group, .report-viewer, [id*="report"], [id*="Report"])) > .left-pane,
     .layout-split-h:has(> .pane-right:has(.report-card, .report-frame, iframe, .export-button-group, .report-viewer, [id*="report"], [id*="Report"])) > .master-section,
+    .layout-split-h:has(> .right-pane:has(.report-card, .report-frame, iframe, .export-button-group, .report-viewer, [id*="report"], [id*="Report"])) > .pane-left,
+    .layout-split-h:has(> .right-pane:has(.report-card, .report-frame, iframe, .export-button-group, .report-viewer, [id*="report"], [id*="Report"])) > .left-pane,
+    .layout-split-h:has(> .right-pane:has(.report-card, .report-frame, iframe, .export-button-group, .report-viewer, [id*="report"], [id*="Report"])) > .master-section,
     .layout-split-h:has(> .detail-section:has(.report-card, .report-frame, iframe, .export-button-group, .report-viewer, [id*="report"], [id*="Report"])) > .pane-left,
+    .layout-split-h:has(> .detail-section:has(.report-card, .report-frame, iframe, .export-button-group, .report-viewer, [id*="report"], [id*="Report"])) > .left-pane,
     .layout-split-h:has(> .detail-section:has(.report-card, .report-frame, iframe, .export-button-group, .report-viewer, [id*="report"], [id*="Report"])) > .master-section,
     .layout-split-h:has(> .report-card) > .pane-left,
+    .layout-split-h:has(> .report-card) > .left-pane,
     .layout-split-h:has(> .report-card) > .master-section,
     .layout-split-h:has(> .report-viewer) > .pane-left,
+    .layout-split-h:has(> .report-viewer) > .left-pane,
     .layout-split-h:has(> .report-viewer) > .master-section {
         flex: 1 1 100% !important;
         height: 100% !important;
@@ -193,6 +218,7 @@
     }
 
     .layout-split-h > .pane-right:has(.report-card, .report-frame, iframe, .export-button-group, .report-viewer, [id*="report"], [id*="Report"]),
+    .layout-split-h > .right-pane:has(.report-card, .report-frame, iframe, .export-button-group, .report-viewer, [id*="report"], [id*="Report"]),
     .layout-split-h > .detail-section:has(.report-card, .report-frame, iframe, .export-button-group, .report-viewer, [id*="report"], [id*="Report"]),
     .layout-split-h > .report-card,
     .layout-split-h > .report-viewer {
@@ -205,40 +231,66 @@
     .layout-split-h:has(.matter-section),
     .layout-split-h:has(.comment-section),
     .layout-split-h:has(.multi-stack-pane) {
+        display: flex !important;
+        flex-direction: column !important;
+        flex: 0 0 auto !important;
+        width: 100% !important;
         height: auto !important;
-        min-height: 100% !important;
-        overflow: visible !important;
+        min-height: 0 !important;
+        max-height: none !important;
+        padding: 6px !important;
         gap: 12px !important;
+        overflow: visible !important;
     }
 
     .layout-split-h.layout-mobile-stack > .pane-left,
+    .layout-split-h.layout-mobile-stack > .left-pane,
     .layout-split-h.layout-mobile-stack > .master-section,
     .layout-split-h:has(.proposal-right-pane) > .pane-left,
+    .layout-split-h:has(.proposal-right-pane) > .left-pane,
     .layout-split-h:has(.proposal-right-pane) > .master-section,
     .layout-split-h:has(.matter-section) > .pane-left,
+    .layout-split-h:has(.matter-section) > .left-pane,
     .layout-split-h:has(.matter-section) > .master-section,
     .layout-split-h:has(.comment-section) > .pane-left,
+    .layout-split-h:has(.comment-section) > .left-pane,
     .layout-split-h:has(.comment-section) > .master-section,
     .layout-split-h:has(.multi-stack-pane) > .pane-left,
+    .layout-split-h:has(.multi-stack-pane) > .left-pane,
     .layout-split-h:has(.multi-stack-pane) > .master-section {
+        display: flex !important;
+        flex-direction: column !important;
         flex: 0 0 250px !important;
+        width: 100% !important;
         height: 250px !important;
         min-height: 250px !important;
         max-height: 250px !important;
+        border: 1px solid #cbd5e1 !important;
+        border-radius: 6px !important;
+        overflow: hidden !important;
+        background: #ffffff !important;
+        box-sizing: border-box !important;
     }
 
     .layout-split-h.layout-mobile-stack > .pane-right,
+    .layout-split-h.layout-mobile-stack > .right-pane,
     .layout-split-h.layout-mobile-stack > .detail-section,
     .layout-split-h:has(.proposal-right-pane) > .pane-right,
+    .layout-split-h:has(.proposal-right-pane) > .right-pane,
     .layout-split-h:has(.proposal-right-pane) > .detail-section,
     .layout-split-h:has(.matter-section) > .pane-right,
+    .layout-split-h:has(.matter-section) > .right-pane,
     .layout-split-h:has(.matter-section) > .detail-section,
     .layout-split-h:has(.comment-section) > .pane-right,
+    .layout-split-h:has(.comment-section) > .right-pane,
     .layout-split-h:has(.comment-section) > .detail-section,
     .layout-split-h:has(.multi-stack-pane) > .pane-right,
+    .layout-split-h:has(.multi-stack-pane) > .right-pane,
     .layout-split-h:has(.multi-stack-pane) > .detail-section {
         display: flex !important;
+        flex-direction: column !important;
         flex: 0 0 auto !important;
+        width: 100% !important;
         height: auto !important;
         min-height: 0 !important;
         max-height: none !important;
@@ -246,6 +298,60 @@
         background: transparent !important;
         border: none !important;
         gap: 12px !important;
+        padding: 0 !important;
+        box-sizing: border-box !important;
+    }
+
+    /* 6-C-1. 모바일 메모 스택 카드 */
+    .layout-split-h .memo-stack-card {
+        display: flex !important;
+        flex-direction: column !important;
+        flex: 0 0 140px !important;
+        width: 100% !important;
+        height: 140px !important;
+        min-height: 140px !important;
+        max-height: 140px !important;
+        border: 1px solid #cbd5e1 !important;
+        border-radius: 6px !important;
+        background: #ffffff !important;
+        overflow: hidden !important;
+        box-sizing: border-box !important;
+    }
+
+    .layout-split-h .memo-stack-card textarea,
+    .layout-split-h .stack-textarea {
+        flex: 1 1 auto !important;
+        width: 100% !important;
+        height: calc(140px - 32px) !important;
+        min-height: 70px !important;
+        padding: 8px !important;
+        box-sizing: border-box !important;
+        border: none !important;
+        outline: none !important;
+        resize: none !important;
+        font-size: 12px !important;
+    }
+
+    /* 6-C-2. 모바일 서브 그리드 스택 카드 */
+    .layout-split-h .grid-stack-card {
+        display: flex !important;
+        flex-direction: column !important;
+        flex: 0 0 220px !important;
+        width: 100% !important;
+        height: 220px !important;
+        min-height: 220px !important;
+        max-height: 220px !important;
+        border: 1px solid #cbd5e1 !important;
+        border-radius: 6px !important;
+        background: #ffffff !important;
+        overflow: hidden !important;
+        box-sizing: border-box !important;
+    }
+
+    .layout-split-h .grid-stack-card .grid-table-wrapper {
+        flex: 1 1 auto !important;
+        height: calc(220px - 32px) !important;
+        overflow: hidden !important;
     }
 }
 

@@ -285,9 +285,11 @@ class TabManager {
                 });
         }
 
-        // 7. Activate newly created tab
-        this.switchTab(tabKey);
-        this.saveStateToStorage();
+        // 7. Activate newly created tab (skip intermediate activations during restore)
+        if (!this.isRestoring) {
+            this.switchTab(tabKey);
+            this.saveStateToStorage();
+        }
     }
 
     switchTab(tabKey) {
@@ -314,8 +316,8 @@ class TabManager {
                 }
             });
 
-            // 소속 대분류가 변경되었으면 사이드바 메뉴도 해당 대분류로 로드
-            if (window.g_currentPgmNo !== topNo) {
+            // 소속 대분류가 변경되었으면 사이드바 메뉴도 해당 대분류로 로드 (복원 중에는 최종 1회만 호출)
+            if (!this.isRestoring && window.g_currentPgmNo !== topNo) {
                 topChanged = true;
                 window.g_currentPgmNo = topNo;
                 if (typeof window.loadSideMenu === 'function') {
@@ -432,6 +434,9 @@ class TabManager {
             if (btnCloseAll) btnCloseAll.style.display = "none";
             this.activeTabKey = null;
             this.highlightSidebarMenu(null);
+            if (typeof window.loadHomeDashboardData === 'function') {
+                window.loadHomeDashboardData();
+            }
         } else {
             if (homePane) homePane.style.display = "none";
             if (contentContainer) contentContainer.style.display = "block";

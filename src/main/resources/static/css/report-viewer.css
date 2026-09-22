@@ -19,6 +19,60 @@
     position: relative;
 }
 
+/* 1-A. 단일 리포트 화면 (Single Report View Layout) 표준 규격 */
+.layout-single .report-container-panel,
+.report-container-panel {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    height: calc(100% - 85px) !important;
+    width: 100% !important;
+    overflow: hidden !important;
+    padding: 6px 8px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    background-color: #f8fafc !important;
+    box-sizing: border-box !important;
+}
+
+.layout-single .report-card,
+.report-container-panel > .report-card {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    height: 100% !important;
+    width: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
+    background: #ffffff !important;
+    border: 1px solid #cbd5e1 !important;
+    border-radius: 6px !important;
+    overflow: hidden !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05) !important;
+    box-sizing: border-box !important;
+}
+
+.report-container-panel .report-body,
+.layout-single .report-card .report-body {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    height: calc(100% - 41px) !important;
+    width: 100% !important;
+    position: relative !important;
+    overflow: hidden !important;
+    background-color: #525659 !important;
+}
+
+.report-container-panel iframe,
+.report-container-panel .report-frame,
+.layout-single .report-card iframe,
+.layout-single .report-card .report-frame {
+    width: 100% !important;
+    height: 100% !important;
+    min-height: 100% !important;
+    border: none !important;
+    display: block !important;
+    background-color: #525659 !important;
+}
+
 /* 2. Report Frame & Placeholder & Loading */
 .report-frame {
     width: 100%;
@@ -165,7 +219,8 @@
     box-sizing: border-box;
 }
 
-.report-modal-dialog {
+.report-modal-dialog,
+.report-modal-content {
     background: #ffffff;
     border-radius: 8px;
     width: 100%;

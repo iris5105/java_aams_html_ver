@@ -12,6 +12,9 @@ window.g_currentPgmNo = window.g_currentPgmNo || '00804';
 let g_lastIsMobile = (window.innerWidth <= 876);
 let g_topMenuDataCache = null;
 let g_allMenuListCache = null;
+window.g_sideMenuDataCache = window.g_sideMenuDataCache || {};
+let g_sideMenuDataCache = window.g_sideMenuDataCache;
+let g_loadingSideMenuPgm = {};
 let g_searchActiveIndex = -1;
 
 /**
@@ -154,22 +157,45 @@ function onHeaderMenuClick(el) {
     }
 }
 
+let g_loadingTopMenu = false;
 function initSidebarTopTree(activePgmNo) {
     const container = document.getElementById('sidebarMenuContainer');
     if (!container) return;
 
-    if (g_topMenuDataCache) {
-        renderTopCategoryFolders(g_topMenuDataCache, activePgmNo);
+    const targetActiveNo = activePgmNo || window.g_currentPgmNo || '00804';
+
+    // 1. 이미 캐시가 있으면 즉시 렌더링
+    if (g_topMenuDataCache && g_topMenuDataCache.length > 0) {
+        renderTopCategoryFolders(g_topMenuDataCache, targetActiveNo);
         return;
     }
 
+    // 2. DOM(#topNavContainer)에 서버사이드로 렌더링된 상단 메뉴가 존재하면 네트워크 호출 없이 즉시 추출 (Zero API Call)
+    const domItems = document.querySelectorAll('#topNavContainer .top-nav-item');
+    if (domItems && domItems.length > 0) {
+        g_topMenuDataCache = Array.from(domItems).map(el => ({
+            pgmNo: el.getAttribute('data-pgm-no'),
+            pgmNm: el.innerText.trim()
+        }));
+        renderTopCategoryFolders(g_topMenuDataCache, targetActiveNo);
+        return;
+    }
+
+    // 3. Fallback: DOM에 없을 경우에만 1회 네트워크 fetch (중복 호출 락 적용)
+    if (g_loadingTopMenu) return;
+    g_loadingTopMenu = true;
+
     getSafeFetchJson('/api/menu/top')
         .then(data => {
+            g_loadingTopMenu = false;
             if (!data || data.length === 0) {
                 return;
             }
             g_topMenuDataCache = data;
-            renderTopCategoryFolders(g_topMenuDataCache, activePgmNo);
+            renderTopCategoryFolders(g_topMenuDataCache, targetActiveNo);
+        })
+        .catch(() => {
+            g_loadingTopMenu = false;
         });
 }
 
@@ -177,7 +203,14 @@ function renderTopCategoryFolders(topList, activePgmNo) {
     const container = document.getElementById('sidebarMenuContainer');
     if (!container) return;
 
-    const targetActiveNo = activePgmNo || (topList[0] ? topList[0].pgmNo : '01000');
+    const targetActiveNo = activePgmNo || window.g_currentPgmNo || (topList[0] ? topList[0].pgmNo : '00804');
+
+    // 이미 대분류 폴더들이 렌더링되어 있다면 DOM을 통째로 재작성하지 않고 활성 폴더만 확장
+    const existingGroups = container.querySelectorAll('.top-menu-group');
+    if (existingGroups && existingGroups.length > 0) {
+        expandTopCategoryFolder(targetActiveNo);
+        return;
+    }
 
     let html = '';
     topList.forEach(item => {
@@ -235,18 +268,32 @@ function loadTopCategorySubTree(pgmNo) {
     const childContainer = document.getElementById(`top-menu-children-${pgmNo}`);
     if (!childContainer) return;
 
-    if (childContainer.children.length === 0) {
+    if (g_sideMenuDataCache[pgmNo]) {
+        childContainer.innerHTML = renderSubTreeHtml(g_sideMenuDataCache[pgmNo]);
+        if (window.tabManager && window.tabManager.activeTabKey) {
+            window.tabManager.highlightSidebarMenu(window.tabManager.activeTabKey);
+        }
+        return;
+    }
+
+    if (childContainer.children.length === 0 && !g_loadingSideMenuPgm[pgmNo]) {
+        g_loadingSideMenuPgm[pgmNo] = true;
         childContainer.innerHTML = '<div style="padding: 8px 16px; color: #94a3b8; font-size: 11px;"><i class="fa-solid fa-spinner fa-spin"></i> 로딩 중...</div>';
         getSafeFetchJson(`/api/menu/side?pgmNo=${encodeURIComponent(pgmNo)}`)
             .then(data => {
+                g_loadingSideMenuPgm[pgmNo] = false;
                 if (!data || data.length === 0) {
                     childContainer.innerHTML = '<div style="padding: 8px 16px; color: #64748b; font-size: 11px;">하위 메뉴 없음</div>';
                     return;
                 }
+                g_sideMenuDataCache[pgmNo] = data;
                 childContainer.innerHTML = renderSubTreeHtml(data);
                 if (window.tabManager && window.tabManager.activeTabKey) {
                     window.tabManager.highlightSidebarMenu(window.tabManager.activeTabKey);
                 }
+            })
+            .catch(() => {
+                g_loadingSideMenuPgm[pgmNo] = false;
             });
     } else {
         if (window.tabManager && window.tabManager.activeTabKey) {
@@ -277,16 +324,32 @@ function loadSideMenu(pgmNo) {
     const container = document.getElementById('sidebarMenuContainer');
     if (!container) return;
 
+    if (g_sideMenuDataCache[targetNo]) {
+        container.innerHTML = renderSubTreeHtml(g_sideMenuDataCache[targetNo]);
+        if (window.tabManager && window.tabManager.activeTabKey) {
+            window.tabManager.highlightSidebarMenu(window.tabManager.activeTabKey);
+        }
+        return;
+    }
+
+    if (g_loadingSideMenuPgm[targetNo]) return;
+    g_loadingSideMenuPgm[targetNo] = true;
+
     getSafeFetchJson(`/api/menu/side?pgmNo=${encodeURIComponent(targetNo)}`)
         .then(data => {
+            g_loadingSideMenuPgm[targetNo] = false;
             if (!data || !Array.isArray(data) || data.length === 0) {
                 console.warn(`No side menu items returned for pgmNo=${targetNo}`);
                 return;
             }
+            g_sideMenuDataCache[targetNo] = data;
             container.innerHTML = renderSubTreeHtml(data);
             if (window.tabManager && window.tabManager.activeTabKey) {
                 window.tabManager.highlightSidebarMenu(window.tabManager.activeTabKey);
             }
+        })
+        .catch(() => {
+            g_loadingSideMenuPgm[targetNo] = false;
         });
 }
 
@@ -696,9 +759,13 @@ document.addEventListener('click', function(e) {
     }
 });
 
-// Window resize listener to handle responsive sidebar/header mode
+// Window resize listener with debounce to handle responsive sidebar/header mode
+let g_headerResizeTimer = null;
 window.addEventListener('resize', function() {
-    checkHeaderCollision();
+    clearTimeout(g_headerResizeTimer);
+    g_headerResizeTimer = setTimeout(function() {
+        checkHeaderCollision();
+    }, 100);
 });
 
 // Auto-load side menu for active top nav item on DOMContentLoaded (supports F5 refresh persistence)
@@ -742,8 +809,8 @@ document.addEventListener("DOMContentLoaded", function() {
     }
 
     window.g_currentPgmNo = pgmNo;
-    loadSideMenu(pgmNo);
 
-    // Header collision check
-    setTimeout(checkHeaderCollision, 50);
+    // 3. 선행 뷰포트 모드 확정 후 단일 1회 로드
+    checkHeaderCollision();
+    loadSideMenu(pgmNo);
 });

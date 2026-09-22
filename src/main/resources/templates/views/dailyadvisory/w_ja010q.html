@@ -6,113 +6,15 @@
      style="display: flex; flex-direction: column; height: 100%; width: 100%; overflow: hidden;">
 
     <style>
-        /* 1. 상단 툴바: 스크린샷과 동일하게 [닫기], [조회], [엑셀] 3개 버튼만 노출 */
+        /* 상단 툴바: [닫기], [조회], [엑셀]만 노출 */
         .ja010q-container .btn-refresh,
         .ja010q-container .btn-input,
         .ja010q-container .btn-delete,
         .ja010q-container .btn-save {
             display: none !important;
         }
-
         .ja010q-container .btn-excel {
             display: inline-flex !important;
-        }
-
-        /* 2. 필터바 스타일 */
-        .ja010q-container .filter-bar {
-            background-color: #ffffff;
-            border-bottom: 1px solid #cbd5e1;
-            padding: 5px 12px;
-            display: flex;
-            align-items: center;
-            justify-content: flex-start;
-            flex-shrink: 0;
-        }
-
-        /* 우측 RD 리포트 미리보기 패널 */
-        .ja010q-container .right-pane {
-            min-width: 400px;
-        }
-
-        .ja010q-container .pane-header {
-            padding: 6px 12px;
-            background: #f8fafc;
-            border-bottom: 1px solid #cbd5e1;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-shrink: 0;
-            min-height: 41px;
-        }
-
-        .ja010q-container .pane-body {
-            flex: 1 1 auto;
-            height: calc(100% - 41px);
-            width: 100%;
-            overflow: hidden;
-            position: relative;
-            background-color: #525659;
-        }
-
-
-        /* 4. 좌측 Tabulator 그리드 스타일링 */
-        .ja010q-container #ja010q-grid {
-            border: none;
-            font-size: 12px;
-            background-color: #ffffff;
-        }
-
-        .ja010q-container #ja010q-grid .tabulator-header {
-            background-color: #f1f5f9;
-            border-bottom: 1px solid #cbd5e1;
-            font-weight: 600;
-            color: #334155;
-        }
-
-        .ja010q-container #ja010q-grid .tabulator-col {
-            border-right: 1px solid #e2e8f0;
-            background-color: #f1f5f9;
-        }
-
-        .ja010q-container #ja010q-grid .tabulator-row {
-            border-bottom: 1px solid #e2e8f0;
-            min-height: 27px;
-            cursor: pointer;
-        }
-
-        .ja010q-container #ja010q-grid .tabulator-row:nth-child(even) {
-            background-color: #fafbfc;
-        }
-
-        .ja010q-container #ja010q-grid .tabulator-row:hover {
-            background-color: #f1f5f9;
-        }
-
-
-        .ja010q-container #ja010q-grid .tabulator-cell {
-            padding: 4px 6px;
-            border-right: 1px solid #e2e8f0;
-            display: flex;
-            align-items: center;
-        }
-
-        /* 반응형 모바일 규격 (width <= 876px) */
-        @media (max-width: 876px) {
-            .ja010q-container .split-body {
-                flex-direction: column !important;
-                padding: 4px !important;
-            }
-
-            .ja010q-container .left-pane {
-                flex: 1 1 100% !important;
-                width: 100% !important;
-                max-width: 100% !important;
-                border-right: 1px solid #cbd5e1 !important;
-            }
-
-            .ja010q-container .right-pane {
-                display: none !important;
-            }
         }
     </style>
 
@@ -143,59 +45,11 @@
         </div>
 
         <!-- 우측: RD Report 리포트 미리보기 뷰어 -->
-        <div class="pane-right right-pane">
-            <div class="pane-header">
-                <div>
-                    <span class="fw-bold small text-secondary" id="preview-header-title">
-                        <i class="fa-solid fa-file-invoice" style="margin-right: 4px;"></i> 성과보수 상세내역
-                    </span>
-                    <span id="preview-status" class="small text-muted ms-2"></span>
-                </div>
-                <div style="display: flex; align-items: center; gap: 6px;">
-                    <div class="export-button-group">
-                        <button type="button" class="btn-export-format export-format-btn btn-pdf" data-format="pdf" title="PDF 저장"><i class="fa-solid fa-file-pdf"></i> PDF</button>
-                        <button type="button" class="btn-export-format export-format-btn btn-excel" data-format="excel" title="Excel 저장"><i class="fa-solid fa-file-excel"></i> Excel</button>
-                        <button type="button" class="btn-export-format export-format-btn btn-word" data-format="word" title="Word 저장"><i class="fa-solid fa-file-word"></i> Word</button>
-                        <button type="button" class="btn-export-format export-format-btn btn-ppt" data-format="ppt" title="PowerPoint 저장"><i class="fa-solid fa-file-powerpoint"></i> PPT</button>
-                        <button type="button" class="btn-export-format export-format-btn btn-hwp" data-format="hwp" title="한글(HWP) 저장"><i class="fa-solid fa-file-lines"></i> 한글</button>
-                    </div>
-                    <button type="button" id="btnOpenNewWindow" class="t-btn btn-action" style="padding: 3px 6px; font-size: 11px; border: 1px solid #cbd5e1; background: #ffffff; color: #475569;" title="새 창으로 리포트 열기">
-                        <i class="fa-solid fa-arrow-up-right-from-square"></i>
-                    </button>
-                </div>
-            </div>
-            <div class="pane-body">
-                <div id="preview-loading" style="display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; color: #ffffff; z-index: 10;">
-                    <i class="fa-solid fa-spinner fa-spin fa-2x mb-2"></i>
-                    <div style="font-size: 12px; font-weight: 600;">리포트를 불러오는 중입니다...</div>
-                </div>
-                <iframe id="report-frame" style="width: 100%; height: 100%; border: none; background-color: #525659;" src="about:blank"></iframe>
-            </div>
-        </div>
+        <div th:replace="~{fragments/report/report_viewer :: reportViewerPane(reportTitle='성과보수 상세내역', defaultStatus='선택된 계좌 없음')}"></div>
     </div>
 
     <!-- 모바일 전용 리포트 모달 (width <= 876px) -->
-    <div class="report-modal-backdrop" id="ja010qMobileModal">
-        <div class="report-modal-dialog">
-            <div class="report-modal-header">
-                <span class="mobile-modal-label" id="mobileModalLabel">성과보수 상세내역 리포트</span>
-                <button type="button" id="btnCloseMobileModal" class="btn-close-mobile-modal" title="닫기">
-                    <i class="fa-solid fa-xmark"></i>
-                </button>
-            </div>
-            <!-- 모바일 모달 내보내기 버튼 바 -->
-            <div class="report-modal-actions">
-                <button type="button" class="btn-export-format btn-pdf mobile-export-btn" data-format="pdf" title="PDF 파일로 저장"><i class="fa-solid fa-file-pdf"></i> PDF</button>
-                <button type="button" class="btn-export-format btn-excel mobile-export-btn" data-format="excel" title="Excel(XLSX) 파일로 저장"><i class="fa-solid fa-file-excel"></i> Excel</button>
-                <button type="button" class="btn-export-format btn-word mobile-export-btn" data-format="word" title="MS Word(DOC) 파일로 저장"><i class="fa-solid fa-file-word"></i> Word</button>
-                <button type="button" class="btn-export-format btn-ppt mobile-export-btn" data-format="ppt" title="PowerPoint(PPTX) 파일로 저장"><i class="fa-solid fa-file-powerpoint"></i> PPT</button>
-                <button type="button" class="btn-export-format btn-hwp mobile-export-btn" data-format="hwp" title="한글(HWP) 파일로 저장"><i class="fa-solid fa-file-lines"></i> 한글(HWP)</button>
-            </div>
-            <div class="report-modal-body">
-                <iframe id="mobile-report-frame" class="mobile-report-frame" src="about:blank"></iframe>
-            </div>
-        </div>
-    </div>
+    <div th:replace="~{fragments/report/report_viewer :: reportMobileModal(modalId='ja010qMobileModal', modalTitle='성과보수 상세내역 리포트')}"></div>
 
     <script>
         (function () {
@@ -331,51 +185,34 @@
                 });
             }
 
-            // Helper to check if currently in mobile view (태블릿-S / 876px 이하 또는 우측 패널 숨김)
+            // AamsReport 통합 바인딩 (5종 내보내기, 새 창, 모바일 모달, 로딩 제어)
+            var reportViewer = (window.AamsReport && typeof window.AamsReport.bindViewer === 'function')
+                ? window.AamsReport.bindViewer(currentPane, {
+                    reportFile: 'rd_ja010q.mrd',
+                    modalId: 'ja010qMobileModal',
+                    zoom: 'page-width',
+                    getCorpGr: function () { return getFilterCorpGr(); },
+                    buildParams: function (data) { return buildReportParams(data); },
+                    getTitle: function (data) {
+                        return (data.fundNm || '') + ' (' + (data.fundCd || '') + ') 성과보수 상세내역';
+                    },
+                    getStatus: function (data, params) {
+                        return "기준일: " + formatDateDot(params.ymd);
+                    },
+                    getDownloadName: function (data, params) {
+                        var safeFundNm = (data.fundNm || '').trim().replace(/[\\/:*?"<>|]/g, "_") || "성과보수상세";
+                        return params.ymd + "_" + safeFundNm + "(" + (data.fundCd || '') + ")";
+                    }
+                })
+                : null;
+
             function isMobileView() {
+                if (window.AamsReport && typeof window.AamsReport.isMobileView === 'function') {
+                    return window.AamsReport.isMobileView(currentPane);
+                }
                 var right = currentPane.querySelector('.right-pane') || currentPane.querySelector('.split-right') || currentPane.querySelector('.report-card');
-                if (right && window.getComputedStyle(right).display === 'none') {
-                    return true;
-                }
+                if (right && window.getComputedStyle(right).display === 'none') return true;
                 return window.matchMedia('(max-width: 876px)').matches || window.innerWidth <= 876 || (currentPane.clientWidth > 0 && currentPane.clientWidth <= 876);
-            }
-
-            function openMobileReportModal(data) {
-                var modal = currentPane.querySelector('#ja010qMobileModal');
-                var modalFrame = currentPane.querySelector('#mobile-report-frame');
-                var modalLabel = currentPane.querySelector('#mobileModalLabel');
-                if (!modal || !modalFrame) return;
-
-                var params = buildReportParams(data);
-                var corpGr = getFilterCorpGr();
-
-                if (modalLabel) {
-                    modalLabel.textContent = (data.fundNm || '') + ' (' + (data.fundCd || '') + ') 성과보수 상세내역';
-                }
-
-                var previewUrl = (window.AamsReport && typeof window.AamsReport.buildPreviewUrl === 'function')
-                    ? window.AamsReport.buildPreviewUrl('rd_ja010q.mrd', params, { corpGr: corpGr, zoom: 'page-width' })
-                    : ("/api/daily/ja010q/preview?fundCd=" + encodeURIComponent(data.fundCd || '') +
-                       "&ymd=" + encodeURIComponent(params.ymd) +
-                       "&haejiYmd=" + encodeURIComponent(data.haejiYmd || '') +
-                       "&afGyulYmd=" + encodeURIComponent(data.afGyulYmd || '') +
-                       "&bfStart=" + encodeURIComponent(params.bf) +
-                       "&af=" + encodeURIComponent(params.af));
-
-                if (window.AamsReport && typeof window.AamsReport.setFrameSrc === 'function') {
-                    window.AamsReport.setFrameSrc(modalFrame, previewUrl, 'page-width');
-                } else {
-                    modalFrame.src = previewUrl;
-                }
-
-                modal.style.display = 'flex';
-            }
-
-            function closeMobileReportModal() {
-                var modal = currentPane.querySelector('#ja010qMobileModal');
-                var modalFrame = currentPane.querySelector('#mobile-report-frame');
-                if (modal) modal.style.display = 'none';
-                if (modalFrame) modalFrame.src = 'about:blank';
             }
 
             function syncDetail(row, masterRowData, isUserClick) {
@@ -389,12 +226,10 @@
                 currentSelectedRowData = data;
 
                 if (isMobileView()) {
-                    // 모바일 환경: 우측 pane이 숨겨져 있을 때는 자동 조회를 막고, 사용자가 직접 클릭했을 때만 모달 표출 및 리포트 조회
-                    if (isUserClick) {
-                        openMobileReportModal(data);
+                    if (isUserClick && reportViewer) {
+                        reportViewer.openMobile(data);
                     }
                 } else {
-                    // 데스크톱 환경: 우측 pane에 리포트 표출 (동일 키 중복 방지 가드)
                     var corpGr = getFilterCorpGr();
                     var ymd = getFilterYmd();
                     var currentKey = corpGr + "_" + ymd + "_" + (data.fundCd || "");
@@ -402,7 +237,9 @@
                     if (lastLoadedMasterKey === currentKey) return;
                     lastLoadedMasterKey = currentKey;
 
-                    loadReportPreview(data);
+                    if (reportViewer) {
+                        reportViewer.loadPreview(data);
+                    }
                 }
             }
 
@@ -464,46 +301,6 @@
                 };
             }
 
-            function loadReportPreview(data) {
-                var loadingEl = currentPane.querySelector('#preview-loading');
-                var iframe = currentPane.querySelector('#report-frame');
-                var titleEl = currentPane.querySelector('#preview-header-title');
-                var statusEl = currentPane.querySelector('#preview-status');
-                if (!iframe) return;
-
-                if (loadingEl) loadingEl.style.display = 'block';
-
-                var params = buildReportParams(data);
-                var corpGr = getFilterCorpGr();
-
-                if (titleEl) {
-                    titleEl.innerHTML = '<i class="fa-solid fa-file-invoice" style="margin-right: 4px;"></i> ' + (data.fundNm || '') + ' (' + (data.fundCd || '') + ') 성과보수 상세내역';
-                }
-                if (statusEl) {
-                    statusEl.innerText = "기준일: " + formatDateDot(params.ymd);
-                }
-
-                // 공통 서비스 규격: 너비 맞춤(page-width/FitH) 배율 적용으로 잘림 없이 온전하게 표출
-                var previewUrl = (window.AamsReport && typeof window.AamsReport.buildPreviewUrl === 'function')
-                    ? window.AamsReport.buildPreviewUrl('rd_ja010q.mrd', params, { corpGr: corpGr, zoom: 'page-width' })
-                    : ("/api/daily/ja010q/preview?fundCd=" + encodeURIComponent(data.fundCd || '') +
-                       "&ymd=" + encodeURIComponent(params.ymd) +
-                       "&haejiYmd=" + encodeURIComponent(data.haejiYmd || '') +
-                       "&afGyulYmd=" + encodeURIComponent(data.afGyulYmd || '') +
-                       "&bfStart=" + encodeURIComponent(params.bf) +
-                       "&af=" + encodeURIComponent(params.af));
-
-                if (window.AamsReport && typeof window.AamsReport.setFrameSrc === 'function') {
-                    window.AamsReport.setFrameSrc(iframe, previewUrl, 'page-width');
-                } else {
-                    iframe.src = previewUrl;
-                }
-
-                iframe.onload = function () {
-                    if (loadingEl) loadingEl.style.display = 'none';
-                };
-            }
-
             function loadFunds() {
                 var corpGr = getFilterCorpGr();
                 var ymd = getFilterYmd();
@@ -556,94 +353,24 @@
                     });
             }
 
-            function exportFormat(format) {
-                if (!currentSelectedRowData) {
-                    if (format === 'excel' && grid && grid.getData().length > 0) {
-                        grid.download("xlsx", "성과보수_계좌목록.xlsx");
-                        return;
-                    }
-                    if (typeof showToast === "function") {
-                        showToast("내보낼 계좌를 먼저 선택해주세요.", "warning");
-                    } else {
-                        alert("내보낼 계좌를 먼저 선택해주세요.");
-                    }
-                    return;
-                }
-
-                var params = buildReportParams(currentSelectedRowData);
-                var corpGr = getFilterCorpGr();
-                var safeFundNm = (currentSelectedRowData.fundNm || '').trim().replace(/[\\/:*?"<>|]/g, "_") || "성과보수상세";
-                var downloadName = params.ymd + "_" + safeFundNm + "(" + (currentSelectedRowData.fundCd || '') + ")";
-
-                var exportUrl = (window.AamsReport && typeof window.AamsReport.buildExportUrl === 'function')
-                    ? window.AamsReport.buildExportUrl('rd_ja010q.mrd', params, format, { corpGr: corpGr, downloadName: downloadName })
-                    : ("/api/daily/ja010q/export?fundCd=" + encodeURIComponent(currentSelectedRowData.fundCd || '') +
-                       "&ymd=" + encodeURIComponent(params.ymd) +
-                       "&haejiYmd=" + encodeURIComponent(currentSelectedRowData.haejiYmd || '') +
-                       "&afGyulYmd=" + encodeURIComponent(currentSelectedRowData.afGyulYmd || '') +
-                       "&bfStart=" + encodeURIComponent(params.bf) +
-                       "&af=" + encodeURIComponent(params.af) +
-                       "&format=" + encodeURIComponent(format));
-
-                window.location.href = exportUrl;
-            }
-
-            function openReportInNewWindow() {
-                if (!currentSelectedRowData) {
-                    if (typeof showToast === "function") showToast("계좌를 먼저 선택해주세요.", "warning");
-                    else alert("계좌를 먼저 선택해주세요.");
-                    return;
-                }
-                var params = buildReportParams(currentSelectedRowData);
-                var corpGr = getFilterCorpGr();
-                var previewUrl = (window.AamsReport && typeof window.AamsReport.buildPreviewUrl === 'function')
-                    ? window.AamsReport.buildPreviewUrl('rd_ja010q.mrd', params, { corpGr: corpGr, zoom: 'page-width' })
-                    : ("/api/daily/ja010q/preview?fundCd=" + encodeURIComponent(currentSelectedRowData.fundCd || '') + "&ymd=" + encodeURIComponent(params.ymd));
-
-                window.open(previewUrl, "_blank");
-            }
-
             function startInit() {
                 if (isInitialized) return;
                 isInitialized = true;
 
                 initGrid();
 
-                // 5포맷 내보내기 버튼 바인딩 (데스크톱 및 모바일 모달)
-                var exportBtns = currentPane.querySelectorAll('.export-format-btn, .mobile-export-btn');
-                exportBtns.forEach(function (btn) {
-                    btn.addEventListener('click', function (e) {
-                        e.preventDefault();
-                        var fmt = this.getAttribute('data-format');
-                        exportFormat(fmt);
-                    });
-                });
-
-                // 모바일 모달 닫기 버튼
-                var btnCloseMobile = currentPane.querySelector('#btnCloseMobileModal');
-                if (btnCloseMobile) {
-                    btnCloseMobile.addEventListener('click', closeMobileReportModal);
+                // 화면 패널 분할 규격 (AamsSplitter 표준 연동)
+                if (window.AamsSplitter && typeof window.AamsSplitter.init === 'function') {
+                    AamsSplitter.init(currentPane);
                 }
 
                 // Window resize responsive sync
                 window.addEventListener('resize', function () {
                     if (grid) grid.redraw(true);
-                    if (!isMobileView()) {
-                        closeMobileReportModal();
-                        if (currentSelectedRowData) {
-                            loadReportPreview(currentSelectedRowData);
-                        }
+                    if (!isMobileView() && currentSelectedRowData && reportViewer) {
+                        reportViewer.loadPreview(currentSelectedRowData);
                     }
                 });
-
-                // 새 창 열기 버튼
-                var btnNewWindow = currentPane.querySelector('#btnOpenNewWindow');
-                if (btnNewWindow) {
-                    btnNewWindow.addEventListener('click', function (e) {
-                        e.preventDefault();
-                        openReportInNewWindow();
-                    });
-                }
 
                 // 개발지침 규칙 9: 상단 공통 툴바 표준 계약 함수 연결
                 currentPane.onRetrieve = currentPane.onSearch = function () {
@@ -652,7 +379,13 @@
 
                 // 상단 공통 [엑셀] 버튼 클릭 시 성과보수 리포트 Excel 다운로드
                 currentPane.onExcel = function () {
-                    exportFormat('excel');
+                    if (reportViewer && currentSelectedRowData) {
+                        reportViewer.exportFormat('excel');
+                    } else if (grid && grid.getData().length > 0) {
+                        grid.download("xlsx", "성과보수_계좌목록.xlsx");
+                    } else if (typeof showToast === "function") {
+                        showToast("내보낼 계좌를 먼저 선택해주세요.", "warning");
+                    }
                 };
 
                 // 회사그룹 변경 시 기준일자 갱신 (규칙 19번: 자동 조회 금지, 기준일자 값 갱신만 수행)
@@ -680,7 +413,8 @@
                         ymdInput.value = initialYmd;
                     }
 
-                    closeMobileReportModal();
+                    var modal = currentPane.querySelector('#ja010qMobileModal');
+                    if (modal) modal.style.display = 'none';
                     if (grid) grid.clearData();
                     currentSelectedRowData = null;
                     lastLoadedMasterKey = null;

@@ -2,33 +2,6 @@
 <html xmlns:th="http://www.thymeleaf.org">
 <div class="view-container layout-split ja010j-container" th:fragment="ja010jView" style="display: flex; flex-direction: column; height: 100%; width: 100%; overflow: hidden;">
 
-    <style>
-        /* 폰트 및 셀 스타일 */
-        .ja010j-container .tabulator .tabulator-cell {
-            font-size: 12px;
-            padding: 4px 6px;
-        }
-
-        @media (max-width: 876px) {
-            .ja010j-container .split-body {
-                flex-direction: column !important;
-                padding: 4px !important;
-                height: calc(100% - 110px) !important;
-            }
-
-            .ja010j-container .left-pane {
-                flex: 1 1 100% !important;
-                width: 100% !important;
-                min-width: 0 !important;
-                max-width: 100% !important;
-                height: 100% !important;
-            }
-
-            .ja010j-container .right-pane {
-                display: none !important;
-            }
-        }
-    </style>
 
     <!-- 1. 상단 공통 툴바 (Row 1: 공통 액션 버튼 + 네비게이션 브레드크럼) -->
     <div class="view-toolbar">
@@ -60,74 +33,13 @@
             </div>
         </div>
 
-        <!-- 우측 RD 미리보기 뷰어 -->
-        <div class="pane-right right-pane">
-            <div class="pane-header">
-                <div style="display: flex; align-items: center; gap: 8px;">
-                    <span class="fw-bold small text-secondary" id="preview-header-title">
-                        <i class="fa-solid fa-file-invoice me-1"></i> 수요예측 참여표 리포트
-                    </span>
-                    <span id="preview-status" class="small text-muted" style="font-size: 12px;">선택된 그룹 없음</span>
-                </div>
-
-                <!-- 5 포맷 내보내기 버튼 그룹 + 새 창 열기 (개발지침 리포트 뷰어 표준 규격) -->
-                <div style="display: flex; align-items: center; gap: 6px;">
-                    <div class="export-button-group">
-                        <button type="button" class="btn-export-format export-btn" data-format="pdf" title="PDF 파일로 저장" style="border: 1px solid #ef4444; color: #dc2626;">
-                            <i class="fa-solid fa-file-pdf" style="color: #ef4444;"></i>PDF
-                        </button>
-                        <button type="button" class="btn-export-format export-btn" data-format="excel" title="Excel(XLSX) 파일로 저장" style="border: 1px solid #10b981; color: #059669;">
-                            <i class="fa-solid fa-file-excel" style="color: #10b981;"></i>Excel
-                        </button>
-                        <button type="button" class="btn-export-format export-btn" data-format="word" title="MS Word(DOC) 파일로 저장" style="border: 1px solid #3b82f6; color: #2563eb;">
-                            <i class="fa-solid fa-file-word" style="color: #3b82f6;"></i>Word
-                        </button>
-                        <button type="button" class="btn-export-format export-btn" data-format="ppt" title="PowerPoint(PPTX) 파일로 저장" style="border: 1px solid #f59e0b; color: #d97706;">
-                            <i class="fa-solid fa-file-powerpoint" style="color: #f59e0b;"></i>PPT
-                        </button>
-                        <button type="button" class="btn-export-format export-btn" data-format="hwp" title="한글(HWP) 파일로 저장" style="border: 1px solid #06b6d4; color: #0891b2;">
-                            <i class="fa-solid fa-file-lines" style="color: #06b6d4;"></i>한글(HWP)
-                        </button>
-                    </div>
-                    <button type="button" id="btnOpenNewWindow" class="t-btn btn-action" style="padding: 3px 6px; font-size: 11px; border: 1px solid #cbd5e1; background: #ffffff; color: #475569;" title="새 창으로 리포트 열기">
-                        <i class="fa-solid fa-arrow-up-right-from-square"></i>
-                    </button>
-                </div>
-            </div>
-            <div class="pane-body" style="background-color: #525659; position: relative; width: 100%; height: calc(100% - 41px); overflow: hidden;">
-                <!-- 로딩 스피너 -->
-                <div id="preview-loading" style="display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; color: #ffffff; z-index: 10;">
-                    <i class="fa-solid fa-spinner fa-spin fa-2x" style="margin-bottom: 8px;"></i>
-                    <div style="font-size: 12px;">보고서를 로드 중입니다...</div>
-                </div>
-                <!-- 리포트 iframe: 100% 폭과 높이 보장 -->
-                <iframe id="report-frame" style="width: 100% !important; height: 100% !important; border: none; display: block; background-color: #525659;" src="about:blank"></iframe>
-            </div>
-        </div>
+        <!-- 우측 RD 미리보기 뷰어 (공통 프래그먼트) -->
+        <div th:replace="~{fragments/report/report_viewer :: reportViewerPane(reportTitle='수요예측 참여표 리포트', defaultStatus='선택된 그룹 없음')}"></div>
     </div>
 
-    <!-- 모바일 전용 리포트 모달 (width <= 876px) -->
-    <div class="report-modal-backdrop" id="ja010jMobileModal">
-        <div class="report-modal-dialog">
-            <div class="report-modal-header">
-                <span class="mobile-modal-label" id="mobileModalLabel">수요예측 참여표 리포트</span>
-                <button type="button" id="btnCloseMobileModal" class="btn-close-mobile-modal" title="닫기">
-                    <i class="fa-solid fa-xmark"></i>
-                </button>
-            </div>
-            <!-- 모바일 모달 내보내기 버튼 바 -->
-            <div class="report-modal-actions">
-                <button type="button" class="btn-export-format btn-pdf mobile-export-btn" data-format="pdf" title="PDF 파일로 저장"><i class="fa-solid fa-file-pdf"></i> PDF</button>
-                <button type="button" class="btn-export-format btn-excel mobile-export-btn" data-format="excel" title="Excel(XLSX) 파일로 저장"><i class="fa-solid fa-file-excel"></i> Excel</button>
-                <button type="button" class="btn-export-format btn-word mobile-export-btn" data-format="word" title="MS Word(DOC) 파일로 저장"><i class="fa-solid fa-file-word"></i> Word</button>
-                <button type="button" class="btn-export-format btn-ppt mobile-export-btn" data-format="ppt" title="PowerPoint(PPTX) 파일로 저장"><i class="fa-solid fa-file-powerpoint"></i> PPT</button>
-                <button type="button" class="btn-export-format btn-hwp mobile-export-btn" data-format="hwp" title="한글(HWP) 파일로 저장"><i class="fa-solid fa-file-lines"></i> 한글(HWP)</button>
-            </div>
-            <div class="report-modal-body">
-                <iframe id="mobile-report-frame" class="mobile-report-frame" src="about:blank"></iframe>
-            </div>
-        </div>
-    </div>
+    <!-- 모바일 전용 리포트 모달 (공통 프래그먼트) -->
+    <div th:replace="~{fragments/report/report_viewer :: reportMobileModal(modalId='ja010jMobileModal', modalTitle='수요예측 참여표 리포트')}"></div>
+
     <script th:inline="javascript">
         (function () {
             var currentPane = document.currentScript.closest('.tab-pane') || document;
@@ -240,94 +152,20 @@
 
                 currentSelectedRowData = data;
 
-                if (isMobileView()) {
-                    // 모바일 환경: 우측 pane이 숨겨져 있을 때는 자동 조회를 막고, 사용자가 직접 클릭했을 때만 모달 표출 및 리포트 조회
-                    if (isUserClick) {
-                        var previewUrl = buildPreviewUrl(data);
-                        var formattedUrl = (window.AamsReport && typeof window.AamsReport.formatPreviewUrl === 'function')
-                            ? window.AamsReport.formatPreviewUrl(previewUrl)
-                            : previewUrl + "#toolbar=1&navpanes=0&zoom=120";
-                        openMobileModal(data, formattedUrl);
-                    }
+                var currentKey = (data.corpGr || "") + "_" + (data.fundCd || "") + "_" + (data.companyName || "");
+                if (isMobileView() && isManualClick) {
+                    var title = (data.companyName || '') + ' 수요예측 참여표';
+                    reportViewer.openModal(data, title);
                 } else {
-                    // 데스크톱 환경: 우측 pane에 리포트 표출 (동일 키 중복 방지 가드)
-                    var fymd = getFilterFymd();
-                    var tymd = getFilterTymd();
-                    var currentKey = (data.corpGr || "") + "_" + (data.fundCd || "") + "_" + fymd + "_" + tymd;
-
                     if (lastLoadedMasterKey === currentKey) return;
                     lastLoadedMasterKey = currentKey;
 
-                    loadReportPreview(data);
-                }
-            }
-
-            function buildPreviewUrl(data) {
-                var fymd = getFilterFymd();
-                var tymd = getFilterTymd();
-                var corpGr = (data && data.corpGr) ? data.corpGr : getFilterCorpGr();
-                var fundCd = (data && data.fundCd != null) ? data.fundCd : '0';
-                var companyName = (data && data.companyName) ? data.companyName : '';
-                var fundNm = (data && data.fundNm) ? data.fundNm : '';
-
-                return "/api/daily/ja010j/preview?corpGr=" + encodeURIComponent(corpGr) +
-                    "&fundCd=" + encodeURIComponent(fundCd) +
-                    "&companyName=" + encodeURIComponent(companyName) +
-                    "&fundNm=" + encodeURIComponent(fundNm) +
-                    "&fymd=" + encodeURIComponent(fymd) +
-                    "&tymd=" + encodeURIComponent(tymd) +
-                    "&t=" + new Date().getTime();
-            }
-
-            function loadReportPreview(data) {
-                var fymd = getFilterFymd();
-                var tymd = getFilterTymd();
-                var companyName = (data && data.companyName) ? data.companyName : '';
-
-                var statusEl = currentPane.querySelector('#preview-status');
-                var titleEl = currentPane.querySelector('#preview-header-title');
-                var loadingEl = currentPane.querySelector('#preview-loading');
-                var iframe = currentPane.querySelector('#report-frame');
-
-                if (titleEl) titleEl.innerHTML = '<i class="fa-solid fa-file-invoice me-1"></i> ' + companyName + ' 수요예측 참여표';
-                if (statusEl) {
+                    var fymd = getFilterFymd();
+                    var tymd = getFilterTymd();
                     var fStr = (fymd.length === 8) ? (fymd.substring(0, 4) + "." + fymd.substring(4, 6) + "." + fymd.substring(6, 8)) : fymd;
                     var tStr = (tymd.length === 8) ? (tymd.substring(0, 4) + "." + tymd.substring(4, 6) + "." + tymd.substring(6, 8)) : tymd;
-                    statusEl.innerText = "조회구간: " + fStr + " ~ " + tStr;
+                    reportViewer.load(data, "조회구간: " + fStr + " ~ " + tStr);
                 }
-                if (loadingEl) loadingEl.style.display = 'block';
-
-                var previewUrl = buildPreviewUrl(data);
-                var formattedUrl = (window.AamsReport && typeof window.AamsReport.formatPreviewUrl === 'function')
-                    ? window.AamsReport.formatPreviewUrl(previewUrl)
-                    : previewUrl + "#toolbar=1&navpanes=0&zoom=120";
-
-                if (iframe) {
-                    iframe.src = formattedUrl;
-                    iframe.onload = function () {
-                        if (loadingEl) loadingEl.style.display = 'none';
-                    };
-                }
-            }
-
-            function openMobileModal(data, url) {
-                var modal = currentPane.querySelector('#ja010jMobileModal');
-                var modalFrame = currentPane.querySelector('#mobile-report-frame');
-                var modalLabel = currentPane.querySelector('#mobileModalLabel');
-                if (modal && modalFrame) {
-                    if (modalLabel) {
-                        modalLabel.textContent = (data.companyName || '') + ' 수요예측 참여표';
-                    }
-                    modalFrame.src = url;
-                    modal.style.display = 'flex';
-                }
-            }
-
-            function closeMobileModal() {
-                var modal = currentPane.querySelector('#ja010jMobileModal');
-                var modalFrame = currentPane.querySelector('#mobile-report-frame');
-                if (modal) modal.style.display = 'none';
-                if (modalFrame) modalFrame.src = 'about:blank';
             }
 
             function loadList() {
@@ -362,10 +200,7 @@
                                         lastLoadedMasterKey = null;
                                     }
                                 } else {
-                                    var iframe = currentPane.querySelector('#report-frame');
-                                    if (iframe) iframe.src = "about:blank";
-                                    var statusEl = currentPane.querySelector('#preview-status');
-                                    if (statusEl) statusEl.innerText = "조회 결과 없음";
+                                    reportViewer.clear();
                                 }
                             });
                         }
@@ -376,33 +211,7 @@
                     });
             }
 
-            function exportReport(format) {
-                if (!currentSelectedRowData) {
-                    if (typeof showToast === "function") {
-                        showToast("내보낼 참여그룹을 먼저 선택해주세요.", "warning");
-                    } else {
-                        alert("내보낼 참여그룹을 먼저 선택해주세요.");
-                    }
-                    return;
-                }
-
-                var fymd = getFilterFymd();
-                var tymd = getFilterTymd();
-                var corpGr = currentSelectedRowData.corpGr || getFilterCorpGr();
-                var fundCd = (currentSelectedRowData.fundCd != null) ? currentSelectedRowData.fundCd : '0';
-                var companyName = currentSelectedRowData.companyName || '';
-                var fundNm = currentSelectedRowData.fundNm || '';
-
-                var url = "/api/daily/ja010j/export?corpGr=" + encodeURIComponent(corpGr) +
-                    "&fundCd=" + encodeURIComponent(fundCd) +
-                    "&companyName=" + encodeURIComponent(companyName) +
-                    "&fundNm=" + encodeURIComponent(fundNm) +
-                    "&fymd=" + encodeURIComponent(fymd) +
-                    "&tymd=" + encodeURIComponent(tymd) +
-                    "&format=" + encodeURIComponent(format);
-
-                window.location.href = url;
-            }
+            var reportViewer = null;
 
             function startInit() {
                 if (isInitialized) return;
@@ -411,38 +220,25 @@
                 initCalendar();
                 initGrid();
 
-                // 5개 포맷 내보내기 버튼 바인딩
-                var exportBtns = currentPane.querySelectorAll('.export-btn, .mobile-export-btn');
-                exportBtns.forEach(function (btn) {
-                    btn.addEventListener('click', function (e) {
-                        e.preventDefault();
-                        var format = this.getAttribute('data-format');
-                        exportReport(format);
-                    });
+                // 리포트 뷰어 일체형 자동 바인딩 (공통 프래그먼트 및 모듈 연동)
+                reportViewer = AamsReport.bindViewer(currentPane, {
+                    mrdName: 'rd_ja010j.mrd',
+                    modalSelector: '#ja010jMobileModal',
+                    getParams: function (data) {
+                        return {
+                            corpGr: (data && data.corpGr) ? data.corpGr : getFilterCorpGr(),
+                            fundCd: (data && data.fundCd != null) ? data.fundCd : '0',
+                            companyName: (data && data.companyName) ? data.companyName : '',
+                            fundNm: (data && data.fundNm) ? data.fundNm : '',
+                            fymd: getFilterFymd(),
+                            tymd: getFilterTymd()
+                        };
+                    },
+                    getDownloadName: function (data, format) {
+                        var cName = (data && data.companyName) ? data.companyName : '수요예측';
+                        return cName + '_참여표';
+                    }
                 });
-
-                // 새 창 열기 버튼 바인딩
-                var btnOpenNewWindow = currentPane.querySelector('#btnOpenNewWindow');
-                if (btnOpenNewWindow) {
-                    btnOpenNewWindow.addEventListener('click', function () {
-                        if (!currentSelectedRowData) {
-                            if (typeof showToast === "function") {
-                                showToast("조회할 참여그룹을 먼저 선택해주세요.", "warning");
-                            } else {
-                                alert("조회할 참여그룹을 먼저 선택해주세요.");
-                            }
-                            return;
-                        }
-                        var previewUrl = buildPreviewUrl(currentSelectedRowData);
-                        window.open(previewUrl, "_blank");
-                    });
-                }
-
-                // 모바일 모달 닫기 바인딩
-                var btnCloseMobile = currentPane.querySelector('#btnCloseMobileModal');
-                if (btnCloseMobile) {
-                    btnCloseMobile.addEventListener('click', closeMobileModal);
-                }
 
                 // 개발지침 규칙 9: 상단 공통 툴바 표준 계약 함수 연결
                 currentPane.onRetrieve = currentPane.onSearch = function () {
@@ -479,10 +275,7 @@
                     if (fEl && initialFymd) fEl.value = initialFymd;
                     if (tEl && initialTymd) tEl.value = initialTymd;
 
-                    var frame = currentPane.querySelector('#report-frame');
-                    if (frame) frame.src = 'about:blank';
-                    var statusEl = currentPane.querySelector('#preview-status');
-                    if (statusEl) statusEl.innerText = '선택된 그룹 없음';
+                    if (reportViewer) reportViewer.clear();
                     var badge = currentPane.querySelector('#group-count-badge');
                     if (badge) badge.innerText = '0건';
 
@@ -494,10 +287,14 @@
                 // Window resize responsive sync
                 window.addEventListener('resize', function () {
                     if (grid) grid.redraw(true);
-                    if (!isMobileView()) {
-                        closeMobileModal();
+                    if (!isMobileView() && reportViewer) {
+                        reportViewer.closeModal();
                         if (currentSelectedRowData) {
-                            loadReportPreview(currentSelectedRowData);
+                            var fymd = getFilterFymd();
+                            var tymd = getFilterTymd();
+                            var fStr = (fymd.length === 8) ? (fymd.substring(0, 4) + "." + fymd.substring(4, 6) + "." + fymd.substring(6, 8)) : fymd;
+                            var tStr = (tymd.length === 8) ? (tymd.substring(0, 4) + "." + tymd.substring(4, 6) + "." + tymd.substring(6, 8)) : tymd;
+                            reportViewer.load(currentSelectedRowData, "조회구간: " + fStr + " ~ " + tStr);
                         }
                     }
                 });

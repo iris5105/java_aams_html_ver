@@ -1,160 +1,24 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
-<div class="view-container layout-single run-container" th:fragment="runView" style="display: flex; flex-direction: column; height: 100%; width: 100%; overflow: hidden; background-color: #ffffff;">
+<div class="view-container layout-single run-container" th:fragment="runView" style="display: flex; flex-direction: column; height: 100%; width: 100%; overflow: hidden; background-color: #ffffff; position: relative;">
+
+    <!-- 원장생성 전체화면 로딩 마스킹 오버레이 (작업 중 화면 조작 완전 차단) -->
+    <div id="runProgressAlert" class="view-loading-overlay d-none">
+        <div class="view-loading-card">
+            <div class="view-loading-spinner">
+                <i class="fa-solid fa-circle-notch fa-spin"></i>
+            </div>
+            <div class="view-loading-title">원장생성 작업 진행 중</div>
+            <div id="runProgressText" class="view-loading-desc">
+                작업을 준비하고 있습니다...
+            </div>
+            <div class="view-loading-sub">
+                작업이 완료될 때까지 잠시만 기다려주세요.
+            </div>
+        </div>
+    </div>
 
     <style>
-        .run-container {
-            font-size: 12px;
-        }
-
-        /* 1. 상단 공통 툴바 */
-        .run-container .view-toolbar {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 4px 8px;
-            background: #f8fafc;
-            border-bottom: 1px solid #cbd5e1;
-            min-height: 34px;
-            flex-shrink: 0;
-        }
-
-        /* 2. 상단 필터바 */
-        .run-container .filter-bar {
-            display: flex;
-            justify-content: flex-start;
-            align-items: center;
-            padding: 6px 12px;
-            background-color: #ffffff;
-            border-bottom: 1px solid #cbd5e1;
-            gap: 16px;
-            flex-wrap: nowrap;
-            flex-shrink: 0;
-        }
-
-        .run-container .filter-left {
-            display: flex;
-            align-items: center;
-            gap: 16px;
-        }
-
-        .run-container .filter-item {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-        }
-
-        .run-container .filter-item label {
-            font-size: 12px;
-            font-weight: 500;
-            color: #334155;
-            white-space: nowrap;
-            margin: 0;
-        }
-
-        .run-container .range-calendar-wrapper {
-            display: inline-flex;
-            align-items: center;
-            gap: 4px;
-        }
-
-        .run-container .filter-input {
-            height: 26px;
-            width: 95px;
-            padding: 2px 6px;
-            font-size: 12px;
-            text-align: center;
-            border: 1px solid #94a3b8;
-            border-radius: 2px;
-            background-color: #ffffff;
-            color: #0f172a;
-        }
-
-        .run-container .range-calendar-separator {
-            color: #64748b;
-            font-size: 12px;
-        }
-
-        .run-container .btn-range-calendar {
-            height: 26px;
-            width: 26px;
-            padding: 0;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            border: 1px solid #94a3b8;
-            border-radius: 2px;
-            background: #f1f5f9;
-            color: #475569;
-            cursor: pointer;
-        }
-        .run-container .btn-range-calendar:hover {
-            background: #e2e8f0;
-            color: #1e293b;
-        }
-
-        .run-container .filter-select {
-            height: 26px;
-            min-width: 150px;
-            padding: 2px 6px;
-            font-size: 12px;
-            border: 1px solid #94a3b8;
-            border-radius: 2px;
-            background-color: #ffffff;
-            color: #0f172a;
-        }
-
-        /* 이미지 전용 액션 버튼 스타일 (파란색 테두리/텍스트, 흰 배경) */
-        .run-container .btn-run-action {
-            height: 26px;
-            padding: 0 16px;
-            font-size: 12px;
-            font-weight: 500;
-            color: #2563eb;
-            background-color: #ffffff;
-            border: 1px solid #3b82f6;
-            border-radius: 2px;
-            cursor: pointer;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            white-space: nowrap;
-            transition: all 0.15s ease-in-out;
-        }
-        .run-container .btn-run-action:hover {
-            background-color: #eff6ff;
-            border-color: #1d4ed8;
-            color: #1d4ed8;
-        }
-        .run-container .btn-run-action:active {
-            background-color: #dbeafe;
-        }
-        .run-container .btn-run-action:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-        }
-
-        /* 3. 메인 그리드 섹션 */
-        .run-container .grid-section {
-            flex: 1 1 auto;
-            height: calc(100% - 75px);
-            width: 100%;
-            padding: 6px;
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .run-container .grid-table-wrapper {
-            flex: 1 1 auto;
-            height: 100%;
-            width: 100%;
-            border: 1px solid #cbd5e1;
-            border-radius: 4px;
-            overflow: hidden;
-            background: #ffffff;
-        }
-
         /* 완료 체크박스 스타일 */
         .run-container .run-checkbox {
             width: 15px;
@@ -163,18 +27,6 @@
             accent-color: #2563eb;
             margin: 0;
             vertical-align: middle;
-        }
-
-        /* 공통 dc_ftymd_dddw 프래그먼트 내부 정렬 */
-        .run-container .filter-dc-ftymd-dddw {
-            display: inline-flex !important;
-            align-items: center !important;
-            justify-content: flex-start !important;
-            gap: 16px !important;
-            background: transparent !important;
-            border: none !important;
-            padding: 0 !important;
-            min-height: auto !important;
         }
     </style>
 
@@ -190,10 +42,10 @@
     <div class="filter-bar">
         <div class="filter-left">
             <th:block th:replace="~{fragments/filter/dc_ftymd_dddw :: filter(labelFYmd='영업일자구간', labelDddw='작업회사')}"></th:block>
-            <button type="button" id="btnExecuteRun" class="btn-run-action">
+            <button type="button" id="btnExecuteRun" class="btn-run-action btn-keep-text">
                 원장생성
             </button>
-            <button type="button" id="btnClearError" class="btn-run-action">
+            <button type="button" id="btnClearError" class="btn-run-action btn-keep-text">
                 에러메세지CLEAR
             </button>
         </div>
@@ -201,11 +53,6 @@
         <!-- 이미지 우측 액션 버튼 (원장생성, 에러메세지CLEAR) -->
         <div class="filter-actions d-flex align-items-center gap-2 ms-2">
 
-        </div>
-
-        <!-- 실행 진행 상태 표시 (작업 중에만 작게 표출) -->
-        <div id="runProgressAlert" class="small text-primary d-none ms-auto me-2">
-            <span id="runProgressText"><i class="fa-solid fa-spinner fa-spin me-1"></i> 진행 중...</span>
         </div>
     </div>
 
@@ -423,7 +270,9 @@
                 if (progressAlert) progressAlert.classList.remove('d-none');
 
                 var btnRun = pane.querySelector('#btnExecuteRun');
+                var btnClear = pane.querySelector('#btnClearError');
                 if (btnRun) btnRun.disabled = true;
+                if (btnClear) btnClear.disabled = true;
 
                 var startDate = parseYmd(fymdStr);
                 var endDate = parseYmd(tymdStr);
@@ -443,7 +292,7 @@
                             row.select();
 
                             if (progressText) {
-                                progressText.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i> ' + ymdFormatted + '일 작업 진행 중... [' + (i + 1) + '/' + totalSteps + '] ' + data.pgmNm;
+                                progressText.textContent = ymdFormatted + ' 작업 진행 중... [' + (i + 1) + '/' + totalSteps + '] ' + (data.pgmNm || data.pgmId);
                             }
 
                             var resp = await fetch("/api/common/run/execute-step", {
@@ -481,7 +330,7 @@
 
                     if (!stoppedOnError) {
                         if (progressText) {
-                            progressText.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i> 점검 결과 확인 중...';
+                            progressText.textContent = '점검 결과 확인 중... 잠시만 기다려주세요.';
                         }
                         var checkResp = await fetch("/api/common/run/check-results?corpGr=" + encodeURIComponent(corpGr));
                         var checkList = await checkResp.json();
@@ -496,10 +345,11 @@
                     alert("원장생성 처리 중 예외 발생: " + err.message);
                 } finally {
                     isRunning = false;
-                    // 원장생성 작업이 다 완료된 다음에 진행 상태 표시를 숨김
+                    // 원장생성 작업이 다 완료된 다음에 진행 마스킹 오버레이를 숨김
                     if (progressAlert) progressAlert.classList.add('d-none');
-                    if (progressText) progressText.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i> 진행 중...';
+                    if (progressText) progressText.textContent = '작업을 준비하고 있습니다...';
                     if (btnRun) btnRun.disabled = false;
+                    if (btnClear) btnClear.disabled = false;
                 }
             }
 
@@ -547,15 +397,19 @@
 
                 // 상단 공통 툴바 표준 계약 (규칙 9)
                 pane.onSearch = function () {
+                    if (isRunning) return;
                     loadPrograms();
                 };
                 pane.onRetrieve = function () {
+                    if (isRunning) return;
                     loadPrograms();
                 };
                 pane.onCorpGrChange = function () {
+                    if (isRunning) return;
                     initDddw();
                 };
                 pane.onRefresh = function () {
+                    if (isRunning) return;
                     if (grid) grid.clearData();
                     initDefaultDates();
                     if (typeof showToast === "function") {

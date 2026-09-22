@@ -56,8 +56,30 @@ public class GlobalExceptionHandler {
         return handleAllExceptions(ex, request, response);
     }
 
+    private boolean isClientAbort(Throwable t) {
+        while (t != null) {
+            if (t instanceof org.apache.catalina.connector.ClientAbortException) {
+                return true;
+            }
+            String msg = t.getMessage();
+            if (msg != null && (msg.contains("Broken pipe") ||
+                                msg.contains("사용자의 호스트 시스템") ||
+                                msg.contains("Connection reset") ||
+                                msg.contains("현재 연결은"))) {
+                return true;
+            }
+            t = t.getCause();
+        }
+        return false;
+    }
+
     @ExceptionHandler(Exception.class)
     public Object handleAllExceptions(Exception ex, HttpServletRequest request, HttpServletResponse response) {
+        if (isClientAbort(ex)) {
+            log.debug("Client aborted connection at [{}]: {}", request.getRequestURI(), ex.getMessage());
+            return null;
+        }
+
         log.error("Unhandled Exception at [{}] : {}", request.getRequestURI(), ex.getMessage(), ex);
 
         if (response.isCommitted()) {

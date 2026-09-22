@@ -44,7 +44,7 @@ public class ProposalController {
         model.addAttribute("corpGr", corpGr);
         model.addAttribute("adminYn", adminYn);
         model.addAttribute("corpList", corpList);
-        model.addAttribute("masterList", proposalService.getProposalMasterList(corpGr));
+        model.addAttribute("masterList", java.util.Collections.emptyList());
 
         var menuDto = menuService.getMenuByPgmId("w_proposal");
         String fullpgm2 = (menuDto != null) ? menuDto.getFullpgm2() : "시스템관리 > System > 건의사항/개선요청 관리";

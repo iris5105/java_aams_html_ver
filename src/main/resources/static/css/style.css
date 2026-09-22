@@ -1,5 +1,5 @@
 /* ==========================================
-   AAMS - US Portfolio Model Unified Stylesheet
+   AAMS - Stylesheet
    File: style.css
    ========================================== */
 
@@ -1213,13 +1213,129 @@ body.header-compact-mode.sidebar-backdrop-open::after {
     margin-left: auto;
 }
 
-/* When a filter-bar is nested inside an outer filter-bar */
-.filter-bar .filter-bar {
+/* When a filter-bar is nested inside an outer filter-bar / From-To Date + DDDW Filter */
+.filter-bar .filter-bar,
+.filter-dc-ftymd-dddw {
     background-color: transparent !important;
     border: none !important;
     border-bottom: none !important;
     padding: 0 !important;
     min-height: auto !important;
+    display: flex !important;
+    flex-wrap: wrap !important;
+    flex-shrink: 1 !important;
+    max-width: 100% !important;
+    gap: 8px 16px !important;
+}
+
+/* 필터바 전용 액션 버튼 (.btn-run-action: 원장생성, 에러메세지CLEAR 등) */
+.btn-run-action {
+    height: 26px;
+    padding: 0 16px;
+    font-size: 12px;
+    font-weight: 500;
+    color: #2563eb;
+    background-color: #ffffff;
+    border: 1px solid #3b82f6;
+    border-radius: 2px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    white-space: nowrap;
+    transition: all 0.15s ease-in-out;
+}
+.btn-run-action:hover {
+    background-color: #eff6ff;
+    border-color: #1d4ed8;
+    color: #1d4ed8;
+}
+.btn-run-action:active {
+    background-color: #dbeafe;
+}
+.btn-run-action:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* ==========================================================================
+   전체 화면 로딩 마스킹 오버레이 (원장생성, 대량배치 등 전면 차단 마스킹)
+   ========================================================================== */
+.view-loading-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(15, 23, 42, 0.55);
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1050;
+    cursor: wait;
+    user-select: none;
+    box-sizing: border-box;
+}
+
+.view-loading-overlay.d-none {
+    display: none !important;
+}
+
+.view-loading-card {
+    background: #ffffff;
+    border-radius: 12px;
+    padding: 28px 32px;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.15);
+    text-align: center;
+    max-width: 420px;
+    width: 88%;
+    border: 1px solid #e2e8f0;
+    box-sizing: border-box;
+    animation: viewLoadingPop 0.25s ease-out;
+}
+
+@keyframes viewLoadingPop {
+    from {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+.view-loading-spinner {
+    font-size: 40px;
+    color: #2563eb;
+    margin-bottom: 16px;
+    line-height: 1;
+}
+
+.view-loading-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: #0f172a;
+    margin-bottom: 8px;
+    letter-spacing: -0.02em;
+}
+
+.view-loading-desc {
+    font-size: 13px;
+    font-weight: 500;
+    color: #2563eb;
+    margin-bottom: 8px;
+    word-break: keep-all;
+    line-height: 1.5;
+    min-height: 20px;
+}
+
+.view-loading-sub {
+    font-size: 12px;
+    color: #64748b;
+    margin-top: 6px;
 }
 
 .view-filter-bar {
@@ -2138,8 +2254,25 @@ body.header-compact-mode.sidebar-backdrop-open::after {
         gap: 8px;
     }
 
+    .filter-bar .filter-left,
+    .filter-bar .filter-group-left {
+        width: 100%;
+        gap: 8px 12px;
+    }
+
+    .filter-bar .filter-bar,
+    .filter-bar .filter-left > .filter-bar,
+    .filter-dc-ftymd-dddw {
+        width: 100% !important;
+        max-width: 100% !important;
+        flex-shrink: 1 !important;
+        flex-wrap: wrap !important;
+        gap: 8px 12px !important;
+    }
+
     .filter-item {
         width: auto;
+        max-width: 100%;
     }
 
     .filter-select {
@@ -2152,13 +2285,13 @@ body.header-compact-mode.sidebar-backdrop-open::after {
        - 버튼 내부에 아이콘(i, svg) 또는 이미지(img)가 존재하는 경우 텍스트를 숨기고 이미지만 표출
        - 단, DDDW 드롭다운 선택 컴포넌트(.dddw-select-btn) 및 달력 팝업 버튼은 선택 텍스트 보존
        ========================================================================== */
-    .tab-content-container button:not(.dddw-select-btn),
-    .tab-content-container .t-btn:not(.dddw-select-btn),
-    .tab-content-container .btn-action:not(.dddw-select-btn),
-    .tab-content-container .btn-mode:not(.dddw-select-btn),
-    .tab-content-container .btn-sub-grid:not(.dddw-select-btn),
-    .tab-content-container .grid-tool-btn:not(.dddw-select-btn),
-    .tab-content-container .filter-actions button:not(.dddw-select-btn) {
+    .tab-content-container button:not(.dddw-select-btn):not(.btn-keep-text):not(.ja020n-pb-btn):not(.btn-run-action),
+    .tab-content-container .t-btn:not(.dddw-select-btn):not(.btn-keep-text):not(.ja020n-pb-btn):not(.btn-run-action),
+    .tab-content-container .btn-action:not(.dddw-select-btn):not(.btn-keep-text):not(.ja020n-pb-btn):not(.btn-run-action),
+    .tab-content-container .btn-mode:not(.dddw-select-btn):not(.btn-keep-text):not(.ja020n-pb-btn):not(.btn-run-action),
+    .tab-content-container .btn-sub-grid:not(.dddw-select-btn):not(.btn-keep-text):not(.ja020n-pb-btn):not(.btn-run-action),
+    .tab-content-container .grid-tool-btn:not(.dddw-select-btn):not(.btn-keep-text):not(.ja020n-pb-btn):not(.btn-run-action),
+    .tab-content-container .filter-actions button:not(.dddw-select-btn):not(.btn-keep-text):not(.ja020n-pb-btn):not(.btn-run-action) {
         font-size: 0 !important;
         min-width: 32px !important;
         height: 28px !important;
@@ -2171,10 +2304,37 @@ body.header-compact-mode.sidebar-backdrop-open::after {
         line-height: normal !important;
     }
 
-    /* 자식 텍스트 노드 및 span 태그 완전 숨김 (단, 뱃지, 아이콘, DDDW 선택 라벨 제외) */
-    .tab-content-container button:not(.dddw-select-btn) .btn-text,
-    .tab-content-container button:not(.dddw-select-btn) span:not(.badge):not(.badge-count):not(.dddw-select-label):not([class*="icon"]):not([class*="fa-"]) {
+    /* 자식 텍스트 노드 및 span 태그 완전 숨김 (단, 뱃지, 아이콘, DDDW 선택 라벨, 텍스트 보존 버튼 제외) */
+    .tab-content-container button:not(.dddw-select-btn):not(.btn-keep-text):not(.ja020n-pb-btn):not(.btn-run-action) .btn-text,
+    .tab-content-container button:not(.dddw-select-btn):not(.btn-keep-text):not(.ja020n-pb-btn):not(.btn-run-action) span:not(.badge):not(.badge-count):not(.dddw-select-label):not([class*="icon"]):not([class*="fa-"]) {
         display: none !important;
+    }
+
+    /* ==========================================================================
+       텍스트 보존 버튼 (.btn-keep-text, .ja020n-pb-btn, .btn-run-action) 예외 보장
+       - 모바일 화면에서도 아이콘화되지 않고 텍스트 표출 유지
+       ========================================================================== */
+    .tab-content-container button.btn-keep-text,
+    .tab-content-container .btn-keep-text,
+    .tab-content-container button.ja020n-pb-btn,
+    .tab-content-container .ja020n-pb-btn {
+        font-size: 11px !important;
+        min-width: auto !important;
+        line-height: normal !important;
+        text-indent: 0 !important;
+        letter-spacing: normal !important;
+    }
+
+    .btn-run-action,
+    .tab-content-container button.btn-run-action,
+    .tab-content-container .btn-run-action {
+        height: 26px !important;
+        padding: 0 10px !important;
+        font-size: 12px !important;
+        white-space: nowrap !important;
+        min-width: auto !important;
+        line-height: normal !important;
+        text-indent: 0 !important;
     }
 
     /* 버튼 내부 폰트어썸 아이콘 및 SVG 크기/여백 정규화 */
@@ -2814,4 +2974,104 @@ body.header-compact-mode.sidebar-backdrop-open::after {
 .range-cal-day-cell.other-month {
     color: #94a3b8 !important;
 }
+
+/* ==========================================================================
+   AAMS Standard Global Toast Notification Styles
+   ========================================================================== */
+#aamsToastContainer {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 10500;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    pointer-events: none;
+}
+
+.aams-toast {
+    pointer-events: auto;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 16px;
+    background: #ffffff;
+    border-radius: 6px;
+    box-shadow: 0 4px 16px rgba(15, 23, 42, 0.16), 0 1px 3px rgba(15, 23, 42, 0.08);
+    border: 1px solid #e2e8f0;
+    border-left: 4px solid #3b82f6;
+    font-size: 12.5px;
+    font-weight: 500;
+    color: #1e293b;
+    min-width: 250px;
+    max-width: 440px;
+    box-sizing: border-box;
+    transform: translateX(110%);
+    opacity: 0;
+    transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease;
+}
+
+.aams-toast.show {
+    transform: translateX(0);
+    opacity: 1;
+}
+
+.aams-toast-icon {
+    font-size: 15px;
+    flex-shrink: 0;
+}
+
+.aams-toast-message {
+    flex: 1 1 auto;
+    word-break: break-word;
+    line-height: 1.45;
+}
+
+.aams-toast-close {
+    background: transparent;
+    border: none;
+    color: #94a3b8;
+    font-size: 14px;
+    cursor: pointer;
+    padding: 0 2px;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.15s ease;
+    flex-shrink: 0;
+}
+
+.aams-toast-close:hover {
+    color: #334155;
+}
+
+.aams-toast.info {
+    border-left-color: #3b82f6;
+}
+.aams-toast.info .aams-toast-icon {
+    color: #3b82f6;
+}
+
+.aams-toast.success {
+    border-left-color: #10b981;
+}
+.aams-toast.success .aams-toast-icon {
+    color: #10b981;
+}
+
+.aams-toast.warning {
+    border-left-color: #f59e0b;
+}
+.aams-toast.warning .aams-toast-icon {
+    color: #f59e0b;
+}
+
+.aams-toast.error {
+    border-left-color: #ef4444;
+}
+.aams-toast.error .aams-toast-icon {
+    color: #ef4444;
+}
+
 

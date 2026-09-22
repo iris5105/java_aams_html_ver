@@ -112,6 +112,126 @@ function formatDate(val, isDateTime = false) {
 
     return s;
 }
+window.formatDate = formatDate;
+
+/**
+ * Common Number Formatter (1234567.89 -> 1,234,567.89)
+ */
+function formatNumber(val, decimals, fallback = '-') {
+    if (val === null || val === undefined || val === '') return fallback;
+    const num = Number(val);
+    if (isNaN(num)) return fallback;
+    if (typeof decimals === 'number') {
+        return num.toLocaleString('ko-KR', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+    }
+    return num.toLocaleString('ko-KR');
+}
+window.formatNumber = formatNumber;
+
+/**
+ * Common Percent Formatter (0.1234 -> 12.34%)
+ */
+function formatPercent(val, decimals = 2, fallback = '-') {
+    if (val === null || val === undefined || val === '') return fallback;
+    const num = Number(val);
+    if (isNaN(num)) return fallback;
+    return num.toLocaleString('ko-KR', { minimumFractionDigits: decimals, maximumFractionDigits: decimals }) + '%';
+}
+window.formatPercent = formatPercent;
+
+/**
+ * Global Toast Notification Engine (AAMS Standard)
+ * @param {string} message - Display message
+ * @param {string} [type='info'] - 'info' | 'success' | 'warning' | 'error'
+ * @param {number} [duration=3000] - Duration in milliseconds
+ */
+function showToast(message, type = 'info', duration = 3000) {
+    if (!message) return;
+
+    let container = document.getElementById('aamsToastContainer');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'aamsToastContainer';
+        document.body.appendChild(container);
+    }
+
+    const toast = document.createElement('div');
+    toast.className = `aams-toast ${type}`;
+
+    let iconHtml = '<i class="fa-solid fa-circle-info aams-toast-icon"></i>';
+    if (type === 'success') {
+        iconHtml = '<i class="fa-solid fa-circle-check aams-toast-icon"></i>';
+    } else if (type === 'warning') {
+        iconHtml = '<i class="fa-solid fa-triangle-exclamation aams-toast-icon"></i>';
+    } else if (type === 'error') {
+        iconHtml = '<i class="fa-solid fa-circle-xmark aams-toast-icon"></i>';
+    }
+
+    toast.innerHTML = `
+        ${iconHtml}
+        <span class="aams-toast-message">${escapeHtml(message)}</span>
+        <button type="button" class="aams-toast-close" title="닫기">&times;</button>
+    `;
+
+    container.appendChild(toast);
+
+    // Force layout reflow before adding .show for smooth CSS transition
+    void toast.offsetWidth;
+    toast.classList.add('show');
+
+    let timer = null;
+    function dismiss() {
+        if (timer) clearTimeout(timer);
+        toast.classList.remove('show');
+        setTimeout(() => {
+            if (toast.parentNode) {
+                toast.parentNode.removeChild(toast);
+            }
+        }, 300);
+    }
+
+    const closeBtn = toast.querySelector('.aams-toast-close');
+    if (closeBtn) {
+        closeBtn.addEventListener('click', dismiss);
+    }
+
+    if (duration > 0) {
+        timer = setTimeout(dismiss, duration);
+    }
+
+    return toast;
+}
+window.showToast = showToast;
+
+/**
+ * Global Alert Helper
+ */
+function showAlert(message, callback) {
+    showToast(message, 'warning', 3500);
+    if (typeof callback === 'function') {
+        setTimeout(callback, 200);
+    }
+}
+window.showAlert = showAlert;
+
+/**
+ * Common Modal Backdrop & ESC Dismissal Setup Helper
+ */
+function setupModalBackdrop(modalEl, closeCallback) {
+    if (!modalEl) return;
+    modalEl.addEventListener('click', function(e) {
+        if (e.target === modalEl) {
+            if (typeof closeCallback === 'function') closeCallback();
+        }
+    });
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && modalEl.style.display !== 'none' && modalEl.classList.contains('show')) {
+            if (typeof closeCallback === 'function') closeCallback();
+        }
+    });
+}
+window.setupModalBackdrop = setupModalBackdrop;
 
 /**
  * Logout Handler
@@ -543,6 +663,39 @@ function setupTabulatorRowSelection(table, onRowChange, options = {}) {
     // Use pure RowComponent instance comparison to reliably identify row changes across all screens
     let lastSelectedRow = null;
 
+    // 헬퍼: 행 포커스 및 스크롤 이동
+    function focusRow(targetRow) {
+        if (!targetRow) return;
+        if (typeof targetRow.scrollTo === 'function') {
+            try { targetRow.scrollTo("nearest"); } catch(e) {}
+        }
+        const rowEl = (typeof targetRow.getElement === 'function') ? targetRow.getElement() : null;
+        if (rowEl) {
+            if (!rowEl.hasAttribute('tabindex')) {
+                rowEl.setAttribute('tabindex', '-1');
+            }
+            try { rowEl.focus({ preventScroll: true }); } catch(e) {}
+        }
+    }
+
+    // 헬퍼: 현재 화면/탭에 reportViewer가 존재하는지 판별
+    function detectHasReportViewer() {
+        if (typeof options.hasReportViewer === 'boolean') {
+            return options.hasReportViewer;
+        }
+        const el = table.element;
+        if (!el) return false;
+        const pane = el.closest('.tab-pane') || el.closest('.view-container') || el.closest('body');
+        if (!pane) return false;
+
+        if (pane._aamsReportViewer || pane._reportViewer) return true;
+
+        const reportEl = pane.querySelector(
+            '.report-card, .report-viewer, .report-viewer-card, .report-viewer-pane, iframe.report-frame, #report-frame, .export-button-group, .report-modal-backdrop, [id*="MobileModal"], [id*="mobileModal"]'
+        );
+        return !!reportEl;
+    }
+
     function doSelect(row, force = false, originalEvent = null) {
         if (!row) return;
         let rowComp = row;
@@ -562,8 +715,17 @@ function setupTabulatorRowSelection(table, onRowChange, options = {}) {
         const isSelected = (typeof rowComp.isSelected === 'function' && rowComp.isSelected());
 
         // 1. Ensure single row selection without flickering
+        const isSingleSelect = (table.options.selectableRows === 1 || table.options.selectable === 1);
+        if (isSingleSelect) {
+            const currentSelected = (typeof table.getSelectedRows === 'function') ? table.getSelectedRows() : [];
+            currentSelected.forEach(r => {
+                if (r !== rowComp && typeof r.deselect === 'function') {
+                    r.deselect();
+                }
+            });
+        }
         if (!isSelected) {
-            if (typeof table.deselectRow === 'function') {
+            if (isSingleSelect && typeof table.deselectRow === 'function') {
                 table.deselectRow();
             }
             if (typeof rowComp.select === 'function') {
@@ -599,29 +761,46 @@ function setupTabulatorRowSelection(table, onRowChange, options = {}) {
         }
     }
 
+    // Ensure arrow keys do not change row selection
+    if (table.options) {
+        table.options.selectableRowsRollingSelection = false;
+    }
+
     function initListeners() {
         const container = table.element;
         if (!container || !container.addEventListener) return;
 
-        // 1. Capturing Pointer/Mouse Listener (Fires BEFORE child stopPropagation)
-        let lastPointerTime = 0;
-        const handlePointerCapture = function(e) {
-            const now = Date.now();
-            if (now - lastPointerTime < 50) return; // Prevent duplicate execution between pointerdown and mousedown
-            lastPointerTime = now;
+        // 1. Gesture-Aware Pointer/Touch/Click Listener & Scroll Suppression
+        // 모바일/태블릿 등 터치 환경에서 스크롤을 내릴 때 행이 멋대로 변경되는 문제를 원천 차단합니다.
+        let pointerStartX = 0;
+        let pointerStartY = 0;
+        let pointerMoved = false;
+        let pendingPointerRow = null;
+        let lastScrollTime = 0;
 
-            // Ignore clicks on header, footer, column resizers, or sort arrows
+        function markScroll() {
+            lastScrollTime = Date.now();
+            pointerMoved = true;
+            pendingPointerRow = null;
+        }
+
+        // Tabulator 내부 스크롤 컨테이너(.tabulator-tableholder) 감지
+        const tableHolder = container.querySelector(".tabulator-tableholder") || container;
+        tableHolder.addEventListener("scroll", markScroll, { passive: true });
+        window.addEventListener("scroll", markScroll, { passive: true });
+
+        function findRowFromEvent(e) {
+            if (!e || !e.target) return null;
             if (e.target.closest(".tabulator-header") || 
                 e.target.closest(".tabulator-footer") || 
                 e.target.closest(".tabulator-col-resize-handle") ||
-                e.target.closest(".tabulator-arrow")) {
-                return;
+                e.target.closest(".tabulator-arrow") ||
+                e.target.closest(".tabulator-cell-handle")) {
+                return null;
             }
-
             const rowEl = e.target.closest(".tabulator-row");
-            if (!rowEl) return;
+            if (!rowEl) return null;
 
-            // Find matching RowComponent via Tabulator native getRow first, then fallback to getRows find
             let targetRow = null;
             if (typeof table.getRow === 'function') {
                 try { targetRow = table.getRow(rowEl); } catch(err) {}
@@ -632,14 +811,89 @@ function setupTabulatorRowSelection(table, onRowChange, options = {}) {
                     targetRow = rows.find(r => r.getElement() === rowEl);
                 }
             }
+            return targetRow;
+        }
 
-            if (targetRow) {
-                doSelect(targetRow, false, e);
+        const handlePointerDown = function(e) {
+            if (Date.now() - lastScrollTime < 300) {
+                pendingPointerRow = null;
+                return;
+            }
+            const targetRow = findRowFromEvent(e);
+            if (!targetRow) {
+                pendingPointerRow = null;
+                return;
+            }
+            pointerStartX = e.clientX != null ? e.clientX : (e.touches && e.touches[0] ? e.touches[0].clientX : 0);
+            pointerStartY = e.clientY != null ? e.clientY : (e.touches && e.touches[0] ? e.touches[0].clientY : 0);
+            pointerMoved = false;
+            pendingPointerRow = targetRow;
+        };
+
+        const handlePointerMove = function(e) {
+            if (!pendingPointerRow || pointerMoved) return;
+            const currentX = e.clientX != null ? e.clientX : (e.touches && e.touches[0] ? e.touches[0].clientX : 0);
+            const currentY = e.clientY != null ? e.clientY : (e.touches && e.touches[0] ? e.touches[0].clientY : 0);
+            const dist = Math.hypot(currentX - pointerStartX, currentY - pointerStartY);
+            // 12px 이상 이동 시 스크롤/드래그 제스처로 판정하여 행 선택 변경 즉시 취소
+            if (dist > 12) {
+                pointerMoved = true;
+                pendingPointerRow = null;
+                lastScrollTime = Date.now();
             }
         };
 
-        container.addEventListener("pointerdown", handlePointerCapture, true);
-        container.addEventListener("mousedown", handlePointerCapture, true);
+        const handlePointerUp = function(e) {
+            if (Date.now() - lastScrollTime < 350 || pointerMoved) {
+                pendingPointerRow = null;
+                return;
+            }
+            if (pendingPointerRow) {
+                const target = pendingPointerRow;
+                pendingPointerRow = null;
+                doSelect(target, false, e);
+            } else {
+                pendingPointerRow = null;
+            }
+        };
+
+        const handlePointerCancel = function() {
+            pointerMoved = true;
+            pendingPointerRow = null;
+            lastScrollTime = Date.now();
+        };
+
+        // PointerEvent 지원 브라우저에서는 pointer 이벤트만 바인딩 (이중 실행 방지)
+        const hasPointer = !!window.PointerEvent;
+        if (hasPointer) {
+            container.addEventListener("pointerdown", handlePointerDown, { capture: true, passive: true });
+            container.addEventListener("pointermove", handlePointerMove, { capture: true, passive: true });
+            container.addEventListener("pointerup", handlePointerUp, { capture: true, passive: true });
+            container.addEventListener("pointercancel", handlePointerCancel, { capture: true, passive: true });
+        } else {
+            // 구형 기기 터치/마우스 fallback
+            container.addEventListener("touchstart", handlePointerDown, { capture: true, passive: true });
+            container.addEventListener("touchmove", handlePointerMove, { capture: true, passive: true });
+            container.addEventListener("touchend", handlePointerUp, { capture: true, passive: true });
+            container.addEventListener("touchcancel", handlePointerCancel, { capture: true, passive: true });
+            container.addEventListener("mousedown", handlePointerDown, { capture: true, passive: true });
+            container.addEventListener("mouseup", handlePointerUp, { capture: true, passive: true });
+        }
+
+        // 캡처링 단계의 click 리스너: 스크롤 제스처 후 발생하는 합성(Synthetic) 유령 클릭 완전 소멸
+        container.addEventListener("click", function(e) {
+            if (Date.now() - lastScrollTime < 400 || pointerMoved) {
+                pointerMoved = false;
+                e.stopImmediatePropagation();
+                e.stopPropagation();
+                e.preventDefault();
+                return;
+            }
+            const targetRow = findRowFromEvent(e);
+            if (targetRow) {
+                doSelect(targetRow, false, e);
+            }
+        }, true);
 
         // 2. cellEditing Hook: For keyboard Tab navigation into another row's editor
         table.on("cellEditing", function(cell) {
@@ -651,6 +905,9 @@ function setupTabulatorRowSelection(table, onRowChange, options = {}) {
 
         // 3. Tabulator standard rowClick fallback (avoids duplicate execution while guaranteeing selection)
         table.on("rowClick", function(e, row) {
+            if (Date.now() - lastScrollTime < 400) {
+                return;
+            }
             // Even if callback was dispatched recently via pointerdown capture,
             // ensure the row remains visually selected in case Tabulator's native click handler deselected it.
             if (row && typeof row.isSelected === 'function' && !row.isSelected()) {
@@ -664,38 +921,34 @@ function setupTabulatorRowSelection(table, onRowChange, options = {}) {
             if (row) doSelect(row, false, e);
         });
 
-        // 3-1. Tabulator rowDeselected fallback: Prevent single-select grid from deselecting to 0 rows on click
-        table.on("rowDeselected", function(row) {
-            if (table.options.selectableRows === 1 || table.options.selectable === 1) {
-                setTimeout(() => {
-                    const selected = typeof table.getSelectedRows === 'function' ? table.getSelectedRows() : [];
-                    if (selected.length === 0 && lastSelectedRow) {
-                        if (typeof lastSelectedRow.select === 'function') {
-                            lastSelectedRow.select();
-                        }
-                    }
-                }, 10);
-            }
-        });
-
-        // 4. Reset lastSelectedRow and auto select first row on data load (데스크톱만 자동 선택, 모바일은 자동 포커스 이동 방지)
+        // 4. Reset lastSelectedRow and auto select first row on data load
+        // [AAMS 표준 rowfocus 2대 정책]
+        // 1. reportViewer가 있는 경우:
+        //    1-1. 모바일 환경(<= 876px): 어디든 rowfocus를 강제하지 않음 (모달 팝업 자동 오픈 방지)
+        //    1-2. PC/태블릿 환경(> 876px): 조회 또는 새로고침 시 모든 그리드는 첫 번째 행 rowfocus
+        // 2. reportViewer가 없는 경우:
+        //    - PC, 태블릿, 모바일 모든 환경에서 조회 또는 새로고침 시 모든 그리드는 첫 번째 행 rowfocus
         table.on("dataLoaded", function(data) {
             lastSelectedRow = null;
             const isMobile = window.matchMedia('(max-width: 876px)').matches 
                 || window.innerWidth <= 876 
                 || (table.element && table.element.clientWidth > 0 && table.element.clientWidth <= 876);
 
-            if (options.autoSelectFirst !== false && !isMobile) {
+            const hasReport = detectHasReportViewer();
+            const shouldAutoFocus = hasReport ? !isMobile : true;
+
+            if (options.autoSelectFirst !== false && shouldAutoFocus) {
                 if (Array.isArray(data) && data.length > 0) {
                     setTimeout(() => {
                         const rows = table.getRows();
                         if (rows && rows.length > 0) {
-                            doSelect(rows[0]);
+                            doSelect(rows[0], true);
+                            focusRow(rows[0]);
                         }
-                    }, 50);
+                    }, 60);
                 }
-            } else if (isMobile) {
-                // 모바일 환경: 조회 후 첫 번째 행으로 focus/select 자동 이동 방지
+            } else if (hasReport && isMobile) {
+                // reportViewer가 있는 화면의 모바일 환경: 조회 후 첫 번째 행으로 focus/select 자동 이동 방지
                 setTimeout(() => {
                     if (typeof table.deselectRow === 'function') {
                         table.deselectRow();
@@ -726,8 +979,20 @@ function setupTabulatorRowSelection(table, onRowChange, options = {}) {
 
     table._aamsRowSelectionHelper = {
         selectRow: doSelect,
-        resetRow: function() { lastSelectedRow = null; },
-        getLastSelectedRow: function() { return lastSelectedRow; }
+        focusRow: focusRow,
+        focusFirstRow: function() {
+            const rows = table.getRows();
+            if (rows && rows.length > 0) {
+                doSelect(rows[0]);
+                focusRow(rows[0]);
+            }
+        },
+        resetRow: function() { 
+            lastSelectedRow = null; 
+            if (typeof table.deselectRow === 'function') table.deselectRow();
+        },
+        getLastSelectedRow: function() { return lastSelectedRow; },
+        hasReportViewer: function() { return detectHasReportViewer(); }
     };
 
     return table._aamsRowSelectionHelper;
@@ -763,12 +1028,39 @@ function aamsCellEdit(e, cell) {
 (function initAamsGlobalTabulator() {
     if (typeof window === 'undefined') return;
 
+    function processColumnsHeaderCss(columns) {
+        if (!Array.isArray(columns)) return;
+        columns.forEach(col => {
+            if (!col) return;
+            if (col.headerCssClass) {
+                const current = col.cssClass || '';
+                const classes = current.split(' ').filter(Boolean);
+                col.headerCssClass.split(' ').filter(Boolean).forEach(cls => {
+                    if (!classes.includes(cls)) {
+                        classes.push(cls);
+                    }
+                });
+                col.cssClass = classes.join(' ');
+                // Tabulator v6 유효성 검사 에러(Invalid column definition option: headerCssClass) 방지
+                delete col.headerCssClass;
+            }
+            if (col.columns && Array.isArray(col.columns)) {
+                processColumnsHeaderCss(col.columns);
+            }
+        });
+    }
+
     function applyPatch() {
         if (!window.Tabulator || window.Tabulator._isAamsPatched) return;
 
         const OriginalTabulator = window.Tabulator;
 
         function AamsTabulator(container, options = {}) {
+            // Convert headerCssClass to cssClass and delete headerCssClass before passing to Tabulator
+            if (options && options.columns) {
+                processColumnsHeaderCss(options.columns);
+            }
+
             // Ensure default columnDefaults.vertAlign = "middle" so Tabulator natively injects justifyContent based on hozAlign
             if (!options.columnDefaults) {
                 options.columnDefaults = {};
@@ -784,6 +1076,18 @@ function aamsCellEdit(e, cell) {
 
             // Instantiate original Tabulator
             const table = new OriginalTabulator(container, options);
+
+            // Hook dynamic column APIs to process headerCssClass
+            const origSetColumns = table.setColumns;
+            table.setColumns = function(cols) {
+                if (cols) processColumnsHeaderCss(cols);
+                return origSetColumns.apply(table, arguments);
+            };
+            const origAddColumn = table.addColumn;
+            table.addColumn = function(col, before, toColumn) {
+                if (col) processColumnsHeaderCss([col]);
+                return origAddColumn.apply(table, arguments);
+            };
 
             // Automatically attach row selection engine if selectable is enabled (default in AAMS)
             const isSelectable = (options.selectableRows !== false && options.selectable !== false);
@@ -907,64 +1211,207 @@ window.AamsReport = {
             return;
         }
         frameEl.src = this.formatPreviewUrl(url, zoom);
-    }
-};
+    },
 
-/**
- * Tabulator headerCssClass -> cssClass 자동 변환 래퍼 (AAMS 개발 표준 연동)
- * 개발 가이드 표준 규격인 headerCssClass(예: col-hdr-blue, col-hdr-red, col-hdr-green)를
- * Tabulator v6의 공식 cssClass 속성으로 자동 전파하여 컬럼 헤더에 해당 스타일이 안정적으로 적용되도록 보장합니다.
- */
-(function() {
-    if (typeof window !== 'undefined' && window.Tabulator) {
-        const OriginalTabulator = window.Tabulator;
+    /**
+     * 표준 리포트 뷰어 & 내보내기 & 모바일 모달 일체형 자동 바인딩 엔진
+     * @param {HTMLElement} rootPane - 화면의 탭 컨텍스트 엘리먼트 (currentPane / pane)
+     * @param {Object} config - 설정 옵션
+     */
+    bindViewer: function(rootPane, config) {
+        config = config || {};
+        var root = rootPane || document;
+        var iframe = root.querySelector(config.iframeSelector || '#report-frame, .report-frame');
+        var loadingEl = root.querySelector(config.loadingSelector || '#preview-loading, .report-loading');
+        var statusEl = root.querySelector(config.statusSelector || '#preview-status, .preview-status');
+        var modalEl = root.querySelector(config.modalSelector || (config.modalId ? ('#' + config.modalId) : null) || '.report-modal-backdrop')
+                   || document.querySelector(config.modalSelector || (config.modalId ? ('#' + config.modalId) : null) || '.report-modal-backdrop');
+        var modalIframe = modalEl ? modalEl.querySelector('iframe') : null;
+        var modalLoadingEl = modalEl ? modalEl.querySelector('.report-loading, [id*="loading"]') : null;
+        var modalTitleEl = modalEl ? modalEl.querySelector('.modal-title, .report-modal-title') : null;
+        var btnOpenNewWindow = root.querySelector('#btnOpenNewWindow, .btn-open-new-window');
+        var btnCloseModal = modalEl ? modalEl.querySelector('.btn-close-modal, .btn-close-report-modal, [id*="Close"]') : null;
+        
+        var selectedData = null;
 
-        function processColumnsHeaderCss(columns) {
-            if (!Array.isArray(columns)) return;
-            columns.forEach(col => {
-                if (!col) return;
-                if (col.headerCssClass) {
-                    const current = col.cssClass || '';
-                    const classes = current.split(' ').filter(Boolean);
-                    col.headerCssClass.split(' ').filter(Boolean).forEach(cls => {
-                        if (!classes.includes(cls)) {
-                            classes.push(cls);
-                        }
-                    });
-                    col.cssClass = classes.join(' ');
+        function resolveMrd(data) {
+            if (typeof config.mrdName === 'function') return config.mrdName(data);
+            if (config.mrdName) return config.mrdName;
+            if (typeof config.reportFile === 'function') return config.reportFile(data);
+            return config.reportFile || '';
+        }
+
+        function resolveParams(data) {
+            if (typeof config.getParams === 'function') return config.getParams(data);
+            if (typeof config.buildParams === 'function') return config.buildParams(data);
+            return data || {};
+        }
+
+        function resolveCorp() {
+            if (typeof config.getCorpGr === 'function') return config.getCorpGr();
+            if (typeof resolveCorpGr === 'function') return resolveCorpGr(root);
+            return '';
+        }
+
+        function showLoading(show) {
+            if (loadingEl) loadingEl.style.display = show ? 'block' : 'none';
+            if (modalLoadingEl) modalLoadingEl.style.display = show ? 'block' : 'none';
+        }
+
+        function updateStatus(text) {
+            if (statusEl) statusEl.textContent = text || '';
+            if (typeof config.onStatusChange === 'function') config.onStatusChange(selectedData, text);
+        }
+
+        function load(data, statusText) {
+            if (!data) return;
+            selectedData = data;
+            if (typeof config.onBeforePreview === 'function') {
+                config.onBeforePreview(data);
+            }
+            if (statusText) {
+                updateStatus(statusText);
+            } else if (typeof config.getStatus === 'function') {
+                updateStatus(config.getStatus(data, resolveParams(data)));
+            }
+            if (typeof config.getTitle === 'function') {
+                var titleEl = root.querySelector('#preview-header-title, .preview-header-title');
+                if (titleEl) {
+                    var titleVal = config.getTitle(data);
+                    var iconClass = config.iconClass || 'fa-solid fa-file-invoice';
+                    titleEl.innerHTML = '<i class="' + iconClass + '" style="margin-right: 4px;"></i> ' + titleVal;
                 }
-                if (col.columns && Array.isArray(col.columns)) {
-                    processColumnsHeaderCss(col.columns);
-                }
+            }
+            var mrd = resolveMrd(data);
+            var params = resolveParams(data);
+            var previewUrl = (typeof config.buildPreviewUrl === 'function')
+                ? config.buildPreviewUrl(data, params)
+                : (mrd ? AamsReport.buildPreviewUrl(mrd, params, { corpGr: resolveCorp(), zoom: config.zoom }) : null);
+            if (!previewUrl) return;
+            
+            showLoading(true);
+            if (iframe) {
+                iframe.onload = function() { showLoading(false); };
+                AamsReport.setFrameSrc(iframe, previewUrl, config.zoom);
+            }
+            if (modalIframe && modalEl && modalEl.style.display !== 'none') {
+                modalIframe.onload = function() { showLoading(false); };
+                AamsReport.setFrameSrc(modalIframe, previewUrl, config.zoom);
+            }
+        }
+
+        function clear() {
+            selectedData = null;
+            updateStatus(config.defaultStatus || '선택된 항목 없음');
+            if (iframe) AamsReport.setFrameSrc(iframe, 'about:blank');
+            if (modalIframe) AamsReport.setFrameSrc(modalIframe, 'about:blank');
+            showLoading(false);
+        }
+
+        function exportReport(format) {
+            if (!selectedData) {
+                if (typeof showToast === 'function') showToast('내보낼 항목을 먼저 선택해주세요.', 'warning');
+                else alert('내보낼 항목을 먼저 선택해주세요.');
+                return;
+            }
+            if (typeof config.beforeAction === 'function' && config.beforeAction(selectedData, 'export') === false) return;
+            var mrd = resolveMrd(selectedData);
+            var params = resolveParams(selectedData);
+            var dlName = typeof config.getDownloadName === 'function' ? config.getDownloadName(selectedData, format) : null;
+            var url = (typeof config.buildExportUrl === 'function')
+                ? config.buildExportUrl(selectedData, format, params)
+                : AamsReport.buildExportUrl(mrd, params, format, {
+                    corpGr: resolveCorp(),
+                    downloadName: dlName
+                });
+            if (url) window.location.href = url;
+        }
+
+        function openNewWindow() {
+            if (!selectedData) {
+                if (typeof showToast === 'function') showToast('조회할 항목을 먼저 선택해주세요.', 'warning');
+                else alert('조회할 항목을 먼저 선택해주세요.');
+                return;
+            }
+            if (typeof config.beforeAction === 'function' && config.beforeAction(selectedData, 'newWindow') === false) return;
+            var mrd = resolveMrd(selectedData);
+            var params = resolveParams(selectedData);
+            var url = (typeof config.buildPreviewUrl === 'function')
+                ? config.buildPreviewUrl(selectedData, params)
+                : AamsReport.buildPreviewUrl(mrd, params, { corpGr: resolveCorp(), zoom: config.zoom });
+            if (url) window.open(url, '_blank');
+        }
+
+        function openModal(data, title) {
+            if (!modalEl) {
+                modalEl = root.querySelector(config.modalSelector || (config.modalId ? ('#' + config.modalId) : null) || '.report-modal-backdrop')
+                       || document.querySelector(config.modalSelector || (config.modalId ? ('#' + config.modalId) : null) || '.report-modal-backdrop');
+            }
+            if (!modalEl) return;
+            selectedData = data || selectedData;
+            if (!title && typeof config.getTitle === 'function' && selectedData) {
+                title = config.getTitle(selectedData);
+            }
+            if (modalTitleEl && title) modalTitleEl.textContent = title;
+            modalEl.style.display = 'flex';
+            if (!modalIframe) modalIframe = modalEl.querySelector('iframe');
+            if (modalIframe && selectedData) {
+                var mrd = resolveMrd(selectedData);
+                var params = resolveParams(selectedData);
+                var url = (typeof config.buildPreviewUrl === 'function')
+                    ? config.buildPreviewUrl(selectedData, params)
+                    : AamsReport.buildPreviewUrl(mrd, params, { corpGr: resolveCorp(), zoom: config.zoom });
+                showLoading(true);
+                modalIframe.onload = function() { showLoading(false); };
+                AamsReport.setFrameSrc(modalIframe, url, config.zoom);
+            }
+        }
+
+        function closeModal() {
+            if (modalEl) modalEl.style.display = 'none';
+            if (modalIframe) AamsReport.setFrameSrc(modalIframe, 'about:blank');
+        }
+
+        // Export buttons binding
+        var exportBtns = root.querySelectorAll('.btn-export-format, .export-btn, [data-format]');
+        exportBtns.forEach(function(btn) {
+            btn.addEventListener('click', function(e) {
+                e.preventDefault();
+                var fmt = btn.getAttribute('data-format');
+                if (fmt) exportReport(fmt);
+            });
+        });
+
+        // New window button
+        if (btnOpenNewWindow) {
+            btnOpenNewWindow.addEventListener('click', function(e) {
+                e.preventDefault();
+                openNewWindow();
             });
         }
 
-        class AamsTabulator extends OriginalTabulator {
-            constructor(element, options) {
-                if (options && options.columns) {
-                    processColumnsHeaderCss(options.columns);
-                }
-                super(element, options);
-            }
-
-            setColumns(columns) {
-                if (columns) {
-                    processColumnsHeaderCss(columns);
-                }
-                return super.setColumns(columns);
-            }
-
-            addColumn(column, before, toColumn) {
-                if (column) {
-                    processColumnsHeaderCss([column]);
-                }
-                return super.addColumn(column, before, toColumn);
-            }
+        // Modal close button & backdrop
+        if (btnCloseModal) {
+            btnCloseModal.addEventListener('click', closeModal);
+        }
+        if (modalEl) {
+            setupModalBackdrop(modalEl, closeModal);
         }
 
-        // Prototype & Static methods / properties inheritance
-        Object.setPrototypeOf(AamsTabulator, OriginalTabulator);
-        window.Tabulator = AamsTabulator;
+        return {
+            load: load,
+            loadPreview: load,
+            clear: clear,
+            openModal: openModal,
+            openMobile: openModal,
+            closeModal: closeModal,
+            closeMobile: closeModal,
+            openNewWindow: openNewWindow,
+            exportReport: exportReport,
+            exportFormat: exportReport,
+            getSelectedData: function() { return selectedData; },
+            setSelectedData: function(d) { selectedData = d; }
+        };
     }
-})();
+};
 

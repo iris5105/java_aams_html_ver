@@ -27,15 +27,15 @@
             <input type="file" id="ja020nTradeFileInput" multiple accept=".xls,.xlsx,.csv" style="display: none;" />
 
             <!-- Row 1 -->
-            <button type="button" id="btnBalanceSelect" class="ja020n-pb-btn" title="국내 유증권잔고 엑셀파일을 선택하여 LOAD합니다.">잔고엑셀선택</button>
-            <button type="button" id="btnLoadedBalance" class="ja020n-pb-btn" data-mode="siga" title="LOAD된 유가증권 잔고내역을 조회합니다.">LOAD잔고내역</button>
+            <button type="button" id="btnBalanceSelect" class="ja020n-pb-btn btn-keep-text" title="국내 유증권잔고 엑셀파일을 선택하여 LOAD합니다.">잔고엑셀선택</button>
+            <button type="button" id="btnLoadedBalance" class="ja020n-pb-btn btn-keep-text" data-mode="siga" title="LOAD된 유가증권 잔고내역을 조회합니다.">LOAD잔고내역</button>
 
             <!-- Row 2 -->
-            <button type="button" id="btnTradeSelect" class="ja020n-pb-btn" title="국내 유가증권 매매 엑셀파일을 선택하여 LOAD합니다.">체결엑셀선택</button>
-            <button type="button" id="btnLoadedTrade" class="ja020n-pb-btn" data-mode="tr" title="LOAD된 유가증권 체결내역을 조회합니다.">LOAD체결내역</button>
+            <button type="button" id="btnTradeSelect" class="ja020n-pb-btn btn-keep-text" title="국내 유가증권 매매 엑셀파일을 선택하여 LOAD합니다.">체결엑셀선택</button>
+            <button type="button" id="btnLoadedTrade" class="ja020n-pb-btn btn-keep-text" data-mode="tr" title="LOAD된 유가증권 체결내역을 조회합니다.">LOAD체결내역</button>
 
             <!-- Row 3 -->
-            <button type="button" id="btnStatusRetrieve" class="ja020n-pb-btn active" data-mode="status" title="작업현황 및 처리결과를 조회합니다.">처리결과조회</button>
+            <button type="button" id="btnStatusRetrieve" class="ja020n-pb-btn active btn-keep-text" data-mode="status" title="작업현황 및 처리결과를 조회합니다.">처리결과조회</button>
         </div>
 
         <!-- 2. 중앙 HTS 화면번호 안내 박스 (st_1 in w_ja020n.srw) -->
@@ -292,6 +292,31 @@
         }
         .ja020n-grid-wrapper .tabulator-row {
             border-bottom: 1px solid #e2e8f0;
+        }
+
+        /* 5. 태블릿-S / 모바일 (<= 876px) 반응형: 5개 조작 버튼 텍스트 보존 및 패널 래핑 */
+        @media (max-width: 876px) {
+            .ja020n-middle-panel {
+                flex-wrap: wrap;
+                overflow-x: auto;
+            }
+            .ja020n-btn-grid {
+                width: 226px;
+                flex-shrink: 0;
+            }
+            .ja020n-pb-btn {
+                font-size: 11px !important;
+                height: 27px !important;
+                width: 110px !important;
+                min-width: 100px !important;
+                padding: 2px 6px !important;
+                display: inline-flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                white-space: nowrap !important;
+                line-height: normal !important;
+                text-indent: 0 !important;
+            }
         }
     </style>
 

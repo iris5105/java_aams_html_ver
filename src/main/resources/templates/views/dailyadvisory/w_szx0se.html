@@ -255,24 +255,10 @@
                     ]
                 });
 
-                gridSzx0se.on("tableBuilt", function() {
-                    const rows = gridSzx0se.getRows();
-                    if (rows && rows.length > 0) {
-                        gridSzx0se.deselectRow();
-                        rows[0].select();
-                    }
-                });
-
-                // Guideline 7: Capturing phase listener to guarantee row selection
-                container.addEventListener("click", function(e) {
-                    const rowEl = e.target.closest(".tabulator-row");
-                    if (!rowEl || !gridSzx0se) return;
-                    const row = gridSzx0se.getRow(rowEl);
-                    if (row && (!row.isSelected || !row.isSelected())) {
-                        gridSzx0se.deselectRow();
-                        row.select();
-                    }
-                }, true);
+                // 개발지침 규칙 8번 & 15번: setupTabulatorRowSelection 연결 (reportViewer가 없으므로 첫 행 자동 rowfocus)
+                if (typeof setupTabulatorRowSelection === 'function') {
+                    setupTabulatorRowSelection(gridSzx0se);
+                }
             }
 
             // Data retrieval function (Mapper / REST API)
@@ -287,13 +273,7 @@
                     .then(res => res.json())
                     .then(data => {
                         if (gridSzx0se) {
-                            gridSzx0se.setData(Array.isArray(data) ? data : []).then(() => {
-                                const rows = gridSzx0se.getRows();
-                                if (rows && rows.length > 0) {
-                                    gridSzx0se.deselectRow();
-                                    rows[0].select();
-                                }
-                            });
+                            gridSzx0se.setData(Array.isArray(data) ? data : []);
                         }
                     })
                     .catch(err => console.error("Error loading szx0se list for corpGr [" + corpGr + "]:", err));

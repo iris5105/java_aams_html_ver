@@ -148,6 +148,7 @@
                 if (typeof AamsCalendar !== 'undefined' && typeof AamsCalendar.initSimple === 'function') {
                     AamsCalendar.initSimple('filterYmd', {
                         pane: pane,
+                        initialYmd: (ymdInp ? ymdInp.value : "") || serverYmd || getTodayYmd(),
                         onSelect: function (selectedYmd) {
                             updateButtonState();
                         }

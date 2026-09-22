@@ -51,10 +51,7 @@ public class HomeController {
         model.addAttribute("topMenuList", topMenuList);
         model.addAttribute("sideMenuList", sideMenuList);
         model.addAttribute("activePgmNo", activePgmNo);
-        model.addAttribute("publicStockList", homeService.getPublicStockList(corpGr));
-        model.addAttribute("dayTrList", homeService.getDayTrList(corpGr));
-        model.addAttribute("gyulList", homeService.getGyulAccountList(corpGr));
-        model.addAttribute("noticeList", homeService.getNoticeList(userId));
+        // 카드 데이터는 클라이언트 비동기 REST API(/api/home/...)를 통해 지연 로딩(Lazy Loading)으로 조회
         return "w_home5";
     }
 

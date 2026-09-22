@@ -125,10 +125,174 @@
     box-sizing: border-box;
 }
 
+/* 서브 그리드 및 패널 내부 Tabulator 헤더 고정 및 내부 데이터 행 스크롤 보장 */
+.layout-split-v .tabulator-aams-grid .tabulator-header {
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 2 !important;
+}
+
+.layout-split-v .tabulator-aams-grid .tabulator-tableholder {
+    overflow-y: auto !important;
+    overflow-x: auto !important;
+}
+
+/* 5-A. 서브 그리드 헤더 및 행 조작 액션 버튼 공통 표준 (행 삽입, 행 복사, 행 삭제) */
+.layout-split-v .sub-grid-header {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    padding: 4px 8px !important;
+    background-color: #f1f5f9 !important;
+    border-bottom: 1px solid #cbd5e1 !important;
+    min-height: 32px !important;
+}
+
+.layout-split-v .sub-grid-actions {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 4px !important;
+}
+
+.layout-split-v .btn-sub-grid {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 4px !important;
+    padding: 2px 7px !important;
+    font-size: 11px !important;
+    font-weight: 600 !important;
+    line-height: 1.5 !important;
+    border-radius: 4px !important;
+    cursor: pointer !important;
+    transition: all 0.15s ease-in-out !important;
+}
+
+.layout-split-v .btn-sub-grid.btn-add {
+    color: #059669 !important;
+    background-color: #ecfdf5 !important;
+    border: 1px solid #a7f3d0 !important;
+}
+.layout-split-v .btn-sub-grid.btn-add:hover {
+    background-color: #d1fae5 !important;
+    border-color: #6ee7b7 !important;
+}
+
+.layout-split-v .btn-sub-grid.btn-copy {
+    color: #2563eb !important;
+    background-color: #eff6ff !important;
+    border: 1px solid #bfdbfe !important;
+}
+.layout-split-v .btn-sub-grid.btn-copy:hover {
+    background-color: #dbeafe !important;
+    border-color: #93c5fd !important;
+}
+
+.layout-split-v .btn-sub-grid.btn-del {
+    color: #dc2626 !important;
+    background-color: #fef2f2 !important;
+    border: 1px solid #fecaca !important;
+}
+.layout-split-v .btn-sub-grid.btn-del:hover {
+    background-color: #fee2e2 !important;
+    border-color: #fca5a5 !important;
+}
+
+/* 5-B. 복합 하단 좌우 2차 분할 표준 규격 (Master-SplitSub Quad 4개 섹션 구조)
+   - 데스크톱: 상단 마스터 그리드 + 하단 좌: 서브그리드 / 하단 우: 특이사항 메모 + 추가 서브그리드 */
+.layout-split-v > .pane-bottom.split-lr-container,
+.layout-split-v > .split-bottom-section.split-lr-container {
+    display: flex !important;
+    flex-direction: row !important;
+    gap: 8px !important;
+    padding: 6px !important;
+    overflow: hidden !important;
+    background-color: #f8fafc !important;
+    height: 100% !important;
+    box-sizing: border-box !important;
+}
+
+.layout-split-v .split-panel.panel-left {
+    flex: 1 1 50%;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    background: #ffffff;
+    box-sizing: border-box;
+}
+
+.layout-split-v .split-panel.panel-right {
+    flex: 1 1 50%;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    overflow: hidden;
+    box-sizing: border-box;
+}
+
+.layout-split-v .special-note-box {
+    flex: 0 0 130px;
+    display: flex;
+    flex-direction: column;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    background: #ffffff;
+    overflow: hidden;
+    box-sizing: border-box;
+}
+
+.layout-split-v .special-note-box textarea {
+    flex: 1 1 auto;
+    resize: none;
+    padding: 8px;
+    font-size: 12px;
+    border: none;
+    outline: none;
+    box-sizing: border-box;
+    background: #ffffff;
+}
+
+.layout-split-v .io-grid-box {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    background: #ffffff;
+    overflow: hidden;
+    box-sizing: border-box;
+}
+
+.layout-split-v .panel-left .grid-table-wrapper,
+.layout-split-v .io-grid-box .grid-table-wrapper {
+    flex: 1 1 auto;
+    height: calc(100% - 32px);
+    overflow: hidden;
+}
+
 /* 6. Tablet-S / Mobile Responsive Layout (<= 876px) */
 @media (max-width: 876px) {
+    /* 6-0. 최상위 모바일 스택 컨테이너 규격 */
+    .layout-mobile-stack-container {
+        display: flex !important;
+        flex-direction: column !important;
+        height: 100% !important;
+        max-height: 100% !important;
+        overflow-y: auto !important;
+        overflow-x: hidden !important;
+        -webkit-overflow-scrolling: touch !important;
+        padding-bottom: 48px !important;
+        box-sizing: border-box !important;
+    }
+
     .layout-split-v {
-        padding: 4px 6px !important;
+        flex-direction: column !important;
+        padding: 4px !important;
+        gap: 6px !important;
         height: calc(100% - 110px) !important;
     }
 
@@ -147,16 +311,21 @@
         flex: 1 1 50% !important;
     }
 
-    /* 6-B. 복합 서브패널(좌하/우하 다중 그리드, 특이사항 메모 박스 등)을 포함한 레이아웃: 높이 고정을 해제하여 전 항목 세로 순차 표출 및 스크롤 보장 */
+    /* 6-B. 복합 서브패널(좌하/우하 다중 그리드, 특이사항 메모 박스 등 4개 섹션)을 포함한 레이아웃: 높이 고정을 해제하여 전 항목 세로 순차 표출 및 스크롤 보장 */
+    .layout-split-v.layout-mobile-stack,
     .layout-split-v:has(.split-lr-container),
     .layout-split-v:has(.special-note-box),
     .layout-split-v:has(.io-grid-box) {
+        display: flex !important;
+        flex-direction: column !important;
         height: auto !important;
         min-height: 100% !important;
         overflow: visible !important;
         gap: 12px !important;
+        padding-bottom: 24px !important;
     }
 
+    .layout-split-v.layout-mobile-stack > .pane-top,
     .layout-split-v:has(.split-lr-container) > .pane-top,
     .layout-split-v:has(.special-note-box) > .pane-top,
     .layout-split-v:has(.io-grid-box) > .pane-top {
@@ -164,8 +333,13 @@
         height: 250px !important;
         min-height: 250px !important;
         max-height: 250px !important;
+        border: 1px solid #cbd5e1 !important;
+        border-radius: 6px !important;
+        overflow: hidden !important;
+        background: #ffffff !important;
     }
 
+    .layout-split-v.layout-mobile-stack > .pane-bottom,
     .layout-split-v:has(.split-lr-container) > .pane-bottom,
     .layout-split-v:has(.special-note-box) > .pane-bottom,
     .layout-split-v:has(.io-grid-box) > .pane-bottom {
@@ -176,6 +350,93 @@
         overflow: visible !important;
         background: transparent !important;
         border: none !important;
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 12px !important;
+        padding: 0 !important;
+        box-sizing: border-box !important;
+    }
+
+    /* 하위 2분할(좌: 이력 / 우: 특이사항+입출금) 세로 순차 전개 */
+    .layout-split-v .split-panel.panel-left {
+        display: flex !important;
+        flex-direction: column !important;
+        flex: 0 0 230px !important;
+        width: 100% !important;
+        height: 230px !important;
+        min-height: 230px !important;
+        max-height: 230px !important;
+        border: 1px solid #cbd5e1 !important;
+        border-radius: 6px !important;
+        overflow: hidden !important;
+        background: #ffffff !important;
+        box-sizing: border-box !important;
+    }
+
+    .layout-split-v .split-panel.panel-left .grid-table-wrapper {
+        height: calc(230px - 32px) !important;
+        overflow: hidden !important;
+    }
+
+    .layout-split-v .split-panel.panel-right {
+        display: flex !important;
+        flex-direction: column !important;
+        flex: 0 0 auto !important;
+        width: 100% !important;
+        height: auto !important;
+        min-height: 0 !important;
+        max-height: none !important;
+        overflow: visible !important;
+        gap: 12px !important;
+        box-sizing: border-box !important;
+    }
+
+    .layout-split-v .special-note-box {
+        display: flex !important;
+        flex-direction: column !important;
+        flex: 0 0 140px !important;
+        width: 100% !important;
+        height: 140px !important;
+        min-height: 140px !important;
+        max-height: 140px !important;
+        border: 1px solid #cbd5e1 !important;
+        border-radius: 6px !important;
+        background: #ffffff !important;
+        overflow: hidden !important;
+        box-sizing: border-box !important;
+    }
+
+    .layout-split-v .special-note-box textarea {
+        flex: 1 1 auto !important;
+        width: 100% !important;
+        height: calc(140px - 32px) !important;
+        min-height: 70px !important;
+        padding: 8px !important;
+        box-sizing: border-box !important;
+        border: none !important;
+        outline: none !important;
+        resize: none !important;
+        font-size: 12px !important;
+    }
+
+    .layout-split-v .io-grid-box {
+        display: flex !important;
+        flex-direction: column !important;
+        flex: 0 0 230px !important;
+        width: 100% !important;
+        height: 230px !important;
+        min-height: 230px !important;
+        max-height: 230px !important;
+        border: 1px solid #cbd5e1 !important;
+        border-radius: 6px !important;
+        background: #ffffff !important;
+        overflow: hidden !important;
+        box-sizing: border-box !important;
+    }
+
+    .layout-split-v .io-grid-box .grid-table-wrapper {
+        height: calc(230px - 32px) !important;
+        overflow: hidden !important;
     }
 }
 

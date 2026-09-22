@@ -138,159 +138,6 @@
             overflow: hidden;
             box-sizing: border-box;
         }
-
-        /* ==========================================================================
-           w_proposal 전용 모바일 반응형 레이아웃 (Tablet-S / Mobile <= 876px)
-           w_ja010b 와 동일한 세로 순차 스택 및 전체 세로 스크롤 규격 적용
-           ========================================================================== */
-        @media (max-width: 876px) {
-            /* 1) 최상위 컨테이너: 세로 스크롤 허용 및 100% 높이 유지 */
-            .proposal-container {
-                display: flex !important;
-                flex-direction: column !important;
-                height: 100% !important;
-                max-height: 100% !important;
-                overflow-y: auto !important;
-                overflow-x: hidden !important;
-                -webkit-overflow-scrolling: touch !important;
-                padding-bottom: 36px !important;
-                box-sizing: border-box !important;
-            }
-
-            /* 2) 레이아웃 스플릿: 세로 순차 배치 및 부모 높이 제한 해제 */
-            .proposal-container .layout-split-h,
-            .proposal-container.view-container .layout-split-h.split-body {
-                display: flex !important;
-                flex-direction: column !important;
-                flex: 0 0 auto !important;
-                width: 100% !important;
-                height: auto !important;
-                min-height: 0 !important;
-                max-height: none !important;
-                padding: 6px !important;
-                gap: 12px !important;
-                overflow: visible !important;
-            }
-
-            .proposal-container .split-gutter-h {
-                display: none !important;
-            }
-
-            /* 3) 상단: 시스템 개발 및 수정의뢰 목록 마스터 그리드 */
-            .proposal-container .pane-left,
-            .proposal-container .master-section,
-            .proposal-container .proposal-left-pane {
-                display: flex !important;
-                flex-direction: column !important;
-                flex: 0 0 250px !important;
-                width: 100% !important;
-                height: 250px !important;
-                min-height: 250px !important;
-                max-height: 250px !important;
-                border: 1px solid #cbd5e1 !important;
-                border-radius: 6px !important;
-                overflow: hidden !important;
-                background: #ffffff !important;
-                box-sizing: border-box !important;
-            }
-
-            .proposal-container .proposal-left-pane .master-grid-wrapper {
-                height: calc(250px - 42px) !important;
-                overflow: hidden !important;
-            }
-
-            /* 4) 하단 상세 섹션: 세로 방향으로 자식 패널들 순차 배치 */
-            .proposal-container .pane-right,
-            .proposal-container .detail-section,
-            .proposal-container .proposal-right-pane,
-            .proposal-container .multi-stack-pane {
-                display: flex !important;
-                flex-direction: column !important;
-                flex: 0 0 auto !important;
-                width: 100% !important;
-                height: auto !important;
-                min-height: 0 !important;
-                max-height: none !important;
-                gap: 12px !important;
-                padding: 0 !important;
-                overflow: visible !important;
-                background: transparent !important;
-                border: none !important;
-                box-sizing: border-box !important;
-            }
-
-            /* 4-1) 개발 의뢰내용 (Matter) 패널 */
-            .proposal-container .proposal-right-pane .matter-section {
-                display: flex !important;
-                flex-direction: column !important;
-                flex: 0 0 140px !important;
-                width: 100% !important;
-                height: 140px !important;
-                min-height: 140px !important;
-                max-height: 140px !important;
-                border: 1px solid #cbd5e1 !important;
-                border-radius: 6px !important;
-                background: #ffffff !important;
-                overflow: hidden !important;
-                box-sizing: border-box !important;
-            }
-
-            .proposal-container .proposal-right-pane .matter-section .proposal-textarea {
-                flex: 1 1 auto !important;
-                width: 100% !important;
-                height: calc(140px - 28px) !important;
-                min-height: 70px !important;
-            }
-
-            /* 4-2) 처리 내용 (Content) 패널 */
-            .proposal-container .proposal-right-pane .content-section {
-                display: flex !important;
-                flex-direction: column !important;
-                flex: 0 0 120px !important;
-                width: 100% !important;
-                height: 120px !important;
-                min-height: 120px !important;
-                max-height: 120px !important;
-                border: 1px solid #cbd5e1 !important;
-                border-radius: 6px !important;
-                background: #ffffff !important;
-                overflow: hidden !important;
-                box-sizing: border-box !important;
-            }
-
-            .proposal-container .proposal-right-pane .content-section .proposal-textarea {
-                flex: 1 1 auto !important;
-                width: 100% !important;
-                height: calc(120px - 28px) !important;
-                min-height: 60px !important;
-            }
-
-            /* 4-3) 댓글현황 (Comment Grid) 패널 */
-            .proposal-container .proposal-right-pane .comment-section {
-                display: flex !important;
-                flex-direction: column !important;
-                flex: 0 0 220px !important;
-                width: 100% !important;
-                height: 220px !important;
-                min-height: 220px !important;
-                max-height: 220px !important;
-                border: 1px solid #cbd5e1 !important;
-                border-radius: 6px !important;
-                background: #ffffff !important;
-                overflow: hidden !important;
-                box-sizing: border-box !important;
-            }
-
-            .proposal-container .proposal-right-pane .comment-section .grid-table-wrapper {
-                height: calc(220px - 32px) !important;
-                overflow: hidden !important;
-            }
-
-            .proposal-container #grid-proposal-comment {
-                height: 100% !important;
-                min-height: 160px !important;
-            }
-        }
     </style>
 
     <!-- Top Action Control Bar (Row 1) -->
@@ -364,7 +211,8 @@
             let gridMaster = null;
             let gridComment = null;
 
-            const initialMasterData = /*[[${masterList}]]*/ [];
+            // 데이터는 eb_direct_retrieve REST API(loadProposalMaster)로만 비동기 로드
+            const initialMasterData = [];
 
             function resolveCurrentUserNm() {
                 // 1. Server-injected model attribute
@@ -428,23 +276,7 @@
             // Master grid title conditional edit check (Only allows edit if current user is proposer or new row)
             function isProposalEditable(cell) {
                 if (!cell) return false;
-                const row = typeof cell.getRow === 'function' ? cell.getRow() : null;
-                if (!row) return false;
-                const data = row.getData();
-                if (!data) return false;
-
-                const canEdit = isCurrentUserProposer(cell);
-                if (canEdit) {
-                    return true;
-                } else {
-                    // 사용자와 의뢰자가 다름: 편집 차단 및 즉시 행 선택 & 상세 패널 조회
-                    if (gridMaster && (!row.isSelected || !row.isSelected())) {
-                        gridMaster.deselectRow();
-                        row.select();
-                        updateDetailPanel(data);
-                    }
-                    return false;
-                }
+                return isCurrentUserProposer(cell);
             }
 
             // Comment grid appending conditional edit check (Only author or new row)
@@ -456,16 +288,7 @@
                 if (!data) return false;
 
                 const currentNm = resolveCurrentUserNm();
-                const canEdit = Boolean(data.isNew || !data.sbNm || !currentNm || data.sbNm === currentNm);
-                if (canEdit) {
-                    return true;
-                } else {
-                    if (gridComment && (!row.isSelected || !row.isSelected())) {
-                        gridComment.deselectRow();
-                        row.select();
-                    }
-                    return false;
-                }
+                return Boolean(data.isNew || !data.sbNm || !currentNm || data.sbNm === currentNm);
             }
 
             function formatDateVal(val) {
@@ -491,7 +314,7 @@
                     layout: "fitDataFill",
                     height: "100%",
                     selectableRows: 1,
-                    selectableRollingSelection: false,
+                    selectableRowsRollingSelection: false,
                     editTriggerEvent: "click",
                     placeholder: "<span>조회된 건의사항/개선요청 내역이 없습니다.</span>",
                     columnDefaults: { vertAlign: "middle", headerSortTristate: true },
@@ -541,10 +364,10 @@
                     ]
                 });
 
-                // 1. AAMS Standard: Register global row selection callback (autoSelectFirst는 loadProposalMaster에서 단독 관리)
+                // 1. AAMS Standard: Register global row selection callback (표준 2대 정책에 따라 첫 행 자동 선택)
                 setupTabulatorRowSelection(gridMaster, function(row, data) {
                     updateDetailPanel(data);
-                }, { keyField: 'ymd', autoSelectFirst: false });
+                }, { keyField: 'ymd' });
 
                 // 2. Tabulator standard rowClick fallback
                 gridMaster.on("rowClick", function(e, row) {
@@ -569,7 +392,7 @@
                     layout: "fitColumns",
                     height: "100%",
                     selectableRows: 1,
-                    selectableRollingSelection: false,
+                    selectableRowsRollingSelection: false,
                     editTriggerEvent: "click",
                     placeholder: "<span>선택된 의뢰건에 등록된 댓글이 없습니다.</span>",
                     columnDefaults: { vertAlign: "middle", headerSortTristate: true },
@@ -607,23 +430,14 @@
                     ]
                 });
 
-                                // Capturing phase listener for comment grid
-                container.addEventListener("click", function(e) {
-                    const rowEl = e.target.closest(".tabulator-row");
-                    if (!rowEl || !gridComment) return;
-                    const row = gridComment.getRow(rowEl);
-                    if (row) {
-                        if (!row.isSelected || !row.isSelected()) {
-                            gridComment.deselectRow();
-                            row.select();
-                        }
-                    }
-                }, true);
+                if (typeof setupTabulatorRowSelection === "function") {
+                    setupTabulatorRowSelection(gridComment);
+                }
+            }
 
-                gridComment.on("rowClick", function(e, row) {
-                    gridComment.deselectRow();
-                    row.select();
-                });
+            function resetDetailPanel() {
+                updateDetailPanel(null);
+                lastLoadedProposalKey = null;
             }
 
             function updateDetailPanel(data) {
@@ -674,11 +488,7 @@
                     : (filterSelect && filterSelect.value ? filterSelect.value : (getCookieVal("savedCorpGr") || getCookieVal("corpGr") || getCookieVal("corp_gr")));
 
                 // Reset detail panels
-                const matterEl = document.getElementById("proposalMatter");
-                const contentEl = document.getElementById("proposalContent");
-                if (matterEl) matterEl.value = "";
-                if (contentEl) contentEl.value = "";
-                if (gridComment) gridComment.setData([]);
+                resetDetailPanel();
                 
                 fetch(`/api/proposal/master?corpGr=${encodeURIComponent(corpGr)}`)
                     .then(res => res.json())
@@ -686,25 +496,27 @@
                         const list = Array.isArray(data) ? data : [];
                         if (gridMaster) {
                             gridMaster.setData(list).then(function() {
-                                // 데이터 로드 완료 후: 오직 맨 위의 첫 번째 row에만 단독 focus & select
                                 if (list.length > 0) {
-                                    const rows = gridMaster.getRows();
-                                    if (rows && rows.length > 0) {
-                                        gridMaster.deselectRow();
-                                        const firstRow = rows[0];
-                                        firstRow.select();
-                                        if (typeof firstRow.scrollTo === 'function') {
-                                            firstRow.scrollTo("top", 1);
+                                    setTimeout(() => {
+                                        const rows = gridMaster.getRows();
+                                        if (rows && rows.length > 0) {
+                                            const firstRow = rows[0];
+                                            if (typeof firstRow.select === 'function') {
+                                                firstRow.select();
+                                            }
+                                            updateDetailPanel(firstRow.getData());
                                         }
-                                        updateDetailPanel(firstRow.getData());
-                                    }
+                                    }, 80);
                                 } else {
-                                    updateDetailPanel(null);
+                                    resetDetailPanel();
                                 }
-                                // 전체 뷰 스크롤 위치 최상단 유지
-                                const containerEl = pane ? (pane.querySelector('.proposal-container') || pane) : document.querySelector('.proposal-container');
-                                if (containerEl && typeof containerEl.scrollTop === 'number') {
-                                    containerEl.scrollTop = 0;
+                                // 전체 뷰 스크롤 위치 최상단 유지 (컨테이너 및 부모 tab-pane 모두 0으로 리셋)
+                                if (pane && typeof pane.scrollTop === 'number') {
+                                    pane.scrollTop = 0;
+                                }
+                                const tabPane = pane ? pane.closest('.tab-pane') : null;
+                                if (tabPane && typeof tabPane.scrollTop === 'number') {
+                                    tabPane.scrollTop = 0;
                                 }
                             });
                         }

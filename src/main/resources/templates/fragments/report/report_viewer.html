@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<!--
+====================================================================================================
+  AAMS 공통 MRD 리포트 뷰어 프래그먼트 (Common Report Viewer Fragments)
+  용도:
+  1. exportButtons: 5종 포맷 내보내기(PDF/Excel/Word/PPT/HWP) 및 새 창 열기 버튼 그룹
+  2. reportViewerPane: 데스크톱 우측 분할 리포트 카드 패널
+  3. reportMobileModal: 모바일 화면(width <= 876px) 전용 팝업 리포트 모달
+====================================================================================================
+-->
+
+<!-- 1. 5종 포맷 내보내기 버튼 그룹 + 새 창 열기 버튼 -->
+<div th:fragment="exportButtons" class="export-button-group">
+    <button type="button" class="btn-export-format btn-pdf" data-format="pdf" title="PDF 파일로 저장">
+        <i class="fa-solid fa-file-pdf"></i>PDF
+    </button>
+    <button type="button" class="btn-export-format btn-excel" data-format="excel" title="Excel(XLSX) 파일로 저장">
+        <i class="fa-solid fa-file-excel"></i>Excel
+    </button>
+    <button type="button" class="btn-export-format btn-word" data-format="word" title="MS Word(DOC) 파일로 저장">
+        <i class="fa-solid fa-file-word"></i>Word
+    </button>
+    <button type="button" class="btn-export-format btn-ppt" data-format="ppt" title="PowerPoint(PPTX) 파일로 저장">
+        <i class="fa-solid fa-file-powerpoint"></i>PPT
+    </button>
+    <button type="button" class="btn-export-format btn-hwp" data-format="hwp" title="한글(HWP) 파일로 저장">
+        <i class="fa-solid fa-file-lines"></i>한글(HWP)
+    </button>
+    <button type="button" id="btnOpenNewWindow" class="btn-export-format btn-window btn-open-new-window" title="새 창으로 리포트 열기">
+        <i class="fa-solid fa-arrow-up-right-from-square"></i>
+    </button>
+</div>
+
+<!-- 2. 데스크톱 분할 우측 리포트 카드 패널 -->
+<div th:fragment="reportViewerPane(reportTitle, defaultStatus)" class="pane-right detail-section report-card">
+    <div class="pane-header report-header">
+        <div class="report-title-area" style="display: flex; align-items: center; gap: 8px;">
+            <span class="fw-bold small text-secondary preview-header-title">
+                <i class="fa-solid fa-file-invoice me-1"></i> <th:block th:text="${reportTitle}">리포트 미리보기</th:block>
+            </span>
+            <span id="preview-status" class="preview-status small text-muted" th:text="${defaultStatus ?: '선택된 항목 없음'}">선택된 항목 없음</span>
+        </div>
+        <div th:replace="~{fragments/report/report_viewer :: exportButtons}"></div>
+    </div>
+    <div class="pane-body report-body" style="background-color: #525659; position: relative; width: 100%; height: calc(100% - 41px); overflow: hidden;">
+        <!-- 로딩 스피너 -->
+        <div id="preview-loading" class="report-loading" style="display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; color: #ffffff; z-index: 10;">
+            <i class="fa-solid fa-spinner fa-spin fa-2x" style="margin-bottom: 8px;"></i>
+            <div style="font-size: 12px;">보고서를 로드 중입니다...</div>
+        </div>
+        <!-- 리포트 iframe -->
+        <iframe id="report-frame" class="report-frame" style="width: 100% !important; height: 100% !important; border: none; display: block; background-color: #525659;" src="about:blank"></iframe>
+    </div>
+</div>
+
+<!-- 3. 모바일 반응형 전용 리포트 모달 -->
+<div th:fragment="reportMobileModal(modalId, modalTitle)" th:id="${modalId}" class="report-modal-backdrop" style="display: none;">
+    <div class="report-modal-content">
+        <div class="report-modal-header">
+            <span class="report-modal-title modal-title">
+                <i class="fa-solid fa-file-invoice me-1"></i> <th:block th:text="${modalTitle ?: '리포트 상세'}">리포트 상세</th:block>
+            </span>
+            <button type="button" class="btn-close-modal btn-close-report-modal" title="닫기">&times;</button>
+        </div>
+        <div class="report-modal-body" style="flex: 1 1 auto; height: calc(100% - 42px); position: relative; background: #525659; overflow: hidden;">
+            <div class="report-loading" style="display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; color: #ffffff; z-index: 10;">
+                <i class="fa-solid fa-spinner fa-spin fa-2x" style="margin-bottom: 8px;"></i>
+                <div style="font-size: 12px;">보고서를 로드 중입니다...</div>
+            </div>
+            <iframe style="width: 100% !important; height: 100% !important; border: none; display: block; background-color: #525659;" src="about:blank"></iframe>
+        </div>
+    </div>
+</div>
+
+</html>

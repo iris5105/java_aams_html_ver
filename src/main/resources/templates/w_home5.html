@@ -27,6 +27,12 @@
     <link rel="stylesheet" th:href="@{/css/report-viewer.css}" href="/css/report-viewer.css">
     <!-- Common & Specialized JavaScript Modules -->
     <script th:src="@{/js/common.js(v='20260918_5')}" src="/js/common.js?v=20260918_5"></script>
+    <script th:inline="javascript">
+        window.g_sideMenuDataCache = window.g_sideMenuDataCache || {};
+        /*[# th:if="${activePgmNo != null and sideMenuList != null}"]*/
+        window.g_sideMenuDataCache['/*[[${activePgmNo}]]*/'] = /*[[${sideMenuList}]]*/ [];
+        /*[/]*/
+    </script>
     <script th:src="@{/js/side_menu.js(v='20260918_1')}" src="/js/side_menu.js?v=20260918_1"></script>
     <script th:src="@{/js/button.js}" src="/js/button.js"></script>
     <script th:src="@{/js/button_role.js}" src="/js/button_role.js"></script>
@@ -176,17 +182,42 @@
     <script th:inline="javascript">
         window.currentCorpGr = /*[[${corpGr}]]*/ '';
 
-        document.addEventListener("DOMContentLoaded", function() {
-            initDualChart();
-            loadDualChart();
+        // Unified Home Dashboard Loader (Only executes when Home Workspace Pane is visible)
+        window.g_homeDashboardLoaded = false;
+        function loadHomeDashboardData() {
+            if (window.g_homeDashboardLoaded) return;
+            window.g_homeDashboardLoaded = true;
 
-            // Initial API fetch for all 6 sections
-            loadPublicStocks();
-            loadSubscriptions();
-            loadProposals();
-            loadDayTr();
-            loadGyulAccounts();
-            loadRateChanges();
+            if (typeof initDualChart === 'function') initDualChart();
+            if (typeof loadDualChart === 'function') loadDualChart();
+
+            // Initial API fetch for all 6 home cards
+            if (typeof loadPublicStocks === 'function') loadPublicStocks();
+            if (typeof loadSubscriptions === 'function') loadSubscriptions();
+            if (typeof loadProposals === 'function') loadProposals();
+            if (typeof loadDayTr === 'function') loadDayTr();
+            if (typeof loadGyulAccounts === 'function') loadGyulAccounts();
+            if (typeof loadRateChanges === 'function') loadRateChanges();
+        }
+        window.loadHomeDashboardData = loadHomeDashboardData;
+
+        document.addEventListener("DOMContentLoaded", function() {
+            // Check if there are active MDI tabs being restored
+            let hasActiveTabs = false;
+            try {
+                const raw = sessionStorage.getItem("AAMS_MDI_TABS_STATE");
+                if (raw) {
+                    const state = JSON.parse(raw);
+                    if (state && Array.isArray(state.openTabs) && state.openTabs.length > 0) {
+                        hasActiveTabs = true;
+                    }
+                }
+            } catch(e) {}
+
+            // If other tab screens are open, DO NOT run home card queries
+            if (!hasActiveTabs) {
+                loadHomeDashboardData();
+            }
         });
     </script>
 
