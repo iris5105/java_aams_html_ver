@@ -222,7 +222,14 @@
 
                 // 리포트 뷰어 일체형 자동 바인딩 (공통 프래그먼트 및 모듈 연동)
                 reportViewer = AamsReport.bindViewer(currentPane, {
-                    mrdName: 'rd_ja010j.mrd',
+                    mrdName: function (data) {
+                        var fCd = (data && data.fundCd != null) ? String(data.fundCd) : '0';
+                        var cGr = (data && data.corpGr) ? String(data.corpGr) : getFilterCorpGr();
+                        if (fCd === '0') return 'rd_ja010j_0.mrd';
+                        if (fCd === '1') return (cGr === '2202') ? 'rd_ja010j_2202.mrd' : 'rd_ja010j_1.mrd';
+                        if (fCd === '2') return 'rd_ja010j_2.mrd';
+                        return 'rd_ja010j_6.mrd';
+                    },
                     modalSelector: '#ja010jMobileModal',
                     getParams: function (data) {
                         return {

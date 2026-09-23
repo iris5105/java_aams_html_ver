@@ -432,9 +432,12 @@
                     });
                 }
 
-                const visibleRows = gridDetail.getRows("visible");
+                const totalCount = (typeof gridDetail.getDataCount === "function")
+                    ? gridDetail.getDataCount("active")
+                    : (gridDetail.getRows("active") ? gridDetail.getRows("active").length : (detailAllData ? detailAllData.length : 0));
+
                 if (countEl) {
-                    countEl.textContent = (visibleRows ? visibleRows.length : 0) + "건";
+                    countEl.textContent = totalCount + "건";
                 }
             }
 
@@ -638,10 +641,19 @@
                 };
             }
 
+            function initCalendar() {
+                if (window.AamsCalendar && typeof window.AamsCalendar.initRange === 'function') {
+                    window.AamsCalendar.initRange('filterFYmd', 'filterTYmd', {
+                        pane: pane
+                    });
+                }
+            }
+
             // Rule 11: Single Entry Point (isInitialized guard)
             function startInit() {
                 if (isInitialized) return;
                 isInitialized = true;
+                initCalendar();
                 initGrids();
             }
 

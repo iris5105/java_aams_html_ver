@@ -102,8 +102,8 @@
                 if (typeof window.f_dddwctl === 'function') {
                     return window.f_dddwctl('pg_cd', 1, targetCorpGr, '', '').then(list => {
                         dddwOptionsMap.pg_cd = list || [];
-                        if (gridDetail) {
-                            gridDetail.reformat();
+                        if (gridDetail && typeof gridDetail.redraw === 'function') {
+                            gridDetail.redraw(true);
                         }
                         return list;
                     }).catch(err => {
@@ -405,7 +405,13 @@
                 lastLoadedMasterKey = null;
                 currentSelectedMaster = null;
                 deletedDetailList = [];
-                if (gridDetail) gridDetail.setData([]);
+                if (gridDetail && typeof gridDetail.setData === 'function') {
+                    try {
+                        gridDetail.setData([]);
+                    } catch(e) {
+                        console.warn("[w_scm1pg] clearDetail setData skipped:", e);
+                    }
+                }
                 const labelEl = pane ? pane.querySelector("#selected-jm-name") : document.getElementById("selected-jm-name");
                 if (labelEl) labelEl.innerText = "선택된 종목 없음";
                 const countEl = pane ? pane.querySelector("#detail-count") : document.getElementById("detail-count");

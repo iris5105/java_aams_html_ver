@@ -248,10 +248,30 @@ public class RdReportService {
             throw new IllegalArgumentException("MRD 파일명이 지정되지 않았습니다.");
         }
         corpGr = resolveCorpGr(corpGr);
-        Path mrdPath = getTemplatePath(mrdName.trim());
+        String targetMrd = mrdName.trim();
+
+        // rd_ja010j.mrd 요청 시 fund_cd 및 corp_gr에 따라 실제 존재하는 MRD 파일로 매핑
+        if ("rd_ja010j.mrd".equalsIgnoreCase(targetMrd)) {
+            String fundCd = "0";
+            if (params != null) {
+                if (params.containsKey("fund_cd")) fundCd = String.valueOf(params.get("fund_cd"));
+                else if (params.containsKey("fundCd")) fundCd = String.valueOf(params.get("fundCd"));
+            }
+            if ("0".equals(fundCd)) {
+                targetMrd = "rd_ja010j_0.mrd";
+            } else if ("1".equals(fundCd)) {
+                targetMrd = "2202".equals(corpGr) ? "rd_ja010j_2202.mrd" : "rd_ja010j_1.mrd";
+            } else if ("2".equals(fundCd)) {
+                targetMrd = "rd_ja010j_2.mrd";
+            } else {
+                targetMrd = "rd_ja010j_6.mrd";
+            }
+        }
+
+        Path mrdPath = getTemplatePath(targetMrd);
         String paramStr = buildRdParam(corpGr, params);
 
-        log.info("RD 범용 리포트 생성 - MRD: {}, Param: {}, Format: {}", mrdName, paramStr, format);
+        log.info("RD 범용 리포트 생성 - MRD: {} (요청: {}), Param: {}, Format: {}", targetMrd, mrdName, paramStr, format);
         return executeRdEngine(mrdPath, paramStr, format, downloadFilename);
     }
 

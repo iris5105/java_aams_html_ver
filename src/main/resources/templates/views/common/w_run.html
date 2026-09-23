@@ -213,13 +213,19 @@
                 fetch("/api/common/run/programs")
                     .then(function (res) { return res.json(); })
                     .then(function (data) {
-                        if (grid) {
-                            grid.setData(data || []).then(function () {
-                                var rows = grid.getRows();
-                                if (rows && rows.length > 0) {
-                                    rows[0].select();
-                                }
-                            });
+                        if (grid && typeof grid.setData === "function") {
+                            try {
+                                grid.setData(data || []).then(function () {
+                                    var rows = grid.getRows();
+                                    if (rows && rows.length > 0) {
+                                        rows[0].select();
+                                    }
+                                }).catch(function (e) {
+                                    console.warn("[w_run] grid.setData promise warning:", e);
+                                });
+                            } catch(e) {
+                                console.warn("[w_run] grid.setData call warning:", e);
+                            }
                         }
                     })
                     .catch(function (err) {
@@ -417,9 +423,18 @@
                     }
                 };
 
+                if (grid) {
+                    grid.on("tableBuilt", function () {
+                        loadPrograms();
+                    });
+                }
+                // Fallback in case tableBuilt already fired
                 setTimeout(function () {
-                    loadPrograms();
-                }, 100);
+                    var rows = grid ? grid.getRows() : [];
+                    if (!rows || rows.length === 0) {
+                        loadPrograms();
+                    }
+                }, 300);
             }
 
             if (document.readyState === "loading") {

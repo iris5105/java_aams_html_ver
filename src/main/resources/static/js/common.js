@@ -1354,16 +1354,17 @@ window.AamsReport = {
             }
             if (modalTitleEl && title) modalTitleEl.textContent = title;
             modalEl.style.display = 'flex';
-            if (!modalIframe) modalIframe = modalEl.querySelector('iframe');
             if (modalIframe && selectedData) {
                 var mrd = resolveMrd(selectedData);
                 var params = resolveParams(selectedData);
+                // 모바일 모달 뷰어도 PC 표준과 동일하게 120% 확대 비율 적용
+                var modalZoom = (config.mobileZoom !== undefined) ? config.mobileZoom : (config.zoom !== undefined ? config.zoom : AamsReport.DEFAULT_ZOOM);
                 var url = (typeof config.buildPreviewUrl === 'function')
                     ? config.buildPreviewUrl(selectedData, params)
-                    : AamsReport.buildPreviewUrl(mrd, params, { corpGr: resolveCorp(), zoom: config.zoom });
+                    : AamsReport.buildPreviewUrl(mrd, params, { corpGr: resolveCorp(), zoom: modalZoom });
                 showLoading(true);
                 modalIframe.onload = function() { showLoading(false); };
-                AamsReport.setFrameSrc(modalIframe, url, config.zoom);
+                AamsReport.setFrameSrc(modalIframe, url, modalZoom);
             }
         }
 

@@ -202,11 +202,11 @@ window.AamsCalendar = (function() {
             popover.innerHTML = `
                 <div style="display: flex; align-items: center; justify-content: space-between; padding: 4px 2px; border-bottom: 1px solid #e2e8f0; font-size: 13px;">
                     <div style="display: flex; align-items: center; gap: 3px;">
-                        <button type="button" onclick="AamsCalendar.prevYear('${inputId}', event)" title="이전 년도" style="background: none; border: none; cursor: pointer; color: #2563eb; font-weight: bold; font-size: 13px; padding: 0 2px;">«</button>
-                        <button type="button" onclick="AamsCalendar.prevMonth('${inputId}', event)" title="이전 월" style="background: none; border: none; cursor: pointer; color: #2563eb; font-weight: bold; font-size: 13px; padding: 0 2px;">‹</button>
+                        <button type="button" class="cal-nav-btn" onclick="AamsCalendar.prevYear('${inputId}', event)" title="이전 년도" style="background: none; border: none; cursor: pointer; color: #2563eb; font-weight: 800; font-size: 16px; padding: 0 4px; min-width: 22px; height: 24px; display: inline-flex; align-items: center; justify-content: center; line-height: 1;">«</button>
+                        <button type="button" class="cal-nav-btn" onclick="AamsCalendar.prevMonth('${inputId}', event)" title="이전 월" style="background: none; border: none; cursor: pointer; color: #2563eb; font-weight: 800; font-size: 16px; padding: 0 4px; min-width: 22px; height: 24px; display: inline-flex; align-items: center; justify-content: center; line-height: 1;">‹</button>
                         <span id="${inst.titleId}" class="calendar-title" style="font-weight: 700; font-size: 13px; color: #1e293b; margin: 0 4px;"></span>
-                        <button type="button" onclick="AamsCalendar.nextMonth('${inputId}', event)" title="다음 월" style="background: none; border: none; cursor: pointer; color: #2563eb; font-weight: bold; font-size: 13px; padding: 0 2px;">›</button>
-                        <button type="button" onclick="AamsCalendar.nextYear('${inputId}', event)" title="다음 년도" style="background: none; border: none; cursor: pointer; color: #2563eb; font-weight: bold; font-size: 13px; padding: 0 2px;">»</button>
+                        <button type="button" class="cal-nav-btn" onclick="AamsCalendar.nextMonth('${inputId}', event)" title="다음 월" style="background: none; border: none; cursor: pointer; color: #2563eb; font-weight: 800; font-size: 16px; padding: 0 4px; min-width: 22px; height: 24px; display: inline-flex; align-items: center; justify-content: center; line-height: 1;">›</button>
+                        <button type="button" class="cal-nav-btn" onclick="AamsCalendar.nextYear('${inputId}', event)" title="다음 년도" style="background: none; border: none; cursor: pointer; color: #2563eb; font-weight: 800; font-size: 16px; padding: 0 4px; min-width: 22px; height: 24px; display: inline-flex; align-items: center; justify-content: center; line-height: 1;">»</button>
                     </div>
                     <button type="button" onclick="AamsCalendar.setToday('${inputId}', event)" style="background: #ffffff; border: 1px solid #16a34a; color: #16a34a; font-weight: bold; padding: 1px 7px; font-size: 11px; cursor: pointer; border-radius: 2px;">오늘</button>
                 </div>
@@ -749,11 +749,11 @@ window.AamsCalendar = (function() {
                     <div class="range-calendar-pane" id="pane_from_${rangeId}">
                         <div class="range-cal-header">
                             <div class="range-cal-nav">
-                                <button type="button" onclick="AamsCalendar.rangeNav('${rangeId}', 'F', 'prevYear')" title="이전 년도">«</button>
-                                <button type="button" onclick="AamsCalendar.rangeNav('${rangeId}', 'F', 'prevMonth')" title="이전 월">‹</button>
+                                <button type="button" class="btn-range-cal-nav" onclick="AamsCalendar.rangeNav('${rangeId}', 'F', 'prevYear')" title="이전 년도" style="font-size: 20px !important; font-weight: 900 !important; width: 28px !important; height: 28px !important; min-width: 28px !important; line-height: 1 !important; color: #2563eb; background: none; border: none; cursor: pointer; padding: 0 3px; display: inline-flex; align-items: center; justify-content: center;">«</button>
+                                <button type="button" class="btn-range-cal-nav" onclick="AamsCalendar.rangeNav('${rangeId}', 'F', 'prevMonth')" title="이전 월" style="font-size: 20px !important; font-weight: 900 !important; width: 28px !important; height: 28px !important; min-width: 28px !important; line-height: 1 !important; color: #2563eb; background: none; border: none; cursor: pointer; padding: 0 3px; display: inline-flex; align-items: center; justify-content: center;">‹</button>
                                 <span class="range-cal-title" id="title_from_${rangeId}"></span>
-                                <button type="button" onclick="AamsCalendar.rangeNav('${rangeId}', 'F', 'nextMonth')" title="다음 월">›</button>
-                                <button type="button" onclick="AamsCalendar.rangeNav('${rangeId}', 'F', 'nextYear')" title="다음 년도">»</button>
+                                <button type="button" class="btn-range-cal-nav" onclick="AamsCalendar.rangeNav('${rangeId}', 'F', 'nextMonth')" title="다음 월" style="font-size: 20px !important; font-weight: 900 !important; width: 28px !important; height: 28px !important; min-width: 28px !important; line-height: 1 !important; color: #2563eb; background: none; border: none; cursor: pointer; padding: 0 3px; display: inline-flex; align-items: center; justify-content: center;">›</button>
+                                <button type="button" class="btn-range-cal-nav" onclick="AamsCalendar.rangeNav('${rangeId}', 'F', 'nextYear')" title="다음 년도" style="font-size: 20px !important; font-weight: 900 !important; width: 28px !important; height: 28px !important; min-width: 28px !important; line-height: 1 !important; color: #2563eb; background: none; border: none; cursor: pointer; padding: 0 3px; display: inline-flex; align-items: center; justify-content: center;">»</button>
                             </div>
                             <button type="button" class="range-cal-btn-today" onclick="AamsCalendar.rangeToday('${rangeId}', 'F')">오늘</button>
                         </div>
@@ -794,11 +794,11 @@ window.AamsCalendar = (function() {
                     <div class="range-calendar-pane" id="pane_to_${rangeId}">
                         <div class="range-cal-header">
                             <div class="range-cal-nav">
-                                <button type="button" onclick="AamsCalendar.rangeNav('${rangeId}', 'T', 'prevYear')" title="이전 년도">«</button>
-                                <button type="button" onclick="AamsCalendar.rangeNav('${rangeId}', 'T', 'prevMonth')" title="이전 월">‹</button>
+                                <button type="button" class="btn-range-cal-nav" onclick="AamsCalendar.rangeNav('${rangeId}', 'T', 'prevYear')" title="이전 년도" style="font-size: 20px !important; font-weight: 900 !important; width: 28px !important; height: 28px !important; min-width: 28px !important; line-height: 1 !important; color: #2563eb; background: none; border: none; cursor: pointer; padding: 0 3px; display: inline-flex; align-items: center; justify-content: center;">«</button>
+                                <button type="button" class="btn-range-cal-nav" onclick="AamsCalendar.rangeNav('${rangeId}', 'T', 'prevMonth')" title="이전 월" style="font-size: 20px !important; font-weight: 900 !important; width: 28px !important; height: 28px !important; min-width: 28px !important; line-height: 1 !important; color: #2563eb; background: none; border: none; cursor: pointer; padding: 0 3px; display: inline-flex; align-items: center; justify-content: center;">‹</button>
                                 <span class="range-cal-title" id="title_to_${rangeId}"></span>
-                                <button type="button" onclick="AamsCalendar.rangeNav('${rangeId}', 'T', 'nextMonth')" title="다음 월">›</button>
-                                <button type="button" onclick="AamsCalendar.rangeNav('${rangeId}', 'T', 'nextYear')" title="다음 년도">»</button>
+                                <button type="button" class="btn-range-cal-nav" onclick="AamsCalendar.rangeNav('${rangeId}', 'T', 'nextMonth')" title="다음 월" style="font-size: 20px !important; font-weight: 900 !important; width: 28px !important; height: 28px !important; min-width: 28px !important; line-height: 1 !important; color: #2563eb; background: none; border: none; cursor: pointer; padding: 0 3px; display: inline-flex; align-items: center; justify-content: center;">›</button>
+                                <button type="button" class="btn-range-cal-nav" onclick="AamsCalendar.rangeNav('${rangeId}', 'T', 'nextYear')" title="다음 년도" style="font-size: 20px !important; font-weight: 900 !important; width: 28px !important; height: 28px !important; min-width: 28px !important; line-height: 1 !important; color: #2563eb; background: none; border: none; cursor: pointer; padding: 0 3px; display: inline-flex; align-items: center; justify-content: center;">»</button>
                             </div>
                             <button type="button" class="range-cal-btn-today" onclick="AamsCalendar.rangeToday('${rangeId}', 'T')">오늘</button>
                         </div>
@@ -1059,38 +1059,53 @@ window.AamsCalendar = (function() {
         },
 
         toggleRange: function(rangeId, e) {
-            // disabled 또는 filter-disabled 상태인 경우 달력 열기 방지
-            if (e && e.target) {
-                const triggerEl = e.target.closest ? (e.target.closest('button') || e.target.closest('input')) : e.target;
+            const evt = e || (typeof window !== 'undefined' ? window.event : null);
+            let triggerEl = null;
+            if (evt && evt.target) {
+                triggerEl = evt.target.closest ? (evt.target.closest('button') || evt.target.closest('input')) : evt.target;
                 if (triggerEl && (triggerEl.disabled || triggerEl.classList.contains('disabled') || triggerEl.classList.contains('filter-disabled'))) {
                     return;
                 }
             }
 
-            if (e && typeof e.stopPropagation === 'function') {
-                e.stopPropagation();
+            if (evt && typeof evt.stopPropagation === 'function') {
+                evt.stopPropagation();
             }
+
+            const wrapper = triggerEl && triggerEl.closest ? triggerEl.closest('.range-calendar-wrapper') : null;
+            const targetPane = triggerEl && triggerEl.closest ? (triggerEl.closest('.tab-pane') || triggerEl.closest('.view-container')) : null;
+
             let inst = this.rangeInstances[rangeId];
-            if (!inst) {
+            let popover = wrapper ? wrapper.querySelector('.range-calendar-popover') : null;
+
+            // 인스턴스가 없거나 현재 DOM에 popover가 없거나 pane이 변경된 경우 재초기화
+            if (!inst || !popover || (targetPane && inst.pane !== targetPane)) {
                 const parts = rangeId.split('_');
                 if (parts.length === 2) {
-                    this.initRange(parts[0], parts[1]);
+                    this.initRange(parts[0], parts[1], { pane: targetPane });
                     inst = this.rangeInstances[rangeId];
                 }
             }
             if (!inst) return;
-            let popover = (inst.pane && inst.pane.querySelector('#' + inst.popoverId)) || document.getElementById(inst.popoverId);
+
+            if (!popover) {
+                popover = (inst.pane && inst.pane.querySelector('#' + inst.popoverId))
+                       || (wrapper ? wrapper.querySelector('.range-calendar-popover') : null)
+                       || document.getElementById(inst.popoverId);
+            }
             if (!popover) {
                 this.buildRangeDOM(rangeId);
                 this.renderRange(rangeId);
-                popover = (inst.pane && inst.pane.querySelector('#' + inst.popoverId)) || document.getElementById(inst.popoverId);
+                popover = (inst.pane && inst.pane.querySelector('#' + inst.popoverId))
+                       || (wrapper ? wrapper.querySelector('.range-calendar-popover') : null)
+                       || document.getElementById(inst.popoverId);
             }
             if (!popover) return;
 
             if (popover.style.display === 'none' || popover.style.display === '') {
                 // Sync current input values into cal and backup
-                const fromEl = this.getElement(inst.fromInputId, inst.pane);
-                const toEl = this.getElement(inst.toInputId, inst.pane);
+                const fromEl = (wrapper ? wrapper.querySelector("input[id*='FYmd'], input[name='fYmd']") : null) || this.getElement(inst.fromInputId, inst.pane);
+                const toEl = (wrapper ? wrapper.querySelector("input[id*='TYmd'], input[name='tYmd']") : null) || this.getElement(inst.toInputId, inst.pane);
                 if (fromEl && fromEl.value) {
                     inst.curFYmd = fromEl.value.replace(/-/g, '.');
                     const parsed = this.parseDateStr(inst.curFYmd);
@@ -1109,6 +1124,16 @@ window.AamsCalendar = (function() {
 
                 this.renderRange(rangeId);
                 popover.style.display = 'block';
+
+                // 모바일/좁은 화면에서 팝오버가 화면 우측을 벗어나지 않도록 자동 보정
+                try {
+                    popover.style.left = '0';
+                    const rect = popover.getBoundingClientRect();
+                    if (rect.right > (window.innerWidth - 8)) {
+                        const overflow = rect.right - (window.innerWidth - 8);
+                        popover.style.left = (-overflow) + 'px';
+                    }
+                } catch(e) {}
             } else {
                 // 열려있는 상태에서 다시 호출 시 원래 값으로 되돌리고 닫음
                 this.cancelRange(rangeId);
@@ -1199,9 +1224,11 @@ window.AamsCalendar = (function() {
                 const toInput = wrapper.querySelector("input[name='tYmd'], input[id*='TYmd'], input[id*='toYmd'], .range-calendar-input:last-of-type");
                 if (toInput && fromInput.id && toInput.id) {
                     const rangeId = fromInput.id + "_" + toInput.id;
-                    if (!AamsCalendar.rangeInstances[rangeId]) {
+                    const hasPopover = wrapper.querySelector('.range-calendar-popover');
+                    const curPane = (scope.closest && scope.closest('.tab-pane')) ? scope.closest('.tab-pane') : (fromInput.closest ? fromInput.closest('.tab-pane') : null);
+                    if (!AamsCalendar.rangeInstances[rangeId] || !hasPopover) {
                         AamsCalendar.initRange(fromInput.id, toInput.id, {
-                            pane: (scope.closest && scope.closest('.tab-pane')) ? scope.closest('.tab-pane') : (fromInput.closest ? fromInput.closest('.tab-pane') : null)
+                            pane: curPane
                         });
                     }
                 }
@@ -1266,11 +1293,11 @@ window.AamsCalendar = (function() {
                 popover.innerHTML = `
                     <div style="display: flex; align-items: center; justify-content: space-between; padding: 4px 2px; border-bottom: 1px solid #e2e8f0; font-size: 13px;">
                         <div style="display: flex; align-items: center; gap: 3px;">
-                            <button type="button" class="btn-picker-nav prev-year" title="이전 년도" style="background: none; border: none; cursor: pointer; color: #2563eb; font-weight: bold; font-size: 13px; padding: 0 2px;">«</button>
-                            <button type="button" class="btn-picker-nav prev-month" title="이전 월" style="background: none; border: none; cursor: pointer; color: #2563eb; font-weight: bold; font-size: 13px; padding: 0 2px;">‹</button>
+                            <button type="button" class="btn-picker-nav prev-year" title="이전 년도" style="background: none; border: none; cursor: pointer; color: #2563eb; font-weight: 800; font-size: 16px; padding: 0 4px; min-width: 22px; height: 24px; display: inline-flex; align-items: center; justify-content: center; line-height: 1;">«</button>
+                            <button type="button" class="btn-picker-nav prev-month" title="이전 월" style="background: none; border: none; cursor: pointer; color: #2563eb; font-weight: 800; font-size: 16px; padding: 0 4px; min-width: 22px; height: 24px; display: inline-flex; align-items: center; justify-content: center; line-height: 1;">‹</button>
                             <span style="font-weight: 700; font-size: 13px; color: #1e293b; margin: 0 4px;">${calYear}년 ${calMonth + 1}월</span>
-                            <button type="button" class="btn-picker-nav next-month" title="다음 월" style="background: none; border: none; cursor: pointer; color: #2563eb; font-weight: bold; font-size: 13px; padding: 0 2px;">›</button>
-                            <button type="button" class="btn-picker-nav next-year" title="다음 년도" style="background: none; border: none; cursor: pointer; color: #2563eb; font-weight: bold; font-size: 13px; padding: 0 2px;">»</button>
+                            <button type="button" class="btn-picker-nav next-month" title="다음 월" style="background: none; border: none; cursor: pointer; color: #2563eb; font-weight: 800; font-size: 16px; padding: 0 4px; min-width: 22px; height: 24px; display: inline-flex; align-items: center; justify-content: center; line-height: 1;">›</button>
+                            <button type="button" class="btn-picker-nav next-year" title="다음 년도" style="background: none; border: none; cursor: pointer; color: #2563eb; font-weight: 800; font-size: 16px; padding: 0 4px; min-width: 22px; height: 24px; display: inline-flex; align-items: center; justify-content: center; line-height: 1;">»</button>
                         </div>
                         <button type="button" class="btn-picker-today" style="background: #ffffff; border: 1px solid #16a34a; color: #16a34a; font-weight: bold; padding: 1px 7px; font-size: 11px; cursor: pointer; border-radius: 2px;">오늘</button>
                     </div>

@@ -1047,11 +1047,19 @@
 
             // Helper to check if currently in mobile view (width <= 876px)
             function isMobileView() {
-                const rightPane = pane ? pane.querySelector(".stock-right-pane") : document.querySelector(".stock-right-pane");
-                if (rightPane && window.getComputedStyle(rightPane).display === 'none') {
-                    return true;
+                const curPane = pane || document.querySelector('.tab-pane.active') || document.querySelector('.ja990d-container') || document;
+                const rightPane = curPane.querySelector(".stock-right-pane");
+                if (rightPane && !rightPane.classList.contains("mobile-modal-open")) {
+                    try {
+                        const disp = window.getComputedStyle(rightPane).display;
+                        if (disp === 'none') return true;
+                    } catch(e) {}
                 }
-                return window.matchMedia('(max-width: 876px)').matches || window.innerWidth <= 876 || (pane && pane.clientWidth > 0 && pane.clientWidth <= 876);
+                const paneWidth = (curPane && curPane.clientWidth > 0) ? curPane.clientWidth : window.innerWidth;
+                if (paneWidth <= 876) return true;
+                if (window.matchMedia && window.matchMedia('(max-width: 876px)').matches) return true;
+                if (window.innerWidth <= 876) return true;
+                return false;
             }
 
             function openStockModal() {
@@ -1166,48 +1174,56 @@
                     });
                 }
 
-                // 필터링 후 가시적인 행 수 계산 및 첫 번째 행 동기화 (데스크톱만 첫 행 자동선택, 모바일은 자동 포커스 방지)
-                const visibleRows = targetGrid.getRows("visible");
-                const count = visibleRows ? visibleRows.length : 0;
+                // 필터링 후 활성 행 수 계산 및 첫 번째 행 동기화 (데스크톱만 첫 행 자동선택, 모바일은 자동 포커스 방지)
+                const activeRows = targetGrid.getRows("active");
+                const count = (typeof targetGrid.getDataCount === "function") ? targetGrid.getDataCount("active") : (activeRows ? activeRows.length : 0);
                 if (countEl) {
                     countEl.textContent = count + "건";
                 }
 
                 if (currentTab === "stock") {
-                    if (visibleRows && visibleRows.length > 0) {
+                    if (activeRows && activeRows.length > 0) {
                         if (!isMobileView()) {
                             isProgrammaticSelect = true;
-                            visibleRows[0].select();
-                            syncDetail(visibleRows[0], visibleRows[0].getData(), false);
+                            activeRows[0].select();
+                            syncDetail(activeRows[0], activeRows[0].getData(), false);
                             setTimeout(() => { isProgrammaticSelect = false; }, 150);
                         } else {
                             // 모바일 환경: 조회 후 첫 번째 행 autofocus/select 완전 차단
-                            gridStock.deselectRow();
+                            isProgrammaticSelect = true;
+                            closeStockModal();
                             selectedStockRow = null;
                             lastLoadedMasterKey = null;
+                            if (gridStock && typeof gridStock.deselectRow === 'function') {
+                                gridStock.deselectRow();
+                            }
                             bindStockForm({});
                             setTimeout(() => {
                                 if (gridStock && typeof gridStock.deselectRow === 'function') {
                                     gridStock.deselectRow();
                                 }
-                            }, 50);
+                                isProgrammaticSelect = false;
+                            }, 80);
                         }
                     } else {
                         selectedStockRow = null;
                         lastLoadedMasterKey = null;
                         bindStockForm({});
+                        closeStockModal();
                     }
                 } else {
-                    if (visibleRows && visibleRows.length > 0) {
+                    if (activeRows && activeRows.length > 0) {
                         if (!isMobileView()) {
-                            visibleRows[0].select();
+                            activeRows[0].select();
                         } else {
-                            gridRight.deselectRow();
+                            if (gridRight && typeof gridRight.deselectRow === 'function') {
+                                gridRight.deselectRow();
+                            }
                             setTimeout(() => {
                                 if (gridRight && typeof gridRight.deselectRow === 'function') {
                                     gridRight.deselectRow();
                                 }
-                            }, 50);
+                            }, 80);
                         }
                     }
                 }
@@ -1223,6 +1239,9 @@
                         if (gridStock) {
                             gridStock.setData(data || []).then(() => {
                                 applyQuickFilter();
+                                if (isMobileView() && gridStock && typeof gridStock.deselectRow === 'function') {
+                                    gridStock.deselectRow();
+                                }
                             });
                         }
                     })
@@ -1241,6 +1260,9 @@
                         if (gridRight) {
                             gridRight.setData(data || []).then(() => {
                                 applyQuickFilter();
+                                if (isMobileView() && gridRight && typeof gridRight.deselectRow === 'function') {
+                                    gridRight.deselectRow();
+                                }
                             });
                         }
                     })
@@ -1277,13 +1299,13 @@
                         placeholder: "조회된 주식 종목이 없습니다."
                     });
 
-                    // Rule 8: Triple Fallback Row Selection Binding (모바일 자동 선택 방지: autoSelectFirst: false)
+                    // Rule 8: Triple Fallback Row Selection Binding (모바일 자동 선택 방지: autoSelectFirst: false, hasReportViewer: true)
                     if (typeof setupTabulatorRowSelection === 'function') {
                         setupTabulatorRowSelection(gridStock, function(row, data) {
                             if (!isProgrammaticSelect) {
                                 syncDetail(row, data, true);
                             }
-                        }, { autoSelectFirst: false });
+                        }, { autoSelectFirst: false, hasReportViewer: true });
                     }
                     gridStock.on("rowClick", function(e, row) {
                         if (!isProgrammaticSelect) {
@@ -1291,7 +1313,8 @@
                         }
                     });
                     gridStock.on("rowSelectionChanged", function(data, rows) {
-                        if (rows && rows.length > 0 && !isMobileView()) {
+                        if (isMobileView()) return;
+                        if (rows && rows.length > 0) {
                             syncDetail(rows[0], rows[0].getData(), false);
                         }
                     });
@@ -1511,7 +1534,17 @@
 
             // Toolbar Contract Binding (Rule 9)
             if (pane) {
-                pane.onSearch = function() { loadData(); };
+                pane.onSearch = function() {
+                    if (isMobileView()) {
+                        closeStockModal();
+                        selectedStockRow = null;
+                        lastLoadedMasterKey = null;
+                        bindStockForm({});
+                        if (gridStock) gridStock.deselectRow();
+                        if (gridRight) gridRight.deselectRow();
+                    }
+                    loadData();
+                };
                 pane.onInput = function() { inputRow(); };
                 pane.onDelete = function() { deleteRow(); };
                 pane.onSave = function() { save(); };
