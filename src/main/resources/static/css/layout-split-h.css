@@ -140,7 +140,7 @@
 
 /* 6. Tablet-S / Mobile Responsive Layout (<= 876px) */
 @media (max-width: 876px) {
-    /* 6-0. 최상위 모바일 스택 컨테이너 규격 */
+    /* 6-0. 최상위 모바일 스택 컨테이너 규격: 화면 바닥과의 적정 여백(12px) 및 스크롤 끝 여백 보장 */
     .layout-mobile-stack-container {
         display: flex !important;
         flex-direction: column !important;
@@ -149,8 +149,17 @@
         overflow-y: auto !important;
         overflow-x: hidden !important;
         -webkit-overflow-scrolling: touch !important;
-        padding-bottom: 36px !important;
+        padding-bottom: 12px !important;
         box-sizing: border-box !important;
+    }
+
+    .layout-mobile-stack-container::after {
+        content: "";
+        display: block;
+        height: 12px;
+        min-height: 12px;
+        flex-shrink: 0;
+        width: 100%;
     }
 
     .layout-split-h {
@@ -350,8 +359,112 @@
 
     .layout-split-h .grid-stack-card .grid-table-wrapper {
         flex: 1 1 auto !important;
-        height: calc(220px - 32px) !important;
+        height: auto !important;
+        min-height: 0 !important;
         overflow: hidden !important;
+    }
+
+    /* 6-C-3. Proposal 전용 복합 서브 섹션 (개발의뢰 / 수정완료 / 댓글현황) 모바일 스택 규격 */
+    .layout-split-h .matter-section {
+        display: flex !important;
+        flex-direction: column !important;
+        flex: 0 0 110px !important;
+        width: 100% !important;
+        height: 110px !important;
+        min-height: 110px !important;
+        max-height: 110px !important;
+        border: 1px solid #cbd5e1 !important;
+        border-radius: 6px !important;
+        background: #ffffff !important;
+        overflow: hidden !important;
+        box-sizing: border-box !important;
+    }
+
+    .layout-split-h .matter-section textarea {
+        flex: 1 1 auto !important;
+        width: 100% !important;
+        height: calc(110px - 32px) !important;
+        min-height: 50px !important;
+        padding: 8px !important;
+        box-sizing: border-box !important;
+        border: none !important;
+        outline: none !important;
+        resize: none !important;
+        font-size: 12px !important;
+    }
+
+    .layout-split-h .content-section {
+        display: flex !important;
+        flex-direction: column !important;
+        flex: 0 0 90px !important;
+        width: 100% !important;
+        height: 90px !important;
+        min-height: 90px !important;
+        max-height: 90px !important;
+        border: 1px solid #cbd5e1 !important;
+        border-radius: 6px !important;
+        background: #ffffff !important;
+        overflow: hidden !important;
+        box-sizing: border-box !important;
+    }
+
+    .layout-split-h .content-section textarea {
+        flex: 1 1 auto !important;
+        width: 100% !important;
+        height: calc(90px - 32px) !important;
+        min-height: 40px !important;
+        padding: 8px !important;
+        box-sizing: border-box !important;
+        border: none !important;
+        outline: none !important;
+        resize: none !important;
+        font-size: 12px !important;
+    }
+
+    .layout-split-h .comment-section {
+        display: flex !important;
+        flex-direction: column !important;
+        flex: 0 0 210px !important;
+        width: 100% !important;
+        height: 210px !important;
+        min-height: 210px !important;
+        max-height: 210px !important;
+        border: 1px solid #cbd5e1 !important;
+        border-radius: 6px !important;
+        background: #ffffff !important;
+        overflow: hidden !important;
+        box-sizing: border-box !important;
+        margin-bottom: 0 !important;
+    }
+
+    .layout-split-h .comment-section .grid-table-wrapper {
+        flex: 1 1 auto !important;
+        height: auto !important;
+        min-height: 0 !important;
+        overflow: hidden !important;
+    }
+
+    .layout-split-h .comment-section .tabulator {
+        min-height: 0 !important;
+        height: 100% !important;
+        border: none !important;
+    }
+
+    .layout-split-h .comment-section .tabulator .tabulator-tableholder {
+        min-height: 0 !important;
+    }
+
+    .layout-split-h .comment-section .tabulator .tabulator-placeholder {
+        min-height: 40px !important;
+    }
+
+    /* Proposal 화면: 마지막 그리드와 화면 사이 적정 여백(12px) 규격 (불필요한 스크롤 방지) */
+    .proposal-container.layout-mobile-stack-container {
+        padding-bottom: 12px !important;
+    }
+
+    .proposal-container.layout-mobile-stack-container::after {
+        display: none !important;
     }
 }
 

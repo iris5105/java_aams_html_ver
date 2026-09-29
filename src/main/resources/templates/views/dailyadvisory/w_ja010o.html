@@ -25,6 +25,75 @@
         </div>
     </div>
 
+    <!-- Styles for Placeholder, Summary Band & Header Colors (PowerBuilder Matching) -->
+    <style>
+        /* 1. Placeholder가 그리드 영역 전체(100%)를 차지하여 정중앙에 단일 표출 (화면 분할 및 가로선 방지) */
+        .ja010o-container .tabulator .tabulator-tableholder .tabulator-placeholder {
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            width: 100% !important;
+            height: 100% !important;
+            min-height: 100% !important;
+            background-color: transparent !important;
+            box-sizing: border-box !important;
+        }
+        .ja010o-container .tabulator .tabulator-placeholder span {
+            color: #64748b !important;
+            font-size: 13px !important;
+            font-weight: 500 !important;
+        }
+
+        /* 2. Summary(합계) 행 스타일 (PowerBuilder d_ja010o1.srd: 연노랑 #fbf2c4 배경 + 흰색 숫자 박스) */
+        .ja010o-container .tabulator-row.aams-summary-row {
+            background-color: #fbf2c4 !important;
+            border-top: 1px solid #cbd5e1 !important;
+            border-bottom: 1px solid #cbd5e1 !important;
+            font-weight: 600;
+            cursor: default !important;
+        }
+        .ja010o-container .tabulator-row.aams-summary-row:hover {
+            background-color: #fbf2c4 !important;
+        }
+        .ja010o-container .tabulator-row.aams-summary-row.tabulator-selected {
+            background-color: #fbf2c4 !important;
+        }
+        .ja010o-container .tabulator-row.aams-summary-row .tabulator-cell {
+            background-color: transparent !important;
+            padding: 2px 4px !important;
+        }
+        .ja010o-container .tabulator-row.aams-summary-row .summary-box {
+            background-color: #ffffff;
+            border: 1px solid #cbd5e1;
+            border-radius: 2px;
+            padding: 0 6px;
+            width: 100%;
+            height: 20px;
+            line-height: 18px;
+            text-align: right;
+            font-size: 11px;
+            font-weight: 500;
+            color: #1e293b;
+            box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.05);
+            box-sizing: border-box;
+        }
+
+        /* 3. 헤더 고유 색상 매핑 (PowerBuilder 원본 규격) */
+        .ja010o-container .tabulator-header .tabulator-col.col-hdr-collateral {
+            background-color: #fef9c3 !important; /* 신용/대출 잔액 헤더 크림/연노랑 (PB 15793151) */
+        }
+        .ja010o-container .tabulator-header .tabulator-col.col-hdr-collateral .tabulator-col-content {
+            background-color: #fef9c3 !important;
+        }
+
+        .ja010o-container .tabulator-header .tabulator-col.col-hdr-jango {
+            background-color: #dcfce7 !important; /* 당일잔고 주수 헤더 연녹색 (PB 12639424) */
+        }
+        .ja010o-container .tabulator-header .tabulator-col.col-hdr-jango .tabulator-col-content {
+            background-color: #dcfce7 !important;
+        }
+    </style>
+
     <!-- Main Grid Section (d_ja010o1.srd / SJM0JM + SJM0JM_COLL + SJM0JJ) -->
     <div class="grid-section" style="flex: 1 1 auto; height: calc(100% - 90px); padding: 8px 12px; overflow: hidden; display: flex; flex-direction: column;">
         <div class="grid-table-wrapper" style="flex: 1 1 auto; height: 100%; width: 100%; border: 1px solid #cbd5e1; border-radius: 4px; overflow: hidden; background-color: #fff;">
@@ -48,11 +117,12 @@
             let lastYmd = null;
             let lastCorpGr = null;
 
-
-            // Numeric Formatter
+            // Numeric Formatter (값이 없거나 0이 아니면 공백 반환, summaryRow면 공백)
             function numberFormatter(cell) {
+                const row = cell.getRow().getData();
+                if (row && row.isSummaryRow) return "";
                 const val = cell.getValue();
-                if (val == null || val === "" || isNaN(val)) return "0";
+                if (val == null || val === "" || isNaN(val)) return "";
                 return Number(val).toLocaleString();
             }
 
@@ -90,6 +160,10 @@
                 const row = typeof cell.getRow === "function" ? cell.getRow() : null;
                 if (!row) return false;
 
+                // Summary row is not editable
+                const rowData = row.getData();
+                if (rowData && rowData.isSummaryRow) return false;
+
                 // Tabsequence: coll_start(10), coll_end(20), coll_jusu(30), collateral(40) are editable
                 const colField = cell.getColumn().getField();
                 const editableFields = ["collStart", "collEnd", "collJusu", "collateral"];
@@ -103,6 +177,35 @@
                         row.select();
                     }
                     return false;
+                }
+            }
+
+            // Summary Row 합계 실시간 재계산 함수
+            function recalcSummaryRow() {
+                if (!gridJa010o) return;
+                const rows = gridJa010o.getRows();
+                let summaryRow = null;
+                let totalCollateral = 0;
+                let dataCount = 0;
+
+                rows.forEach(r => {
+                    const d = r.getData();
+                    if (d.isSummaryRow) {
+                        summaryRow = r;
+                    } else {
+                        dataCount++;
+                        totalCollateral += (Number(d.collateral) || 0);
+                    }
+                });
+
+                if (dataCount > 0) {
+                    if (summaryRow) {
+                        summaryRow.update({ collateral: totalCollateral });
+                    } else {
+                        gridJa010o.addRow({ isSummaryRow: true, collateral: totalCollateral }, false);
+                    }
+                } else if (summaryRow) {
+                    summaryRow.delete();
                 }
             }
 
@@ -139,7 +242,7 @@
                 gridJa010o = new Tabulator(gridElement, {
                     layout: "fitColumns",
                     height: "100%",
-                    placeholder: "조회된 신용/대출 잔고 내역이 없습니다.",
+                    placeholder: "<span>조회된 데이터가 없습니다.</span>",
                     selectableRows: 1,
                     editTriggerEvent: "click",
                     keybindings: {
@@ -147,6 +250,12 @@
                         navPrev: "shift + tab"
                     },
                     tabEndNewRow: false,
+                    rowFormatter: function(row) {
+                        const data = row.getData();
+                        if (data && data.isSummaryRow) {
+                            row.getElement().classList.add("aams-summary-row");
+                        }
+                    },
                     columns: [
                         {
                             title: "No.",
@@ -154,8 +263,12 @@
                             width: 55,
                             hozAlign: "center",
                             headerHozAlign: "center",
-                            formatter: "rownum",
-                            headerSort: false
+                            headerSort: false,
+                            formatter: function(cell) {
+                                const row = cell.getRow().getData();
+                                if (row && row.isSummaryRow) return "";
+                                return cell.getRow().getPosition(true);
+                            }
                         },
                         {
                             title: "종목코드",
@@ -163,7 +276,13 @@
                             width: 100,
                             hozAlign: "center",
                             headerHozAlign: "center",
-                            editable: false
+                            headerSort: false,
+                            editable: false,
+                            formatter: function(cell) {
+                                const row = cell.getRow().getData();
+                                if (row && row.isSummaryRow) return "";
+                                return cell.getValue() || "";
+                            }
                         },
                         {
                             title: "종목명",
@@ -171,7 +290,13 @@
                             minWidth: 180,
                             hozAlign: "left",
                             headerHozAlign: "center",
-                            editable: false
+                            headerSort: false,
+                            editable: false,
+                            formatter: function(cell) {
+                                const row = cell.getRow().getData();
+                                if (row && row.isSummaryRow) return "";
+                                return cell.getValue() || "";
+                            }
                         },
                         {
                             title: "신용/대출<br>시작일자",
@@ -179,14 +304,18 @@
                             width: 115,
                             hozAlign: "center",
                             headerHozAlign: "center",
+                            headerSort: false,
                             editor: "input",
                             editable: isCellEditable,
                             formatter: function(cell) {
+                                const row = cell.getRow().getData();
+                                if (row && row.isSummaryRow) return "";
                                 return formatDateVal(cell.getValue());
                             },
                             cellEdited: function(cell) {
                                 const row = cell.getRow();
                                 const rowData = row.getData();
+                                if (rowData && rowData.isSummaryRow) return;
                                 rowData.isEdited = true;
                                 const newStart = cell.getValue();
                                 if (newStart) {
@@ -203,16 +332,21 @@
                         {
                             title: "",
                             field: "_btn_collStart",
-                            width: 36,
-                            minWidth: 36,
-                            maxWidth: 36,
+                            width: 32,
+                            minWidth: 32,
+                            maxWidth: 32,
                             hozAlign: "center",
                             headerSort: false,
                             resizable: false,
-                            formatter: () => `<button type="button" class="btn-grid-addon btn-cal" title="시작일자 선택"><i class="fa-regular fa-calendar-days"></i></button>`,
+                            formatter: (cell) => {
+                                const row = cell.getRow().getData();
+                                if (row && row.isSummaryRow) return "";
+                                return `<button type="button" class="btn-grid-addon btn-cal" title="시작일자 선택"><i class="fa-regular fa-calendar-days"></i></button>`;
+                            },
                             cellClick: function(e, cell) {
                                 e.stopPropagation();
                                 const row = cell.getRow();
+                                if (row.getData().isSummaryRow) return;
                                 const curVal = row.getData().collStart || "";
                                 if (window.AamsCalendar && typeof window.AamsCalendar.openDatePicker === 'function') {
                                     window.AamsCalendar.openDatePicker({
@@ -220,7 +354,7 @@
                                         initialYmd: curVal,
                                         format: 'dot',
                                         onSelect: function(dotYmd) {
-                                            const formattedStart = formatDateVal(dotYmd);
+                                             const formattedStart = formatDateVal(dotYmd);
                                             row.update({
                                                 collStart: formattedStart,
                                                 collEnd: addMonthsToYmd(formattedStart, 6),
@@ -237,29 +371,39 @@
                             width: 115,
                             hozAlign: "center",
                             headerHozAlign: "center",
+                            headerSort: false,
                             editor: "input",
                             editable: isCellEditable,
                             formatter: function(cell) {
+                                const row = cell.getRow().getData();
+                                if (row && row.isSummaryRow) return "";
                                 return formatDateVal(cell.getValue());
                             },
                             cellEdited: function(cell) {
-                                cell.getRow().update({ isEdited: true });
+                                const row = cell.getRow();
+                                if (row.getData().isSummaryRow) return;
+                                row.update({ isEdited: true });
                             }
                         },
                         // p_dd_coll_end (Grid Internal Rule 3, 4: Empty column with calendar popup button)
                         {
                             title: "",
                             field: "_btn_collEnd",
-                            width: 36,
-                            minWidth: 36,
-                            maxWidth: 36,
+                            width: 32,
+                            minWidth: 32,
+                            maxWidth: 32,
                             hozAlign: "center",
                             headerSort: false,
                             resizable: false,
-                            formatter: () => `<button type="button" class="btn-grid-addon btn-cal" title="만기일자 선택"><i class="fa-regular fa-calendar-days"></i></button>`,
+                            formatter: (cell) => {
+                                const row = cell.getRow().getData();
+                                if (row && row.isSummaryRow) return "";
+                                return `<button type="button" class="btn-grid-addon btn-cal" title="만기일자 선택"><i class="fa-regular fa-calendar-days"></i></button>`;
+                            },
                             cellClick: function(e, cell) {
                                 e.stopPropagation();
                                 const row = cell.getRow();
+                                if (row.getData().isSummaryRow) return;
                                 const curVal = row.getData().collEnd || "";
                                 if (window.AamsCalendar && typeof window.AamsCalendar.openDatePicker === 'function') {
                                     window.AamsCalendar.openDatePicker({
@@ -282,11 +426,14 @@
                             width: 115,
                             hozAlign: "right",
                             headerHozAlign: "center",
+                            headerSort: false,
                             editor: "number",
                             editable: isCellEditable,
                             formatter: numberFormatter,
                             cellEdited: function(cell) {
-                                cell.getRow().update({ isEdited: true });
+                                const row = cell.getRow();
+                                if (row.getData().isSummaryRow) return;
+                                row.update({ isEdited: true });
                             }
                         },
                         {
@@ -295,14 +442,25 @@
                             width: 130,
                             hozAlign: "right",
                             headerHozAlign: "center",
+                            headerSort: false,
+                            headerCssClass: "col-hdr-collateral",
                             editor: "number",
                             editable: isCellEditable,
-                            formatter: numberFormatter,
-                            bottomCalc: "sum",
-                            bottomCalcFormatter: numberFormatter,
-                            cssClass: "cell-highlight-yellow",
+                            formatter: function(cell) {
+                                const row = cell.getRow().getData();
+                                const val = cell.getValue();
+                                if (row && row.isSummaryRow) {
+                                    const sumVal = (val == null || val === "" || isNaN(val)) ? 0 : Number(val);
+                                    return `<div class="summary-box">${sumVal.toLocaleString()}</div>`;
+                                }
+                                if (val == null || val === "" || isNaN(val)) return "";
+                                return Number(val).toLocaleString();
+                            },
                             cellEdited: function(cell) {
-                                cell.getRow().update({ isEdited: true });
+                                const row = cell.getRow();
+                                if (row.getData().isSummaryRow) return;
+                                row.update({ isEdited: true });
+                                recalcSummaryRow();
                             }
                         },
                         {
@@ -311,6 +469,7 @@
                             width: 105,
                             hozAlign: "right",
                             headerHozAlign: "center",
+                            headerSort: false,
                             editable: false,
                             formatter: numberFormatter
                         },
@@ -320,6 +479,7 @@
                             width: 105,
                             hozAlign: "right",
                             headerHozAlign: "center",
+                            headerSort: false,
                             editable: false,
                             formatter: numberFormatter
                         },
@@ -329,6 +489,7 @@
                             width: 105,
                             hozAlign: "right",
                             headerHozAlign: "center",
+                            headerSort: false,
                             editable: false,
                             formatter: numberFormatter
                         },
@@ -338,30 +499,57 @@
                             width: 115,
                             hozAlign: "right",
                             headerHozAlign: "center",
+                            headerSort: false,
+                            headerCssClass: "col-hdr-jango",
                             editable: false,
                             formatter: function(cell) {
                                 const row = cell.getRow().getData();
+                                if (row && row.isSummaryRow) return "";
+                                if (!row.bfilBoyuJusu && !row.upJusu && !row.dwJusu) {
+                                    return "";
+                                }
                                 const bfil = Number(row.bfilBoyuJusu) || 0;
                                 const up = Number(row.upJusu) || 0;
                                 const dw = Number(row.dwJusu) || 0;
                                 return (bfil + up - dw).toLocaleString();
-                            },
-                            cssClass: "cell-highlight-blue"
+                            }
                         }
                     ]
                 });
 
-                // Rule 8: Capturing event listener for row select guarantee
-                gridElement.addEventListener("click", function(e) {
-                    const rowEl = e.target.closest(".tabulator-row");
-                    if (rowEl && gridJa010o) {
-                        const row = gridJa010o.getRow(rowEl);
-                        if (row && (!row.isSelected || !row.isSelected())) {
-                            gridJa010o.deselectRow();
-                            row.select();
+                // Rule 8: setupTabulatorRowSelection 표준 적용
+                if (typeof setupTabulatorRowSelection === "function") {
+                    setupTabulatorRowSelection(gridJa010o, function(row, data) {
+                        if (data && data.isSummaryRow && row) {
+                            row.deselect();
                         }
+                    });
+                } else {
+                    gridElement.addEventListener("click", function(e) {
+                        const rowEl = e.target.closest(".tabulator-row");
+                        if (rowEl && gridJa010o) {
+                            const row = gridJa010o.getRow(rowEl);
+                            if (row) {
+                                const data = row.getData();
+                                if (data && data.isSummaryRow) {
+                                    row.deselect();
+                                    return;
+                                }
+                                if (!row.isSelected || !row.isSelected()) {
+                                    gridJa010o.deselectRow();
+                                    row.select();
+                                }
+                            }
+                        }
+                    }, true);
+                }
+
+                // Summary 행 선택 방지 이벤트 가드
+                gridJa010o.on("rowClick", function(e, row) {
+                    if (row && row.getData().isSummaryRow) {
+                        row.deselect();
                     }
-                }, true);
+                });
             }
 
             // 3. Load Data Function
@@ -408,13 +596,24 @@
                         }
 
                         if (gridJa010o) {
-                            gridJa010o.setData(data || []).then(() => {
-                                // Rule 15: Select first row automatically on data binding
-                                const rows = gridJa010o.getRows();
-                                if (rows && rows.length > 0) {
-                                    rows[0].select();
-                                }
-                            });
+                            if (!data || data.length === 0) {
+                                // 데이터가 없을 때: 빈 배열 바인딩하여 Placeholder 정중앙 단일 표출 (첫 번째 이미지 규격)
+                                gridJa010o.setData([]);
+                            } else {
+                                // 데이터가 있을 때: 실제 데이터 끝에 Summary(합계) 행 추가 (두 번째 이미지 및 PB d_ja010o1.srd 규격)
+                                const totalCollateral = data.reduce((acc, cur) => acc + (Number(cur.collateral) || 0), 0);
+                                const listWithSummary = [
+                                    ...data,
+                                    { isSummaryRow: true, collateral: totalCollateral }
+                                ];
+                                gridJa010o.setData(listWithSummary).then(() => {
+                                    // Rule 15: Select first row automatically on data binding
+                                    const rows = gridJa010o.getRows();
+                                    if (rows && rows.length > 1) {
+                                        rows[0].select();
+                                    }
+                                });
+                            }
                         }
                     })
                     .catch(err => {
@@ -431,6 +630,7 @@
 
                 rows.forEach(r => {
                     const data = r.getData();
+                    if (data && data.isSummaryRow) return; // Summary 행은 저장 대상에서 제외
                     if (data.isEdited || data.collStatus === 'load' || data.collStatus === 'new') {
                         saveList.push(data);
                     }
@@ -566,6 +766,9 @@
                                 }
                             });
 
+                            // Summary(합계) 행 실시간 재계산
+                            recalcSummaryRow();
+
                             alert(`입/출잔고 Load가 완료되었습니다.\n(반영 종목: ${matchCount}건)`);
                         } catch (err) {
                             console.error("Error parsing excel file:", err);
@@ -623,6 +826,7 @@
                     }
                     if (gridJa010o) {
                         gridJa010o.clearData();
+                        updateSummaryVisibility();
                     }
                     lastCorpGr = null;
                     lastFundCd = null;

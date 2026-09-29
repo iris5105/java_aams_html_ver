@@ -2,7 +2,27 @@
 <html xmlns:th="http://www.thymeleaf.org">
 <div class="view-container layout-split ja010b-container layout-mobile-stack-container" th:fragment="ja010bView">
 
+    <style>
+        /* 모바일 환경: 마지막 그리드(입출금 내역)와 화면 사이 여백 추가 규격 */
+        @media (max-width: 876px) {
+            .ja010b-container.layout-mobile-stack-container {
+                padding-bottom: 24px !important;
+            }
 
+            .ja010b-container.layout-mobile-stack-container::after {
+                content: "" !important;
+                display: block !important;
+                height: 24px !important;
+                min-height: 24px !important;
+                flex-shrink: 0 !important;
+                width: 100% !important;
+            }
+
+            .ja010b-container .io-grid-box {
+                margin-bottom: 8px !important;
+            }
+        }
+    </style>
 
     <!-- Top Action Control Bar (Row 1) -->
     <div class="view-toolbar">

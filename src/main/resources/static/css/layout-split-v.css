@@ -276,7 +276,7 @@
 
 /* 6. Tablet-S / Mobile Responsive Layout (<= 876px) */
 @media (max-width: 876px) {
-    /* 6-0. 최상위 모바일 스택 컨테이너 규격 */
+    /* 6-0. 최상위 모바일 스택 컨테이너 규격: 화면 바닥과의 적정 여백(22px) 및 스크롤 끝 여백 보장 */
     .layout-mobile-stack-container {
         display: flex !important;
         flex-direction: column !important;
@@ -285,8 +285,17 @@
         overflow-y: auto !important;
         overflow-x: hidden !important;
         -webkit-overflow-scrolling: touch !important;
-        padding-bottom: 48px !important;
+        padding-bottom: 22px !important;
         box-sizing: border-box !important;
+    }
+
+    .layout-mobile-stack-container::after {
+        content: "";
+        display: block;
+        height: 22px;
+        min-height: 22px;
+        flex-shrink: 0;
+        width: 100%;
     }
 
     .layout-split-v {
@@ -322,7 +331,7 @@
         min-height: 100% !important;
         overflow: visible !important;
         gap: 12px !important;
-        padding-bottom: 24px !important;
+        padding-bottom: 0 !important;
     }
 
     .layout-split-v.layout-mobile-stack > .pane-top,
@@ -374,7 +383,9 @@
     }
 
     .layout-split-v .split-panel.panel-left .grid-table-wrapper {
-        height: calc(230px - 32px) !important;
+        flex: 1 1 auto !important;
+        height: auto !important;
+        min-height: 0 !important;
         overflow: hidden !important;
     }
 
@@ -435,8 +446,20 @@
     }
 
     .layout-split-v .io-grid-box .grid-table-wrapper {
-        height: calc(230px - 32px) !important;
+        flex: 1 1 auto !important;
+        height: auto !important;
+        min-height: 0 !important;
         overflow: hidden !important;
+    }
+
+    .layout-split-v .io-grid-box .tabulator {
+        min-height: 0 !important;
+        height: 100% !important;
+        border: none !important;
+    }
+
+    .layout-split-v .io-grid-box .tabulator .tabulator-tableholder {
+        min-height: 0 !important;
     }
 }
 
