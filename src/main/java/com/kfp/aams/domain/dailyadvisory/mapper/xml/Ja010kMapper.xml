@@ -42,17 +42,15 @@
              , TO_CHAR(t1.vc_old_dt, 'YYYY-MM-DD HH24:MI:SS') AS vc_old_dt
              , NVL(uh.sun_jasan_aek,0)                     AS NAV
              , NVL(uh.real_jasan_aek,0)                    AS total_nav
-             , CASE WHEN NVL(uh.real_jasan_aek,0)=0 THEN 0
-                    WHEN NVL(t1.aekm,0)=0 THEN 0
-                    ELSE ROUND(NVL(t1.siga_aek,0) * (1 - NVL(t1.vc_old,0) / t1.aekm) * 100 / uh.real_jasan_aek, 4)
-               END                                         AS venture_new_per
-             , CASE WHEN NVL(uh.real_jasan_aek,0)=0 THEN 0
-                    WHEN NVL(t1.aekm,0)=0 THEN 0
-                    ELSE ROUND(NVL(t1.siga_aek,0) * NVL(t1.vc_old,0) / t1.aekm * 100 / uh.real_jasan_aek, 4)
-               END                                         AS venture_old_per
-             , CASE WHEN NVL(uh.real_jasan_aek,0)=0 THEN 0
-                    ELSE ROUND(NVL(t1.siga_aek,0) * 100 / uh.real_jasan_aek, 4)
-               END                                         AS venture_total_per
+            , CASE WHEN uh.real_jasan_aek=0 THEN 0
+                                            ELSE NVL(t1.siga_aek,0) * (1 - NVL(vc_old,0) / NVL(t1.aekm,0)) * 100 / (uh.real_jasan_aek)
+              END                                         AS venture_new_per
+                    , CASE WHEN uh.real_jasan_aek=0 THEN 0
+                                            ELSE NVL(t1.siga_aek,0) * NVL(vc_old,0) / NVL(t1.aekm,0) * 100 / (uh.real_jasan_aek)
+                      END                                         AS venture_old_per
+                    , CASE WHEN uh.real_jasan_aek=0 THEN 0
+                                            ELSE NVL(t1.siga_aek,0) * 100 / (uh.real_jasan_aek)
+                      END                                         AS venture_total_per
              , TO_CHAR(jb.venture_start, 'YYYY-MM-DD')     AS venture_start
              , TO_CHAR(jb.venture_end, 'YYYY-MM-DD')       AS venture_end
           FROM UZM0UI t1
@@ -72,7 +70,7 @@
     <update id="updateVcOld">
         UPDATE UZM0UI
            SET vc_old = #{vcOld},
-               vc_old_dt = SYSDATE
+               vc_old_dt = CURRENT_DATE
          WHERE corp_gr = #{corpGr}
            AND ymd = TO_DATE(#{ymd}, 'YYYY-MM-DD')
            AND fund_cd = #{fundCd}

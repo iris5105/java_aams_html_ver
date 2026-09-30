@@ -404,7 +404,7 @@
                     <div class="form-row">
                         <div class="form-label">발 행 가</div>
                         <div class="form-control-area">
-                            <input type="text" id="form-balhGa" class="form-input" style="width: 100%; text-align: right;" />
+                            <input type="text" id="form-balhGa" class="form-input" style="width: 140px; text-align: right;" />
                         </div>
                     </div>
 
@@ -412,7 +412,7 @@
                     <div class="form-row">
                         <div class="form-label">상장주수</div>
                         <div class="form-control-area">
-                            <input type="text" id="form-sangjJusu" class="form-input" style="width: 100%; text-align: right;" />
+                            <input type="text" id="form-sangjJusu" class="form-input" style="width: 140px; text-align: right;" />
                         </div>
                     </div>
 
@@ -428,11 +428,11 @@
                     <div class="form-row">
                         <div class="form-label">업종코드</div>
                         <div class="form-control-area">
-                            <input type="text" id="form-upjCd" class="form-input" style="width: 55px; text-align: center;" maxlength="3" />
+                            <input type="text" id="form-upjCd" class="form-input" style="width: 50px; text-align: center;" maxlength="3" />
                             <button type="button" id="btn-upj-search" class="btn-search-icon" title="업종코드 검색">
                                 <i class="fa-solid fa-magnifying-glass"></i>
                             </button>
-                            <input type="text" id="form-upjFnm" class="form-input" style="flex: 1;" readonly />
+                            <input type="text" id="form-upjFnm" class="form-input" style="width: 150px; text-overflow: ellipsis;" readonly />
                         </div>
                     </div>
 
@@ -478,7 +478,7 @@
                     <div class="form-row">
                         <div class="form-label">시가평가코드</div>
                         <div class="form-control-area">
-                            <input type="text" id="form-isinCd" class="form-input" style="width: 100%;" maxlength="20" />
+                            <input type="text" id="form-isinCd" class="form-input" style="width: 140px;" maxlength="20" />
                         </div>
                     </div>
 
@@ -874,7 +874,10 @@
 
                 if (getEl("form-capsize")) getEl("form-capsize").value = data.capsize || "";
                 if (getEl("form-upjCd")) getEl("form-upjCd").value = data.upjCd || "";
-                if (getEl("form-upjFnm")) getEl("form-upjFnm").value = data.upjFnm || "";
+                if (getEl("form-upjFnm")) {
+                    getEl("form-upjFnm").value = data.upjFnm || "";
+                    getEl("form-upjFnm").title = data.upjFnm || "";
+                }
                 if (getEl("form-kospigubun")) getEl("form-kospigubun").value = data.kospigubun || "";
 
                 if (getEl("form-createdYmd")) getEl("form-createdYmd").value = formatDateDot(data.createdYmd);
@@ -999,7 +1002,10 @@
                                 initialKeyword: curVal,
                                 onSelect: function(code, name) {
                                     if (getEl("form-upjCd")) getEl("form-upjCd").value = code || "";
-                                    if (getEl("form-upjFnm")) getEl("form-upjFnm").value = name || "";
+                                    if (getEl("form-upjFnm")) {
+                                        getEl("form-upjFnm").value = name || "";
+                                        getEl("form-upjFnm").title = name || "";
+                                    }
                                     syncFormToGrid("upjCd", code || "");
                                     syncFormToGrid("upjFnm", name || "");
                                 }
@@ -1116,50 +1122,62 @@
                 const pnlRight = pane ? pane.querySelector("#panel-right") : document.getElementById("panel-right");
 
                 if (target === "stock") {
-                    btnStock.style.background = "#fff";
-                    btnStock.style.borderColor = "#cbd5e1";
-                    btnStock.style.color = "#2563eb";
+                    if (btnStock) {
+                        btnStock.classList.add("active");
+                        btnStock.style.background = "#fff";
+                        btnStock.style.borderColor = "#cbd5e1";
+                        btnStock.style.color = "#2563eb";
+                    }
+                    if (btnRight) {
+                        btnRight.classList.remove("active");
+                        btnRight.style.background = "#e2e8f0";
+                        btnRight.style.borderColor = "transparent";
+                        btnRight.style.color = "#64748b";
+                    }
 
-                    btnRight.style.background = "#e2e8f0";
-                    btnRight.style.borderColor = "transparent";
-                    btnRight.style.color = "#64748b";
-
-                    pnlStock.style.display = "flex";
-                    pnlRight.style.display = "none";
+                    if (pnlStock) pnlStock.style.display = "flex";
+                    if (pnlRight) pnlRight.style.display = "none";
                     if (gridStock) {
                         gridStock.redraw(true);
-                        applyQuickFilter();
+                        applyQuickFilter("stock");
                     }
                     if (window.AamsSplitter && window.AamsSplitter.init) {
                         window.AamsSplitter.init(pnlStock);
                     }
                 } else {
-                    btnRight.style.background = "#fff";
-                    btnRight.style.borderColor = "#cbd5e1";
-                    btnRight.style.color = "#2563eb";
+                    if (btnRight) {
+                        btnRight.classList.add("active");
+                        btnRight.style.background = "#fff";
+                        btnRight.style.borderColor = "#cbd5e1";
+                        btnRight.style.color = "#2563eb";
+                    }
+                    if (btnStock) {
+                        btnStock.classList.remove("active");
+                        btnStock.style.background = "#e2e8f0";
+                        btnStock.style.borderColor = "transparent";
+                        btnStock.style.color = "#64748b";
+                    }
 
-                    btnStock.style.background = "#e2e8f0";
-                    btnStock.style.borderColor = "transparent";
-                    btnStock.style.color = "#64748b";
-
-                    pnlStock.style.display = "none";
-                    pnlRight.style.display = "flex";
+                    if (pnlStock) pnlStock.style.display = "none";
+                    if (pnlRight) pnlRight.style.display = "flex";
                     if (gridRight) {
                         gridRight.redraw(true);
+                        applyQuickFilter("right");
                     }
                     loadRightList();
                 }
             }
 
             // Quick Search Filter (w_ja990c 표준과 동일한 실시간 필터)
-            function applyQuickFilter() {
-                const targetGrid = (currentTab === "stock") ? gridStock : gridRight;
+            function applyQuickFilter(forceTab) {
+                const activeTab = forceTab || currentTab;
+                const targetGrid = (activeTab === "stock") ? gridStock : gridRight;
                 if (!targetGrid) return;
 
                 const searchInput = pane ? pane.querySelector("#ja990d-search") : document.getElementById("ja990d-search");
                 const val = searchInput ? searchInput.value.trim().toLowerCase() : "";
-                const countEl = pane ? pane.querySelector(currentTab === "stock" ? "#stock-count" : "#right-count") 
-                                     : document.getElementById(currentTab === "stock" ? "stock-count" : "right-count");
+                const countEl = pane ? pane.querySelector(activeTab === "stock" ? "#stock-count" : "#right-count") 
+                                     : document.getElementById(activeTab === "stock" ? "stock-count" : "right-count");
 
                 if (!val) {
                     targetGrid.clearFilter();
@@ -1181,12 +1199,26 @@
                     countEl.textContent = count + "건";
                 }
 
-                if (currentTab === "stock") {
+                if (activeTab === "stock") {
                     if (activeRows && activeRows.length > 0) {
                         if (!isMobileView()) {
+                            if (gridStock && typeof gridStock.deselectRow === 'function') {
+                                gridStock.deselectRow();
+                            }
+                            let targetRow = activeRows[0];
+                            if (selectedStockRow) {
+                                const found = activeRows.find(r => {
+                                    const d = r.getData ? r.getData() : null;
+                                    const curD = selectedStockRow.getData ? selectedStockRow.getData() : null;
+                                    return d && curD && (d.jmCd === curD.jmCd);
+                                });
+                                if (found) {
+                                    targetRow = found;
+                                }
+                            }
                             isProgrammaticSelect = true;
-                            activeRows[0].select();
-                            syncDetail(activeRows[0], activeRows[0].getData(), false);
+                            targetRow.select();
+                            syncDetail(targetRow, targetRow.getData(), false);
                             setTimeout(() => { isProgrammaticSelect = false; }, 150);
                         } else {
                             // 모바일 환경: 조회 후 첫 번째 행 autofocus/select 완전 차단
@@ -1214,6 +1246,9 @@
                 } else {
                     if (activeRows && activeRows.length > 0) {
                         if (!isMobileView()) {
+                            if (gridRight && typeof gridRight.deselectRow === 'function') {
+                                gridRight.deselectRow();
+                            }
                             activeRows[0].select();
                         } else {
                             if (gridRight && typeof gridRight.deselectRow === 'function') {
@@ -1238,7 +1273,8 @@
                     .then(data => {
                         if (gridStock) {
                             gridStock.setData(data || []).then(() => {
-                                applyQuickFilter();
+                                gridStock.redraw(true);
+                                applyQuickFilter("stock");
                                 if (isMobileView() && gridStock && typeof gridStock.deselectRow === 'function') {
                                     gridStock.deselectRow();
                                 }
@@ -1259,7 +1295,8 @@
                     .then(data => {
                         if (gridRight) {
                             gridRight.setData(data || []).then(() => {
-                                applyQuickFilter();
+                                gridRight.redraw(true);
+                                applyQuickFilter("right");
                                 if (isMobileView() && gridRight && typeof gridRight.deselectRow === 'function') {
                                     gridRight.deselectRow();
                                 }
@@ -1274,11 +1311,8 @@
 
             function loadData() {
                 lastLoadedMasterKey = null;
-                if (currentTab === "stock") {
-                    loadStockList();
-                } else {
-                    loadRightList();
-                }
+                loadStockList();
+                loadRightList();
             }
 
             // Init Grids and Components
@@ -1556,11 +1590,9 @@
                     closeStockModal();
                     if (gridStock) {
                         gridStock.clearFilter();
-                        gridStock.clearData();
                     }
                     if (gridRight) {
                         gridRight.clearFilter();
-                        gridRight.clearData();
                     }
                     selectedStockRow = null;
                     lastLoadedMasterKey = null;
@@ -1569,12 +1601,9 @@
                     deletedRightList = [];
                     const searchInput = pane ? pane.querySelector("#ja990d-search") : document.getElementById("ja990d-search");
                     if (searchInput) searchInput.value = "";
-                    const stockCount = pane ? pane.querySelector("#stock-count") : document.getElementById("stock-count");
-                    const rightCount = pane ? pane.querySelector("#right-count") : document.getElementById("right-count");
-                    if (stockCount) stockCount.textContent = "0건";
-                    if (rightCount) rightCount.textContent = "0건";
+                    loadData();
                     if (typeof showToast === "function") {
-                        showToast("화면이 초기화되었습니다.", "info");
+                        showToast("새로고침되었습니다.", "info");
                     }
                 };
             }

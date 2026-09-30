@@ -74,13 +74,13 @@
         SELECT t1.af_gyul_ymd AS gyulYmd
              , t1.fund_cd     AS fundCd
              , ia.fund_nm     AS fundNm
-             , TO_CHAR(SYSDATE, 'YYYY-MM-DD') AS titleYmd
+             , TO_CHAR(CURRENT_DATE, 'YYYY-MM-DD') AS titleYmd
           FROM SZM0GI t1
           JOIN SZM0IA ia ON ia.corp_gr = t1.corp_gr 
                         AND ia.fund_cd = t1.fund_cd
          WHERE t1.corp_gr = #{corpGr}
-           AND t1.af_gyul_ymd Between TRUNC(SYSDATE, 'MM') And LAST_DAY(SYSDATE)
-           AND NVL(ia.haeji_ymd, SYSDATE) >= SYSDATE
+           AND t1.af_gyul_ymd Between TRUNC(CURRENT_DATE, 'MM') And LAST_DAY(CURRENT_DATE)
+           AND NVL(ia.haeji_ymd, CURRENT_DATE) >= CURRENT_DATE
          ORDER BY t1.af_gyul_ymd ASC, t1.fund_cd ASC
     </select>
     
@@ -100,15 +100,15 @@
              , SCM0CJ cj
              , SZM0IA ia
          WHERE t1.corp_gr    = #{corpGr}
-           AND t1.ymd        = F_OPEN_YMD(TRUNC(SYSDATE, 'DD'), '-')
+           AND t1.ymd        = F_OPEN_YMD(CURRENT_DATE, '-')
            AND ig.corp_gr    = t1.corp_gr
            AND ig.jm_cd      = t1.jm_cd
-           AND ig.af_ija_ymd BETWEEN TRUNC(SYSDATE, 'MM') AND LAST_DAY(SYSDATE)
+           AND ig.af_ija_ymd BETWEEN TRUNC(CURRENT_DATE, 'MM') AND LAST_DAY(CURRENT_DATE)
            AND cj.corp_gr    = t1.corp_gr
            AND cj.jm_cd      = t1.jm_cd
            AND ia.corp_gr    = t1.corp_gr
            AND ia.fund_cd    = t1.fund_cd
-           AND NVL(ia.haeji_ymd, SYSDATE) >= SYSDATE
+           AND NVL(ia.haeji_ymd, CURRENT_DATE) >= CURRENT_DATE
         UNION ALL
         SELECT DISTINCT hj.jm_cd      AS jmCd
              , hj.hj_nm      AS cjNm
@@ -123,15 +123,15 @@
              , SHM0HJ hj
              , SZM0IA ia
          WHERE t1.corp_gr    = #{corpGr}
-           AND t1.ymd        = F_OPEN_YMD(TRUNC(SYSDATE, 'DD'), '-')
+           AND t1.ymd        = F_OPEN_YMD(CURRENT_DATE, '-')
            AND ig.corp_gr    = t1.corp_gr
            AND ig.jm_cd      = t1.jm_cd
-           AND ig.af_ija_ymd BETWEEN TRUNC(SYSDATE, 'MM') AND LAST_DAY(SYSDATE)
+           AND ig.af_ija_ymd BETWEEN TRUNC(CURRENT_DATE, 'MM') AND LAST_DAY(CURRENT_DATE)
            AND hj.corp_gr    = t1.corp_gr
            AND hj.jm_cd      = t1.jm_cd
            AND ia.corp_gr    = t1.corp_gr
            AND ia.fund_cd    = t1.fund_cd
-           AND NVL(ia.haeji_ymd, SYSDATE) >= SYSDATE
+           AND NVL(ia.haeji_ymd, CURRENT_DATE) >= CURRENT_DATE
     </select>
 
 
@@ -167,10 +167,10 @@
              , t1.fund1                                                AS cv2Chtvalue002
           FROM fw_day_chtdata t1
          WHERE t1.corp_gr = #{corpGr}
-           AND t1.YMD Between ADD_MONTHS(TO_DATE(NVL(#{ymd}, TO_CHAR(SYSDATE, 'YYYYMMDD')), 'YYYYMMDD') - 1, -6)
-                          And TO_DATE(NVL(#{ymd}, TO_CHAR(SYSDATE, 'YYYYMMDD')), 'YYYYMMDD')
+           AND t1.YMD Between ADD_MONTHS(TO_DATE(NVL(#{ymd}, TO_CHAR(CURRENT_DATE, 'YYYYMMDD')), 'YYYYMMDD') - 1, -6)
+                          And TO_DATE(NVL(#{ymd}, TO_CHAR(CURRENT_DATE, 'YYYYMMDD')), 'YYYYMMDD')
            AND t1.FUND_CURRENCY = 'KRW'
-           AND t1.weekday = TO_CHAR(TO_DATE(NVL(#{ymd}, TO_CHAR(SYSDATE, 'YYYYMMDD')), 'YYYYMMDD') - 1, 'dy')
+           AND t1.weekday = TO_CHAR(TO_DATE(NVL(#{ymd}, TO_CHAR(CURRENT_DATE, 'YYYYMMDD')), 'YYYYMMDD') - 1, 'dy')
          ORDER BY t1.ymd ASC
     </select>
 </mapper>

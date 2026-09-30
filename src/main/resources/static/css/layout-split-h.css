@@ -90,9 +90,26 @@
     min-width: 280px;
     display: flex;
     flex-direction: column;
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    box-sizing: border-box;
+}
+
+/* 4-0. 복합 서브패널(다중 카드, 메모+리포트 등)을 자식으로 가진 경우: 외부 테두리를 제거하고 투명 컨테이너 및 gap 설정 */
+.layout-split-h > .pane-right:has(.memo-card, .report-card, .proposal-card, .matter-section, .comment-section, .multi-stack-pane),
+.layout-split-h > .right-pane:has(.memo-card, .report-card, .proposal-card, .matter-section, .comment-section, .multi-stack-pane),
+.layout-split-h > .detail-section:has(.memo-card, .report-card, .proposal-card, .matter-section, .comment-section, .multi-stack-pane),
+.layout-split-h > .multi-stack-pane,
+.layout-split-h > .proposal-right-pane {
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
     gap: 8px;
     overflow: hidden;
-    box-sizing: border-box;
 }
 
 /* 4-1. Common Memo Card (e.g. w_ja010m3 mle_cond) */
@@ -125,6 +142,11 @@
     font-weight: 600;
     color: #1e293b;
     box-sizing: border-box;
+}
+
+.layout-split-h .pane-header i,
+.layout-split-h .section-header i {
+    color: #000000 !important;
 }
 
 .layout-split-h .pane-body,

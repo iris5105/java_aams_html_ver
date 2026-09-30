@@ -80,7 +80,7 @@
           , NVL(#{change, jdbcType=NUMERIC}, #{close, jdbcType=NUMERIC} - #{preclose, jdbcType=NUMERIC})
           , #{aekm, jdbcType=NUMERIC}
           , #{sangjJusu, jdbcType=NUMERIC}
-          , SYSDATE
+          , CURRENT_TIMESTAMP
         )
     </insert>
 
@@ -94,7 +94,7 @@
              , change     = NVL(#{change, jdbcType=NUMERIC}, #{close, jdbcType=NUMERIC} - #{preclose, jdbcType=NUMERIC})
              , aekm       = #{aekm, jdbcType=NUMERIC}
              , sangj_jusu = #{sangjJusu, jdbcType=NUMERIC}
-             , mod_dt     = SYSDATE
+             , mod_dt     = CURRENT_TIMESTAMP
          WHERE corp_gr   = #{corpGr}
            AND ymd       = TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
            AND koscom_cd = #{koscomCd}
@@ -122,7 +122,7 @@
               , t.change     = NVL(#{change, jdbcType=NUMERIC}, #{close, jdbcType=NUMERIC} - #{preclose, jdbcType=NUMERIC})
               , t.aekm       = #{aekm, jdbcType=NUMERIC}
               , t.sangj_jusu = #{sangjJusu, jdbcType=NUMERIC}
-              , t.mod_dt     = SYSDATE
+              , t.mod_dt     = CURRENT_TIMESTAMP
         WHEN NOT MATCHED THEN
             INSERT (
                 corp_gr, ymd, koscom_cd, close, volume, value, preclose, change, aekm, sangj_jusu, mod_dt
@@ -137,7 +137,7 @@
               , NVL(#{change, jdbcType=NUMERIC}, #{close, jdbcType=NUMERIC} - #{preclose, jdbcType=NUMERIC})
               , #{aekm, jdbcType=NUMERIC}
               , #{sangjJusu, jdbcType=NUMERIC}
-              , SYSDATE
+              , CURRENT_TIMESTAMP
             )
     </update>
 

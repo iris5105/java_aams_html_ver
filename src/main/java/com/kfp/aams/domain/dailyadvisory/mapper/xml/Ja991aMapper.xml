@@ -16,14 +16,14 @@
                  AND NVL(t1.ABOL_DT, TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')) &gt;= TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
              </when>
              <otherwise>
-                 AND NVL(t1.ABOL_DT, TRUNC(SYSDATE)) &gt;= TRUNC(SYSDATE)
+                 AND NVL(t1.ABOL_DT, CURRENT_DATE) &gt;= CURRENT_DATE
              </otherwise>
          </choose>
          ORDER BY F_JM_SORT (
                     NVL(#{corpGr}, '00'),
                     <choose>
                         <when test="ymd != null and ymd != ''">TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')</when>
-                        <otherwise>TRUNC(SYSDATE)</otherwise>
+                        <otherwise>CURRENT_DATE</otherwise>
                     </choose>,
                     t1.JM_CD
                   )
@@ -45,7 +45,7 @@
                  AND t1.YMD &gt;= ADD_MONTHS(TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD'), -12)
              </when>
              <otherwise>
-                 AND t1.YMD &gt;= ADD_MONTHS(TRUNC(SYSDATE), -12)
+                 AND t1.YMD &gt;= ADD_MONTHS(CURRENT_DATE, -12)
              </otherwise>
          </choose>
          ORDER BY t1.YMD DESC

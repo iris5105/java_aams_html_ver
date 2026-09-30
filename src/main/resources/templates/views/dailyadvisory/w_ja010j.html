@@ -120,7 +120,7 @@
                 if (typeof setupTabulatorRowSelection === "function") {
                     setupTabulatorRowSelection(grid, function (row, data) {
                         syncDetail(row, data, false);
-                    });
+                    }, { autoSelectFirst: false });
                 }
                 grid.on("rowClick", function (e, row) {
                     var isRealClick = e && (e.isTrusted !== false);
@@ -145,7 +145,14 @@
             function syncDetail(row, masterRowData, isUserClick) {
                 if (!row) return;
                 if (!row.isSelected || !row.isSelected()) {
+                    if (grid && typeof grid.deselectRow === 'function') {
+                        grid.deselectRow();
+                    }
                     row.select();
+                }
+                var el = (typeof row.getElement === 'function') ? row.getElement() : null;
+                if (el && !el.classList.contains('tabulator-selected')) {
+                    el.classList.add('tabulator-selected');
                 }
                 var data = masterRowData || (row.getData ? row.getData() : null);
                 if (!data) return;
@@ -153,9 +160,11 @@
                 currentSelectedRowData = data;
 
                 var currentKey = (data.corpGr || "") + "_" + (data.fundCd || "") + "_" + (data.companyName || "");
-                if (isMobileView() && isManualClick) {
-                    var title = (data.companyName || '') + ' 수요예측 참여표';
-                    reportViewer.openModal(data, title);
+                if (isMobileView()) {
+                    if (isUserClick && reportViewer) {
+                        var title = (data.companyName || '') + ' 수요예측 참여표';
+                        reportViewer.openModal(data, title);
+                    }
                 } else {
                     if (lastLoadedMasterKey === currentKey) return;
                     lastLoadedMasterKey = currentKey;
@@ -192,8 +201,33 @@
                                 // 개발지침 규칙 15: 데이터 존재 시 행 선택 (데스크톱만 첫 행 자동 선택, 모바일은 자동 포커스 방지)
                                 if (rows && rows.length > 0) {
                                     if (!isMobileView()) {
+                                        grid.deselectRow();
                                         rows[0].select();
                                         syncDetail(rows[0], rows[0].getData(), false);
+
+                                        // 가상 DOM 렌더링 완료 후 첫 번째 행 선택 및 포커스 하이라이트 확정 (규칙 15)
+                                        setTimeout(function () {
+                                            if (grid && !isMobileView()) {
+                                                var currentRows = grid.getRows();
+                                                if (currentRows && currentRows.length > 0) {
+                                                    var targetRow = currentRows[0];
+                                                    if (!targetRow.isSelected || !targetRow.isSelected()) {
+                                                        grid.deselectRow();
+                                                        targetRow.select();
+                                                    }
+                                                    var el = (typeof targetRow.getElement === 'function') ? targetRow.getElement() : null;
+                                                    if (el) {
+                                                        el.classList.add('tabulator-selected');
+                                                        if (!el.hasAttribute('tabindex')) {
+                                                            el.setAttribute('tabindex', '-1');
+                                                        }
+                                                        try {
+                                                            el.focus({ preventScroll: true });
+                                                        } catch (e) {}
+                                                    }
+                                                }
+                                            }
+                                        }, 60);
                                     } else {
                                         grid.deselectRow();
                                         currentSelectedRowData = null;

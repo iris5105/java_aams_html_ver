@@ -17,15 +17,15 @@
         </div>
     </div>
 
-    <!-- 3. 마스터-디테일 본문 영역 (Horizontal Split: 기본 60:40 비율 및 드래그 조절) -->
-    <div class="layout-split-h split-body" data-split-key="W_JA010M3">
+    <!-- 3. 마스터-디테일 본문 영역 (Horizontal Split: 기본 50:50 비율 및 드래그 조절) -->
+    <div class="layout-split-h split-body" data-split-key="W_JA010M3" data-default-ratio="50:50" style="--left-size: calc(50% - 3px);">
         
         <!-- 좌측: 결산현황 목록 그리드 (d_ja010m3) -->
         <div class="pane-left left-pane">
             <div class="pane-header">
                 <div style="display: flex; align-items: center; gap: 6px;">
                     <span style="font-weight: 600; font-size: 13px; color: #1e293b;">
-                        <i class="fa-solid fa-file-invoice-dollar" style="color: #2563eb; margin-right: 4px;"></i> 결산현황 목록
+                        <i class="fa-solid fa-file-invoice-dollar" style="margin-right: 4px;"></i> 결산현황 목록
                     </span>
                     <span id="grid-count" style="font-size: 11px; color: #64748b;">0건</span>
                 </div>
@@ -42,7 +42,7 @@
             <div class="memo-card">
                 <div class="pane-header">
                     <span style="font-weight: 600; font-size: 13px; color: #1e293b;">
-                        <i class="fa-solid fa-pen-to-square" style="color: #0d9488; margin-right: 4px;"></i> 계약조건 메모
+                        <i class="fa-solid fa-pen-to-square" style="margin-right: 4px;"></i> 계약조건 메모
                     </span>
                     <span id="memo-fund-name" style="font-size: 11px; color: #2563eb; font-weight: normal;">선택된 펀드 없음</span>
                 </div>
@@ -56,7 +56,7 @@
                 <div class="pane-header">
                     <div style="display: flex; align-items: center; gap: 8px;">
                         <span style="font-weight: 600; font-size: 13px; color: #1e293b;" id="preview-header-title">
-                            <i class="fa-solid fa-file-pdf" style="color: #dc2626; margin-right: 4px;"></i> 결산보고서 미리보기
+                            <i class="fa-solid fa-file-pdf" style="margin-right: 4px;"></i> 결산보고서 미리보기
                         </span>
                         <span id="preview-status" style="font-size: 11px; color: #64748b;">선택된 건 없음</span>
                     </div>
@@ -504,8 +504,6 @@
                 }
             ];
 
-            let isProgrammaticSelect = false;
-
             // Helper to check if currently in mobile view (태블릿-S / 876px 이하 또는 우측 패널 숨김)
             function isMobileView() {
                 const right = pane ? (pane.querySelector('.pane-right') || pane.querySelector('.right-pane') || pane.querySelector('.split-right') || pane.querySelector('.report-card')) 
@@ -520,7 +518,14 @@
             function syncDetail(row, rowData, isUserClick) {
                 if (!row) return;
                 if (!row.isSelected || !row.isSelected()) {
+                    if (grid && typeof grid.deselectRow === 'function') {
+                        grid.deselectRow();
+                    }
                     row.select();
+                }
+                const el = (typeof row.getElement === 'function') ? row.getElement() : null;
+                if (el && !el.classList.contains('tabulator-selected')) {
+                    el.classList.add('tabulator-selected');
                 }
                 const data = rowData || (row.getData ? row.getData() : null);
                 if (!data) return;
@@ -783,23 +788,41 @@
                             // Rule 8, 15: 데스크톱만 첫 행 자동 선택, 모바일 환경에서는 첫행 autofocus/select 완전 차단
                             if (data && data.length > 0) {
                                 if (!isMobileView()) {
+                                    grid.deselectRow();
                                     const rows = grid.getRows();
                                     if (rows && rows.length > 0) {
-                                        isProgrammaticSelect = true;
                                         rows[0].select();
-                                        syncDetail(rows[0], data[0], false);
-                                        setTimeout(() => { isProgrammaticSelect = false; }, 150);
+                                        syncDetail(rows[0], rows[0].getData(), false);
+
+                                        // 가상 DOM 렌더링 완료 후 첫 번째 행 선택 및 포커스 하이라이트 확정 (규칙 15)
+                                        setTimeout(function () {
+                                            if (grid && !isMobileView()) {
+                                                var currentRows = grid.getRows();
+                                                if (currentRows && currentRows.length > 0) {
+                                                    var targetRow = currentRows[0];
+                                                    if (!targetRow.isSelected || !targetRow.isSelected()) {
+                                                        grid.deselectRow();
+                                                        targetRow.select();
+                                                    }
+                                                    var el = (typeof targetRow.getElement === 'function') ? targetRow.getElement() : null;
+                                                    if (el) {
+                                                        el.classList.add('tabulator-selected');
+                                                        if (!el.hasAttribute('tabindex')) {
+                                                            el.setAttribute('tabindex', '-1');
+                                                        }
+                                                        try {
+                                                            el.focus({ preventScroll: true });
+                                                        } catch (e) {}
+                                                    }
+                                                }
+                                            }
+                                        }, 60);
                                     }
                                 } else {
                                     // 모바일 환경: 첫행 autofocus 및 자동 선택 방지 (선택 해제 및 마스터키 초기화)
                                     grid.deselectRow();
                                     currentSelectedRowData = null;
                                     lastLoadedMasterKey = null;
-                                    setTimeout(() => {
-                                        if (grid && typeof grid.deselectRow === 'function') {
-                                            grid.deselectRow();
-                                        }
-                                    }, 50);
                                 }
                             }
                         });
@@ -837,15 +860,12 @@
                 // 모바일 환경 자동 선택 방지: { autoSelectFirst: false } 옵션 지정 (common.js의 50ms 후 자동 doSelect 완전 차단)
                 if (typeof setupTabulatorRowSelection === 'function') {
                     setupTabulatorRowSelection(grid, function(row, data) {
-                        if (!isProgrammaticSelect) {
-                            syncDetail(row, data, true);
-                        }
+                        syncDetail(row, data, false);
                     }, { autoSelectFirst: false });
                 }
                 grid.on("rowClick", function(e, row) {
-                    if (!isProgrammaticSelect) {
-                        syncDetail(row, row ? row.getData() : null, true);
-                    }
+                    var isRealClick = e && (e.isTrusted !== false);
+                    syncDetail(row, row ? row.getData() : null, isRealClick);
                 });
                 grid.on("rowSelectionChanged", function(data, rows) {
                     if (rows && rows.length > 0 && !isMobileView()) {
@@ -1086,6 +1106,11 @@
                 if (isInitialized) return;
                 isInitialized = true;
                 init();
+
+                // 개발지침: AamsSplitter 표준 연동 (50:50 좌우 분할 스플리터)
+                if (window.AamsSplitter && typeof window.AamsSplitter.init === 'function') {
+                    AamsSplitter.init(pane);
+                }
 
                 // AamsCalendar 초기화 (규칙 16: 순정 단일 날짜 달력)
                 if (typeof AamsCalendar !== 'undefined' && typeof AamsCalendar.initSimple === 'function') {

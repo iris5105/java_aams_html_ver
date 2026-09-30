@@ -449,6 +449,15 @@ function renderSearchDropdownResults(list, q) {
         return go.includes(q) || nm.includes(q) || pId.includes(q);
     });
 
+    // pgmGo 기준 오름차순 정렬 (자연 정렬 numeric: true 적용)
+    filtered.sort((a, b) => {
+        const goA = a.pgmGo ? a.pgmGo.trim() : '';
+        const goB = b.pgmGo ? b.pgmGo.trim() : '';
+        if (goA && !goB) return -1;
+        if (!goA && goB) return 1;
+        return goA.localeCompare(goB, undefined, { numeric: true, sensitivity: 'base' });
+    });
+
     if (filtered.length === 0) {
         g_searchActiveIndex = -1;
         dropdown.innerHTML = `

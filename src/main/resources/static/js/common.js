@@ -969,6 +969,50 @@ function setupTabulatorRowSelection(table, onRowChange, options = {}) {
                 }
             }
         });
+
+        // 6. 단일 행 선택 모드(selectable: 1 / selectableRows: 1) 전역 다중 선택 방지 안전망
+        // 실시간 검색 필터링(setFilter), 필터 해제(clearFilter), 외부 row.select() 호출 등으로 인해
+        // 2개 이상의 행이 동시에 selected 상태로 남는 현상을 원천 차단
+        let isEnforcingSingleSelect = false;
+        function enforceSingleSelection(preferredRow) {
+            if (isEnforcingSingleSelect) return;
+            const isSingle = (table.options.selectableRows === 1 || table.options.selectable === 1);
+            if (!isSingle) return;
+
+            try {
+                isEnforcingSingleSelect = true;
+                const selected = (typeof table.getSelectedRows === 'function') ? table.getSelectedRows() : [];
+                if (selected && selected.length > 1) {
+                    const targetKeep = (preferredRow && selected.includes(preferredRow))
+                        ? preferredRow
+                        : selected[selected.length - 1]; // 가장 최근 선택 행 유지
+                    selected.forEach(r => {
+                        if (r !== targetKeep && typeof r.deselect === 'function') {
+                            r.deselect();
+                        }
+                    });
+                }
+            } catch (e) {
+                console.warn("[AAMS RowSelection] Error enforcing single selection:", e);
+            } finally {
+                isEnforcingSingleSelect = false;
+            }
+        }
+
+        table.on("rowSelected", function(row) {
+            enforceSingleSelection(row);
+        });
+
+        table.on("dataFiltered", function(filters, rows) {
+            enforceSingleSelection();
+        });
+
+        table.on("rowSelectionChanged", function(data, rows) {
+            const isSingle = (table.options.selectableRows === 1 || table.options.selectable === 1);
+            if (isSingle && rows && rows.length > 1) {
+                enforceSingleSelection(rows[rows.length - 1]);
+            }
+        });
     }
 
     if (table.element) {

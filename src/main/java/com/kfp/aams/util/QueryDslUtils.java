@@ -75,7 +75,7 @@ public class QueryDslUtils {
      * @param dayOffset 일수 오프셋 (음수: 과거 일수 차감, 양수: 미래 일수 가산, 0: 기본)
      */
     public static StringTemplate truncDate(Expression<?> dateExpr, String unit, int dayOffset) {
-        Expression<?> targetExpr = (dateExpr != null) ? dateExpr : Expressions.stringTemplate("sysdate");
+        Expression<?> targetExpr = (dateExpr != null) ? dateExpr : Expressions.stringTemplate("CURRENT_DATE");
         String cleanUnit = (unit != null) ? unit.trim().toLowerCase() : "";
 
         StringTemplate baseDate;

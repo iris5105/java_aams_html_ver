@@ -41,6 +41,8 @@
             </div>
         </div>
 
+        <div class="split-gutter-v" title="드래그하여 상하 비율 조절 (더블클릭 시 기본 비율로 복원)"></div>
+
         <!-- Lower History Detail Section (d_ja990c2) -->
         <div class="pane-bottom detail-section">
             <div class="pane-header">
@@ -85,18 +87,18 @@
 
             // DDDW Loaders (Rule 7: 2-Column format)
             function retrieveDddw() {
-                const targetCorpGr = resolveCorpGr();
+                const targetCorpGr = resolveCorpGr(pane);
                 if (typeof window.f_dddwctl === 'function') {
-                    window.f_dddwctl('tr_stop_gb', 1, targetCorpGr, '', '').then(list => {
-                        dddwOptionsMap.tr_stop_gb = list || [];
-                        if (gridMaster) gridMaster.redraw(true);
-                    }).catch(e => console.error(e));
-
-                    window.f_dddwctl('sosok_gb', 1, targetCorpGr, '', '').then(list => {
-                        dddwOptionsMap.sosok_gb = list || [];
-                        if (gridMaster) gridMaster.redraw(true);
-                    }).catch(e => console.error(e));
+                    return Promise.all([
+                        window.f_dddwctl('tr_stop_gb', 1, targetCorpGr, '', '').then(list => {
+                            dddwOptionsMap.tr_stop_gb = list || [];
+                        }).catch(e => console.error(e)),
+                        window.f_dddwctl('sosok_gb', 1, targetCorpGr, '', '').then(list => {
+                            dddwOptionsMap.sosok_gb = list || [];
+                        }).catch(e => console.error(e))
+                    ]);
                 }
+                return Promise.resolve();
             }
 
             function formatDateVal(val) {
@@ -116,6 +118,18 @@
                 return val;
             }
 
+            // Rule 7: 2-Column Dropdown Item Formatter (PowerBuilder DDDW Style: Code, Name)
+            function createDddw2ColFormatter(codeWidth, codeTitle, nameTitle) {
+                if (typeof window.f_dddwctl === 'function' && typeof window.f_dddwctl.get2ColItemFormatter === 'function') {
+                    return window.f_dddwctl.get2ColItemFormatter(codeWidth, codeTitle, nameTitle);
+                }
+                return function(label, value, item) {
+                    const code = (item && item.code != null) ? item.code : value;
+                    const name = (item && item.name != null) ? item.name : label;
+                    return `<div class="dddw-2col-row"><span class="dddw-col-code">${code}</span><span class="dddw-col-name">${name}</span></div>`;
+                };
+            }
+
             function getDddwOptions(dddwKey) {
                 const list = dddwOptionsMap[dddwKey] || [];
                 return list.map(item => {
@@ -132,6 +146,9 @@
 
             function getDddwLabel(dddwKey, codeVal) {
                 if (codeVal == null || codeVal === "") return "";
+                if (typeof window.f_dddwctl === 'function' && typeof window.f_dddwctl.getLabel === 'function') {
+                    return window.f_dddwctl.getLabel(dddwOptionsMap, dddwKey, codeVal);
+                }
                 const list = dddwOptionsMap[dddwKey] || [];
                 const found = list.find(item => {
                     const c = (item.code != null ? item.code : (item.SEBU_CD != null ? item.SEBU_CD : item.cd));
@@ -143,10 +160,10 @@
                 return String(codeVal);
             }
 
-            // Master Columns (d_ja990c1.srd)
+            // Master Columns (d_ja990c1.srd: 순서 및 타이틀, headerCssClass 적용)
             const masterColumns = [
                 {
-                    title: "No.",
+                    title: "No",
                     field: "fseq",
                     formatter: "rownum",
                     width: 50,
@@ -172,9 +189,9 @@
                     }
                 },
                 {
-                    title: "국가",
+                    title: "발행국가",
                     field: "balhNation",
-                    width: 65,
+                    width: 80,
                     hozAlign: "center",
                     headerHozAlign: "center",
                     editor: "input",
@@ -183,9 +200,11 @@
                 {
                     title: "발행기관",
                     field: "balhCo",
-                    width: 80,
+                    width: 85,
                     hozAlign: "center",
                     headerHozAlign: "center",
+                    headerCssClass: "col-hdr-blue",
+                    cssClass: "cell-text-blue",
                     editor: function(cell) {
                         return cell.getRow().getData().isNew ? "input" : false;
                     },
@@ -194,16 +213,18 @@
                 {
                     title: "발행기관명",
                     field: "balhNm",
-                    minWidth: 180,
+                    minWidth: 200,
                     hozAlign: "left",
                     headerHozAlign: "center",
+                    headerCssClass: "col-hdr-blue",
+                    cssClass: "cell-text-blue",
                     editor: "input",
                     cellClick: aamsCellEdit
                 },
                 {
                     title: "결산월",
                     field: "gyulMm",
-                    width: 65,
+                    width: 70,
                     hozAlign: "center",
                     headerHozAlign: "center",
                     editor: "input",
@@ -212,7 +233,7 @@
                 {
                     title: "거래정지",
                     field: "trStopGb",
-                    width: 90,
+                    width: 100,
                     hozAlign: "center",
                     headerHozAlign: "center",
                     formatter: function(cell) {
@@ -222,14 +243,15 @@
                     editorParams: {
                         values: function() {
                             return getDddwOptions('tr_stop_gb');
-                        }
+                        },
+                        itemFormatter: createDddw2ColFormatter(45, "코드", "구분명")
                     },
                     cellClick: aamsCellEdit
                 },
                 {
                     title: "소속구분",
                     field: "sosokGb",
-                    width: 100,
+                    width: 110,
                     hozAlign: "center",
                     headerHozAlign: "center",
                     formatter: function(cell) {
@@ -239,14 +261,15 @@
                     editorParams: {
                         values: function() {
                             return getDddwOptions('sosok_gb');
-                        }
+                        },
+                        itemFormatter: createDddw2ColFormatter(45, "코드", "소속명")
                     },
                     cellClick: aamsCellEdit
                 },
                 {
                     title: "액면",
                     field: "aekm",
-                    width: 90,
+                    width: 95,
                     hozAlign: "right",
                     headerHozAlign: "center",
                     formatter: numFormatter,
@@ -254,9 +277,9 @@
                     cellClick: aamsCellEdit
                 },
                 {
-                    title: "KOSCOM",
+                    title: "KOSCOM코드",
                     field: "compCd",
-                    width: 90,
+                    width: 105,
                     hozAlign: "center",
                     headerHozAlign: "center",
                     editor: "input",
@@ -265,25 +288,27 @@
                 {
                     title: "발행기관분류",
                     field: "grBalhGb",
-                    width: 100,
+                    width: 110,
                     hozAlign: "center",
                     headerHozAlign: "center",
                     editor: "input",
                     cellClick: aamsCellEdit
                 },
                 {
-                    title: "ISIN",
+                    title: "발행코드(ISIN)",
                     field: "isinCd",
-                    width: 100,
+                    width: 120,
                     hozAlign: "center",
                     headerHozAlign: "center",
+                    headerCssClass: "col-hdr-red",
+                    cssClass: "cell-text-red",
                     editor: "input",
                     cellClick: aamsCellEdit
                 },
                 {
                     title: "법인등록번호",
                     field: "bubinNo",
-                    width: 120,
+                    width: 130,
                     hozAlign: "center",
                     headerHozAlign: "center",
                     editor: "input",
@@ -292,9 +317,11 @@
                 {
                     title: "부도일자",
                     field: "budoYmd",
-                    width: 100,
+                    width: 105,
                     hozAlign: "center",
                     headerHozAlign: "center",
+                    headerCssClass: "col-hdr-red",
+                    cssClass: "cell-text-red",
                     formatter: cell => formatDateVal(cell.getValue()),
                     editor: "date",
                     cellClick: aamsCellEdit
@@ -324,7 +351,7 @@
                 }
             ];
 
-            // Detail Columns (d_ja990c2.srd)
+            // Detail Columns (d_ja990c2.srd: 순서 및 타이틀, 체크박스 편집 적용)
             const detailColumns = [
                 {
                     title: "No.",
@@ -337,14 +364,14 @@
                 {
                     title: "변경컬럼",
                     field: "chgColumn",
-                    width: 130,
+                    width: 140,
                     hozAlign: "left",
                     headerHozAlign: "center"
                 },
                 {
                     title: "변경일시",
                     field: "ymd",
-                    width: 150,
+                    width: 160,
                     hozAlign: "center",
                     headerHozAlign: "center",
                     formatter: cell => formatDateTimeVal(cell.getValue())
@@ -352,31 +379,44 @@
                 {
                     title: "변경전자료",
                     field: "bfData",
-                    minWidth: 150,
+                    minWidth: 160,
                     hozAlign: "center",
-                    headerHozAlign: "center"
+                    headerHozAlign: "center",
+                    headerCssClass: "col-hdr-muted",
+                    cssClass: "cell-text-muted"
                 },
                 {
                     title: "변경후자료",
                     field: "afData",
-                    minWidth: 150,
+                    minWidth: 160,
                     hozAlign: "center",
                     headerHozAlign: "center"
                 },
                 {
-                    title: "보유계정변경",
+                    title: "보유계정변경\n(정정분개)",
                     field: "skt0bu",
-                    width: 95,
+                    width: 110,
                     hozAlign: "center",
                     headerHozAlign: "center",
                     formatter: function(cell) {
-                        return cell.getValue() === "Y" ? "Y" : "N";
+                        const checked = cell.getValue() === "Y";
+                        const isEditable = cell.getRow().getData().chgColumn === "sosok_gb";
+                        return `<input type="checkbox" ${checked ? "checked" : ""} ${isEditable ? "" : "disabled"} style="cursor: ${isEditable ? 'pointer' : 'default'};" />`;
+                    },
+                    cellClick: function(e, cell) {
+                        const rowData = cell.getRow().getData();
+                        if (rowData.chgColumn === "sosok_gb") {
+                            aamsCellEdit(e, cell);
+                            const current = cell.getValue() === "Y" ? "N" : "Y";
+                            cell.setValue(current);
+                            cell.getRow().update({ isUpdated: true });
+                        }
                     }
                 },
                 {
                     title: "작업자",
                     field: "updUser",
-                    width: 90,
+                    width: 100,
                     hozAlign: "center",
                     headerHozAlign: "center"
                 }
@@ -455,14 +495,6 @@
                         if (masterCountEl) {
                             masterCountEl.textContent = (data ? data.length : 0) + "건";
                         }
-                        // Rule 8, 15: Select first row automatically
-                        if (data && data.length > 0) {
-                            const rows = gridMaster.getRows();
-                            if (rows && rows.length > 0) {
-                                rows[0].select();
-                                syncDetail(rows[0], data[0]);
-                            }
-                        }
                     })
                     .catch(err => {
                         console.error("Failed to load master ja990c data:", err);
@@ -483,7 +515,7 @@
                 // 1) Initialize Master Grid
                 gridMaster = new Tabulator(masterEl, {
                     data: [],
-                    layout: "fitDataFill",
+                    layout: "fitData",
                     selectable: 1,
                     columns: masterColumns,
                     height: "100%",
@@ -581,8 +613,10 @@
                     setupTabulatorRowSelection(gridDetail);
                 }
 
-                // Initial Load
-                setTimeout(loadMasterGrid, 100);
+                // Splitter Initialization
+                if (window.AamsSplitter && typeof window.AamsSplitter.init === 'function') {
+                    window.AamsSplitter.init(pane);
+                }
             }
 
             // Input Function (신규 행 추가)

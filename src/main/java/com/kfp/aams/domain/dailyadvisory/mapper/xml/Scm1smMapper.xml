@@ -73,7 +73,7 @@
                 <when test="jySuikRt != null">#{jySuikRt}</when>
                 <otherwise>null</otherwise>
             </choose>,
-            SYSDATE
+            CURRENT_DATE
         )
     </insert>
 
@@ -87,7 +87,7 @@
                                 <when test="jySuikRt != null">#{jySuikRt}</when>
                                 <otherwise>jy_suik_rt</otherwise>
                             </choose>
-             , chgtime    = SYSDATE
+             , chgtime    = CURRENT_DATE
          WHERE corp_gr    = #{corpGr}
            AND ymd        = TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
            AND jm_cd      = #{jmCd}
@@ -116,7 +116,7 @@
                                         <when test="jySuikRt != null">#{jySuikRt}</when>
                                         <otherwise>t.jy_suik_rt</otherwise>
                                       </choose>
-                     , t.chgtime    = SYSDATE
+                     , t.chgtime    = CURRENT_DATE
         WHEN NOT MATCHED THEN
             INSERT (
                 corp_gr,
@@ -137,7 +137,7 @@
                     <when test="jySuikRt != null">#{jySuikRt}</when>
                     <otherwise>null</otherwise>
                 </choose>,
-                SYSDATE
+                CURRENT_DATE
             )
     </update>
 
