@@ -119,6 +119,7 @@
                     headerSort: true,
                     editable: true,
                     editor: "number",
+                    cellClick: aamsCellEdit,
                     editorParams: {
                         step: "0.01"
                     },
@@ -146,6 +147,7 @@
                     headerSort: true,
                     editable: true,
                     editor: "number",
+                    cellClick: aamsCellEdit,
                     editorParams: {
                         step: "0.0001"
                     },
@@ -187,11 +189,12 @@
 
             // Fetch Data
             function fetchData(force = false) {
-                const corpGr = resolveCorpGr();
+                const corpGr = resolveCorpGr(pane);
                 const ymd = resolveYmd();
 
                 if (!corpGr) {
-                    alert("소속 회사코드를 확인할 수 없습니다.");
+                    if (typeof showToast === 'function') showToast("소속 회사코드를 확인할 수 없습니다.", "warning");
+                    else alert("소속 회사코드를 확인할 수 없습니다.");
                     return;
                 }
 
@@ -224,7 +227,8 @@
                     })
                     .catch(err => {
                         console.error("Failed to load scm1sm list:", err);
-                        alert("채권 단가 목록을 불러오는 중 오류가 발생했습니다.");
+                        if (typeof showToast === 'function') showToast("채권 단가 목록을 불러오는 중 오류가 발생했습니다.", "error");
+                        else alert("채권 단가 목록을 불러오는 중 오류가 발생했습니다.");
                     });
             }
 
@@ -232,7 +236,7 @@
             function handleInput() {
                 if (!gridScm1sm) return;
 
-                const corpGr = resolveCorpGr();
+                const corpGr = resolveCorpGr(pane);
                 const ymd = resolveYmd();
 
                 const newRowData = {
@@ -240,10 +244,10 @@
                     ymd: ymd,
                     jmCd: "",
                     asCjCd: "",
-                    cjNm: "(신규입력)",
-                    danga: 0,
-                    jySuikPer: 0,
-                    jySuikRt: 0,
+                    cjNm: null,
+                    danga: null,
+                    jySuikPer: null,
+                    jySuikRt: null,
                     isNew: true,
                     rowStatus: 'C'
                 };
@@ -260,7 +264,8 @@
                 if (!gridScm1sm) return;
                 const selectedRows = gridScm1sm.getSelectedRows();
                 if (!selectedRows || selectedRows.length === 0) {
-                    alert("삭제할 행을 먼저 선택해주세요.");
+                    if (typeof showToast === 'function') showToast("삭제할 행을 먼저 선택해주세요.", "warning");
+                    else alert("삭제할 행을 먼저 선택해주세요.");
                     return;
                 }
 
@@ -282,7 +287,7 @@
             function handleSave() {
                 if (!gridScm1sm) return;
 
-                const corpGr = resolveCorpGr();
+                const corpGr = resolveCorpGr(pane);
                 const ymd = resolveYmd();
 
                 const insertList = [];
@@ -293,7 +298,8 @@
                     const d = allRows[i].getData();
                     if (d.rowStatus === 'C' || d.isNew) {
                         if (!d.asCjCd && !d.jmCd) {
-                            alert(`${i + 1}번째 행의 종목코드를 입력해주세요.`);
+                            if (typeof showToast === 'function') showToast(`${i + 1}번째 행의 종목코드를 입력해주세요.`, "warning");
+                            else alert(`${i + 1}번째 행의 종목코드를 입력해주세요.`);
                             return;
                         }
                         insertList.push(d);
@@ -303,7 +309,8 @@
                 }
 
                 if (insertList.length === 0 && updateList.length === 0 && deletedList.length === 0) {
-                    alert("저장할 변경사항이 없습니다.");
+                    if (typeof showToast === 'function') showToast("저장할 변경사항이 없습니다.", "info");
+                    else alert("저장할 변경사항이 없습니다.");
                     return;
                 }
 
@@ -327,15 +334,18 @@
                 .then(res => res.json())
                 .then(resData => {
                     if (resData && resData.success) {
-                        alert(resData.message || "저장이 완료되었습니다.");
+                        if (typeof showToast === 'function') showToast(resData.message || "저장이 완료되었습니다.", "success");
+                        else alert(resData.message || "저장이 완료되었습니다.");
                         fetchData(true);
                     } else {
-                        alert("저장 실패: " + (resData ? resData.message : "알 수 없는 오류"));
+                        if (typeof showToast === 'function') showToast("저장 실패: " + (resData ? resData.message : "알 수 없는 오류"), "error");
+                        else alert("저장 실패: " + (resData ? resData.message : "알 수 없는 오류"));
                     }
                 })
                 .catch(err => {
                     console.error("Save error:", err);
-                    alert("저장 중 서버 통신 오류가 발생했습니다.");
+                    if (typeof showToast === 'function') showToast("저장 중 서버 통신 오류가 발생했습니다.", "error");
+                    else alert("저장 중 서버 통신 오류가 발생했습니다.");
                 });
             }
 

@@ -41,4 +41,21 @@ public class Ja010aController {
     public List<Ja010aDetailDto> getDetailList(@RequestParam(name = "corpGr") String corpGr) {
         return ja010aService.getDetailList(corpGr);
     }
+
+    @GetMapping("/api/company/ja010a/next-corp-gr")
+    @ResponseBody
+    public java.util.Map<String, String> getNextCorpGr() {
+        return java.util.Map.of("nextCorpGr", ja010aService.getNextCorpGr());
+    }
+
+    @org.springframework.web.bind.annotation.PostMapping("/api/company/ja010a/save")
+    @ResponseBody
+    public java.util.Map<String, Object> saveJa010a(@org.springframework.web.bind.annotation.RequestBody com.kfp.aams.domain.dailyadvisory.dto.Ja010aSaveRequestDto request) {
+        try {
+            ja010aService.saveJa010a(request);
+            return java.util.Map.of("success", true, "message", "정상적으로 저장되었습니다.");
+        } catch (Exception e) {
+            return java.util.Map.of("success", false, "message", "저장 중 오류가 발생했습니다: " + e.getMessage());
+        }
+    }
 }

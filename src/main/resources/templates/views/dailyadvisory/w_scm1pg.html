@@ -98,7 +98,7 @@
 
             // DDDW Retrieval (Rule 7: f_dddwctl (THIS, 'pg_cd', '', '', 1, ''))
             function retrieveDddw() {
-                const targetCorpGr = resolveCorpGr();
+                const targetCorpGr = resolveCorpGr(pane);
                 if (typeof window.f_dddwctl === 'function') {
                     return window.f_dddwctl('pg_cd', 1, targetCorpGr, '', '').then(list => {
                         dddwOptionsMap.pg_cd = list || [];
@@ -246,7 +246,7 @@
                     cellEdited: function(cell) {
                         const row = cell.getRow();
                         const data = row.getData();
-                        if (!data.isNew) row.update({ rowStatus: "U" });
+                        if (!data.isNew) row.update({ rowStatus: "U", isUpdated: true });
                     }
                 },
                 {
@@ -282,7 +282,6 @@
                 });
 
                 // Rule 8: Triple Fallback & Master-Detail Standard Contract
-                // ① setupTabulatorRowSelection 전역 헬퍼 연결
                 if (typeof setupTabulatorRowSelection === 'function') {
                     setupTabulatorRowSelection(gridMaster, function(row, data) {
                         syncDetail(row, data);
@@ -290,12 +289,10 @@
                     setupTabulatorRowSelection(gridDetail);
                 }
 
-                // ② rowClick 안전망
                 gridMaster.on("rowClick", function(e, row) {
                     syncDetail(row, row ? row.getData() : null);
                 });
 
-                // ③ rowSelectionChanged 안전망
                 gridMaster.on("rowSelectionChanged", function(data, rows) {
                     if (rows && rows.length > 0) {
                         syncDetail(rows[0], rows[0].getData());
@@ -387,7 +384,7 @@
                 const data = masterRowData || (row.getData ? row.getData() : null);
                 if (!data) return;
 
-                const corpGr = resolveCorpGr();
+                const corpGr = resolveCorpGr(pane);
                 const currentKey = (corpGr || "") + "_" + (data.jmCd || "");
                 if (lastLoadedMasterKey === currentKey) return;
                 lastLoadedMasterKey = currentKey;
@@ -419,14 +416,14 @@
             }
 
             function loadMaster() {
-                const corpGr = resolveCorpGr();
+                const corpGr = resolveCorpGr(pane);
                 const ymd = getFilterYmd();
                 if (!corpGr) {
-                    alert("소속그룹을 선택해 주세요.");
+                    if (typeof showToast === "function") showToast("소속그룹을 선택해 주세요.", "warning");
                     return;
                 }
                 if (!ymd) {
-                    alert("적용기준일을 선택해 주세요.");
+                    if (typeof showToast === "function") showToast("적용기준일을 선택해 주세요.", "warning");
                     return;
                 }
 
@@ -442,13 +439,13 @@
                     })
                     .catch(err => {
                         console.error("Error fetching scm1pg master:", err);
-                        alert("조회 중 오류가 발생했습니다.");
+                        if (typeof showToast === "function") showToast("조회 중 오류가 발생했습니다.", "error");
                     });
             }
 
             function loadDetail(jmCd) {
                 if (!jmCd) return;
-                const corpGr = resolveCorpGr();
+                const corpGr = resolveCorpGr(pane);
                 deletedDetailList = [];
 
                 const url = `/api/daily/scm1pg/detail?corpGr=${encodeURIComponent(corpGr)}&jmCd=${encodeURIComponent(jmCd)}`;
@@ -466,12 +463,12 @@
 
             function doInput() {
                 if (!currentSelectedMaster || !currentSelectedMaster.jmCd) {
-                    alert("상세 등급을 추가할 채권 종목을 먼저 선택해 주세요.");
+                    if (typeof showToast === "function") showToast("상세 등급을 추가할 채권 종목을 먼저 선택해 주세요.", "warning");
                     return;
                 }
                 if (!gridDetail) return;
 
-                const corpGr = resolveCorpGr();
+                const corpGr = resolveCorpGr(pane);
                 const ymd = getFilterYmd();
                 const newRow = {
                     fseq: gridDetail.getData().length + 1,
@@ -486,6 +483,7 @@
                 };
                 gridDetail.addRow(newRow, true).then(function(row) {
                     row.select();
+                    if (typeof showToast === "function") showToast("신규 등급 행이 추가되었습니다.", "info");
                 });
             }
 
@@ -493,7 +491,7 @@
                 if (!gridDetail) return;
                 const selectedRows = gridDetail.getSelectedRows();
                 if (!selectedRows || selectedRows.length === 0) {
-                    alert("삭제할 등급 행을 선택하세요.");
+                    if (typeof showToast === "function") showToast("삭제할 등급 행을 선택하세요.", "warning");
                     return;
                 }
 
@@ -507,27 +505,26 @@
                     deletedDetailList.push(rowData);
                 }
                 row.delete();
+                if (typeof showToast === "function") showToast("행이 삭제되었습니다. 저장 버튼을 누르면 최종 반영됩니다.", "info");
             }
 
             function doSave() {
                 if (!currentSelectedMaster || !currentSelectedMaster.jmCd) {
-                    alert("저장할 대상 종목이 없습니다.");
+                    if (typeof showToast === "function") showToast("저장할 대상 종목이 없습니다.", "warning");
                     return;
                 }
                 if (!gridDetail) return;
 
                 const allData = gridDetail.getData();
-                const corpGr = resolveCorpGr();
+                const corpGr = resolveCorpGr(pane);
 
                 const createdRows = allData.filter(d => d.isNew || d.rowStatus === "C");
-                const updatedRows = allData.filter(d => !d.isNew && d.rowStatus === "U");
+                const updatedRows = allData.filter(d => !d.isNew && (d.rowStatus === "U" || d.isUpdated));
 
                 if (createdRows.length === 0 && updatedRows.length === 0 && deletedDetailList.length === 0) {
-                    alert("저장할 변경 내용이 없습니다.");
+                    if (typeof showToast === "function") showToast("저장할 변경 내용이 없습니다.", "warning");
                     return;
                 }
-
-                if (!confirm("변경 사항을 저장하시겠습니까?")) return;
 
                 const payload = {
                     corpGr: corpGr,
@@ -545,15 +542,16 @@
                 .then(res => res.json())
                 .then(res => {
                     if (res.success) {
-                        alert(res.message || "저장되었습니다.");
+                        deletedDetailList = [];
+                        if (typeof showToast === "function") showToast(res.message || "저장되었습니다.", "success");
                         loadDetail(currentSelectedMaster.jmCd);
                     } else {
-                        alert(res.message || "저장에 실패했습니다.");
+                        if (typeof showToast === "function") showToast(res.message || "저장에 실패했습니다.", "error");
                     }
                 })
                 .catch(err => {
                     console.error("Save error:", err);
-                    alert("저장 중 오류가 발생했습니다.");
+                    if (typeof showToast === "function") showToast("저장 중 오류가 발생했습니다.", "error");
                 });
             }
 

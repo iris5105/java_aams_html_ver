@@ -26,8 +26,114 @@ import java.util.stream.Collectors;
 public class Ja010aQueryDslRepository {
 
     private final JPAQueryFactory queryFactory;
+    private final jakarta.persistence.EntityManager em;
 
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+
+    /**
+     * PB w_ja010a.srw dw_list::ue_insertstart 스크립트 기반 회사코드 채번:
+     * ls_corp_gr = string (idt_workdate,'yy') + '01'
+     * SELECT NVL(max(corp_gr) + 1, :ls_corp_gr) FROM szx0aa t1 WHERE t1.corp_gr >= :ls_corp_gr;
+     */
+    public String getNextCorpGr() {
+        String currentYY01 = java.time.LocalDate.now().format(DateTimeFormatter.ofPattern("yy")) + "01";
+        try {
+            List<String> list = em.createQuery(
+                    "SELECT a.corpGr FROM Szx0aa a WHERE a.corpGr >= :defaultVal ORDER BY a.corpGr DESC", String.class)
+                    .setParameter("defaultVal", currentYY01)
+                    .setMaxResults(1)
+                    .getResultList();
+            if (list != null && !list.isEmpty()) {
+                long val = Long.parseLong(list.get(0).trim()) + 1;
+                return String.valueOf(val);
+            }
+            return currentYY01;
+        } catch (Exception e) {
+            return currentYY01;
+        }
+    }
+
+    public void saveMaster(Ja010aMasterDto master) {
+        if (master == null || master.getCorpGr() == null || master.getCorpGr().isBlank()) return;
+        String corpGr = master.getCorpGr().trim();
+        Szx0aa entity = em.find(Szx0aa.class, corpGr);
+        if (entity == null) {
+            entity = new Szx0aa();
+            entity.setCorpGr(corpGr);
+        }
+        entity.setCompanyName(master.getCompanyName());
+        entity.setDepositDd(master.getDepositDd());
+        entity.setHyunYmd(master.getHyunYmd());
+        entity.setGijungaYmd(master.getGijungaYmd());
+        entity.setJunyongYmd(master.getJunyongYmd());
+        entity.setIkyongYmd(master.getIkyongYmd());
+        entity.setThikyongYmd(master.getThikyongYmd());
+        entity.setSymd(master.getSymd());
+        entity.setEymd(master.getEymd());
+        entity.setCustomerGr(master.getCustomerGr());
+        entity.setExpenseYn(master.getExpenseYn());
+        entity.setDepositAccount(master.getDepositAccount());
+        entity.setBigo(master.getBigo());
+        em.merge(entity);
+    }
+
+    public void saveDetail(Ja010aDetailDto detail) {
+        if (detail == null || detail.getCorpGr() == null || detail.getYmd() == null) return;
+        String corpGr = detail.getCorpGr().trim();
+        java.time.LocalDate ymd = parseLocalDate(detail.getYmd());
+        if (ymd == null) return;
+
+        com.kfp.aams.domain.dailyadvisory.entity.Szx0abId id = 
+            new com.kfp.aams.domain.dailyadvisory.entity.Szx0abId(corpGr, ymd);
+        Szx0ab entity = em.find(Szx0ab.class, id);
+        if (entity == null) {
+            entity = new Szx0ab();
+            entity.setCorpGr(corpGr);
+            entity.setYmd(ymd);
+        }
+        entity.setCompanyName(detail.getCompanyName());
+        entity.setIdno(detail.getIdno() != null ? detail.getIdno().replaceAll("-", "") : null);
+        entity.setContractYmd(parseLocalDate(detail.getContractYmd()));
+        entity.setPost(detail.getPost());
+        entity.setJuso(detail.getJuso());
+        entity.setCeoNm(detail.getCeoNm());
+        entity.setTelNo(detail.getTelNo());
+        entity.setFaxNo(detail.getFaxNo());
+        entity.setEmail(detail.getEmail());
+        em.merge(entity);
+    }
+
+    public void deleteMaster(Ja010aMasterDto master) {
+        if (master == null || master.getCorpGr() == null) return;
+        String corpGr = master.getCorpGr().trim();
+        QSzx0aa q = QSzx0aa.szx0aa;
+        queryFactory.delete(q).where(q.corpGr.eq(corpGr)).execute();
+    }
+
+    public void deleteDetail(Ja010aDetailDto detail) {
+        if (detail == null || detail.getCorpGr() == null || detail.getYmd() == null) return;
+        String corpGr = detail.getCorpGr().trim();
+        java.time.LocalDate ymd = parseLocalDate(detail.getYmd());
+        if (ymd == null) return;
+        QSzx0ab q = QSzx0ab.szx0ab;
+        queryFactory.delete(q).where(q.corpGr.eq(corpGr).and(q.ymd.eq(ymd))).execute();
+    }
+
+    private java.time.LocalDate parseLocalDate(String text) {
+        if (text == null || text.isBlank()) return null;
+        String clean = text.trim();
+        try {
+            if (clean.length() >= 10) {
+                clean = clean.substring(0, 10).replace('.', '-').replace('/', '-');
+                return java.time.LocalDate.parse(clean, DATE_FMT);
+            }
+            String digits = clean.replaceAll("\\D", "");
+            if (digits.length() == 8) {
+                return java.time.LocalDate.parse(digits, DateTimeFormatter.ofPattern("yyyyMMdd"));
+            }
+        } catch (Exception ignored) {}
+        return null;
+    }
 
     public List<Ja010aMasterDto> findMasterList() {
         QSzx0aa q = QSzx0aa.szx0aa;

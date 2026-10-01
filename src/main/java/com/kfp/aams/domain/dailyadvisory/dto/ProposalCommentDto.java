@@ -17,4 +17,6 @@ public class ProposalCommentDto {
     private String sbNm;
     private String appending;
     private Integer color;
+    private Boolean isNew;
+    private Boolean isUpdated;
 }

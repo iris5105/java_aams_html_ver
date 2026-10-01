@@ -25,4 +25,6 @@ public class Ja010aMasterDto {
     private String customerGr;
     private String expenseYn;
     private Integer pVisible;
+    private Boolean isNew;
+    private Boolean isUpdated;
 }

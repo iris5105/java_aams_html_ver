@@ -16,6 +16,7 @@ import java.util.List;
 public class Ja010gService {
 
     private final Ja010gMapper ja010gMapper;
+    private final com.kfp.aams.domain.dailyadvisory.mapper.querydsl.Ja010gQueryDslRepository ja010gQueryDslRepository;
     private final com.kfp.aams.common.service.WorkDateService workDateService;
 
     @Transactional(readOnly = true)
@@ -53,7 +54,7 @@ public class Ja010gService {
 
     @Transactional
     public int updateConfirmYmd(String corpGr, String ymd) {
-        return ja010gMapper.updateConfirmYmd(corpGr, ymd);
+        return ja010gQueryDslRepository.updateConfirmYmd(corpGr, ymd);
     }
 
     @Transactional(readOnly = true)

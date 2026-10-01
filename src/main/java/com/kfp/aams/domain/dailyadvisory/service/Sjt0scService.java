@@ -16,6 +16,7 @@ import java.util.List;
 public class Sjt0scService {
 
     private final Sjt0scMapper sjt0scMapper;
+    private final com.kfp.aams.domain.dailyadvisory.mapper.querydsl.Sjt0scQueryDslRepository sjt0scQueryDslRepository;
 
     /**
      * 펀드 기준가(시가액)등록 목록 조회
@@ -29,7 +30,7 @@ public class Sjt0scService {
     }
 
     /**
-     * 펀드 기준가(시가액)등록 일괄 저장
+     * 펀드 기준가(시가액)등록 일괄 저장 (JPA EntityManager CUD)
      */
     @Transactional
     public void saveSjt0sc(Sjt0scSaveDto saveDto) {
@@ -41,7 +42,7 @@ public class Sjt0scService {
         if (saveDto.getDeletedRows() != null) {
             for (Sjt0scDto row : saveDto.getDeletedRows()) {
                 if (row.getJmCd() != null && !row.getJmCd().isBlank()) {
-                    sjt0scMapper.deleteSjt0sc(corpGr, ymd, row.getJmCd());
+                    sjt0scQueryDslRepository.deleteSjt0sc(corpGr, ymd, row.getJmCd());
                 }
             }
         }
@@ -53,9 +54,9 @@ public class Sjt0scService {
                     row.setCorpGr(corpGr);
                     row.setYmd(ymd);
                     try {
-                        sjt0scMapper.insertSjt0sc(row);
+                        sjt0scQueryDslRepository.insertSjt0sc(row);
                     } catch (Exception e) {
-                        sjt0scMapper.updateSjt0sc(row);
+                        sjt0scQueryDslRepository.updateSjt0sc(row);
                     }
                 }
             }
@@ -67,9 +68,9 @@ public class Sjt0scService {
                 if (row.getJmCd() != null && !row.getJmCd().isBlank()) {
                     row.setCorpGr(corpGr);
                     row.setYmd(ymd);
-                    int updated = sjt0scMapper.updateSjt0sc(row);
+                    int updated = sjt0scQueryDslRepository.updateSjt0sc(row);
                     if (updated == 0) {
-                        sjt0scMapper.insertSjt0sc(row);
+                        sjt0scQueryDslRepository.insertSjt0sc(row);
                     }
                 }
             }

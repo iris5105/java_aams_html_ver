@@ -66,7 +66,16 @@ public class Ja010bController {
         return ja010bService.getMasterList(corpGr);
     }
 
-
+    @GetMapping("/api/account/ja010b/next-fund-cd")
+    @ResponseBody
+    public java.util.Map<String, String> getNextFundCd(@AuthenticationPrincipal UserPrincipal principal,
+            @RequestParam(name = "corpGr", required = false) String paramCorpGr,
+            @CookieValue(name = "savedCorpGr", required = false) String cookieCorpGr1,
+            @CookieValue(name = "corpGr", required = false) String cookieCorpGr2) {
+        String cookieCorpGr = (cookieCorpGr1 != null && !cookieCorpGr1.isBlank()) ? cookieCorpGr1 : cookieCorpGr2;
+        String corpGr = resolveCorpGr(paramCorpGr, cookieCorpGr, principal);
+        return java.util.Map.of("nextFundCd", ja010bService.getNextFundCd(corpGr));
+    }
 
     @GetMapping("/api/account/ja010b/detail")
     @ResponseBody
@@ -92,15 +101,43 @@ public class Ja010bController {
         return ja010bService.getIoList(corpGr, fundCd);
     }
 
+    @org.springframework.web.bind.annotation.PostMapping("/api/account/ja010b/save")
+    @ResponseBody
+    public java.util.Map<String, Object> saveJa010b(@AuthenticationPrincipal Object principalObj,
+            @org.springframework.web.bind.annotation.RequestBody com.kfp.aams.domain.dailyadvisory.dto.Ja010bSaveRequestDto request) {
+        try {
+            UserPrincipal principal = (principalObj instanceof UserPrincipal p) ? p : null;
+            String modUser = "SYSTEM";
+            if (principal != null) {
+                modUser = principal.getEmail();
+            } else {
+                var auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+                if (auth != null && auth.getPrincipal() instanceof UserPrincipal p) {
+                    modUser = p.getEmail();
+                }
+            }
+
+            if (request.getCorpGr() == null || request.getCorpGr().isBlank()) {
+                if (principal != null && principal.getCorpGr() != null) {
+                    request.setCorpGr(principal.getCorpGr());
+                }
+            }
+            ja010bService.saveJa010b(request, modUser);
+            return java.util.Map.of("success", true, "message", "정상적으로 저장되었습니다.");
+        } catch (Exception e) {
+            return java.util.Map.of("success", false, "message", "저장 중 오류가 발생했습니다: " + e.getMessage());
+        }
+    }
+
     private String resolveCorpGr(String paramCorpGr, String cookieCorpGr, UserPrincipal principal) {
         if (paramCorpGr != null && !paramCorpGr.isBlank()) {
             return paramCorpGr;
         }
+        if (principal != null && principal.getCorpGr() != null && !principal.getCorpGr().isBlank()) {
+            return principal.getCorpGr();
+        }
         if (cookieCorpGr != null && !cookieCorpGr.isBlank()) {
             return cookieCorpGr;
-        }
-        if (principal != null && principal.getCorpGr() != null) {
-            return principal.getCorpGr();
         }
         return "";
     }

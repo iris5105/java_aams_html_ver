@@ -20,6 +20,7 @@ import java.util.stream.Collectors;
 public class Szx0seQueryDslRepository {
 
     private final JPAQueryFactory queryFactory;
+    private final jakarta.persistence.EntityManager em;
 
     public List<Szx0seDto> findSzx0seList(String corpGr) {
         if (corpGr == null || corpGr.isBlank()) {
@@ -57,7 +58,39 @@ public class Szx0seQueryDslRepository {
                 .gugan(e.getGugan())
                 .ga(e.getGa())
                 .bigo(e.getBigo())
+                .originalSeriesGb(e.getSeriesGb())
                 .build()
         ).collect(Collectors.toList());
+    }
+
+    public void saveEntity(Szx0se entity) {
+        if (entity != null) {
+            em.merge(entity);
+        }
+    }
+
+    public long deleteEntity(String corpGr, String seriesGb) {
+        QSzx0se q = QSzx0se.szx0se;
+        return queryFactory.delete(q)
+                .where(
+                        q.corpGr.eq(corpGr),
+                        q.seriesGb.eq(seriesGb)
+                )
+                .execute();
+    }
+
+    public int syncSzm0iaSeriesGb(String corpGr, String oldSeriesGb, String newSeriesGb) {
+        if (oldSeriesGb == null || newSeriesGb == null || oldSeriesGb.equals(newSeriesGb)) {
+            return 0;
+        }
+        try {
+            return em.createQuery("UPDATE Szm0ia m SET m.seriesGb = :newSeriesGb WHERE m.corpGr = :corpGr AND m.seriesGb = :oldSeriesGb")
+                    .setParameter("newSeriesGb", newSeriesGb)
+                    .setParameter("corpGr", corpGr)
+                    .setParameter("oldSeriesGb", oldSeriesGb)
+                    .executeUpdate();
+        } catch (Exception e) {
+            return 0;
+        }
     }
 }

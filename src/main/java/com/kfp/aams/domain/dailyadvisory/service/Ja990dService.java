@@ -16,6 +16,7 @@ import java.util.List;
 public class Ja990dService {
 
     private final Ja990dMapper ja990dMapper;
+    private final com.kfp.aams.domain.dailyadvisory.mapper.querydsl.Ja990dQueryDslRepository ja990dQueryDslRepository;
 
     @Transactional(readOnly = true)
     public List<Ja990dDto> getStockList(String searchKeyword) {
@@ -35,7 +36,7 @@ public class Ja990dService {
         if (saveDto.getDeletedList() != null) {
             for (Ja990dDto item : saveDto.getDeletedList()) {
                 if (item.getJmCd() != null && !item.getJmCd().isBlank()) {
-                    ja990dMapper.deleteJm(item.getJmCd());
+                    ja990dQueryDslRepository.deleteJm(item.getJmCd());
                 }
             }
         }
@@ -46,10 +47,17 @@ public class Ja990dService {
                 if (item.getJmCd() == null || item.getJmCd().isBlank()) {
                     throw new IllegalArgumentException("종목코드는 필수 입력 항목입니다.");
                 }
-                if (ja990dMapper.checkJmCdExists(item.getJmCd()) > 0) {
+                if (ja990dQueryDslRepository.checkJmCdExists(item.getJmCd()) > 0) {
                     throw new IllegalStateException("이미 등록된 종목코드입니다: " + item.getJmCd());
                 }
-                ja990dMapper.insertJm(item);
+                // 파워빌더 ue_insertstart 기본값 보장
+                if (item.getWoosIlbanGb() == null || item.getWoosIlbanGb().isBlank()) item.setWoosIlbanGb("0");
+                if (item.getChgGb() == null || item.getChgGb().isBlank()) item.setChgGb("0");
+                if (item.getNewOldGb() == null || item.getNewOldGb().isBlank()) item.setNewOldGb("0");
+                if (item.getUpjCd() == null || item.getUpjCd().isBlank()) item.setUpjCd("A99");
+                if (item.getUnder() == null || item.getUnder().isBlank()) item.setUnder("N");
+
+                ja990dQueryDslRepository.insertJm(item);
             }
         }
 
@@ -57,7 +65,7 @@ public class Ja990dService {
         if (saveDto.getUpdatedList() != null) {
             for (Ja990dDto item : saveDto.getUpdatedList()) {
                 if (item.getJmCd() != null && !item.getJmCd().isBlank()) {
-                    ja990dMapper.updateJm(item);
+                    ja990dQueryDslRepository.updateJm(item);
                 }
             }
         }

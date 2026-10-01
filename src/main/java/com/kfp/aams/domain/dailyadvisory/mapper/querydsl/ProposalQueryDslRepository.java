@@ -7,6 +7,7 @@ import com.kfp.aams.domain.dailyadvisory.entity.QProposalAppend;
 import com.kfp.aams.home.entity.Proposal;
 import com.kfp.aams.home.entity.QProposal;
 import com.querydsl.jpa.impl.JPAQueryFactory;
+import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
@@ -28,6 +29,7 @@ import java.util.stream.Collectors;
 public class ProposalQueryDslRepository {
 
     private final JPAQueryFactory queryFactory;
+    private final EntityManager em;
 
     private static final DateTimeFormatter DATETIME_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
@@ -99,7 +101,8 @@ public class ProposalQueryDslRepository {
         }).collect(Collectors.toList());
     }
 
-    private LocalDateTime parseDateTime(String text) {
+    public LocalDateTime parseDateTime(String text) {
+        if (text == null || text.isBlank()) return null;
         try {
             return LocalDateTime.parse(text, DATETIME_FMT);
         } catch (Exception e1) {
@@ -109,5 +112,47 @@ public class ProposalQueryDslRepository {
                 return null;
             }
         }
+    }
+
+    public void saveProposal(Proposal proposal) {
+        if (proposal != null) {
+            em.merge(proposal);
+        }
+    }
+
+    public void saveProposalAppend(ProposalAppend append) {
+        if (append != null) {
+            em.merge(append);
+        }
+    }
+
+    public long deleteProposalAppend(String corpGr, LocalDateTime pYmd, String pProposer, LocalDateTime ymd, String sbNm) {
+        QProposalAppend q = QProposalAppend.proposalAppend;
+        var clause = queryFactory.delete(q)
+                .where(
+                        q.corpGr.eq(corpGr),
+                        q.pYmd.eq(pYmd),
+                        q.pProposer.eq(pProposer),
+                        q.ymd.eq(ymd)
+                );
+        if (sbNm != null && !sbNm.isBlank()) {
+            clause.where(q.sbNm.eq(sbNm));
+        }
+        return clause.execute();
+    }
+
+    public long deleteProposal(String corpGr, LocalDateTime ymd, String proposer) {
+        if (corpGr == null || ymd == null || proposer == null) return 0;
+        // 1. 하위 댓글 선행 삭제
+        QProposalAppend qa = QProposalAppend.proposalAppend;
+        queryFactory.delete(qa)
+                .where(qa.corpGr.eq(corpGr), qa.pYmd.eq(ymd), qa.pProposer.eq(proposer))
+                .execute();
+
+        // 2. 마스터 삭제
+        QProposal qp = QProposal.proposal;
+        return queryFactory.delete(qp)
+                .where(qp.corpGr.eq(corpGr), qp.ymd.eq(ymd), qp.proposer.eq(proposer))
+                .execute();
     }
 }

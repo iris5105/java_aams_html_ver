@@ -10,6 +10,4 @@ import java.util.List;
 public interface Ja010gMapper {
 
     List<Ja010gDto> selectJa010gList(@Param("corpGr") String corpGr, @Param("ymd") String ymd);
-
-    int updateConfirmYmd(@Param("corpGr") String corpGr, @Param("ymd") String ymd);
 }

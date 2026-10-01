@@ -62,4 +62,8 @@ public class Shm0hjMasterDto {
     private String ksdJm8;          // char(2)
     private String pgCd;            // char(4)
     private Integer pVisible;       // number (calculated)
+
+    // Row status flags for C/U/D
+    private Boolean isNew;
+    private Boolean isUpdated;
 }

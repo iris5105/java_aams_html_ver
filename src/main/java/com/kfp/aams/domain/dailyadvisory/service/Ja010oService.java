@@ -22,6 +22,7 @@ import java.util.Map;
 public class Ja010oService {
 
     private final Ja010oMapper ja010oMapper;
+    private final com.kfp.aams.domain.dailyadvisory.mapper.querydsl.Ja010oQueryDslRepository ja010oQueryDslRepository;
 
     /**
      * 주식 신용/대출 잔고 내역 조회 (d_ja010o1.srd)
@@ -61,7 +62,7 @@ public class Ja010oService {
                 if (dto.getYmd() == null || dto.getYmd().isBlank()) dto.setYmd(ymd);
                 if (dto.getFundCd() == null || dto.getFundCd().isBlank()) dto.setFundCd(fundCd);
 
-                ja010oMapper.mergeCollateral(dto);
+                ja010oQueryDslRepository.mergeCollateral(dto);
             }
         }
 
@@ -72,7 +73,7 @@ public class Ja010oService {
                 if (dto.getYmd() == null || dto.getYmd().isBlank()) dto.setYmd(ymd);
                 if (dto.getFundCd() == null || dto.getFundCd().isBlank()) dto.setFundCd(fundCd);
 
-                ja010oMapper.deleteCollateral(dto);
+                ja010oQueryDslRepository.deleteCollateral(dto);
             }
         }
     }

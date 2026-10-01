@@ -164,6 +164,7 @@
             const pane = currentScript ? (currentScript.closest('.tab-pane') || currentScript.closest('.view-container')) : null;
 
             let grid = null;
+            let cudManager = null;
             let isInitialized = false;
             let lastLoadedMasterKey = null;
             let currentSelectedRowData = null;
@@ -755,13 +756,14 @@
 
             // Grid Data Loader
             function loadGrid() {
-                const corpGr = resolveCorpGr();
+                const corpGr = resolveCorpGr(pane);
                 const filters = getFilterValues();
                 if (!corpGr) {
                     if (window.AamsModal) window.AamsModal.alert("회사그룹을 선택해주세요.");
                     return;
                 }
 
+                if (cudManager) cudManager.reset();
                 lastLoadedMasterKey = null;
                 currentSelectedRowData = null;
 
@@ -780,7 +782,8 @@
                 fetch(url)
                     .then(res => res.json())
                     .then(data => {
-                        grid.setData(data || []).then(() => {
+                        const formatted = cudManager ? cudManager.formatData(data || []) : (data || []);
+                        grid.setData(formatted).then(() => {
                             grid.redraw(true);
                             if (countEl) {
                                 countEl.textContent = (data ? data.length : 0) + "건";
@@ -856,6 +859,8 @@
                     }
                 });
 
+                cudManager = AamsCudManager.create(grid);
+
                 // Rule 8: Triple Fallback Row Selection for Master Grid
                 // 모바일 환경 자동 선택 방지: { autoSelectFirst: false } 옵션 지정 (common.js의 50ms 후 자동 doSelect 완전 차단)
                 if (typeof setupTabulatorRowSelection === 'function') {
@@ -879,7 +884,7 @@
 
                 if (memoEl) {
                     memoEl.addEventListener("input", function() {
-                        const corpGr = resolveCorpGr();
+                        const corpGr = resolveCorpGr(pane);
                         if (currentSelectedRowData && corpGr === '2402' && currentSelectedRowData.tblGb === 'a') {
                             currentSelectedRowData.contractCondition = memoEl.value;
                             currentSelectedRowData._memoEdited = true;
@@ -890,7 +895,7 @@
                 }
                 if (mobileMemoEl) {
                     mobileMemoEl.addEventListener("input", function() {
-                        const corpGr = resolveCorpGr();
+                        const corpGr = resolveCorpGr(pane);
                         if (currentSelectedRowData && corpGr === '2402' && currentSelectedRowData.tblGb === 'a') {
                             currentSelectedRowData.contractCondition = mobileMemoEl.value;
                             currentSelectedRowData._memoEdited = true;
@@ -977,7 +982,7 @@
                     return;
                 }
 
-                const corpGr = resolveCorpGr();
+                const corpGr = resolveCorpGr(pane);
                 const saveDto = {
                     updatedList: updatedList.map(r => ({
                         corpGr: corpGr,

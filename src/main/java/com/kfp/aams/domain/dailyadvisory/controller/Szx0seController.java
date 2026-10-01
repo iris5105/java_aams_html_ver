@@ -64,10 +64,29 @@ public class Szx0seController {
         return szx0seService.getSzx0seList(corpGr);
     }
 
+    @org.springframework.web.bind.annotation.PostMapping("/api/account/szx0se/save")
+    @ResponseBody
+    public java.util.Map<String, Object> saveSzx0se(
+            @org.springframework.web.bind.annotation.RequestBody com.kfp.aams.domain.dailyadvisory.dto.Szx0seSaveRequestDto saveDto,
+            @AuthenticationPrincipal UserPrincipal principal,
+            @CookieValue(name = "savedCorpGr", required = false) String cookieCorpGr1,
+            @CookieValue(name = "corpGr", required = false) String cookieCorpGr2) {
+        try {
+            String cookieCorpGr = (cookieCorpGr1 != null && !cookieCorpGr1.isBlank()) ? cookieCorpGr1 : cookieCorpGr2;
+            String corpGr = resolveCorpGr(saveDto.getCorpGr(), cookieCorpGr, principal);
+            saveDto.setCorpGr(corpGr);
+
+            szx0seService.saveSzx0se(saveDto);
+            return java.util.Map.of("success", true, "message", "저장이 완료되었습니다.");
+        } catch (Exception e) {
+            return java.util.Map.of("success", false, "message", "저장 중 오류 발생: " + e.getMessage());
+        }
+    }
+
     private String resolveCorpGr(String paramCorpGr, String cookieCorpGr, UserPrincipal principal) {
         if (paramCorpGr != null && !paramCorpGr.isBlank()) return paramCorpGr;
+        if (principal != null && principal.getCorpGr() != null && !principal.getCorpGr().isBlank()) return principal.getCorpGr();
         if (cookieCorpGr != null && !cookieCorpGr.isBlank()) return cookieCorpGr;
-        if (principal != null && principal.getCorpGr() != null) return principal.getCorpGr();
         return "";
     }
 }

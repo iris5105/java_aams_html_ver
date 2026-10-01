@@ -46,4 +46,6 @@ public class Ja010bMasterDto {
     private String noteText;
     private String acctNo;
     private Integer pVisible;
+    private Boolean isNew;
+    private Boolean isUpdated;
 }

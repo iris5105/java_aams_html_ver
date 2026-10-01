@@ -10,10 +10,4 @@ import java.util.List;
 public interface Ja010nMapper {
 
     List<Ja010nDto> selectJa010nList();
-
-    int insertJa010n(Ja010nDto dto);
-
-    int updateJa010n(Ja010nDto dto);
-
-    int deleteJa010n(@Param("ymd") String ymd);
 }

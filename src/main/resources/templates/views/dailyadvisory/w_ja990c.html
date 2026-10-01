@@ -629,8 +629,8 @@
                     gyulMm: "12",
                     trStopGb: "1",
                     sosokGb: "B",
-                    aekm: 0,
-                    delYn: "0",
+                    aekm: null,
+                    delYn: null,
                     isNew: true
                 };
 
@@ -649,7 +649,7 @@
                 if (!gridMaster) return;
                 const selectedRows = gridMaster.getSelectedRows();
                 if (!selectedRows || selectedRows.length === 0) {
-                    if (window.AamsModal) window.AamsModal.alert("삭제할 행을 선택해주세요.");
+                    if (typeof showToast === "function") showToast("삭제할 행을 선택해주세요.", "warning");
                     return;
                 }
 
@@ -663,14 +663,11 @@
                         deletedMasterList.push(data);
                         row.delete();
                     }
+                    if (typeof showToast === "function") showToast("행이 삭제되었습니다. 저장 버튼을 누르면 최종 반영됩니다.", "info");
                 };
 
-                if (window.AamsModal) {
-                    window.AamsModal.confirm("선택한 발행기관을 삭제하시겠습니까?", doDelete);
-                } else {
-                    if (confirm("선택한 발행기관을 삭제하시겠습니까?")) {
-                        doDelete();
-                    }
+                if (confirm("선택한 발행기관을 삭제하시겠습니까?")) {
+                    doDelete();
                 }
             }
 
@@ -683,18 +680,18 @@
                 const updatedList = masterRows.filter(r => !r.isNew && r.isUpdated);
 
                 if (insertedList.length === 0 && updatedList.length === 0 && deletedMasterList.length === 0) {
-                    if (window.AamsModal) window.AamsModal.alert("수정 또는 변경된 데이터가 없습니다.");
+                    if (typeof showToast === "function") showToast("수정 또는 변경된 데이터가 없습니다.", "warning");
                     return;
                 }
 
                 // Validation
                 for (const item of insertedList) {
                     if (!item.balhCo || item.balhCo.trim() === "") {
-                        if (window.AamsModal) window.AamsModal.alert("발행기관코드를 입력해주세요.");
+                        if (typeof showToast === "function") showToast("발행기관코드를 입력해주세요.", "warning");
                         return;
                     }
                     if (!item.balhNm || item.balhNm.trim() === "") {
-                        if (window.AamsModal) window.AamsModal.alert("발행기관명을 입력해주세요.");
+                        if (typeof showToast === "function") showToast("발행기관명을 입력해주세요.", "warning");
                         return;
                     }
                 }
@@ -717,33 +714,25 @@
                     .then(res => res.json())
                     .then(res => {
                         if (res.success) {
-                            if (window.AamsModal) {
-                                window.AamsModal.alert("저장이 완료되었습니다.", () => {
-                                    loadMasterGrid();
-                                });
-                            } else {
-                                alert("저장이 완료되었습니다.");
-                                loadMasterGrid();
+                            if (typeof showToast === "function") {
+                                showToast("발행기관 정보가 저장되었습니다.", "success");
                             }
+                            loadMasterGrid();
                         } else {
-                            if (window.AamsModal) window.AamsModal.alert(res.message || "저장 중 오류가 발생했습니다.");
-                            else alert(res.message || "저장 중 오류가 발생했습니다.");
+                            if (typeof showToast === "function") {
+                                showToast(res.message || "저장 중 오류가 발생했습니다.", "error");
+                            }
                         }
                     })
                     .catch(err => {
                         console.error("Failed to save ja990c:", err);
-                        if (window.AamsModal) window.AamsModal.alert("저장 통신 오류가 발생했습니다.");
-                        else alert("저장 통신 오류가 발생했습니다.");
+                        if (typeof showToast === "function") {
+                            showToast("저장 통신 오류가 발생했습니다.", "error");
+                        }
                     });
                 };
 
-                if (window.AamsModal) {
-                    window.AamsModal.confirm("발행기관 정보를 저장하시겠습니까?", doSave);
-                } else {
-                    if (confirm("발행기관 정보를 저장하시겠습니까?")) {
-                        doSave();
-                    }
-                }
+                doSave();
             }
 
             // Toolbar Contract Binding (Rule 9)

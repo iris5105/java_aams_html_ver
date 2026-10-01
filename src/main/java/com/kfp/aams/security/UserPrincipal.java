@@ -118,6 +118,13 @@ public class UserPrincipal implements UserDetails {
         return true;
     }
 
+    public String getEmail() {
+        if (this.encEMail != null && !this.encEMail.isBlank()) {
+            return this.encEMail;
+        }
+        return this.userId != null ? this.userId : "SYSTEM";
+    }
+
     public UserDto getUserDto() {
         return UserDto.builder()
                 .userId(this.userId)

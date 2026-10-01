@@ -26,6 +26,7 @@ public class Shm0hjService {
 
     private final Shm0hjMapper shm0hjMapper;
     private final Shj0igQueryDslRepository shj0igQueryDslRepository;
+    private final com.kfp.aams.domain.dailyadvisory.mapper.querydsl.Shm0hjQueryDslRepository shm0hjQueryDslRepository;
 
     /**
      * Master Cash Purchase List (d_shm0hj via MyBatis)
@@ -55,7 +56,17 @@ public class Shm0hjService {
     }
 
     /**
-     * Call procedure SR_SHJ0IG for generating period interest
+     * PB 채번: 다음 종목코드 채번
+     */
+    public String getNextJmCd(String corpGr, String balhYmd, String cashCd) {
+        if (corpGr == null || corpGr.isBlank()) {
+            return "";
+        }
+        return shm0hjQueryDslRepository.getNextJmCd(corpGr.trim(), balhYmd, cashCd);
+    }
+
+    /**
+     * Call procedure SR_SHJ0IG for generating period interest (JPA)
      */
     @Transactional
     public void generatePeriodInterest(String corpGr, String jmCd) {
@@ -64,6 +75,47 @@ public class Shm0hjService {
         }
 
         log.info("Generating period interest for corpGr={}, jmCd={}", corpGr, jmCd);
-        shm0hjMapper.callSrShj0ig(corpGr.trim(), jmCd.trim(), "ok");
+        shm0hjQueryDslRepository.callSrShj0ig(corpGr.trim(), jmCd.trim(), "ok");
+    }
+
+    /**
+     * Save SHM0HJ list (Insert, Update, Delete via JPA)
+     */
+    @Transactional
+    public void saveShm0hj(com.kfp.aams.domain.dailyadvisory.dto.Shm0hjSaveRequestDto request) {
+        if (request == null) return;
+        String corpGr = request.getCorpGr();
+        if (corpGr == null || corpGr.isBlank()) {
+            throw new IllegalArgumentException("회사코드가 누락되었습니다.");
+        }
+
+        // 1. Delete
+        if (request.getDeleteList() != null) {
+            for (Shm0hjMasterDto dto : request.getDeleteList()) {
+                if (dto.getJmCd() != null && !dto.getJmCd().isBlank()) {
+                    shm0hjQueryDslRepository.deleteShm0hj(corpGr.trim(), dto.getJmCd().trim());
+                }
+            }
+        }
+
+        // 2. Insert
+        if (request.getInsertList() != null) {
+            for (Shm0hjMasterDto dto : request.getInsertList()) {
+                dto.setCorpGr(corpGr.trim());
+                if (dto.getJmCd() == null || dto.getJmCd().isBlank()) {
+                    String nextCd = shm0hjQueryDslRepository.getNextJmCd(corpGr.trim(), dto.getBalhYmd(), dto.getCashCd());
+                    dto.setJmCd(nextCd);
+                }
+                shm0hjQueryDslRepository.insertShm0hj(dto);
+            }
+        }
+
+        // 3. Update
+        if (request.getUpdateList() != null) {
+            for (Shm0hjMasterDto dto : request.getUpdateList()) {
+                dto.setCorpGr(corpGr.trim());
+                shm0hjQueryDslRepository.updateShm0hj(dto);
+            }
+        }
     }
 }

@@ -78,16 +78,35 @@ public class ProposalController {
         return proposalService.getProposalCommentList(corpGr, ymd, proposer, gsUser);
     }
 
+    @org.springframework.web.bind.annotation.PostMapping("/api/proposal/save")
+    @ResponseBody
+    public java.util.Map<String, Object> saveProposal(@AuthenticationPrincipal UserPrincipal principal,
+                                                      @org.springframework.web.bind.annotation.RequestBody com.kfp.aams.domain.dailyadvisory.dto.ProposalSaveRequestDto requestDto,
+                                                      @RequestParam(name = "corpGr", required = false) String paramCorpGr,
+                                                      @CookieValue(name = "savedCorpGr", required = false) String cookieCorpGr1,
+                                                      @CookieValue(name = "corpGr", required = false) String cookieCorpGr2) {
+        String corpGr = resolveCorpGr(paramCorpGr, cookieCorpGr1, cookieCorpGr2, principal);
+        if (requestDto.getCorpGr() == null || requestDto.getCorpGr().isBlank()) {
+            requestDto.setCorpGr(corpGr);
+        }
+        String username = (principal != null && principal.getUserNm() != null && !principal.getUserNm().isBlank())
+                ? principal.getUserNm()
+                : (principal != null ? principal.getUserId() : "USER");
+
+        int count = proposalService.saveProposal(requestDto, username);
+        return java.util.Map.of("success", true, "count", count, "message", "저장되었습니다.");
+    }
+
     private String resolveCorpGr(String paramCorpGr, String cookieCorpGr1, String cookieCorpGr2,
             UserPrincipal principal) {
         if (paramCorpGr != null && !paramCorpGr.isBlank())
             return paramCorpGr;
+        if (principal != null && principal.getCorpGr() != null && !principal.getCorpGr().isBlank())
+            return principal.getCorpGr();
         if (cookieCorpGr1 != null && !cookieCorpGr1.isBlank())
             return cookieCorpGr1;
         if (cookieCorpGr2 != null && !cookieCorpGr2.isBlank())
             return cookieCorpGr2;
-        if (principal != null && principal.getCorpGr() != null && !principal.getCorpGr().isBlank())
-            return principal.getCorpGr();
         return "";
     }
 }

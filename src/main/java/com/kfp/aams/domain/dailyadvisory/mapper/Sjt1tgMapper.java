@@ -11,12 +11,6 @@ public interface Sjt1tgMapper {
 
     List<Sjt1tgDto> selectSjt1tgList(@Param("ymd") String ymd);
 
-    int insertSjt1tg(Sjt1tgDto dto);
-
-    int updateSjt1tg(Sjt1tgDto dto);
-
-    int deleteSjt1tg(@Param("ymd") String ymd, @Param("sjCd") String sjCd);
-
     List<Sjt1tgDto> selectNewFuturesList(@Param("corpGr") String corpGr,
                                          @Param("ymd") String ymd,
                                          @Param("junilYmd") String junilYmd);

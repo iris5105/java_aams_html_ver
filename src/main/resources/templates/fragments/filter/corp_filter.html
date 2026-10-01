@@ -28,6 +28,11 @@
                     if (!selectEl) return;
                     const val = selectEl.value;
 
+                    // Sync cookies with current selection
+                    document.cookie = "savedCorpGr=" + encodeURIComponent(val) + "; path=/; max-age=" + (30 * 24 * 60 * 60);
+                    document.cookie = "corpGr=" + encodeURIComponent(val) + "; path=/; max-age=" + (30 * 24 * 60 * 60);
+                    document.cookie = "corp_gr=" + encodeURIComponent(val) + "; path=/; max-age=" + (30 * 24 * 60 * 60);
+
                     // Locate active tab pane to isolate MDI scope
                     const pane = selectEl.closest('.tab-pane') || selectEl.closest('.view-container') || document.querySelector('.tab-pane.active') || document;
 
@@ -35,12 +40,16 @@
                     if (pane && typeof pane.onCorpGrChange === 'function') {
                         pane.onCorpGrChange(val);
                     } 
-                    // 2. Fallback to global handler if defined
+                    // 2. If no onCorpGrChange is registered, automatically trigger pane.onSearch if available
+                    else if (pane && typeof pane.onSearch === 'function') {
+                        pane.onSearch();
+                    }
+                    // 3. Fallback to global handler if defined
                     else if (typeof window.onCorpGrChange === 'function') {
                         window.onCorpGrChange(val);
                     }
 
-                    // 3. Dispatch standard custom event on current tab pane
+                    // 4. Dispatch standard custom event on current tab pane
                     pane.dispatchEvent(new CustomEvent('corpGrChanged', {
                         bubbles: true,
                         detail: { corpGr: val }
@@ -61,14 +70,19 @@
                 const filterBar = currentScript ? currentScript.closest('.filter-bar') : null;
                 const selectEl = filterBar ? filterBar.querySelector('select') : document.getElementById("filterCorpGr");
 
-                // Read corp_gr and admin status from Access Cookie or Server Attributes
-                const cookieCorpGr = getCookieVal("corp_gr") || getCookieVal("corpGr") || /*[[${corpGr}]]*/ "";
-                const cookieAdmin = getCookieVal("admin") || getCookieVal("adminYn") || getCookieVal("role") || /*[[${adminYn}]]*/ "";
+                // Read corp_gr and admin status from Server Model Attributes (highest priority) or Access Cookies
+                const serverCorpGr = /*[[${corpGr}]]*/ "";
+                const serverAdminYn = /*[[${adminYn}]]*/ "";
+
+                const cookieCorpGr = serverCorpGr || getCookieVal("corp_gr") || getCookieVal("corpGr") || getCookieVal("savedCorpGr");
+                const cookieAdmin = serverAdminYn || getCookieVal("adminYn") || getCookieVal("admin") || getCookieVal("role");
                 const isAdmin = (cookieAdmin === "Y" || cookieAdmin === "true" || cookieAdmin === "1" || String(cookieAdmin).toUpperCase() === "ADMIN");
 
-                // Call f_dddwctl with standard parameters: ('corp_gr', 1, cookieCorpGr, '', '')
-                if (typeof f_dddwctl === "function") {
-                    f_dddwctl('corp_gr', 1, cookieCorpGr, '', '').then(options => {
+                // If SSR options are not present or empty, retrieve via f_dddwctl
+                const hasSsrOptions = selectEl && selectEl.options && selectEl.options.length > 0 && selectEl.options[0].value !== "";
+                if (!hasSsrOptions && typeof f_dddwctl === "function") {
+                    const addWhere = !isAdmin && cookieCorpGr ? ("corp_gr='" + cookieCorpGr + "'") : "";
+                    f_dddwctl('corp_gr', 1, cookieCorpGr, addWhere, '').then(options => {
                         if (selectEl) {
                             if (options && options.length > 0) {
                                 const currentVal = selectEl.value || cookieCorpGr;
@@ -95,7 +109,13 @@
                         selectEl.value = cookieCorpGr;
                     }
                     
-                    if (!isAdmin) {
+                    if (isAdmin) {
+                        selectEl.disabled = false;
+                        selectEl.style.pointerEvents = "auto";
+                        selectEl.style.backgroundColor = "#ffffff";
+                        selectEl.style.cursor = "pointer";
+                        selectEl.removeAttribute("title");
+                    } else {
                         selectEl.disabled = true;
                         selectEl.style.pointerEvents = "none";
                         selectEl.style.backgroundColor = "#f1f5f9";

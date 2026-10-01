@@ -2,7 +2,6 @@ package com.kfp.aams.domain.dailyadvisory.mapper;
 
 import com.kfp.aams.domain.dailyadvisory.dto.Ja010kDetailDto;
 import com.kfp.aams.domain.dailyadvisory.dto.Ja010kMasterDto;
-import com.kfp.aams.domain.dailyadvisory.dto.Ja010kSaveDto;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
@@ -17,6 +16,4 @@ public interface Ja010kMapper {
                                            @Param("fymd") String fymd,
                                            @Param("tymd") String tymd,
                                            @Param("fundCd") String fundCd);
-
-    int updateVcOld(Ja010kSaveDto.Ja010kItemSaveDto item);
 }

@@ -19,6 +19,7 @@ import java.util.List;
 public class Sjt1tgService {
 
     private final Sjt1tgMapper sjt1tgMapper;
+    private final com.kfp.aams.domain.dailyadvisory.mapper.querydsl.Sjt1tgQueryDslRepository sjt1tgQueryDslRepository;
 
     /**
      * 선물/옵션 종가 목록 조회
@@ -32,7 +33,7 @@ public class Sjt1tgService {
     }
 
     /**
-     * 선물/옵션 종가 일괄 저장
+     * 선물/옵션 종가 일괄 저장 (JPA EntityManager CUD)
      */
     @Transactional
     public void saveSjt1tg(Sjt1tgSaveDto saveDto) {
@@ -42,7 +43,7 @@ public class Sjt1tgService {
         if (saveDto.getDeletedRows() != null) {
             for (Sjt1tgDto row : saveDto.getDeletedRows()) {
                 if (row.getSjCd() != null && !row.getSjCd().isBlank()) {
-                    sjt1tgMapper.deleteSjt1tg(saveDto.getYmd(), row.getSjCd());
+                    sjt1tgQueryDslRepository.deleteSjt1tg(saveDto.getYmd(), row.getSjCd());
                 }
             }
         }
@@ -53,10 +54,10 @@ public class Sjt1tgService {
                 if (row.getSjCd() != null && !row.getSjCd().isBlank()) {
                     row.setYmd(saveDto.getYmd());
                     try {
-                        sjt1tgMapper.insertSjt1tg(row);
+                        sjt1tgQueryDslRepository.insertSjt1tg(row);
                     } catch (Exception e) {
                         // 이미 존재할 경우 update 시도
-                        sjt1tgMapper.updateSjt1tg(row);
+                        sjt1tgQueryDslRepository.updateSjt1tg(row);
                     }
                 }
             }
@@ -67,9 +68,9 @@ public class Sjt1tgService {
             for (Sjt1tgDto row : saveDto.getUpdatedRows()) {
                 if (row.getSjCd() != null && !row.getSjCd().isBlank()) {
                     row.setYmd(saveDto.getYmd());
-                    int updated = sjt1tgMapper.updateSjt1tg(row);
+                    int updated = sjt1tgQueryDslRepository.updateSjt1tg(row);
                     if (updated == 0) {
-                        sjt1tgMapper.insertSjt1tg(row);
+                        sjt1tgQueryDslRepository.insertSjt1tg(row);
                     }
                 }
             }

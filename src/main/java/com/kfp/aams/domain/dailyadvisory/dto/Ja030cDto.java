@@ -39,4 +39,7 @@ public class Ja030cDto {
     private String cjNm;
     private String fundNm;
     private Integer pVisible;
+
+    private Boolean isNew;
+    private Boolean isUpdated;
 }

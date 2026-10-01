@@ -76,6 +76,7 @@
 
             let gridMaster = null;
             let gridDetail = null;
+            let cudManagerDetail = null;
             let isInitialized = false;
             let lastLoadedMasterKey = null;
             let currentSelectedMaster = null;
@@ -323,7 +324,7 @@
                 const data = masterRowData || (row.getData ? row.getData() : null);
                 if (!data) return;
 
-                const corpGr = resolveCorpGr();
+                const corpGr = resolveCorpGr(pane);
                 const dates = getFilterDates();
                 const currentKey = (corpGr || "") + "_" + (dates.fYmd || "") + "_" + (dates.tYmd || "") + "_" + (data.fundCd || "");
                 if (lastLoadedMasterKey === currentKey) return;
@@ -348,7 +349,8 @@
                 fetch(url)
                     .then(res => res.json())
                     .then(data => {
-                        detailAllData = data || [];
+                        const formatted = cudManagerDetail ? cudManagerDetail.formatData(data) : (data || []);
+                        detailAllData = formatted;
                         gridDetail.setData(detailAllData).then(() => {
                             applyDetailFilter();
                         });
@@ -363,7 +365,7 @@
 
             // Master Grid Data Loader
             function loadMasterGrid() {
-                const corpGr = resolveCorpGr();
+                const corpGr = resolveCorpGr(pane);
                 const dates = getFilterDates();
                 if (!corpGr) {
                     if (window.AamsModal) window.AamsModal.alert("회사그룹을 선택해주세요.");
@@ -483,6 +485,8 @@
                     placeholder: "조회된 상세 내역이 없습니다."
                 });
 
+                cudManagerDetail = AamsCudManager.create(gridDetail);
+
                 if (typeof setupTabulatorRowSelection === 'function') {
                     setupTabulatorRowSelection(gridDetail);
                 }
@@ -505,7 +509,7 @@
                 if (btnRefresh) {
                     btnRefresh.addEventListener("click", function() {
                         if (currentSelectedMaster) {
-                            const corpGr = resolveCorpGr();
+                            const corpGr = resolveCorpGr(pane);
                             const dates = getFilterDates();
                             loadDetailGrid(corpGr, dates.fYmd, dates.tYmd, currentSelectedMaster.fundCd);
                         }
@@ -530,16 +534,17 @@
             // Save Function (Rule 9)
             function save() {
                 if (!gridDetail) return;
-                const detailRows = gridDetail.getData();
-                const updatedList = detailRows.filter(r => r.isUpdated);
+                const changes = cudManagerDetail ? cudManagerDetail.getChanges() : { updates: [] };
+                const updatedList = changes.updates;
 
                 if (!updatedList || updatedList.length === 0) {
                     if (window.AamsModal) window.AamsModal.alert("수정된 벤처구주 내역이 없습니다.");
+                    else if (typeof showToast === "function") showToast("수정된 벤처구주 내역이 없습니다.", "info");
                     else alert("수정된 벤처구주 내역이 없습니다.");
                     return;
                 }
 
-                const corpGr = resolveCorpGr();
+                const corpGr = resolveCorpGr(pane);
                 const saveDto = {
                     updatedList: updatedList.map(r => ({
                         corpGr: corpGr,
@@ -564,6 +569,7 @@
                     .then(res => res.json())
                     .then(res => {
                         if (res.success) {
+                            if (cudManagerDetail) cudManagerDetail.reset();
                             if (window.AamsModal) {
                                 window.AamsModal.alert("저장이 완료되었습니다.", () => {
                                     if (currentSelectedMaster) {
@@ -573,7 +579,8 @@
                                     }
                                 });
                             } else {
-                                alert("저장이 완료되었습니다.");
+                                if (typeof showToast === "function") showToast("저장이 완료되었습니다.", "success");
+                                else alert("저장이 완료되었습니다.");
                                 if (currentSelectedMaster) {
                                     const dates = getFilterDates();
                                     lastLoadedMasterKey = null;
@@ -619,6 +626,7 @@
                     }
                 };
                 pane.onRefresh = function() {
+                    if (cudManagerDetail) cudManagerDetail.reset();
                     if (gridMaster) gridMaster.clearData();
                     if (gridDetail) {
                         gridDetail.clearFilter();

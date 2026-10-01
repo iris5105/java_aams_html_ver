@@ -35,8 +35,10 @@
             const currentScript = document.currentScript;
             const pane = currentScript ? (currentScript.closest('.tab-pane') || currentScript.closest('.view-container')) : null;
 
-            const initialData = /*[[${dataList}]]*/ [];
             let gridJa010d = null;
+            let cudManager = null;
+
+            const rawInitialData = /*[[${dataList}]]*/ [];
 
             function numFmt(val) {
                 if (val == null || val === "") return "0";
@@ -64,7 +66,7 @@
                     columnDefaults: { vertAlign: "middle", headerSortTristate: true },
                     columns: [
                         { title: "No.", formatter: "rownum", hozAlign: "center", width: 45, resizable: false, widthGrow: 0 },
-                        { title: "펀드번호", field: "fundCd", hozAlign: "center", width: 90, editor: "input", cellClick: (e, cell) => cell.edit(true) },
+                        { title: "펀드번호", field: "fundCd", hozAlign: "center", width: 90, editor: "input", cellClick: aamsCellEdit },
                         // p_xx_fund_cd (Grid Internal Rule 1, 2: Empty column with dynamic search button)
                         {
                             title: "",
@@ -86,48 +88,32 @@
                                         seq: 1,
                                         initialKeyword: curVal,
                                         onSelect: function(code, name) {
-                                            row.update({ fundCd: code, fundNm: name });
+                                            const isNew = row.getData().isNew;
+                                            row.update({ fundCd: code, fundNm: name, isUpdated: !isNew });
+                                            if (cudManager) cudManager.trackChange(row);
                                         }
                                     });
                                 }
                             }
                         },
                         { title: "펀드명", field: "fundNm", hozAlign: "left", minWidth: 160 },
-                        { title: "입.출금일자", field: "trYmd", hozAlign: "center", width: 105, formatter: cell => formatDateVal(cell.getValue()) },
-                        { title: "입금액", field: "inAek", hozAlign: "right", minWidth: 120, formatter: cell => numFmt(cell.getValue()), editor: "number", cellClick: (e, cell) => cell.edit(true) },
-                        { title: "출금액", field: "outAek", hozAlign: "right", minWidth: 120, formatter: cell => numFmt(cell.getValue()), editor: "number", cellClick: (e, cell) => cell.edit(true) },
-                        { title: "계약잔액", field: "wonbonAek", hozAlign: "right", minWidth: 130, formatter: cell => numFmt(cell.getValue()) },
-                        { title: "입출금조정액", field: "ioJo", hozAlign: "right", minWidth: 130, formatter: cell => numFmt(cell.getValue()) }
+                        { title: "입금액", field: "inAek", hozAlign: "right", minWidth: 120, formatter: cell => numFmt(cell.getValue()), editor: "number", cellClick: aamsCellEdit },
+                        { title: "출금액", field: "outAek", hozAlign: "right", minWidth: 120, formatter: cell => numFmt(cell.getValue()), editor: "number", cellClick: aamsCellEdit },
+                        { title: "계약잔액", field: "wonbonAek", hozAlign: "right", minWidth: 130, formatter: cell => numFmt(cell.getValue()), editor: "number", cellClick: aamsCellEdit },
+                        { title: "입출금조정액", field: "ioJo", hozAlign: "right", minWidth: 130, formatter: cell => numFmt(cell.getValue()), editor: "number", cellClick: aamsCellEdit }
                     ]
                 });
 
-                gridJa010d.on("tableBuilt", function() {
-                    const rows = gridJa010d.getRows();
-                    if (rows && rows.length > 0) {
-                        gridJa010d.deselectRow();
-                        rows[0].select();
-                    }
-                });
+                cudManager = AamsCudManager.create(gridJa010d);
 
-                // Guideline 7: Capturing listener to guarantee row selection
-                const masterGridEl = pane ? pane.querySelector("#master-grid") : document.getElementById("master-grid");
-                if (masterGridEl) {
-                    masterGridEl.addEventListener("click", function(e) {
-                        const cellEl = e.target.closest(".tabulator-cell");
-                        if (!cellEl) return;
-                        const row = gridJa010d.getRow(cellEl.closest(".tabulator-row"));
-                        if (row && (!row.isSelected || !row.isSelected())) {
-                            gridJa010d.deselectRow();
-                            row.select();
-                        }
-                    }, true);
+                if (typeof setupTabulatorRowSelection === "function") {
+                    setupTabulatorRowSelection(gridJa010d);
                 }
             }
 
             // Data retrieval function (Mapper / REST API)
             window.loadJa010dData = function(selectedCorpGr) {
-                const filterSelect = pane ? pane.querySelector("#filterCorpGr") : document.getElementById("filterCorpGr");
-                const corpGr = selectedCorpGr != null ? selectedCorpGr : (filterSelect ? filterSelect.value : "");
+                const corpGr = selectedCorpGr != null ? selectedCorpGr : resolveCorpGr(pane);
                 const filterTrYmdInput = pane ? pane.querySelector("#filterTrYmd") : document.getElementById("filterTrYmd");
                 const trYmd = filterTrYmdInput ? filterTrYmdInput.value : "";
 
@@ -135,7 +121,8 @@
                     .then(res => res.json())
                     .then(data => {
                         if (gridJa010d) {
-                            gridJa010d.setData(Array.isArray(data) ? data : []).then(() => {
+                            const formatted = cudManager ? cudManager.formatData(data) : (Array.isArray(data) ? data : []);
+                            gridJa010d.setData(formatted).then(() => {
                                 const rows = gridJa010d.getRows();
                                 if (rows && rows.length > 0) {
                                     gridJa010d.deselectRow();
@@ -147,15 +134,121 @@
                     .catch(err => console.error("Error loading ja010d list:", err));
             };
 
-            // Register standard toolbar & CorpGr contract (Guideline 8)
+            // Register standard toolbar & CorpGr contract
             if (pane) {
                 pane.onSearch = function() { window.loadJa010dData(); };
                 pane.onRetrieve = function() { window.loadJa010dData(); };
-                // 공통버튼 지침: 새로고침은 조회 전 초기화 상태로 되돌린다.
+
+                // 1. 신규 행 입력: insert 큐에 등록
+                pane.onInput = function() {
+                    if (!gridJa010d) return;
+                    const filterTrYmdInput = pane ? pane.querySelector("#filterTrYmd") : document.getElementById("filterTrYmd");
+                    const trYmd = filterTrYmdInput ? filterTrYmdInput.value : "";
+
+                    const newRowData = {
+                        isNew: true,
+                        isUpdated: false,
+                        trYmd: trYmd,
+                        fundCd: "",
+                        fundNm: "",
+                        inAek: null,
+                        outAek: null,
+                        wonbonAek: null,
+                        ioJo: null
+                    };
+
+                    const addPromise = cudManager ? cudManager.addRow(newRowData, false) : gridJa010d.addRow(newRowData, false);
+                    if (addPromise) {
+                        addPromise.then(function(newRow) {
+                            if (newRow) {
+                                gridJa010d.deselectRow();
+                                newRow.select();
+                                newRow.scrollTo();
+                            }
+                        });
+                    }
+                };
+
+                // 행 삭제 처리 (요구사항 2, 3)
+                pane.onDelete = function() {
+                    if (!gridJa010d) return;
+                    const selectedRows = gridJa010d.getSelectedRows();
+                    if (!selectedRows || selectedRows.length === 0) {
+                        showToast("삭제할 행을 먼저 선택해주세요.", "warning");
+                        return;
+                    }
+                    if (confirm("선택한 입출금 내역 행을 삭제하시겠습니까? (저장 시 최종 삭제)")) {
+                        if (cudManager) {
+                            cudManager.deleteRow(selectedRows[0]).then(function() {
+                                showToast("행이 삭제되었습니다. [저장] 시 최종 반영됩니다.", "info");
+                            });
+                        } else {
+                            selectedRows[0].delete();
+                        }
+                    }
+                };
+
+                // 저장 처리 (insert/update/delete 큐 일괄 반영)
+                pane.onSave = function() {
+                    if (!gridJa010d) return;
+                    const corpGr = resolveCorpGr(pane);
+                    if (!corpGr) {
+                        showToast("회사그룹을 선택해주세요.", "warning");
+                        return;
+                    }
+                    const filterTrYmdInput = pane ? pane.querySelector("#filterTrYmd") : document.getElementById("filterTrYmd");
+                    const trYmd = filterTrYmdInput ? filterTrYmdInput.value : "";
+
+                    const changes = cudManager ? cudManager.getChanges() : { itemList: [], deletedList: [], hasChanges: false };
+                    if (!changes.hasChanges) {
+                        showToast("저장할 변경 내역이 없습니다.", "info");
+                        return;
+                    }
+
+                    // 필수 입력값 검증 (신규/수정 항목)
+                    for (let d of changes.itemList) {
+                        if (!d.fundCd || !d.fundCd.trim()) {
+                            showToast("펀드번호는 필수 입력 항목입니다.", "warning");
+                            return;
+                        }
+                        if (!d.trYmd || !d.trYmd.trim()) {
+                            d.trYmd = trYmd;
+                        }
+                    }
+
+                    fetch("/api/account/ja010d/save", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            corpGr: corpGr,
+                            trYmd: trYmd,
+                            itemList: changes.itemList,
+                            deletedList: changes.deletedList
+                        })
+                    })
+                    .then(res => res.json())
+                    .then(res => {
+                        if (res.success) {
+                            if (cudManager) cudManager.reset();
+                            showToast(res.message || "정상적으로 저장되었습니다.", "success");
+                            window.loadJa010dData();
+                        } else {
+                            showToast(res.message || "저장 중 오류가 발생했습니다.", "error");
+                        }
+                    })
+                    .catch(err => {
+                        console.error("Save error:", err);
+                        showToast("저장 중 통신 오류가 발생했습니다.", "error");
+                    });
+                };
+
+                // 4. 새로고침 시 큐 reset
                 pane.onRefresh = function() {
+                    if (cudManager) cudManager.reset();
                     if (gridJa010d) gridJa010d.clearData();
                     if (typeof showToast === "function") showToast("화면이 초기화되었습니다.", "info");
                 };
+
                 pane.onCorpGrChange = function(val) {
                 };
                 pane.addEventListener("corpGrChanged", function(e) {

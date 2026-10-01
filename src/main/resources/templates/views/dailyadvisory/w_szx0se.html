@@ -34,6 +34,9 @@
 
             const initialData = /*[[${dataList}]]*/ [];
             let gridSzx0se = null;
+            let cudManager = null;
+            let deletedList = [];
+            let isInitialized = false;
 
             // DDDW Option Caches (Populated via ue_dddw_retrieve and f_dddwctl)
             let dddwOptionsMap = {
@@ -44,18 +47,8 @@
                 ga: []
             };
 
-            /**
-             * PowerBuilder dw_list::ue_dddw_retrieve Event Integration
-             * Corresponds to dw_list::ue_dddw_retrieve in w_szx0se.srw:
-             *   1. F_DDDWCTL (THIS, 'series_g1', gaa.corp_gr, '', 1, "corp_gr='" + corp_gr + "'")
-             *   2. F_DDDWCTL (THIS, 'series_g2', gaa.corp_gr, '', 1, "corp_gr='" + corp_gr + "'")
-             *   4. f_dddwctl (THIS, 'bm_gr', gaa.corp_gr, '', 1, '')
-             *   5. f_dddwctl (THIS, 'gugan', '', ',,', 1, '')
-             *   6. f_dddwctl (THIS, 'ga', '', ',,', 1, '')
-             */
             function ue_dddw_retrieve(corpGr) {
-                const filterSelect = pane ? pane.querySelector("#filterCorpGr") : document.getElementById("filterCorpGr");
-                const targetCorpGr = corpGr != null ? corpGr : (filterSelect ? filterSelect.value : "");
+                const targetCorpGr = corpGr != null ? corpGr : resolveCorpGr(pane);
 
                 f_dddwctl.retrieveMultiple({
                     series_g1: ['series_g1', targetCorpGr, '', 1, `corp_gr='${targetCorpGr}'`],
@@ -66,18 +59,9 @@
                 }).then(results => {
                     dddwOptionsMap.series_g1 = results.series_g1 || [];
                     dddwOptionsMap.series_g2 = results.series_g2 || [];
-
                     dddwOptionsMap.bm_gr = results.bm_gr || [];
                     dddwOptionsMap.gugan = results.gugan || [];
                     dddwOptionsMap.ga = results.ga || [];
-
-                    console.log('[ue_dddw_retrieve] Successfully retrieved DDDW options via f_dddwctl:', {
-                        series_g1: dddwOptionsMap.series_g1.length,
-                        series_g2: dddwOptionsMap.series_g2.length,
-                        bm_gr: dddwOptionsMap.bm_gr.length,
-                        gugan: dddwOptionsMap.gugan.length,
-                        ga: dddwOptionsMap.ga.length
-                    });
 
                     if (gridSzx0se) {
                         gridSzx0se.redraw(true);
@@ -93,9 +77,12 @@
                 return f_dddwctl.getOptions(dddwOptionsMap, dddwKey);
             }
 
-            function numFmt(val) {
-                if (val == null || val === "") return "0";
-                return Number(val).toLocaleString('ko-KR');
+            function markRowUpdated(cell) {
+                const row = cell.getRow();
+                const data = row.getData();
+                if (!data.isNew && data.rowStatus !== 'C') {
+                    row.update({ rowStatus: 'U', isUpdated: true });
+                }
             }
 
             function initSzx0seGrid() {
@@ -118,6 +105,7 @@
                             field: "used", 
                             hozAlign: "center", 
                             width: 65, 
+                            headerCssClass: "col-hdr-red",
                             formatter: cell => {
                                 const val = String(cell.getValue() != null ? cell.getValue() : '').trim();
                                 const isChecked = (val === '0');
@@ -125,7 +113,9 @@
                             },
                             cellClick: function(e, cell) {
                                 const curVal = String(cell.getValue() != null ? cell.getValue() : '').trim();
-                                cell.setValue(curVal === '0' ? '1' : '0');
+                                const nextVal = (curVal === '0' ? '1' : '0');
+                                cell.setValue(nextVal);
+                                markRowUpdated(cell);
                             }
                         },
                         
@@ -144,8 +134,16 @@
                                 clearable: true,
                                 itemFormatter: f_dddwctl.get2ColItemFormatter("코드", "대분류명")
                             },
-                            cellClick: function(e, cell) {
-                                cell.edit(true);
+                            cellClick: aamsCellEdit,
+                            cellEdited: function(cell) {
+                                const row = cell.getRow();
+                                const data = row.getData();
+                                const g1 = cell.getValue() || "";
+                                const g2 = data.seriesG2 || "";
+                                row.update({
+                                    seriesGb: g1 + g2,
+                                    rowStatus: data.isNew ? 'C' : 'U'
+                                });
                             }
                         },
                         { 
@@ -155,11 +153,27 @@
                             width: 110, 
                             formatter: cell => getDddwLabel('series_g2', cell.getValue()),
                             editor: "input",
-                            cellClick: function(e, cell) {
-                                cell.edit(true);
+                            cellClick: aamsCellEdit,
+                            cellEdited: function(cell) {
+                                const row = cell.getRow();
+                                const data = row.getData();
+                                const g1 = data.seriesG1 || "";
+                                const g2 = cell.getValue() || "";
+                                row.update({
+                                    seriesGb: g1 + g2,
+                                    rowStatus: data.isNew ? 'C' : 'U'
+                                });
                             }
                         },
-                        { title: "시리즈(상품분류)명", field: "seriesNm", hozAlign: "left", width: 160, editor: "input", cellClick: (e, cell) => cell.edit(true) },
+                        { 
+                            title: "시리즈(상품분류)명", 
+                            field: "seriesNm", 
+                            hozAlign: "left", 
+                            width: 160, 
+                            editor: "input", 
+                            cellClick: aamsCellEdit,
+                            cellEdited: markRowUpdated
+                        },
                         { 
                             title: "평잔구간", 
                             field: "gugan", 
@@ -174,9 +188,8 @@
                                 clearable: true,
                                 itemFormatter: f_dddwctl.get2ColItemFormatter("코드", "평잔구간명")
                             },
-                            cellClick: function(e, cell) {
-                                cell.edit(true);
-                            }
+                            cellClick: aamsCellEdit,
+                            cellEdited: markRowUpdated
                         },
                         { 
                             title: "금감원<br/>보고분류", 
@@ -192,17 +205,16 @@
                                 clearable: true,
                                 itemFormatter: f_dddwctl.get2ColItemFormatter("코드", "보고분류명")
                             },
-                            cellClick: function(e, cell) {
-                                cell.edit(true);
-                            }
+                            cellClick: aamsCellEdit,
+                            cellEdited: markRowUpdated
                         },
-                        { title: "재설정기한<br/>(년)", field: "reSeoljYear", hozAlign: "center", width: 105, editor: "number", cellClick: (e, cell) => cell.edit(true) },
-                        { title: "신탁기간<br/>(월)", field: "sintakGigan", hozAlign: "center", width: 85, editor: "number", cellClick: (e, cell) => cell.edit(true) },
-                        { title: "보수기간<br/>(월)", field: "bosuGigan", hozAlign: "center", width: 85, editor: "number", cellClick: (e, cell) => cell.edit(true) },
-                        { title: "목표수익률<br/>(%)", field: "mokpyoSuikPer", hozAlign: "right", minWidth: 110, editor: "number", editorParams: { step: 0.01 }, cellClick: (e, cell) => cell.edit(true) },
-                        { title: "선취수수료<br/>(%)", field: "preBasic", hozAlign: "right", minWidth: 100, editor: "number", editorParams: { step: 0.01 }, cellClick: (e, cell) => cell.edit(true) },
-                        { title: "운용보수율<br/>(%)", field: "basicPer", hozAlign: "right", minWidth: 100, editor: "number", editorParams: { step: 0.01 }, cellClick: (e, cell) => cell.edit(true) },
-                        { title: "성과보수<br/>(%)", field: "successPer", hozAlign: "right", minWidth: 100, editor: "number", editorParams: { step: 0.01 }, cellClick: (e, cell) => cell.edit(true) },
+                        { title: "재설정기한<br/>(년)", field: "reSeoljYear", hozAlign: "center", width: 105, editor: "number", cellClick: aamsCellEdit, cellEdited: markRowUpdated },
+                        { title: "신탁기간<br/>(월)", field: "sintakGigan", hozAlign: "center", width: 85, editor: "number", cellClick: aamsCellEdit, cellEdited: markRowUpdated },
+                        { title: "보수기간<br/>(월)", field: "bosuGigan", hozAlign: "center", width: 85, editor: "number", cellClick: aamsCellEdit, cellEdited: markRowUpdated },
+                        { title: "목표수익률<br/>(%)", field: "mokpyoSuikPer", hozAlign: "right", minWidth: 110, editor: "number", editorParams: { step: 0.01 }, cellClick: aamsCellEdit, cellEdited: markRowUpdated },
+                        { title: "선취수수료<br/>(%)", field: "preBasic", hozAlign: "right", minWidth: 100, editor: "number", editorParams: { step: 0.01 }, cellClick: aamsCellEdit, cellEdited: markRowUpdated },
+                        { title: "운용보수율<br/>(%)", field: "basicPer", hozAlign: "right", minWidth: 100, editor: "number", editorParams: { step: 0.01 }, cellClick: aamsCellEdit, cellEdited: markRowUpdated },
+                        { title: "성과보수<br/>(%)", field: "successPer", hozAlign: "right", minWidth: 100, editor: "number", editorParams: { step: 0.01 }, cellClick: aamsCellEdit, cellEdited: markRowUpdated },
                         { 
                             title: "마감일자<br/>사용여부", 
                             field: "magamUsed", 
@@ -216,6 +228,7 @@
                             cellClick: function(e, cell) {
                                 const curVal = String(cell.getValue() != null ? cell.getValue() : '').trim();
                                 cell.setValue(curVal === '1' ? '0' : '1');
+                                markRowUpdated(cell);
                             }
                         },
                         { 
@@ -231,6 +244,7 @@
                             cellClick: function(e, cell) {
                                 const curVal = String(cell.getValue() != null ? cell.getValue() : '').trim();
                                 cell.setValue(curVal === '1' ? '0' : '1');
+                                markRowUpdated(cell);
                             }
                         },
                         { 
@@ -247,13 +261,14 @@
                                 clearable: true,
                                 itemFormatter: f_dddwctl.get2ColItemFormatter("코드", "BM그룹명")
                             },
-                            cellClick: function(e, cell) {
-                                cell.edit(true);
-                            }
+                            cellClick: aamsCellEdit,
+                            cellEdited: markRowUpdated
                         },
-                        { title: "비고", field: "bigo", minWidth: 150, hozAlign: "left", editor: "input", cellClick: (e, cell) => cell.edit(true) }
+                        { title: "비고", field: "bigo", minWidth: 150, hozAlign: "left", editor: "input", cellClick: aamsCellEdit, cellEdited: markRowUpdated }
                     ]
                 });
+
+                cudManager = AamsCudManager.create(gridSzx0se);
 
                 // 개발지침 규칙 8번 & 15번: setupTabulatorRowSelection 연결 (reportViewer가 없으므로 첫 행 자동 rowfocus)
                 if (typeof setupTabulatorRowSelection === 'function') {
@@ -262,58 +277,174 @@
             }
 
             // Data retrieval function (Mapper / REST API)
-            window.loadSzx0seData = function(selectedCorpGr) {
-                const filterSelect = pane ? pane.querySelector("#filterCorpGr") : document.getElementById("filterCorpGr");
-                const corpGr = selectedCorpGr != null ? selectedCorpGr : (filterSelect ? filterSelect.value : "");
+            function loadSzx0seData() {
+                const corpGr = resolveCorpGr(pane);
+                if (!corpGr) {
+                    if (typeof showToast === 'function') showToast("운용사를 선택해주세요.", "warning");
+                    return;
+                }
 
-                // Re-trigger ue_dddw_retrieve when corpGr changes (matches dw_c::itemchanged event in w_szx0se.srw)
+                if (cudManager) cudManager.reset();
+                deletedList = [];
                 ue_dddw_retrieve(corpGr);
 
                 fetch('/api/account/szx0se/list?corpGr=' + encodeURIComponent(corpGr))
                     .then(res => res.json())
                     .then(data => {
                         if (gridSzx0se) {
-                            gridSzx0se.setData(Array.isArray(data) ? data : []);
+                            const formatted = cudManager ? cudManager.formatData(Array.isArray(data) ? data : []) : (Array.isArray(data) ? data : []);
+                            gridSzx0se.setData(formatted);
                         }
                     })
-                    .catch(err => console.error("Error loading szx0se list for corpGr [" + corpGr + "]:", err));
-            };
+                    .catch(err => {
+                        console.error("Error loading szx0se list:", err);
+                        if (typeof showToast === 'function') showToast("조회 중 오류가 발생했습니다.", "error");
+                    });
+            }
 
-            // Register standard CorpGr change contract method on current tab pane (Guideline 8)
+            function addRow() {
+                if (!gridSzx0se) return;
+                const corpGr = resolveCorpGr(pane);
+
+                const selectedRows = gridSzx0se.getSelectedRows();
+                const prevSeriesG1 = (selectedRows && selectedRows.length > 0) ? (selectedRows[0].getData().seriesG1 || "") : "";
+
+                const newRowData = {
+                    corpGr: corpGr,
+                    seriesG1: prevSeriesG1,
+                    seriesG2: "",
+                    seriesGb: "",
+                    seriesNm: "",
+                    used: '1',
+                    magamUsed: '0',
+                    dpUsed: null,
+                    reSeoljYear: null,
+                    sintakGigan: null,
+                    bosuGigan: null,
+                    mokpyoSuikPer: null,
+                    preBasic: null,
+                    basicPer: null,
+                    successPer: null,
+                    isNew: true,
+                    rowStatus: "C"
+                };
+
+                const addPromise = cudManager ? cudManager.addRow(newRowData, true) : gridSzx0se.addRow(newRowData, true);
+                addPromise.then(row => {
+                    gridSzx0se.deselectRow();
+                    row.select();
+                    row.scrollIntoView();
+                });
+            }
+
+            function deleteRow() {
+                if (!gridSzx0se) return;
+                const selectedRows = gridSzx0se.getSelectedRows();
+                if (selectedRows.length === 0) {
+                    if (typeof showToast === 'function') showToast("삭제할 행을 선택해주세요.", "warning");
+                    else alert("삭제할 행을 선택해주세요.");
+                    return;
+                }
+
+                if (!confirm("선택한 행을 삭제하시겠습니까? (저장 시 최종 반영됩니다)")) {
+                    return;
+                }
+
+                selectedRows.forEach(row => {
+                    if (cudManager) {
+                        cudManager.deleteRow(row);
+                    } else {
+                        row.delete();
+                    }
+                });
+            }
+
+            function saveData() {
+                if (!gridSzx0se) return;
+                const corpGr = resolveCorpGr(pane);
+
+                if (!corpGr) {
+                    if (typeof showToast === 'function') showToast("운용사를 확인해주세요.", "warning");
+                    return;
+                }
+
+                const changes = cudManager ? cudManager.getChanges() : { inserts: [], updates: [], deletes: [], hasChanges: false };
+                const insertList = changes.inserts || [];
+                const updateList = changes.updates || [];
+                const deleteList = changes.deletes || [];
+
+                for (const data of insertList) {
+                    if (!data.seriesG1 || !data.seriesG2) {
+                        if (typeof showToast === 'function') showToast("신규 행의 대분류와 시리즈코드를 입력해주세요.", "warning");
+                        else alert("신규 행의 대분류와 시리즈코드를 입력해주세요.");
+                        return;
+                    }
+                }
+
+                if (insertList.length === 0 && updateList.length === 0 && deleteList.length === 0) {
+                    if (typeof showToast === 'function') showToast("저장할 변경 내역이 없습니다.", "info");
+                    else alert("저장할 변경 내역이 없습니다.");
+                    return;
+                }
+
+                if (!confirm(`저장하시겠습니까?\n(신규: ${insertList.length}건, 수정: ${updateList.length}건, 삭제: ${deleteList.length}건)`)) {
+                    return;
+                }
+
+                const payload = {
+                    corpGr: corpGr,
+                    insertList: insertList,
+                    updateList: updateList,
+                    deleteList: deleteList
+                };
+
+                fetch("/api/account/szx0se/save", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload)
+                })
+                .then(res => res.json())
+                .then(res => {
+                    if (res.success) {
+                        if (cudManager) cudManager.reset();
+                        if (typeof showToast === 'function') showToast(res.message || "저장이 완료되었습니다.", "success");
+                        else alert(res.message || "저장이 완료되었습니다.");
+                        loadSzx0seData();
+                    } else {
+                        if (typeof showToast === 'function') showToast("저장 실패: " + (res.message || "알 수 없는 오류"), "error");
+                        else alert("저장 실패: " + (res.message || "알 수 없는 오류"));
+                    }
+                })
+                .catch(err => {
+                    console.error("saveData error:", err);
+                    if (typeof showToast === 'function') showToast("저장 중 오류가 발생했습니다: " + err.message, "error");
+                    else alert("저장 중 오류가 발생했습니다: " + err.message);
+                });
+            }
+
+            // Register standard contracts on pane
             if (pane) {
-                pane.onSearch = function() { window.loadSzx0seData(); };
-                pane.onRetrieve = function() { window.loadSzx0seData(); };
-                // 공통버튼 지침: 새로고침은 조회 전 초기화 상태로 되돌린다.
+                pane.onSearch = loadSzx0seData;
+                pane.onInput = addRow;
+                pane.onDelete = deleteRow;
+                pane.onSave = saveData;
+                pane.onExcel = function() {
+                    if (gridSzx0se) gridSzx0se.download("xlsx", `상품분류_설정_${resolveCorpGr(pane)}.xlsx`);
+                };
                 pane.onRefresh = function() {
                     if (gridSzx0se) gridSzx0se.clearData();
+                    if (cudManager) cudManager.reset();
                     if (typeof showToast === "function") showToast("화면이 초기화되었습니다.", "info");
                 };
                 pane.onCorpGrChange = function(val) {
+                    loadSzx0seData();
                 };
                 pane.addEventListener("corpGrChanged", function(e) {
+                    loadSzx0seData();
                 });
-                pane.getNewRowData = function() {
-                    const filterSelect = pane.querySelector("#filterCorpGr");
-                    const corpGr = filterSelect ? filterSelect.value : "";
-                    return {
-                        corpGr: corpGr,
-                        used: '1',
-                        magamUsed: '0',
-                        dpUsed: '0',
-                        reSeoljYear: 1,
-                        sintakGigan: 12,
-                        bosuGigan: 12,
-                        mokpyoSuikPer: 0,
-                        preBasic: 0,
-                        basicPer: 0,
-                        successPer: 0,
-                        isNew: true
-                    };
-                };
             }
 
-            // Guideline 10: Single initialization entry point with isInitialized guard
-            let isInitialized = false;
+            // Guideline 11: Single initialization entry point with isInitialized guard
             function startInit() {
                 if (isInitialized) return;
                 isInitialized = true;
@@ -322,7 +453,7 @@
 
                 // eb_direct_retrieve = true 명세 반영 자동 조회
                 setTimeout(() => {
-                    window.loadSzx0seData();
+                    loadSzx0seData();
                 }, 100);
             }
 

@@ -98,6 +98,18 @@ public class Ja010fController {
         return ja010fService.getDates(corpGr);
     }
 
+    @org.springframework.web.bind.annotation.PostMapping("/api/daily/ja010f/save")
+    @ResponseBody
+    public org.springframework.http.ResponseEntity<?> saveJa010f(
+            @org.springframework.web.bind.annotation.RequestBody com.kfp.aams.domain.dailyadvisory.dto.Ja010fSaveRequestDto req) {
+        try {
+            ja010fService.saveJa010f(req);
+            return org.springframework.http.ResponseEntity.ok(java.util.Map.of("success", true, "message", "정상적으로 저장되었습니다."));
+        } catch (Exception e) {
+            return org.springframework.http.ResponseEntity.badRequest().body(java.util.Map.of("success", false, "message", e.getMessage()));
+        }
+    }
+
     /**
      * Helper to resolve corporate group (Guideline 1: no default value)
      */

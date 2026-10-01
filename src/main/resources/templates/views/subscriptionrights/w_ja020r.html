@@ -620,7 +620,7 @@
             saveAlterAmounts();
         };
 
-        currentPane.onClear = function () {
+        currentPane.onClear = currentPane.onRefresh = function () {
             if (gridMaster) gridMaster.clearData();
             clearDetail();
             var mBadge = currentPane.querySelector('#master-count-badge');
@@ -630,6 +630,7 @@
             currentRetrievedCorpGr = resolveCorpGr(currentPane);
             updateDetailTitle(currentRetrievedDw);
             initDetailGrid(currentRetrievedDw);
+            if (typeof showToast === "function") showToast("화면이 초기화되었습니다.", "info");
         };
 
         // 회사그룹 변경 이벤트 (규칙 19: 필터 변경 시 자동조회 금지, 작업일자 동기화만 수행)

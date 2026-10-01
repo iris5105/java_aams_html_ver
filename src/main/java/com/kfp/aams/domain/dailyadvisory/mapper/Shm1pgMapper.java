@@ -10,6 +10,4 @@ import java.util.List;
 public interface Shm1pgMapper {
 
     List<Shm1pgDto> selectShm1pgList(@Param("corpGr") String corpGr, @Param("ymd") String ymd);
-
-    int updateShm1pg(Shm1pgDto dto);
 }

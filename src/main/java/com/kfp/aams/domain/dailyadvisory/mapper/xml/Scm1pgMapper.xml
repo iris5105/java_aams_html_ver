@@ -37,36 +37,4 @@
          ORDER BY t1.ymd ASC
     </select>
 
-    <!-- 3. 디테일 등록 -->
-    <insert id="insertDetail" parameterType="com.kfp.aams.domain.dailyadvisory.dto.Scm1pgDetailDto">
-        INSERT INTO SCM1PG (
-            corp_gr
-          , ymd
-          , jm_cd
-          , pg_cd
-        ) VALUES (
-            #{corpGr}
-          , TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
-          , #{jmCd}
-          , #{pgCd, jdbcType=VARCHAR}
-        )
-    </insert>
-
-    <!-- 4. 디테일 수정 -->
-    <update id="updateDetail" parameterType="com.kfp.aams.domain.dailyadvisory.dto.Scm1pgDetailDto">
-        UPDATE SCM1PG
-           SET pg_cd   = #{pgCd, jdbcType=VARCHAR}
-         WHERE corp_gr = #{corpGr}
-           AND jm_cd   = #{jmCd}
-           AND ymd     = TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
-    </update>
-
-    <!-- 5. 디테일 삭제 -->
-    <delete id="deleteDetail">
-        DELETE FROM SCM1PG
-         WHERE corp_gr = #{corpGr}
-           AND jm_cd   = #{jmCd}
-           AND ymd     = TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
-    </delete>
-
 </mapper>

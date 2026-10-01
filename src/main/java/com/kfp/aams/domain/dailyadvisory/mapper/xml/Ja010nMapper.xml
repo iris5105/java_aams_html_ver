@@ -15,36 +15,4 @@
          ORDER BY t1.ymd DESC
     </select>
 
-    <!-- 2. 주가지수 등록 -->
-    <insert id="insertJa010n" parameterType="com.kfp.aams.domain.dailyadvisory.dto.Ja010nDto">
-        INSERT INTO skt0bm (
-            corp_gr
-          , ymd
-          , col_id
-          , col_val
-        ) VALUES (
-            'JISU'
-          , TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
-          , 'kospi_jisu'
-          , #{colVal, jdbcType=NUMERIC}
-        )
-    </insert>
-
-    <!-- 3. 주가지수 수정 -->
-    <update id="updateJa010n" parameterType="com.kfp.aams.domain.dailyadvisory.dto.Ja010nDto">
-        UPDATE skt0bm
-           SET col_val = #{colVal, jdbcType=NUMERIC}
-         WHERE corp_gr = 'JISU'
-           AND col_id  = 'kospi_jisu'
-           AND ymd     = TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
-    </update>
-
-    <!-- 4. 주가지수 삭제 -->
-    <delete id="deleteJa010n">
-        DELETE FROM skt0bm
-         WHERE corp_gr = 'JISU'
-           AND col_id  = 'kospi_jisu'
-           AND ymd     = TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
-    </delete>
-
 </mapper>

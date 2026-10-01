@@ -13,10 +13,4 @@ public interface Scm1pgMapper {
     List<Scm1pgMasterDto> selectMasterList(@Param("corpGr") String corpGr, @Param("ymd") String ymd);
 
     List<Scm1pgDetailDto> selectDetailList(@Param("corpGr") String corpGr, @Param("jmCd") String jmCd);
-
-    int insertDetail(Scm1pgDetailDto dto);
-
-    int updateDetail(Scm1pgDetailDto dto);
-
-    int deleteDetail(@Param("corpGr") String corpGr, @Param("jmCd") String jmCd, @Param("ymd") String ymd);
 }

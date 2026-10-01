@@ -80,12 +80,4 @@
         </choose>
     </select>
 
-    <!-- 2. 차액반영 (conf_ymd 업데이트) -->
-    <update id="updateConfirmYmd">
-        UPDATE SHT0YE
-           SET conf_ymd = CURRENT_TIMESTAMP
-         WHERE corp_gr = #{corpGr}
-           AND tr_ymd  = TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
-    </update>
-
 </mapper>

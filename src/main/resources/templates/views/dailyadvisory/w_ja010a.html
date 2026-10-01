@@ -27,8 +27,11 @@
 
         <!-- Lower Split Panels (dw_detail / d_ja010a2.srd / SZX0AB) -->
         <div class="pane-bottom detail-section">
-            <div class="pane-header">
+            <div class="pane-header" style="display: flex; justify-content: space-between; align-items: center;">
                 <span><i class="fa-solid fa-file-contract"></i> 회사 계약 및 변경 이력</span>
+                <button type="button" id="btnDetailAdd" class="btn btn-sm btn-outline-primary" style="padding: 2px 8px; font-size: 12px; cursor: pointer;">
+                    <i class="fa-solid fa-plus"></i> 변경이력 추가
+                </button>
             </div>
             <div class="pane-body">
                 <div id="grid-ja010a-detail" class="tabulator-aams-grid" style="height: 100%;"></div>
@@ -45,6 +48,8 @@
 
             let gridMaster = null;
             let gridDetail = null;
+            let cudManagerMaster = null;
+            let cudManagerDetail = null;
 
             const initialMasterData = /*[[${masterList}]]*/ [];
 
@@ -182,11 +187,21 @@
                     ]
                 });
 
+                // 마스터 셀 수정 감지 (기존행 update 플래그 설정)
+                gridMaster.on("cellEdited", function(cell) {
+                    const rowData = cell.getRow().getData();
+                    if (!rowData.isNew) {
+                        rowData.isUpdated = true;
+                    }
+                });
+
                 function syncJa010aDetail(row, data) {
                     if (data && data.corpGr) {
                         fetchJa010aDetail(data.corpGr);
                     }
                 }
+
+                cudManagerMaster = AamsCudManager.create(gridMaster);
 
                 // 1. AAMS Standard: Register global row selection callback
                 setupTabulatorRowSelection(gridMaster, function(row, data) {
@@ -228,18 +243,52 @@
                     columnDefaults: { vertAlign: "middle", headerSortTristate: true },
                     columns: [
                         { title: "No.", formatter: "rownum", hozAlign: "center", width: 45, resizable: false, widthGrow: 0 },
-                        { title: "계약(변경)일자", field: "ymd", hozAlign: "center", width: 110, formatter: cell => formatDateVal(cell.getValue()), editor: "input" },
-                        { title: "회사명", field: "companyName", minWidth: 140, hozAlign: "left", editor: "input" },
-                        { title: "사업자등록번호", field: "idno", hozAlign: "center", width: 125, formatter: cell => formatIdno(cell.getValue()), editor: "input" },
-                        { title: "계약일자", field: "contractYmd", hozAlign: "center", width: 105, formatter: cell => formatDateVal(cell.getValue()), editor: "input" },
-                        { title: "대표자명", field: "ceoNm", hozAlign: "center", width: 110, editor: "input" },
-                        { title: "대표전화번호", field: "telNo", hozAlign: "center", width: 120, editor: "input" },
-                        { title: "팩스번호", field: "faxNo", hozAlign: "center", width: 120, editor: "input" },
-                        { title: "E-Mail 주소", field: "email", minWidth: 150, hozAlign: "left", editor: "input" },
-                        { title: "우편번호", field: "post", hozAlign: "center", width: 80, editor: "input" },
-                        { title: "주소", field: "juso", minWidth: 200, hozAlign: "left", editor: "input" }
+                        { title: "계약(변경)일자", field: "ymd", hozAlign: "center", width: 110, formatter: cell => formatDateVal(cell.getValue()), editor: "input", cellClick: aamsCellEdit },
+                        { title: "회사명", field: "companyName", minWidth: 140, hozAlign: "left", editor: "input", cellClick: aamsCellEdit },
+                        { title: "사업자등록번호", field: "idno", hozAlign: "center", width: 125, formatter: cell => formatIdno(cell.getValue()), editor: "input", cellClick: aamsCellEdit },
+                        { title: "계약일자", field: "contractYmd", hozAlign: "center", width: 105, formatter: cell => formatDateVal(cell.getValue()), editor: "input", cellClick: aamsCellEdit },
+                        { title: "대표자명", field: "ceoNm", hozAlign: "center", width: 110, editor: "input", cellClick: aamsCellEdit },
+                        { title: "대표전화번호", field: "telNo", hozAlign: "center", width: 120, editor: "input", cellClick: aamsCellEdit },
+                        { title: "팩스번호", field: "faxNo", hozAlign: "center", width: 120, editor: "input", cellClick: aamsCellEdit },
+                        { title: "E-Mail 주소", field: "email", minWidth: 150, hozAlign: "left", editor: "input", cellClick: aamsCellEdit },
+                        { title: "우편번호", field: "post", hozAlign: "center", width: 80, editor: "input", cellClick: aamsCellEdit },
+                        { title: "주소", field: "juso", minWidth: 200, hozAlign: "left", editor: "input", cellClick: aamsCellEdit }
                     ]
                 });
+
+                cudManagerDetail = AamsCudManager.create(gridDetail);
+
+                // 하단 변경이력 추가 버튼 이벤트
+                const btnDetailAdd = pane ? pane.querySelector("#btnDetailAdd") : document.getElementById("btnDetailAdd");
+                if (btnDetailAdd) {
+                    btnDetailAdd.addEventListener("click", function() {
+                        const selectedRows = gridMaster ? gridMaster.getSelectedRows() : [];
+                        if (selectedRows.length === 0) {
+                            if (typeof showToast === "function") showToast("상단에서 회사를 먼저 선택해주세요.", "warning");
+                            return;
+                        }
+                        const masterData = selectedRows[0].getData();
+                        const todayStr = (new Date()).toISOString().slice(0, 10);
+
+                        cudManagerDetail.addRow({
+                            isNew: true,
+                            isUpdated: false,
+                            corpGr: masterData.corpGr,
+                            companyName: masterData.companyName || "",
+                            ymd: todayStr,
+                            contractYmd: null,
+                            idno: null,
+                            ceoNm: null,
+                            telNo: null,
+                            faxNo: null,
+                            email: null,
+                            post: null,
+                            juso: null
+                        }, true).then(function(row) {
+                            if (row) row.select();
+                        });
+                    });
+                }
             }
 
             // Global functions for controller integration
@@ -252,8 +301,9 @@
                     .then(res => res.json())
                     .then(data => {
                         if (gridMaster) {
-                            gridMaster.setData(Array.isArray(data) ? data : []);
-                            if (Array.isArray(data) && data.length > 0) {
+                            const formatted = cudManagerMaster ? cudManagerMaster.formatData(data) : (Array.isArray(data) ? data : []);
+                            gridMaster.setData(formatted);
+                            if (Array.isArray(formatted) && formatted.length > 0) {
                                 setTimeout(() => {
                                     const rows = gridMaster.getRows();
                                     let targetRow = null;
@@ -286,21 +336,140 @@
                 fetch(`/api/company/ja010a/detail?corpGr=${encodeURIComponent(corpGr)}`)
                     .then(res => res.json())
                     .then(data => {
-                        if (gridDetail) gridDetail.setData(Array.isArray(data) ? data : []);
+                        if (gridDetail) {
+                            const formatted = cudManagerDetail ? cudManagerDetail.formatData(data) : (Array.isArray(data) ? data : []);
+                            gridDetail.setData(formatted);
+                        }
                     })
                     .catch(err => console.error("Error fetching ja010a detail:", err));
             }
 
-            // Register standard toolbar & CorpGr contract (Guideline 8)
+            // Register standard toolbar & CorpGr contract (Guideline 8 & 9)
             if (pane) {
                 pane.onSearch = function() { window.loadJa010aMaster(); };
                 pane.onRetrieve = function() { window.loadJa010aMaster(); };
-                // 공통버튼 지침: 새로고침은 조회 전 초기화 상태로 되돌린다.
+
+                // [입력] 버튼: 마스터 회사 신규 행 추가
+                pane.onInput = function() {
+                    fetch('/api/company/ja010a/next-corp-gr')
+                        .then(res => res.json())
+                        .then(resData => {
+                            const nextCode = (resData && resData.nextCorpGr) ? resData.nextCorpGr : "";
+                            const todayStr = (new Date()).toISOString().slice(0, 10);
+                            const initial = {
+                                isNew: true,
+                                isUpdated: false,
+                                corpGr: nextCode,
+                                companyName: "신규생성회사명",
+                                depositDd: 5,
+                                hyunYmd: null,
+                                gijungaYmd: null,
+                                symd: todayStr,
+                                eymd: null,
+                                junyongYmd: null,
+                                ikyongYmd: null,
+                                thikyongYmd: null,
+                                expenseYn: null,
+                                customerGr: "자문회사",
+                                depositAccount: null,
+                                bigo: null
+                            };
+                            const addPromise = cudManagerMaster ? cudManagerMaster.addRow(initial, true) : gridMaster.addRow(initial, true);
+                            addPromise.then(function(row) {
+                                if (row) {
+                                    gridMaster.deselectRow();
+                                    row.select();
+                                    syncJa010aDetail(row, row.getData());
+                                }
+                            });
+                        })
+                        .catch(err => {
+                            console.error("다음 회사코드 조회 실패:", err);
+                        });
+                };
+
+                // [삭제] 버튼: 선택된 행 큐 반영 삭제
+                pane.onDelete = function() {
+                    const selDetail = gridDetail ? gridDetail.getSelectedRows() : [];
+                    if (selDetail.length > 0) {
+                        if (confirm("선택한 변경이력 행을 삭제하시겠습니까?")) {
+                            if (cudManagerDetail) {
+                                cudManagerDetail.deleteRow(selDetail[0]).then(function() {
+                                    if (typeof showToast === "function") showToast("변경이력 행이 삭제 대기열에 등록되었습니다.", "info");
+                                });
+                            } else {
+                                selDetail[0].delete();
+                            }
+                        }
+                        return;
+                    }
+                    const selMaster = gridMaster ? gridMaster.getSelectedRows() : [];
+                    if (selMaster.length > 0) {
+                        if (confirm("선택한 회사 행을 삭제하시겠습니까? (저장 시 최종 삭제)")) {
+                            if (cudManagerMaster) {
+                                cudManagerMaster.deleteRow(selMaster[0]).then(function() {
+                                    if (typeof showToast === "function") showToast("회사 행이 삭제 대기열에 등록되었습니다.", "info");
+                                });
+                            } else {
+                                selMaster[0].delete();
+                            }
+                        }
+                        return;
+                    }
+                    if (typeof showToast === "function") showToast("삭제할 행을 선택하세요.", "warning");
+                };
+
+                // [저장] 버튼: CUD 큐 4대 원칙 반영 일괄 저장
+                pane.onSave = function() {
+                    const masterChanges = cudManagerMaster ? cudManagerMaster.getChanges() : { itemList: [], deletedList: [] };
+                    const detailChanges = cudManagerDetail ? cudManagerDetail.getChanges() : { itemList: [], deletedList: [] };
+
+                    if (!masterChanges.hasChanges && !detailChanges.hasChanges) {
+                        if (typeof showToast === "function") showToast("저장할 변경사항이 없습니다.", "info");
+                        return;
+                    }
+
+                    const payload = {
+                        masterList: masterChanges.itemList,
+                        detailList: detailChanges.itemList,
+                        deletedMasterList: masterChanges.deletedList,
+                        deletedDetailList: detailChanges.deletedList
+                    };
+
+                    fetch('/api/company/ja010a/save', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    })
+                    .then(res => res.json())
+                    .then(resData => {
+                        if (resData && resData.success) {
+                            if (cudManagerMaster) cudManagerMaster.reset();
+                            if (cudManagerDetail) cudManagerDetail.reset();
+                            if (typeof showToast === "function") showToast(resData.message || "정상적으로 저장되었습니다.", "success");
+                            const selectedRows = gridMaster ? gridMaster.getSelectedRows() : [];
+                            const curCorpGr = selectedRows.length > 0 ? selectedRows[0].getData().corpGr : "";
+                            window.loadJa010aMaster(curCorpGr);
+                        } else {
+                            const msg = (resData && resData.message) ? resData.message : "저장에 실패했습니다.";
+                            if (typeof showToast === "function") showToast(msg, "error");
+                        }
+                    })
+                    .catch(err => {
+                        console.error("저장 오류:", err);
+                        if (typeof showToast === "function") showToast("저장 중 통신 오류가 발생했습니다.", "error");
+                    });
+                };
+
+                // 조회 버튼이 없고 새로고침만 있는 화면 규격: 새로고침 시 화면 데이터를 재조회
                 pane.onRefresh = function() {
-                    if (gridMaster) gridMaster.clearData();
-                    if (gridDetail) gridDetail.clearData();
+                    if (cudManagerMaster) cudManagerMaster.reset();
+                    if (cudManagerDetail) cudManagerDetail.reset();
                     lastLoadedMasterKey = null;
-                    if (typeof showToast === "function") showToast("화면이 초기화되었습니다.", "info");
+                    const selectedRows = gridMaster ? gridMaster.getSelectedRows() : [];
+                    const curCorpGr = selectedRows.length > 0 ? selectedRows[0].getData().corpGr : "";
+                    window.loadJa010aMaster(curCorpGr);
+                    if (typeof showToast === "function") showToast("화면 데이터를 새로고침했습니다.", "info");
                 };
                 pane.onCorpGrChange = function(val) {
                     lastLoadedMasterKey = null;

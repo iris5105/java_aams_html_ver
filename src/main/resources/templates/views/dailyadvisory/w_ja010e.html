@@ -91,29 +91,22 @@
                 return str;
             }
 
-            // Exception Rule 1 & Rule 7: Only new rows (isNew: true) are editable.
-            // Existing rows are read-only, and clicking them selects the row.
+            // Exception Rule 1 & Rule 7: tabsequence based editability
             function isRowEditable(cell) {
                 if (!cell) return false;
                 const row = typeof cell.getRow === "function" ? cell.getRow() : null;
                 if (!row) return false;
                 const data = row.getData();
-                const isNew = Boolean(data && (data.isNew === true || data._isNew === true || data.isNewRow === true));
+                return Boolean(data && (data.isNew === true || data._isNew === true));
+            }
 
-                if (isNew) {
-                    return true;
-                } else {
-                    if (gridJa010e && (!row.isSelected || !row.isSelected())) {
-                        gridJa010e.deselectRow();
-                        row.select();
-                    }
-                    return false;
-                }
+            function isDetailEditable(cell) {
+                return true; // tr_jusu, danga, tr_aek, susu, tax, sudo_ymd have tabsequence in PB srd
             }
 
             // 1. Initialize DDDW Options for tr_co_cd (Rule 6: 2-column dropdown with sticky header)
             function initDddwOptions() {
-                const corpGr = resolveCorpGr();
+                const corpGr = resolveCorpGr(pane);
                 const dddwSelect = pane ? pane.querySelector("#filterDddw") : document.getElementById("filterDddw");
                 if (!dddwSelect) return Promise.resolve();
 
@@ -316,8 +309,8 @@
                             headerHozAlign: "center", 
                             formatter: numberFormatter,
                             editor: "number",
-                            editable: isRowEditable,
-                            cellClick: (e, cell) => { if (isRowEditable(cell)) cell.edit(true); },
+                            editable: isDetailEditable,
+                            cellClick: aamsCellEdit,
                             cellEdited: function(cell) {
                                 const row = cell.getRow();
                                 const data = row.getData();
@@ -337,8 +330,8 @@
                             headerHozAlign: "center", 
                             formatter: numberFormatter,
                             editor: "number",
-                            editable: isRowEditable,
-                            cellClick: (e, cell) => { if (isRowEditable(cell)) cell.edit(true); },
+                            editable: isDetailEditable,
+                            cellClick: aamsCellEdit,
                             cellEdited: function(cell) {
                                 const row = cell.getRow();
                                 const data = row.getData();
@@ -358,8 +351,8 @@
                             headerHozAlign: "center", 
                             formatter: numberFormatter,
                             editor: "number",
-                            editable: isRowEditable,
-                            cellClick: (e, cell) => { if (isRowEditable(cell)) cell.edit(true); }
+                            editable: isDetailEditable,
+                            cellClick: aamsCellEdit
                         },
                         // tabsequence=70: susu (수수료)
                         { 
@@ -370,8 +363,8 @@
                             headerHozAlign: "center", 
                             formatter: numberFormatter,
                             editor: "number",
-                            editable: isRowEditable,
-                            cellClick: (e, cell) => { if (isRowEditable(cell)) cell.edit(true); }
+                            editable: isDetailEditable,
+                            cellClick: aamsCellEdit
                         },
                         // tabsequence=80: tax (거래세)
                         { 
@@ -382,8 +375,8 @@
                             headerHozAlign: "center", 
                             formatter: numberFormatter,
                             editor: "number",
-                            editable: isRowEditable,
-                            cellClick: (e, cell) => { if (isRowEditable(cell)) cell.edit(true); }
+                            editable: isDetailEditable,
+                            cellClick: aamsCellEdit
                         },
                         // tabsequence=90: sudo_ymd (수도결제일)
                         { 
@@ -394,8 +387,8 @@
                             headerHozAlign: "center", 
                             formatter: cell => formatDateVal(cell.getValue()),
                             editor: "input",
-                            editable: isRowEditable,
-                            cellClick: (e, cell) => { if (isRowEditable(cell)) cell.edit(true); }
+                            editable: isDetailEditable,
+                            cellClick: aamsCellEdit
                         },
                         // srd sequence 14 / tabsequence=100: tr_co_cd (매매처 - DDDW)
                         { 
@@ -421,27 +414,24 @@
                                 }
                             },
                             editable: isRowEditable,
-                            cellClick: (e, cell) => { if (isRowEditable(cell)) cell.edit(true); }
+                            cellClick: aamsCellEdit
                         }
                     ]
                 });
 
-                // Rule 7: Capturing click listener to guarantee row selection
-                gridElement.addEventListener("click", function(e) {
-                    const rowEl = e.target.closest(".tabulator-row");
-                    if (rowEl && gridJa010e) {
-                        const row = gridJa010e.getRow(rowEl);
-                        if (row) {
-                            gridJa010e.deselectRow();
-                            row.select();
-                        }
-                    }
-                }, true);
+                // AAMS 전역 공통 CUD 버퍼 매니저 바인딩 (규칙 1, 2, 3, 4)
+                cudManager = (typeof AamsCudManager !== 'undefined' && typeof AamsCudManager.create === 'function')
+                    ? AamsCudManager.create(gridJa010e)
+                    : null;
+
+                if (typeof setupTabulatorRowSelection === "function") {
+                    setupTabulatorRowSelection(gridJa010e);
+                }
             }
 
             // 3. Load Data Function
             window.loadJa010eData = function() {
-                const corpGr = resolveCorpGr();
+                const corpGr = resolveCorpGr(pane);
                 const filterYmdInput = pane ? pane.querySelector("#filterYmd") : document.getElementById("filterYmd");
                 const filterDddwSelect = pane ? pane.querySelector("#filterDddw") : document.getElementById("filterDddw");
 
@@ -449,6 +439,7 @@
                 const trCoCd = filterDddwSelect ? filterDddwSelect.value : "%";
 
                 if (!corpGr || !ymd) {
+                    if (cudManager) cudManager.reset();
                     if (gridJa010e) gridJa010e.setData([]);
                     return;
                 }
@@ -459,13 +450,23 @@
                     .then(res => res.json())
                     .then(data => {
                         if (gridJa010e) {
-                            gridJa010e.setData(Array.isArray(data) ? data : []).then(() => {
-                                const rows = gridJa010e.getRows();
-                                if (rows && rows.length > 0) {
-                                    gridJa010e.deselectRow();
-                                    rows[0].select();
-                                }
-                            });
+                            if (cudManager) {
+                                gridJa010e.setData(cudManager.formatData(data)).then(() => {
+                                    const rows = gridJa010e.getRows();
+                                    if (rows && rows.length > 0) {
+                                        gridJa010e.deselectRow();
+                                        rows[0].select();
+                                    }
+                                });
+                            } else {
+                                gridJa010e.setData(Array.isArray(data) ? data : []).then(() => {
+                                    const rows = gridJa010e.getRows();
+                                    if (rows && rows.length > 0) {
+                                        gridJa010e.deselectRow();
+                                        rows[0].select();
+                                    }
+                                });
+                            }
                         }
                     })
                     .catch(err => {
@@ -480,24 +481,35 @@
                 const ymd = filterYmdInput ? filterYmdInput.value : "";
                 const trCoCd = (filterDddwSelect && filterDddwSelect.value !== "%") ? filterDddwSelect.value : "";
 
-                const newRowData = {
+                const selectedRows = gridJa010e ? gridJa010e.getSelectedRows() : [];
+                const prevRowData = (selectedRows && selectedRows.length > 0) ? selectedRows[0].getData() : null;
+                const allRows = gridJa010e ? gridJa010e.getRows() : [];
+                const maxOfferNo = allRows.reduce((max, r) => {
+                    const n = parseInt(r.getData().offerNo, 10);
+                    return (!isNaN(n) && n > max) ? n : max;
+                }, 0);
+
+                const baseData = {
                     isNew: true,
-                    trCd: "F",
-                    fundCd: "",
-                    fundNm: "",
-                    trCoCd: trCoCd,
-                    offerNo: "",
-                    jmCd: "",
-                    jjNm: "",
-                    trJusu: 0,
-                    danga: 0,
-                    trAek: 0,
+                    trYmd: ymd,
+                    trCd: prevRowData ? (prevRowData.trCd || "J") : "J",
+                    fundCd: prevRowData ? (prevRowData.fundCd || "") : "",
+                    fundNm: prevRowData ? (prevRowData.fundNm || "") : "",
+                    trCoCd: prevRowData ? (prevRowData.trCoCd || trCoCd) : trCoCd,
+                    offerNo: maxOfferNo > 0 ? (maxOfferNo + 1) : 1,
+                    jmCd: null,
+                    jjNm: null,
+                    trJusu: null,
+                    danga: null,
+                    trAek: null,
                     susu: 0,
                     tax: 0,
-                    sudoYmd: ymd ? ymd.replace(/-/g, ".") : "",
-                    acctNo: "",
-                    loadTime: ""
+                    sudoYmd: ymd ? ymd.replace(/-/g, ".") : null,
+                    acctNo: prevRowData ? (prevRowData.acctNo || null) : null,
+                    loadTime: null
                 };
+
+                const newRowData = cudManager ? cudManager.createNewRow(baseData) : baseData;
 
                 if (gridJa010e) {
                     gridJa010e.addRow(newRowData, true).then(function(row) {
@@ -515,7 +527,7 @@
             // Initialize Pure JS Highlight Calendar (AamsCalendar - Rule 16)
             function initCalendar() {
                 if (typeof AamsCalendar !== 'undefined') {
-                    const corp = resolveCorpGr();
+                    const corp = resolveCorpGr(pane);
                     const dddwSelect = pane ? pane.querySelector("#filterDddw") : null;
                     const trCo = dddwSelect ? dddwSelect.value : "%";
                     const datesUrl = `/api/daily/ja010e/dates?trCoCd=${encodeURIComponent(trCo)}`;
@@ -535,14 +547,107 @@
                 pane.onSearch = function() { window.loadJa010eData(); };
                 pane.onRetrieve = function() { window.loadJa010eData(); };
                 pane.onInput = addNewRow;
+
+                // 삭제 처리 (AamsCudManager 전역 연동)
+                pane.onDelete = function() {
+                    if (!gridJa010e) return;
+                    const selectedRows = gridJa010e.getSelectedRows();
+                    if (!selectedRows || selectedRows.length === 0) {
+                        showToast("삭제할 행을 먼저 선택해주세요.", "warning");
+                        return;
+                    }
+                    const targetRow = selectedRows[0];
+                    if (cudManager) {
+                        cudManager.deleteRow(targetRow).then(function() {
+                            showToast("행이 삭제되었습니다. [저장] 시 최종 반영됩니다.", "info");
+                        });
+                    } else {
+                        targetRow.delete().then(function() {
+                            showToast("행이 삭제되었습니다.", "info");
+                        });
+                    }
+                };
+
+                pane.onSave = function() {
+                    if (!gridJa010e) return;
+                    const corpGr = resolveCorpGr(pane);
+                    if (!corpGr) {
+                        showToast("회사그룹을 선택해주세요.", "warning");
+                        return;
+                    }
+                    const filterYmdInput = pane ? pane.querySelector("#filterYmd") : document.getElementById("filterYmd");
+                    const ymd = filterYmdInput ? filterYmdInput.value : "";
+
+                    let targetItems = [];
+                    let deletedItems = [];
+
+                    if (cudManager) {
+                        const changes = cudManager.getChanges();
+                        if (!changes.hasChanges) {
+                            showToast("저장할 변경 내역이 없습니다.", "info");
+                            return;
+                        }
+                        targetItems = changes.itemList;
+                        deletedItems = changes.deletedList;
+                    } else {
+                        const allRows = gridJa010e.getRows();
+                        for (let r of allRows) {
+                            const d = r.getData();
+                            if (d.isNew || d.isUpdated) targetItems.push(d);
+                        }
+                        if (targetItems.length === 0) {
+                            showToast("저장할 변경 내역이 없습니다.", "info");
+                            return;
+                        }
+                    }
+
+                    for (let d of targetItems) {
+                        if (!d.fundCd || !d.fundCd.trim()) {
+                            showToast("펀드번호는 필수 입력 항목입니다.", "warning");
+                            return;
+                        }
+                        if (!d.jmCd || !d.jmCd.trim()) {
+                            showToast("종목코드는 필수 입력 항목입니다.", "warning");
+                            return;
+                        }
+                    }
+
+                    fetch("/api/daily/ja010e/save", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            corpGr: corpGr,
+                            ymd: ymd,
+                            itemList: targetItems,
+                            deletedList: deletedItems
+                        })
+                    })
+                    .then(res => res.json())
+                    .then(res => {
+                        if (res.success) {
+                            if (cudManager) cudManager.reset();
+                            showToast(res.message || "정상적으로 저장되었습니다.", "success");
+                            window.loadJa010eData();
+                        } else {
+                            showToast(res.message || "저장 중 오류가 발생했습니다.", "error");
+                        }
+                    })
+                    .catch(err => {
+                        console.error("Save error:", err);
+                        showToast("저장 중 통신 오류가 발생했습니다.", "error");
+                    });
+                };
+
                 // 공통버튼 지침: 새로고침은 조회 전 초기화 상태로 되돌린다.
                 pane.onRefresh = function() {
+                    if (cudManager) cudManager.reset();
                     if (gridJa010e) gridJa010e.clearData();
                     if (typeof showToast === "function") showToast("화면이 초기화되었습니다.", "info");
                 };
+
                 pane.onCorpGrChange = function() {
                     initDddwOptions().then(() => {
-                        const corp = resolveCorpGr();
+                        const corp = resolveCorpGr(pane);
                         if (typeof AamsCalendar !== 'undefined') {
                             const dddwSelect = pane ? pane.querySelector("#filterDddw") : null;
                             const trCo = dddwSelect ? dddwSelect.value : "%";
@@ -560,7 +665,7 @@
                 const filterDddwSelect = pane.querySelector("#filterDddw");
                 if (filterDddwSelect) {
                     filterDddwSelect.addEventListener("change", () => {
-                        const corp = resolveCorpGr();
+                        const corp = resolveCorpGr(pane);
                         const trCo = filterDddwSelect.value;
                         const datesUrl = `/api/daily/ja010e/dates?trCoCd=${encodeURIComponent(trCo)}`;
                         if (typeof AamsCalendar !== 'undefined') {

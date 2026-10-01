@@ -17,6 +17,7 @@ import java.util.List;
 public class Ja010m3Service {
 
     private final Ja010m3Mapper ja010m3Mapper;
+    private final com.kfp.aams.domain.dailyadvisory.mapper.querydsl.Ja010m3QueryDslRepository ja010m3QueryDslRepository;
     private final RdReportService rdReportService;
 
     public RdReportService.ExportResult generateReport(String corpGr, String mrdName, String fundCd, String fundNm,
@@ -51,10 +52,7 @@ public class Ja010m3Service {
         for (Ja010m3SaveDto.Ja010m3ItemSaveDto item : saveDto.getUpdatedList()) {
             // 'a' 테이블 (SKT1GS_INDATA) 항목만 저장 대상
             if (!"b".equals(item.getTblGb())) {
-                if (item.getGyulYmd() != null) {
-                    item.setGyulYmd(item.getGyulYmd().replace("-", ""));
-                }
-                ja010m3Mapper.updateJa010m3(item);
+                ja010m3QueryDslRepository.updateJa010m3(item);
             }
         }
     }

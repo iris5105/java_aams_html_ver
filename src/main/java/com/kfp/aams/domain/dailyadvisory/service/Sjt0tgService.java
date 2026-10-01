@@ -20,6 +20,7 @@ import java.util.Set;
 public class Sjt0tgService {
 
     private final Sjt0tgMapper sjt0tgMapper;
+    private final com.kfp.aams.domain.dailyadvisory.mapper.querydsl.Sjt0tgQueryDslRepository sjt0tgQueryDslRepository;
 
     /**
      * 주식 종가 목록 조회 (d_sjt0tg)
@@ -59,7 +60,7 @@ public class Sjt0tgService {
     }
 
     /**
-     * 주식 종가 내역 일괄 저장 (등록/수정/삭제)
+     * 주식 종가 내역 일괄 저장 (등록/수정/삭제 via JPA EntityManager)
      */
     @Transactional
     public void saveSjt0tg(Sjt0tgSaveDto saveDto) {
@@ -72,7 +73,7 @@ public class Sjt0tgService {
             for (Sjt0tgDto dto : saveDto.getDeleteList()) {
                 if (dto.getCorpGr() == null || dto.getCorpGr().isBlank()) dto.setCorpGr(corpGr);
                 if (dto.getYmd() == null || dto.getYmd().isBlank()) dto.setYmd(ymd);
-                sjt0tgMapper.deleteSjt0tg(dto);
+                sjt0tgQueryDslRepository.deleteSjt0tg(dto);
             }
         }
 
@@ -82,7 +83,7 @@ public class Sjt0tgService {
                 if (dto.getCorpGr() == null || dto.getCorpGr().isBlank()) dto.setCorpGr(corpGr);
                 if (dto.getYmd() == null || dto.getYmd().isBlank()) dto.setYmd(ymd);
                 calculateChange(dto);
-                sjt0tgMapper.mergeSjt0tg(dto);
+                sjt0tgQueryDslRepository.mergeSjt0tg(dto);
             }
         }
 
@@ -92,7 +93,7 @@ public class Sjt0tgService {
                 if (dto.getCorpGr() == null || dto.getCorpGr().isBlank()) dto.setCorpGr(corpGr);
                 if (dto.getYmd() == null || dto.getYmd().isBlank()) dto.setYmd(ymd);
                 calculateChange(dto);
-                sjt0tgMapper.updateSjt0tg(dto);
+                sjt0tgQueryDslRepository.updateSjt0tg(dto);
             }
         }
     }

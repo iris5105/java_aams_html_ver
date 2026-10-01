@@ -95,6 +95,7 @@
                     width: 100,
                     hozAlign: "center",
                     headerHozAlign: "center",
+                    cellClick: aamsCellEdit,
                     editable: function(cell) {
                         // Guideline Exception 1: 신규 추가된 행만 수정 가능
                         const rowData = cell.getRow().getData();
@@ -138,10 +139,11 @@
                     width: 120,
                     hozAlign: "right",
                     headerHozAlign: "center",
+                    headerCssClass: "col-hdr-blue",
+                    cellClick: aamsCellEdit,
                     editable: true,
                     editor: "number",
                     formatter: function(cell) {
-                        const val = cell.getValue();
                         const formatted = numberFormatter(cell);
                         return `<span class="cell-text-red">${formatted}</span>`;
                     },
@@ -183,6 +185,7 @@
                     width: 110,
                     hozAlign: "right",
                     headerHozAlign: "center",
+                    headerCssClass: "col-hdr-red",
                     editable: false,
                     formatter: numberFormatter
                 },
@@ -210,6 +213,7 @@
                     width: 130,
                     hozAlign: "right",
                     headerHozAlign: "center",
+                    cellClick: aamsCellEdit,
                     editable: true,
                     editor: "number",
                     formatter: numberFormatter,
@@ -225,10 +229,25 @@
 
             // 종목 코드 검색 모달 연동
             function openKoscomSearchModal(row) {
-                if (typeof openCommonCodeSearchModal === 'function') {
+                if (typeof openDynamicSearchModal === 'function') {
+                    openDynamicSearchModal({
+                        title: "종목 검색",
+                        searchType: "KOSCOM",
+                        corpGr: resolveCorpGr(pane),
+                        onSelect: function(item) {
+                            if (item) {
+                                row.update({
+                                    koscomCd: item.code || item.koscomCd,
+                                    xxKoscomCd: item.name || item.koscomNm,
+                                    rowStatus: 'C'
+                                });
+                            }
+                        }
+                    });
+                } else if (typeof openCommonCodeSearchModal === 'function') {
                     openCommonCodeSearchModal({
                         title: "종목 검색",
-                        apiEndpoint: "/api/daily/ja010o/funds", // or common search
+                        apiEndpoint: "/api/daily/ja010o/funds",
                         onSelect: function(item) {
                             if (item) {
                                 row.update({
@@ -262,36 +281,31 @@
                     height: "100%",
                     selectableRows: 1,
                     columns: columns,
-                    placeholder: "조회된 종가 내역이 없습니다.",
-                    rowClick: function(e, row) {
-                        row.select();
-                    }
+                    placeholder: "조회된 종가 내역이 없습니다."
                 });
 
-                // Rule 8: Capturing event listener to guarantee row selection on non-editable cells
-                gridEl.addEventListener('click', function(e) {
-                    const rowEl = e.target.closest('.tabulator-row');
-                    if (rowEl && gridSjt0tg) {
-                        const rows = gridSjt0tg.getRows();
-                        const targetRow = rows.find(r => r.getElement() === rowEl);
-                        if (targetRow && !targetRow.isSelected()) {
-                            targetRow.select();
-                        }
-                    }
-                }, true);
+                if (typeof setupTabulatorRowSelection === 'function') {
+                    setupTabulatorRowSelection(gridSjt0tg);
+                } else {
+                    gridSjt0tg.on("rowClick", function(e, row) {
+                        row.select();
+                    });
+                }
             }
 
             // Retrieve Data (wue_retrieve)
             function searchData() {
-                const corpGr = resolveCorpGr();
+                const corpGr = resolveCorpGr(pane);
                 const ymd = getFilterYmd();
 
                 if (!corpGr) {
-                    alert("운용사를 선택하거나 로그인 정보가 필요합니다.");
+                    if (typeof showToast === 'function') showToast("운용사를 선택해주세요.", "warning");
+                    else alert("운용사를 선택해주세요.");
                     return;
                 }
                 if (!ymd) {
-                    alert("종가일자를 선택해주세요.");
+                    if (typeof showToast === 'function') showToast("종가일자를 선택해주세요.", "warning");
+                    else alert("종가일자를 선택해주세요.");
                     return;
                 }
 
@@ -325,14 +339,15 @@
                     })
                     .catch(err => {
                         console.error("searchData error:", err);
-                        alert("조회 실패: " + err.message);
+                        if (typeof showToast === 'function') showToast("조회 실패: " + err.message, "error");
+                        else alert("조회 실패: " + err.message);
                     });
             }
 
             // Add Row (Input Contract)
             function addRow() {
                 if (!gridSjt0tg) return;
-                const corpGr = resolveCorpGr();
+                const corpGr = resolveCorpGr(pane);
                 const ymd = getFilterYmd();
 
                 const newRowData = {
@@ -340,13 +355,13 @@
                     ymd: ymd,
                     koscomCd: "",
                     xxKoscomCd: "",
-                    close: 0,
-                    volume: 0,
-                    value: 0,
-                    preclose: 0,
-                    change: 0,
-                    aekm: 0,
-                    sangjJusu: 0,
+                    close: null,
+                    volume: null,
+                    value: null,
+                    preclose: null,
+                    change: null,
+                    aekm: null,
+                    sangjJusu: null,
                     isNew: true,
                     rowStatus: "C"
                 };
@@ -362,7 +377,8 @@
                 if (!gridSjt0tg) return;
                 const selectedRows = gridSjt0tg.getSelectedRows();
                 if (selectedRows.length === 0) {
-                    alert("삭제할 행을 선택해주세요.");
+                    if (typeof showToast === 'function') showToast("삭제할 행을 선택해주세요.", "warning");
+                    else alert("삭제할 행을 선택해주세요.");
                     return;
                 }
 
@@ -382,11 +398,12 @@
             // Save Data (Save Contract)
             function saveData() {
                 if (!gridSjt0tg) return;
-                const corpGr = resolveCorpGr();
+                const corpGr = resolveCorpGr(pane);
                 const ymd = getFilterYmd();
 
                 if (!corpGr || !ymd) {
-                    alert("운용사 및 종가일자를 확인해주세요.");
+                    if (typeof showToast === 'function') showToast("운용사 및 종가일자를 확인해주세요.", "warning");
+                    else alert("운용사 및 종가일자를 확인해주세요.");
                     return;
                 }
 
@@ -398,7 +415,8 @@
                     const data = row.getData();
                     if (data.isNew) {
                         if (!data.koscomCd || data.koscomCd.trim() === "") {
-                            alert("신규 행의 종목코드를 입력해주세요.");
+                            if (typeof showToast === 'function') showToast("신규 행의 종목코드를 입력해주세요.", "warning");
+                            else alert("신규 행의 종목코드를 입력해주세요.");
                             row.select();
                             return;
                         }
@@ -409,7 +427,8 @@
                 }
 
                 if (insertList.length === 0 && updateList.length === 0 && deletedList.length === 0) {
-                    alert("저장할 변경 내역이 없습니다.");
+                    if (typeof showToast === 'function') showToast("저장할 변경 내역이 없습니다.", "info");
+                    else alert("저장할 변경 내역이 없습니다.");
                     return;
                 }
 
@@ -433,15 +452,18 @@
                 .then(res => res.json())
                 .then(res => {
                     if (res.success) {
-                        alert(res.message || "저장이 완료되었습니다.");
+                        if (typeof showToast === 'function') showToast(res.message || "저장이 완료되었습니다.", "success");
+                        else alert(res.message || "저장이 완료되었습니다.");
                         searchData();
                     } else {
-                        alert("저장 실패: " + (res.message || "알 수 없는 오류"));
+                        if (typeof showToast === 'function') showToast("저장 실패: " + (res.message || "알 수 없는 오류"), "error");
+                        else alert("저장 실패: " + (res.message || "알 수 없는 오류"));
                     }
                 })
                 .catch(err => {
                     console.error("saveData error:", err);
-                    alert("저장 중 통신 오류가 발생했습니다: " + err.message);
+                    if (typeof showToast === 'function') showToast("저장 중 통신 오류가 발생했습니다: " + err.message, "error");
+                    else alert("저장 중 통신 오류가 발생했습니다: " + err.message);
                 });
             }
 
@@ -496,7 +518,8 @@
                 if (!gridSjt0tg) return;
                 const currentRows = gridSjt0tg.getRows();
                 if (currentRows.length === 0) {
-                    alert("조회된 종목 내역이 없습니다. 먼저 [조회]를 진행해주세요.");
+                    if (typeof showToast === 'function') showToast("조회된 종목 내역이 없습니다. 먼저 [조회]를 진행해주세요.", "warning");
+                    else alert("조회된 종목 내역이 없습니다. 먼저 [조회]를 진행해주세요.");
                     return;
                 }
 
@@ -586,7 +609,11 @@
                     }
                 }
 
-                alert(`종가 LOAD가 완료되었습니다.\n(총 ${matchCount}개 종목 매핑 완료)`);
+                if (typeof showToast === 'function') {
+                    showToast(`종가 LOAD가 완료되었습니다. (총 ${matchCount}개 종목 매핑 완료)`, "success");
+                } else {
+                    alert(`종가 LOAD가 완료되었습니다.\n(총 ${matchCount}개 종목 매핑 완료)`);
+                }
             }
 
             // Single Entrypoint Initialization (Guideline 11)

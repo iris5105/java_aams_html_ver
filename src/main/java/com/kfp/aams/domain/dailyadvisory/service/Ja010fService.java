@@ -20,6 +20,7 @@ import java.util.List;
 public class Ja010fService {
 
     private final Ja010fMapper ja010fMapper;
+    private final com.kfp.aams.domain.dailyadvisory.mapper.querydsl.Ja010fQueryDslRepository ja010fQueryDslRepository;
 
     /**
      * Retrieve Deposit Balance Load List (d_ja010f1.srd)
@@ -40,5 +41,42 @@ public class Ja010fService {
             return Collections.emptyList();
         }
         return ja010fMapper.selectJa010fDates(corpGr.trim());
+    }
+
+    @Transactional
+    public void saveJa010f(com.kfp.aams.domain.dailyadvisory.dto.Ja010fSaveRequestDto req) {
+        if (req == null || req.getCorpGr() == null || req.getCorpGr().isBlank()) {
+            throw new IllegalArgumentException("회사그룹 정보가 누락되었습니다.");
+        }
+        String corpGr = req.getCorpGr().trim();
+        String ymd = req.getYmd() != null ? req.getYmd().trim() : "";
+
+        // 1. 삭제 대기열(deletedList) 선행 삭제
+        if (req.getDeletedList() != null) {
+            for (Ja010fDto del : req.getDeletedList()) {
+                if (del.getCorpGr() == null || del.getCorpGr().isBlank()) {
+                    del.setCorpGr(corpGr);
+                }
+                if (del.getTrYmd() == null || del.getTrYmd().isBlank()) {
+                    del.setTrYmd(ymd);
+                }
+                ja010fQueryDslRepository.deleteSht0ye(del);
+            }
+        }
+
+        // 2. 추가 및 수정 처리
+        if (req.getItemList() != null) {
+            for (Ja010fDto dto : req.getItemList()) {
+                dto.setCorpGr(corpGr);
+                if (dto.getTrYmd() == null || dto.getTrYmd().isBlank()) {
+                    dto.setTrYmd(ymd);
+                }
+                if (dto.isNew()) {
+                    ja010fQueryDslRepository.insertSht0ye(dto);
+                } else if (dto.isUpdated()) {
+                    ja010fQueryDslRepository.updateSht0ye(dto);
+                }
+            }
+        }
     }
 }

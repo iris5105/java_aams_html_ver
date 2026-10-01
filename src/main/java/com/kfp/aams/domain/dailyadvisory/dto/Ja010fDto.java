@@ -1,5 +1,7 @@
 package com.kfp.aams.domain.dailyadvisory.dto;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -17,6 +19,7 @@ import java.math.BigDecimal;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class Ja010fDto implements Serializable {
     private static final long serialVersionUID = 1L;
 
@@ -35,4 +38,18 @@ public class Ja010fDto implements Serializable {
     private String encAcctNo;
     private String bigo;
     private String acctNo;
+
+    @JsonProperty("isNew")
+    private Boolean isNew;
+
+    @JsonProperty("isUpdated")
+    private Boolean isUpdated;
+
+    public boolean isNew() {
+        return Boolean.TRUE.equals(this.isNew);
+    }
+
+    public boolean isUpdated() {
+        return Boolean.TRUE.equals(this.isUpdated);
+    }
 }

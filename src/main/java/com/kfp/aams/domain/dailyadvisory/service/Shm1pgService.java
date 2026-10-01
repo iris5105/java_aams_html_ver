@@ -16,6 +16,7 @@ import java.util.List;
 public class Shm1pgService {
 
     private final Shm1pgMapper shm1pgMapper;
+    private final com.kfp.aams.domain.dailyadvisory.mapper.querydsl.Shm1pgQueryDslRepository shm1pgQueryDslRepository;
 
     /**
      * 현금신용등급 목록 조회
@@ -39,7 +40,7 @@ public class Shm1pgService {
         for (Shm1pgDto row : saveDto.getUpdatedRows()) {
             if (row.getJmCd() != null && !row.getJmCd().isBlank()) {
                 row.setCorpGr(corpGr);
-                shm1pgMapper.updateShm1pg(row);
+                shm1pgQueryDslRepository.updateShm1pg(row);
             }
         }
     }

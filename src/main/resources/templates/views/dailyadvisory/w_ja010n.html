@@ -139,7 +139,7 @@
                     corpGr: "JISU",
                     colId: "kospi_jisu",
                     ymd: today,
-                    colVal: 0,
+                    colVal: null,
                     isNew: true,
                     rowStatus: "C"
                 };
@@ -176,11 +176,9 @@
                 const updatedRows = allData.filter(d => !d.isNew && d.rowStatus === "U");
 
                 if (createdRows.length === 0 && updatedRows.length === 0 && deletedList.length === 0) {
-                    alert("저장할 변경 내용이 없습니다.");
+                    showToast("저장할 변경 내용이 없습니다.", "info");
                     return;
                 }
-
-                if (!confirm("변경 사항을 저장하시겠습니까?")) return;
 
                 const payload = {
                     createdRows: createdRows,
@@ -196,15 +194,15 @@
                 .then(res => res.json())
                 .then(res => {
                     if (res.success) {
-                        alert(res.message || "저장되었습니다.");
+                        showToast(res.message || "정상적으로 저장되었습니다.", "success");
                         loadList();
                     } else {
-                        alert(res.message || "저장에 실패했습니다.");
+                        showToast(res.message || "저장에 실패했습니다.", "error");
                     }
                 })
                 .catch(err => {
                     console.error("Save error:", err);
-                    alert("저장 중 오류가 발생했습니다.");
+                    showToast("저장 중 오류가 발생했습니다.", "error");
                 });
             }
 

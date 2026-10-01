@@ -18,6 +18,7 @@ import java.util.List;
 public class Ja010kService {
 
     private final Ja010kMapper ja010kMapper;
+    private final com.kfp.aams.domain.dailyadvisory.mapper.querydsl.Ja010kQueryDslRepository ja010kQueryDslRepository;
 
     @Transactional(readOnly = true)
     public List<Ja010kMasterDto> getMasterList(String corpGr, String tymd) {
@@ -45,13 +46,7 @@ public class Ja010kService {
         }
 
         for (Ja010kSaveDto.Ja010kItemSaveDto item : saveDto.getUpdatedList()) {
-            if (item.getYmd() != null) {
-                item.setYmd(item.getYmd().replace("-", ""));
-            }
-            if (item.getBuyDate() != null) {
-                item.setBuyDate(item.getBuyDate().replace("-", ""));
-            }
-            ja010kMapper.updateVcOld(item);
+            ja010kQueryDslRepository.updateVcOld(item);
         }
     }
 }

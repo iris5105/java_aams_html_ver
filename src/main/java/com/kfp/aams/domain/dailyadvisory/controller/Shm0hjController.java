@@ -85,6 +85,25 @@ public class Shm0hjController {
         return shm0hjService.getMasterList(corpGr, ymd, cashCd);
     }
 
+    /**
+     * PB 채번: 신규 종목코드 생성 API
+     */
+    @GetMapping("/api/shm0hj/next-jm-cd")
+    @ResponseBody
+    public Map<String, Object> getNextJmCd(@AuthenticationPrincipal Object principalObj,
+                                           @RequestParam(name = "corpGr", required = false) String paramCorpGr,
+                                           @RequestParam(name = "ymd", required = false) String ymd,
+                                           @RequestParam(name = "cashCd", required = false) String cashCd,
+                                           @CookieValue(name = "savedCorpGr", required = false) String cookieCorpGr1,
+                                           @CookieValue(name = "corpGr", required = false) String cookieCorpGr2) {
+        UserPrincipal principal = (principalObj instanceof UserPrincipal p) ? p : null;
+        String cookieCorpGr = (cookieCorpGr1 != null && !cookieCorpGr1.isBlank()) ? cookieCorpGr1 : cookieCorpGr2;
+        String corpGr = resolveCorpGr(paramCorpGr, cookieCorpGr, principal);
+
+        String nextJmCd = shm0hjService.getNextJmCd(corpGr, ymd, cashCd);
+        return Map.of("nextJmCd", nextJmCd != null ? nextJmCd : "");
+    }
+
     @GetMapping("/api/shm0hj/detail")
     @ResponseBody
     public List<Shj0igDetailDto> getDetailList(@AuthenticationPrincipal Object principalObj,
@@ -123,6 +142,36 @@ public class Shm0hjController {
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             log.error("Failed to generate period interest", e);
+            response.put("success", false);
+            response.put("message", e.getMessage());
+            return ResponseEntity.badRequest().body(response);
+        }
+    }
+
+    @PostMapping("/api/shm0hj/save")
+    @ResponseBody
+    public ResponseEntity<Map<String, Object>> saveShm0hj(@AuthenticationPrincipal Object principalObj,
+            @org.springframework.web.bind.annotation.RequestBody com.kfp.aams.domain.dailyadvisory.dto.Shm0hjSaveRequestDto requestDto,
+            @CookieValue(name = "savedCorpGr", required = false) String cookieCorpGr1,
+            @CookieValue(name = "corpGr", required = false) String cookieCorpGr2) {
+        UserPrincipal principal = (principalObj instanceof UserPrincipal p) ? p : null;
+        String cookieCorpGr = (cookieCorpGr1 != null && !cookieCorpGr1.isBlank()) ? cookieCorpGr1 : cookieCorpGr2;
+        String corpGr = resolveCorpGr(requestDto.getCorpGr(), cookieCorpGr, principal);
+
+        Map<String, Object> response = new HashMap<>();
+        try {
+            if (corpGr == null || corpGr.isBlank()) {
+                response.put("success", false);
+                response.put("message", "소속 회사코드가 유효하지 않습니다.");
+                return ResponseEntity.badRequest().body(response);
+            }
+            requestDto.setCorpGr(corpGr.trim());
+            shm0hjService.saveShm0hj(requestDto);
+            response.put("success", true);
+            response.put("message", "저장이 완료되었습니다.");
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            log.error("Failed to save shm0hj", e);
             response.put("success", false);
             response.put("message", e.getMessage());
             return ResponseEntity.badRequest().body(response);

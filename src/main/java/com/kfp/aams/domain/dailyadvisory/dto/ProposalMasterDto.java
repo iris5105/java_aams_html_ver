@@ -20,4 +20,6 @@ public class ProposalMasterDto {
     private String fexp;
     private String orgFname;
     private Integer saveVisible;
+    private Boolean isNew;
+    private Boolean isUpdated;
 }

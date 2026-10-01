@@ -21,4 +21,10 @@ public class Ja010bIoDto {
     private BigDecimal wonbonAek;
     private Integer giganIlsu;
     private Integer passIlsu;
+    private String modDt;
+    private String modUser;
+    private String modYn;
+    private Integer pVisible;
+    private Boolean isNew;
+    private Boolean isUpdated;
 }

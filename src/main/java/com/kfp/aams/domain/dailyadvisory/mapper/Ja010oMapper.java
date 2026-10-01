@@ -24,14 +24,4 @@ public interface Ja010oMapper {
      * 펀드 선택 목록 조회 (corpGr 기준 유효 펀드 목록)
      */
     List<Map<String, Object>> selectFundList(@Param("corpGr") String corpGr);
-
-    /**
-     * SJM0JM_COLL 신용/대출 담보 저장 (MERGE INTO)
-     */
-    int mergeCollateral(Ja010oMasterDto dto);
-
-    /**
-     * SJM0JM_COLL 신용/대출 담보 삭제
-     */
-    int deleteCollateral(Ja010oMasterDto dto);
 }

@@ -27,4 +27,88 @@ public class Szx0seService {
         }
         return szx0seQueryDslRepository.findSzx0seList(corpGr.trim());
     }
+
+    @Transactional
+    public void saveSzx0se(com.kfp.aams.domain.dailyadvisory.dto.Szx0seSaveRequestDto saveDto) {
+        if (saveDto == null) return;
+        String corpGr = saveDto.getCorpGr();
+
+        // 1. 삭제
+        if (saveDto.getDeleteList() != null) {
+            for (Szx0seDto dto : saveDto.getDeleteList()) {
+                String targetCorpGr = (dto.getCorpGr() != null && !dto.getCorpGr().isBlank()) ? dto.getCorpGr() : corpGr;
+                String seriesGb = dto.getSeriesGb();
+                if (seriesGb == null || seriesGb.isBlank()) {
+                    seriesGb = (dto.getSeriesG1() != null ? dto.getSeriesG1().trim() : "") +
+                               (dto.getSeriesG2() != null ? dto.getSeriesG2().trim() : "");
+                }
+                if (targetCorpGr != null && !targetCorpGr.isBlank() && seriesGb != null && !seriesGb.isBlank()) {
+                    szx0seQueryDslRepository.deleteEntity(targetCorpGr, seriesGb);
+                }
+            }
+        }
+
+        // 2. 신규 등록
+        if (saveDto.getInsertList() != null) {
+            for (Szx0seDto dto : saveDto.getInsertList()) {
+                String targetCorpGr = (dto.getCorpGr() != null && !dto.getCorpGr().isBlank()) ? dto.getCorpGr() : corpGr;
+                dto.setCorpGr(targetCorpGr);
+                String g1 = dto.getSeriesG1() != null ? dto.getSeriesG1().trim() : "";
+                String g2 = dto.getSeriesG2() != null ? dto.getSeriesG2().trim() : "";
+                String seriesGb = g1 + g2;
+                dto.setSeriesGb(seriesGb);
+
+                com.kfp.aams.domain.dailyadvisory.entity.Szx0se entity = toEntity(dto);
+                szx0seQueryDslRepository.saveEntity(entity);
+            }
+        }
+
+        // 3. 수정
+        if (saveDto.getUpdateList() != null) {
+            for (Szx0seDto dto : saveDto.getUpdateList()) {
+                String targetCorpGr = (dto.getCorpGr() != null && !dto.getCorpGr().isBlank()) ? dto.getCorpGr() : corpGr;
+                dto.setCorpGr(targetCorpGr);
+                String g1 = dto.getSeriesG1() != null ? dto.getSeriesG1().trim() : "";
+                String g2 = dto.getSeriesG2() != null ? dto.getSeriesG2().trim() : "";
+                String seriesGb = g1 + g2;
+                dto.setSeriesGb(seriesGb);
+
+                com.kfp.aams.domain.dailyadvisory.entity.Szx0se entity = toEntity(dto);
+                szx0seQueryDslRepository.saveEntity(entity);
+
+                // PB updateend: series_gb 변경 시 szm0ia 동기화
+                if (dto.getOriginalSeriesGb() != null && !dto.getOriginalSeriesGb().isBlank()
+                        && !dto.getOriginalSeriesGb().equals(seriesGb)) {
+                    szx0seQueryDslRepository.syncSzm0iaSeriesGb(targetCorpGr, dto.getOriginalSeriesGb(), seriesGb);
+                }
+            }
+        }
+    }
+
+    private com.kfp.aams.domain.dailyadvisory.entity.Szx0se toEntity(Szx0seDto dto) {
+        return com.kfp.aams.domain.dailyadvisory.entity.Szx0se.builder()
+                .corpGr(dto.getCorpGr())
+                .seriesG1(dto.getSeriesG1() != null ? dto.getSeriesG1().trim() : "")
+                .seriesG2(dto.getSeriesG2() != null ? dto.getSeriesG2().trim() : "")
+                .seriesGb(dto.getSeriesGb() != null ? dto.getSeriesGb().trim() : "")
+                .seriesNm(dto.getSeriesNm())
+                .retSusu(dto.getRetSusu())
+                .retSusuGb(dto.getRetSusuGb())
+                .futuresInclude(dto.getFuturesInclude())
+                .used(dto.getUsed() != null ? dto.getUsed() : "1")
+                .reSeoljYear(dto.getReSeoljYear())
+                .sintakGigan(dto.getSintakGigan())
+                .bosuGigan(dto.getBosuGigan())
+                .mokpyoSuikPer(dto.getMokpyoSuikPer())
+                .preBasic(dto.getPreBasic())
+                .basicPer(dto.getBasicPer())
+                .successPer(dto.getSuccessPer())
+                .magamUsed(dto.getMagamUsed() != null ? dto.getMagamUsed() : "0")
+                .dpUsed(dto.getDpUsed() != null ? dto.getDpUsed() : "0")
+                .bmGr(dto.getBmGr())
+                .gugan(dto.getGugan())
+                .ga(dto.getGa())
+                .bigo(dto.getBigo())
+                .build();
+    }
 }

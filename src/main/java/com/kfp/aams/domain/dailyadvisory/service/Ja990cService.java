@@ -18,6 +18,7 @@ import java.util.List;
 public class Ja990cService {
 
     private final Ja990cMapper ja990cMapper;
+    private final com.kfp.aams.domain.dailyadvisory.mapper.querydsl.Ja990cQueryDslRepository ja990cQueryDslRepository;
 
     @Transactional(readOnly = true)
     public List<Ja990cMasterDto> getMasterList(boolean isAdmin) {
@@ -41,7 +42,7 @@ public class Ja990cService {
         if (saveDto.getDeletedList() != null) {
             for (Ja990cMasterDto item : saveDto.getDeletedList()) {
                 if (item.getBalhCo() != null && !item.getBalhCo().isBlank()) {
-                    ja990cMapper.deleteMaster(item.getBalhCo());
+                    ja990cQueryDslRepository.deleteMaster(item.getBalhCo());
                 }
             }
         }
@@ -52,7 +53,7 @@ public class Ja990cService {
                 if (item.getBalhCo() == null || item.getBalhCo().isBlank()) {
                     throw new IllegalArgumentException("발행기관코드는 필수 입력 항목입니다.");
                 }
-                if (ja990cMapper.checkBalhCoExists(item.getBalhCo()) > 0) {
+                if (ja990cQueryDslRepository.checkBalhCoExists(item.getBalhCo()) > 0) {
                     throw new IllegalStateException("이미 등록된 발행기관입니다: " + item.getBalhCo());
                 }
                 if (item.getBalhNation() == null || item.getBalhNation().isBlank()) {
@@ -67,7 +68,7 @@ public class Ja990cService {
                 if (item.getGyulMm() == null || item.getGyulMm().isBlank()) {
                     item.setGyulMm("12");
                 }
-                ja990cMapper.insertMaster(item);
+                ja990cQueryDslRepository.insertMaster(item);
             }
         }
 
@@ -75,7 +76,7 @@ public class Ja990cService {
         if (saveDto.getUpdatedList() != null) {
             for (Ja990cMasterDto item : saveDto.getUpdatedList()) {
                 if (item.getBalhCo() != null && !item.getBalhCo().isBlank()) {
-                    ja990cMapper.updateMaster(item);
+                    ja990cQueryDslRepository.updateMaster(item);
                 }
             }
         }
@@ -87,7 +88,7 @@ public class Ja990cService {
                     if (hist.getUpdUser() == null || hist.getUpdUser().isBlank()) {
                         hist.setUpdUser(updUser != null ? updUser : "SYSTEM");
                     }
-                    ja990cMapper.insertHistory(hist);
+                    ja990cQueryDslRepository.insertHistory(hist);
                 }
             }
         }

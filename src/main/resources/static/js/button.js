@@ -188,15 +188,86 @@ function clearAllTabulatorsInPane(pane) {
 }
 
 /**
- * Toolbar Action: [새로고침] (Reset Active Tab to initial state)
- * 개발지침: 새로고침 버튼은 수정사항이나 조회한 내용을 초기화하여 화면에서 데이터를 조회하기 전인 초기화 상태로 되돌린다.
- * 어떤 화면이든 새로고침 버튼을 눌렀을 때 tabulator의 데이터를 반드시 초기화한다.
+ * Toolbar Action: [새로고침] (Reset Active Tab or Reload Data)
+ * 개발지침:
+ * 1. 조회 버튼이 있는 일반 화면: 새로고침 버튼은 수정사항이나 조회한 내용을 초기화하여 화면에서 데이터를 조회하기 전인 초기화 상태로 되돌린다.
+ * 2. 조회 버튼이 없고 새로고침만 있는 화면 (예: w_ja010a 등): 새로고침 버튼을 누를 경우 화면 데이터를 재조회(Reload/Refresh)한다.
  * @param {HTMLElement} btn
  */
 function onToolbarRefresh(btn) {
     if (btn && (btn.disabled || btn.classList.contains('disabled'))) return;
     const pane = getActiveTabPane(btn);
     if (!pane) return;
+
+    const container = pane.closest ? (pane.closest('.tab-pane') || pane) : pane;
+
+    // 화면 내에 실제로 노출되는 [조회] 버튼이 존재하는지 여부 확인
+    const btnSearch = container.querySelector('.btn-search');
+    const isSearchHidden = !btnSearch ||
+        btnSearch.style.display === 'none' ||
+        btnSearch.classList.contains('d-none') ||
+        btnSearch.hidden ||
+        ((window.getComputedStyle && btnSearch.isConnected) && window.getComputedStyle(btnSearch).display === 'none');
+
+    const containers = [pane];
+    const vc = pane.querySelector ? pane.querySelector('.view-container') : null;
+    if (vc && vc !== pane) containers.push(vc);
+    const pp = pane.closest ? pane.closest('.tab-pane') : null;
+    if (pp && pp !== pane) containers.push(pp);
+
+    // =========================================================================
+    // CASE A: 조회 버튼이 없고 새로고침 버튼만 있는 화면 (w_ja010a 등) -> 재조회 모드
+    // =========================================================================
+    if (isSearchHidden) {
+        let reloaded = false;
+
+        // 1. 화면 전용 onRefresh 계약 함수 우선 실행 (재조회 로직 포함)
+        for (const c of containers) {
+            if (c && typeof c.onRefresh === 'function') {
+                try {
+                    c.onRefresh(btn);
+                    reloaded = true;
+                    break;
+                } catch (err) {
+                    console.warn('[onToolbarRefresh:Reload] onRefresh 실행 중 오류:', err);
+                }
+            }
+        }
+
+        // 2. 만약 onRefresh가 재조회를 하지 않았거나 없는 경우, onSearch / onRetrieve fallback 실행
+        if (!reloaded) {
+            for (const c of containers) {
+                if (c && typeof c.onSearch === 'function') {
+                    try {
+                        c.onSearch(btn);
+                        reloaded = true;
+                        break;
+                    } catch (err) {
+                        console.warn('[onToolbarRefresh:Reload] onSearch 실행 중 오류:', err);
+                    }
+                } else if (c && typeof c.onRetrieve === 'function') {
+                    try {
+                        c.onRetrieve(btn);
+                        reloaded = true;
+                        break;
+                    } catch (err) {
+                        console.warn('[onToolbarRefresh:Reload] onRetrieve 실행 중 오류:', err);
+                    }
+                }
+            }
+        }
+
+        // 3. 재조회 후 버튼 권한 상태를 '조회 완료(isSearched=true)' 상태로 유지 (입력, 저장 등 활성화)
+        if (window.ButtonRole && typeof window.ButtonRole.setSearchState === 'function') {
+            window.ButtonRole.setSearchState(pane, true);
+        }
+
+        return;
+    }
+
+    // =========================================================================
+    // CASE B: 조회 버튼이 있는 일반 화면 -> 초기화(Reset) 모드
+    // =========================================================================
 
     // 0. 버튼 권한 모듈: 조회 전 초기 상태로 되돌림 (닫기, 조회만 활성화, 나머지 비활성화)
     if (window.ButtonRole && typeof window.ButtonRole.setSearchState === 'function') {
@@ -208,12 +279,6 @@ function onToolbarRefresh(btn) {
 
     // 2. 화면 전용 초기화(onRefresh / onReset) 계약 함수 우선 실행
     let customRefreshed = false;
-    const containers = [pane];
-    const vc = pane.querySelector ? pane.querySelector('.view-container') : null;
-    if (vc && vc !== pane) containers.push(vc);
-    const pp = pane.closest ? pane.closest('.tab-pane') : null;
-    if (pp && pp !== pane) containers.push(pp);
-
     for (const c of containers) {
         if (c && typeof c.onRefresh === 'function') {
             try {
@@ -482,6 +547,22 @@ function onToolbarDelete(btn) {
 
             const targetRow = selectedRows[0];
             const rowData = targetRow.getData ? targetRow.getData() : {};
+
+            if (table._cudManager && typeof table._cudManager.deleteRow === 'function') {
+                table._cudManager.deleteRow(targetRow).then(function() {
+                    if (typeof showToast === 'function') {
+                        showToast("행이 삭제되었습니다. [저장] 시 최종 반영됩니다.", "info");
+                    }
+                    pane.dispatchEvent(new CustomEvent('masterRowDeleted', {
+                        bubbles: true,
+                        detail: { data: rowData }
+                    }));
+                }).catch(function(err) {
+                    console.error('[onToolbarDelete] 행 삭제 실패:', err);
+                });
+                return;
+            }
+
             targetRow.delete().then(function() {
                 if (typeof showToast === 'function') {
                     showToast("행이 삭제되었습니다.", "info");

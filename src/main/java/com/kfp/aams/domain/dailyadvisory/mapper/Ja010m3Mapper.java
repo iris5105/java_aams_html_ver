@@ -1,7 +1,6 @@
 package com.kfp.aams.domain.dailyadvisory.mapper;
 
 import com.kfp.aams.domain.dailyadvisory.dto.Ja010m3Dto;
-import com.kfp.aams.domain.dailyadvisory.dto.Ja010m3SaveDto;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
@@ -14,6 +13,4 @@ public interface Ja010m3Mapper {
                                        @Param("gyulYmd") String gyulYmd,
                                        @Param("sortGb") String sortGb,
                                        @Param("chk") String chk);
-
-    int updateJa010m3(Ja010m3SaveDto.Ja010m3ItemSaveDto item);
 }

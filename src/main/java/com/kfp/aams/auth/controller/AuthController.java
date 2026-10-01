@@ -168,6 +168,17 @@ public class AuthController {
         workDateCookie.setMaxAge(30 * 24 * 60 * 60);
         response.addCookie(workDateCookie);
 
+        // Set adminYn Cookie for client scripts (30 days)
+        Cookie adminYnCookie = new Cookie("adminYn", userDto.getAdminYn() != null ? userDto.getAdminYn() : "N");
+        adminYnCookie.setPath("/");
+        adminYnCookie.setMaxAge(30 * 24 * 60 * 60);
+        response.addCookie(adminYnCookie);
+
+        Cookie adminCookie = new Cookie("admin", "Y".equalsIgnoreCase(userDto.getAdminYn()) ? "Y" : "N");
+        adminCookie.setPath("/");
+        adminCookie.setMaxAge(30 * 24 * 60 * 60);
+        response.addCookie(adminCookie);
+
         log.info("User {} logged in successfully (adminYn: {}). Assigned corpGr: {}, workDate: {}.", userDto.getUserId(),
                 userDto.getAdminYn(), userDto.getCorpGr(), workDate);
 

@@ -123,6 +123,9 @@
             let gridMaster = null;
             let gridDetail = null;
             let gridIo = null;
+            let cudManagerMaster = null;
+            let cudManagerDetail = null;
+            let cudManagerIo = null;
 
             const initialMasterData = /*[[${masterList}]]*/ [];
 
@@ -435,6 +438,8 @@
                         syncJa010bDetail(rows[0], rows[0].getData());
                     }
                 });
+
+                cudManagerMaster = AamsCudManager.create(gridMaster);
             }
 
             // 2. Initialize Detail Grid (d_ja010b2.srd)
@@ -464,6 +469,8 @@
                     gridDetail.deselectRow();
                     row.select();
                 });
+
+                cudManagerDetail = AamsCudManager.create(gridDetail);
             }
 
             // 3. Initialize IO Grid (d_szt0io.srd)
@@ -493,13 +500,16 @@
                     gridIo.deselectRow();
                     row.select();
                 });
+
+                cudManagerIo = AamsCudManager.create(gridIo);
             }
 
             // Sub-grid Action Handlers: 결산기별 이력 (gridDetail)
             function addDetailRow() {
                 const selectedMasterRows = gridMaster ? gridMaster.getSelectedRows() : [];
                 if (!selectedMasterRows || selectedMasterRows.length === 0) {
-                    alert("상단 목록에서 계좌(마스터)를 먼저 선택하세요.");
+                    if (typeof showToast === "function") showToast("상단 목록에서 계좌(마스터)를 먼저 선택하세요.", "warning");
+                    else alert("상단 목록에서 계좌(마스터)를 먼저 선택하세요.");
                     return;
                 }
                 const masterData = selectedMasterRows[0].getData();
@@ -518,7 +528,6 @@
                     }
                 }
                 const nextGyulGi = maxGyulGi + 1;
-                const todayStr = new Date().toISOString().slice(0, 10).replace(/-/g, ".");
 
                 const newRow = {
                     isNew: true,
@@ -526,20 +535,23 @@
                     corpGr: corpGr,
                     fundCd: fundCd,
                     gyulGi: nextGyulGi,
-                    bfGyulYmd: todayStr,
-                    afGyulYmd: todayStr,
-                    ilsu: 0,
-                    giSonikAek: 0,
-                    wmSeoljAek: 0,
-                    haejiYmd: ""
+                    bfGyulYmd: null,
+                    afGyulYmd: null,
+                    ilsu: null,
+                    giSonikAek: null,
+                    wmSeoljAek: null,
+                    haejiYmd: null
                 };
 
-                if (gridDetail) {
-                    gridDetail.addRow(newRow, true).then(function(row) {
-                        gridDetail.deselectRow();
-                        row.select();
-                        const cell = row.getCell("bfGyulYmd") || row.getCell("gyulGi");
-                        if (cell) cell.edit();
+                const addPromise = cudManagerDetail ? cudManagerDetail.addRow(newRow, true) : (gridDetail ? gridDetail.addRow(newRow, true) : null);
+                if (addPromise) {
+                    addPromise.then(function(row) {
+                        if (row) {
+                            gridDetail.deselectRow();
+                            row.select();
+                            const cell = row.getCell("bfGyulYmd") || row.getCell("gyulGi");
+                            if (cell) cell.edit();
+                        }
                     });
                 }
             }
@@ -548,7 +560,8 @@
                 if (!gridDetail) return;
                 const selectedRows = gridDetail.getSelectedRows();
                 if (!selectedRows || selectedRows.length === 0) {
-                    alert("복사할 결산기 이력 행을 선택하세요.");
+                    if (typeof showToast === "function") showToast("복사할 결산기 이력 행을 선택하세요.", "warning");
+                    else alert("복사할 결산기 이력 행을 선택하세요.");
                     return;
                 }
                 const srcData = selectedRows[0].getData();
@@ -556,20 +569,30 @@
                     isNew: true,
                     _isNew: true
                 });
-                gridDetail.addRow(copiedData, false, selectedRows[0]).then(function(row) {
-                    gridDetail.deselectRow();
-                    row.select();
-                });
+                const addPromise = cudManagerDetail ? cudManagerDetail.addRow(copiedData, false) : gridDetail.addRow(copiedData, false, selectedRows[0]);
+                if (addPromise) {
+                    addPromise.then(function(row) {
+                        if (row) {
+                            gridDetail.deselectRow();
+                            row.select();
+                        }
+                    });
+                }
             }
 
             function deleteDetailRow() {
                 if (!gridDetail) return;
                 const selectedRows = gridDetail.getSelectedRows();
                 if (!selectedRows || selectedRows.length === 0) {
-                    alert("삭제할 결산기 이력 행을 선택하세요.");
+                    if (typeof showToast === "function") showToast("삭제할 결산기 이력 행을 선택하세요.", "warning");
+                    else alert("삭제할 결산기 이력 행을 선택하세요.");
                     return;
                 }
-                if (confirm("선택한 결산기 이력 행을 삭제하시겠습니까?")) {
+                if (cudManagerDetail) {
+                    cudManagerDetail.deleteRow(selectedRows[0]).then(function() {
+                        if (typeof showToast === "function") showToast("결산기 이력 행이 삭제 대기열에 등록되었습니다.", "info");
+                    });
+                } else {
                     selectedRows[0].delete();
                 }
             }
@@ -578,7 +601,8 @@
             function addIoRow() {
                 const selectedMasterRows = gridMaster ? gridMaster.getSelectedRows() : [];
                 if (!selectedMasterRows || selectedMasterRows.length === 0) {
-                    alert("상단 목록에서 계좌(마스터)를 먼저 선택하세요.");
+                    if (typeof showToast === "function") showToast("상단 목록에서 계좌(마스터)를 먼저 선택하세요.", "warning");
+                    else alert("상단 목록에서 계좌(마스터)를 먼저 선택하세요.");
                     return;
                 }
                 const masterData = selectedMasterRows[0].getData();
@@ -593,20 +617,23 @@
                     corpGr: corpGr,
                     fundCd: fundCd,
                     trYmd: todayStr,
-                    inAek: 0,
-                    outAek: 0,
-                    ioJo: 0,
-                    wonbonAek: Number(masterData.reSeoljAek || 0),
-                    giganIlsu: 0,
-                    passIlsu: 0
+                    inAek: null,
+                    outAek: null,
+                    ioJo: null,
+                    wonbonAek: null,
+                    giganIlsu: null,
+                    passIlsu: null
                 };
 
-                if (gridIo) {
-                    gridIo.addRow(newRow, true).then(function(row) {
-                        gridIo.deselectRow();
-                        row.select();
-                        const cell = row.getCell("trYmd") || row.getCell("inAek");
-                        if (cell) cell.edit();
+                const addPromise = cudManagerIo ? cudManagerIo.addRow(newRow, true) : (gridIo ? gridIo.addRow(newRow, true) : null);
+                if (addPromise) {
+                    addPromise.then(function(row) {
+                        if (row) {
+                            gridIo.deselectRow();
+                            row.select();
+                            const cell = row.getCell("trYmd") || row.getCell("inAek");
+                            if (cell) cell.edit();
+                        }
                     });
                 }
             }
@@ -615,7 +642,8 @@
                 if (!gridIo) return;
                 const selectedRows = gridIo.getSelectedRows();
                 if (!selectedRows || selectedRows.length === 0) {
-                    alert("복사할 입출금 내역 행을 선택하세요.");
+                    if (typeof showToast === "function") showToast("복사할 입출금 내역 행을 선택하세요.", "warning");
+                    else alert("복사할 입출금 내역 행을 선택하세요.");
                     return;
                 }
                 const srcData = selectedRows[0].getData();
@@ -623,20 +651,30 @@
                     isNew: true,
                     _isNew: true
                 });
-                gridIo.addRow(copiedData, false, selectedRows[0]).then(function(row) {
-                    gridIo.deselectRow();
-                    row.select();
-                });
+                const addPromise = cudManagerIo ? cudManagerIo.addRow(copiedData, false) : gridIo.addRow(copiedData, false, selectedRows[0]);
+                if (addPromise) {
+                    addPromise.then(function(row) {
+                        if (row) {
+                            gridIo.deselectRow();
+                            row.select();
+                        }
+                    });
+                }
             }
 
             function deleteIoRow() {
                 if (!gridIo) return;
                 const selectedRows = gridIo.getSelectedRows();
                 if (!selectedRows || selectedRows.length === 0) {
-                    alert("삭제할 입출금 내역 행을 선택하세요.");
+                    if (typeof showToast === "function") showToast("삭제할 입출금 내역 행을 선택하세요.", "warning");
+                    else alert("삭제할 입출금 내역 행을 선택하세요.");
                     return;
                 }
-                if (confirm("선택한 입출금 내역 행을 삭제하시겠습니까?")) {
+                if (cudManagerIo) {
+                    cudManagerIo.deleteRow(selectedRows[0]).then(function() {
+                        if (typeof showToast === "function") showToast("입출금 내역 행이 삭제 대기열에 등록되었습니다.", "info");
+                    });
+                } else {
                     selectedRows[0].delete();
                 }
             }
@@ -644,8 +682,8 @@
             // Global functions for controller integration
             window.loadJa010bMaster = function(corpGr) {
                 lastLoadedMasterKey = null;
-                const filterSelect = document.getElementById("filterCorpGr");
-                const corp = corpGr != null ? corpGr : (filterSelect ? filterSelect.value : "");
+                const filterSelect = pane ? pane.querySelector("#filterCorpGr") : document.getElementById("filterCorpGr");
+                const corp = (corpGr != null && String(corpGr).trim() !== "") ? corpGr : (filterSelect ? filterSelect.value : "");
 
                 // Re-trigger ue_dddw_retrieve when corpGr changes
                 ue_dddw_retrieve(corp);
@@ -654,8 +692,9 @@
                     .then(res => res.json())
                     .then(data => {
                         if (gridMaster) {
-                            gridMaster.setData(Array.isArray(data) ? data : []);
-                            if (Array.isArray(data) && data.length > 0) {
+                            const formatted = cudManagerMaster ? cudManagerMaster.formatData(data) : (Array.isArray(data) ? data : []);
+                            gridMaster.setData(formatted);
+                            if (Array.isArray(formatted) && formatted.length > 0) {
                                 setTimeout(() => {
                                     const rows = gridMaster.getRows();
                                     if (rows && rows.length > 0) {
@@ -706,7 +745,8 @@
                     .then(res => res.json())
                     .then(data => {
                         if (gridDetail) {
-                            gridDetail.setData(Array.isArray(data) ? data : []);
+                            const formatted = cudManagerDetail ? cudManagerDetail.formatData(data) : (Array.isArray(data) ? data : []);
+                            gridDetail.setData(formatted);
                             setTimeout(() => { gridDetail.redraw(true); }, 50);
                         }
                     })
@@ -716,7 +756,8 @@
                     .then(res => res.json())
                     .then(data => {
                         if (gridIo) {
-                            gridIo.setData(Array.isArray(data) ? data : []);
+                            const formatted = cudManagerIo ? cudManagerIo.formatData(data) : (Array.isArray(data) ? data : []);
+                            gridIo.setData(formatted);
                             setTimeout(() => { gridIo.redraw(true); }, 50);
                         }
                     })
@@ -742,12 +783,155 @@
             const btnIoDel = pane ? pane.querySelector("#btnIoDel") : document.getElementById("btnIoDel");
             if (btnIoDel) btnIoDel.addEventListener("click", deleteIoRow);
 
-            // Register standard toolbar & CorpGr contract (Guideline 8)
+            // Register standard toolbar & CorpGr contract (Guideline 8 & 9)
             if (pane) {
                 pane.onSearch = function() { window.loadJa010bMaster(); };
                 pane.onRetrieve = function() { window.loadJa010bMaster(); };
+
+                // [입력] 버튼: 신규 계좌(마스터) 행 추가
+                pane.onInput = function() {
+                    const filterSelect = pane ? pane.querySelector("#filterCorpGr") : document.getElementById("filterCorpGr");
+                    const corpGr = filterSelect ? filterSelect.value : "";
+                    const todayStr = new Date().toISOString().slice(0, 10).replace(/-/g, ".");
+
+                    fetch('/api/account/ja010b/next-fund-cd?corpGr=' + encodeURIComponent(corpGr))
+                        .then(res => res.json())
+                        .then(resData => {
+                            const nextFundCd = (resData && resData.nextFundCd) ? resData.nextFundCd : "";
+                            const selectedRows = gridMaster ? gridMaster.getSelectedRows() : [];
+                            const prevRowData = (selectedRows && selectedRows.length > 0) ? selectedRows[0].getData() : null;
+                            const newMaster = {
+                                isNew: true,
+                                isUpdated: false,
+                                corpGr: corpGr,
+                                fundCd: nextFundCd,
+                                fundNm: "",
+                                mgCd: prevRowData ? (prevRowData.mgCd || "") : "",
+                                unyongSabun: prevRowData ? (prevRowData.unyongSabun || "") : "",
+                                typeGb: "1",
+                                sintakGigan: 12,
+                                fstSeoljYmd: todayStr,
+                                bfGyulYmd: null,
+                                afGyulYmd: null,
+                                reSeoljYear: 1,
+                                reSeoljYmd: todayStr,
+                                haejiYmd: null,
+                                preBasic: null,
+                                basicPer: 1,
+                                bmPer: 0,
+                                successPer: 0,
+                                susuRt: 0.0005,
+                                orderSend: "N",
+                                encAcctNo: "AAAAAAAAAAA=",
+                                email1: null,
+                                specialNote: null,
+                                expenseYn: null,
+                                acctNo: null
+                            };
+
+                            const addPromise = cudManagerMaster ? cudManagerMaster.addRow(newMaster, true) : gridMaster.addRow(newMaster, true);
+                            addPromise.then(function(row) {
+                                if (row) {
+                                    gridMaster.deselectRow();
+                                    row.select();
+                                    syncJa010bDetail(row, row.getData());
+                                    const cell = row.getCell("fundNm") || row.getCell("fundCd");
+                                    if (cell) cell.edit();
+                                }
+                            });
+                        })
+                        .catch(err => {
+                            console.error("Error fetching next fundCd:", err);
+                        });
+                };
+
+                // [삭제] 버튼: 선택된 행 큐 반영 삭제
+                pane.onDelete = function() {
+                    const selIo = gridIo ? gridIo.getSelectedRows() : [];
+                    if (selIo.length > 0) {
+                        if (confirm("선택한 입출금 내역 행을 삭제하시겠습니까?")) {
+                            deleteIoRow();
+                        }
+                        return;
+                    }
+                    const selDetail = gridDetail ? gridDetail.getSelectedRows() : [];
+                    if (selDetail.length > 0) {
+                        if (confirm("선택한 결산기 이력 행을 삭제하시겠습니까?")) {
+                            deleteDetailRow();
+                        }
+                        return;
+                    }
+                    const selMaster = gridMaster ? gridMaster.getSelectedRows() : [];
+                    if (selMaster.length > 0) {
+                        if (confirm("선택한 계좌(마스터) 행을 삭제하시겠습니까? (저장 시 최종 삭제)")) {
+                            if (cudManagerMaster) {
+                                cudManagerMaster.deleteRow(selMaster[0]).then(function() {
+                                    if (typeof showToast === "function") showToast("계좌 행이 삭제 대기열에 등록되었습니다.", "info");
+                                });
+                            } else {
+                                selMaster[0].delete();
+                            }
+                        }
+                        return;
+                    }
+                    if (typeof showToast === "function") showToast("삭제할 행을 선택하세요.", "warning");
+                };
+
+                // [저장] 버튼: 신규행은 INSERT, 기존 수정행은 UPDATE, 삭제행은 DELETE (4대 원칙 큐 연동)
+                pane.onSave = function() {
+                    const masterChanges = cudManagerMaster ? cudManagerMaster.getChanges() : { itemList: [], deletedList: [] };
+                    const detailChanges = cudManagerDetail ? cudManagerDetail.getChanges() : { itemList: [], deletedList: [] };
+                    const ioChanges = cudManagerIo ? cudManagerIo.getChanges() : { itemList: [], deletedList: [] };
+
+                    if (!masterChanges.hasChanges && !detailChanges.hasChanges && !ioChanges.hasChanges) {
+                        if (typeof showToast === "function") showToast("저장할 변경사항이 없습니다.", "info");
+                        return;
+                    }
+
+                    const filterSelect = pane ? pane.querySelector("#filterCorpGr") : document.getElementById("filterCorpGr");
+                    const corpGr = filterSelect ? filterSelect.value : "";
+
+                    const payload = {
+                        corpGr: corpGr,
+                        masterList: masterChanges.itemList,
+                        detailList: detailChanges.itemList,
+                        ioList: ioChanges.itemList,
+                        deletedMasterList: masterChanges.deletedList,
+                        deletedDetailList: detailChanges.deletedList,
+                        deletedIoList: ioChanges.deletedList
+                    };
+
+                    fetch('/api/account/ja010b/save', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    })
+                    .then(res => res.json())
+                    .then(resData => {
+                        if (resData && resData.success) {
+                            if (cudManagerMaster) cudManagerMaster.reset();
+                            if (cudManagerDetail) cudManagerDetail.reset();
+                            if (cudManagerIo) cudManagerIo.reset();
+                            if (typeof showToast === "function") showToast(resData.message || "정상적으로 저장되었습니다.", "success");
+                            const selectedRows = gridMaster ? gridMaster.getSelectedRows() : [];
+                            const curFundCd = (selectedRows.length > 0) ? selectedRows[0].getData().fundCd : "";
+                            window.loadJa010bMaster(corpGr);
+                        } else {
+                            const msg = (resData && resData.message) ? resData.message : "저장에 실패했습니다.";
+                            if (typeof showToast === "function") showToast(msg, "error");
+                        }
+                    })
+                    .catch(err => {
+                        console.error("저장 오류:", err);
+                        if (typeof showToast === "function") showToast("저장 중 통신 오류가 발생했습니다.", "error");
+                    });
+                };
+
                 // 공통버튼 지침: 새로고침은 조회 전 초기화 상태로 되돌린다.
                 pane.onRefresh = function() {
+                    if (cudManagerMaster) cudManagerMaster.reset();
+                    if (cudManagerDetail) cudManagerDetail.reset();
+                    if (cudManagerIo) cudManagerIo.reset();
                     if (gridMaster) gridMaster.clearData();
                     if (gridDetail) gridDetail.clearData();
                     if (gridIo) gridIo.clearData();
@@ -758,9 +942,13 @@
                 };
                 pane.onCorpGrChange = function(val) {
                     lastLoadedMasterKey = null;
+                    window.loadJa010bMaster(val);
                 };
                 pane.addEventListener("corpGrChanged", function(e) {
                     lastLoadedMasterKey = null;
+                    if (e.detail && e.detail.corpGr) {
+                        window.loadJa010bMaster(e.detail.corpGr);
+                    }
                 });
             }
 
@@ -773,6 +961,39 @@
                 initDetailGrid();
                 initIoGrid();
                 ue_dddw_retrieve();
+
+                // 셀 편집 감지 (기존행 update 플래그 설정)
+                if (gridMaster) {
+                    gridMaster.on("cellEdited", function(cell) {
+                        const rowData = cell.getRow().getData();
+                        if (!rowData.isNew) rowData.isUpdated = true;
+                    });
+                }
+                if (gridDetail) {
+                    gridDetail.on("cellEdited", function(cell) {
+                        const rowData = cell.getRow().getData();
+                        if (!rowData.isNew) rowData.isUpdated = true;
+                    });
+                }
+                if (gridIo) {
+                    gridIo.on("cellEdited", function(cell) {
+                        const rowData = cell.getRow().getData();
+                        if (!rowData.isNew) rowData.isUpdated = true;
+                    });
+                }
+
+                // 특이사항 텍스트에어리어 변경 감지
+                const mle = pane ? pane.querySelector("#mleSpecialNote") : document.getElementById("mleSpecialNote");
+                if (mle) {
+                    mle.addEventListener("input", function() {
+                        const selected = gridMaster ? gridMaster.getSelectedRows() : [];
+                        if (selected && selected.length > 0) {
+                            const d = selected[0].getData();
+                            d.specialNote = mle.value;
+                            if (!d.isNew) d.isUpdated = true;
+                        }
+                    });
+                }
 
                 // eb_direct_retrieve = true 명세 반영 자동 조회
                 setTimeout(() => {
@@ -793,8 +1014,14 @@
             }
         }
 
-        function onJa010bInput() { alert("신규 입력을 진행합니다."); }
-        function onJa010bSave() { alert("변경사항이 저장되었습니다."); }
+        function onJa010bInput() {
+            const pane = document.querySelector('.ja010b-container') || document;
+            if (pane && typeof pane.onInput === 'function') pane.onInput();
+        }
+        function onJa010bSave() {
+            const pane = document.querySelector('.ja010b-container') || document;
+            if (pane && typeof pane.onSave === 'function') pane.onSave();
+        }
         function onJa010bExcel() { alert("엑셀 다운로드를 진행합니다."); }
     </script>
 </div>

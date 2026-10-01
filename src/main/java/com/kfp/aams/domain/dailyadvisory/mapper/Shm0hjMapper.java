@@ -17,8 +17,4 @@ public interface Shm0hjMapper {
     List<Shm0hjMasterDto> selectShm0hjList(@Param("corpGr") String corpGr,
                                           @Param("ymd") String ymd,
                                           @Param("cashCd") String cashCd);
-
-    void callSrShj0ig(@Param("corpGr") String corpGr,
-                      @Param("jmCd") String jmCd,
-                      @Param("pDel") String pDel);
 }

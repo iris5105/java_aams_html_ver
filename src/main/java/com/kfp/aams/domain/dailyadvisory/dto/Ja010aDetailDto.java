@@ -22,4 +22,6 @@ public class Ja010aDetailDto {
     private String faxNo;
     private String email;
     private Integer pVisible;
+    private Boolean isNew;
+    private Boolean isUpdated;
 }

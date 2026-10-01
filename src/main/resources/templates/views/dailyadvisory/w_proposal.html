@@ -281,6 +281,8 @@
         (function() {
             let gridMaster = null;
             let gridComment = null;
+            let cudManagerMaster = null;
+            let cudManagerComment = null;
 
             // 데이터는 eb_direct_retrieve REST API(loadProposalMaster)로만 비동기 로드
             const initialMasterData = [];
@@ -440,6 +442,8 @@
                     updateDetailPanel(data);
                 }, { keyField: 'ymd' });
 
+                cudManagerMaster = AamsCudManager.create(gridMaster);
+
                 // 2. Tabulator standard rowClick fallback
                 gridMaster.on("rowClick", function(e, row) {
                     const data = row ? row.getData() : null;
@@ -486,8 +490,8 @@
                         { 
                             title: "댓  글  내  용", 
                             field: "appending", 
-                            hozAlign: "left",
-                            minWidth: 200,
+                            hozAlign: "left", 
+                            minWidth: 200, 
                             editor: "input",
                             editable: isCommentEditable,
                             formatter: cell => {
@@ -500,6 +504,8 @@
                         }
                     ]
                 });
+
+                cudManagerComment = AamsCudManager.create(gridComment);
 
                 if (typeof setupTabulatorRowSelection === "function") {
                     setupTabulatorRowSelection(gridComment);
@@ -560,13 +566,16 @@
 
                 // Reset detail panels
                 resetDetailPanel();
+                if (cudManagerMaster) cudManagerMaster.reset();
+                if (cudManagerComment) cudManagerComment.reset();
                 
                 fetch(`/api/proposal/master?corpGr=${encodeURIComponent(corpGr)}`)
                     .then(res => res.json())
                     .then(data => {
                         const list = Array.isArray(data) ? data : [];
+                        const formatted = cudManagerMaster ? cudManagerMaster.formatData(list) : list;
                         if (gridMaster) {
-                            gridMaster.setData(list).then(function() {
+                            gridMaster.setData(formatted).then(function() {
                                 if (list.length > 0) {
                                     setTimeout(() => {
                                         const rows = gridMaster.getRows();
@@ -600,6 +609,7 @@
                 const key = `${corpGr}_${ymd}_${proposer}`;
                 if (lastLoadedProposalKey === key) return;
                 lastLoadedProposalKey = key;
+                if (cudManagerComment) cudManagerComment.reset();
 
                 let url = `/api/proposal/comment?corpGr=${encodeURIComponent(corpGr)}`;
                 if (ymd) url += `&ymd=${encodeURIComponent(ymd)}`;
@@ -609,7 +619,8 @@
                     .then(res => res.json())
                     .then(data => {
                         if (gridComment) {
-                            gridComment.setData(data || []);
+                            const formatted = cudManagerComment ? cudManagerComment.formatData(data || []) : (data || []);
+                            gridComment.setData(formatted);
                             setTimeout(() => {
                                 gridComment.redraw(true);
                             }, 50);
@@ -666,7 +677,10 @@
                     if (gridMaster) {
                         const selectedRows = gridMaster.getSelectedRows();
                         if (selectedRows && selectedRows.length > 0) {
-                            selectedRows[0].update({ matter: matterEl.value });
+                            selectedRows[0].update({ matter: matterEl.value, isUpdated: true });
+                            if (cudManagerMaster) {
+                                cudManagerMaster.trackChange(selectedRows[0]);
+                            }
                         }
                     }
                 });
@@ -678,7 +692,10 @@
                     if (gridMaster) {
                         const selectedRows = gridMaster.getSelectedRows();
                         if (selectedRows && selectedRows.length > 0) {
-                            selectedRows[0].update({ content: contentEl.value });
+                            selectedRows[0].update({ content: contentEl.value, isUpdated: true });
+                            if (cudManagerMaster) {
+                                cudManagerMaster.trackChange(selectedRows[0]);
+                            }
                         }
                     }
                 });
@@ -695,7 +712,7 @@
                         if (!gridMaster || !gridComment) return;
                         const selectedMaster = gridMaster.getSelectedRows();
                         if (!selectedMaster || selectedMaster.length === 0) {
-                            alert("댓글을 추가할 의뢰 건을 먼저 선택해주세요.");
+                            if (typeof showToast === "function") showToast("댓글을 추가할 의뢰 건을 먼저 선택해주세요.", "warning");
                             return;
                         }
                         const masterData = selectedMaster[0].getData();
@@ -716,18 +733,17 @@
                             isNew: true
                         };
 
-                        // Tabulator 자체 addRow API로 행 추가
-                        gridComment.addRow(newRowData, false).then(function(newRow) {
-                            gridComment.deselectRow();
-                            newRow.select();
-                            newRow.scrollTo();
-
-                            // 새로 생성된 댓글 내용(appending) 셀로 바로 편집 모드 포커스
-                            setTimeout(() => {
-                                const cell = newRow.getCell("appending");
-                                if (cell) cell.edit(true);
-                            }, 50);
-                        });
+                        if (cudManagerComment) {
+                            cudManagerComment.addRow(newRowData, false).then(function(newRow) {
+                                gridComment.deselectRow();
+                                newRow.select();
+                                newRow.scrollTo();
+                                setTimeout(() => {
+                                    const cell = newRow.getCell("appending");
+                                    if (cell) cell.edit(true);
+                                }, 50);
+                            });
+                        }
                     };
                 }
 
@@ -736,20 +752,24 @@
                         if (!gridComment) return;
                         const selectedRows = gridComment.getSelectedRows();
                         if (!selectedRows || selectedRows.length === 0) {
-                            alert("삭제할 댓글을 먼저 선택해주세요.");
+                            if (typeof showToast === "function") showToast("삭제할 댓글을 먼저 선택해주세요.", "warning");
                             return;
                         }
 
                         const rowData = selectedRows[0].getData();
                         const currentNm = resolveCurrentUserNm();
                         if (!rowData.isNew && rowData.sbNm && currentNm && rowData.sbNm !== currentNm) {
-                            alert("본인이 작성한 댓글만 삭제할 수 있습니다.");
+                            if (typeof showToast === "function") showToast("본인이 작성한 댓글만 삭제할 수 있습니다.", "warning");
                             return;
                         }
 
                         if (confirm("선택한 댓글을 삭제하시겠습니까?")) {
-                            // Tabulator 자체 delete API
-                            selectedRows[0].delete();
+                            if (cudManagerComment) {
+                                cudManagerComment.deleteRow(selectedRows[0]);
+                            } else {
+                                selectedRows[0].delete();
+                            }
+                            if (typeof showToast === "function") showToast("댓글이 삭제되었습니다. 저장 버튼을 누르면 최종 반영됩니다.", "info");
                         }
                     };
                 }
@@ -805,13 +825,149 @@
                 pane.onRefresh = function() {
                     if (gridMaster) gridMaster.clearData();
                     if (gridComment) gridComment.clearData();
+                    if (cudManagerMaster) cudManagerMaster.reset();
+                    if (cudManagerComment) cudManagerComment.reset();
                     resetDetailPanel();
                     if (typeof showToast === "function") showToast("화면이 초기화되었습니다.", "info");
                 };
                 pane.onCorpGrChange = function(val) {
+                    lastLoadedProposalKey = null;
+                    window.loadProposalMaster(val);
                 };
-                pane.addEventListener("corpGrChanged", function() {
+                pane.addEventListener("corpGrChanged", function(e) {
+                    lastLoadedProposalKey = null;
+                    const cGr = (e.detail && e.detail.corpGr) ? e.detail.corpGr : "";
+                    window.loadProposalMaster(cGr);
                 });
+
+                // [입력] 버튼 핸들러
+                pane.onInput = function() {
+                    if (!gridMaster) return;
+                    const now = new Date();
+                    const pad = n => String(n).padStart(2, '0');
+                    const nowYmd = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+                    const currentUser = resolveCurrentUserNm();
+                    const filterSelect = pane ? pane.querySelector('select[name="corpGr"]') : document.getElementById("filterCorpGr");
+                    const corpGr = filterSelect && filterSelect.value ? filterSelect.value : (getCookieVal("savedCorpGr") || getCookieVal("corpGr") || "");
+
+                    const newRow = {
+                        corpGr: corpGr,
+                        isNew: true,
+                        isUpdated: false,
+                        ymd: nowYmd,
+                        proposer: currentUser,
+                        title: "",
+                        matter: "",
+                        content: "",
+                        contentYmd: null,
+                        color: 16711680
+                    };
+
+                    if (cudManagerMaster) {
+                        cudManagerMaster.addRow(newRow, true).then(function(row) {
+                            gridMaster.deselectRow();
+                            row.select();
+                            updateDetailPanel(newRow);
+                            if (typeof showToast === "function") showToast("신규 건의사항이 추가되었습니다.", "info");
+                            setTimeout(() => {
+                                const cell = row.getCell("title");
+                                if (cell) cell.edit(true);
+                            }, 80);
+                        });
+                    }
+                };
+
+                // [삭제] 버튼 핸들러 (마스터 건의사항 삭제)
+                pane.onDelete = function() {
+                    if (!gridMaster) return;
+                    const selected = gridMaster.getSelectedRows();
+                    if (!selected || selected.length === 0) {
+                        if (typeof showToast === "function") showToast("삭제할 건의사항 행을 먼저 선택해주세요.", "warning");
+                        return;
+                    }
+
+                    const row = selected[0];
+                    const data = row.getData();
+                    if (!isCurrentUserProposer(data)) {
+                        if (typeof showToast === "function") showToast("본인이 작성한 건의사항만 삭제할 수 있습니다.", "warning");
+                        return;
+                    }
+
+                    if (confirm("선택한 건의사항(및 해당 댓글 일체)을 삭제하시겠습니까?\n저장 버튼을 누르면 최종 반영됩니다.")) {
+                        if (cudManagerMaster) {
+                            cudManagerMaster.deleteRow(row);
+                        } else {
+                            row.delete();
+                        }
+                        resetDetailPanel();
+                        if (typeof showToast === "function") showToast("건의사항이 삭제 목록에 추가되었습니다.", "info");
+                    }
+                };
+
+                // [저장] 버튼 핸들러
+                pane.onSave = function() {
+                    if (!gridMaster) return;
+
+                    const masterChanges = cudManagerMaster ? cudManagerMaster.getChanges() : { inserts: [], updates: [], deletes: [], hasChanges: false };
+                    const commentChanges = cudManagerComment ? cudManagerComment.getChanges() : { inserts: [], updates: [], deletes: [], hasChanges: false };
+
+                    const targetMasters = masterChanges.inserts.concat(masterChanges.updates);
+                    const deletedMasterList = masterChanges.deletes;
+                    const targetComments = commentChanges.inserts.concat(commentChanges.updates);
+                    const deletedCommentList = commentChanges.deletes;
+
+                    if (!masterChanges.hasChanges && !commentChanges.hasChanges) {
+                        if (typeof showToast === "function") showToast("저장할 변경 내역이 없습니다.", "warning");
+                        return;
+                    }
+
+                    // 필수값 검증
+                    for (let i = 0; i < targetMasters.length; i++) {
+                        const m = targetMasters[i];
+                        if (!m.title || m.title.trim() === "") {
+                            if (typeof showToast === "function") showToast("개발 의뢰내용(제목)을 입력해주세요.", "warning");
+                            return;
+                        }
+                    }
+
+                    const filterSelect = pane ? pane.querySelector('select[name="corpGr"]') : document.getElementById("filterCorpGr");
+                    const corpGr = filterSelect && filterSelect.value ? filterSelect.value : (getCookieVal("savedCorpGr") || getCookieVal("corpGr") || "");
+
+                    const payload = {
+                        corpGr: corpGr,
+                        masterList: targetMasters,
+                        deletedMasterList: deletedMasterList,
+                        commentList: targetComments,
+                        deletedCommentList: deletedCommentList
+                    };
+
+                    fetch("/api/proposal/save", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(payload)
+                    })
+                    .then(res => res.json())
+                    .then(res => {
+                        if (res && res.success) {
+                            if (cudManagerMaster) cudManagerMaster.reset();
+                            if (cudManagerComment) cudManagerComment.reset();
+                            if (typeof showToast === "function") {
+                                showToast(`건의사항 정보가 저장되었습니다. (${res.count}건)`, "success");
+                            }
+                            loadProposalMaster();
+                        } else {
+                            if (typeof showToast === "function") {
+                                showToast(res.message || "저장 중 오류가 발생했습니다.", "error");
+                            }
+                        }
+                    })
+                    .catch(err => {
+                        console.error("Save error:", err);
+                        if (typeof showToast === "function") {
+                            showToast("저장 처리 중 네트워크 오류가 발생했습니다.", "error");
+                        }
+                    });
+                };
             }
 
             // Guideline 10: Single initialization entry point with isInitialized guard

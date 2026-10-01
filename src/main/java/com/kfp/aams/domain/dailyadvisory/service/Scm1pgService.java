@@ -17,6 +17,7 @@ import java.util.List;
 public class Scm1pgService {
 
     private final Scm1pgMapper scm1pgMapper;
+    private final com.kfp.aams.domain.dailyadvisory.mapper.querydsl.Scm1pgQueryDslRepository scm1pgQueryDslRepository;
 
     /**
      * 마스터 목록 조회
@@ -41,7 +42,7 @@ public class Scm1pgService {
     }
 
     /**
-     * 디테일 일괄 저장
+     * 디테일 일괄 저장 (JPA EntityManager CUD 및 SCM1J 동기화)
      */
     @Transactional
     public void saveDetail(Scm1pgSaveDto saveDto) {
@@ -53,7 +54,7 @@ public class Scm1pgService {
         if (saveDto.getDeletedRows() != null) {
             for (Scm1pgDetailDto row : saveDto.getDeletedRows()) {
                 if (row.getYmd() != null && !row.getYmd().isBlank()) {
-                    scm1pgMapper.deleteDetail(corpGr, jmCd, row.getYmd());
+                    scm1pgQueryDslRepository.deleteDetail(corpGr, jmCd, row.getYmd());
                 }
             }
         }
@@ -64,10 +65,11 @@ public class Scm1pgService {
                 row.setCorpGr(corpGr);
                 row.setJmCd(jmCd);
                 try {
-                    scm1pgMapper.insertDetail(row);
+                    scm1pgQueryDslRepository.insertDetail(row);
                 } catch (Exception e) {
-                    scm1pgMapper.updateDetail(row);
+                    scm1pgQueryDslRepository.updateDetail(row);
                 }
+                scm1pgQueryDslRepository.syncScm1j(row);
             }
         }
 
@@ -76,10 +78,11 @@ public class Scm1pgService {
             for (Scm1pgDetailDto row : saveDto.getUpdatedRows()) {
                 row.setCorpGr(corpGr);
                 row.setJmCd(jmCd);
-                int updated = scm1pgMapper.updateDetail(row);
+                int updated = scm1pgQueryDslRepository.updateDetail(row);
                 if (updated == 0) {
-                    scm1pgMapper.insertDetail(row);
+                    scm1pgQueryDslRepository.insertDetail(row);
                 }
+                scm1pgQueryDslRepository.syncScm1j(row);
             }
         }
     }

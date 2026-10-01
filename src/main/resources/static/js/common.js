@@ -69,11 +69,19 @@ function verifyCorpGrCookie() {
  * 3. #filterCorpGr or #corpGrSelect element within pane / document
  */
 function resolveCorpGr(pane) {
+    // 1. 현재 화면/탭 pane 또는 DOM에서 filterCorpGr / corpGr 선택 요소를 최우선으로 확인
+    const selectEl = pane ? (pane.querySelector("#filterCorpGr") || pane.querySelector("select[name='corpGr']") || pane.querySelector("#corpGrSelect"))
+                          : (document.getElementById("filterCorpGr") || document.querySelector("select[name='corpGr']") || document.getElementById("corpGrSelect"));
+    if (selectEl && selectEl.value && String(selectEl.value).trim()) {
+        return String(selectEl.value).trim();
+    }
+
     if (window.currentCorpGr) return window.currentCorpGr;
-    const m = document.cookie.match(/(^|;)\s*savedCorpGr=([^;]+)/) || document.cookie.match(/(^|;)\s*corpGr=([^;]+)/);
+    const m = document.cookie.match(/(^|;)\s*savedCorpGr=([^;]+)/) 
+           || document.cookie.match(/(^|;)\s*corpGr=([^;]+)/)
+           || document.cookie.match(/(^|;)\s*corp_gr=([^;]+)/);
     if (m) return decodeURIComponent(m[2]);
-    const selectEl = pane ? (pane.querySelector("#filterCorpGr") || pane.querySelector("#corpGrSelect")) : (document.getElementById("filterCorpGr") || document.getElementById("corpGrSelect"));
-    if (selectEl && selectEl.value) return selectEl.value;
+
     return "";
 }
 window.resolveCorpGr = resolveCorpGr;
@@ -1457,6 +1465,147 @@ window.AamsReport = {
             getSelectedData: function() { return selectedData; },
             setSelectedData: function(d) { selectedData = d; }
         };
+    }
+};
+
+/**
+ * AAMS Tabulator Grid CUD Change Buffer Manager (전역 공통 표준)
+ * 규칙:
+ * 1. insert, update 내용을 우선 큐(Map)를 만들어서 관리한다.
+ * 2. 신규행(isNew)에 대한 delete일 경우 insert 큐에서 지우고 delete 큐에는 넣지 않는다.
+ * 3. update를 한 행을 delete하는 경우 update 큐에서 지우고 delete 큐에만 넣는다.
+ * 4. 새로고침을 하거나 재조회를 할 경우 이 큐를 reset해서 초기 상태로 되돌린다.
+ */
+window.AamsCudManager = {
+    create: function(grid, options) {
+        options = options || {};
+        const keyField = options.keyField || '_rowId';
+        let rowIdCounter = 1;
+
+        const insertMap = new Map();
+        const updateMap = new Map();
+        const deleteMap = new Map();
+
+        function assignRowId(item, isNew) {
+            if (!item) return item;
+            if (!item[keyField]) {
+                item[keyField] = 'row_' + Date.now() + '_' + (rowIdCounter++);
+            }
+            if (isNew !== undefined) {
+                item.isNew = !!isNew;
+            }
+            if (!item.isNew && item.isUpdated === undefined) {
+                item.isUpdated = false;
+            }
+            return item;
+        }
+
+        function formatData(dataList) {
+            reset();
+            return (Array.isArray(dataList) ? dataList : []).map(function(item) {
+                return assignRowId(Object.assign({}, item), false);
+            });
+        }
+
+        function createNewRow(initialValues) {
+            const rowData = assignRowId(Object.assign({}, initialValues || {}), true);
+            insertMap.set(rowData[keyField], rowData);
+            return rowData;
+        }
+
+        function trackChange(rowOrData) {
+            const data = (rowOrData && typeof rowOrData.getData === 'function') ? rowOrData.getData() : rowOrData;
+            if (!data || !data[keyField]) return;
+
+            if (data.isNew) {
+                insertMap.set(data[keyField], data);
+            } else {
+                data.isUpdated = true;
+                if (rowOrData && typeof rowOrData.update === 'function') {
+                    rowOrData.update({ isUpdated: true });
+                }
+                updateMap.set(data[keyField], data);
+            }
+        }
+
+        function deleteRow(rowOrData) {
+            const row = (rowOrData && typeof rowOrData.getData === 'function') ? rowOrData : null;
+            const data = row ? row.getData() : (rowOrData || {});
+            const key = data[keyField];
+
+            // 2. 신규행 삭제: insert 큐에서 제거
+            if (data.isNew) {
+                if (key) insertMap.delete(key);
+            } else {
+                // 3. update된 행 삭제: update 큐에서 제거하고 delete 큐에만 등록
+                if (key) updateMap.delete(key);
+                if (key) deleteMap.set(key, data);
+            }
+
+            if (row && typeof row.delete === 'function') {
+                return row.delete();
+            }
+            return Promise.resolve();
+        }
+
+        function reset() {
+            insertMap.clear();
+            updateMap.clear();
+            deleteMap.clear();
+        }
+
+        function addRow(initialValues, position) {
+            const rowData = createNewRow(initialValues);
+            if (grid && typeof grid.addRow === 'function') {
+                return grid.addRow(rowData, position !== undefined ? position : true);
+            }
+            return Promise.resolve(null);
+        }
+
+        function getChanges() {
+            const inserts = Array.from(insertMap.values());
+            const updates = Array.from(updateMap.values());
+            const deletes = Array.from(deleteMap.values());
+            return {
+                inserts: inserts,
+                updates: updates,
+                deletes: deletes,
+                insertList: inserts,
+                updateList: updates,
+                deleteList: deletes,
+                itemList: inserts.concat(updates),
+                deletedList: deletes,
+                hasChanges: (inserts.length > 0 || updates.length > 0 || deletes.length > 0),
+                count: inserts.length + updates.length + deletes.length
+            };
+        }
+
+        const manager = {
+            keyField: keyField,
+            assignRowId: assignRowId,
+            formatData: formatData,
+            createNewRow: createNewRow,
+            addRow: addRow,
+            trackChange: trackChange,
+            deleteRow: deleteRow,
+            reset: reset,
+            getChanges: getChanges
+        };
+
+        if (grid) {
+            grid._cudManager = manager;
+            if (typeof grid.on === 'function') {
+                grid.on("cellEdited", function(cell) {
+                    trackChange(cell.getRow());
+                });
+            }
+        }
+
+        manager.insertMap = insertMap;
+        manager.updateMap = updateMap;
+        manager.deleteMap = deleteMap;
+
+        return manager;
     }
 };
 

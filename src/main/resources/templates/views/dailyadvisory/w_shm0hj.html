@@ -56,7 +56,9 @@
 
             let gridMaster = null;
             let gridDetail = null;
+            let cudManagerMaster = null;
             let selectedMasterData = null;
+            let deletedMasterList = [];
 
             function formatMoney(val) {
                 if (val == null || val === "" || isNaN(val)) return "";
@@ -86,19 +88,8 @@
                 pg_cd: []
             };
 
-            /**
-             * PowerBuilder dw_c & dw_list::ue_dddw_retrieve Event Integration
-             * Corresponds to:
-             *   1. dw_c::ue_dddw_retrieve:
-             *      F_DDDWCTL (THIS, 'dddw', gaa.corp_gr, '%,전체,', 5, "sebu_cd<>'90'")
-             *   2. dw_list::ue_dddw_retrieve:
-             *      F_DDDWCTL (THIS, 'cash_cd', gaa.corp_gr, '', 1, '')
-             *      F_DDDWCTL (THIS, 'sunhu_gb', gaa.corp_gr, '', 2, '')
-             *      F_DDDWCTL (THIS, 'sunhu_tax_gb', gaa.corp_gr, '', 1, '')
-             *      F_DDDWCTL (THIS, 'pg_cd', gaa.corp_gr, ',,', 2, '')
-             */
             function ue_dddw_retrieve(corpGr) {
-                const targetCorpGr = corpGr || resolveCorpGr();
+                const targetCorpGr = corpGr || resolveCorpGr(pane);
 
                 if (typeof window.f_dddwctl !== 'function' || typeof window.f_dddwctl.retrieveMultiple !== 'function') {
                     console.warn("[ue_dddw_retrieve] f_dddwctl is not defined.");
@@ -199,44 +190,115 @@
                 return String(codeVal);
             }
 
-            // Master grid conditional edit check (New row: 1-click edit; Existing row: select row & load detail, edit blocked)
+            // Master row calculation (PowerBuilder uf_com)
+            function recalculateMasterRow(row) {
+                if (!row) return;
+                const d = row.getData();
+                const aekm = Number(d.aekm) || 0;
+                const iyulPer = Number(d.pyomIyulPer) || 0;
+                const iyul = iyulPer / 100.0;
+
+                let balhDate = d.balhYmd ? new Date(d.balhYmd) : null;
+                let sanghwDate = d.sanghwYmd ? new Date(d.sanghwYmd) : null;
+                let meibDate = d.meibYmd ? new Date(d.meibYmd) : null;
+
+                let dd1 = 0;
+                let dd2 = 0;
+                if (balhDate && !isNaN(balhDate.getTime())) {
+                    if (meibDate && !isNaN(meibDate.getTime())) {
+                        dd1 = Math.floor((meibDate.getTime() - balhDate.getTime()) / (1000 * 60 * 60 * 24));
+                    }
+                    if (sanghwDate && !isNaN(sanghwDate.getTime())) {
+                        dd2 = Math.floor((sanghwDate.getTime() - balhDate.getTime()) / (1000 * 60 * 60 * 24));
+                    }
+                }
+
+                let sungCost = Math.floor((aekm * iyul * dd1) / 365);
+                let misuIja = Math.floor((aekm * iyul * dd2) / 365);
+
+                let chuiAek = aekm;
+                let trAek = aekm;
+                let sanghwAek = aekm;
+
+                const cashCd = d.cashCd || "ZS";
+                if (cashCd === '70') {
+                    misuIja = 0;
+                    sungCost = 0;
+                    chuiAek = aekm;
+                    trAek = aekm;
+                    sanghwAek = aekm;
+                } else if (['80', '71', '72'].includes(cashCd)) {
+                    chuiAek = aekm;
+                    trAek = aekm + sungCost;
+                    sanghwAek = aekm + misuIja;
+                } else if (cashCd === '50') {
+                    misuIja = Math.floor((aekm * iyul * dd2) / 365);
+                    chuiAek = aekm;
+                    sungCost = Math.floor((aekm * iyul * dd1) / 365);
+                } else {
+                    const sanghwStr = (d.sanghwYmd || "").replace(/\D/g, "");
+                    if (sanghwStr === '20991231') {
+                        misuIja = 0;
+                        sungCost = 0;
+                        sanghwAek = aekm;
+                        chuiAek = aekm;
+                        trAek = aekm;
+                    } else {
+                        chuiAek = aekm - misuIja;
+                        if (d.sunhuGb === '1') { // 선취
+                            sanghwAek = aekm;
+                            chuiAek = aekm;
+                            trAek = chuiAek - misuIja;
+                        } else if (d.sunhuGb === '2') { // 후취
+                            sanghwAek = aekm + misuIja;
+                            chuiAek = aekm;
+                            trAek = chuiAek + sungCost;
+                        } else {
+                            sanghwAek = aekm;
+                        }
+                    }
+                }
+
+                row.update({
+                    sungCost: sungCost,
+                    trAek: trAek,
+                    chuiAek: chuiAek,
+                    sanghwAek: sanghwAek,
+                    pyomIyul: iyul,
+                    meibSuikRt: iyul,
+                    meibSuikRtPer: iyulPer,
+                    isUpdated: true
+                });
+            }
+
+            function handleMasterCellEdited(cell) {
+                const row = cell.getRow();
+                if (!row) return;
+                const field = cell.getField();
+                const d = row.getData();
+                d.isUpdated = true;
+
+                if (['aekm', 'pyomIyulPer', 'sanghwYmd', 'balhYmd', 'meibYmd', 'cashCd', 'sunhuGb', 'sunhuTaxGb'].includes(field)) {
+                    recalculateMasterRow(row);
+                }
+            }
+
+            // Master grid conditional edit check (신규 행만 수정 허용)
             function isMasterRowEditable(cell) {
                 if (!cell) return false;
                 const row = typeof cell.getRow === "function" ? cell.getRow() : null;
                 if (!row) return false;
                 const data = row.getData();
-                const isNew = Boolean(data && (data.isNew === true || data._isNew === true || data.isNewRow === true));
-
-                if (isNew) {
-                    return true;
-                } else {
-                    if (gridMaster && (!row.isSelected || !row.isSelected())) {
-                        gridMaster.deselectRow();
-                        row.select();
-                        selectedMasterData = data;
-                        loadDetailList(selectedMasterData);
-                    }
-                    return false;
-                }
+                return !!(data && (data.isNew === true || data._isNew === true || data.isNewRow === true));
             }
 
-            // Detail grid conditional edit check (New row: 1-click edit; Existing row: select row, edit blocked)
+            // Detail grid conditional edit check
             function isDetailRowEditable(cell) {
                 if (!cell) return false;
                 const row = typeof cell.getRow === "function" ? cell.getRow() : null;
                 if (!row) return false;
                 const data = row.getData();
-                const isNew = Boolean(data && (data.isNew === true || data._isNew === true || data.isNewRow === true));
-
-                if (isNew) {
-                    return true;
-                } else {
-                    if (gridDetail && (!row.isSelected || !row.isSelected())) {
-                        gridDetail.deselectRow();
-                        row.select();
-                    }
-                    return false;
-                }
+                return !!(data && (data.isNew === true || data._isNew === true || data.isNewRow === true));
             }
 
             // Init Master Grid (d_shm0hj.srd) - Edit settings configured based on tabsequence (New rows only)
@@ -276,13 +338,15 @@
                             width: 80,
                             formatter: cell => getDddwLabel('cash_cd', cell.getValue()) || cell.getValue() || '',
                             editor: "list",
+                            cellClick: aamsCellEdit,
                             editorParams: {
                                 valuesLookup: () => getDddwOptions('cash_cd'),
                                 autocomplete: false,
                                 listOnEmpty: true,
                                 itemFormatter: createDddw2ColFormatter("코드", "현금종류명")
                             },
-                            editable: isMasterRowEditable
+                            editable: isMasterRowEditable,
+                            cellEdited: handleMasterCellEdited
                         },
                         // tab=20
                         { 
@@ -293,7 +357,9 @@
                             width: 90,
                             formatter: cell => `<span class="cell-text-green">${cell.getValue() || ''}</span>`,
                             editor: "input",
-                            editable: isMasterRowEditable
+                            cellClick: aamsCellEdit,
+                            editable: isMasterRowEditable,
+                            cellEdited: handleMasterCellEdited
                         },
                         // p_xx_fund_cd (Grid Internal Rule 1, 2: Empty column with dynamic search button)
                         {
@@ -325,7 +391,7 @@
                                         seq: 1,
                                         initialKeyword: curVal,
                                         onSelect: function(code, name) {
-                                            row.update({ fundCd: code, fundNm: name });
+                                            row.update({ fundCd: code, fundNm: name, isUpdated: true });
                                         }
                                     });
                                 }
@@ -338,7 +404,9 @@
                             hozAlign: "left", 
                             width: 140,
                             editor: "input",
-                            editable: isMasterRowEditable
+                            cellClick: aamsCellEdit,
+                            editable: isMasterRowEditable,
+                            cellEdited: handleMasterCellEdited
                         },
                         // tab=40
                         { 
@@ -349,7 +417,9 @@
                             minWidth: 160,
                             formatter: cell => `<span class="cell-text-blue">${cell.getValue() || ''}</span>`,
                             editor: "input",
-                            editable: isMasterRowEditable
+                            cellClick: aamsCellEdit,
+                            editable: isMasterRowEditable,
+                            cellEdited: handleMasterCellEdited
                         },
                         // tab=30 (mask:yyyy.mm.dd)
                         { 
@@ -359,7 +429,9 @@
                             width: 95, 
                             formatter: cell => formatDateVal(cell.getValue()),
                             editor: "input",
-                            editable: isMasterRowEditable
+                            cellClick: aamsCellEdit,
+                            editable: isMasterRowEditable,
+                            cellEdited: handleMasterCellEdited
                         },
                         // p_dd_balh_ymd (Grid Internal Rule 3, 4: Empty column with calendar popup button)
                         {
@@ -391,7 +463,8 @@
                                         initialYmd: curVal,
                                         format: 'raw',
                                         onSelect: function(rawYmd) {
-                                            row.update({ balhYmd: rawYmd });
+                                            row.update({ balhYmd: rawYmd, isUpdated: true });
+                                            recalculateMasterRow(row);
                                         }
                                     });
                                 }
@@ -406,7 +479,9 @@
                             width: 95,
                             formatter: cell => `<span class="cell-text-blue">${formatDateVal(cell.getValue())}</span>`,
                             editor: "input",
-                            editable: isMasterRowEditable
+                            cellClick: aamsCellEdit,
+                            editable: isMasterRowEditable,
+                            cellEdited: handleMasterCellEdited
                         },
                         // p_dd_meib_ymd (Grid Internal Rule 3, 4: Empty column with calendar popup button)
                         {
@@ -438,7 +513,8 @@
                                         initialYmd: curVal,
                                         format: 'raw',
                                         onSelect: function(rawYmd) {
-                                            row.update({ meibYmd: rawYmd });
+                                            row.update({ meibYmd: rawYmd, isUpdated: true });
+                                            recalculateMasterRow(row);
                                         }
                                     });
                                 }
@@ -453,7 +529,9 @@
                             width: 95,
                             formatter: cell => `<span class="cell-text-red">${formatDateVal(cell.getValue())}</span>`,
                             editor: "input",
-                            editable: isMasterRowEditable
+                            cellClick: aamsCellEdit,
+                            editable: isMasterRowEditable,
+                            cellEdited: handleMasterCellEdited
                         },
                         // tab=60
                         { 
@@ -463,7 +541,9 @@
                             width: 115, 
                             formatter: cell => formatMoney(cell.getValue()),
                             editor: "number",
-                            editable: isMasterRowEditable
+                            cellClick: aamsCellEdit,
+                            editable: isMasterRowEditable,
+                            cellEdited: handleMasterCellEdited
                         },
                         // tab=70
                         { 
@@ -473,8 +553,10 @@
                             width: 90, 
                             formatter: cell => formatRate(cell.getValue()),
                             editor: "number",
+                            cellClick: aamsCellEdit,
                             editorParams: { step: 0.0001 },
-                            editable: isMasterRowEditable
+                            editable: isMasterRowEditable,
+                            cellEdited: handleMasterCellEdited
                         },
                         // tab=0 (read-only in srd)
                         { title: "매입수익률(%)", field: "meibSuikRtPer", hozAlign: "right", width: 95, formatter: cell => formatRate(cell.getValue()) },
@@ -486,7 +568,9 @@
                             width: 115, 
                             formatter: cell => formatMoney(cell.getValue()),
                             editor: "number",
-                            editable: isMasterRowEditable
+                            cellClick: aamsCellEdit,
+                            editable: isMasterRowEditable,
+                            cellEdited: handleMasterCellEdited
                         },
                         // tab=110
                         { 
@@ -496,7 +580,9 @@
                             width: 115, 
                             formatter: cell => formatMoney(cell.getValue()),
                             editor: "number",
-                            editable: isMasterRowEditable
+                            cellClick: aamsCellEdit,
+                            editable: isMasterRowEditable,
+                            cellEdited: handleMasterCellEdited
                         },
                         // tab=120
                         { 
@@ -506,7 +592,9 @@
                             width: 115, 
                             formatter: cell => formatMoney(cell.getValue()),
                             editor: "number",
-                            editable: isMasterRowEditable
+                            cellClick: aamsCellEdit,
+                            editable: isMasterRowEditable,
+                            cellEdited: handleMasterCellEdited
                         },
                         // tab=170 (dddw)
                         { 
@@ -516,13 +604,15 @@
                             width: 80,
                             formatter: cell => getDddwLabel('sunhu_gb', cell.getValue()) || cell.getValue() || '',
                             editor: "list",
+                            cellClick: aamsCellEdit,
                             editorParams: {
                                 valuesLookup: () => getDddwOptions('sunhu_gb'),
                                 autocomplete: false,
                                 listOnEmpty: true,
                                 itemFormatter: createDddw2ColFormatter("코드", "선후구분명")
                             },
-                            editable: isMasterRowEditable
+                            editable: isMasterRowEditable,
+                            cellEdited: handleMasterCellEdited
                         },
                         // tab=180 (dddw)
                         { 
@@ -532,13 +622,15 @@
                             width: 80,
                             formatter: cell => getDddwLabel('sunhu_tax_gb', cell.getValue()) || cell.getValue() || '',
                             editor: "list",
+                            cellClick: aamsCellEdit,
                             editorParams: {
                                 valuesLookup: () => getDddwOptions('sunhu_tax_gb'),
                                 autocomplete: false,
                                 listOnEmpty: true,
                                 itemFormatter: createDddw2ColFormatter("코드", "과세구분명")
                             },
-                            editable: isMasterRowEditable
+                            editable: isMasterRowEditable,
+                            cellEdited: handleMasterCellEdited
                         },
                         // tab=160 (mask:!!!!!!!!!!!!)
                         { 
@@ -549,7 +641,9 @@
                             width: 115,
                             formatter: cell => `<span class="cell-text-blue">${cell.getValue() || ''}</span>`,
                             editor: "input",
-                            editable: isMasterRowEditable
+                            cellClick: aamsCellEdit,
+                            editable: isMasterRowEditable,
+                            cellEdited: handleMasterCellEdited
                         },
                         // tab=32766
                         { 
@@ -560,7 +654,9 @@
                             width: 110,
                             formatter: cell => `<span class="cell-text-blue">${cell.getValue() || ''}</span>`,
                             editor: "input",
-                            editable: isMasterRowEditable
+                            cellClick: aamsCellEdit,
+                            editable: isMasterRowEditable,
+                            cellEdited: handleMasterCellEdited
                         },
                         // tab=190 (mask:!!!)
                         { 
@@ -569,7 +665,9 @@
                             hozAlign: "center", 
                             width: 75,
                             editor: "input",
-                            editable: isMasterRowEditable
+                            cellClick: aamsCellEdit,
+                            editable: isMasterRowEditable,
+                            cellEdited: handleMasterCellEdited
                         },
                         // tab=200 (mask:!!)
                         { 
@@ -578,7 +676,9 @@
                             hozAlign: "center", 
                             width: 75,
                             editor: "input",
-                            editable: isMasterRowEditable
+                            cellClick: aamsCellEdit,
+                            editable: isMasterRowEditable,
+                            cellEdited: handleMasterCellEdited
                         },
                         // tab=80 (dddw)
                         { 
@@ -588,12 +688,14 @@
                             width: 85,
                             formatter: cell => getDddwLabel('pg_cd', cell.getValue()) || cell.getValue() || '',
                             editor: "list",
+                            cellClick: aamsCellEdit,
                             editorParams: {
                                 valuesLookup: () => getDddwOptions('pg_cd'),
                                 autocomplete: false,
                                 listOnEmpty: true
                             },
-                            editable: isMasterRowEditable
+                            editable: isMasterRowEditable,
+                            cellEdited: handleMasterCellEdited
                         }
                     ]
                 });
@@ -603,6 +705,8 @@
                     selectedMasterData = data;
                     loadDetailList(data, false);
                 }
+
+                cudManagerMaster = AamsCudManager.create(gridMaster);
 
                 // 1. AAMS Standard: setupTabulatorRowSelection callback
                 setupTabulatorRowSelection(gridMaster, function(row, data) {
@@ -781,18 +885,17 @@
                 const cashCd = filterDddw ? filterDddw.value : "%";
 
                 if (!corpGr) {
-                    alert("회사코드를 확인할 수 없습니다. 다시 로그인하거나 상단 회사 구분을 확인해주세요.");
+                    if (typeof showToast === 'function') showToast("회사코드를 확인할 수 없습니다.", "warning");
+                    else alert("회사코드를 확인할 수 없습니다.");
                     return;
                 }
                 if (!ymd) {
-                    alert("조회일자를 선택해주세요.");
+                    if (typeof showToast === 'function') showToast("조회일자를 선택해주세요.", "warning");
+                    else alert("조회일자를 선택해주세요.");
                     return;
                 }
 
-                if (window.ButtonRole && typeof window.ButtonRole.setSearchState === 'function') {
-                    window.ButtonRole.setSearchState(pane, true);
-                }
-
+                if (cudManagerMaster) cudManagerMaster.reset();
                 const url = `/api/shm0hj/master?corpGr=${encodeURIComponent(corpGr)}&ymd=${encodeURIComponent(ymd)}&cashCd=${encodeURIComponent(cashCd)}`;
 
                 fetch(url)
@@ -802,19 +905,16 @@
                         if (countEl) countEl.textContent = `[${(data || []).length}건]`;
 
                         if (gridMaster) {
-                            gridMaster.setData(data || []).then(() => {
+                            const formatted = cudManagerMaster ? cudManagerMaster.formatData(data || []) : (data || []);
+                            gridMaster.setData(formatted).then(() => {
                                 if (data && data.length > 0) {
                                     const rows = gridMaster.getRows();
                                     if (rows && rows.length > 0) {
-                                        const firstRow = rows[0];
-                                        gridMaster.deselectRow();
-                                        firstRow.select();
-                                        firstRow.scrollTo();
-                                        selectedMasterData = firstRow.getData();
+                                        rows[0].select();
+                                        selectedMasterData = rows[0].getData();
                                         loadDetailList(selectedMasterData, true);
                                     }
                                 } else {
-                                    // Reset Detail Grid
                                     selectedMasterData = null;
                                     lastLoadedMasterKey = "";
                                     if (gridDetail) gridDetail.setData([]);
@@ -828,16 +928,17 @@
                     })
                     .catch(err => {
                         console.error("Master fetch error:", err);
-                        alert("데이터 조회 중 오류가 발생했습니다.");
+                        if (typeof showToast === 'function') showToast("데이터 조회 중 오류가 발생했습니다.", "error");
+                        else alert("데이터 조회 중 오류가 발생했습니다.");
                     });
             }
 
             let lastLoadedMasterKey = "";
 
-            // Load Detail List for selected Master row (with duplicate fetch guard)
+            // Load Detail List for selected Master row
             function loadDetailList(masterData, force = false) {
                 if (!masterData) return;
-                const corpGr = masterData.corpGr || resolveCorpGr();
+                const corpGr = masterData.corpGr || resolveCorpGr(pane);
                 const jmCd = masterData.jmCd || "";
 
                 const detailTitle = pane ? pane.querySelector("#detail-title") : document.getElementById("detail-title");
@@ -854,7 +955,7 @@
 
                 const currentKey = `${corpGr}_${jmCd}`;
                 if (!force && lastLoadedMasterKey === currentKey) {
-                    return; // 이미 조회된 종목이면 중복 API 호출 방지
+                    return;
                 }
                 lastLoadedMasterKey = currentKey;
 
@@ -871,7 +972,6 @@
                                 if (data && data.length > 0) {
                                     const detailRows = gridDetail.getRows();
                                     if (detailRows && detailRows.length > 0) {
-                                        gridDetail.deselectRow();
                                         detailRows[0].select();
                                     }
                                 }
@@ -886,11 +986,12 @@
             // Generate Period Interest (SR_SHJ0IG)
             function generateInterest() {
                 if (!selectedMasterData) {
-                    alert("구간이자를 생성할 종목을 상단 목록에서 먼저 선택해주세요.");
+                    if (typeof showToast === 'function') showToast("구간이자를 생성할 종목을 상단 목록에서 먼저 선택해주세요.", "warning");
+                    else alert("구간이자를 생성할 종목을 상단 목록에서 먼저 선택해주세요.");
                     return;
                 }
 
-                const corpGr = selectedMasterData.corpGr || resolveCorpGr();
+                const corpGr = selectedMasterData.corpGr || resolveCorpGr(pane);
                 const jmCd = selectedMasterData.jmCd;
                 const hjNm = selectedMasterData.hjNm || jmCd;
 
@@ -908,22 +1009,25 @@
                 .then(res => res.json())
                 .then(result => {
                     if (result && result.success) {
-                        alert(result.message || "구간이자가 정상적으로 생성되었습니다.");
+                        if (typeof showToast === 'function') showToast(result.message || "구간이자가 정상적으로 생성되었습니다.", "success");
+                        else alert(result.message || "구간이자가 정상적으로 생성되었습니다.");
                         loadDetailList(selectedMasterData, true);
                     } else {
-                        alert("구간이자 생성 실패: " + (result.message || "오류가 발생했습니다."));
+                        if (typeof showToast === 'function') showToast("구간이자 생성 실패: " + (result.message || "오류가 발생했습니다."), "error");
+                        else alert("구간이자 생성 실패: " + (result.message || "오류가 발생했습니다."));
                     }
                 })
                 .catch(err => {
                     console.error("Error generating interest:", err);
-                    alert("구간이자 생성 요청 처리 중 오류가 발생했습니다.");
+                    if (typeof showToast === 'function') showToast("구간이자 생성 요청 처리 중 오류가 발생했습니다.", "error");
+                    else alert("구간이자 생성 요청 처리 중 오류가 발생했습니다.");
                 });
             }
 
-            // Add New Master Row (Only new rows are editable)
+            // Add New Master Row (PB dw_list::ue_insertstart & itemchanged_next 채번 연동)
             function addNewMasterRow() {
                 if (!gridMaster) return;
-                const corpGr = resolveCorpGr();
+                const corpGr = resolveCorpGr(pane);
                 const filterYmd = pane ? pane.querySelector("#filterYmd") : document.getElementById("filterYmd");
                 const filterDddw = pane ? pane.querySelector("#filterDddw") : document.getElementById("filterDddw");
                 const ymd = filterYmd ? filterYmd.value : new Date().toISOString().slice(0, 10);
@@ -935,48 +1039,153 @@
                     cashCd: cashCd,
                     balhYmd: ymd,
                     meibYmd: ymd,
-                    sanghwYmd: ymd,
+                    sanghwYmd: "2099-12-31",
                     fundCd: "",
                     fundNm: "",
                     jmCd: "",
                     hjNm: "",
-                    aekm: 0,
-                    pyomIyulPer: 0,
-                    trAek: 0,
-                    chuiAek: 0,
-                    sanghwAek: 0,
-                    sunhuGb: "1",
-                    sunhuTaxGb: "1",
+                    aekm: null,
+                    pyomIyulPer: null,
+                    trAek: null,
+                    chuiAek: null,
+                    sanghwAek: null,
+                    meibMkGb: "1",
+                    sunhuGb: (cashCd === 'ZS' || cashCd === 'ZF') ? "3" : (cashCd === '10' || cashCd === 'DC' ? "1" : "2"),
+                    sunhuTaxGb: "2",
                     ksdJmCd: "",
                     ksdJm5: "",
-                    ksdJm8: "",
-                    pgCd: ""
+                    ksdJm8: "1",
+                    cdJigubGb: "1",
+                    yyIjaHoicha: 1,
+                    taxOfferGb: "2",
+                    daeyeoGb: "0",
+                    pgCd: (cashCd === 'ZS' || cashCd === 'ZF') ? "0211" : ""
                 };
 
-                gridMaster.addRow(newRowData, true).then(function(newRow) {
-                    gridMaster.deselectRow();
-                    newRow.select();
-                    newRow.scrollTo();
-                    selectedMasterData = newRow.getData();
-                    if (gridDetail) gridDetail.setData([]);
-                    const countEl = pane ? pane.querySelector("#master-count") : document.getElementById("master-count");
-                    if (countEl) countEl.textContent = `[${gridMaster.getRows().length}건]`;
-                    const cells = newRow.getCells();
-                    const firstEditable = cells.find(c => isMasterRowEditable(c) && c.getColumn().getDefinition().editor);
-                    if (firstEditable) {
-                        setTimeout(() => firstEditable.edit(true), 50);
+                fetch(`/api/shm0hj/next-jm-cd?corpGr=${encodeURIComponent(corpGr)}&ymd=${encodeURIComponent(ymd)}&cashCd=${encodeURIComponent(cashCd)}`)
+                    .then(res => res.json())
+                    .then(d => {
+                        if (d && d.nextJmCd) {
+                            newRowData.jmCd = d.nextJmCd;
+                        }
+                    })
+                    .catch(() => {})
+                    .finally(() => {
+                        const addPromise = cudManagerMaster ? cudManagerMaster.addRow(newRowData, true) : gridMaster.addRow(newRowData, true);
+                        addPromise.then(function(newRow) {
+                            gridMaster.deselectRow();
+                            newRow.select();
+                            newRow.scrollTo();
+                            selectedMasterData = newRow.getData();
+                            if (gridDetail) gridDetail.setData([]);
+                            const countEl = pane ? pane.querySelector("#master-count") : document.getElementById("master-count");
+                            if (countEl) countEl.textContent = `[${gridMaster.getRows().length}건]`;
+                            if (typeof showToast === 'function') showToast("신규 행이 추가되었습니다.", "info");
+                        });
+                    });
+            }
+
+            // Delete Row
+            function handleDelete() {
+                if (!gridMaster) return;
+                const selectedRows = gridMaster.getSelectedRows();
+                if (!selectedRows || selectedRows.length === 0) {
+                    if (typeof showToast === 'function') showToast("삭제할 행을 먼저 선택해주세요.", "warning");
+                    else alert("삭제할 행을 먼저 선택해주세요.");
+                    return;
+                }
+
+                if (!confirm("선택한 행을 삭제하시겠습니까? (저장 시 DB에 반영됩니다)")) return;
+
+                selectedRows.forEach(row => {
+                    if (cudManagerMaster) {
+                        cudManagerMaster.deleteRow(row);
+                    } else {
+                        row.delete();
                     }
+                });
+
+                if (gridDetail) gridDetail.setData([]);
+                selectedMasterData = null;
+                lastLoadedMasterKey = null;
+                const countEl = pane ? pane.querySelector("#master-count") : document.getElementById("master-count");
+                if (countEl) countEl.textContent = `[${gridMaster.getRows().length}건]`;
+            }
+
+            // Save Master List
+            function handleSave() {
+                if (!gridMaster) return;
+                const corpGr = resolveCorpGr(pane);
+                if (!corpGr) {
+                    if (typeof showToast === 'function') showToast("회사코드를 확인할 수 없습니다.", "warning");
+                    else alert("회사코드를 확인할 수 없습니다.");
+                    return;
+                }
+
+                const changes = cudManagerMaster ? cudManagerMaster.getChanges() : { inserts: [], updates: [], deletes: [], hasChanges: false };
+                const insertList = changes.inserts || [];
+                const updateList = changes.updates || [];
+                const deleteList = changes.deletes || [];
+
+                if (insertList.length === 0 && updateList.length === 0 && deleteList.length === 0) {
+                    if (typeof showToast === 'function') showToast("저장할 변경사항이 없습니다.", "info");
+                    else alert("저장할 변경사항이 없습니다.");
+                    return;
+                }
+
+                for (let i = 0; i < insertList.length; i++) {
+                    const d = insertList[i];
+                    if (!d.jmCd) {
+                        if (typeof showToast === 'function') showToast(`${i + 1}번째 행의 종목코드를 입력해주세요.`, "warning");
+                        else alert(`${i + 1}번째 행의 종목코드를 입력해주세요.`);
+                        return;
+                    }
+                }
+
+                if (!confirm(`신규 ${insertList.length}건, 수정 ${updateList.length}건, 삭제 ${deleteList.length}건을 저장하시겠습니까?`)) {
+                    return;
+                }
+
+                const payload = {
+                    corpGr: corpGr,
+                    insertList: insertList,
+                    updateList: updateList,
+                    deleteList: deleteList
+                };
+
+                fetch("/api/shm0hj/save", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload)
+                })
+                .then(res => res.json())
+                .then(resData => {
+                    if (resData && resData.success) {
+                        if (cudManagerMaster) cudManagerMaster.reset();
+                        if (typeof showToast === 'function') showToast(resData.message || "저장이 완료되었습니다.", "success");
+                        else alert(resData.message || "저장이 완료되었습니다.");
+                        loadMasterList();
+                    } else {
+                        if (typeof showToast === 'function') showToast("저장 실패: " + (resData ? resData.message : "알 수 없는 오류"), "error");
+                        else alert("저장 실패: " + (resData ? resData.message : "알 수 없는 오류"));
+                    }
+                })
+                .catch(err => {
+                    console.error("Save error:", err);
+                    if (typeof showToast === 'function') showToast("저장 중 서버 통신 오류가 발생했습니다.", "error");
+                    else alert("저장 중 서버 통신 오류가 발생했습니다.");
                 });
             }
 
             // Event Listeners
             function initEvents() {
-                // Support pane-level standard contracts for toolbar buttons
                 if (pane) {
                     pane.onSearch = loadMasterList;
                     pane.onRetrieve = loadMasterList;
                     pane.onInput = addNewMasterRow;
                     pane.onInsert = addNewMasterRow;
+                    pane.onSave = handleSave;
+                    pane.onDelete = handleDelete;
                     pane.getNewRowData = function() {
                         return { isNew: true };
                     };
@@ -986,8 +1195,10 @@
                     pane.onRefresh = function() {
                         if (gridMaster) gridMaster.clearData();
                         if (gridDetail) gridDetail.clearData();
+                        if (cudManagerMaster) cudManagerMaster.reset();
                         selectedMasterData = null;
                         lastLoadedMasterKey = null;
+                        deletedMasterList = [];
 
                         const dddwSelect = pane ? pane.querySelector("#filterDddw") : document.getElementById("filterDddw");
                         if (dddwSelect) {
@@ -1015,9 +1226,6 @@
                 const btnInterest = pane ? pane.querySelector("#btnGenerateInterest") : document.getElementById("btnGenerateInterest");
                 if (btnInterest) btnInterest.onclick = generateInterest;
 
-
-
-                // Filter input enter key
                 const filterYmd = pane ? pane.querySelector("#filterYmd") : document.getElementById("filterYmd");
                 if (filterYmd) {
                     filterYmd.addEventListener("keydown", function(e) {
@@ -1031,7 +1239,7 @@
                 }
             }
 
-            // Pure JS Simple Calendar (Rule 16: dw_c.ue_getdate 미존재 시 순정상태 달력)
+            // Pure JS Simple Calendar (Rule 16)
             function initCalendar() {
                 if (typeof AamsCalendar !== 'undefined') {
                     const filterYmd = pane ? pane.querySelector("#filterYmd") : document.getElementById("filterYmd");

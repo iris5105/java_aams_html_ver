@@ -10,10 +10,4 @@ import java.util.List;
 public interface Sjt0scMapper {
 
     List<Sjt0scDto> selectSjt0scList(@Param("corpGr") String corpGr, @Param("ymd") String ymd);
-
-    int insertSjt0sc(Sjt0scDto dto);
-
-    int updateSjt0sc(Sjt0scDto dto);
-
-    int deleteSjt0sc(@Param("corpGr") String corpGr, @Param("ymd") String ymd, @Param("jmCd") String jmCd);
 }

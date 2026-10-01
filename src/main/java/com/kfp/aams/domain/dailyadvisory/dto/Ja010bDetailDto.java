@@ -20,5 +20,13 @@ public class Ja010bDetailDto {
     private Integer ilsu;
     private BigDecimal giSonikAek;
     private BigDecimal wmSeoljAek;
+    private String wmDt;
     private String haejiYmd;
+    private String distCalc;
+    private String inchulYmd;
+    private BigDecimal inAek;
+    private BigDecimal afGijun;
+    private Integer pVisible;
+    private Boolean isNew;
+    private Boolean isUpdated;
 }

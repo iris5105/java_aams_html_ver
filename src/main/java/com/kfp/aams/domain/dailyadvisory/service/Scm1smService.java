@@ -19,6 +19,7 @@ import java.util.Set;
 public class Scm1smService {
 
     private final Scm1smMapper scm1smMapper;
+    private final com.kfp.aams.domain.dailyadvisory.mapper.querydsl.Scm1smQueryDslRepository scm1smQueryDslRepository;
 
     /**
      * 채권 단가 목록 조회 (d_scm1sm)
@@ -73,7 +74,7 @@ public class Scm1smService {
             for (Scm1smDto item : saveDto.getDeleteList()) {
                 if (item.getCorpGr() == null || item.getCorpGr().isBlank()) item.setCorpGr(defaultCorpGr);
                 if (item.getYmd() == null || item.getYmd().isBlank()) item.setYmd(defaultYmd);
-                count += scm1smMapper.deleteScm1sm(item);
+                count += scm1smQueryDslRepository.deleteScm1sm(item);
             }
         }
 
@@ -90,7 +91,7 @@ public class Scm1smService {
             if (item.getCorpGr() == null || item.getCorpGr().isBlank()) item.setCorpGr(defaultCorpGr);
             if (item.getYmd() == null || item.getYmd().isBlank()) item.setYmd(defaultYmd);
             if (item.getAsCjCd() == null || item.getAsCjCd().isBlank()) item.setAsCjCd(item.getJmCd());
-            count += scm1smMapper.mergeScm1sm(item);
+            count += scm1smQueryDslRepository.mergeScm1sm(item);
         }
 
         log.info("Saved Scm1sm (채권단가): {} rows processed for corpGr={}, ymd={}", count, defaultCorpGr, defaultYmd);

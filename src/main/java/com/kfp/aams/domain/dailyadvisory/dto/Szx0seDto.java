@@ -34,4 +34,9 @@ public class Szx0seDto {
     private String gugan;
     private String ga;
     private String bigo;
+
+    private Boolean isNew;
+    private Boolean isUpdated;
+    private String originalSeriesGb;
+    private String rowStatus;
 }
