@@ -1,11 +1,13 @@
 package com.kfp.aams.domain.dailyadvisory.dto;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 
 /**
  * DTO for d_shm0hj.srd (SHM0HJ + SZM0IA + szx2mm)
@@ -24,17 +26,29 @@ public class Shm0hjMasterDto {
     private String jmCd;            // char(30)
     private String cdJigubGb;       // char(1)
     private BigDecimal aekm;        // decimal(0)
-    private String balhYmd;         // datetime -> YYYY-MM-DD string
+
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd")
+    private LocalDate balhYmd;      // datetime -> LocalDate
+
     private String cashCd;          // char(2)
     private BigDecimal chuiAek;     // decimal(0)
     private String hjNm;            // char(80)
-    private String meibYmd;         // datetime -> YYYY-MM-DD string
+
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd")
+    private LocalDate meibYmd;      // datetime -> LocalDate
+
     private BigDecimal pyomIyul;    // number
-    private String afIjaYmd;        // datetime -> YYYY-MM-DD string
+
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd")
+    private LocalDate afIjaYmd;     // datetime -> LocalDate
+
     private String bojngGb;         // char(1)
     private BigDecimal nowIjaHoicha;// decimal(0)
     private BigDecimal sanghwAek;   // decimal(0)
-    private String sanghwYmd;       // datetime -> YYYY-MM-DD string
+
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd")
+    private LocalDate sanghwYmd;    // datetime -> LocalDate
+
     private String sunhuGb;         // char(1)
     private BigDecimal yyIjaHoicha; // number
     private BigDecimal ijaYySu;     // number
@@ -54,7 +68,9 @@ public class Shm0hjMasterDto {
     private String bojngCo;         // char(5) (alias bojng_cd)
     private String trCoNm;          // szx2mm.tr_co_nm char(80) (alias xx_tr_co_cd)
     private BigDecimal sungCost;    // decimal(0)
-    private String opYmd;           // datetime -> YYYY-MM-DD string
+
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd")
+    private LocalDate opYmd;        // datetime -> LocalDate
     private String ksdJmCd;         // char(12)
     private BigDecimal seqNo;       // decimal(0)
     private BigDecimal susu09900;   // number

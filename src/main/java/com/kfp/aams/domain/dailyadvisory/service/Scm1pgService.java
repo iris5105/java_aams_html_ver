@@ -23,8 +23,8 @@ public class Scm1pgService {
      * 마스터 목록 조회
      */
     @Transactional(readOnly = true)
-    public List<Scm1pgMasterDto> getMasterList(String corpGr, String ymd) {
-        if (corpGr == null || corpGr.isBlank() || ymd == null || ymd.isBlank()) {
+    public List<Scm1pgMasterDto> getMasterList(String corpGr, java.time.LocalDate ymd) {
+        if (corpGr == null || corpGr.isBlank() || ymd == null) {
             return List.of();
         }
         return scm1pgMapper.selectMasterList(corpGr, ymd);
@@ -53,7 +53,7 @@ public class Scm1pgService {
         // 1. 삭제
         if (saveDto.getDeletedRows() != null) {
             for (Scm1pgDetailDto row : saveDto.getDeletedRows()) {
-                if (row.getYmd() != null && !row.getYmd().isBlank()) {
+                if (row.getYmd() != null) {
                     scm1pgQueryDslRepository.deleteDetail(corpGr, jmCd, row.getYmd());
                 }
             }

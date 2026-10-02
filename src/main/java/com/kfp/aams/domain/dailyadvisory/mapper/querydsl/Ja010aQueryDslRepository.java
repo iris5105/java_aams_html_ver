@@ -80,8 +80,7 @@ public class Ja010aQueryDslRepository {
     public void saveDetail(Ja010aDetailDto detail) {
         if (detail == null || detail.getCorpGr() == null || detail.getYmd() == null) return;
         String corpGr = detail.getCorpGr().trim();
-        java.time.LocalDate ymd = parseLocalDate(detail.getYmd());
-        if (ymd == null) return;
+        java.time.LocalDate ymd = detail.getYmd();
 
         com.kfp.aams.domain.dailyadvisory.entity.Szx0abId id = 
             new com.kfp.aams.domain.dailyadvisory.entity.Szx0abId(corpGr, ymd);
@@ -93,7 +92,7 @@ public class Ja010aQueryDslRepository {
         }
         entity.setCompanyName(detail.getCompanyName());
         entity.setIdno(detail.getIdno() != null ? detail.getIdno().replaceAll("-", "") : null);
-        entity.setContractYmd(parseLocalDate(detail.getContractYmd()));
+        entity.setContractYmd(detail.getContractYmd());
         entity.setPost(detail.getPost());
         entity.setJuso(detail.getJuso());
         entity.setCeoNm(detail.getCeoNm());
@@ -113,26 +112,9 @@ public class Ja010aQueryDslRepository {
     public void deleteDetail(Ja010aDetailDto detail) {
         if (detail == null || detail.getCorpGr() == null || detail.getYmd() == null) return;
         String corpGr = detail.getCorpGr().trim();
-        java.time.LocalDate ymd = parseLocalDate(detail.getYmd());
-        if (ymd == null) return;
+        java.time.LocalDate ymd = detail.getYmd();
         QSzx0ab q = QSzx0ab.szx0ab;
         queryFactory.delete(q).where(q.corpGr.eq(corpGr).and(q.ymd.eq(ymd))).execute();
-    }
-
-    private java.time.LocalDate parseLocalDate(String text) {
-        if (text == null || text.isBlank()) return null;
-        String clean = text.trim();
-        try {
-            if (clean.length() >= 10) {
-                clean = clean.substring(0, 10).replace('.', '-').replace('/', '-');
-                return java.time.LocalDate.parse(clean, DATE_FMT);
-            }
-            String digits = clean.replaceAll("\\D", "");
-            if (digits.length() == 8) {
-                return java.time.LocalDate.parse(digits, DateTimeFormatter.ofPattern("yyyyMMdd"));
-            }
-        } catch (Exception ignored) {}
-        return null;
     }
 
     public List<Ja010aMasterDto> findMasterList() {
@@ -178,10 +160,10 @@ public class Ja010aQueryDslRepository {
 
         return entities.stream().map(e -> Ja010aDetailDto.builder()
                 .corpGr(e.getCorpGr())
-                .ymd(e.getYmd() != null ? e.getYmd().format(DATE_FMT) : null)
+                .ymd(e.getYmd())
                 .companyName(e.getCompanyName())
                 .idno(e.getIdno())
-                .contractYmd(e.getContractYmd() != null ? e.getContractYmd().format(DATE_FMT) : null)
+                .contractYmd(e.getContractYmd())
                 .post(e.getPost())
                 .juso(e.getJuso())
                 .ceoNm(e.getCeoNm())

@@ -1,11 +1,14 @@
 package com.kfp.aams.domain.dailyadvisory.dto;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 /**
  * DTO for d_ja010k2 (공모청약 수요예측 참여표(계좌) 디테일 운용내역)
@@ -16,7 +19,10 @@ import java.math.BigDecimal;
 @AllArgsConstructor
 public class Ja010kDetailDto {
     private String corpGr;
-    private String ymd;
+
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd")
+    private LocalDate ymd;
+
     private String typeGb;
     private String fundCd;
     private String gubun;           // 채권/주식
@@ -34,7 +40,9 @@ public class Ja010kDetailDto {
     private BigDecimal sigaAek;         // 시가액
     private BigDecimal ventureNew;      // 벤처신주 (aekm - vc_old)
     private BigDecimal vcOld;           // 벤처구주 (수정가능)
-    private String vcOldDt;             // 구주일자 (수정일시)
+
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd HH:mm:ss")
+    private LocalDateTime vcOldDt;      // 구주일자 (수정일시)
 
     private BigDecimal nav;             // NAV (sun_jasan_aek)
     private BigDecimal totalNav;        // 총NAV (real_jasan_aek)
@@ -42,6 +50,9 @@ public class Ja010kDetailDto {
     private BigDecimal ventureOldPer;   // 벤처구주비율(%)
     private BigDecimal ventureTotalPer; // 벤처합계비율(%)
 
-    private String ventureStart;        // 벤처시작일
-    private String ventureEnd;          // 벤처종료일
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd")
+    private LocalDate ventureStart;     // 벤처시작일
+
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd")
+    private LocalDate ventureEnd;       // 벤처종료일
 }

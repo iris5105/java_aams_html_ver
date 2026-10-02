@@ -80,8 +80,8 @@ public class Ja020nController {
     @GetMapping("/api/daily/ja020n/status")
     @ResponseBody
     public List<Ja020nStatusDto> getStatusList(@RequestParam(name = "corpGr", required = false) String corpGr,
-                                               @RequestParam(name = "ymd", required = false) String ymd) {
-        if (corpGr == null || corpGr.isBlank() || ymd == null || ymd.isBlank()) {
+                                               @RequestParam(name = "ymd", required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate ymd) {
+        if (corpGr == null || corpGr.isBlank() || ymd == null) {
             return Collections.emptyList();
         }
         return ja020nService.getStatusList(corpGr, ymd);
@@ -93,8 +93,8 @@ public class Ja020nController {
     @GetMapping("/api/daily/ja020n/siga")
     @ResponseBody
     public List<Ja020nSigaDto> getSigaList(@RequestParam(name = "corpGr", required = false) String corpGr,
-                                           @RequestParam(name = "ymd", required = false) String ymd) {
-        if (corpGr == null || corpGr.isBlank() || ymd == null || ymd.isBlank()) {
+                                           @RequestParam(name = "ymd", required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate ymd) {
+        if (corpGr == null || corpGr.isBlank() || ymd == null) {
             return Collections.emptyList();
         }
         return ja020nService.getSigaList(corpGr, ymd);
@@ -106,8 +106,8 @@ public class Ja020nController {
     @GetMapping("/api/daily/ja020n/tr")
     @ResponseBody
     public List<Ja020nTrDto> getTrList(@RequestParam(name = "corpGr", required = false) String corpGr,
-                                       @RequestParam(name = "ymd", required = false) String ymd) {
-        if (corpGr == null || corpGr.isBlank() || ymd == null || ymd.isBlank()) {
+                                       @RequestParam(name = "ymd", required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate ymd) {
+        if (corpGr == null || corpGr.isBlank() || ymd == null) {
             return Collections.emptyList();
         }
         return ja020nService.getTrList(corpGr, ymd);

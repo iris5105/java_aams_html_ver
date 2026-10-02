@@ -36,7 +36,7 @@ public class Ja010nService {
         // 1. 삭제 대상
         if (saveDto.getDeletedRows() != null) {
             for (Ja010nDto row : saveDto.getDeletedRows()) {
-                if (row.getYmd() != null && !row.getYmd().isBlank()) {
+                if (row.getYmd() != null) {
                     ja010nQueryDslRepository.deleteJa010n(row.getYmd());
                 }
             }
@@ -45,7 +45,7 @@ public class Ja010nService {
         // 2. 신규 생성 대상
         if (saveDto.getCreatedRows() != null) {
             for (Ja010nDto row : saveDto.getCreatedRows()) {
-                if (row.getYmd() != null && !row.getYmd().isBlank()) {
+                if (row.getYmd() != null) {
                     row.setCorpGr("JISU");
                     row.setColId("kospi_jisu");
                     try {
@@ -60,7 +60,7 @@ public class Ja010nService {
         // 3. 수정 대상
         if (saveDto.getUpdatedRows() != null) {
             for (Ja010nDto row : saveDto.getUpdatedRows()) {
-                if (row.getYmd() != null && !row.getYmd().isBlank()) {
+                if (row.getYmd() != null) {
                     row.setCorpGr("JISU");
                     row.setColId("kospi_jisu");
                     int updated = ja010nQueryDslRepository.updateJa010n(row);

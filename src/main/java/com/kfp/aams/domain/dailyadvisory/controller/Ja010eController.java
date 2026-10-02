@@ -6,6 +6,7 @@ import com.kfp.aams.menu.service.MenuService;
 import com.kfp.aams.security.UserPrincipal;
 import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -14,6 +15,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 
+import java.time.LocalDate;
 import java.util.Collections;
 import java.util.List;
 
@@ -88,9 +90,9 @@ public class Ja010eController {
     @GetMapping("/api/daily/ja010e/list")
     @ResponseBody
     public List<Ja010eDto> getList(@RequestParam(name = "corpGr", required = false) String corpGr,
-                                   @RequestParam(name = "ymd", required = false) String ymd,
+                                   @RequestParam(name = "ymd", required = false) @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate ymd,
                                    @RequestParam(name = "trCoCd", required = false) String trCoCd) {
-        if (corpGr == null || corpGr.isBlank() || ymd == null || ymd.isBlank()) {
+        if (corpGr == null || corpGr.isBlank() || ymd == null) {
             return Collections.emptyList();
         }
         return ja010eService.getList(corpGr, ymd, trCoCd);

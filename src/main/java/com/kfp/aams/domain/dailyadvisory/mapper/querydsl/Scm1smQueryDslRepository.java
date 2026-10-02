@@ -26,7 +26,7 @@ public class Scm1smQueryDslRepository {
     public void insertScm1sm(Scm1smDto dto) {
         if (dto == null || dto.getCorpGr() == null || dto.getYmd() == null || dto.getJmCd() == null) return;
 
-        LocalDate ymd = parseLocalDate(dto.getYmd());
+        LocalDate ymd = dto.getYmd();
         Scm1smId id = new Scm1smId(dto.getCorpGr().trim(), ymd, dto.getJmCd().trim());
         Scm1sm entity = em.find(Scm1sm.class, id);
 
@@ -55,7 +55,7 @@ public class Scm1smQueryDslRepository {
     public int updateScm1sm(Scm1smDto dto) {
         if (dto == null || dto.getCorpGr() == null || dto.getYmd() == null || dto.getJmCd() == null) return 0;
 
-        LocalDate ymd = parseLocalDate(dto.getYmd());
+        LocalDate ymd = dto.getYmd();
         Scm1smId id = new Scm1smId(dto.getCorpGr().trim(), ymd, dto.getJmCd().trim());
         Scm1sm entity = em.find(Scm1sm.class, id);
 
@@ -73,7 +73,7 @@ public class Scm1smQueryDslRepository {
     public int deleteScm1sm(Scm1smDto dto) {
         if (dto == null || dto.getCorpGr() == null || dto.getYmd() == null || dto.getJmCd() == null) return 0;
 
-        LocalDate ymd = parseLocalDate(dto.getYmd());
+        LocalDate ymd = dto.getYmd();
         Scm1smId id = new Scm1smId(dto.getCorpGr().trim(), ymd, dto.getJmCd().trim());
         Scm1sm entity = em.find(Scm1sm.class, id);
 
@@ -98,18 +98,5 @@ public class Scm1smQueryDslRepository {
             return dto.getJySuikPer().divide(BigDecimal.valueOf(100), 8, RoundingMode.HALF_UP);
         }
         return dto.getJySuikRt();
-    }
-
-    private LocalDate parseLocalDate(String text) {
-        if (text == null || text.isBlank()) return null;
-        String clean = text.trim().replace('.', '-').replace('/', '-');
-        if (clean.length() >= 10) {
-            return LocalDate.parse(clean.substring(0, 10), DateTimeFormatter.ofPattern("yyyy-MM-dd"));
-        }
-        String digits = clean.replaceAll("\\D", "");
-        if (digits.length() == 8) {
-            return LocalDate.parse(digits, DateTimeFormatter.ofPattern("yyyyMMdd"));
-        }
-        return null;
     }
 }

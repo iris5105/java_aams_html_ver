@@ -1,11 +1,14 @@
 package com.kfp.aams.domain.dailyadvisory.dto;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 /**
  * DTO for d_shj0ig.srd (SHJ0IG - 현금 종목별 이자구간)
@@ -22,14 +25,28 @@ public class Shj0igDetailDto {
     private BigDecimal guganNo;        // number
     private BigDecimal guganIlsu;      // number
     private BigDecimal guganIja;       // number
-    private String bfIjaYmd;          // datetime -> YYYY-MM-DD string
-    private String afIjaYmd;          // datetime -> YYYY-MM-DD string
+
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd")
+    private LocalDate bfIjaYmd;         // datetime -> LocalDate
+
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd")
+    private LocalDate afIjaYmd;         // datetime -> LocalDate
+
     private String ipUser;             // char(10)
-    private String ipYmd;              // datetime -> YYYY-MM-DD HH:mm:ss string
+
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd HH:mm:ss")
+    private LocalDateTime ipYmd;       // datetime -> LocalDateTime
+
     private BigDecimal otherCost;      // number
-    private String otherCostEndYmd;    // datetime -> YYYY-MM-DD string
+
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd")
+    private LocalDate otherCostEndYmd; // datetime -> LocalDate
+
     private BigDecimal platformFee;    // number
-    private String platformYmd;        // datetime -> YYYY-MM-DD string
+
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd")
+    private LocalDate platformYmd;     // datetime -> LocalDate
+
     private BigDecimal fixIjaAek;      // number
     private BigDecimal nowNo;          // number (argument)
     private Integer pVisible;          // number (1)

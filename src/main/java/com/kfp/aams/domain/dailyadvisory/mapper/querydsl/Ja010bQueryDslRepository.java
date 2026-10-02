@@ -61,10 +61,10 @@ public class Ja010bQueryDslRepository {
                 .fundCd(m.getFundCd())
                 .fundNm(m.getFundNm())
                 .typeGb(m.getTypeGb())
-                .fstSeoljYmd(parseLocalDate(m.getFstSeoljYmd()))
+                .fstSeoljYmd(m.getFstSeoljYmd())
                 .sintakGigan(m.getSintakGigan())
-                .bfGyulYmd(parseLocalDate(m.getBfGyulYmd()))
-                .afGyulYmd(parseLocalDate(m.getAfGyulYmd()))
+                .bfGyulYmd(m.getBfGyulYmd())
+                .afGyulYmd(m.getAfGyulYmd())
                 .preBasic(m.getPreBasic())
                 .basicPer(m.getBasicPer())
                 .bmPer(m.getBmPer())
@@ -73,13 +73,13 @@ public class Ja010bQueryDslRepository {
                 .targetJasan(m.getTargetJasan())
                 .gyulGi(m.getGyulGi())
                 .haejiGb(m.getHaejiGb())
-                .haejiYmd(parseLocalDate(m.getHaejiYmd()))
+                .haejiYmd(m.getHaejiYmd())
                 .reSeoljYear(m.getReSeoljYear())
                 .reSeoljAek(m.getReSeoljAek())
                 .mgCd(m.getMgCd())
                 .susuRt(m.getSusuRt())
                 .email1(m.getEmail1())
-                .reSeoljYmd(parseLocalDate(m.getReSeoljYmd()))
+                .reSeoljYmd(m.getReSeoljYmd())
                 .unyongSabun(m.getUnyongSabun())
                 .orderSend(m.getOrderSend())
                 .expenseYn(m.getExpenseYn())
@@ -97,10 +97,10 @@ public class Ja010bQueryDslRepository {
         if (entity != null) {
             entity.setFundNm(m.getFundNm());
             entity.setTypeGb(m.getTypeGb());
-            entity.setFstSeoljYmd(parseLocalDate(m.getFstSeoljYmd()));
+            entity.setFstSeoljYmd(m.getFstSeoljYmd());
             entity.setSintakGigan(m.getSintakGigan());
-            entity.setBfGyulYmd(parseLocalDate(m.getBfGyulYmd()));
-            entity.setAfGyulYmd(parseLocalDate(m.getAfGyulYmd()));
+            entity.setBfGyulYmd(m.getBfGyulYmd());
+            entity.setAfGyulYmd(m.getAfGyulYmd());
             entity.setPreBasic(m.getPreBasic());
             entity.setBasicPer(m.getBasicPer());
             entity.setBmPer(m.getBmPer());
@@ -109,13 +109,13 @@ public class Ja010bQueryDslRepository {
             entity.setTargetJasan(m.getTargetJasan());
             entity.setGyulGi(m.getGyulGi());
             entity.setHaejiGb(m.getHaejiGb());
-            entity.setHaejiYmd(parseLocalDate(m.getHaejiYmd()));
+            entity.setHaejiYmd(m.getHaejiYmd());
             entity.setReSeoljYear(m.getReSeoljYear());
             entity.setReSeoljAek(m.getReSeoljAek());
             entity.setMgCd(m.getMgCd());
             entity.setSusuRt(m.getSusuRt());
             entity.setEmail1(m.getEmail1());
-            entity.setReSeoljYmd(parseLocalDate(m.getReSeoljYmd()));
+            entity.setReSeoljYmd(m.getReSeoljYmd());
             entity.setUnyongSabun(m.getUnyongSabun());
             entity.setExpenseYn(m.getExpenseYn());
             entity.setSpecialNote(m.getSpecialNote());
@@ -131,14 +131,14 @@ public class Ja010bQueryDslRepository {
                 .corpGr(d.getCorpGr())
                 .fundCd(d.getFundCd())
                 .gyulGi(d.getGyulGi())
-                .bfGyulYmd(parseLocalDate(d.getBfGyulYmd()))
-                .afGyulYmd(parseLocalDate(d.getAfGyulYmd()))
+                .bfGyulYmd(d.getBfGyulYmd())
+                .afGyulYmd(d.getAfGyulYmd())
                 .ilsu(d.getIlsu())
                 .giSonikAek(d.getGiSonikAek())
                 .wmSeoljAek(d.getWmSeoljAek())
-                .wmDt(parseLocalDate(d.getWmDt()))
-                .haejiYmd(parseLocalDate(d.getHaejiYmd()))
-                .inchulYmd(parseLocalDate(d.getInchulYmd()))
+                .wmDt(d.getWmDt())
+                .haejiYmd(d.getHaejiYmd())
+                .inchulYmd(d.getInchulYmd())
                 .inAek(d.getInAek())
                 .distCalc(d.getDistCalc())
                 .afGijun(d.getAfGijun())
@@ -147,16 +147,16 @@ public class Ja010bQueryDslRepository {
     }
 
     public void updateDetail(Ja010bDetailDto d) {
-        Szm0giId id = new Szm0giId(d.getCorpGr(), d.getFundCd(), parseLocalDate(d.getBfGyulYmd()));
+        Szm0giId id = new Szm0giId(d.getCorpGr(), d.getFundCd(), d.getBfGyulYmd());
         Szm0gi entity = em.find(Szm0gi.class, id);
         if (entity != null) {
-            entity.setAfGyulYmd(parseLocalDate(d.getAfGyulYmd()));
+            entity.setAfGyulYmd(d.getAfGyulYmd());
             entity.setIlsu(d.getIlsu());
             entity.setGiSonikAek(d.getGiSonikAek());
             entity.setWmSeoljAek(d.getWmSeoljAek());
-            entity.setWmDt(parseLocalDate(d.getWmDt()));
-            entity.setHaejiYmd(parseLocalDate(d.getHaejiYmd()));
-            entity.setInchulYmd(parseLocalDate(d.getInchulYmd()));
+            entity.setWmDt(d.getWmDt());
+            entity.setHaejiYmd(d.getHaejiYmd());
+            entity.setInchulYmd(d.getInchulYmd());
             entity.setInAek(d.getInAek());
             entity.setDistCalc(d.getDistCalc());
             entity.setAfGijun(d.getAfGijun());
@@ -164,7 +164,7 @@ public class Ja010bQueryDslRepository {
     }
 
     public void deleteDetail(Ja010bDetailDto d) {
-        Szm0giId id = new Szm0giId(d.getCorpGr(), d.getFundCd(), parseLocalDate(d.getBfGyulYmd()));
+        Szm0giId id = new Szm0giId(d.getCorpGr(), d.getFundCd(), d.getBfGyulYmd());
         Szm0gi entity = em.find(Szm0gi.class, id);
         if (entity != null) {
             em.remove(entity);
@@ -176,7 +176,7 @@ public class Ja010bQueryDslRepository {
         Szt0io entity = Szt0io.builder()
                 .corpGr(io.getCorpGr())
                 .fundCd(io.getFundCd())
-                .trYmd(parseLocalDate(io.getTrYmd()))
+                .trYmd(io.getTrYmd())
                 .wonbonAek(io.getWonbonAek())
                 .inAek(io.getInAek())
                 .outAek(io.getOutAek())
@@ -190,7 +190,7 @@ public class Ja010bQueryDslRepository {
     }
 
     public void updateIo(Ja010bIoDto io) {
-        Szt0ioId id = new Szt0ioId(io.getCorpGr(), io.getFundCd(), parseLocalDate(io.getTrYmd()));
+        Szt0ioId id = new Szt0ioId(io.getCorpGr(), io.getFundCd(), io.getTrYmd());
         Szt0io entity = em.find(Szt0io.class, id);
         if (entity != null) {
             entity.setWonbonAek(io.getWonbonAek());
@@ -211,7 +211,7 @@ public class Ja010bQueryDslRepository {
     }
 
     public void deleteIo(Ja010bIoDto io) {
-        Szt0ioId id = new Szt0ioId(io.getCorpGr(), io.getFundCd(), parseLocalDate(io.getTrYmd()));
+        Szt0ioId id = new Szt0ioId(io.getCorpGr(), io.getFundCd(), io.getTrYmd());
         Szt0io entity = em.find(Szt0io.class, id);
         if (entity != null) {
             em.remove(entity);
@@ -220,10 +220,11 @@ public class Ja010bQueryDslRepository {
 
     public void deleteMaster(Ja010bMasterDto m) {
         if (m == null || m.getCorpGr() == null || m.getFundCd() == null) return;
-        QSzm0ia q = QSzm0ia.szm0ia;
-        queryFactory.delete(q)
-                .where(q.corpGr.eq(m.getCorpGr().trim()).and(q.fundCd.eq(m.getFundCd().trim())))
-                .execute();
+        Szm0iaId id = new Szm0iaId(m.getCorpGr().trim(), m.getFundCd().trim());
+        Szm0ia entity = em.find(Szm0ia.class, id);
+        if (entity != null) {
+            em.remove(entity);
+        }
     }
 
     private String encrypt(String plain) {
@@ -237,18 +238,5 @@ public class Ja010bQueryDslRepository {
                     .setParameter("plain", plain.trim())
                     .getSingleResult();
         }
-    }
-
-    private LocalDate parseLocalDate(String text) {
-        if (text == null || text.isBlank()) return null;
-        String digits = text.replaceAll("\\D", "");
-        if (digits.length() == 8) {
-            return LocalDate.of(
-                    Integer.parseInt(digits.substring(0, 4)),
-                    Integer.parseInt(digits.substring(4, 6)),
-                    Integer.parseInt(digits.substring(6, 8))
-            );
-        }
-        return LocalDate.parse(text.substring(0, 10).replace('.', '-').replace('/', '-'));
     }
 }

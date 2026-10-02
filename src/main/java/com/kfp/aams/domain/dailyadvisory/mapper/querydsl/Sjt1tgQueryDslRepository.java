@@ -28,7 +28,7 @@ public class Sjt1tgQueryDslRepository {
 
         Sjt1tg entity = Sjt1tg.builder()
                 .koscomCd(dto.getSjCd())
-                .ymd(parseLocalDate(dto.getYmd()))
+                .ymd(dto.getYmd())
                 .close(dto.getClose())
                 .volume(dto.getVolume())
                 .value(dto.getValue())
@@ -41,7 +41,7 @@ public class Sjt1tgQueryDslRepository {
     }
 
     public int updateSjt1tg(Sjt1tgDto dto) {
-        Sjt1tgId id = new Sjt1tgId(dto.getSjCd(), parseLocalDate(dto.getYmd()));
+        Sjt1tgId id = new Sjt1tgId(dto.getSjCd(), dto.getYmd());
         Sjt1tg entity = em.find(Sjt1tg.class, id);
         if (entity != null) {
             BigDecimal change = dto.getChange();
@@ -61,24 +61,11 @@ public class Sjt1tgQueryDslRepository {
         return 0;
     }
 
-    public void deleteSjt1tg(String ymd, String sjCd) {
-        Sjt1tgId id = new Sjt1tgId(sjCd, parseLocalDate(ymd));
+    public void deleteSjt1tg(LocalDate ymd, String sjCd) {
+        Sjt1tgId id = new Sjt1tgId(sjCd, ymd);
         Sjt1tg entity = em.find(Sjt1tg.class, id);
         if (entity != null) {
             em.remove(entity);
         }
-    }
-
-    private LocalDate parseLocalDate(String text) {
-        if (text == null || text.isBlank()) return null;
-        String digits = text.replaceAll("\\D", "");
-        if (digits.length() == 8) {
-            return LocalDate.of(
-                    Integer.parseInt(digits.substring(0, 4)),
-                    Integer.parseInt(digits.substring(4, 6)),
-                    Integer.parseInt(digits.substring(6, 8))
-            );
-        }
-        return LocalDate.parse(text.substring(0, 10).replace('.', '-').replace('/', '-'));
     }
 }

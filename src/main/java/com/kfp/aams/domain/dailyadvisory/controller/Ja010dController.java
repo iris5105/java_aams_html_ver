@@ -37,8 +37,12 @@ public class Ja010dController {
         String corpGr = resolveCorpGr(paramCorpGr, cookieCorpGr, principal);
         String adminYn = (principal != null && principal.getAdminYn() != null) ? principal.getAdminYn() : "N";
 
-        String trYmd = (paramTrYmd != null && !paramTrYmd.isBlank()) ? paramTrYmd
-                : LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+        LocalDate trYmd = LocalDate.now();
+        if (paramTrYmd != null && !paramTrYmd.isBlank()) {
+            try {
+                trYmd = LocalDate.parse(paramTrYmd.trim());
+            } catch (Exception ignored) {}
+        }
 
         String addWhere = null;
         if (!"Y".equalsIgnoreCase(adminYn)) {
@@ -48,7 +52,7 @@ public class Ja010dController {
         var corpList = dddwService.getDddwList("CORP_GR", 1, addWhere, null, session);
 
         model.addAttribute("corpGr", corpGr);
-        model.addAttribute("trYmd", trYmd);
+        model.addAttribute("trYmd", trYmd.toString());
         model.addAttribute("adminYn", adminYn);
         model.addAttribute("corpList", corpList);
         model.addAttribute("dataList", ja010dService.getJa010dList(corpGr, trYmd));
@@ -65,19 +69,20 @@ public class Ja010dController {
     @ResponseBody
     public List<Ja010dDto> getJa010dList(@AuthenticationPrincipal UserPrincipal principal,
             @RequestParam(name = "corpGr", required = false) String paramCorpGr,
-            @RequestParam(name = "trYmd", required = false) String paramTrYmd,
+            @RequestParam(name = "trYmd", required = false) @org.springframework.format.annotation.DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate trYmd,
             @CookieValue(name = "savedCorpGr", required = false) String cookieCorpGr1,
             @CookieValue(name = "corpGr", required = false) String cookieCorpGr2) {
         String cookieCorpGr = (cookieCorpGr1 != null && !cookieCorpGr1.isBlank()) ? cookieCorpGr1 : cookieCorpGr2;
         String corpGr = resolveCorpGr(paramCorpGr, cookieCorpGr, principal);
-        String trYmd = (paramTrYmd != null && !paramTrYmd.isBlank()) ? paramTrYmd
-                : LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+        if (trYmd == null) {
+            trYmd = LocalDate.now();
+        }
         return ja010dService.getJa010dList(corpGr, trYmd);
     }
 
     @GetMapping("/api/account/ja010d/dates")
     @ResponseBody
-    public List<String> getTrDates(@AuthenticationPrincipal UserPrincipal principal,
+    public List<LocalDate> getTrDates(@AuthenticationPrincipal UserPrincipal principal,
             @RequestParam(name = "corpGr", required = false) String paramCorpGr,
             @CookieValue(name = "savedCorpGr", required = false) String cookieCorpGr1,
             @CookieValue(name = "corpGr", required = false) String cookieCorpGr2) {

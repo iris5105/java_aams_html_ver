@@ -1,5 +1,6 @@
 package com.kfp.aams.domain.dailyadvisory.dto;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
@@ -10,6 +11,8 @@ import lombok.Setter;
 
 import java.io.Serializable;
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 /**
  * DTO for w_ja010e 주식체결LOAD(입고) (d_ja010e1.srd / SJT1JG)
@@ -24,7 +27,10 @@ public class Ja010eDto implements Serializable {
     private static final long serialVersionUID = 1L;
 
     private String corpGr;
-    private String trYmd;
+
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd")
+    private LocalDate trYmd;
+
     private String trCd;
     private String trCoCd;
     private Long offerNo;
@@ -39,9 +45,15 @@ public class Ja010eDto implements Serializable {
     private String dancGb;
     private BigDecimal susu;
     private BigDecimal tax;
-    private String sudoYmd;
+
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd")
+    private LocalDate sudoYmd;
+
     private String acctNo;
-    private String loadTime;
+
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd HH:mm:ss")
+    private LocalDateTime loadTime;
+
     private Integer pVisible;
     private BigDecimal danga;
 

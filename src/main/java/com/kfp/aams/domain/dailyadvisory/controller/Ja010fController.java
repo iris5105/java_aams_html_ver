@@ -6,6 +6,7 @@ import com.kfp.aams.menu.service.MenuService;
 import com.kfp.aams.security.UserPrincipal;
 import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -14,6 +15,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 
+import java.time.LocalDate;
 import java.util.Collections;
 import java.util.List;
 
@@ -67,14 +69,14 @@ public class Ja010fController {
     @ResponseBody
     public List<Ja010fDto> getList(@AuthenticationPrincipal Object principalObj,
                                    @RequestParam(name = "corpGr", required = false) String paramCorpGr,
-                                   @RequestParam(name = "ymd", required = false) String ymd,
+                                   @RequestParam(name = "ymd", required = false) @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate ymd,
                                    @RequestParam(name = "trCoCd", required = false) String trCoCd,
                                    @CookieValue(name = "savedCorpGr", required = false) String cookieCorpGr1,
                                    @CookieValue(name = "corpGr", required = false) String cookieCorpGr2) {
         UserPrincipal principal = (principalObj instanceof UserPrincipal p) ? p : null;
         String cookieCorpGr = (cookieCorpGr1 != null && !cookieCorpGr1.isBlank()) ? cookieCorpGr1 : cookieCorpGr2;
         String corpGr = resolveCorpGr(paramCorpGr, cookieCorpGr, principal);
-        if (corpGr == null || corpGr.isBlank() || ymd == null || ymd.isBlank()) {
+        if (corpGr == null || corpGr.isBlank() || ymd == null) {
             return Collections.emptyList();
         }
         return ja010fService.getList(corpGr, ymd, trCoCd);

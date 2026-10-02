@@ -26,7 +26,7 @@ public class Ja010m3Service {
     }
 
     @Transactional(readOnly = true)
-    public List<Ja010m3Dto> getList(String corpGr, String gyulYmd, String sortGb, boolean isAdmin) {
+    public List<Ja010m3Dto> getList(String corpGr, java.time.LocalDate gyulYmd, String sortGb, boolean isAdmin) {
         if (corpGr == null || corpGr.trim().isEmpty()) {
             return Collections.emptyList();
         }
@@ -34,13 +34,7 @@ public class Ja010m3Service {
         String chk = isAdmin ? "b" : "a";
         String normalizedSortGb = (sortGb != null && !sortGb.trim().isEmpty()) ? sortGb.trim() : "1";
 
-        // Mapper의 TO_DATE(#{gyulYmd}, 'YYYY-MM-DD')에 맞추어 YYYY-MM-DD 포맷 유지
-        String formattedYmd = (gyulYmd != null && !gyulYmd.trim().isEmpty()) ? gyulYmd.trim() : "";
-        if (formattedYmd.length() == 8 && !formattedYmd.contains("-")) {
-            formattedYmd = formattedYmd.substring(0, 4) + "-" + formattedYmd.substring(4, 6) + "-" + formattedYmd.substring(6, 8);
-        }
-
-        return ja010m3Mapper.selectJa010m3List(corpGr, formattedYmd, normalizedSortGb, chk);
+        return ja010m3Mapper.selectJa010m3List(corpGr, gyulYmd, normalizedSortGb, chk);
     }
 
     @Transactional

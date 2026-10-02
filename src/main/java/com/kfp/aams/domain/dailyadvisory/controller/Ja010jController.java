@@ -38,8 +38,8 @@ public class Ja010jController {
     @GetMapping({"/views/w_ja010j", "/views/dailyadvisory/w_ja010j"})
     public String ja010jView(@AuthenticationPrincipal Object principalObj,
                              @RequestParam(name = "corpGr", required = false) String paramCorpGr,
-                             @RequestParam(name = "fymd", required = false) String paramFymd,
-                             @RequestParam(name = "tymd", required = false) String paramTymd,
+                             @RequestParam(name = "fymd", required = false) @org.springframework.format.annotation.DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate paramFymd,
+                             @RequestParam(name = "tymd", required = false) @org.springframework.format.annotation.DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate paramTymd,
                              @CookieValue(name = "savedCorpGr", required = false) String cookieCorpGr1,
                              @CookieValue(name = "corpGr", required = false) String cookieCorpGr2,
                              Model model) {
@@ -55,22 +55,25 @@ public class Ja010jController {
 
         // 파워빌더 w_ja010j.srw (wue_lastopen) 명세:
         // tymd = 기준일자(작업일자), fymd = 기준일자 기준 3개월 전 + 1일 (ADD_MONTHS(tymd, -3) + 1)
-        String tymd = (paramTymd != null && !paramTymd.isBlank()) ? paramTymd : workDateService.getWorkDateOrDefault(corpGr);
-        String fymd;
-        try {
-            LocalDate tDate = LocalDate.parse(tymd);
-            fymd = (paramFymd != null && !paramFymd.isBlank()) ? paramFymd : tDate.minusMonths(3).plusDays(1).toString();
-        } catch (Exception e) {
-            fymd = LocalDate.now().minusMonths(3).plusDays(1).toString();
-            tymd = LocalDate.now().toString();
+        LocalDate tymd;
+        if (paramTymd != null) {
+            tymd = paramTymd;
+        } else {
+            String defaultYmd = workDateService.getWorkDateOrDefault(corpGr);
+            try {
+                tymd = LocalDate.parse(defaultYmd);
+            } catch (Exception e) {
+                tymd = LocalDate.now();
+            }
         }
+        LocalDate fymd = (paramFymd != null) ? paramFymd : tymd.minusMonths(3).plusDays(1);
 
         model.addAttribute("fullpgm2", fullpgm2);
         model.addAttribute("corpGr", corpGr);
-        model.addAttribute("initialTymd", tymd);
-        model.addAttribute("initialFymd", fymd);
-        model.addAttribute("tymd", tymd);
-        model.addAttribute("fymd", fymd);
+        model.addAttribute("initialTymd", tymd.toString());
+        model.addAttribute("initialFymd", fymd.toString());
+        model.addAttribute("tymd", tymd.toString());
+        model.addAttribute("fymd", fymd.toString());
 
         return "views/dailyadvisory/w_ja010j";
     }
@@ -81,20 +84,19 @@ public class Ja010jController {
     @GetMapping("/api/daily/ja010j/workdate")
     @ResponseBody
     public ResponseEntity<Map<String, String>> getWorkDate(@RequestParam(name = "corpGr", required = false) String corpGr) {
-        String tymd = workDateService.getWorkDateOrDefault(corpGr);
-        String fymd;
+        String defaultYmd = workDateService.getWorkDateOrDefault(corpGr);
+        LocalDate tymd;
         try {
-            LocalDate tDate = LocalDate.parse(tymd);
-            fymd = tDate.minusMonths(3).plusDays(1).toString();
+            tymd = LocalDate.parse(defaultYmd);
         } catch (Exception e) {
-            fymd = LocalDate.now().minusMonths(3).plusDays(1).toString();
-            tymd = LocalDate.now().toString();
+            tymd = LocalDate.now();
         }
+        LocalDate fymd = tymd.minusMonths(3).plusDays(1);
 
         Map<String, String> response = new HashMap<>();
-        response.put("workDate", tymd);
-        response.put("tymd", tymd);
-        response.put("fymd", fymd);
+        response.put("workDate", tymd.toString());
+        response.put("tymd", tymd.toString());
+        response.put("fymd", fymd.toString());
         return ResponseEntity.ok(response);
     }
 
@@ -102,7 +104,7 @@ public class Ja010jController {
     @ResponseBody
     public ResponseEntity<List<Ja010jDto>> getList(
             @RequestParam("corpGr") String corpGr,
-            @RequestParam("ymd") String ymd) {
+            @RequestParam("ymd") @org.springframework.format.annotation.DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate ymd) {
         List<Ja010jDto> list = ja010jService.selectJa010jList(corpGr, ymd);
         return ResponseEntity.ok(list);
     }
@@ -113,8 +115,8 @@ public class Ja010jController {
             @RequestParam("fundCd") String fundCd,
             @RequestParam(value = "companyName", required = false) String companyName,
             @RequestParam(value = "fundNm", required = false) String fundNm,
-            @RequestParam("fymd") String fymd,
-            @RequestParam("tymd") String tymd) {
+            @RequestParam("fymd") @org.springframework.format.annotation.DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate fymd,
+            @RequestParam("tymd") @org.springframework.format.annotation.DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate tymd) {
         try {
             RdReportService.ExportResult exportResult = ja010jService.generateReport(
                     corpGr, fundCd, companyName, fundNm, fymd, tymd, "pdf");
@@ -135,8 +137,8 @@ public class Ja010jController {
             @RequestParam("fundCd") String fundCd,
             @RequestParam(value = "companyName", required = false) String companyName,
             @RequestParam(value = "fundNm", required = false) String fundNm,
-            @RequestParam("fymd") String fymd,
-            @RequestParam("tymd") String tymd,
+            @RequestParam("fymd") @org.springframework.format.annotation.DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate fymd,
+            @RequestParam("tymd") @org.springframework.format.annotation.DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate tymd,
             @RequestParam(value = "format", defaultValue = "pdf") String format) {
         try {
             RdReportService.ExportResult exportResult = ja010jService.generateReport(

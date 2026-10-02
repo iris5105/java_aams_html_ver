@@ -27,8 +27,8 @@ public class Ja010qService {
         return workDateService.getWorkDate(corpGr);
     }
 
-    public List<Ja010qDto> selectJa010qList(String corpGr, String ymd) {
-        if (corpGr == null || corpGr.isBlank() || ymd == null || ymd.isBlank()) {
+    public List<Ja010qDto> selectJa010qList(String corpGr, java.time.LocalDate ymd) {
+        if (corpGr == null || corpGr.isBlank() || ymd == null) {
             return Collections.emptyList();
         }
         return ja010qMapper.selectJa010qList(corpGr, ymd);

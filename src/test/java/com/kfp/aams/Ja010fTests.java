@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 
+import java.time.LocalDate;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -26,17 +27,18 @@ public class Ja010fTests {
         List<Ja010fDto> list2 = ja010fService.getList("2402", null, null);
         assertThat(list2).isEmpty();
 
-        List<Ja010fDto> list3 = ja010fService.getList(null, "2026-08-01", null);
+        List<Ja010fDto> list3 = ja010fService.getList(null, LocalDate.of(2026, 8, 1), null);
         assertThat(list3).isEmpty();
     }
 
     @Test
     @DisplayName("Guideline 4: Multi-table join via MyBatis for d_ja010f1")
     void testMyBatisJa010fQuery() {
-        List<Ja010fDto> listAll = ja010fService.getList("2402", "2026-08-01", "%");
+        LocalDate testDate = LocalDate.of(2026, 8, 1);
+        List<Ja010fDto> listAll = ja010fService.getList("2402", testDate, "%");
         assertThat(listAll).isNotNull();
 
-        List<Ja010fDto> listSpecific = ja010fService.getList("2402", "2026-08-01", "00010");
+        List<Ja010fDto> listSpecific = ja010fService.getList("2402", testDate, "00010");
         assertThat(listSpecific).isNotNull();
     }
 

@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -33,7 +34,7 @@ public class Shm0hjTests {
     @DisplayName("Guideline 4: Multi-table join via MyBatis for d_shm0hj")
     void testMyBatisMasterQuery() {
         // Querying with actual parameters without errors
-        List<Shm0hjMasterDto> list = shm0hjService.getMasterList("00804", "2026-08-01", "%");
+        List<Shm0hjMasterDto> list = shm0hjService.getMasterList("00804", LocalDate.of(2026, 8, 1), "%");
         assertThat(list).isNotNull();
         System.out.println("Master list count: " + list.size());
         if (!list.isEmpty()) {

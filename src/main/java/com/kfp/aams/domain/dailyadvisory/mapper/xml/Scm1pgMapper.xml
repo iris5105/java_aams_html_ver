@@ -12,14 +12,14 @@
          WHERE t1.corp_gr    = #{corpGr}
            AND cj.corp_gr    = t1.corp_gr
            AND cj.jm_cd      = t1.jm_cd
-           AND cj.sanghw_ymd > TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
+           AND cj.sanghw_ymd > #{ymd}
          ORDER BY cj.jm_cd ASC
     </select>
 
     <!-- 2. 채권 등급 디테일 목록 조회 (d_scm1pg_2) -->
     <select id="selectDetailList" resultType="com.kfp.aams.domain.dailyadvisory.dto.Scm1pgDetailDto">
         SELECT t1.corp_gr                         AS corpGr
-             , TO_CHAR(t1.ymd, 'YYYY-MM-DD')       AS ymd
+             , t1.ymd                             AS ymd
              , t1.jm_cd                           AS jmCd
              , t1.pg_cd                           AS pgCd
              , TO_CHAR(t1.ymd, 'iw')              AS week

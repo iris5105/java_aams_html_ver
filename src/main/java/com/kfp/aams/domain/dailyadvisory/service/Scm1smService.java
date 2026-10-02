@@ -26,8 +26,8 @@ public class Scm1smService {
      * 파워빌더 retrieveend 로직과 연계하여, 당일 미등록 종목이 있을 경우 보강하여 반환
      */
     @Transactional(readOnly = true)
-    public List<Scm1smDto> getScm1smList(String corpGr, String ymd) {
-        if (corpGr == null || corpGr.isBlank() || ymd == null || ymd.isBlank()) {
+    public List<Scm1smDto> getScm1smList(String corpGr, java.time.LocalDate ymd) {
+        if (corpGr == null || corpGr.isBlank() || ymd == null) {
             return List.of();
         }
 
@@ -67,13 +67,13 @@ public class Scm1smService {
 
         int count = 0;
         String defaultCorpGr = saveDto.getCorpGr();
-        String defaultYmd = saveDto.getYmd();
+        java.time.LocalDate defaultYmd = saveDto.getYmd();
 
         // 1. 삭제 대상 처리
         if (saveDto.getDeleteList() != null && !saveDto.getDeleteList().isEmpty()) {
             for (Scm1smDto item : saveDto.getDeleteList()) {
                 if (item.getCorpGr() == null || item.getCorpGr().isBlank()) item.setCorpGr(defaultCorpGr);
-                if (item.getYmd() == null || item.getYmd().isBlank()) item.setYmd(defaultYmd);
+                if (item.getYmd() == null) item.setYmd(defaultYmd);
                 count += scm1smQueryDslRepository.deleteScm1sm(item);
             }
         }
@@ -89,7 +89,7 @@ public class Scm1smService {
 
         for (Scm1smDto item : upsertList) {
             if (item.getCorpGr() == null || item.getCorpGr().isBlank()) item.setCorpGr(defaultCorpGr);
-            if (item.getYmd() == null || item.getYmd().isBlank()) item.setYmd(defaultYmd);
+            if (item.getYmd() == null) item.setYmd(defaultYmd);
             if (item.getAsCjCd() == null || item.getAsCjCd().isBlank()) item.setAsCjCd(item.getJmCd());
             count += scm1smQueryDslRepository.mergeScm1sm(item);
         }

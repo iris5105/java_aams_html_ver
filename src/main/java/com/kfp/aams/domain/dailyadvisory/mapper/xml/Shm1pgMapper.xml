@@ -17,7 +17,7 @@
                                     AND ia.fund_cd = hj.fund_cd
          WHERE hj.corp_gr    = #{corpGr}
            AND hj.cash_cd    IN ('ZS','ZF')
-           AND hj.sanghw_ymd >= TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
+           AND hj.sanghw_ymd >= #{ymd}
          ORDER BY hj.jm_cd ASC
     </select>
 

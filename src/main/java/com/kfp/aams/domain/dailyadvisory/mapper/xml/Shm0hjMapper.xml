@@ -14,17 +14,17 @@
              , hj.JM_CD                                             AS jmCd
              , hj.CD_JIGUB_GB                                       AS cdJigubGb
              , hj.AEKM                                              AS aekm
-             , TO_CHAR(hj.BALH_YMD, 'YYYY-MM-DD')                   AS balhYmd
+             , hj.BALH_YMD                                          AS balhYmd
              , hj.CASH_CD                                           AS cashCd
              , hj.CHUI_AEK                                          AS chuiAek
              , hj.HJ_NM                                             AS hjNm
-             , TO_CHAR(hj.MEIB_YMD, 'YYYY-MM-DD')                   AS meibYmd
+             , hj.MEIB_YMD                                          AS meibYmd
              , hj.PYOM_IYUL                                         AS pyomIyul
-             , TO_CHAR(hj.AF_IJA_YMD, 'YYYY-MM-DD')                 AS afIjaYmd
+             , hj.AF_IJA_YMD                                        AS afIjaYmd
              , hj.BOJNG_GB                                          AS bojngGb
              , hj.NOW_IJA_HOICHA                                    AS nowIjaHoicha
              , hj.SANGHW_AEK                                        AS sanghwAek
-             , TO_CHAR(hj.SANGHW_YMD, 'YYYY-MM-DD')                 AS sanghwYmd
+             , hj.SANGHW_YMD                                        AS sanghwYmd
              , hj.SUNHU_GB                                          AS sunhuGb
              , hj.YY_IJA_HOICHA                                     AS yyIjaHoicha
              , hj.IJA_YY_SU                                         AS ijaYySu
@@ -44,14 +44,14 @@
              , hj.BOJNG_CO                                          AS bojngCo
              , mb.TR_CO_NM                                          AS trCoNm
              , hj.SUNG_COST                                         AS sungCost
-             , TO_CHAR(hj.OP_YMD, 'YYYY-MM-DD')                     AS opYmd
+             , hj.OP_YMD                                            AS opYmd
              , hj.KSD_JM_CD                                         AS ksdJmCd
              , hj.SEQ_NO                                            AS seqNo
              , hj.SUSU_09900                                        AS susu09900
              , hj.KSD_JM5                                           AS ksdJm5
              , hj.KSD_JM8                                           AS ksdJm8
              , hj.PG_CD                                             AS pgCd
-             , CASE WHEN hj.BALH_YMD >= TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
+             , CASE WHEN hj.BALH_YMD >= #{ymd}
                     THEN 1
                     ELSE 0 END                                      AS pVisible
           FROM SHM0HJ hj
@@ -59,12 +59,12 @@
                                    AND mb.TR_CO_CD = hj.BOJNG_CO
              , SZM0IA ia
          WHERE hj.CORP_GR               = #{corpGr}
-           AND hj.SANGHW_YMD            >= TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
+           AND hj.SANGHW_YMD            >= #{ymd}
            AND hj.CASH_CD               LIKE #{cashCd}
            AND hj.CASH_CD               &lt;&gt; '90'
            AND ia.CORP_GR               = #{corpGr}
            AND ia.FUND_CD               = hj.FUND_CD
-           AND NVL(ia.HAEJI_YMD, TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')) >= TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
+           AND NVL(ia.HAEJI_YMD, #{ymd}) >= #{ymd}
          ORDER BY hj.CASH_CD
                 , hj.FUND_CD
                 , hj.JM_CD

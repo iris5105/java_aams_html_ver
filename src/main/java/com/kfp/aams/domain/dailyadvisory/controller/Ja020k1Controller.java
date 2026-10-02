@@ -84,7 +84,7 @@ public class Ja020k1Controller {
     public ResponseEntity<List<Uzm0hyDto>> getFunds(
             @AuthenticationPrincipal Object principalObj,
             @RequestParam(value = "corpGr", required = false) String corpGr,
-            @RequestParam("ymd") String ymd,
+            @RequestParam("ymd") @org.springframework.format.annotation.DateTimeFormat(pattern = "yyyy-MM-dd") java.time.LocalDate ymd,
             @CookieValue(name = "savedCorpGr", required = false) String cookieCorpGr1,
             @CookieValue(name = "corpGr", required = false) String cookieCorpGr2) {
         UserPrincipal principal = (principalObj instanceof UserPrincipal p) ? p : null;
@@ -105,7 +105,7 @@ public class Ja020k1Controller {
             @RequestParam(value = "corpGr", required = false) String corpGr,
             @RequestParam("fundCd") String fundCd,
             @RequestParam(value = "fundNm", required = false) String fundNm,
-            @RequestParam("ymd") String ymd,
+            @RequestParam("ymd") @org.springframework.format.annotation.DateTimeFormat(pattern = "yyyy-MM-dd") java.time.LocalDate ymd,
             @RequestParam(value = "gugan", defaultValue = "1") String gugan,
             @CookieValue(name = "savedCorpGr", required = false) String cookieCorpGr1,
             @CookieValue(name = "corpGr", required = false) String cookieCorpGr2) {
@@ -133,7 +133,7 @@ public class Ja020k1Controller {
             @RequestParam(value = "corpGr", required = false) String corpGr,
             @RequestParam("fundCd") String fundCd,
             @RequestParam(value = "fundNm", required = false) String fundNm,
-            @RequestParam("ymd") String ymd,
+            @RequestParam("ymd") @org.springframework.format.annotation.DateTimeFormat(pattern = "yyyy-MM-dd") java.time.LocalDate ymd,
             @RequestParam(value = "gugan", defaultValue = "1") String gugan,
             @RequestParam(value = "format", defaultValue = "pdf") String format,
             @CookieValue(name = "savedCorpGr", required = false) String cookieCorpGr1,

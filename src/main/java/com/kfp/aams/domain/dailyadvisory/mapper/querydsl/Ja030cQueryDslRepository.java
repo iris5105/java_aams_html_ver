@@ -25,8 +25,7 @@ public class Ja030cQueryDslRepository {
      * PowerBuilder ue_insertstart & itemchanged 채번 로직:
      * SELECT NVL(MAX(seq_no), 0) + 1 FROM SCT0CG WHERE corp_gr = :corp_gr AND tr_cd = :tr_cd AND TRUNC(tr_ymd) = :tr_ymd
      */
-    public BigDecimal selectNextSeqNo(String corpGr, String trCd, String trYmd, String fundCd) {
-        LocalDate parsedTrYmd = parseLocalDate(trYmd);
+    public BigDecimal selectNextSeqNo(String corpGr, String trCd, LocalDate trYmd, String fundCd) {
         StringBuilder jpql = new StringBuilder(
                 "SELECT COALESCE(MAX(c.seqNo), 0) + 1 " +
                         "  FROM Sct0cg c " +
@@ -38,7 +37,7 @@ public class Ja030cQueryDslRepository {
         var query = em.createQuery(jpql.toString(), Number.class)
                 .setParameter("corpGr", corpGr)
                 .setParameter("trCd", trCd)
-                .setParameter("trYmd", parsedTrYmd);
+                .setParameter("trYmd", trYmd);
         if (fundCd != null && !fundCd.isBlank()) {
             query.setParameter("fundCd", fundCd.trim());
         }
@@ -70,13 +69,11 @@ public class Ja030cQueryDslRepository {
      * SCT0CG INSERT via pure JPA persist
      */
     public void insertSct0cg(Ja030cDto dto) {
-        LocalDate trYmd = parseLocalDate(dto.getTrYmd());
-        LocalDate sudoYmd = dto.getSudoYmd() != null && !dto.getSudoYmd().isBlank()
-                ? parseLocalDate(dto.getSudoYmd())
-                : trYmd;
-        String buyDateClean = dto.getBuyDate() != null ? dto.getBuyDate().replaceAll("\\D", "") : "";
-        if (buyDateClean.length() < 8 && dto.getTrYmd() != null) {
-            buyDateClean = dto.getTrYmd().replaceAll("\\D", "");
+        LocalDate trYmd = dto.getTrYmd();
+        LocalDate sudoYmd = dto.getSudoYmd() != null ? dto.getSudoYmd() : trYmd;
+        String buyDateClean = dto.getBuyDate() != null ? dto.getBuyDate().toString().replaceAll("\\D", "") : "";
+        if (buyDateClean.length() < 8 && trYmd != null) {
+            buyDateClean = trYmd.toString().replaceAll("\\D", "");
         }
 
         Sct0cg entity = Sct0cg.builder()
@@ -109,16 +106,14 @@ public class Ja030cQueryDslRepository {
      * SCT0CG UPDATE via pure JPA dirty checking
      */
     public void updateSct0cg(Ja030cDto dto) {
-        LocalDate trYmd = parseLocalDate(dto.getTrYmd());
+        LocalDate trYmd = dto.getTrYmd();
         Sct0cgId id = new Sct0cgId(dto.getCorpGr(), trYmd, dto.getTrCd(), dto.getSeqNo());
         Sct0cg entity = em.find(Sct0cg.class, id);
         if (entity != null) {
-            LocalDate sudoYmd = dto.getSudoYmd() != null && !dto.getSudoYmd().isBlank()
-                    ? parseLocalDate(dto.getSudoYmd())
-                    : trYmd;
-            String buyDateClean = dto.getBuyDate() != null ? dto.getBuyDate().replaceAll("\\D", "") : "";
-            if (buyDateClean.length() < 8 && dto.getTrYmd() != null) {
-                buyDateClean = dto.getTrYmd().replaceAll("\\D", "");
+            LocalDate sudoYmd = dto.getSudoYmd() != null ? dto.getSudoYmd() : trYmd;
+            String buyDateClean = dto.getBuyDate() != null ? dto.getBuyDate().toString().replaceAll("\\D", "") : "";
+            if (buyDateClean.length() < 8 && trYmd != null) {
+                buyDateClean = trYmd.toString().replaceAll("\\D", "");
             }
 
             entity.setFundCd(dto.getFundCd());
@@ -144,24 +139,11 @@ public class Ja030cQueryDslRepository {
      * SCT0CG DELETE via pure JPA remove
      */
     public void deleteSct0cg(Ja030cDto dto) {
-        LocalDate trYmd = parseLocalDate(dto.getTrYmd());
+        LocalDate trYmd = dto.getTrYmd();
         Sct0cgId id = new Sct0cgId(dto.getCorpGr(), trYmd, dto.getTrCd(), dto.getSeqNo());
         Sct0cg entity = em.find(Sct0cg.class, id);
         if (entity != null) {
             em.remove(entity);
         }
-    }
-
-    private LocalDate parseLocalDate(String text) {
-        if (text == null || text.isBlank()) return null;
-        String digits = text.replaceAll("\\D", "");
-        if (digits.length() == 8) {
-            return LocalDate.of(
-                    Integer.parseInt(digits.substring(0, 4)),
-                    Integer.parseInt(digits.substring(4, 6)),
-                    Integer.parseInt(digits.substring(6, 8))
-            );
-        }
-        return LocalDate.parse(text.substring(0, 10).replace('.', '-').replace('/', '-'));
     }
 }

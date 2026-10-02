@@ -4,6 +4,7 @@ import com.kfp.aams.domain.dailyadvisory.dto.Sjt0tgDto;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @Mapper
@@ -12,10 +13,10 @@ public interface Sjt0tgMapper {
     /**
      * 주식 종가 목록 조회 (d_sjt0tg)
      */
-    List<Sjt0tgDto> selectSjt0tgList(@Param("corpGr") String corpGr, @Param("ymd") String ymd);
+    List<Sjt0tgDto> selectSjt0tgList(@Param("corpGr") String corpGr, @Param("ymd") LocalDate ymd);
 
     /**
      * 당일 종목 중 종가 미등록 종목 조회 (파워빌더 retrieveend 연계)
      */
-    List<Sjt0tgDto> selectMissingKoscomList(@Param("corpGr") String corpGr, @Param("ymd") String ymd);
+    List<Sjt0tgDto> selectMissingKoscomList(@Param("corpGr") String corpGr, @Param("ymd") LocalDate ymd);
 }

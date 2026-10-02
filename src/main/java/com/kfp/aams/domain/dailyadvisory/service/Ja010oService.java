@@ -27,8 +27,8 @@ public class Ja010oService {
     /**
      * 주식 신용/대출 잔고 내역 조회 (d_ja010o1.srd)
      */
-    public List<Ja010oMasterDto> getJa010oList(String corpGr, String ymd, String fundCd) {
-        if (corpGr == null || corpGr.isBlank() || ymd == null || ymd.isBlank() || fundCd == null || fundCd.isBlank()) {
+    public List<Ja010oMasterDto> getJa010oList(String corpGr, java.time.LocalDate ymd, String fundCd) {
+        if (corpGr == null || corpGr.isBlank() || ymd == null || fundCd == null || fundCd.isBlank()) {
             return Collections.emptyList();
         }
         return ja010oMapper.selectJa010oList(corpGr, ymd, fundCd);
@@ -52,14 +52,14 @@ public class Ja010oService {
         if (saveDto == null) return;
 
         String corpGr = saveDto.getCorpGr();
-        String ymd = saveDto.getYmd();
+        java.time.LocalDate ymd = saveDto.getYmd();
         String fundCd = saveDto.getFundCd();
 
         // 1. 수정/저장 대상 처리
         if (saveDto.getSaveList() != null) {
             for (Ja010oMasterDto dto : saveDto.getSaveList()) {
                 if (dto.getCorpGr() == null || dto.getCorpGr().isBlank()) dto.setCorpGr(corpGr);
-                if (dto.getYmd() == null || dto.getYmd().isBlank()) dto.setYmd(ymd);
+                if (dto.getYmd() == null) dto.setYmd(ymd);
                 if (dto.getFundCd() == null || dto.getFundCd().isBlank()) dto.setFundCd(fundCd);
 
                 ja010oQueryDslRepository.mergeCollateral(dto);
@@ -70,7 +70,7 @@ public class Ja010oService {
         if (saveDto.getDeleteList() != null) {
             for (Ja010oMasterDto dto : saveDto.getDeleteList()) {
                 if (dto.getCorpGr() == null || dto.getCorpGr().isBlank()) dto.setCorpGr(corpGr);
-                if (dto.getYmd() == null || dto.getYmd().isBlank()) dto.setYmd(ymd);
+                if (dto.getYmd() == null) dto.setYmd(ymd);
                 if (dto.getFundCd() == null || dto.getFundCd().isBlank()) dto.setFundCd(fundCd);
 
                 ja010oQueryDslRepository.deleteCollateral(dto);

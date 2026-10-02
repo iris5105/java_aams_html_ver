@@ -22,7 +22,7 @@ public class Ja010fQueryDslRepository {
     public void insertSht0ye(Ja010fDto dto) {
         Sht0ye entity = Sht0ye.builder()
                 .corpGr(dto.getCorpGr())
-                .trYmd(parseLocalDate(dto.getTrYmd()))
+                .trYmd(dto.getTrYmd())
                 .fundCd(dto.getFundCd())
                 .trCoCd(dto.getTrCoCd() != null ? dto.getTrCoCd() : "")
                 .t0Aek(dto.getT0Aek() != null ? dto.getT0Aek() : BigDecimal.ZERO)
@@ -52,7 +52,7 @@ public class Ja010fQueryDslRepository {
                         "  AND y.trYmd = :trYmd " +
                         "  AND y.fundCd = :fundCd")
                 .setParameter("corpGr", dto.getCorpGr())
-                .setParameter("trYmd", parseLocalDate(dto.getTrYmd()))
+                .setParameter("trYmd", dto.getTrYmd())
                 .setParameter("fundCd", dto.getFundCd())
                 .setParameter("t0Aek", dto.getT0Aek() != null ? dto.getT0Aek() : BigDecimal.ZERO)
                 .setParameter("t1Aek", dto.getT1Aek() != null ? dto.getT1Aek() : BigDecimal.ZERO)
@@ -71,21 +71,8 @@ public class Ja010fQueryDslRepository {
                         "  AND y.trYmd = :trYmd " +
                         "  AND y.fundCd = :fundCd")
                 .setParameter("corpGr", dto.getCorpGr())
-                .setParameter("trYmd", parseLocalDate(dto.getTrYmd()))
+                .setParameter("trYmd", dto.getTrYmd())
                 .setParameter("fundCd", dto.getFundCd())
                 .executeUpdate();
-    }
-
-    private LocalDate parseLocalDate(String text) {
-        if (text == null || text.isBlank()) return null;
-        String digits = text.replaceAll("\\D", "");
-        if (digits.length() == 8) {
-            return LocalDate.of(
-                    Integer.parseInt(digits.substring(0, 4)),
-                    Integer.parseInt(digits.substring(4, 6)),
-                    Integer.parseInt(digits.substring(6, 8))
-            );
-        }
-        return LocalDate.parse(text.substring(0, 10).replace('.', '-').replace('/', '-'));
     }
 }

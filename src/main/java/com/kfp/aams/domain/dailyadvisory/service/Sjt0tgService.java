@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -27,8 +28,8 @@ public class Sjt0tgService {
      * 파워빌더 retrieveend 로직과 연계하여, 당일 미등록 종목이 있을 경우 보강하여 반환
      */
     @Transactional(readOnly = true)
-    public List<Sjt0tgDto> getSjt0tgList(String corpGr, String ymd) {
-        if (corpGr == null || corpGr.isBlank() || ymd == null || ymd.isBlank()) {
+    public List<Sjt0tgDto> getSjt0tgList(String corpGr, LocalDate ymd) {
+        if (corpGr == null || corpGr.isBlank() || ymd == null) {
             return List.of();
         }
 
@@ -66,13 +67,13 @@ public class Sjt0tgService {
     public void saveSjt0tg(Sjt0tgSaveDto saveDto) {
         if (saveDto == null) return;
         String corpGr = saveDto.getCorpGr();
-        String ymd = saveDto.getYmd();
+        LocalDate ymd = saveDto.getYmd();
 
         // 1. 삭제 처리
         if (saveDto.getDeleteList() != null) {
             for (Sjt0tgDto dto : saveDto.getDeleteList()) {
                 if (dto.getCorpGr() == null || dto.getCorpGr().isBlank()) dto.setCorpGr(corpGr);
-                if (dto.getYmd() == null || dto.getYmd().isBlank()) dto.setYmd(ymd);
+                if (dto.getYmd() == null) dto.setYmd(ymd);
                 sjt0tgQueryDslRepository.deleteSjt0tg(dto);
             }
         }
@@ -81,7 +82,7 @@ public class Sjt0tgService {
         if (saveDto.getInsertList() != null) {
             for (Sjt0tgDto dto : saveDto.getInsertList()) {
                 if (dto.getCorpGr() == null || dto.getCorpGr().isBlank()) dto.setCorpGr(corpGr);
-                if (dto.getYmd() == null || dto.getYmd().isBlank()) dto.setYmd(ymd);
+                if (dto.getYmd() == null) dto.setYmd(ymd);
                 calculateChange(dto);
                 sjt0tgQueryDslRepository.mergeSjt0tg(dto);
             }
@@ -91,7 +92,7 @@ public class Sjt0tgService {
         if (saveDto.getUpdateList() != null) {
             for (Sjt0tgDto dto : saveDto.getUpdateList()) {
                 if (dto.getCorpGr() == null || dto.getCorpGr().isBlank()) dto.setCorpGr(corpGr);
-                if (dto.getYmd() == null || dto.getYmd().isBlank()) dto.setYmd(ymd);
+                if (dto.getYmd() == null) dto.setYmd(ymd);
                 calculateChange(dto);
                 sjt0tgQueryDslRepository.updateSjt0tg(dto);
             }

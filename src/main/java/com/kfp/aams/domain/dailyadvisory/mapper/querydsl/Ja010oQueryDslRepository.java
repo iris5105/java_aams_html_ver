@@ -25,8 +25,8 @@ public class Ja010oQueryDslRepository {
         if (entity != null) {
             entity.setCollJusu(dto.getCollJusu());
             entity.setCollateral(dto.getCollateral());
-            entity.setCollStart(parseLocalDate(dto.getCollStart()));
-            entity.setCollEnd(parseLocalDate(dto.getCollEnd()));
+            entity.setCollStart(dto.getCollStart());
+            entity.setCollEnd(dto.getCollEnd());
             return 1;
         }
         return 0;
@@ -35,13 +35,13 @@ public class Ja010oQueryDslRepository {
     public void insertCollateral(Ja010oMasterDto dto) {
         Sjm0jmColl entity = Sjm0jmColl.builder()
                 .corpGr(dto.getCorpGr())
-                .ymd(parseLocalDate(dto.getYmd()))
+                .ymd(dto.getYmd())
                 .fundCd(dto.getFundCd())
                 .jmCd(dto.getJmCd())
                 .collJusu(dto.getCollJusu())
                 .collateral(dto.getCollateral())
-                .collStart(parseLocalDate(dto.getCollStart()))
-                .collEnd(parseLocalDate(dto.getCollEnd()))
+                .collStart(dto.getCollStart())
+                .collEnd(dto.getCollEnd())
                 .build();
         em.persist(entity);
     }
@@ -66,22 +66,9 @@ public class Ja010oQueryDslRepository {
     private Sjm0jmCollId buildId(Ja010oMasterDto dto) {
         return new Sjm0jmCollId(
                 dto.getCorpGr(),
-                parseLocalDate(dto.getYmd()),
+                dto.getYmd(),
                 dto.getFundCd(),
                 dto.getJmCd()
         );
-    }
-
-    private LocalDate parseLocalDate(String text) {
-        if (text == null || text.isBlank()) return null;
-        String digits = text.replaceAll("\\D", "");
-        if (digits.length() == 8) {
-            return LocalDate.of(
-                    Integer.parseInt(digits.substring(0, 4)),
-                    Integer.parseInt(digits.substring(4, 6)),
-                    Integer.parseInt(digits.substring(6, 8))
-            );
-        }
-        return LocalDate.parse(text.substring(0, 10).replace('.', '-').replace('/', '-'));
     }
 }

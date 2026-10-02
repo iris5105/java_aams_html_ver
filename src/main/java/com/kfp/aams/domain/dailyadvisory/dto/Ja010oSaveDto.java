@@ -1,6 +1,8 @@
 package com.kfp.aams.domain.dailyadvisory.dto;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.*;
+import java.time.LocalDate;
 import java.util.List;
 
 /**
@@ -13,7 +15,10 @@ import java.util.List;
 @Builder
 public class Ja010oSaveDto {
     private String corpGr;
-    private String ymd;
+
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd")
+    private LocalDate ymd;
+
     private String fundCd;
     private List<Ja010oMasterDto> saveList;     // 저장/수정 대상 목록
     private List<Ja010oMasterDto> deleteList;   // 삭제 대상 목록

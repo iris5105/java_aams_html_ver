@@ -7,6 +7,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.util.Collections;
 import java.util.List;
 
@@ -19,15 +20,15 @@ public class Ja010jService {
     private final Ja010jMapper ja010jMapper;
     private final RdReportService rdReportService;
 
-    public List<Ja010jDto> selectJa010jList(String corpGr, String ymd) {
-        if (corpGr == null || corpGr.isBlank() || ymd == null || ymd.isBlank()) {
+    public List<Ja010jDto> selectJa010jList(String corpGr, LocalDate ymd) {
+        if (corpGr == null || corpGr.isBlank() || ymd == null) {
             return Collections.emptyList();
         }
         return ja010jMapper.selectJa010jList(corpGr, ymd);
     }
 
     public RdReportService.ExportResult generateReport(String corpGr, String fundCd, String companyName,
-                                                      String fundNm, String fymd, String tymd, String format) throws Exception {
+                                                      String fundNm, LocalDate fymd, LocalDate tymd, String format) throws Exception {
         String title;
         if ("0".equals(fundCd)) {
             title = companyName + " 3개월 평잔현황";
@@ -37,6 +38,8 @@ public class Ja010jService {
             title = (fundNm != null && !fundNm.isBlank()) ? fundNm + " 3개월 평잔현황" : "3개월 평잔현황";
         }
 
-        return rdReportService.generateJa010jReport(corpGr, fundCd, title, fymd, tymd, format);
+        String fymdStr = (fymd != null) ? fymd.toString() : "";
+        String tymdStr = (tymd != null) ? tymd.toString() : "";
+        return rdReportService.generateJa010jReport(corpGr, fundCd, title, fymdStr, tymdStr, format);
     }
 }

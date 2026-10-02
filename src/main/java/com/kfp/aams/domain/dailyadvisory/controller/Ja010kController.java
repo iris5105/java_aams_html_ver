@@ -31,8 +31,8 @@ public class Ja010kController {
     @GetMapping({"/views/w_ja010k", "/views/dailyadvisory/w_ja010k"})
     public String viewJa010k(@AuthenticationPrincipal Object principalObj,
                              @RequestParam(name = "corpGr", required = false) String paramCorpGr,
-                             @RequestParam(name = "fymd", required = false) String paramFymd,
-                             @RequestParam(name = "tymd", required = false) String paramTymd,
+                             @RequestParam(name = "fymd", required = false) @org.springframework.format.annotation.DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate paramFymd,
+                             @RequestParam(name = "tymd", required = false) @org.springframework.format.annotation.DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate paramTymd,
                              @CookieValue(name = "savedCorpGr", required = false) String cookieCorpGr1,
                              @CookieValue(name = "corpGr", required = false) String cookieCorpGr2,
                              Model model) {
@@ -49,15 +49,13 @@ public class Ja010kController {
                 : "사무관리 > 자문일일 > 일일작업";
 
         LocalDate today = LocalDate.now();
-        String tymd = (paramTymd != null && !paramTymd.isBlank()) ? paramTymd
-                : today.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
-        String fymd = (paramFymd != null && !paramFymd.isBlank()) ? paramFymd
-                : today.minusMonths(3).plusDays(1).format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+        LocalDate tymd = (paramTymd != null) ? paramTymd : today;
+        LocalDate fymd = (paramFymd != null) ? paramFymd : today.minusMonths(3).plusDays(1);
 
         model.addAttribute("fullpgm2", fullpgm2);
         model.addAttribute("corpGr", corpGr);
-        model.addAttribute("fymd", fymd);
-        model.addAttribute("tymd", tymd);
+        model.addAttribute("fymd", fymd.toString());
+        model.addAttribute("tymd", tymd.toString());
 
         return "views/dailyadvisory/w_ja010k";
     }
@@ -66,8 +64,7 @@ public class Ja010kController {
     @ResponseBody
     public ResponseEntity<List<Ja010kMasterDto>> getMasterList(
             @RequestParam(name = "corpGr", required = false) String paramCorpGr,
-            @RequestParam(name = "tymd", required = false) String tymd,
-            @RequestParam(name = "tYmd", required = false) String paramTYmd,
+            @RequestParam(name = "tymd", required = false) @org.springframework.format.annotation.DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate tymd,
             @AuthenticationPrincipal Object principalObj,
             @CookieValue(name = "savedCorpGr", required = false) String cookieCorpGr1,
             @CookieValue(name = "corpGr", required = false) String cookieCorpGr2) {
@@ -76,10 +73,7 @@ public class Ja010kController {
         String cookieCorpGr = (cookieCorpGr1 != null && !cookieCorpGr1.isBlank()) ? cookieCorpGr1 : cookieCorpGr2;
         String corpGr = resolveCorpGr(paramCorpGr, cookieCorpGr, principal);
 
-        String finalTymd = (tymd != null && !tymd.isBlank()) ? tymd : paramTYmd;
-        if (finalTymd == null || finalTymd.isBlank()) {
-            finalTymd = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
-        }
+        LocalDate finalTymd = (tymd != null) ? tymd : LocalDate.now();
 
         if (corpGr == null || corpGr.isBlank()) {
             return ResponseEntity.ok(Collections.emptyList());
@@ -93,10 +87,8 @@ public class Ja010kController {
     @ResponseBody
     public ResponseEntity<List<Ja010kDetailDto>> getDetailList(
             @RequestParam(name = "corpGr", required = false) String paramCorpGr,
-            @RequestParam(name = "fymd", required = false) String fymd,
-            @RequestParam(name = "fYmd", required = false) String paramFYmd,
-            @RequestParam(name = "tymd", required = false) String tymd,
-            @RequestParam(name = "tYmd", required = false) String paramTYmd,
+            @RequestParam(name = "fymd", required = false) @org.springframework.format.annotation.DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate fymd,
+            @RequestParam(name = "tymd", required = false) @org.springframework.format.annotation.DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate tymd,
             @RequestParam(name = "fundCd", required = false) String fundCd,
             @AuthenticationPrincipal Object principalObj,
             @CookieValue(name = "savedCorpGr", required = false) String cookieCorpGr1,
@@ -110,15 +102,8 @@ public class Ja010kController {
             return ResponseEntity.ok(Collections.emptyList());
         }
 
-        String finalFymd = (fymd != null && !fymd.isBlank()) ? fymd : paramFYmd;
-        String finalTymd = (tymd != null && !tymd.isBlank()) ? tymd : paramTYmd;
-
-        if (finalTymd == null || finalTymd.isBlank()) {
-            finalTymd = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
-        }
-        if (finalFymd == null || finalFymd.isBlank()) {
-            finalFymd = LocalDate.now().minusMonths(3).plusDays(1).format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
-        }
+        LocalDate finalTymd = (tymd != null) ? tymd : LocalDate.now();
+        LocalDate finalFymd = (fymd != null) ? fymd : LocalDate.now().minusMonths(3).plusDays(1);
 
         List<Ja010kDetailDto> list = ja010kService.getDetailList(corpGr, finalFymd, finalTymd, fundCd);
         return ResponseEntity.ok(list);

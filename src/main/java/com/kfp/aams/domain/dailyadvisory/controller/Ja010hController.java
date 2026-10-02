@@ -41,7 +41,7 @@ public class Ja010hController {
     @GetMapping({"/views/w_ja010h", "/views/dailyadvisory/w_ja010h"})
     public String viewJa010h(@AuthenticationPrincipal Object principalObj,
                              @RequestParam(name = "corpGr", required = false) String paramCorpGr,
-                             @RequestParam(name = "ymd", required = false) String paramYmd,
+                             @RequestParam(name = "ymd", required = false) @org.springframework.format.annotation.DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate paramYmd,
                              @CookieValue(name = "savedCorpGr", required = false) String cookieCorpGr1,
                              @CookieValue(name = "corpGr", required = false) String cookieCorpGr2,
                              Model model,
@@ -55,13 +55,13 @@ public class Ja010hController {
             menuDto = menuService.getMenuByPgmId("w_ja010h");
         }
         String fullpgm2 = (menuDto != null) ? menuDto.getFullpgm2() : "사무관리 > 자문일일 > 자산명세표";
-        List<String> trDates = (corpGr != null && !corpGr.isBlank()) ? ja010hService.getDates(corpGr) : Collections.emptyList();
-        String ymd = (paramYmd != null && !paramYmd.isBlank()) ? paramYmd
-                : (!trDates.isEmpty() ? trDates.get(0) : LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd")));
+        List<LocalDate> trDates = (corpGr != null && !corpGr.isBlank()) ? ja010hService.getDates(corpGr) : Collections.emptyList();
+        LocalDate ymd = (paramYmd != null) ? paramYmd
+                : (!trDates.isEmpty() ? trDates.get(0) : LocalDate.now());
 
         model.addAttribute("fullpgm2", fullpgm2);
         model.addAttribute("corpGr", corpGr);
-        model.addAttribute("ymd", ymd);
+        model.addAttribute("ymd", ymd.toString());
         model.addAttribute("trDates", trDates);
 
         return "views/dailyadvisory/w_ja010h";
@@ -74,7 +74,7 @@ public class Ja010hController {
     @ResponseBody
     public List<Ja010hMasterDto> getList(@AuthenticationPrincipal Object principalObj,
                                          @RequestParam(name = "corpGr", required = false) String paramCorpGr,
-                                         @RequestParam("ymd") String ymd,
+                                         @RequestParam("ymd") @org.springframework.format.annotation.DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate ymd,
                                          @CookieValue(name = "savedCorpGr", required = false) String cookieCorpGr1,
                                          @CookieValue(name = "corpGr", required = false) String cookieCorpGr2) {
         UserPrincipal principal = (principalObj instanceof UserPrincipal p) ? p : null;
@@ -89,10 +89,10 @@ public class Ja010hController {
      */
     @GetMapping("/api/daily/ja010h/dates")
     @ResponseBody
-    public List<String> getDates(@AuthenticationPrincipal Object principalObj,
-                                 @RequestParam(name = "corpGr", required = false) String paramCorpGr,
-                                 @CookieValue(name = "savedCorpGr", required = false) String cookieCorpGr1,
-                                 @CookieValue(name = "corpGr", required = false) String cookieCorpGr2) {
+    public List<LocalDate> getDates(@AuthenticationPrincipal Object principalObj,
+                                    @RequestParam(name = "corpGr", required = false) String paramCorpGr,
+                                    @CookieValue(name = "savedCorpGr", required = false) String cookieCorpGr1,
+                                    @CookieValue(name = "corpGr", required = false) String cookieCorpGr2) {
         UserPrincipal principal = (principalObj instanceof UserPrincipal p) ? p : null;
         String cookieCorpGr = (cookieCorpGr1 != null && !cookieCorpGr1.isBlank()) ? cookieCorpGr1 : cookieCorpGr2;
         String corpGr = resolveCorpGr(paramCorpGr, cookieCorpGr, principal);
@@ -106,7 +106,7 @@ public class Ja010hController {
     @GetMapping("/api/daily/ja010h/preview")
     public ResponseEntity<byte[]> previewReport(@AuthenticationPrincipal Object principalObj,
                                                 @RequestParam(name = "corpGr", required = false) String paramCorpGr,
-                                                @RequestParam("ymd") String ymd,
+                                                @RequestParam("ymd") @org.springframework.format.annotation.DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate ymd,
                                                 @RequestParam("fundCd") String fundCd,
                                                 @CookieValue(name = "savedCorpGr", required = false) String cookieCorpGr1,
                                                 @CookieValue(name = "corpGr", required = false) String cookieCorpGr2) {
@@ -135,12 +135,12 @@ public class Ja010hController {
      */
     @GetMapping("/api/daily/ja010h/export")
     public ResponseEntity<byte[]> exportReport(@AuthenticationPrincipal Object principalObj,
-                                               @RequestParam(name = "corpGr", required = false) String paramCorpGr,
-                                               @RequestParam("ymd") String ymd,
-                                               @RequestParam("fundCd") String fundCd,
-                                               @RequestParam(name = "format", defaultValue = "pdf") String format,
-                                               @CookieValue(name = "savedCorpGr", required = false) String cookieCorpGr1,
-                                               @CookieValue(name = "corpGr", required = false) String cookieCorpGr2) {
+                                                @RequestParam(name = "corpGr", required = false) String paramCorpGr,
+                                                @RequestParam("ymd") @org.springframework.format.annotation.DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate ymd,
+                                                @RequestParam("fundCd") String fundCd,
+                                                @RequestParam(name = "format", defaultValue = "pdf") String format,
+                                                @CookieValue(name = "savedCorpGr", required = false) String cookieCorpGr1,
+                                                @CookieValue(name = "corpGr", required = false) String cookieCorpGr2) {
         UserPrincipal principal = (principalObj instanceof UserPrincipal p) ? p : null;
         String cookieCorpGr = (cookieCorpGr1 != null && !cookieCorpGr1.isBlank()) ? cookieCorpGr1 : cookieCorpGr2;
         String corpGr = resolveCorpGr(paramCorpGr, cookieCorpGr, principal);

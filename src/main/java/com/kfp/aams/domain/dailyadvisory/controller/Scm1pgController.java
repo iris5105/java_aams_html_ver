@@ -61,7 +61,7 @@ public class Scm1pgController {
     @ResponseBody
     public ResponseEntity<List<Scm1pgMasterDto>> getMasterList(
             @RequestParam(name = "corpGr", required = false) String paramCorpGr,
-            @RequestParam(name = "ymd", required = false) String ymd,
+            @RequestParam(name = "ymd", required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate ymd,
             @AuthenticationPrincipal Object principalObj,
             @CookieValue(name = "savedCorpGr", required = false) String cookieCorpGr1,
             @CookieValue(name = "corpGr", required = false) String cookieCorpGr2) {
@@ -70,7 +70,7 @@ public class Scm1pgController {
         String cookieCorpGr = (cookieCorpGr1 != null && !cookieCorpGr1.isBlank()) ? cookieCorpGr1 : cookieCorpGr2;
         String corpGr = resolveCorpGr(paramCorpGr, cookieCorpGr, principal);
 
-        if (corpGr == null || corpGr.isBlank() || ymd == null || ymd.isBlank()) {
+        if (corpGr == null || corpGr.isBlank() || ymd == null) {
             return ResponseEntity.ok(Collections.emptyList());
         }
 

@@ -4,6 +4,7 @@ import com.kfp.aams.domain.dailyadvisory.dto.Shm0hjMasterDto;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
+import java.time.LocalDate;
 import java.util.List;
 
 /**
@@ -15,6 +16,6 @@ import java.util.List;
 public interface Shm0hjMapper {
 
     List<Shm0hjMasterDto> selectShm0hjList(@Param("corpGr") String corpGr,
-                                          @Param("ymd") String ymd,
+                                          @Param("ymd") LocalDate ymd,
                                           @Param("cashCd") String cashCd);
 }

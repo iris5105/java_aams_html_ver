@@ -1,11 +1,13 @@
 package com.kfp.aams.domain.dailyadvisory.dto;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 /**
@@ -18,7 +20,10 @@ import java.time.LocalDateTime;
 public class Sjt0tgDto {
 
     private String corpGr;
-    private String ymd;
+
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd")
+    private LocalDate ymd;
+
     private String koscomCd;
     private String xxKoscomCd; // 종목명 (F_KOSCOM_NM)
 
@@ -30,6 +35,7 @@ public class Sjt0tgDto {
     private BigDecimal aekm;       // 액면가
     private BigDecimal sangjJusu;  // 상장주수
 
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime modDt;   // 수정일시
     private String modDtStr;
 

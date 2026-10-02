@@ -1,9 +1,12 @@
 package com.kfp.aams.domain.dailyadvisory.dto;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+
+import java.time.LocalDateTime;
 
 /**
  * DTO for d_ja990c2 (발행기관 변경이력 디테일)
@@ -14,7 +17,10 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class Ja990cDetailDto {
     private String balhCo;         // 발행기관코드
-    private String ymd;            // 변경일시
+
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd HH:mm:ss")
+    private LocalDateTime ymd;     // 변경일시
+
     private String chgColumn;      // 변경컬럼명
     private String bfData;         // 변경전 데이터
     private String afData;         // 변경후 데이터

@@ -38,7 +38,7 @@ public class Ja990cQueryDslRepository {
                 .sosokGb(item.getSosokGb())
                 .aekm(item.getAekm())
                 .grBalhGb(item.getGrBalhGb())
-                .budoYmd(parseLocalDate(item.getBudoYmd()))
+                .budoYmd(item.getBudoYmd())
                 .compCd(item.getCompCd())
                 .gyulMm(item.getGyulMm())
                 .isinCd(item.getIsinCd())
@@ -59,7 +59,7 @@ public class Ja990cQueryDslRepository {
             entity.setSosokGb(item.getSosokGb());
             entity.setAekm(item.getAekm());
             entity.setGrBalhGb(item.getGrBalhGb());
-            entity.setBudoYmd(parseLocalDate(item.getBudoYmd()));
+            entity.setBudoYmd(item.getBudoYmd());
             entity.setCompCd(item.getCompCd());
             entity.setGyulMm(item.getGyulMm());
             entity.setIsinCd(item.getIsinCd());
@@ -86,7 +86,7 @@ public class Ja990cQueryDslRepository {
     public void insertHistory(Ja990cDetailDto hist) {
         Sjx0jbHistory history = Sjx0jbHistory.builder()
                 .balhCo(hist.getBalhCo())
-                .ymd(LocalDateTime.now())
+                .ymd(hist.getYmd() != null ? hist.getYmd() : LocalDateTime.now())
                 .chgColumn(hist.getChgColumn())
                 .bfData(hist.getBfData())
                 .afData(hist.getAfData())
@@ -108,18 +108,5 @@ public class Ja990cQueryDslRepository {
                     .setParameter("plain", plain.trim())
                     .getSingleResult();
         }
-    }
-
-    private LocalDate parseLocalDate(String text) {
-        if (text == null || text.isBlank()) return null;
-        String digits = text.replaceAll("\\D", "");
-        if (digits.length() == 8) {
-            return LocalDate.of(
-                    Integer.parseInt(digits.substring(0, 4)),
-                    Integer.parseInt(digits.substring(4, 6)),
-                    Integer.parseInt(digits.substring(6, 8))
-            );
-        }
-        return LocalDate.parse(text.substring(0, 10).replace('.', '-').replace('/', '-'));
     }
 }

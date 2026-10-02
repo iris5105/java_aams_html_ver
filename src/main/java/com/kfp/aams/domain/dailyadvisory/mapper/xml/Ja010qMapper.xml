@@ -8,16 +8,16 @@
         SELECT t1.corp_gr                                       AS corpGr
              , t1.fund_cd                                       AS fundCd
              , ia.fund_nm                                       AS fundNm
-             , TO_CHAR(t1.bf_gyul_ymd, 'YYYY-MM-DD')           AS bfGyulYmd
-             , TO_CHAR(t1.bf_gyul_ymd + 1, 'YYYY-MM-DD')       AS bfStart
-             , TO_CHAR(t1.af_gyul_ymd, 'YYYY-MM-DD')           AS afGyulYmd
-             , TO_CHAR(t1.haeji_ymd, 'YYYY-MM-DD')             AS haejiYmd
-             , TO_CHAR(t1.haeji_ymd - 1, 'YYYY-MM-DD')         AS af
+             , t1.bf_gyul_ymd                                   AS bfGyulYmd
+             , (t1.bf_gyul_ymd + 1)                             AS bfStart
+             , t1.af_gyul_ymd                                   AS afGyulYmd
+             , t1.haeji_ymd                                     AS haejiYmd
+             , (t1.haeji_ymd - 1)                               AS af
           FROM SZM0GI t1
              , SZM0IA ia
          WHERE t1.corp_gr = #{corpGr}
-           AND (TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD') BETWEEN t1.bf_gyul_ymd + 1 AND t1.af_gyul_ymd
-                OR ADD_MONTHS(TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD'), -12) BETWEEN t1.bf_gyul_ymd + 1 AND t1.af_gyul_ymd)
+           AND (#{ymd} BETWEEN t1.bf_gyul_ymd + 1 AND t1.af_gyul_ymd
+                OR ADD_MONTHS(#{ymd}, -12) BETWEEN t1.bf_gyul_ymd + 1 AND t1.af_gyul_ymd)
            AND ia.corp_gr = t1.corp_gr
            AND ia.fund_cd = t1.fund_cd
            AND F_FUND_SUCCESS(#{corpGr}, t1.fund_cd, t1.af_gyul_ymd) = 'ok'

@@ -973,8 +973,8 @@
                     currentSelectedRowData.contractCondition = memoEl.value;
                 }
 
-                const rows = grid.getData();
-                const updatedList = rows.filter(r => r.isUpdated && r.tblGb === 'a');
+                const changes = cudManager ? cudManager.getChanges() : { itemList: [], deletedList: [], hasChanges: false };
+                const updatedList = (changes.itemList || []).filter(r => r.tblGb === 'a');
 
                 if (!updatedList || updatedList.length === 0) {
                     if (window.AamsModal) window.AamsModal.alert("수정된 결산 정보가 없습니다.");
@@ -1015,6 +1015,7 @@
                     .then(res => res.json())
                     .then(res => {
                         if (res.success) {
+                            if (cudManager) cudManager.reset();
                             if (window.AamsModal) {
                                 window.AamsModal.alert("저장이 완료되었습니다.", () => {
                                     loadGrid();
@@ -1054,6 +1055,7 @@
                 };
                 // 공통버튼 지침: 새로고침은 조회 전 초기화 상태로 되돌린다.
                 pane.onRefresh = function() {
+                    if (cudManager) cudManager.reset();
                     closeMobileModal();
                     if (grid) grid.clearData();
                     currentSelectedRowData = null;

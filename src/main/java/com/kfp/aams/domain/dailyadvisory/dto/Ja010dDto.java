@@ -18,7 +18,8 @@ public class Ja010dDto {
     private String corpGr;
     private String fundCd;
     private String fundNm;
-    private String trYmd;
+    @com.fasterxml.jackson.annotation.JsonFormat(shape = com.fasterxml.jackson.annotation.JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd")
+    private java.time.LocalDate trYmd;
     private BigDecimal inAek;
     private BigDecimal outAek;
     private BigDecimal ioJo;

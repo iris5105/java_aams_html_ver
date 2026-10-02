@@ -1,11 +1,14 @@
 package com.kfp.aams.domain.dailyadvisory.dto;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 /**
  * DTO for d_ja010m3 (결산현황)
@@ -16,7 +19,10 @@ import java.math.BigDecimal;
 @AllArgsConstructor
 public class Ja010m3Dto {
     private String corpGr;
-    private String gyulYmd;
+
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd")
+    private LocalDate gyulYmd;
+
     private String fundCd;
     private String xxFundCd;         // 고객명(펀드명)
     private String mrdNm;            // RD 리포트 파일명
@@ -41,7 +47,10 @@ public class Ja010m3Dto {
     private String contractCondition;// 계약조건 (메모)
     private String sendMailAddr;     // 발송메일주소
     private String sendCcAddr;       // 참조메일주소
-    private String sendDt;           // 발송일시
+
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd HH:mm:ss")
+    private LocalDateTime sendDt;    // 발송일시
+
     private String sendUser;         // 발송자
 
     private BigDecimal contractAek;  // 계약액 (skt1gs.contract_aek)

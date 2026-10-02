@@ -12,8 +12,8 @@
           FROM SJM0JJ t1
          WHERE t1.DANC_GB IN ('A', 'C', 'D', 'G')
          <choose>
-             <when test="ymd != null and ymd != ''">
-                 AND NVL(t1.ABOL_DT, TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')) &gt;= TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
+             <when test="ymd != null">
+                 AND NVL(t1.ABOL_DT, #{ymd}) &gt;= #{ymd}
              </when>
              <otherwise>
                  AND NVL(t1.ABOL_DT, CURRENT_DATE) &gt;= CURRENT_DATE
@@ -22,7 +22,7 @@
          ORDER BY F_JM_SORT (
                     NVL(#{corpGr}, '00'),
                     <choose>
-                        <when test="ymd != null and ymd != ''">TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')</when>
+                        <when test="ymd != null">#{ymd}</when>
                         <otherwise>CURRENT_DATE</otherwise>
                     </choose>,
                     t1.JM_CD
@@ -32,7 +32,7 @@
 
     <!-- 디테일 종목별 종가 이력 조회 (d_ja991a2) -->
     <select id="selectDetailList" resultType="com.kfp.aams.domain.dailyadvisory.dto.Ja991aDetailDto">
-        SELECT TO_CHAR(t1.YMD, 'YYYY-MM-DD') AS ymd
+        SELECT t1.YMD AS ymd
              , t1.CLOSE AS close
              , t1.VOLUME AS volume
              , t1.VALUE / 100000000 AS value
@@ -41,8 +41,8 @@
           FROM SJT1TG t1
          WHERE t1.KOSCOM_CD = #{koscomCd}
          <choose>
-             <when test="ymd != null and ymd != ''">
-                 AND t1.YMD &gt;= ADD_MONTHS(TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD'), -12)
+             <when test="ymd != null">
+                 AND t1.YMD &gt;= ADD_MONTHS(#{ymd}, -12)
              </when>
              <otherwise>
                  AND t1.YMD &gt;= ADD_MONTHS(CURRENT_DATE, -12)

@@ -69,7 +69,7 @@ public class Sjt0scController {
         String cookieCorpGr = (cookieCorpGr1 != null && !cookieCorpGr1.isBlank()) ? cookieCorpGr1 : cookieCorpGr2;
         String corpGr = resolveCorpGr(filter.getCorpGr(), cookieCorpGr, principal);
 
-        if (corpGr == null || corpGr.isBlank() || filter.getYmd() == null || filter.getYmd().isBlank()) {
+        if (corpGr == null || corpGr.isBlank() || filter.getYmd() == null) {
             return ResponseEntity.ok(Collections.emptyList());
         }
 

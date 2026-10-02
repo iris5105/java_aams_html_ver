@@ -7,13 +7,13 @@
     <!-- 1. 주식 신용/대출잔고 내역 조회 (d_ja010o1.srd) -->
     <select id="selectJa010oList" resultType="com.kfp.aams.domain.dailyadvisory.dto.Ja010oMasterDto">
         SELECT t1.corp_gr                                       AS corpGr
-             , TO_CHAR(t1.ymd, 'YYYY-MM-DD')                   AS ymd
+             , t1.ymd                                           AS ymd
              , t1.fund_cd                                       AS fundCd
              , t1.jm_cd                                         AS jmCd
              , t1.coll_jusu                                     AS collJusu
              , t1.collateral                                    AS collateral
-             , TO_CHAR(t1.coll_start, 'YYYY-MM-DD')             AS collStart
-             , TO_CHAR(t1.coll_end, 'YYYY-MM-DD')               AS collEnd
+             , t1.coll_start                                    AS collStart
+             , t1.coll_end                                      AS collEnd
              , jm.fund_cd                                       AS jmFundCd
              , jm.jm_cd                                         AS jmJmCd
              , jm.bfil_boyu_jusu                                AS bfilBoyuJusu
@@ -21,8 +21,8 @@
              , jm.dw_jusu                                       AS dwJusu
              , jm.koscom_cd                                     AS koscom_cd
              , jm.balh_co                                       AS balhCo
-             , TO_CHAR(jm.coll_start, 'YYYY-MM-DD')             AS jmStart
-             , TO_CHAR(jm.coll_end, 'YYYY-MM-DD')               AS jmEnd
+             , jm.coll_start                                    AS jmStart
+             , jm.coll_end                                      AS jmEnd
              , jj.jj_nm                                         AS jjNm
              , CASE WHEN jm.coll_end IS NULL THEN 0
                     ELSE 1
@@ -38,7 +38,7 @@
              , SJM0JJ jj
          WHERE jm.corp_gr = #{corpGr}
            AND jm.fund_cd = #{fundCd}
-           AND jm.ymd     = TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
+           AND jm.ymd     = #{ymd}
            AND jm.bs_type = 0
            AND jj.jm_cd   = jm.jm_cd
          ORDER BY pVisible DESC, jm.jm_cd ASC

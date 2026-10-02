@@ -83,7 +83,7 @@ public class Ja010m3Controller {
     @ResponseBody
     public ResponseEntity<List<Ja010m3Dto>> getList(
             @RequestParam(name = "corpGr", required = false) String paramCorpGr,
-            @RequestParam(name = "gyulYmd", required = false) String gyulYmd,
+            @RequestParam(name = "gyulYmd", required = false) @org.springframework.format.annotation.DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate gyulYmd,
             @RequestParam(name = "sortGb", required = false, defaultValue = "1") String sortGb,
             @AuthenticationPrincipal Object principalObj,
             @CookieValue(name = "accessToken", required = false) String accessToken,

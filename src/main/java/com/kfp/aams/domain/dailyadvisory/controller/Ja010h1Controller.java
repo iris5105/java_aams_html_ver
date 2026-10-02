@@ -35,7 +35,7 @@ public class Ja010h1Controller {
     @GetMapping({"/views/w_ja010h1", "/views/dailyadvisory/w_ja010h1"})
     public String ja010h1View(@AuthenticationPrincipal Object principalObj,
                              @RequestParam(name = "corpGr", required = false) String paramCorpGr,
-                             @RequestParam(name = "ymd", required = false) String paramYmd,
+                             @RequestParam(name = "ymd", required = false) @org.springframework.format.annotation.DateTimeFormat(pattern = "yyyy-MM-dd") java.time.LocalDate paramYmd,
                              @CookieValue(name = "savedCorpGr", required = false) String cookieCorpGr1,
                              @CookieValue(name = "corpGr", required = false) String cookieCorpGr2,
                              @CookieValue(name = "workDate", required = false) String cookieWorkDate,
@@ -60,20 +60,20 @@ public class Ja010h1Controller {
         //     dw_c.object.ymd [1] = idt_workdate (엑세스 쿠키에 있는 현재 영업일)
         // End IF
         String effectiveCookieWorkDate = resolveCookieWorkDate(cookieWorkDate, principal, request);
-        String workDate;
-        if (paramYmd != null && !paramYmd.isBlank()) {
+        java.time.LocalDate workDate;
+        if (paramYmd != null) {
             workDate = paramYmd;
         } else {
             workDate = ja010hService.getInitialWorkDate(corpGr, effectiveCookieWorkDate);
         }
-        if (workDate == null || workDate.isBlank()) {
-            workDate = java.time.LocalDate.now().toString();
+        if (workDate == null) {
+            workDate = java.time.LocalDate.now();
         }
 
         model.addAttribute("fullpgm2", fullpgm2);
         model.addAttribute("corpGr", corpGr);
-        model.addAttribute("ymd", workDate);
-        model.addAttribute("initialYmd", workDate);
+        model.addAttribute("ymd", workDate.toString());
+        model.addAttribute("initialYmd", workDate.toString());
 
         return "views/dailyadvisory/w_ja010h1";
     }
@@ -89,12 +89,12 @@ public class Ja010h1Controller {
                                                            jakarta.servlet.http.HttpServletRequest request) {
         UserPrincipal principal = (principalObj instanceof UserPrincipal p) ? p : null;
         String effectiveCookieWorkDate = resolveCookieWorkDate(cookieWorkDate, principal, request);
-        String workDate = ja010hService.getInitialWorkDate(corpGr, effectiveCookieWorkDate);
-        if (workDate == null || workDate.isBlank()) {
-            workDate = java.time.LocalDate.now().toString();
+        java.time.LocalDate workDate = ja010hService.getInitialWorkDate(corpGr, effectiveCookieWorkDate);
+        if (workDate == null) {
+            workDate = java.time.LocalDate.now();
         }
         Map<String, String> response = new HashMap<>();
-        response.put("workDate", workDate);
+        response.put("workDate", workDate.toString());
         return ResponseEntity.ok(response);
     }
 
@@ -104,7 +104,7 @@ public class Ja010h1Controller {
     @GetMapping("/api/daily/ja010h1/check-ledger")
     @ResponseBody
     public ResponseEntity<Map<String, Object>> checkLedger(@RequestParam("corpGr") String corpGr,
-                                                           @RequestParam("ymd") String ymd) {
+                                                           @RequestParam("ymd") @org.springframework.format.annotation.DateTimeFormat(pattern = "yyyy-MM-dd") java.time.LocalDate ymd) {
         Map<String, Object> result = new HashMap<>();
         String errorMsg = ja010hService.checkLedgerValidation(corpGr, ymd);
         if (errorMsg != null) {
@@ -120,7 +120,7 @@ public class Ja010h1Controller {
     @ResponseBody
     public ResponseEntity<List<Ja010hMasterDto>> getFunds(
             @RequestParam("corpGr") String corpGr,
-            @RequestParam("ymd") String ymd) {
+            @RequestParam("ymd") @org.springframework.format.annotation.DateTimeFormat(pattern = "yyyy-MM-dd") java.time.LocalDate ymd) {
         List<Ja010hMasterDto> list = ja010hService.getFundList(corpGr, ymd);
         return ResponseEntity.ok(list);
     }
@@ -132,7 +132,8 @@ public class Ja010h1Controller {
         try {
             String corpGr = req.get("corpGr");
             String fundCd = req.get("fundCd");
-            String ymd = req.get("ymd");
+            String ymdStr = req.get("ymd");
+            java.time.LocalDate ymd = (ymdStr != null && !ymdStr.isBlank()) ? java.time.LocalDate.parse(ymdStr) : null;
             ja010hService.executePyungjan(corpGr, fundCd, ymd);
             result.put("success", true);
             result.put("message", "평잔 재계산 작업을 완료 했습니다.");
@@ -148,13 +149,14 @@ public class Ja010h1Controller {
     @GetMapping("/api/daily/ja010h1/export")
     public ResponseEntity<byte[]> exportReport(
             @RequestParam("corpGr") String corpGr,
-            @RequestParam("ymd") String ymd,
+            @RequestParam("ymd") @org.springframework.format.annotation.DateTimeFormat(pattern = "yyyy-MM-dd") java.time.LocalDate ymd,
             @RequestParam("fundCd") String fundCd,
             @RequestParam(value = "fundNm", required = false) String fundNm,
             @RequestParam(value = "format", defaultValue = "pdf") String format) {
         try {
+            String ymdStr = (ymd != null) ? ymd.toString() : "";
             RdReportService.ExportResult exportResult = rdReportService.generateJa010h1Report(
-                    corpGr, ymd, fundCd, fundNm, format);
+                    corpGr, ymdStr, fundCd, fundNm, format);
 
             String encodedFileName = URLEncoder.encode(exportResult.getFilename(), StandardCharsets.UTF_8)
                     .replaceAll("\\+", "%20");
@@ -175,11 +177,11 @@ public class Ja010h1Controller {
     @GetMapping("/api/daily/ja010h1/export-total-excel")
     public ResponseEntity<byte[]> exportTotalExcel(
             @RequestParam("corpGr") String corpGr,
-            @RequestParam("ymd") String ymd) {
+            @RequestParam("ymd") @org.springframework.format.annotation.DateTimeFormat(pattern = "yyyy-MM-dd") java.time.LocalDate ymd) {
         try {
             RdReportService.ExportResult exportResult = ja010hService.exportTotalExcel(corpGr, ymd);
 
-            String ymdClean = (ymd != null) ? ymd.replace("-", "").replace(".", "") : "";
+            String ymdClean = (ymd != null) ? ymd.toString().replace("-", "") : "";
             String fileName = "보유자산종합현황(" + ymdClean + ").xlsx";
             String encodedFileName = URLEncoder.encode(fileName, StandardCharsets.UTF_8)
                     .replaceAll("\\+", "%20");
@@ -197,12 +199,13 @@ public class Ja010h1Controller {
     @GetMapping("/api/daily/ja010h1/preview")
     public ResponseEntity<byte[]> previewReport(
             @RequestParam("corpGr") String corpGr,
-            @RequestParam("ymd") String ymd,
+            @RequestParam("ymd") @org.springframework.format.annotation.DateTimeFormat(pattern = "yyyy-MM-dd") java.time.LocalDate ymd,
             @RequestParam("fundCd") String fundCd,
             @RequestParam(value = "fundNm", required = false) String fundNm) {
         try {
+            String ymdStr = (ymd != null) ? ymd.toString() : "";
             RdReportService.ExportResult exportResult = rdReportService.generateJa010h1Report(
-                    corpGr, ymd, fundCd, fundNm, "pdf");
+                    corpGr, ymdStr, fundCd, fundNm, "pdf");
 
             return ResponseEntity.ok()
                     .contentType(MediaType.APPLICATION_PDF)

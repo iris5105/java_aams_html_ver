@@ -51,11 +51,11 @@ public class ProposalQueryDslRepository {
             boolean isToday = e.getYmd() != null && today.equals(e.getYmd().toLocalDate());
             return ProposalMasterDto.builder()
                     .corpGr(e.getCorpGr())
-                    .ymd(e.getYmd() != null ? e.getYmd().format(DATETIME_FMT) : null)
+                    .ymd(e.getYmd())
                     .proposer(e.getProposer())
                     .title(e.getTitle())
                     .matter(e.getMatter())
-                    .contentYmd(e.getContentYmd() != null ? e.getContentYmd().format(DATETIME_FMT) : null)
+                    .contentYmd(e.getContentYmd())
                     .content(e.getContent())
                     .fexp(e.getFexp())
                     .orgFname(e.getOrgFname())
@@ -64,13 +64,8 @@ public class ProposalQueryDslRepository {
         }).collect(Collectors.toList());
     }
 
-    public List<ProposalCommentDto> findProposalCommentList(String corpGr, String ymdStr, String proposer, String gsUser) {
-        if (corpGr == null || corpGr.isBlank() || ymdStr == null || ymdStr.isBlank() || proposer == null || proposer.isBlank()) {
-            return Collections.emptyList();
-        }
-
-        LocalDateTime pYmd = parseDateTime(ymdStr.trim());
-        if (pYmd == null) {
+    public List<ProposalCommentDto> findProposalCommentList(String corpGr, LocalDateTime pYmd, String proposer, String gsUser) {
+        if (corpGr == null || corpGr.isBlank() || pYmd == null || proposer == null || proposer.isBlank()) {
             return Collections.emptyList();
         }
 
@@ -91,14 +86,18 @@ public class ProposalQueryDslRepository {
             int color = isCurrentUser ? 16711680 : 33554432;
             return ProposalCommentDto.builder()
                     .corpGr(e.getCorpGr())
-                    .pYmd(e.getPYmd() != null ? e.getPYmd().format(DATETIME_FMT) : null)
+                    .pYmd(e.getPYmd())
                     .pProposer(e.getPProposer())
-                    .ymd(e.getYmd() != null ? e.getYmd().format(DATETIME_FMT) : null)
+                    .ymd(e.getYmd())
                     .sbNm(e.getSbNm())
                     .appending(e.getAppending())
                     .color(color)
                     .build();
         }).collect(Collectors.toList());
+    }
+
+    public List<ProposalCommentDto> findProposalCommentList(String corpGr, String ymdStr, String proposer, String gsUser) {
+        return findProposalCommentList(corpGr, parseDateTime(ymdStr), proposer, gsUser);
     }
 
     public LocalDateTime parseDateTime(String text) {

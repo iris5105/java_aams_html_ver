@@ -1,11 +1,13 @@
 package com.kfp.aams.domain.dailyadvisory.dto;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 
 @Data
 @Builder
@@ -15,15 +17,28 @@ public class Ja010bDetailDto {
     private String corpGr;
     private String fundCd;
     private Integer gyulGi;
-    private String bfGyulYmd;
-    private String afGyulYmd;
+
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd")
+    private LocalDate bfGyulYmd;
+
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd")
+    private LocalDate afGyulYmd;
+
     private Integer ilsu;
     private BigDecimal giSonikAek;
     private BigDecimal wmSeoljAek;
-    private String wmDt;
-    private String haejiYmd;
+
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd")
+    private LocalDate wmDt;
+
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd")
+    private LocalDate haejiYmd;
+
     private String distCalc;
-    private String inchulYmd;
+
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd")
+    private LocalDate inchulYmd;
+
     private BigDecimal inAek;
     private BigDecimal afGijun;
     private Integer pVisible;

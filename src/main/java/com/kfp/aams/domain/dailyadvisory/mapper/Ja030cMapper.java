@@ -4,6 +4,7 @@ import com.kfp.aams.domain.dailyadvisory.dto.Ja030cDto;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
+import java.time.LocalDate;
 import java.util.List;
 
 /**
@@ -12,7 +13,7 @@ import java.util.List;
  */
 @Mapper
 public interface Ja030cMapper {
-    List<Ja030cDto> selectJa030cList(@Param("corpGr") String corpGr, @Param("trYmd") String trYmd);
+    List<Ja030cDto> selectJa030cList(@Param("corpGr") String corpGr, @Param("trYmd") LocalDate trYmd);
 
-    List<String> selectJa030cDates(@Param("corpGr") String corpGr);
+    List<LocalDate> selectJa030cDates(@Param("corpGr") String corpGr);
 }

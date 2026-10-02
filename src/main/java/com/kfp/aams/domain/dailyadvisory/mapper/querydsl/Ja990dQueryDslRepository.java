@@ -41,17 +41,17 @@ public class Ja990dQueryDslRepository {
                 .newOldGb(item.getNewOldGb())
                 .dancGb(item.getDancGb())
                 .balhGa(item.getBalhGa())
-                .kweonriYmd(parseLocalDate(item.getKweonriYmd()))
-                .sangjYmd(parseLocalDate(item.getSangjYmd()))
+                .kweonriYmd(item.getKweonriYmd())
+                .sangjYmd(item.getSangjYmd())
                 .sangjJusu(item.getSangjJusu())
                 .upjCd(item.getUpjCd())
-                .createdYmd(LocalDateTime.now())
+                .createdYmd(item.getCreatedYmd() != null ? item.getCreatedYmd() : LocalDateTime.now())
                 .delYn(item.getDelYn() != null ? item.getDelYn() : "0")
                 .capsize(item.getCapsize())
                 .kospigubun(item.getKospigubun())
-                .woosVoteYmd(parseLocalDate(item.getWoosVoteYmd()))
+                .woosVoteYmd(item.getWoosVoteYmd())
                 .under(item.getUnder())
-                .baedGisanYmd(parseLocalDate(item.getBaedGisanYmd()))
+                .baedGisanYmd(item.getBaedGisanYmd())
                 .isinCd(item.getIsinCd())
                 .a0231(item.getA0231())
                 .deposit(item.getDeposit())
@@ -79,16 +79,16 @@ public class Ja990dQueryDslRepository {
             entity.setNewOldGb(item.getNewOldGb());
             entity.setDancGb(item.getDancGb());
             entity.setBalhGa(item.getBalhGa());
-            entity.setKweonriYmd(parseLocalDate(item.getKweonriYmd()));
-            entity.setSangjYmd(parseLocalDate(item.getSangjYmd()));
+            entity.setKweonriYmd(item.getKweonriYmd());
+            entity.setSangjYmd(item.getSangjYmd());
             entity.setSangjJusu(item.getSangjJusu());
             entity.setUpjCd(item.getUpjCd());
             entity.setDelYn(item.getDelYn() != null ? item.getDelYn() : "0");
             entity.setCapsize(item.getCapsize());
             entity.setKospigubun(item.getKospigubun());
-            entity.setWoosVoteYmd(parseLocalDate(item.getWoosVoteYmd()));
+            entity.setWoosVoteYmd(item.getWoosVoteYmd());
             entity.setUnder(item.getUnder());
-            entity.setBaedGisanYmd(parseLocalDate(item.getBaedGisanYmd()));
+            entity.setBaedGisanYmd(item.getBaedGisanYmd());
             entity.setIsinCd(item.getIsinCd());
             entity.setA0231(item.getA0231());
             entity.setDeposit(item.getDeposit());
@@ -123,18 +123,5 @@ public class Ja990dQueryDslRepository {
         } catch (Exception ignored) {
             // SJT1TG 자동 생성 실패 시에도 메인 등록은 유지
         }
-    }
-
-    private LocalDate parseLocalDate(String text) {
-        if (text == null || text.isBlank()) return null;
-        String digits = text.replaceAll("\\D", "");
-        if (digits.length() == 8) {
-            return LocalDate.of(
-                    Integer.parseInt(digits.substring(0, 4)),
-                    Integer.parseInt(digits.substring(4, 6)),
-                    Integer.parseInt(digits.substring(6, 8))
-            );
-        }
-        return LocalDate.parse(text.substring(0, 10).replace('.', '-').replace('/', '-'));
     }
 }

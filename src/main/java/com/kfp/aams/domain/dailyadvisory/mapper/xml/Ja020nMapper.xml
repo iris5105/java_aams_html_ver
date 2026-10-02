@@ -6,16 +6,16 @@
     <!-- 1. Select Load Status List (d_ja020n.srd) -->
     <select id="selectStatusList" resultType="com.kfp.aams.domain.dailyadvisory.dto.Ja020nStatusDto">
         SELECT t1.corp_gr                            AS corpGr
-             , TO_CHAR(t1.load_date, 'YYYY-MM-DD HH24:MI:SS') AS loadDate
+             , t1.load_date                          AS loadDate
              , t1.ip_user                            AS ipUser
              , fw.user_nm                            AS userNm
              , t1.load_ok                            AS loadOk
              , t1.load_naye                          AS loadNaye
-             , TO_CHAR(t1.load_ymd, 'YYYY-MM-DD')    AS loadYmd
+             , t1.load_ymd                           AS loadYmd
           FROM LOAD_STATUS t1
           LEFT OUTER JOIN FW_USER_MST fw ON fw.enc_e_mail = TO_ENCRYPTS(t1.ip_user)
          WHERE t1.corp_gr  = #{corpGr}
-           AND TRUNC(t1.load_ymd) = TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
+           AND TRUNC(t1.load_ymd) = #{ymd}
          ORDER BY t1.load_seq desc
     </select>
 
@@ -34,7 +34,7 @@
           FROM SHM0HM_SIGA t1
           LEFT OUTER JOIN SZM0IA ia ON ia.corp_gr = t1.corp_gr AND ia.fund_cd = t1.fund_cd
          WHERE t1.CORP_GR = #{corpGr}
-           AND t1.YMD     = REPLACE(#{ymd}, '-', '')
+           AND t1.YMD     = #{ymd}
         UNION ALL
         SELECT '3'
              , '주식'
@@ -49,7 +49,7 @@
           FROM SJM0JM_SIGA t1
           LEFT OUTER JOIN SZM0IA ia ON ia.corp_gr = t1.corp_gr AND ia.fund_cd = t1.fund_cd
          WHERE t1.CORP_GR = #{corpGr}
-           AND t1.YMD     = REPLACE(#{ymd}, '-', '')
+           AND t1.YMD     = #{ymd}
         UNION ALL
         SELECT '1'
              , '채권'
@@ -64,7 +64,7 @@
           FROM SCM0CM_SIGA t1
           LEFT OUTER JOIN SZM0IA ia ON ia.corp_gr = t1.corp_gr AND ia.fund_cd = t1.fund_cd
          WHERE t1.CORP_GR = #{corpGr}
-           AND t1.YMD     = REPLACE(#{ymd}, '-', '')
+           AND t1.YMD     = #{ymd}
         UNION ALL
         SELECT '4'
              , '펀드'
@@ -79,7 +79,7 @@
           FROM SJM5SM_SIGA t1
           LEFT OUTER JOIN SZM0IA ia ON ia.corp_gr = t1.corp_gr AND ia.fund_cd = t1.fund_cd
          WHERE t1.CORP_GR = #{corpGr}
-           AND t1.YMD     = REPLACE(#{ymd}, '-', '')
+           AND t1.YMD     = #{ymd}
     </select>
 
     <!-- 3. Select Loaded Execution / Tr List (d_ja020n_tr.srd) -->
@@ -98,13 +98,13 @@
              , t1.DANC_GB                       AS dancGb
              , t1.SUSU                          AS susu
              , t1.TAX                           AS tax
-             , TO_CHAR(TO_DATE(t1.SUDO_YMD, 'YYYYMMDD'), 'YYYY-MM-DD') AS sudoYmd
+             , t1.SUDO_YMD                      AS sudoYmd
              , t1.STATUS                        AS status
              , '0'                              AS loadOk
           FROM SJT1JG t1
           LEFT OUTER JOIN SZM0IA ia ON ia.corp_gr = t1.corp_gr AND ia.fund_cd = t1.fund_cd
          WHERE t1.CORP_GR = #{corpGr}
-           AND t1.TR_YMD  = REPLACE(#{ymd}, '-', '')
+           AND t1.TR_YMD  = #{ymd}
          ORDER BY t1.FUND_CD, t1.TR_CD
     </select>
 

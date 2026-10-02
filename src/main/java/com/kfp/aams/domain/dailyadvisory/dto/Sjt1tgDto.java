@@ -1,11 +1,13 @@
 package com.kfp.aams.domain.dailyadvisory.dto;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 
 /**
  * DTO for d_sjt1tg (선물/옵션 종가등록)
@@ -24,7 +26,10 @@ public class Sjt1tgDto {
     private BigDecimal spotPrice;// 현물가격
     private BigDecimal calcPrice;// 정산가격
     private BigDecimal change;  // 등락
-    private String ymd;         // 기준일 (YYYY-MM-DD)
+
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd")
+    private LocalDate ymd;      // 기준일 (LocalDate)
+
     private String bigo;        // 비고
     private Integer pVisible;   // 버튼 표출 여부 (1)
 

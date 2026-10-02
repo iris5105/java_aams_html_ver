@@ -22,16 +22,15 @@ public class Ja010eQueryDslRepository {
 
     private final EntityManager em;
 
-    public long getNextOfferNo(String corpGr, String trYmd) {
-        if (corpGr == null || corpGr.isBlank() || trYmd == null || trYmd.isBlank()) return 1L;
+    public long getNextOfferNo(String corpGr, LocalDate trYmd) {
+        if (corpGr == null || corpGr.isBlank() || trYmd == null) return 1L;
         try {
-            LocalDate parsedTrYmd = parseLocalDate(trYmd);
             Long maxOfferNo = em.createQuery(
                     "SELECT COALESCE(MAX(j.offerNo), 0) + 1 " +
                             "  FROM Sjt1jg j " +
                             " WHERE j.corpGr = :corpGr AND j.trYmd = :trYmd", Long.class)
                     .setParameter("corpGr", corpGr.trim())
-                    .setParameter("trYmd", parsedTrYmd)
+                    .setParameter("trYmd", trYmd)
                     .getSingleResult();
             if (maxOfferNo != null) {
                 return maxOfferNo;
@@ -43,7 +42,7 @@ public class Ja010eQueryDslRepository {
     public void insertSjt1jg(Ja010eDto dto) {
         Sjt1jg entity = Sjt1jg.builder()
                 .corpGr(dto.getCorpGr())
-                .trYmd(parseLocalDate(dto.getTrYmd()))
+                .trYmd(dto.getTrYmd())
                 .trCd(dto.getTrCd())
                 .trCoCd(dto.getTrCoCd())
                 .offerNo(dto.getOfferNo())
@@ -56,7 +55,7 @@ public class Ja010eQueryDslRepository {
                 .dancGb(dto.getDancGb() != null ? dto.getDancGb() : "A")
                 .susu(dto.getSusu() != null ? dto.getSusu() : BigDecimal.ZERO)
                 .tax(dto.getTax() != null ? dto.getTax() : BigDecimal.ZERO)
-                .sudoYmd(parseLocalDate(dto.getSudoYmd()))
+                .sudoYmd(dto.getSudoYmd())
                 .loadTime(LocalDateTime.now())
                 .loadUser("JA010E")
                 .build();
@@ -66,7 +65,7 @@ public class Ja010eQueryDslRepository {
     public void updateSjt1jg(Ja010eDto dto) {
         Sjt1jgId id = new Sjt1jgId(
                 dto.getCorpGr(),
-                parseLocalDate(dto.getTrYmd()),
+                dto.getTrYmd(),
                 dto.getTrCd(),
                 dto.getTrCoCd(),
                 dto.getOfferNo()
@@ -77,14 +76,14 @@ public class Ja010eQueryDslRepository {
             entity.setTrAek(dto.getTrAek() != null ? dto.getTrAek() : BigDecimal.ZERO);
             entity.setSusu(dto.getSusu() != null ? dto.getSusu() : BigDecimal.ZERO);
             entity.setTax(dto.getTax() != null ? dto.getTax() : BigDecimal.ZERO);
-            entity.setSudoYmd(parseLocalDate(dto.getSudoYmd()));
+            entity.setSudoYmd(dto.getSudoYmd());
         }
     }
 
     public void deleteSjt1jg(Ja010eDto dto) {
         Sjt1jgId id = new Sjt1jgId(
                 dto.getCorpGr(),
-                parseLocalDate(dto.getTrYmd()),
+                dto.getTrYmd(),
                 dto.getTrCd(),
                 dto.getTrCoCd(),
                 dto.getOfferNo()
@@ -93,18 +92,5 @@ public class Ja010eQueryDslRepository {
         if (entity != null) {
             em.remove(entity);
         }
-    }
-
-    private LocalDate parseLocalDate(String text) {
-        if (text == null || text.isBlank()) return null;
-        String digits = text.replaceAll("\\D", "");
-        if (digits.length() == 8) {
-            return LocalDate.of(
-                    Integer.parseInt(digits.substring(0, 4)),
-                    Integer.parseInt(digits.substring(4, 6)),
-                    Integer.parseInt(digits.substring(6, 8))
-            );
-        }
-        return LocalDate.parse(text.substring(0, 10).replace('.', '-').replace('/', '-'));
     }
 }

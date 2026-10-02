@@ -8,6 +8,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @Slf4j
@@ -22,8 +23,8 @@ public class Shm1pgService {
      * 현금신용등급 목록 조회
      */
     @Transactional(readOnly = true)
-    public List<Shm1pgDto> getShm1pgList(String corpGr, String ymd) {
-        if (corpGr == null || corpGr.isBlank() || ymd == null || ymd.isBlank()) {
+    public List<Shm1pgDto> getShm1pgList(String corpGr, LocalDate ymd) {
+        if (corpGr == null || corpGr.isBlank() || ymd == null) {
             return List.of();
         }
         return shm1pgMapper.selectShm1pgList(corpGr, ymd);

@@ -24,7 +24,7 @@ public class Scm1pgQueryDslRepository {
     public void insertDetail(Scm1pgDetailDto dto) {
         Scm1pg entity = Scm1pg.builder()
                 .corpGr(dto.getCorpGr())
-                .ymd(parseLocalDate(dto.getYmd()))
+                .ymd(dto.getYmd())
                 .jmCd(dto.getJmCd())
                 .pgCd(dto.getPgCd())
                 .build();
@@ -32,7 +32,7 @@ public class Scm1pgQueryDslRepository {
     }
 
     public int updateDetail(Scm1pgDetailDto dto) {
-        Scm1pgId id = new Scm1pgId(dto.getCorpGr(), parseLocalDate(dto.getYmd()), dto.getJmCd());
+        Scm1pgId id = new Scm1pgId(dto.getCorpGr(), dto.getYmd(), dto.getJmCd());
         Scm1pg entity = em.find(Scm1pg.class, id);
         if (entity != null) {
             entity.setPgCd(dto.getPgCd());
@@ -41,8 +41,8 @@ public class Scm1pgQueryDslRepository {
         return 0;
     }
 
-    public void deleteDetail(String corpGr, String jmCd, String ymd) {
-        Scm1pgId id = new Scm1pgId(corpGr, parseLocalDate(ymd), jmCd);
+    public void deleteDetail(String corpGr, String jmCd, LocalDate ymd) {
+        Scm1pgId id = new Scm1pgId(corpGr, ymd, jmCd);
         Scm1pg entity = em.find(Scm1pg.class, id);
         if (entity != null) {
             em.remove(entity);
@@ -54,27 +54,11 @@ public class Scm1pgQueryDslRepository {
      * UPDATE SCM1J SET pg_cd = :pgCd WHERE corp_gr = :corpGr AND jm_cd = :jmCd AND buy_date = :buyDate
      */
     public void syncScm1j(Scm1pgDetailDto dto) {
-        String cleanYmd = dto.getYmd() != null ? dto.getYmd().replaceAll("\\D", "") : "";
-        if (cleanYmd.length() >= 8) {
-            cleanYmd = cleanYmd.substring(0, 8);
-        }
+        String cleanYmd = dto.getYmd() != null ? dto.getYmd().format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd")) : "";
         Scm1jId id = new Scm1jId(dto.getCorpGr(), dto.getJmCd(), cleanYmd);
         Scm1j entity = em.find(Scm1j.class, id);
         if (entity != null) {
             entity.setPgCd(dto.getPgCd());
         }
-    }
-
-    private LocalDate parseLocalDate(String text) {
-        if (text == null || text.isBlank()) return null;
-        String digits = text.replaceAll("\\D", "");
-        if (digits.length() == 8) {
-            return LocalDate.of(
-                    Integer.parseInt(digits.substring(0, 4)),
-                    Integer.parseInt(digits.substring(4, 6)),
-                    Integer.parseInt(digits.substring(6, 8))
-            );
-        }
-        return LocalDate.parse(text.substring(0, 10).replace('.', '-').replace('/', '-'));
     }
 }

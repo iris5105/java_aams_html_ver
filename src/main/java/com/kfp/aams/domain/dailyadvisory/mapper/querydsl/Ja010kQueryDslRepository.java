@@ -20,12 +20,12 @@ public class Ja010kQueryDslRepository {
     private final EntityManager em;
 
     public int updateVcOld(Ja010kSaveDto.Ja010kItemSaveDto item) {
-        LocalDate parsedYmd = parseLocalDate(item.getYmd());
+        LocalDate ymd = item.getYmd();
         String cleanBuyDate = item.getBuyDate() != null ? item.getBuyDate().replace("-", "").trim() : null;
 
         Uzm0uiId id = new Uzm0uiId(
                 item.getCorpGr(),
-                parsedYmd,
+                ymd,
                 item.getFundCd(),
                 item.getJmGr(),
                 item.getJmCd(),
@@ -40,18 +40,5 @@ public class Ja010kQueryDslRepository {
             return 1;
         }
         return 0;
-    }
-
-    private LocalDate parseLocalDate(String text) {
-        if (text == null || text.isBlank()) return null;
-        String digits = text.replaceAll("\\D", "");
-        if (digits.length() == 8) {
-            return LocalDate.of(
-                    Integer.parseInt(digits.substring(0, 4)),
-                    Integer.parseInt(digits.substring(4, 6)),
-                    Integer.parseInt(digits.substring(6, 8))
-            );
-        }
-        return LocalDate.parse(text.substring(0, 10).replace('.', '-').replace('/', '-'));
     }
 }

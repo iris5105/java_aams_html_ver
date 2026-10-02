@@ -21,22 +21,21 @@ public class Ja010kService {
     private final com.kfp.aams.domain.dailyadvisory.mapper.querydsl.Ja010kQueryDslRepository ja010kQueryDslRepository;
 
     @Transactional(readOnly = true)
-    public List<Ja010kMasterDto> getMasterList(String corpGr, String tymd) {
-        if (corpGr == null || corpGr.trim().isEmpty() || tymd == null || tymd.trim().isEmpty()) {
+    public List<Ja010kMasterDto> getMasterList(String corpGr, java.time.LocalDate tymd) {
+        if (corpGr == null || corpGr.trim().isEmpty() || tymd == null) {
             return Collections.emptyList();
         }
-        return ja010kMapper.selectMasterList(corpGr, tymd.replace("-", ""));
+        return ja010kMapper.selectMasterList(corpGr, tymd);
     }
 
     @Transactional(readOnly = true)
-    public List<Ja010kDetailDto> getDetailList(String corpGr, String fymd, String tymd, String fundCd) {
+    public List<Ja010kDetailDto> getDetailList(String corpGr, java.time.LocalDate fymd, java.time.LocalDate tymd, String fundCd) {
         if (corpGr == null || corpGr.trim().isEmpty() ||
-            fymd == null || fymd.trim().isEmpty() ||
-            tymd == null || tymd.trim().isEmpty() ||
+            fymd == null || tymd == null ||
             fundCd == null || fundCd.trim().isEmpty()) {
             return Collections.emptyList();
         }
-        return ja010kMapper.selectDetailList(corpGr, fymd.replace("-", ""), tymd.replace("-", ""), fundCd);
+        return ja010kMapper.selectDetailList(corpGr, fymd, tymd, fundCd);
     }
 
     @Transactional

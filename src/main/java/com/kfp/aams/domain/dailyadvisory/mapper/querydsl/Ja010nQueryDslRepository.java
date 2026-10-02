@@ -21,8 +21,6 @@ import java.util.List;
 public class Ja010nQueryDslRepository {
 
     private final EntityManager em;
-    private static final DateTimeFormatter YMD_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");
-
     public List<Ja010nDto> selectJa010nList() {
         List<Skt0bm> entities = em.createQuery(
                 "SELECT b FROM Skt0bm b " +
@@ -34,7 +32,7 @@ public class Ja010nQueryDslRepository {
         for (Skt0bm b : entities) {
             Ja010nDto dto = new Ja010nDto();
             dto.setCorpGr(b.getCorpGr());
-            dto.setYmd(b.getYmd() != null ? b.getYmd().format(YMD_FORMATTER) : null);
+            dto.setYmd(b.getYmd());
             dto.setColId(b.getColId());
             dto.setColVal(b.getColVal());
             result.add(dto);
@@ -43,10 +41,10 @@ public class Ja010nQueryDslRepository {
     }
 
     public void insertJa010n(Ja010nDto dto) {
-        LocalDate parsedYmd = parseLocalDate(dto.getYmd());
+        LocalDate ymd = dto.getYmd();
         Skt0bm entity = Skt0bm.builder()
                 .corpGr("JISU")
-                .ymd(parsedYmd)
+                .ymd(ymd)
                 .colId("kospi_jisu")
                 .colVal(dto.getColVal())
                 .build();
@@ -54,8 +52,8 @@ public class Ja010nQueryDslRepository {
     }
 
     public int updateJa010n(Ja010nDto dto) {
-        LocalDate parsedYmd = parseLocalDate(dto.getYmd());
-        Skt0bmId id = new Skt0bmId("JISU", parsedYmd, "kospi_jisu");
+        LocalDate ymd = dto.getYmd();
+        Skt0bmId id = new Skt0bmId("JISU", ymd, "kospi_jisu");
         Skt0bm entity = em.find(Skt0bm.class, id);
         if (entity != null) {
             entity.setColVal(dto.getColVal());
@@ -64,25 +62,11 @@ public class Ja010nQueryDslRepository {
         return 0;
     }
 
-    public void deleteJa010n(String ymd) {
-        LocalDate parsedYmd = parseLocalDate(ymd);
-        Skt0bmId id = new Skt0bmId("JISU", parsedYmd, "kospi_jisu");
+    public void deleteJa010n(LocalDate ymd) {
+        Skt0bmId id = new Skt0bmId("JISU", ymd, "kospi_jisu");
         Skt0bm entity = em.find(Skt0bm.class, id);
         if (entity != null) {
             em.remove(entity);
         }
-    }
-
-    private LocalDate parseLocalDate(String text) {
-        if (text == null || text.isBlank()) return null;
-        String digits = text.replaceAll("\\D", "");
-        if (digits.length() == 8) {
-            return LocalDate.of(
-                    Integer.parseInt(digits.substring(0, 4)),
-                    Integer.parseInt(digits.substring(4, 6)),
-                    Integer.parseInt(digits.substring(6, 8))
-            );
-        }
-        return LocalDate.parse(text.substring(0, 10).replace('.', '-').replace('/', '-'));
     }
 }

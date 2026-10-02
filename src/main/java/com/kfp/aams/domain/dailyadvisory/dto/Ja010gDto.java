@@ -1,11 +1,13 @@
 package com.kfp.aams.domain.dailyadvisory.dto;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 
 /**
  * DTO for d_ja010g1_common (입력자료 대비 순자산점검)
@@ -16,7 +18,10 @@ import java.math.BigDecimal;
 @AllArgsConstructor
 public class Ja010gDto {
     private String corpGr;          // 회사그룹
-    private String trYmd;           // 점검일자 (YYYY-MM-DD)
+
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd")
+    private LocalDate trYmd;        // 점검일자 (YYYY-MM-DD)
+
     private String fundCd;          // 관리번호 (fund_cd)
     private String trCoCd;          // 증권사 코드
     private String trCoNm;          // 증권사 명
@@ -32,7 +37,9 @@ public class Ja010gDto {
     private BigDecimal uhStockGongmo;   // 공모 미상장주식
     private BigDecimal uhBondAek;       // (원장생성) 채권시가액
     private BigDecimal uhNav;           // (원장생성) 순자산액
-    private String confYmd;             // 확정일자 (conf_ymd)
+
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd")
+    private LocalDate confYmd;          // 확정일자 (conf_ymd)
 
     private BigDecimal misuBaedAek;     // (계산배당) 미수배당
     private BigDecimal mijigubAek;      // 미수입(지급)액

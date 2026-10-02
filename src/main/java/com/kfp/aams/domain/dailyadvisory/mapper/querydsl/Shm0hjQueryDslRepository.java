@@ -28,14 +28,11 @@ public class Shm0hjQueryDslRepository {
      * ls_jm_cd = 'KR9' + ls_yy + ls_mm + dd + ls_cd + '___'
      * SELECT NVL(MAX(SUBSTR(JM_CD,10,2)),0) + 1 FROM SHM0HJ WHERE corp_gr = :corpGr AND jm_cd LIKE :ls_jm_cd
      */
-    public String getNextJmCd(String corpGr, String balhYmd, String cashCd) {
-        String cleanDate = cleanDate(balhYmd);
-        if (cleanDate == null || cleanDate.length() < 10) {
-            cleanDate = LocalDate.now().toString();
-        }
-        String yyyy = cleanDate.substring(0, 4);
-        String mm = cleanDate.substring(5, 7);
-        String dd = cleanDate.substring(8, 10);
+    public String getNextJmCd(String corpGr, LocalDate balhYmd, String cashCd) {
+        LocalDate date = (balhYmd != null) ? balhYmd : LocalDate.now();
+        String yyyy = String.format("%04d", date.getYear());
+        String mm = String.format("%02d", date.getMonthValue());
+        String dd = String.format("%02d", date.getDayOfMonth());
 
         String yyCode = getIdDae("Y", yyyy);
         String mmCode = getIdDae("M", mm);
@@ -143,17 +140,17 @@ public class Shm0hjQueryDslRepository {
                 .fundCd(dto.getFundCd())
                 .cdJigubGb(dto.getCdJigubGb() != null ? dto.getCdJigubGb() : "1")
                 .aekm(dto.getAekm() != null ? dto.getAekm() : BigDecimal.ZERO)
-                .balhYmd(parseLocalDate(dto.getBalhYmd()))
+                .balhYmd(dto.getBalhYmd())
                 .cashCd(dto.getCashCd())
                 .chuiAek(dto.getChuiAek() != null ? dto.getChuiAek() : BigDecimal.ZERO)
                 .hjNm(dto.getHjNm())
-                .meibYmd(parseLocalDate(dto.getMeibYmd()))
+                .meibYmd(dto.getMeibYmd())
                 .pyomIyul(pyom != null ? pyom : BigDecimal.ZERO)
-                .afIjaYmd(parseLocalDate(dto.getAfIjaYmd()))
+                .afIjaYmd(dto.getAfIjaYmd())
                 .bojngGb(dto.getBojngGb())
                 .nowIjaHoicha(dto.getNowIjaHoicha() != null ? dto.getNowIjaHoicha() : BigDecimal.ZERO)
                 .sanghwAek(dto.getSanghwAek() != null ? dto.getSanghwAek() : BigDecimal.ZERO)
-                .sanghwYmd(parseLocalDate(dto.getSanghwYmd()))
+                .sanghwYmd(dto.getSanghwYmd())
                 .sunhuGb(dto.getSunhuGb() != null ? dto.getSunhuGb() : "1")
                 .yyIjaHoicha(dto.getYyIjaHoicha() != null ? dto.getYyIjaHoicha() : BigDecimal.ONE)
                 .ijaYySu(dto.getIjaYySu() != null ? dto.getIjaYySu() : BigDecimal.ONE)
@@ -170,7 +167,7 @@ public class Shm0hjQueryDslRepository {
                 .susuGa(dto.getSusuGa() != null ? dto.getSusuGa() : BigDecimal.ZERO)
                 .bojngCo(dto.getBojngCo())
                 .sungCost(dto.getSungCost() != null ? dto.getSungCost() : BigDecimal.ZERO)
-                .opYmd(parseLocalDate(dto.getOpYmd()))
+                .opYmd(dto.getOpYmd())
                 .ksdJmCd(dto.getKsdJmCd())
                 .seqNo(dto.getSeqNo() != null ? dto.getSeqNo() : BigDecimal.ZERO)
                 .susu09900(dto.getSusu09900() != null ? dto.getSusu09900() : BigDecimal.ZERO)
@@ -200,17 +197,17 @@ public class Shm0hjQueryDslRepository {
             entity.setFundCd(dto.getFundCd());
             if (dto.getCdJigubGb() != null) entity.setCdJigubGb(dto.getCdJigubGb());
             entity.setAekm(dto.getAekm() != null ? dto.getAekm() : BigDecimal.ZERO);
-            entity.setBalhYmd(parseLocalDate(dto.getBalhYmd()));
+            entity.setBalhYmd(dto.getBalhYmd());
             entity.setCashCd(dto.getCashCd());
             entity.setChuiAek(dto.getChuiAek() != null ? dto.getChuiAek() : BigDecimal.ZERO);
             entity.setHjNm(dto.getHjNm());
-            entity.setMeibYmd(parseLocalDate(dto.getMeibYmd()));
+            entity.setMeibYmd(dto.getMeibYmd());
             if (pyom != null) entity.setPyomIyul(pyom);
-            entity.setAfIjaYmd(parseLocalDate(dto.getAfIjaYmd()));
+            entity.setAfIjaYmd(dto.getAfIjaYmd());
             entity.setBojngGb(dto.getBojngGb());
             if (dto.getNowIjaHoicha() != null) entity.setNowIjaHoicha(dto.getNowIjaHoicha());
             entity.setSanghwAek(dto.getSanghwAek() != null ? dto.getSanghwAek() : BigDecimal.ZERO);
-            entity.setSanghwYmd(parseLocalDate(dto.getSanghwYmd()));
+            entity.setSanghwYmd(dto.getSanghwYmd());
             if (dto.getSunhuGb() != null) entity.setSunhuGb(dto.getSunhuGb());
             if (dto.getYyIjaHoicha() != null) entity.setYyIjaHoicha(dto.getYyIjaHoicha());
             if (dto.getIjaYySu() != null) entity.setIjaYySu(dto.getIjaYySu());
@@ -227,7 +224,7 @@ public class Shm0hjQueryDslRepository {
             entity.setSusuGa(dto.getSusuGa() != null ? dto.getSusuGa() : BigDecimal.ZERO);
             entity.setBojngCo(dto.getBojngCo());
             entity.setSungCost(dto.getSungCost() != null ? dto.getSungCost() : BigDecimal.ZERO);
-            entity.setOpYmd(parseLocalDate(dto.getOpYmd()));
+            entity.setOpYmd(dto.getOpYmd());
             entity.setKsdJmCd(dto.getKsdJmCd());
             if (dto.getSeqNo() != null) entity.setSeqNo(dto.getSeqNo());
             if (dto.getSusu09900() != null) entity.setSusu09900(dto.getSusu09900());
@@ -240,31 +237,5 @@ public class Shm0hjQueryDslRepository {
         try {
             callSrShj0ig(dto.getCorpGr(), dto.getJmCd(), "ok");
         } catch (Exception ignored) {}
-    }
-
-    private LocalDate parseLocalDate(String text) {
-        if (text == null || text.isBlank()) return null;
-        String digits = text.replaceAll("\\D", "");
-        if (digits.length() == 8) {
-            return LocalDate.of(
-                    Integer.parseInt(digits.substring(0, 4)),
-                    Integer.parseInt(digits.substring(4, 6)),
-                    Integer.parseInt(digits.substring(6, 8))
-            );
-        }
-        return LocalDate.parse(text.substring(0, 10).replace('.', '-').replace('/', '-'));
-    }
-
-    private String cleanDate(String text) {
-        if (text == null || text.isBlank()) return null;
-        String clean = text.trim();
-        if (clean.length() >= 10) {
-            return clean.substring(0, 10).replace('.', '-').replace('/', '-');
-        }
-        String digits = clean.replaceAll("\\D", "");
-        if (digits.length() == 8) {
-            return digits.substring(0, 4) + "-" + digits.substring(4, 6) + "-" + digits.substring(6, 8);
-        }
-        return clean;
     }
 }

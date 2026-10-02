@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 
+import java.time.LocalDate;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -25,25 +26,26 @@ public class Ja020nTests {
         List<Ja020nStatusDto> statusList = ja020nService.getStatusList(null, null);
         assertThat(statusList).isEmpty();
 
-        List<Ja020nSigaDto> sigaList = ja020nService.getSigaList("", "");
+        List<Ja020nSigaDto> sigaList = ja020nService.getSigaList("", null);
         assertThat(sigaList).isEmpty();
 
-        List<Ja020nTrDto> trList = ja020nService.getTrList(null, "2026-08-01");
+        List<Ja020nTrDto> trList = ja020nService.getTrList(null, LocalDate.parse("2026-08-01"));
         assertThat(trList).isEmpty();
     }
 
     @Test
     @DisplayName("Guideline 4: Multi-table join via MyBatis for d_ja020n, d_ja020n_siga, d_ja020n_tr")
     void testMyBatisQueries() {
-        List<Ja020nStatusDto> statusList = ja020nService.getStatusList("2402", "2026-08-01");
+        LocalDate testDate = LocalDate.parse("2026-08-01");
+        List<Ja020nStatusDto> statusList = ja020nService.getStatusList("2402", testDate);
         assertThat(statusList).isNotNull();
         System.out.println("Status list count: " + statusList.size());
 
-        List<Ja020nSigaDto> sigaList = ja020nService.getSigaList("2402", "2026-08-01");
+        List<Ja020nSigaDto> sigaList = ja020nService.getSigaList("2402", testDate);
         assertThat(sigaList).isNotNull();
         System.out.println("Siga list count: " + sigaList.size());
 
-        List<Ja020nTrDto> trList = ja020nService.getTrList("2402", "2026-08-01");
+        List<Ja020nTrDto> trList = ja020nService.getTrList("2402", testDate);
         assertThat(trList).isNotNull();
         System.out.println("Tr list count: " + trList.size());
     }

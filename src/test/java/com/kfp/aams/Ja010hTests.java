@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 
+import java.time.LocalDate;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -27,14 +28,14 @@ public class Ja010hTests {
         List<Ja010hMasterDto> list2 = ja010hService.getFundList("2402", null);
         assertThat(list2).isEmpty();
 
-        List<Ja010hMasterDto> list3 = ja010hService.getFundList(null, "2026-06-08");
+        List<Ja010hMasterDto> list3 = ja010hService.getFundList(null, LocalDate.of(2026, 6, 8));
         assertThat(list3).isEmpty();
     }
 
     @Test
     @DisplayName("가이드라인 4: d_szm0ia 펀드 목록 MyBatis 조회 테스트")
     void testSelectFundList() {
-        List<Ja010hMasterDto> list = ja010hService.getFundList("2402", "2026-06-08");
+        List<Ja010hMasterDto> list = ja010hService.getFundList("2402", LocalDate.of(2026, 6, 8));
         assertThat(list).isNotNull();
         System.out.println("조회된 펀드 건수: " + list.size());
         if (!list.isEmpty()) {
@@ -47,7 +48,7 @@ public class Ja010hTests {
     @Test
     @DisplayName("캘린더 데이터 일자 목록 조회 테스트")
     void testGetDates() {
-        List<String> dates = ja010hService.getDates("2402");
+        List<LocalDate> dates = ja010hService.getDates("2402");
         assertThat(dates).isNotNull();
         System.out.println("조회 가능 일자 수: " + dates.size());
     }
@@ -56,7 +57,7 @@ public class Ja010hTests {
     @DisplayName("자산명세표 다중 포맷(PDF, Excel, Word, PPT, HWP) 변환 생성 검증")
     void testReportExportAllFormats() throws Exception {
         String corpGr = "2402";
-        String ymd = "2026-06-08";
+        LocalDate ymd = LocalDate.of(2026, 6, 8);
         String fundCd = "2601";
 
         // 1. PDF

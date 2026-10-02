@@ -1,11 +1,13 @@
 package com.kfp.aams.domain.dailyadvisory.dto;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 
 /**
  * DTO for d_ja990c1 (발행기관 기본정보 마스터)
@@ -21,7 +23,10 @@ public class Ja990cMasterDto {
     private String sosokGb;        // 소속구분
     private BigDecimal aekm;       // 액면
     private String grBalhGb;       // 발행기관분류
-    private String budoYmd;        // 부도일자
+
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd")
+    private LocalDate budoYmd;     // 부도일자
+
     private String compCd;         // KOSCOM코드
     private String gyulMm;         // 결산월
     private String isinCd;         // ISIN코드

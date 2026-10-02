@@ -22,14 +22,14 @@ public class Ja010dService {
     private final Ja010dMapper ja010dMapper;
     private final com.kfp.aams.domain.dailyadvisory.mapper.querydsl.Ja010dQueryDslRepository ja010dQueryDslRepository;
 
-    public List<Ja010dDto> getJa010dList(String corpGr, String trYmd) {
-        if (corpGr == null || corpGr.isBlank() || trYmd == null || trYmd.isBlank()) {
+    public List<Ja010dDto> getJa010dList(String corpGr, java.time.LocalDate trYmd) {
+        if (corpGr == null || corpGr.isBlank() || trYmd == null) {
             return Collections.emptyList();
         }
-        return ja010dMapper.selectJa010dList(corpGr.trim(), trYmd.trim());
+        return ja010dMapper.selectJa010dList(corpGr.trim(), trYmd);
     }
 
-    public List<String> getTrDates(String corpGr) {
+    public List<java.time.LocalDate> getTrDates(String corpGr) {
         if (corpGr == null || corpGr.isBlank()) {
             return Collections.emptyList();
         }
@@ -47,7 +47,7 @@ public class Ja010dService {
             throw new IllegalArgumentException("회사그룹 정보가 누락되었습니다.");
         }
         String corpGr = req.getCorpGr().trim();
-        String trYmd = req.getTrYmd() != null ? req.getTrYmd().trim() : "";
+        java.time.LocalDate trYmd = req.getTrYmd();
 
         // 1. 삭제 대기열(deletedList) 처리
         if (req.getDeletedList() != null) {
@@ -55,7 +55,7 @@ public class Ja010dService {
                 if (del.getCorpGr() == null || del.getCorpGr().isBlank()) {
                     del.setCorpGr(corpGr);
                 }
-                if (del.getTrYmd() == null || del.getTrYmd().isBlank()) {
+                if (del.getTrYmd() == null) {
                     del.setTrYmd(trYmd);
                 }
                 ja010dQueryDslRepository.deleteIo(del);
@@ -66,7 +66,7 @@ public class Ja010dService {
         if (req.getItemList() != null) {
             for (Ja010dDto dto : req.getItemList()) {
                 dto.setCorpGr(corpGr);
-                if (dto.getTrYmd() == null || dto.getTrYmd().isBlank()) {
+                if (dto.getTrYmd() == null) {
                     dto.setTrYmd(trYmd);
                 }
 
@@ -80,7 +80,7 @@ public class Ja010dService {
             }
         }
 
-        if (!trYmd.isBlank()) {
+        if (trYmd != null) {
             ja010dQueryDslRepository.updateGijungaYmd(corpGr, trYmd);
         }
 

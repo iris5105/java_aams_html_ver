@@ -9,6 +9,7 @@ import com.kfp.aams.security.UserPrincipal;
 import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Controller;
@@ -20,6 +21,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -70,7 +72,7 @@ public class Shm0hjController {
     @ResponseBody
     public List<Shm0hjMasterDto> getMasterList(@AuthenticationPrincipal Object principalObj,
             @RequestParam(name = "corpGr", required = false) String paramCorpGr,
-            @RequestParam(name = "ymd", required = false) String ymd,
+            @RequestParam(name = "ymd", required = false) @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate ymd,
             @RequestParam(name = "cashCd", required = false) String cashCd,
             @CookieValue(name = "savedCorpGr", required = false) String cookieCorpGr1,
             @CookieValue(name = "corpGr", required = false) String cookieCorpGr2) {
@@ -78,7 +80,7 @@ public class Shm0hjController {
         String cookieCorpGr = (cookieCorpGr1 != null && !cookieCorpGr1.isBlank()) ? cookieCorpGr1 : cookieCorpGr2;
         String corpGr = resolveCorpGr(paramCorpGr, cookieCorpGr, principal);
 
-        if (corpGr == null || corpGr.isBlank() || ymd == null || ymd.isBlank()) {
+        if (corpGr == null || corpGr.isBlank() || ymd == null) {
             return Collections.emptyList();
         }
 
@@ -92,7 +94,7 @@ public class Shm0hjController {
     @ResponseBody
     public Map<String, Object> getNextJmCd(@AuthenticationPrincipal Object principalObj,
                                            @RequestParam(name = "corpGr", required = false) String paramCorpGr,
-                                           @RequestParam(name = "ymd", required = false) String ymd,
+                                           @RequestParam(name = "ymd", required = false) @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate ymd,
                                            @RequestParam(name = "cashCd", required = false) String cashCd,
                                            @CookieValue(name = "savedCorpGr", required = false) String cookieCorpGr1,
                                            @CookieValue(name = "corpGr", required = false) String cookieCorpGr2) {

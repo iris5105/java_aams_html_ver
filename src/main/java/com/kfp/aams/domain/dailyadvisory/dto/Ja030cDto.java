@@ -1,11 +1,13 @@
 package com.kfp.aams.domain.dailyadvisory.dto;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 
 /**
  * DTO for w_ja030c (채권 매매등록 / d_ja030c.srd)
@@ -17,18 +19,26 @@ import java.math.BigDecimal;
 @AllArgsConstructor
 public class Ja030cDto {
     private String corpGr;
-    private String trYmd;
+
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd")
+    private LocalDate trYmd;
+
     private String trCd;
     private String fundCd;
     private String jmCd;
-    private String buyDate;
+
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd")
+    private LocalDate buyDate;
+
     private BigDecimal seqNo;
     private String trCoCd;
     private BigDecimal aekm;
     private BigDecimal danga;
     private BigDecimal trAek;
     private BigDecimal susu;
-    private String sudoYmd;
+
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd")
+    private LocalDate sudoYmd;
     private BigDecimal mkSuikRt;
     private String pgCd;
     private String jajunGb;

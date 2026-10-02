@@ -14,11 +14,11 @@
              , t1.spot_price                             AS spotPrice
              , t1.calc_price                             AS calcPrice
              , t1.change                                 AS change
-             , TO_CHAR(t1.ymd, 'YYYY-MM-DD')             AS ymd
+             , t1.ymd                                    AS ymd
              , ' '                                       AS bigo
              , 1                                         AS pVisible
           FROM sjt1tg t1
-         WHERE t1.ymd = TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
+         WHERE t1.ymd = #{ymd}
            AND REGEXP_LIKE (t1.koscom_cd, 'KR[4]')
          ORDER BY t1.koscom_cd ASC
     </select>
@@ -30,17 +30,17 @@
              , t2.sj_nm                                  AS xxSjCd
              , t2.koscom_cd                              AS bigo
              , NVL(t3.close, 0)                          AS preclose
-             , TO_CHAR(TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD'), 'YYYY-MM-DD') AS ymd
+             , #{ymd}                                    AS ymd
           FROM ssm0km t1
              , ssx0kj t2
                LEFT OUTER JOIN sjt1tg t3
-                 ON  t3.ymd       = TO_DATE(REPLACE(#{junilYmd}, '-', ''), 'YYYYMMDD')
+                 ON  t3.ymd       = #{junilYmd}
                  AND t3.koscom_cd = t2.sj_cd
          WHERE t1.corp_gr = #{corpGr}
-           AND t1.ymd     = TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
+           AND t1.ymd     = #{ymd}
            AND t2.corp_gr = t1.corp_gr
            AND t2.sj_cd   = t1.sj_cd
-           AND t2.lsy_ymd > TO_DATE(REPLACE(#{junilYmd}, '-', ''), 'YYYYMMDD')
+           AND t2.lsy_ymd > #{junilYmd}
          ORDER BY t2.sj_cd ASC
     </select>
 
@@ -54,7 +54,7 @@
           FROM ssx0kj t1
              , ssx0kj t2
          WHERE t1.corp_gr = #{corpGr}
-           AND t1.lsy_ymd = TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
+           AND t1.lsy_ymd = #{ymd}
            AND t1.jasan   != 'XX'
            AND t2.corp_gr = t1.corp_gr
            AND t2.sj_gb   = '0'
@@ -72,7 +72,7 @@
           FROM ssx0kj t1
              , ssx0kj t2
          WHERE t1.corp_gr     = #{corpGr}
-           AND t1.lsy_ymd - 1 = TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
+           AND t1.lsy_ymd - 1 = #{ymd}
            AND t1.jasan       = 'XX'
            AND t2.corp_gr     = t1.corp_gr
            AND t2.sj_gb       = '0'

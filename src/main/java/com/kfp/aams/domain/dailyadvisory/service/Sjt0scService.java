@@ -8,6 +8,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @Slf4j
@@ -22,8 +23,8 @@ public class Sjt0scService {
      * 펀드 기준가(시가액)등록 목록 조회
      */
     @Transactional(readOnly = true)
-    public List<Sjt0scDto> getSjt0scList(String corpGr, String ymd) {
-        if (corpGr == null || corpGr.isBlank() || ymd == null || ymd.isBlank()) {
+    public List<Sjt0scDto> getSjt0scList(String corpGr, LocalDate ymd) {
+        if (corpGr == null || corpGr.isBlank() || ymd == null) {
             return List.of();
         }
         return sjt0scMapper.selectSjt0scList(corpGr, ymd);
@@ -36,7 +37,7 @@ public class Sjt0scService {
     public void saveSjt0sc(Sjt0scSaveDto saveDto) {
         if (saveDto == null) return;
         String corpGr = saveDto.getCorpGr();
-        String ymd = saveDto.getYmd();
+        LocalDate ymd = saveDto.getYmd();
 
         // 1. 삭제 대상
         if (saveDto.getDeletedRows() != null) {

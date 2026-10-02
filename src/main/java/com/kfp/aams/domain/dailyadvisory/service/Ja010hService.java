@@ -7,6 +7,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.util.Collections;
 import java.util.List;
 
@@ -26,8 +27,8 @@ public class Ja010hService {
     /**
      * 펀드 목록 조회 (d_szm0ia.srd)
      */
-    public List<Ja010hMasterDto> getFundList(String corpGr, String ymd) {
-        if (corpGr == null || corpGr.isBlank() || ymd == null || ymd.isBlank()) {
+    public List<Ja010hMasterDto> getFundList(String corpGr, LocalDate ymd) {
+        if (corpGr == null || corpGr.isBlank() || ymd == null) {
             return Collections.emptyList();
         }
         return ja010hMapper.selectFundList(corpGr, ymd);
@@ -36,7 +37,7 @@ public class Ja010hService {
     /**
      * 캘린더 데이터 존재 일자 조회
      */
-    public List<String> getDates(String corpGr) {
+    public List<LocalDate> getDates(String corpGr) {
         if (corpGr == null || corpGr.isBlank()) {
             return Collections.emptyList();
         }
@@ -47,7 +48,7 @@ public class Ja010hService {
      * 평잔 재계산
      */
     @Transactional
-    public void executePyungjan(String corpGr, String fundCd, String ymd) {
+    public void executePyungjan(String corpGr, String fundCd, LocalDate ymd) {
         ja010hMapper.callSrPyungjan(corpGr, fundCd, ymd);
     }
 
@@ -57,7 +58,7 @@ public class Ja010hService {
      * SJM0JM 테이블에서 담보 건수(coll_pass, coll_up, coll_dw)를 확인하여
      * coll > 0 이면 rd_ja010h_coll.mrd, 아니면 rd_ja010h.mrd 리포트 실행
      */
-    public RdReportService.ExportResult exportReport(String corpGr, String ymd, String fundCd, String format) throws Exception {
+    public RdReportService.ExportResult exportReport(String corpGr, LocalDate ymd, String fundCd, String format) throws Exception {
         int collCount = ja010hMapper.checkCollCount(corpGr, ymd, fundCd);
         boolean isColl = collCount > 0;
         log.info("자산명세표 리포트 분기 판정 - corpGr: {}, ymd: {}, fundCd: {}, collCount: {}, isColl: {}",
@@ -65,16 +66,18 @@ public class Ja010hService {
 
         // 펀드 정보 조회 (bfYmd, fundNm 등)
         Ja010hMasterDto fundInfo = ja010hMapper.selectFundInfo(corpGr, ymd, fundCd);
-        String bfYmd = (fundInfo != null && fundInfo.getBfYmd() != null) ? fundInfo.getBfYmd() : "";
+        LocalDate bfYmd = (fundInfo != null) ? fundInfo.getBfYmd() : null;
         String fundNm = (fundInfo != null && fundInfo.getFundNm() != null) ? fundInfo.getFundNm() : "자산명세표";
 
-        return rdReportService.generateJa010hReport(isColl, corpGr, ymd, bfYmd, fundCd, fundNm, format);
+        String ymdStr = (ymd != null) ? ymd.toString() : "";
+        String bfYmdStr = (bfYmd != null) ? bfYmd.toString() : "";
+        return rdReportService.generateJa010hReport(isColl, corpGr, ymdStr, bfYmdStr, fundCd, fundNm, format);
     }
 
     /**
      * PDF 미리보기 스트림 생성
      */
-    public RdReportService.ExportResult previewReport(String corpGr, String ymd, String fundCd) throws Exception {
+    public RdReportService.ExportResult previewReport(String corpGr, LocalDate ymd, String fundCd) throws Exception {
         return exportReport(corpGr, ymd, fundCd, "pdf");
     }
 
@@ -88,7 +91,7 @@ public class Ja010hService {
     /**
      * 2402 회사 전용일자 조회 (SZX0AA.JUNYONG_YMD)
      */
-    public String getJunyongYmd(String corpGr) {
+    public LocalDate getJunyongYmd(String corpGr) {
         if (corpGr == null || corpGr.isBlank()) {
             return null;
         }
@@ -104,39 +107,46 @@ public class Ja010hService {
      *     dw_c.object.ymd [1] = idt_workdate (엑세스 쿠키 / 현재 영업일)
      * End IF
      */
-    public String getInitialWorkDate(String corpGr, String cookieWorkDate) {
+    public LocalDate getInitialWorkDate(String corpGr, String cookieWorkDate) {
         if ("2402".equals(corpGr)) {
-            String junyongYmd = getJunyongYmd("2402");
-            if (junyongYmd != null && !junyongYmd.isBlank()) {
-                return normalizeYmd(junyongYmd);
+            LocalDate junyongYmd = getJunyongYmd("2402");
+            if (junyongYmd != null) {
+                return junyongYmd;
             }
         }
         // 그 외의 경우: 엑세스 쿠키에 있는 현재 영업일 사용
         if (cookieWorkDate != null && !cookieWorkDate.isBlank()) {
-            return normalizeYmd(cookieWorkDate);
+            LocalDate parsed = parseLocalDate(cookieWorkDate);
+            if (parsed != null) return parsed;
         }
-        return workDateService.getWorkDateOrDefault(corpGr);
+        String defaultYmd = workDateService.getWorkDateOrDefault(corpGr);
+        return parseLocalDate(defaultYmd);
     }
 
-    private String normalizeYmd(String ymd) {
-        if (ymd == null || ymd.isBlank()) return ymd;
-        String clean = ymd.replaceAll("[^0-9]", "");
-        if (clean.length() == 8) {
-            return clean.substring(0, 4) + "-" + clean.substring(4, 6) + "-" + clean.substring(6, 8);
+    private LocalDate parseLocalDate(String ymd) {
+        if (ymd == null || ymd.isBlank()) return null;
+        try {
+            String clean = ymd.replaceAll("[^0-9]", "");
+            if (clean.length() == 8) {
+                return LocalDate.of(Integer.parseInt(clean.substring(0, 4)),
+                        Integer.parseInt(clean.substring(4, 6)),
+                        Integer.parseInt(clean.substring(6, 8)));
+            }
+            return LocalDate.parse(ymd);
+        } catch (Exception e) {
+            return null;
         }
-        return ymd;
     }
 
     /**
      * 2402 회사 원장생성 검증 (w_ja010h1.srw ole_rd::ue_retrieve)
      * 불일치 발생 시 작업자 및 작업시간을 담은 경고 메시지 반환, 정상일 경우 null 반환
      */
-    public String checkLedgerValidation(String corpGr, String ymd) {
-        if (!"2402".equals(corpGr) || ymd == null || ymd.isBlank()) {
+    public String checkLedgerValidation(String corpGr, LocalDate ymd) {
+        if (!"2402".equals(corpGr) || ymd == null) {
             return null;
         }
-        String cleanYmd = ymd.replace("-", "").replace(".", "");
-        if (cleanYmd.compareTo("20241230") <= 0) {
+        if (ymd.isBefore(LocalDate.of(2024, 12, 31))) {
             return null;
         }
 
@@ -153,8 +163,9 @@ public class Ja010hService {
     /**
      * 보유자산 종합 엑셀 리포트 생성 (w_ja010h1.srw cb_1)
      */
-    public RdReportService.ExportResult exportTotalExcel(String corpGr, String ymd) throws Exception {
+    public RdReportService.ExportResult exportTotalExcel(String corpGr, LocalDate ymd) throws Exception {
         String sunJasan = ja010hMapper.selectSunJasanSigaAek(corpGr, ymd);
-        return rdReportService.generateJa010hTotalReport(corpGr, ymd, sunJasan, "excel");
+        String ymdStr = (ymd != null) ? ymd.toString() : "";
+        return rdReportService.generateJa010hTotalReport(corpGr, ymdStr, sunJasan, "excel");
     }
 }

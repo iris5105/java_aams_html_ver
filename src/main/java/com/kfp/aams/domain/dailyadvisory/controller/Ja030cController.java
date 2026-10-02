@@ -49,12 +49,12 @@ public class Ja030cController {
         }
         String fullpgm2 = (menuDto != null) ? menuDto.getFullpgm2() : "사무관리 > 자문일일 > 채권 매매등록";
         model.addAttribute("fullpgm2", fullpgm2);
-        List<String> trDates = (corpGr != null && !corpGr.isBlank())
+        List<java.time.LocalDate> trDates = (corpGr != null && !corpGr.isBlank())
                 ? ja030cService.getDates(corpGr)
                 : Collections.emptyList();
         String initialYmd = (paramYmd != null && !paramYmd.isBlank())
                 ? paramYmd
-                : (!trDates.isEmpty() ? trDates.get(0) : java.time.LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd")));
+                : (!trDates.isEmpty() ? trDates.get(0).toString() : java.time.LocalDate.now().toString());
 
         model.addAttribute("corpGr", corpGr);
         model.addAttribute("ymd", initialYmd);
@@ -69,10 +69,10 @@ public class Ja030cController {
      */
     @GetMapping("/api/daily/ja030c/dates")
     @ResponseBody
-    public List<String> getDates(@AuthenticationPrincipal Object principalObj,
-                                 @RequestParam(name = "corpGr", required = false) String paramCorpGr,
-                                 @CookieValue(name = "savedCorpGr", required = false) String cookieCorpGr1,
-                                 @CookieValue(name = "corpGr", required = false) String cookieCorpGr2) {
+    public List<java.time.LocalDate> getDates(@AuthenticationPrincipal Object principalObj,
+                                              @RequestParam(name = "corpGr", required = false) String paramCorpGr,
+                                              @CookieValue(name = "savedCorpGr", required = false) String cookieCorpGr1,
+                                              @CookieValue(name = "corpGr", required = false) String cookieCorpGr2) {
         UserPrincipal principal = (principalObj instanceof UserPrincipal p) ? p : null;
         String cookieCorpGr = (cookieCorpGr1 != null && !cookieCorpGr1.isBlank()) ? cookieCorpGr1 : cookieCorpGr2;
         String corpGr = resolveCorpGr(paramCorpGr, cookieCorpGr, principal);
@@ -87,14 +87,14 @@ public class Ja030cController {
     @ResponseBody
     public List<Ja030cDto> getJa030cList(@AuthenticationPrincipal Object principalObj,
             @RequestParam(name = "corpGr", required = false) String paramCorpGr,
-            @RequestParam(name = "ymd", required = false) String ymd,
+            @RequestParam(name = "ymd", required = false) @org.springframework.format.annotation.DateTimeFormat(pattern = "yyyy-MM-dd") java.time.LocalDate ymd,
             @CookieValue(name = "savedCorpGr", required = false) String cookieCorpGr1,
             @CookieValue(name = "corpGr", required = false) String cookieCorpGr2) {
         UserPrincipal principal = (principalObj instanceof UserPrincipal p) ? p : null;
         String cookieCorpGr = (cookieCorpGr1 != null && !cookieCorpGr1.isBlank()) ? cookieCorpGr1 : cookieCorpGr2;
         String corpGr = resolveCorpGr(paramCorpGr, cookieCorpGr, principal);
 
-        if (corpGr == null || corpGr.isBlank() || ymd == null || ymd.isBlank()) {
+        if (corpGr == null || corpGr.isBlank() || ymd == null) {
             return Collections.emptyList();
         }
 
@@ -109,7 +109,7 @@ public class Ja030cController {
     public java.util.Map<String, Object> getNextSeq(@AuthenticationPrincipal Object principalObj,
                                                     @RequestParam(name = "corpGr", required = false) String paramCorpGr,
                                                     @RequestParam(name = "trCd", required = false) String trCd,
-                                                    @RequestParam(name = "ymd", required = false) String ymd,
+                                                    @RequestParam(name = "ymd", required = false) @org.springframework.format.annotation.DateTimeFormat(pattern = "yyyy-MM-dd") java.time.LocalDate ymd,
                                                     @RequestParam(name = "fundCd", required = false) String fundCd,
                                                     @CookieValue(name = "savedCorpGr", required = false) String cookieCorpGr1,
                                                     @CookieValue(name = "corpGr", required = false) String cookieCorpGr2) {

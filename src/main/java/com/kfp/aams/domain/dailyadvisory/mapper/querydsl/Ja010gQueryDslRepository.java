@@ -18,10 +18,8 @@ public class Ja010gQueryDslRepository {
 
     private final EntityManager em;
 
-    public int updateConfirmYmd(String corpGr, String ymd) {
-        if (corpGr == null || corpGr.isBlank() || ymd == null || ymd.isBlank()) return 0;
-        LocalDate trYmd = parseLocalDate(ymd);
-        if (trYmd == null) return 0;
+    public int updateConfirmYmd(String corpGr, LocalDate trYmd) {
+        if (corpGr == null || corpGr.isBlank() || trYmd == null) return 0;
 
         String jpql = "UPDATE Sht0ye y SET y.confYmd = :now WHERE y.corpGr = :corpGr AND y.trYmd = :trYmd";
         return em.createQuery(jpql)
@@ -29,18 +27,5 @@ public class Ja010gQueryDslRepository {
                 .setParameter("corpGr", corpGr.trim())
                 .setParameter("trYmd", trYmd)
                 .executeUpdate();
-    }
-
-    private LocalDate parseLocalDate(String text) {
-        if (text == null || text.isBlank()) return null;
-        String clean = text.trim().replace('.', '-').replace('/', '-');
-        if (clean.length() >= 10) {
-            return LocalDate.parse(clean.substring(0, 10), DateTimeFormatter.ofPattern("yyyy-MM-dd"));
-        }
-        String digits = clean.replaceAll("\\D", "");
-        if (digits.length() == 8) {
-            return LocalDate.parse(digits, DateTimeFormatter.ofPattern("yyyyMMdd"));
-        }
-        return null;
     }
 }

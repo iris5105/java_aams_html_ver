@@ -25,12 +25,12 @@ public class Ja010eService {
     /**
      * Retrieve Stock Trading Load List (d_ja010e1.srd)
      */
-    public List<Ja010eDto> getList(String corpGr, String trYmd, String trCoCd) {
-        if (corpGr == null || corpGr.isBlank() || trYmd == null || trYmd.isBlank()) {
+    public List<Ja010eDto> getList(String corpGr, java.time.LocalDate trYmd, String trCoCd) {
+        if (corpGr == null || corpGr.isBlank() || trYmd == null) {
             return Collections.emptyList();
         }
         String coCd = (trCoCd != null && !trCoCd.isBlank() && !"%".equals(trCoCd.trim())) ? trCoCd.trim() : null;
-        return ja010eMapper.selectJa010eList(corpGr.trim(), trYmd.trim(), coCd);
+        return ja010eMapper.selectJa010eList(corpGr.trim(), trYmd, coCd);
     }
 
     /**
@@ -50,7 +50,7 @@ public class Ja010eService {
             throw new IllegalArgumentException("회사그룹 정보가 누락되었습니다.");
         }
         String corpGr = req.getCorpGr().trim();
-        String ymd = req.getYmd() != null ? req.getYmd().trim() : "";
+        java.time.LocalDate ymd = req.getYmd();
 
         // 1. 삭제 대기열(deletedList) 선행 삭제
         if (req.getDeletedList() != null) {
@@ -58,7 +58,7 @@ public class Ja010eService {
                 if (del.getCorpGr() == null || del.getCorpGr().isBlank()) {
                     del.setCorpGr(corpGr);
                 }
-                if (del.getTrYmd() == null || del.getTrYmd().isBlank()) {
+                if (del.getTrYmd() == null) {
                     del.setTrYmd(ymd);
                 }
                 ja010eQueryDslRepository.deleteSjt1jg(del);
@@ -69,7 +69,7 @@ public class Ja010eService {
         if (req.getItemList() != null) {
             for (Ja010eDto dto : req.getItemList()) {
                 dto.setCorpGr(corpGr);
-                if (dto.getTrYmd() == null || dto.getTrYmd().isBlank()) {
+                if (dto.getTrYmd() == null) {
                     dto.setTrYmd(ymd);
                 }
                 if (dto.isNew()) {

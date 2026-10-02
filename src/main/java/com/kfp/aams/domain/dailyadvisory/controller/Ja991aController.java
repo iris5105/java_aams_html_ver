@@ -72,7 +72,11 @@ public class Ja991aController {
         String effectiveCorpGr = (corpGr != null && !corpGr.isBlank()) ? corpGr : cookieCorpGr;
         String effectiveYmd = (ymd != null && !ymd.isBlank()) ? ymd : cookieWorkDate;
 
-        List<Ja991aMasterDto> list = ja991aService.getMasterList(effectiveCorpGr, effectiveYmd);
+        LocalDate date = (effectiveYmd != null && !effectiveYmd.isBlank())
+                ? LocalDate.parse(effectiveYmd.replace('.', '-').replace('/', '-'))
+                : null;
+
+        List<Ja991aMasterDto> list = ja991aService.getMasterList(effectiveCorpGr, date);
         return ResponseEntity.ok(list);
     }
 
@@ -88,8 +92,11 @@ public class Ja991aController {
         }
 
         String effectiveYmd = (ymd != null && !ymd.isBlank()) ? ymd : cookieWorkDate;
+        LocalDate date = (effectiveYmd != null && !effectiveYmd.isBlank())
+                ? LocalDate.parse(effectiveYmd.replace('.', '-').replace('/', '-'))
+                : null;
 
-        List<Ja991aDetailDto> list = ja991aService.getDetailList(koscomCd, effectiveYmd);
+        List<Ja991aDetailDto> list = ja991aService.getDetailList(koscomCd, date);
         return ResponseEntity.ok(list);
     }
 

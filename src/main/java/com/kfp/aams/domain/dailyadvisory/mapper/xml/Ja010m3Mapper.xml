@@ -5,7 +5,7 @@
 
     <select id="selectJa010m3List" resultType="com.kfp.aams.domain.dailyadvisory.dto.Ja010m3Dto">
         SELECT t1.CORP_GR
-             , TO_CHAR(t1.GYUL_YMD, 'YYYY-MM-DD') AS gyul_ymd
+             , t1.GYUL_YMD AS gyul_ymd
              , t1.FUND_CD
              , ia.FUND_NM AS xx_fund_cd
              , gs.MRD_NM
@@ -26,7 +26,7 @@
              , t1.CONTRACT_CONDITION
              , t1.SEND_MAIL_ADDR
              , t1.SEND_CC_ADDR
-             , TO_CHAR(t1.SEND_DT, 'YYYY-MM-DD HH24:MI:SS') AS send_dt
+             , t1.SEND_DT AS send_dt
              , t1.SEND_USER
              , gs.CONTRACT_AEK
              , t1.RECONTRACT_AEK
@@ -43,13 +43,13 @@
             ON ia.CORP_GR = t1.CORP_GR
            AND ia.fund_cd = t1.fund_cd
          WHERE t1.CORP_GR = #{corpGr}
-        <if test='sortGb != "1" and gyulYmd != null and gyulYmd != ""'>
-           AND t1.gyul_ymd >= TO_DATE(#{gyulYmd}, 'YYYY-MM-DD')
+        <if test='sortGb != "1" and gyulYmd != null'>
+           AND t1.gyul_ymd >= #{gyulYmd}
         </if>
         <if test='chk != null and "b".equals(chk)'>
         UNION ALL
         SELECT t1.CORP_GR
-             , TO_CHAR(t1.GYUL_YMD, 'YYYY-MM-DD') AS gyul_ymd
+             , t1.GYUL_YMD AS gyul_ymd
              , t1.FUND_CD
              , ia.FUND_NM AS xx_fund_cd
              , NULL AS MRD_NM
@@ -83,8 +83,8 @@
             ON ia.CORP_GR = t1.CORP_GR
            AND ia.fund_cd = t1.fund_cd
          WHERE t1.CORP_GR = #{corpGr}
-        <if test='sortGb != "1" and gyulYmd != null and gyulYmd != ""'>
-           AND t1.gyul_ymd >= TO_DATE(#{gyulYmd}, 'YYYY-MM-DD')
+        <if test='sortGb != "1" and gyulYmd != null'>
+           AND t1.gyul_ymd >= #{gyulYmd}
         </if>
         </if>
         <choose>

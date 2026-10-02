@@ -20,7 +20,7 @@ public class Ja010gService {
     private final com.kfp.aams.common.service.WorkDateService workDateService;
 
     @Transactional(readOnly = true)
-    public List<Ja010gDto> selectJa010gList(String corpGr, String ymd) {
+    public List<Ja010gDto> selectJa010gList(String corpGr, java.time.LocalDate ymd) {
         List<Ja010gDto> list = ja010gMapper.selectJa010gList(corpGr, ymd);
         for (Ja010gDto dto : list) {
             BigDecimal yeStock = dto.getYeStockAek() != null ? dto.getYeStockAek() : BigDecimal.ZERO;
@@ -53,7 +53,7 @@ public class Ja010gService {
     }
 
     @Transactional
-    public int updateConfirmYmd(String corpGr, String ymd) {
+    public int updateConfirmYmd(String corpGr, java.time.LocalDate ymd) {
         return ja010gQueryDslRepository.updateConfirmYmd(corpGr, ymd);
     }
 

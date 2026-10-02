@@ -1,11 +1,13 @@
 package com.kfp.aams.domain.dailyadvisory.dto;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 
 /**
  * DTO for d_ja010n1 (주가지수 입력)
@@ -16,7 +18,10 @@ import java.math.BigDecimal;
 @AllArgsConstructor
 public class Ja010nDto {
     private String corpGr;    // 'JISU'
-    private String ymd;       // 기준일자 (YYYY-MM-DD)
+
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd")
+    private LocalDate ymd;    // 기준일자 (YYYY-MM-DD)
+
     private String colId;     // 'kospi_jisu'
     private BigDecimal colVal;// 종합주가지수
 

@@ -6,6 +6,7 @@ import com.kfp.aams.domain.dailyadvisory.dto.Ja020nTrDto;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
+import java.time.LocalDate;
 import java.util.List;
 
 /**
@@ -18,9 +19,9 @@ import java.util.List;
 @Mapper
 public interface Ja020nMapper {
 
-    List<Ja020nStatusDto> selectStatusList(@Param("corpGr") String corpGr, @Param("ymd") String ymd);
+    List<Ja020nStatusDto> selectStatusList(@Param("corpGr") String corpGr, @Param("ymd") LocalDate ymd);
 
-    List<Ja020nSigaDto> selectSigaList(@Param("corpGr") String corpGr, @Param("ymd") String ymd);
+    List<Ja020nSigaDto> selectSigaList(@Param("corpGr") String corpGr, @Param("ymd") LocalDate ymd);
 
-    List<Ja020nTrDto> selectTrList(@Param("corpGr") String corpGr, @Param("ymd") String ymd);
+    List<Ja020nTrDto> selectTrList(@Param("corpGr") String corpGr, @Param("ymd") LocalDate ymd);
 }

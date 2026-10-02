@@ -17,7 +17,7 @@ public interface Ja010oMapper {
      * 주식 신용/대출잔고 내역 조회 (d_ja010o1.srd)
      */
     List<Ja010oMasterDto> selectJa010oList(@Param("corpGr") String corpGr, 
-                                          @Param("ymd") String ymd, 
+                                          @Param("ymd") java.time.LocalDate ymd, 
                                           @Param("fundCd") String fundCd);
 
     /**

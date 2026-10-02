@@ -51,12 +51,11 @@ public class ProposalService {
         if (requestDto.getMasterList() != null) {
             for (ProposalMasterDto m : requestDto.getMasterList()) {
                 String cGr = (m.getCorpGr() != null && !m.getCorpGr().isBlank()) ? m.getCorpGr() : corpGr;
-                java.time.LocalDateTime ymd = proposalQueryDslRepository.parseDateTime(m.getYmd());
-                if (ymd == null) ymd = now;
+                java.time.LocalDateTime ymd = m.getYmd() != null ? m.getYmd() : now;
                 String proposer = (m.getProposer() != null && !m.getProposer().isBlank()) ? m.getProposer() : username;
 
                 if (Boolean.TRUE.equals(m.getIsNew()) || Boolean.TRUE.equals(m.getIsUpdated())) {
-                    java.time.LocalDateTime cYmd = proposalQueryDslRepository.parseDateTime(m.getContentYmd());
+                    java.time.LocalDateTime cYmd = m.getContentYmd();
                     if (m.getContent() != null && !m.getContent().isBlank() && cYmd == null) {
                         cYmd = now;
                     }
@@ -83,8 +82,8 @@ public class ProposalService {
         if (requestDto.getDeletedCommentList() != null) {
             for (ProposalCommentDto c : requestDto.getDeletedCommentList()) {
                 String cGr = (c.getCorpGr() != null && !c.getCorpGr().isBlank()) ? c.getCorpGr() : corpGr;
-                java.time.LocalDateTime pYmd = proposalQueryDslRepository.parseDateTime(c.getPYmd());
-                java.time.LocalDateTime ymd = proposalQueryDslRepository.parseDateTime(c.getYmd());
+                java.time.LocalDateTime pYmd = c.getPYmd();
+                java.time.LocalDateTime ymd = c.getYmd();
                 if (cGr != null && pYmd != null && ymd != null && c.getPProposer() != null) {
                     proposalQueryDslRepository.deleteProposalAppend(cGr, pYmd, c.getPProposer(), ymd, c.getSbNm());
                     count++;
@@ -96,7 +95,7 @@ public class ProposalService {
         if (requestDto.getDeletedMasterList() != null) {
             for (ProposalMasterDto m : requestDto.getDeletedMasterList()) {
                 String cGr = (m.getCorpGr() != null && !m.getCorpGr().isBlank()) ? m.getCorpGr() : corpGr;
-                java.time.LocalDateTime ymd = proposalQueryDslRepository.parseDateTime(m.getYmd());
+                java.time.LocalDateTime ymd = m.getYmd();
                 if (cGr != null && ymd != null && m.getProposer() != null) {
                     proposalQueryDslRepository.deleteProposal(cGr, ymd, m.getProposer());
                     count++;
@@ -109,9 +108,8 @@ public class ProposalService {
             for (ProposalCommentDto c : requestDto.getCommentList()) {
                 if (Boolean.TRUE.equals(c.getIsNew()) || Boolean.TRUE.equals(c.getIsUpdated())) {
                     String cGr = (c.getCorpGr() != null && !c.getCorpGr().isBlank()) ? c.getCorpGr() : corpGr;
-                    java.time.LocalDateTime pYmd = proposalQueryDslRepository.parseDateTime(c.getPYmd());
-                    java.time.LocalDateTime ymd = proposalQueryDslRepository.parseDateTime(c.getYmd());
-                    if (ymd == null) ymd = now;
+                    java.time.LocalDateTime pYmd = c.getPYmd();
+                    java.time.LocalDateTime ymd = c.getYmd() != null ? c.getYmd() : now;
                     String sbNm = (c.getSbNm() != null && !c.getSbNm().isBlank()) ? c.getSbNm() : username;
 
                     com.kfp.aams.domain.dailyadvisory.entity.ProposalAppend append = com.kfp.aams.domain.dailyadvisory.entity.ProposalAppend.builder()

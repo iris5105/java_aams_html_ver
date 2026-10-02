@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.Collections;
 import java.util.List;
 
@@ -34,31 +35,31 @@ public class Ja020rService {
      * 마스터 계좌 목록 조회 (d_ja020r1)
      */
     @Transactional(readOnly = true)
-    public List<Ja020rMasterDto> getMasterList(String corpGr, String ymd, String dw) {
-        if (corpGr == null || corpGr.isBlank() || ymd == null || ymd.isBlank()) {
+    public List<Ja020rMasterDto> getMasterList(String corpGr, LocalDate ymd, String dw) {
+        if (corpGr == null || corpGr.isBlank() || ymd == null) {
             return Collections.emptyList();
         }
         String dwType = (dw != null && !dw.isBlank()) ? dw : "d_ja020r2c";
-        return ja020rMapper.selectMasterList(corpGr.trim(), ymd.trim(), dwType.trim());
+        return ja020rMapper.selectMasterList(corpGr.trim(), ymd, dwType.trim());
     }
 
     /**
      * 디테일 유가증권 취득액 목록 조회 (d_ja020r2c, d_ja020r2h, d_ja020r2j)
      */
     @Transactional(readOnly = true)
-    public List<Ja020rDetailDto> getDetailList(String corpGr, String ymd, String fundCd, String dw) {
-        if (corpGr == null || corpGr.isBlank() || ymd == null || ymd.isBlank() || fundCd == null || fundCd.isBlank()) {
+    public List<Ja020rDetailDto> getDetailList(String corpGr, LocalDate ymd, String fundCd, String dw) {
+        if (corpGr == null || corpGr.isBlank() || ymd == null || fundCd == null || fundCd.isBlank()) {
             return Collections.emptyList();
         }
         String dwType = (dw != null && !dw.isBlank()) ? dw.trim() : "d_ja020r2c";
 
         if ("d_ja020r2h".equals(dwType)) {
-            return ja020rMapper.selectCashDetailList(corpGr.trim(), ymd.trim(), fundCd.trim());
+            return ja020rMapper.selectCashDetailList(corpGr.trim(), ymd, fundCd.trim());
         } else if ("d_ja020r2j".equals(dwType)) {
-            return ja020rMapper.selectStockDetailList(corpGr.trim(), ymd.trim(), fundCd.trim());
+            return ja020rMapper.selectStockDetailList(corpGr.trim(), ymd, fundCd.trim());
         } else {
             // 기본값 d_ja020r2c (채권)
-            return ja020rMapper.selectBondDetailList(corpGr.trim(), ymd.trim(), fundCd.trim());
+            return ja020rMapper.selectBondDetailList(corpGr.trim(), ymd, fundCd.trim());
         }
     }
 
@@ -80,7 +81,7 @@ public class Ja020rService {
             if (item.getCorpGr() == null || item.getCorpGr().isBlank()) {
                 item.setCorpGr(saveDto.getCorpGr());
             }
-            if (item.getYmd() == null || item.getYmd().isBlank()) {
+            if (item.getYmd() == null) {
                 item.setYmd(saveDto.getYmd());
             }
 

@@ -6,19 +6,19 @@
     <select id="selectMasterList" resultType="com.kfp.aams.domain.dailyadvisory.dto.Ja010kMasterDto">
         SELECT fund_cd
              , fund_nm
-             , TO_CHAR(re_seolj_ymd, 'YYYY-MM-DD') AS re_seolj_ymd
-             , TO_CHAR(fst_seolj_ymd, 'YYYY-MM-DD') AS fst_seolj_ymd
-             , TO_CHAR(haeji_ymd, 'YYYY-MM-DD') AS haeji_ymd
+             , re_seolj_ymd
+             , fst_seolj_ymd
+             , haeji_ymd
         FROM szm0ia t1
         WHERE t1.corp_gr = #{corpGr}
-          AND NVL(t1.haeji_ymd, TO_DATE(#{tymd}, 'YYYY-MM-DD') + 1) > TO_DATE(#{tymd}, 'YYYY-MM-DD')
+          AND NVL(t1.haeji_ymd, #{tymd} + 1) > #{tymd}
           AND type_gb IN ('5','6')
         ORDER BY fund_cd
     </select>
 
     <select id="selectDetailList" resultType="com.kfp.aams.domain.dailyadvisory.dto.Ja010kDetailDto">
         SELECT t1.CORP_GR
-             , TO_CHAR(t1.YMD, 'YYYY-MM-DD') AS ymd
+             , t1.YMD AS ymd
              , t1.type_gb
              , t1.FUND_CD
              , CASE WHEN t1.jm_gr='1' THEN '채권'
@@ -39,7 +39,7 @@
              , NVL(t1.siga_aek,0)                          AS siga_aek
              , NVL(t1.aekm,0) - NVL(t1.vc_old,0)           AS venture_new
              , t1.vc_old
-             , TO_CHAR(t1.vc_old_dt, 'YYYY-MM-DD HH24:MI:SS') AS vc_old_dt
+             , t1.vc_old_dt                                AS vc_old_dt
              , NVL(uh.sun_jasan_aek,0)                     AS NAV
              , NVL(uh.real_jasan_aek,0)                    AS total_nav
             , CASE WHEN uh.real_jasan_aek=0 THEN 0
@@ -51,8 +51,8 @@
                     , CASE WHEN uh.real_jasan_aek=0 THEN 0
                                             ELSE NVL(t1.siga_aek,0) * 100 / (uh.real_jasan_aek)
                       END                                         AS venture_total_per
-             , TO_CHAR(jb.venture_start, 'YYYY-MM-DD')     AS venture_start
-             , TO_CHAR(jb.venture_end, 'YYYY-MM-DD')       AS venture_end
+             , jb.venture_start                            AS venture_start
+             , jb.venture_end                              AS venture_end
           FROM UZM0UI t1
           JOIN UZM0UH uh
             ON uh.corp_gr = t1.CORP_GR
@@ -62,7 +62,7 @@
             ON jb.balh_co = t1.balh_co
          WHERE t1.corp_gr = #{corpGr}
            AND t1.fund_cd = #{fundCd}
-           AND t1.ymd BETWEEN TO_DATE(#{fymd}, 'YYYY-MM-DD') AND TO_DATE(#{tymd}, 'YYYY-MM-DD')
+           AND t1.ymd BETWEEN #{fymd} AND #{tymd}
            AND NVL(t1.aekm,0) > 0
          ORDER BY t1.ymd ASC, t1.jm_cd ASC
     </select>

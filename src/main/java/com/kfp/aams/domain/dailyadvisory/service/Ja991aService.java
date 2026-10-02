@@ -22,7 +22,7 @@ public class Ja991aService {
     /**
      * 마스터 종목 목록 조회 (d_ja991a1)
      */
-    public List<Ja991aMasterDto> getMasterList(String corpGr, String ymd) {
+    public List<Ja991aMasterDto> getMasterList(String corpGr, java.time.LocalDate ymd) {
         List<Ja991aMasterDto> list = ja991aMapper.selectMasterList(corpGr, ymd);
         if (list != null) {
             long seq = 1;
@@ -36,7 +36,7 @@ public class Ja991aService {
     /**
      * 디테일 종목별 종가 이력 조회 (d_ja991a2)
      */
-    public List<Ja991aDetailDto> getDetailList(String koscomCd, String ymd) {
+    public List<Ja991aDetailDto> getDetailList(String koscomCd, java.time.LocalDate ymd) {
         if (koscomCd == null || koscomCd.isBlank()) {
             return Collections.emptyList();
         }

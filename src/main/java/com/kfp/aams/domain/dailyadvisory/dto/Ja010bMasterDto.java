@@ -1,11 +1,13 @@
 package com.kfp.aams.domain.dailyadvisory.dto;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 
 @Data
 @Builder
@@ -18,10 +20,18 @@ public class Ja010bMasterDto {
     private String fundNm;
     private String typeGb;
     private String typeGbNm;
-    private String fstSeoljYmd;
+
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd")
+    private LocalDate fstSeoljYmd;
+
     private Integer sintakGigan;
-    private String bfGyulYmd;
-    private String afGyulYmd;
+
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd")
+    private LocalDate bfGyulYmd;
+
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd")
+    private LocalDate afGyulYmd;
+
     private BigDecimal preBasic;
     private BigDecimal basicPer;
     private BigDecimal bmPer;
@@ -30,14 +40,20 @@ public class Ja010bMasterDto {
     private String targetJasan;
     private Integer gyulGi;
     private String haejiGb;
-    private String haejiYmd;
+
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd")
+    private LocalDate haejiYmd;
+
     private Integer reSeoljYear;
     private BigDecimal reSeoljAek;
     private String mgCd;
     private String mgNm;
     private BigDecimal susuRt;
     private String email1;
-    private String reSeoljYmd;
+
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd")
+    private LocalDate reSeoljYmd;
+
     private String unyongSabun;
     private String orderSend;
     private String expenseYn;

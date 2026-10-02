@@ -6,7 +6,7 @@
     <!-- 1. 주식 종가 목록 조회 (d_sjt0tg) -->
     <select id="selectSjt0tgList" resultType="com.kfp.aams.domain.dailyadvisory.dto.Sjt0tgDto">
         SELECT t1.corp_gr                         AS corpGr
-             , TO_CHAR(t1.ymd, 'YYYY-MM-DD')       AS ymd
+             , t1.ymd                             AS ymd
              , t1.koscom_cd                       AS koscomCd
              , t1.close                           AS close
              , t1.volume                          AS volume
@@ -20,7 +20,7 @@
              , F_KOSCOM_NM(t1.corp_gr, t1.koscom_cd) AS xxKoscomCd
           FROM SJT0TG t1
          WHERE t1.corp_gr = #{corpGr}
-           AND t1.ymd     = TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
+           AND t1.ymd     = #{ymd}
          ORDER BY t1.koscom_cd ASC
     </select>
 
@@ -28,7 +28,7 @@
     <select id="selectMissingKoscomList" resultType="com.kfp.aams.domain.dailyadvisory.dto.Sjt0tgDto">
         SELECT DISTINCT
                t1.corp_gr                                                AS corpGr
-             , TO_CHAR(t1.ymd, 'YYYY-MM-DD')                             AS ymd
+             , t1.ymd                                                    AS ymd
              , t1.koscom_cd                                              AS koscomCd
              , F_KOSCOM_NM(t1.corp_gr, t1.koscom_cd)                     AS xxKoscomCd
              , NVL(tg.close, 0)                                          AS preclose
@@ -44,7 +44,7 @@
                  AND tg.ymd       = F_OPEN_YMD(t1.ymd, '-1')
                  AND tg.koscom_cd = t1.koscom_cd
          WHERE t1.corp_gr = #{corpGr}
-           AND t1.ymd     = TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
+           AND t1.ymd     = #{ymd}
            AND NOT EXISTS (
                SELECT 1
                  FROM SJT0TG sub

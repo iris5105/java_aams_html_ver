@@ -6,7 +6,7 @@
     <!-- 1. 채권 단가 목록 조회 (d_scm1sm / SCM1SM + SCM0CJ) -->
     <select id="selectScm1smList" resultType="com.kfp.aams.domain.dailyadvisory.dto.Scm1smDto">
         SELECT t1.corp_gr                         AS corpGr
-             , TO_CHAR(t1.ymd, 'YYYY-MM-DD')       AS ymd
+             , t1.ymd                             AS ymd
              , t1.jm_cd                            AS jmCd
              , t1.as_cj_cd                         AS asCjCd
              , t1.jy_suik_rt                       AS jySuikRt
@@ -18,7 +18,7 @@
           FROM SCM1SM t1
              , SCM0CJ cj
          WHERE t1.corp_gr = #{corpGr}
-           AND t1.ymd     = TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
+           AND t1.ymd     = #{ymd}
            AND cj.corp_gr = t1.corp_gr
            AND cj.jm_cd   = t1.jm_cd
          ORDER BY t1.as_cj_cd ASC
@@ -28,7 +28,7 @@
     <select id="selectMissingBondList" resultType="com.kfp.aams.domain.dailyadvisory.dto.Scm1smDto">
         SELECT DISTINCT
                t1.corp_gr                                                AS corpGr
-             , TO_CHAR(t1.ymd, 'YYYY-MM-DD')                             AS ymd
+             , t1.ymd                                                    AS ymd
              , t1.jm_cd                                                  AS jmCd
              , t1.jm_cd                                                  AS asCjCd
              , NVL(f_jm_nm(t1.corp_gr, t1.jm_cd), '')                    AS cjNm
@@ -41,7 +41,7 @@
                  AND sm.ymd     = f_open_ymd(t1.ymd, '-1')
                  AND sm.jm_cd   = t1.jm_cd
          WHERE t1.corp_gr = #{corpGr}
-           AND t1.ymd     = TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
+           AND t1.ymd     = #{ymd}
            AND NOT EXISTS (
                SELECT 1
                  FROM SCM1SM sub

@@ -21,8 +21,7 @@ public class Ja010m3QueryDslRepository {
     private final EntityManager em;
 
     public int updateJa010m3(Ja010m3SaveDto.Ja010m3ItemSaveDto item) {
-        LocalDate parsedGyulYmd = parseLocalDate(item.getGyulYmd());
-        Skt1gsIndataId id = new Skt1gsIndataId(item.getCorpGr(), parsedGyulYmd, item.getFundCd());
+        Skt1gsIndataId id = new Skt1gsIndataId(item.getCorpGr(), item.getGyulYmd(), item.getFundCd());
 
         Skt1gsIndata entity = em.find(Skt1gsIndata.class, id);
         if (entity != null) {
@@ -42,18 +41,5 @@ public class Ja010m3QueryDslRepository {
             return 1;
         }
         return 0;
-    }
-
-    private LocalDate parseLocalDate(String text) {
-        if (text == null || text.isBlank()) return null;
-        String digits = text.replaceAll("\\D", "");
-        if (digits.length() == 8) {
-            return LocalDate.of(
-                    Integer.parseInt(digits.substring(0, 4)),
-                    Integer.parseInt(digits.substring(4, 6)),
-                    Integer.parseInt(digits.substring(6, 8))
-            );
-        }
-        return LocalDate.parse(text.substring(0, 10).replace('.', '-').replace('/', '-'));
     }
 }

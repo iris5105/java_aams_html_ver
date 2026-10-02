@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.Collections;
 import java.util.List;
 
@@ -32,14 +33,14 @@ public class Shm0hjService {
      * Master Cash Purchase List (d_shm0hj via MyBatis)
      */
     @Transactional(readOnly = true)
-    public List<Shm0hjMasterDto> getMasterList(String corpGr, String ymd, String cashCd) {
+    public List<Shm0hjMasterDto> getMasterList(String corpGr, LocalDate ymd, String cashCd) {
         // Guideline 1: Do not supply default values for corpGr or other parameters
-        if (corpGr == null || corpGr.isBlank() || ymd == null || ymd.isBlank()) {
+        if (corpGr == null || corpGr.isBlank() || ymd == null) {
             return Collections.emptyList();
         }
 
         String searchCashCd = (cashCd == null || cashCd.isBlank() || "%".equals(cashCd)) ? "%" : cashCd.trim();
-        return shm0hjMapper.selectShm0hjList(corpGr.trim(), ymd.trim(), searchCashCd);
+        return shm0hjMapper.selectShm0hjList(corpGr.trim(), ymd, searchCashCd);
     }
 
     /**
@@ -58,7 +59,7 @@ public class Shm0hjService {
     /**
      * PB 채번: 다음 종목코드 채번
      */
-    public String getNextJmCd(String corpGr, String balhYmd, String cashCd) {
+    public String getNextJmCd(String corpGr, LocalDate balhYmd, String cashCd) {
         if (corpGr == null || corpGr.isBlank()) {
             return "";
         }

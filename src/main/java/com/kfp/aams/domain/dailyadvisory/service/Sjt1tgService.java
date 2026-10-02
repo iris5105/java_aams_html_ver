@@ -9,7 +9,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -25,8 +24,8 @@ public class Sjt1tgService {
      * 선물/옵션 종가 목록 조회
      */
     @Transactional(readOnly = true)
-    public List<Sjt1tgDto> getSjt1tgList(String ymd) {
-        if (ymd == null || ymd.isBlank()) {
+    public List<Sjt1tgDto> getSjt1tgList(LocalDate ymd) {
+        if (ymd == null) {
             return List.of();
         }
         return sjt1tgMapper.selectSjt1tgList(ymd);
@@ -38,12 +37,13 @@ public class Sjt1tgService {
     @Transactional
     public void saveSjt1tg(Sjt1tgSaveDto saveDto) {
         if (saveDto == null) return;
+        LocalDate ymd = saveDto.getYmd();
 
         // 1. 삭제 대상
         if (saveDto.getDeletedRows() != null) {
             for (Sjt1tgDto row : saveDto.getDeletedRows()) {
                 if (row.getSjCd() != null && !row.getSjCd().isBlank()) {
-                    sjt1tgQueryDslRepository.deleteSjt1tg(saveDto.getYmd(), row.getSjCd());
+                    sjt1tgQueryDslRepository.deleteSjt1tg(ymd, row.getSjCd());
                 }
             }
         }
@@ -52,7 +52,7 @@ public class Sjt1tgService {
         if (saveDto.getCreatedRows() != null) {
             for (Sjt1tgDto row : saveDto.getCreatedRows()) {
                 if (row.getSjCd() != null && !row.getSjCd().isBlank()) {
-                    row.setYmd(saveDto.getYmd());
+                    row.setYmd(ymd);
                     try {
                         sjt1tgQueryDslRepository.insertSjt1tg(row);
                     } catch (Exception e) {
@@ -67,7 +67,7 @@ public class Sjt1tgService {
         if (saveDto.getUpdatedRows() != null) {
             for (Sjt1tgDto row : saveDto.getUpdatedRows()) {
                 if (row.getSjCd() != null && !row.getSjCd().isBlank()) {
-                    row.setYmd(saveDto.getYmd());
+                    row.setYmd(ymd);
                     int updated = sjt1tgQueryDslRepository.updateSjt1tg(row);
                     if (updated == 0) {
                         sjt1tgQueryDslRepository.insertSjt1tg(row);
@@ -81,10 +81,9 @@ public class Sjt1tgService {
      * 신규(결제지수) 생성 목록 조회
      */
     @Transactional(readOnly = true)
-    public List<Sjt1tgDto> generateNewFutures(String corpGr, String ymd) {
-        if (ymd == null || ymd.isBlank()) return List.of();
-        LocalDate cur = LocalDate.parse(ymd.replace("-", ""), DateTimeFormatter.ofPattern("yyyyMMdd"));
-        String junilYmd = cur.minusDays(1).format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+    public List<Sjt1tgDto> generateNewFutures(String corpGr, LocalDate ymd) {
+        if (ymd == null) return List.of();
+        LocalDate junilYmd = ymd.minusDays(1);
 
         List<Sjt1tgDto> result = new ArrayList<>();
         // 1. 신규 선물

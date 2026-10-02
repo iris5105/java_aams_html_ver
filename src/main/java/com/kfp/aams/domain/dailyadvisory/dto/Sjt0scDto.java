@@ -1,11 +1,13 @@
 package com.kfp.aams.domain.dailyadvisory.dto;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 
 /**
  * DTO for d_sjt0sc_2402 (펀드 기준가(시가액)등록)
@@ -16,7 +18,10 @@ import java.math.BigDecimal;
 @AllArgsConstructor
 public class Sjt0scDto {
     private String corpGr;         // 회사그룹
-    private String ymd;            // 기준일자 (YYYY-MM-DD)
+
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd")
+    private LocalDate ymd;         // 기준일자 (LocalDate)
+
     private String jmCd;           // 당사종목코드
     private String tasaFundCd;     // KSD종목코드
     private String jmNm;           // 펀드(종목)명

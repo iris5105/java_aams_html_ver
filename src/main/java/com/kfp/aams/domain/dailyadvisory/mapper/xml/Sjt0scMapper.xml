@@ -6,7 +6,7 @@
     <!-- 1. 펀드 기준가(시가액)등록 목록 조회 (d_sjt0sc_2402 / d_sjt0sc) -->
     <select id="selectSjt0scList" resultType="com.kfp.aams.domain.dailyadvisory.dto.Sjt0scDto">
         SELECT t1.corp_gr                         AS corpGr
-             , TO_CHAR(t1.ymd, 'YYYY-MM-DD')       AS ymd
+             , t1.ymd                             AS ymd
              , t1.jm_cd                           AS jmCd
              , t2.tasa_fund_cd                    AS tasaFundCd
              , F_JM_NM(t1.corp_gr, t1.jm_cd)      AS jmNm
@@ -23,7 +23,7 @@
           LEFT OUTER JOIN sjm0sc t2  ON t2.corp_gr    = t1.corp_gr
                                     AND t2.tasa_jm_cd = t1.jm_cd
          WHERE t1.corp_gr LIKE #{corpGr}
-           AND t1.ymd     = TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
+           AND t1.ymd     = #{ymd}
          ORDER BY t1.corp_gr ASC, t1.jm_cd ASC
     </select>
 

@@ -60,7 +60,7 @@ public class Sjt1tgController {
     @GetMapping("/api/daily/sjt1tg/list")
     @ResponseBody
     public ResponseEntity<List<Sjt1tgDto>> getSjt1tgList(@ModelAttribute Sjt1tgFilterDto filter) {
-        if (filter.getYmd() == null || filter.getYmd().isBlank()) {
+        if (filter.getYmd() == null) {
             return ResponseEntity.ok(Collections.emptyList());
         }
         List<Sjt1tgDto> list = sjt1tgService.getSjt1tgList(filter.getYmd());
@@ -83,7 +83,7 @@ public class Sjt1tgController {
     @ResponseBody
     public ResponseEntity<List<Sjt1tgDto>> generateNewFutures(
             @RequestParam(name = "corpGr") String corpGr,
-            @RequestParam(name = "ymd") String ymd) {
+            @RequestParam(name = "ymd") @org.springframework.format.annotation.DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate ymd) {
         try {
             List<Sjt1tgDto> list = sjt1tgService.generateNewFutures(corpGr, ymd);
             return ResponseEntity.ok(list);

@@ -8,7 +8,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
-import java.time.format.DateTimeFormatter;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -22,9 +21,6 @@ import java.util.stream.Collectors;
 public class Shj0igQueryDslRepository {
 
     private final JPAQueryFactory queryFactory;
-
-    private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd");
-    private static final DateTimeFormatter DATETIME_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
     /**
      * d_shj0ig.srd single table query
@@ -51,14 +47,14 @@ public class Shj0igQueryDslRepository {
                 .guganNo(e.getGuganNo())
                 .guganIlsu(e.getGuganIlsu())
                 .guganIja(e.getGuganIja())
-                .bfIjaYmd(e.getBfIjaYmd() != null ? e.getBfIjaYmd().format(DATE_FMT) : null)
-                .afIjaYmd(e.getAfIjaYmd() != null ? e.getAfIjaYmd().format(DATE_FMT) : null)
+                .bfIjaYmd(e.getBfIjaYmd())
+                .afIjaYmd(e.getAfIjaYmd())
                 .ipUser(e.getIpUser())
-                .ipYmd(e.getIpYmd() != null ? e.getIpYmd().format(DATETIME_FMT) : null)
+                .ipYmd(e.getIpYmd())
                 .otherCost(e.getOtherCost())
-                .otherCostEndYmd(e.getOtherCostEndYmd() != null ? e.getOtherCostEndYmd().format(DATE_FMT) : null)
+                .otherCostEndYmd(e.getOtherCostEndYmd())
                 .platformFee(e.getPlatformFee())
-                .platformYmd(e.getPlatformYmd() != null ? e.getPlatformYmd().format(DATE_FMT) : null)
+                .platformYmd(e.getPlatformYmd())
                 .fixIjaAek(e.getFixIjaAek())
                 .nowNo(nowNo)
                 .pVisible(1)

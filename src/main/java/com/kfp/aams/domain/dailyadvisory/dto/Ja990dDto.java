@@ -1,11 +1,14 @@
 package com.kfp.aams.domain.dailyadvisory.dto;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 /**
  * DTO for SJM0JJ (주식 및 신주인수권 종목)
@@ -26,20 +29,34 @@ public class Ja990dDto {
     private String newOldGb;       // 신/구주구분
     private String dancGb;         // 시장구분 (A:거래소, C:코스닥, D:코넥스, B:비상장, X:신주인수권)
     private BigDecimal balhGa;     // 발행가
-    private String kweonriYmd;     // 권리발생일
-    private String sangjYmd;       // 상장일
+
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd")
+    private LocalDate kweonriYmd;  // 권리발생일
+
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd")
+    private LocalDate sangjYmd;    // 상장일
+
     private BigDecimal sangjJusu;  // 상장주수
     private String upjCd;          // 업종코드
-    private String createdYmd;     // 생성일
+
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd HH:mm:ss")
+    private LocalDateTime createdYmd; // 생성일시
+
     private String delYn;          // 삭제여부
     private String balhNm;         // 발행기관명 (sjx0jb.balh_nm)
     private String upjFnm;         // 업종명 (szx0uj.upj_fnm)
     private String capsize;        // 규모
     private String kospigubun;     // KOSPI200 구분
-    private String woosVoteYmd;    // 우선주 의결권일자
+
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd")
+    private LocalDate woosVoteYmd; // 우선주 의결권일자
+
     private String under;          // 관리/감리 여부
     private String balhNation;     // 발행국가 (sjx0jb.balh_nation)
-    private String baedGisanYmd;   // 배당기산일
+
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd")
+    private LocalDate baedGisanYmd; // 배당기산일
+
     private String isinCd;         // ISIN
     private String a0231;          // 과표
     private String deposit;        // 예탁

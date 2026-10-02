@@ -22,7 +22,7 @@ public class Sjt0scQueryDslRepository {
     public void insertSjt0sc(Sjt0scDto dto) {
         Sjt0sc entity = Sjt0sc.builder()
                 .corpGr(dto.getCorpGr())
-                .ymd(parseLocalDate(dto.getYmd()))
+                .ymd(dto.getYmd())
                 .jmCd(dto.getJmCd())
                 .dangGijunGa(dto.getDangGijunGa())
                 .junGijunGa(dto.getJunGijunGa())
@@ -37,7 +37,7 @@ public class Sjt0scQueryDslRepository {
     }
 
     public int updateSjt0sc(Sjt0scDto dto) {
-        Sjt0scId id = new Sjt0scId(dto.getCorpGr(), parseLocalDate(dto.getYmd()), dto.getJmCd());
+        Sjt0scId id = new Sjt0scId(dto.getCorpGr(), dto.getYmd(), dto.getJmCd());
         Sjt0sc entity = em.find(Sjt0sc.class, id);
         if (entity != null) {
             entity.setDangGijunGa(dto.getDangGijunGa());
@@ -53,24 +53,11 @@ public class Sjt0scQueryDslRepository {
         return 0;
     }
 
-    public void deleteSjt0sc(String corpGr, String ymd, String jmCd) {
-        Sjt0scId id = new Sjt0scId(corpGr, parseLocalDate(ymd), jmCd);
+    public void deleteSjt0sc(String corpGr, LocalDate ymd, String jmCd) {
+        Sjt0scId id = new Sjt0scId(corpGr, ymd, jmCd);
         Sjt0sc entity = em.find(Sjt0sc.class, id);
         if (entity != null) {
             em.remove(entity);
         }
-    }
-
-    private LocalDate parseLocalDate(String text) {
-        if (text == null || text.isBlank()) return null;
-        String digits = text.replaceAll("\\D", "");
-        if (digits.length() == 8) {
-            return LocalDate.of(
-                    Integer.parseInt(digits.substring(0, 4)),
-                    Integer.parseInt(digits.substring(4, 6)),
-                    Integer.parseInt(digits.substring(6, 8))
-            );
-        }
-        return LocalDate.parse(text.substring(0, 10).replace('.', '-').replace('/', '-'));
     }
 }

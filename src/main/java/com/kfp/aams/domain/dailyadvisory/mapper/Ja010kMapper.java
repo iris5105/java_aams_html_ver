@@ -5,15 +5,16 @@ import com.kfp.aams.domain.dailyadvisory.dto.Ja010kMasterDto;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @Mapper
 public interface Ja010kMapper {
 
-    List<Ja010kMasterDto> selectMasterList(@Param("corpGr") String corpGr, @Param("tymd") String tymd);
+    List<Ja010kMasterDto> selectMasterList(@Param("corpGr") String corpGr, @Param("tymd") LocalDate tymd);
 
     List<Ja010kDetailDto> selectDetailList(@Param("corpGr") String corpGr,
-                                           @Param("fymd") String fymd,
-                                           @Param("tymd") String tymd,
+                                           @Param("fymd") LocalDate fymd,
+                                           @Param("tymd") LocalDate tymd,
                                            @Param("fundCd") String fundCd);
 }

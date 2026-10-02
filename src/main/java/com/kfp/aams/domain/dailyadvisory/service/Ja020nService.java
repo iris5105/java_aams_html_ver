@@ -27,31 +27,31 @@ public class Ja020nService {
     /**
      * Retrieve Load Status list (d_ja020n.srd)
      */
-    public List<Ja020nStatusDto> getStatusList(String corpGr, String ymd) {
-        if (corpGr == null || corpGr.isBlank() || ymd == null || ymd.isBlank()) {
+    public List<Ja020nStatusDto> getStatusList(String corpGr, java.time.LocalDate ymd) {
+        if (corpGr == null || corpGr.isBlank() || ymd == null) {
             return Collections.emptyList();
         }
-        return ja020nMapper.selectStatusList(corpGr.trim(), ymd.trim());
+        return ja020nMapper.selectStatusList(corpGr.trim(), ymd);
     }
 
     /**
      * Retrieve Loaded Balance / Siga list (d_ja020n_siga.srd)
      */
-    public List<Ja020nSigaDto> getSigaList(String corpGr, String ymd) {
-        if (corpGr == null || corpGr.isBlank() || ymd == null || ymd.isBlank()) {
+    public List<Ja020nSigaDto> getSigaList(String corpGr, java.time.LocalDate ymd) {
+        if (corpGr == null || corpGr.isBlank() || ymd == null) {
             return Collections.emptyList();
         }
-        return ja020nMapper.selectSigaList(corpGr.trim(), ymd.trim());
+        return ja020nMapper.selectSigaList(corpGr.trim(), ymd);
     }
 
     /**
      * Retrieve Loaded Execution / Tr list (d_ja020n_tr.srd)
      */
-    public List<Ja020nTrDto> getTrList(String corpGr, String ymd) {
-        if (corpGr == null || corpGr.isBlank() || ymd == null || ymd.isBlank()) {
+    public List<Ja020nTrDto> getTrList(String corpGr, java.time.LocalDate ymd) {
+        if (corpGr == null || corpGr.isBlank() || ymd == null) {
             return Collections.emptyList();
         }
-        return ja020nMapper.selectTrList(corpGr.trim(), ymd.trim());
+        return ja020nMapper.selectTrList(corpGr.trim(), ymd);
     }
 
     /**
