@@ -162,13 +162,12 @@ public class DddwService {
             log.error("Failed to execute dynamic DDDW query for [dddwId={}, seq={}] : {}", targetDddwId, targetSeq, e.getMessage(), e);
         }
 
-        // Fallback default value if dynamic DDDW query returns empty or fails
-        if (dddwList.isEmpty()) {
+        // Cache in ConcurrentHashMap only when real data is found (do not cache empty fallback)
+        if (!dddwList.isEmpty()) {
+            dddwCache.put(cacheKey, dddwList);
+        } else {
             dddwList.add(new DddwDto("", "데이터없음", ""));
         }
-
-        // Cache in ConcurrentHashMap
-        dddwCache.put(cacheKey, dddwList);
 
         return dddwList;
     }

@@ -442,7 +442,9 @@
                     updateDetailPanel(data);
                 }, { keyField: 'ymd' });
 
-                cudManagerMaster = AamsCudManager.create(gridMaster);
+                cudManagerMaster = AamsCudManager.create(gridMaster, {
+                    allowedFields: ['matter', 'content', 'orgFname']
+                });
 
                 // 2. Tabulator standard rowClick fallback
                 gridMaster.on("rowClick", function(e, row) {
@@ -505,7 +507,9 @@
                     ]
                 });
 
-                cudManagerComment = AamsCudManager.create(gridComment);
+                cudManagerComment = AamsCudManager.create(gridComment, {
+                    allowedFields: ['pYmd', 'pProposer']
+                });
 
                 if (typeof setupTabulatorRowSelection === "function") {
                     setupTabulatorRowSelection(gridComment);

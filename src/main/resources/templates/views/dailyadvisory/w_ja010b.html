@@ -148,8 +148,7 @@
              *   5. f_dddwctl (THIS, 'mg_cd', dw_c.object.dddw [1], '', 1, "")
              */
             function ue_dddw_retrieve(corpGr) {
-                const filterSelect = pane ? pane.querySelector("#filterCorpGr") : document.getElementById("filterCorpGr");
-                const targetCorpGr = corpGr != null ? corpGr : (filterSelect ? filterSelect.value : "");
+                const targetCorpGr = (corpGr != null && String(corpGr).trim() !== "") ? corpGr : (typeof resolveCorpGr === 'function' ? resolveCorpGr(pane) : "");
 
                 f_dddwctl.retrieveMultiple({
                     type_gb:        ['type_gb', targetCorpGr,'', 9,''],
@@ -163,14 +162,6 @@
                     dddwOptionsMap.series_gb = results.series_gb || [];
                     dddwOptionsMap.target_jasan = results.target_jasan || [];
                     dddwOptionsMap.mg_cd = results.mg_cd || [];
-
-                    console.log('[w_ja010b ue_dddw_retrieve] Successfully retrieved DDDW options via f_dddwctl:', {
-                        type_gb: dddwOptionsMap.type_gb.length,
-                        unyong_sabun: dddwOptionsMap.unyong_sabun.length,
-                        series_gb: dddwOptionsMap.series_gb.length,
-                        target_jasan: dddwOptionsMap.target_jasan.length,
-                        mg_cd: dddwOptionsMap.mg_cd.length
-                    });
 
                     if (gridMaster) {
                         gridMaster.redraw(true);
@@ -231,7 +222,6 @@
                             editorParams: {
                                 valuesLookup: () => getDddwOptions('mg_cd'),
                                 autocomplete: false,
-                                listOnEmpty: true,
                                 clearable: true,
                                 itemFormatter: f_dddwctl.get2ColItemFormatter("코드", "증권사명")
                             },
@@ -250,7 +240,6 @@
                             editorParams: {
                                 valuesLookup: () => getDddwOptions('series_gb'),
                                 autocomplete: false,
-                                listOnEmpty: true,
                                 clearable: true,
                                 itemFormatter: f_dddwctl.get2ColItemFormatter("코드", "그룹명")
                             },
@@ -266,7 +255,6 @@
                             editorParams: {
                                 valuesLookup: () => getDddwOptions('type_gb'),
                                 autocomplete: false,
-                                listOnEmpty: true,
                                 clearable: true,
                                 itemFormatter: f_dddwctl.get2ColItemFormatter("코드", "유형명")
                             },
@@ -292,7 +280,6 @@
                             editorParams: {
                                 valuesLookup: () => getDddwOptions('target_jasan'),
                                 autocomplete: false,
-                                listOnEmpty: true,
                                 clearable: true,
                                 itemFormatter: f_dddwctl.get2ColItemFormatter("코드", "자산구분명")
                             },
@@ -364,7 +351,6 @@
                             editorParams: {
                                 valuesLookup: () => getDddwOptions('unyong_sabun'),
                                 autocomplete: false,
-                                listOnEmpty: true,
                                 clearable: true,
                                 itemFormatter: f_dddwctl.get2ColItemFormatter("사번", "성명")
                             },
@@ -381,8 +367,7 @@
                                     { label: "0.001", value: 0.001 },
                                     { label: "0.0005", value: 0.0005 }
                                 ],
-                                autocomplete: false,
-                                listOnEmpty: true
+                                autocomplete: false
                             },
                             cellClick: aamsCellEdit
                         },
@@ -682,8 +667,7 @@
             // Global functions for controller integration
             window.loadJa010bMaster = function(corpGr) {
                 lastLoadedMasterKey = null;
-                const filterSelect = pane ? pane.querySelector("#filterCorpGr") : document.getElementById("filterCorpGr");
-                const corp = (corpGr != null && String(corpGr).trim() !== "") ? corpGr : (filterSelect ? filterSelect.value : "");
+                const corp = (corpGr != null && String(corpGr).trim() !== "") ? corpGr : (typeof resolveCorpGr === 'function' ? resolveCorpGr(pane) : "");
 
                 // Re-trigger ue_dddw_retrieve when corpGr changes
                 ue_dddw_retrieve(corp);
@@ -960,7 +944,8 @@
                 initMasterGrid();
                 initDetailGrid();
                 initIoGrid();
-                ue_dddw_retrieve();
+                const initCorp = typeof resolveCorpGr === 'function' ? resolveCorpGr(pane) : "";
+                ue_dddw_retrieve(initCorp);
 
                 // 셀 편집 감지 (기존행 update 플래그 설정)
                 if (gridMaster) {

@@ -1,6 +1,7 @@
 package com.kfp.aams.domain.dailyadvisory.dto;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -12,6 +13,7 @@ import java.time.LocalDateTime;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class ProposalMasterDto {
     private String corpGr;
 
@@ -29,6 +31,7 @@ public class ProposalMasterDto {
     private String fexp;
     private String orgFname;
     private Integer saveVisible;
+    private Integer color;
     private Boolean isNew;
     private Boolean isUpdated;
 }

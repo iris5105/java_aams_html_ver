@@ -2,6 +2,7 @@ package com.kfp.aams.domain.dailyadvisory.mapper.querydsl;
 
 import com.kfp.aams.domain.dailyadvisory.dto.Szx0seDto;
 import com.kfp.aams.domain.dailyadvisory.entity.QSzx0se;
+import com.kfp.aams.domain.dailyadvisory.entity.Szm0ia;
 import com.kfp.aams.domain.dailyadvisory.entity.Szx0se;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import lombok.RequiredArgsConstructor;
@@ -84,11 +85,14 @@ public class Szx0seQueryDslRepository {
             return 0;
         }
         try {
-            return em.createQuery("UPDATE Szm0ia m SET m.seriesGb = :newSeriesGb WHERE m.corpGr = :corpGr AND m.seriesGb = :oldSeriesGb")
-                    .setParameter("newSeriesGb", newSeriesGb)
+            List<Szm0ia> list = em.createQuery("SELECT m FROM Szm0ia m WHERE m.corpGr = :corpGr AND m.seriesGb = :oldSeriesGb", Szm0ia.class)
                     .setParameter("corpGr", corpGr)
                     .setParameter("oldSeriesGb", oldSeriesGb)
-                    .executeUpdate();
+                    .getResultList();
+            for (Szm0ia m : list) {
+                m.setSeriesGb(newSeriesGb);
+            }
+            return list.size();
         } catch (Exception e) {
             return 0;
         }

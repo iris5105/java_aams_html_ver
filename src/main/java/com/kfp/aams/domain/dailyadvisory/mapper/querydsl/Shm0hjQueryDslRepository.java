@@ -3,6 +3,8 @@ package com.kfp.aams.domain.dailyadvisory.mapper.querydsl;
 import com.kfp.aams.domain.dailyadvisory.dto.Shm0hjMasterDto;
 import com.kfp.aams.domain.dailyadvisory.entity.Shm0hj;
 import com.kfp.aams.domain.dailyadvisory.entity.Shm0hjId;
+import com.kfp.aams.domain.dailyadvisory.entity.Sht0hg;
+import com.kfp.aams.domain.dailyadvisory.entity.Sht0hgId;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.ParameterMode;
 import jakarta.persistence.StoredProcedureQuery;
@@ -109,10 +111,12 @@ public class Shm0hjQueryDslRepository {
      * Delete SHT0HG on row deletion (PB updateend)
      */
     public void deleteSht0hg(String corpGr, String jmCd) {
-        em.createQuery("DELETE FROM Sht0hg g WHERE g.corpGr = :corpGr AND g.jmCd = :jmCd")
-                .setParameter("corpGr", corpGr.trim())
-                .setParameter("jmCd", jmCd.trim())
-                .executeUpdate();
+        if (corpGr == null || jmCd == null) return;
+        Sht0hgId id = new Sht0hgId(corpGr.trim(), jmCd.trim());
+        Sht0hg entity = em.find(Sht0hg.class, id);
+        if (entity != null) {
+            em.remove(entity);
+        }
     }
 
     /**

@@ -1562,10 +1562,26 @@ window.AamsCudManager = {
             return Promise.resolve(null);
         }
 
-        function getChanges() {
-            const inserts = Array.from(insertMap.values());
-            const updates = Array.from(updateMap.values());
-            const deletes = Array.from(deleteMap.values());
+        function getChanges(opts) {
+            opts = opts || {};
+            const clean = opts.clean !== false; // 기본값: true (화이트리스트 정제 적용)
+            const extraFields = opts.extraAllowedFields || options.allowedFields;
+
+            const rawInserts = Array.from(insertMap.values());
+            const rawUpdates = Array.from(updateMap.values());
+            const rawDeletes = Array.from(deleteMap.values());
+
+            const sanitize = function(list) {
+                if (!clean) return list;
+                return list.map(function(item) {
+                    return window.sanitizeGridRowData ? window.sanitizeGridRowData(grid, item, extraFields) : item;
+                });
+            };
+
+            const inserts = sanitize(rawInserts);
+            const updates = sanitize(rawUpdates);
+            const deletes = sanitize(rawDeletes);
+
             return {
                 inserts: inserts,
                 updates: updates,
@@ -1575,8 +1591,13 @@ window.AamsCudManager = {
                 deleteList: deletes,
                 itemList: inserts.concat(updates),
                 deletedList: deletes,
-                hasChanges: (inserts.length > 0 || updates.length > 0 || deletes.length > 0),
-                count: inserts.length + updates.length + deletes.length
+                hasChanges: (rawInserts.length > 0 || rawUpdates.length > 0 || rawDeletes.length > 0),
+                count: rawInserts.length + rawUpdates.length + rawDeletes.length,
+                raw: {
+                    inserts: rawInserts,
+                    updates: rawUpdates,
+                    deletes: rawDeletes
+                }
             };
         }
 
@@ -1608,4 +1629,82 @@ window.AamsCudManager = {
         return manager;
     }
 };
+
+/**
+ * Tabulator 그리드의 컬럼 정의 및 필수 상태값을 기반으로 화이트리스트 필터링을 수행하여
+ * DTO/테이블에 없는 내부 메타데이터(_rowId 등) 및 임의의 가상 속성을 안전하게 제거합니다.
+ * @param {Object} grid - Tabulator Grid 인스턴스 (선택)
+ * @param {Object} rowData - 단일 행 데이터 객체
+ * @param {Array<string>} extraAllowedFields - 추가 허용 필드 목록 (선택)
+ * @returns {Object} 화이트리스트 필터링된 깨끗한 데이터 객체
+ */
+window.sanitizeGridRowData = function(grid, rowData, extraAllowedFields) {
+    if (!rowData || typeof rowData !== 'object') return rowData;
+
+    // 1. 화이트리스트 Set 구성
+    const allowed = new Set();
+
+    // 그리드의 실제 컬럼 정의에서 field 명칭 수집
+    if (grid && typeof grid.getColumns === 'function') {
+        try {
+            const cols = grid.getColumns();
+            if (Array.isArray(cols)) {
+                cols.forEach(function(col) {
+                    const def = col.getDefinition ? col.getDefinition() : null;
+                    const field = (def && def.field) ? def.field : (typeof col.getField === 'function' ? col.getField() : null);
+                    if (field && typeof field === 'string' && !field.startsWith('_')) {
+                        allowed.add(field);
+                    }
+                });
+            }
+        } catch (e) {
+            console.warn('[sanitizeGridRowData] failed to inspect columns:', e);
+        }
+    }
+
+    // 기본 시스템/상태 및 공통 키 필드 허용
+    const standardFields = ['corpGr', 'isNew', 'isUpdated', 'rowStatus', 'rowNum', 'fseq', 'saveVisible'];
+    standardFields.forEach(function(f) { allowed.add(f); });
+
+    // 사용자가 명시적으로 전달한 추가 허용 필드 등록
+    if (Array.isArray(extraAllowedFields)) {
+        extraAllowedFields.forEach(function(f) {
+            if (f && typeof f === 'string') allowed.add(f);
+        });
+    }
+
+    // 만약 그리드 컬럼 정보를 얻지 못한 경우: 언더스코어(_)로 시작하는 내부 메타데이터만 제거하여 반환
+    if (allowed.size <= standardFields.length) {
+        const fallbackClean = {};
+        for (const key of Object.keys(rowData)) {
+            if (!key.startsWith('_')) {
+                fallbackClean[key] = rowData[key];
+            }
+        }
+        return fallbackClean;
+    }
+
+    // 화이트리스트에 부합하는 프로퍼티만 새 객체로 복사
+    const cleanData = {};
+    for (const key of Object.keys(rowData)) {
+        if (allowed.has(key)) {
+            cleanData[key] = rowData[key];
+        }
+    }
+    return cleanData;
+};
+
+/**
+ * 그리드 데이터 목록(배열 또는 단일 객체)을 일괄 화이트리스트 정제합니다.
+ */
+window.sanitizeGridData = function(grid, dataList, extraAllowedFields) {
+    if (!dataList) return dataList;
+    if (Array.isArray(dataList)) {
+        return dataList.map(function(item) {
+            return window.sanitizeGridRowData(grid, item, extraAllowedFields);
+        });
+    }
+    return window.sanitizeGridRowData(grid, dataList, extraAllowedFields);
+};
+
 
