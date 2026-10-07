@@ -93,26 +93,22 @@
     var currentRetrievedYmd = null;
     var currentRetrievedCorpGr = null;
 
-    // 1. 공통 필터값 추출 함수
-    function getFilterYmd() {
-        var el = currentPane.querySelector('#filterYmd') || currentPane.querySelector('input[name="ymd"]');
-        if (el && el.value) return el.value.replace(/[-.]/g, '').trim();
-        return (new Date()).toISOString().slice(0, 10).replace(/[-.]/g, '');
-    }
+    // 1. 공통 필터값 추출은 common.js의 resolveFilterYmd(currentPane) / getFilterYmd(currentPane) 사용
 
     function getFilterDwType() {
         var el = currentPane.querySelector('#filterDddw') || currentPane.querySelector('select[name="dddw"]');
         return (el && el.value) ? el.value.trim() : 'd_ja020r2c';
     }
 
-    function formatDateDot(val) {
+    function formatDate(val) {
         if (!val) return "";
         var s = String(val).replace(/[-.]/g, '').trim();
         if (s.length === 8) {
-            return s.substring(0, 4) + "." + s.substring(4, 6) + "." + s.substring(6, 8);
+            return s.substring(0, 4) + "-" + s.substring(4, 6) + "-" + s.substring(6, 8);
         }
         return val;
     }
+    var formatDateDot = formatDate;
 
     // 2. DDDW 초기화 (개발지침 규칙 7번: 2칸 분할 드롭다운 적용)
     function initFilterDddw() {
@@ -450,7 +446,7 @@
 
         // 규칙 19번: 필터바의 현재 변경 중인 값이 아닌, 마스터 데이터가 조회되었던 시점의 조건을 사용하여 정합성 유지
         var corpGr = currentRetrievedCorpGr || resolveCorpGr(currentPane);
-        var ymd = currentRetrievedYmd || getFilterYmd();
+        var ymd = currentRetrievedYmd || getFilterYmd(currentPane);
         var dw = currentRetrievedDw || getFilterDwType();
         var fundCd = data.fundCd || '';
         var currentKey = (corpGr || '') + "_" + (ymd || '') + "_" + (dw || '') + "_" + fundCd;
@@ -500,7 +496,7 @@
     // 7. 마스터 계좌 목록 조회 (loadMaster)
     function loadMaster() {
         var corpGr = resolveCorpGr(currentPane);
-        var ymd = getFilterYmd();
+        var ymd = getFilterYmd(currentPane);
         var dw = getFilterDwType();
 
         if (!corpGr) {
@@ -559,7 +555,7 @@
         }
 
         var corpGr = currentRetrievedCorpGr || resolveCorpGr(currentPane);
-        var ymd = currentRetrievedYmd || getFilterYmd();
+        var ymd = currentRetrievedYmd || getFilterYmd(currentPane);
         var dw = currentRetrievedDw || getFilterDwType();
 
         var payload = {
@@ -626,7 +622,7 @@
             var mBadge = currentPane.querySelector('#master-count-badge');
             if (mBadge) mBadge.innerText = "0건";
             currentRetrievedDw = getFilterDwType();
-            currentRetrievedYmd = getFilterYmd();
+            currentRetrievedYmd = getFilterYmd(currentPane);
             currentRetrievedCorpGr = resolveCorpGr(currentPane);
             updateDetailTitle(currentRetrievedDw);
             initDetailGrid(currentRetrievedDw);

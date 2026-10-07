@@ -65,7 +65,7 @@ public class Ja010gController {
     @ResponseBody
     public ResponseEntity<List<Ja010gDto>> getJa010gList(
             @RequestParam("corpGr") String corpGr,
-            @RequestParam("ymd") @org.springframework.format.annotation.DateTimeFormat(pattern = "yyyy-MM-dd") java.time.LocalDate ymd) {
+            @RequestParam("ymd") @org.springframework.format.annotation.DateTimeFormat(pattern = "yyyy-MM-dd", fallbackPatterns = {"yyyyMMdd", "yyyy.MM.dd"}) java.time.LocalDate ymd) {
         List<Ja010gDto> list = ja010gService.selectJa010gList(corpGr, ymd);
         return ResponseEntity.ok(list);
     }

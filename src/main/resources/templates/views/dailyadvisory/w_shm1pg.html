@@ -38,16 +38,11 @@
             let dddwOptionsMap = {};
 
 
-            function getFilterYmd() {
-                const input = pane ? pane.querySelector("#filterYmd") : document.getElementById("filterYmd");
-                if (!input) return "";
-                let val = input.value || "";
-                return val.replace(/\./g, '-');
-            }
+            // 조회일자는 common.js의 전역 헬퍼 함수(getFilterYmd) 사용
 
             // DDDW Retrieval (Rule 7: f_dddwctl (THIS, 'pg_cd', '', '', 2, ''))
             function retrieveDddw() {
-                const targetCorpGr = resolveCorpGr();
+                const targetCorpGr = resolveCorpGr(pane);
                 if (typeof window.f_dddwctl === 'function') {
                     window.f_dddwctl('pg_cd', 2, targetCorpGr, '', '').then(list => {
                         dddwOptionsMap.pg_cd = list || [];
@@ -61,45 +56,22 @@
             }
 
             function getDddwOptions(dddwKey) {
-                const list = dddwOptionsMap[dddwKey] || [];
-                return list.map(item => {
-                    const code = (item.code != null ? item.code : (item.SEBU_CD != null ? item.SEBU_CD : (item.cd != null ? item.cd : ''))).toString().trim();
-                    const name = (item.name != null ? item.name : (item.SEBU_CD_NM != null ? item.SEBU_CD_NM : (item.dscr != null ? item.dscr : code))).toString().trim();
-                    return { 
-                        label: name, 
-                        value: code,
-                        code: code,
-                        name: name
-                    };
-                });
+                return (window.f_dddwctl && typeof window.f_dddwctl.getOptions === 'function')
+                    ? window.f_dddwctl.getOptions(dddwOptionsMap, dddwKey)
+                    : [];
             }
 
             // Rule 7: 2-Column Dropdown Item Formatter (PowerBuilder DDDW Style)
             function createDddw2ColFormatter(codeWidth, codeTitle, nameTitle) {
-                if (typeof window.f_dddwctl === 'function' && typeof window.f_dddwctl.get2ColItemFormatter === 'function') {
-                    return window.f_dddwctl.get2ColItemFormatter(codeWidth, codeTitle, nameTitle);
-                }
-                return function(label, value, item) {
-                    const code = (item && item.code != null) ? item.code : value;
-                    const name = (item && item.name != null) ? item.name : label;
-                    return `<div class="dddw-2col-row"><span class="dddw-col-code">${code}</span><span class="dddw-col-name">${name}</span></div>`;
-                };
+                return (window.f_dddwctl && typeof window.f_dddwctl.get2ColItemFormatter === 'function')
+                    ? window.f_dddwctl.get2ColItemFormatter(codeWidth, codeTitle, nameTitle)
+                    : null;
             }
 
             function getDddwLabel(dddwKey, codeVal) {
-                if (codeVal == null || codeVal === "") return "";
-                if (typeof window.f_dddwctl === 'function' && typeof window.f_dddwctl.getLabel === 'function') {
-                    return window.f_dddwctl.getLabel(dddwOptionsMap, dddwKey, codeVal);
-                }
-                const list = dddwOptionsMap[dddwKey] || [];
-                const found = list.find(item => {
-                    const c = (item.code != null ? item.code : (item.SEBU_CD != null ? item.SEBU_CD : item.cd));
-                    return String(c).trim() === String(codeVal).trim();
-                });
-                if (found) {
-                    return found.name != null ? found.name : (found.SEBU_CD_NM != null ? found.SEBU_CD_NM : found.dscr);
-                }
-                return String(codeVal);
+                return (window.f_dddwctl && typeof window.f_dddwctl.getLabel === 'function')
+                    ? window.f_dddwctl.getLabel(dddwOptionsMap, dddwKey, codeVal)
+                    : (codeVal || "");
             }
 
             // Columns definition based on d_shm1pg.srd
@@ -194,8 +166,8 @@
             }
 
             function loadList() {
-                const corpGr = resolveCorpGr();
-                const ymd = getFilterYmd();
+                const corpGr = resolveCorpGr(pane);
+                const ymd = getFilterYmd(pane);
                 if (!corpGr) {
                     alert("소속그룹을 선택해 주세요.");
                     return;
@@ -222,8 +194,8 @@
             function doSave() {
                 if (!gridShm1pg) return;
                 const allData = gridShm1pg.getData();
-                const ymd = getFilterYmd();
-                const corpGr = resolveCorpGr();
+                const ymd = getFilterYmd(pane);
+                const corpGr = resolveCorpGr(pane);
 
                 const updatedRows = allData.filter(d => d.rowStatus === "U");
 
@@ -265,7 +237,7 @@
                 pane.onSearch = loadList;
                 pane.onSave = doSave;
                 pane.onExcel = function() {
-                    if (gridShm1pg) gridShm1pg.download("xlsx", `현금신용등급_${getFilterYmd()}.xlsx`);
+                    if (gridShm1pg) gridShm1pg.download("xlsx", `현금신용등급_${getFilterYmd(pane, 'YYYYMMDD')}.xlsx`);
                 };
                 // 공통버튼 지침: 새로고침은 조회 전 초기화 상태로 되돌린다.
                 pane.onRefresh = function() {

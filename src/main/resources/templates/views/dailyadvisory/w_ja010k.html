@@ -96,15 +96,7 @@
             }
 
 
-            // Date Formatter Helper
-            function formatDateVal(val) {
-                if (!val) return "";
-                const clean = String(val).replace(/\D/g, "");
-                if (clean.length === 8) {
-                    return clean.substring(0, 4) + '.' + clean.substring(4, 6) + '.' + clean.substring(6, 8);
-                }
-                return String(val).replace(/-/g, ".");
-            }
+            // Date Formatter Helper: common.js의 formatDateDot 사용
 
             // Number Formatter Helpers
             function numFormatter(cell) {
@@ -649,19 +641,11 @@
                 };
             }
 
-            function initCalendar() {
-                if (window.AamsCalendar && typeof window.AamsCalendar.initRange === 'function') {
-                    window.AamsCalendar.initRange('filterFYmd', 'filterTYmd', {
-                        pane: pane
-                    });
-                }
-            }
-
             // Rule 11: Single Entry Point (isInitialized guard)
             function startInit() {
                 if (isInitialized) return;
                 isInitialized = true;
-                initCalendar();
+                initFilterCalendar(pane);
                 initGrids();
             }
 

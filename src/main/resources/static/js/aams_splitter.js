@@ -108,7 +108,7 @@
             const tabulatorEls = container.querySelectorAll('.tabulator');
             tabulatorEls.forEach(el => {
                 if (el.tabulator && typeof el.tabulator.redraw === 'function') {
-                    el.tabulator.redraw(true);
+                    el.tabulator.redraw();
                 }
             });
         },

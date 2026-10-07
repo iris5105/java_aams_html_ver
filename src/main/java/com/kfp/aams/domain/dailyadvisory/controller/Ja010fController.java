@@ -69,7 +69,7 @@ public class Ja010fController {
     @ResponseBody
     public List<Ja010fDto> getList(@AuthenticationPrincipal Object principalObj,
                                    @RequestParam(name = "corpGr", required = false) String paramCorpGr,
-                                   @RequestParam(name = "ymd", required = false) @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate ymd,
+                                   @RequestParam(name = "ymd", required = false) @DateTimeFormat(pattern = "yyyy-MM-dd", fallbackPatterns = {"yyyyMMdd", "yyyy.MM.dd"}) LocalDate ymd,
                                    @RequestParam(name = "trCoCd", required = false) String trCoCd,
                                    @CookieValue(name = "savedCorpGr", required = false) String cookieCorpGr1,
                                    @CookieValue(name = "corpGr", required = false) String cookieCorpGr2) {

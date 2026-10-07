@@ -41,7 +41,30 @@ public class Ja010hService {
         if (corpGr == null || corpGr.isBlank()) {
             return Collections.emptyList();
         }
-        return ja010hMapper.selectDistinctDates(corpGr);
+        List<?> rawList = ja010hMapper.selectDistinctDates(corpGr);
+        if (rawList == null || rawList.isEmpty()) {
+            return Collections.emptyList();
+        }
+        List<LocalDate> result = new java.util.ArrayList<>();
+        for (Object item : rawList) {
+            if (item instanceof LocalDate ld) {
+                result.add(ld);
+            } else if (item instanceof java.sql.Date sd) {
+                result.add(sd.toLocalDate());
+            } else if (item != null) {
+                String str = item.toString().trim();
+                try {
+                    if (str.length() >= 10) {
+                        result.add(LocalDate.parse(str.substring(0, 10).replace('.', '-')));
+                    } else if (str.length() == 8) {
+                        result.add(LocalDate.parse(str, java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd")));
+                    }
+                } catch (Exception e) {
+                    log.warn("[Ja010hService] 날짜 파싱 실패: {}", str);
+                }
+            }
+        }
+        return result;
     }
 
     /**

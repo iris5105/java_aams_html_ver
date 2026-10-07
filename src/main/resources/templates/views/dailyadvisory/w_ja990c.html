@@ -101,33 +101,12 @@
                 return Promise.resolve();
             }
 
-            function formatDateVal(val) {
-                if (!val) return "";
-                var s = String(val).replace(/[^0-9]/g, "");
-                if (s.length === 8) return s.substring(0, 4) + "." + s.substring(4, 6) + "." + s.substring(6, 8);
-                if (String(val).length >= 10 && String(val).indexOf("-") > 0) return String(val).substring(0, 10).replace(/-/g, ".");
-                return val;
-            }
-
-            function formatDateTimeVal(val) {
-                if (!val) return "";
-                if (typeof val === "string") {
-                    if (val.length >= 19) return val.substring(0, 10).replace(/-/g, ".") + " " + val.substring(11, 19);
-                    if (val.length >= 10 && val.indexOf("-") > 0) return val.substring(0, 10).replace(/-/g, ".");
-                }
-                return val;
-            }
-
-            // Rule 7: 2-Column Dropdown Item Formatter (PowerBuilder DDDW Style: Code, Name)
+            // formatDateVal, formatDateTimeVal은 common.js 전역 함수 사용
+            // createDddw2ColFormatter는 f_dddwctl.get2ColItemFormatter 사용
             function createDddw2ColFormatter(codeWidth, codeTitle, nameTitle) {
-                if (typeof window.f_dddwctl === 'function' && typeof window.f_dddwctl.get2ColItemFormatter === 'function') {
-                    return window.f_dddwctl.get2ColItemFormatter(codeWidth, codeTitle, nameTitle);
-                }
-                return function(label, value, item) {
-                    const code = (item && item.code != null) ? item.code : value;
-                    const name = (item && item.name != null) ? item.name : label;
-                    return `<div class="dddw-2col-row"><span class="dddw-col-code">${code}</span><span class="dddw-col-name">${name}</span></div>`;
-                };
+                return (window.f_dddwctl && typeof window.f_dddwctl.get2ColItemFormatter === 'function')
+                    ? window.f_dddwctl.get2ColItemFormatter(codeWidth, codeTitle, nameTitle)
+                    : null;
             }
 
             function getDddwOptions(dddwKey) {

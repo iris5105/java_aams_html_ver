@@ -217,15 +217,8 @@
                 return Promise.resolve();
             }
 
-            // Date Formatter Helper (Fixed missing formatDateVal runtime error)
-            function formatDateVal(val) {
-                if (!val) return "";
-                const clean = String(val).replace(/\D/g, "");
-                if (clean.length === 8) {
-                    return clean.substring(0, 4) + '.' + clean.substring(4, 6) + '.' + clean.substring(6, 8);
-                }
-                return String(val).replace(/-/g, ".");
-            }
+            // Date Formatter Helper: common.js의 formatDateVal / formatDateDot 사용
+
 
             // Number Formatter Helpers
             function numFormatter(cell) {
@@ -948,15 +941,24 @@
                     }
                 });
 
-                // Window resize responsive sync
+                // Window resize responsive sync (AamsResponsive 공통 표준)
+                var resizeTimer = null;
+                var lastIsMobileState = isMobileView();
                 window.addEventListener('resize', function () {
-                    if (grid) grid.redraw(true);
-                    if (!isMobileView()) {
-                        closeMobileModal();
-                        if (currentSelectedRowData) {
-                            loadRdReportPreview(currentSelectedRowData);
+                    clearTimeout(resizeTimer);
+                    resizeTimer = setTimeout(function () {
+                        if (grid) grid.redraw();
+                        var currentIsMobile = isMobileView();
+                        if (lastIsMobileState !== currentIsMobile) {
+                            lastIsMobileState = currentIsMobile;
+                            if (!currentIsMobile) {
+                                closeMobileModal();
+                                if (currentSelectedRowData) {
+                                    loadRdReportPreview(currentSelectedRowData);
+                                }
+                            }
                         }
-                    }
+                    }, 120);
                 });
 
                 // Initial Load (Rule: eb_direct_retrieve = true)

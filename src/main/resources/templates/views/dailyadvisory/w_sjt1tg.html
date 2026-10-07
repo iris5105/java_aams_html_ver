@@ -50,43 +50,10 @@
             let deletedList = [];
 
 
-            function getFilterYmd() {
-                const input = pane ? pane.querySelector("#filterYmd") : document.getElementById("filterYmd");
-                if (!input) return "";
-                let val = input.value || "";
-                return val.replace(/\./g, '-');
-            }
+            // 조회일자는 common.js의 전역 헬퍼 함수(getFilterYmd) 사용
 
-            // Tabulator Formatter Utilities
-            function numberFormatter(cell) {
-                const val = cell.getValue();
-                if (val === null || val === undefined || val === "") return "";
-                const num = Number(val);
-                if (isNaN(num)) return val;
-                return num.toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-            }
+            // Tabulator Formatter Utilities: common.js의 aamsNumberFormatter, aamsIntFormatter, aamsChangeFormatter 사용
 
-            function intFormatter(cell) {
-                const val = cell.getValue();
-                if (val === null || val === undefined || val === "") return "";
-                const num = Number(val);
-                if (isNaN(num)) return val;
-                return num.toLocaleString('ko-KR');
-            }
-
-            function changeFormatter(cell) {
-                const val = cell.getValue();
-                if (val === null || val === undefined || val === "") return "";
-                const num = Number(val);
-                if (isNaN(num)) return val;
-                const formatted = num.toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-                if (num > 0) {
-                    return `<span class="cell-price-up">▲ ${formatted}</span>`;
-                } else if (num < 0) {
-                    return `<span class="cell-price-down">▼ ${Math.abs(num).toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>`;
-                }
-                return formatted;
-            }
 
             // Cell Edit Guard (develope-guide.md Exception 1)
             function isCellEditable(cell) {
@@ -153,7 +120,7 @@
                     hozAlign: "right",
                     headerHozAlign: "center",
                     editor: "number",
-                    formatter: numberFormatter,
+                    formatter: aamsNumberFormatter,
                     cellClick: typeof aamsCellEdit !== 'undefined' ? aamsCellEdit : undefined,
                     cellEdited: function(cell) {
                         const row = cell.getRow();
@@ -173,7 +140,7 @@
                     hozAlign: "right",
                     headerHozAlign: "center",
                     editor: "number",
-                    formatter: numberFormatter,
+                    formatter: aamsNumberFormatter,
                     cellClick: typeof aamsCellEdit !== 'undefined' ? aamsCellEdit : undefined,
                     cellEdited: function(cell) {
                         const row = cell.getRow();
@@ -192,7 +159,7 @@
                     width: 100,
                     hozAlign: "right",
                     headerHozAlign: "center",
-                    formatter: changeFormatter
+                    formatter: aamsChangeFormatter
                 },
                 {
                     title: "거래량",
@@ -201,7 +168,7 @@
                     hozAlign: "right",
                     headerHozAlign: "center",
                     editor: "number",
-                    formatter: intFormatter,
+                    formatter: aamsIntFormatter,
                     cellClick: typeof aamsCellEdit !== 'undefined' ? aamsCellEdit : undefined,
                     cellEdited: function(cell) {
                         const row = cell.getRow();
@@ -216,7 +183,7 @@
                     hozAlign: "right",
                     headerHozAlign: "center",
                     editor: "number",
-                    formatter: intFormatter,
+                    formatter: aamsIntFormatter,
                     cellClick: typeof aamsCellEdit !== 'undefined' ? aamsCellEdit : undefined,
                     cellEdited: function(cell) {
                         const row = cell.getRow();
@@ -231,7 +198,7 @@
                     hozAlign: "right",
                     headerHozAlign: "center",
                     editor: "number",
-                    formatter: numberFormatter,
+                    formatter: aamsNumberFormatter,
                     cellClick: typeof aamsCellEdit !== 'undefined' ? aamsCellEdit : undefined,
                     cellEdited: function(cell) {
                         const row = cell.getRow();
@@ -246,7 +213,7 @@
                     hozAlign: "right",
                     headerHozAlign: "center",
                     editor: "number",
-                    formatter: numberFormatter,
+                    formatter: aamsNumberFormatter,
                     cellClick: typeof aamsCellEdit !== 'undefined' ? aamsCellEdit : undefined,
                     cellEdited: function(cell) {
                         const row = cell.getRow();
@@ -291,7 +258,7 @@
             }
 
             function loadList() {
-                const ymd = getFilterYmd();
+                const ymd = getFilterYmd(pane);
                 if (!ymd) {
                     if (typeof showToast === 'function') showToast("영업일자를 선택해 주세요.", "warning");
                     else alert("영업일자를 선택해 주세요.");
@@ -316,7 +283,7 @@
 
             function doInput() {
                 if (!gridSjt1tg) return;
-                const ymd = getFilterYmd();
+                const ymd = getFilterYmd(pane);
                 const newRow = {
                     fseq: gridSjt1tg.getData().length + 1,
                     sjCd: "",
@@ -362,7 +329,7 @@
             function doSave() {
                 if (!gridSjt1tg) return;
                 const allData = gridSjt1tg.getData();
-                const ymd = getFilterYmd();
+                const ymd = getFilterYmd(pane);
                 const corpGr = resolveCorpGr(pane);
 
                 const createdRows = allData.filter(d => d.isNew || d.rowStatus === "C");
@@ -409,7 +376,7 @@
 
             function doGenerate() {
                 const corpGr = resolveCorpGr(pane);
-                const ymd = getFilterYmd();
+                const ymd = getFilterYmd(pane);
                 if (!ymd) {
                     if (typeof showToast === 'function') showToast("영업일자를 선택해 주세요.", "warning");
                     else alert("영업일자를 선택해 주세요.");
@@ -526,7 +493,7 @@
                 pane.onSave = doSave;
                 pane.onDelete = doDelete;
                 pane.onExcel = function() {
-                    if (gridSjt1tg) gridSjt1tg.download("xlsx", `선물옵션_종가_${getFilterYmd()}.xlsx`);
+                    if (gridSjt1tg) gridSjt1tg.download("xlsx", `선물옵션_종가_${getFilterYmd(pane, 'YYYYMMDD')}.xlsx`);
                 };
                 // 공통버튼 지침: 새로고침은 조회 전 초기화 상태로 되돌린다.
                 pane.onRefresh = function() {
@@ -555,9 +522,7 @@
                 initGrid();
 
                 // AamsCalendar 초기화
-                if (typeof AamsCalendar !== 'undefined' && typeof AamsCalendar.initSimple === 'function') {
-                    AamsCalendar.initSimple('filterYmd', { pane: pane });
-                }
+                initFilterCalendar(pane);
 
                 // Button events
                 const btnGen = pane ? pane.querySelector("#btnGenerateNewFutures") : document.getElementById("btnGenerateNewFutures");

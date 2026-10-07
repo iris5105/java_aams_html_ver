@@ -62,29 +62,347 @@ function verifyCorpGrCookie() {
 }
 
 /**
- * Safe Resolution for Current corpGr
+ * Safe Resolution for Current corpGr / filterCorpGr
  * Resolves corpGr in priority:
- * 1. window.currentCorpGr
- * 2. savedCorpGr / corpGr cookie
- * 3. #filterCorpGr or #corpGrSelect element within pane / document
+ * 1. #corpGrSelect or #filterCorpGr or select[name='corpGr'] element within pane / document
+ * 2. window.currentCorpGr or g_corp_gr
+ * 3. savedCorpGr / corpGr / corp_gr cookie
  */
 function resolveCorpGr(pane) {
-    // 1. 현재 화면/탭 pane 또는 DOM에서 filterCorpGr / corpGr 선택 요소를 최우선으로 확인
-    const selectEl = pane ? (pane.querySelector("#filterCorpGr") || pane.querySelector("select[name='corpGr']") || pane.querySelector("#corpGrSelect"))
-                          : (document.getElementById("filterCorpGr") || document.querySelector("select[name='corpGr']") || document.getElementById("corpGrSelect"));
+    if (!pane && window.currentPane) pane = window.currentPane;
+
+    // 1. 현재 화면/탭 pane 또는 DOM에서 filterCorpGr / corpGr / corpGrSelect / filterDddw 선택 요소를 최우선으로 확인
+    const selectEl = pane ? (pane.querySelector("#corpGrSelect") || pane.querySelector("#filterCorpGr") || pane.querySelector("select[name='corpGr']") || pane.querySelector("#filterDddw"))
+                          : (document.getElementById("corpGrSelect") || document.getElementById("filterCorpGr") || document.querySelector("select[name='corpGr']"));
     if (selectEl && selectEl.value && String(selectEl.value).trim()) {
         return String(selectEl.value).trim();
     }
 
-    if (window.currentCorpGr) return window.currentCorpGr;
-    const m = document.cookie.match(/(^|;)\s*savedCorpGr=([^;]+)/) 
-           || document.cookie.match(/(^|;)\s*corpGr=([^;]+)/)
-           || document.cookie.match(/(^|;)\s*corp_gr=([^;]+)/);
-    if (m) return decodeURIComponent(m[2]);
+    // 2. 전역 변수 확인
+    if (window.currentCorpGr && String(window.currentCorpGr).trim()) return String(window.currentCorpGr).trim();
+    if (typeof g_corp_gr !== 'undefined' && g_corp_gr && String(g_corp_gr).trim()) return String(g_corp_gr).trim();
+
+    // 3. 쿠키 확인
+    const m = document.cookie.match(/(?:^|;\s*)savedCorpGr=([^;]*)/) 
+           || document.cookie.match(/(?:^|;\s*)corpGr=([^;]*)/)
+           || document.cookie.match(/(?:^|;\s*)corp_gr=([^;]*)/);
+    if (m && m[1]) return decodeURIComponent(m[1]).trim();
 
     return "";
 }
 window.resolveCorpGr = resolveCorpGr;
+window.getFilterCorpGr = resolveCorpGr;
+
+/**
+ * Safe Resolution for Current Filter Date (filterYmd)
+ * 화면 상단 필터바의 기준일자(filterYmd 또는 ymd input)를 추출하여 지정한 포맷으로 안전하게 반환합니다.
+ * 
+ * @param {HTMLElement|string} [pane] - 현재 화면/탭 컨테이너 요소 (생략 시 document 전체에서 탐색, 포맷 문자열일 경우 format으로 간주)
+ * @param {string} [format='YYYY-MM-DD'] - 반환 포맷:
+ *      'YYYY-MM-DD' (기본값: "2026-10-06")
+ *      'YYYYMMDD'   (숫자만 8자리: "20261006")
+ *      'YYYY.MM.DD' (점 구분자: "2026.10.06")
+ * @returns {string} 포맷팅된 날짜 문자열
+ * 
+ * 사용 예:
+ *   resolveFilterYmd(pane)               // "2026-10-06" (기본 yyyy-MM-dd)
+ *   resolveFilterYmd(pane, 'YYYYMMDD')   // "20261006"
+ *   resolveFilterYmd(pane, 'YYYY.MM.DD') // "2026.10.06"
+ *   getFilterYmd(pane)                   // resolveFilterYmd 별칭
+ *   getFilterYmd('YYYYMMDD')             // pane 생략 축약 호출
+ *   getFilterYmd()                       // 기본 오늘/선택일자 "2026-10-06"
+ */
+function resolveFilterYmd(pane, format) {
+    let targetFormat = format;
+    let targetPane = pane;
+
+    if (typeof pane === 'string' && !format) {
+        var upper = pane.toUpperCase();
+        if (upper === 'YYYY-MM-DD' || upper === 'YYYYMMDD' || upper === 'YYYY.MM.DD' || upper === 'RAW') {
+            targetFormat = upper;
+            targetPane = null;
+        }
+    }
+    if (!targetFormat) targetFormat = 'YYYY-MM-DD';
+    targetFormat = targetFormat.toUpperCase();
+
+    const root = (targetPane && typeof targetPane.querySelector === 'function') ? targetPane : document;
+    const input = root.querySelector('#filterYmd')
+               || root.querySelector('input[name="ymd"]')
+               || root.querySelector('.aams-calendar-input');
+
+    let rawVal = '';
+    if (input && input.value) {
+        rawVal = String(input.value).trim();
+    } else if (input && input.getAttribute('value')) {
+        rawVal = String(input.getAttribute('value')).trim();
+    }
+
+    if (!rawVal) {
+        if (window.currentWorkDate) {
+            rawVal = String(window.currentWorkDate).trim();
+        } else {
+            const today = new Date();
+            const y = today.getFullYear();
+            const m = String(today.getMonth() + 1).padStart(2, '0');
+            const d = String(today.getDate()).padStart(2, '0');
+            rawVal = `${y}-${m}-${d}`;
+        }
+    }
+
+    const clean = rawVal.replace(/[^0-9]/g, '');
+    if (clean.length === 8) {
+        const y = clean.substring(0, 4);
+        const m = clean.substring(4, 6);
+        const d = clean.substring(6, 8);
+        if (targetFormat === 'YYYYMMDD') {
+            return clean;
+        } else if (targetFormat === 'YYYY.MM.DD') {
+            return `${y}.${m}.${d}`;
+        } else {
+            return `${y}-${m}-${d}`;
+        }
+    }
+
+    if (targetFormat === 'YYYYMMDD') {
+        return rawVal.replace(/[^0-9]/g, '');
+    }
+    return rawVal;
+}
+window.resolveFilterYmd = resolveFilterYmd;
+window.getFilterYmd = resolveFilterYmd;
+
+/**
+ * Safe Resolution for Current Filter Start Date (filterFYmd / filterFymd)
+ * 화면 상단 기간 필터바의 시작일자를 추출하여 지정한 포맷으로 안전하게 반환합니다.
+ * @param {HTMLElement|string} [pane] - 현재 화면/탭 컨테이너 요소
+ * @param {string} [format='YYYY-MM-DD'] - 반환 포맷 ('YYYY-MM-DD', 'YYYYMMDD', 'YYYY.MM.DD')
+ * @returns {string} 포맷팅된 날짜 문자열
+ */
+function resolveFilterFymd(pane, format) {
+    if (!pane && window.currentPane) pane = window.currentPane;
+    let targetFormat = format;
+    let targetPane = pane;
+    if (typeof pane === 'string' && !format) {
+        var upper = pane.toUpperCase();
+        if (upper === 'YYYY-MM-DD' || upper === 'YYYYMMDD' || upper === 'YYYY.MM.DD' || upper === 'RAW') {
+            targetFormat = upper;
+            targetPane = null;
+        }
+    }
+    if (!targetFormat) targetFormat = 'YYYY-MM-DD';
+    targetFormat = targetFormat.toUpperCase();
+
+    const root = (targetPane && typeof targetPane.querySelector === 'function') ? targetPane : document;
+    const input = root.querySelector('#filterFYmd')
+               || root.querySelector('#filterFymd')
+               || root.querySelector('input[name="fYmd"]')
+               || root.querySelector('input[name="fymd"]')
+               || root.querySelector('input.range-calendar-input:first-of-type');
+
+    let rawVal = '';
+    if (input && input.value) rawVal = String(input.value).trim();
+    else if (input && input.getAttribute('value')) rawVal = String(input.getAttribute('value')).trim();
+
+    if (!rawVal) {
+        return resolveFilterYmd(targetPane, targetFormat);
+    }
+
+    const clean = rawVal.replace(/[^0-9]/g, '');
+    if (clean.length === 8) {
+        const y = clean.substring(0, 4);
+        const m = clean.substring(4, 6);
+        const d = clean.substring(6, 8);
+        if (targetFormat === 'YYYYMMDD') return clean;
+        if (targetFormat === 'YYYY.MM.DD') return `${y}.${m}.${d}`;
+        return `${y}-${m}-${d}`;
+    }
+    if (targetFormat === 'YYYYMMDD') return clean;
+    return rawVal;
+}
+window.resolveFilterFymd = resolveFilterFymd;
+window.getFilterFymd = resolveFilterFymd;
+window.getFilterFYmd = resolveFilterFymd;
+
+/**
+ * Safe Resolution for Current Filter End Date (filterTYmd / filterTymd)
+ * 화면 상단 기간 필터바의 종료일자를 추출하여 지정한 포맷으로 안전하게 반환합니다.
+ * @param {HTMLElement|string} [pane] - 현재 화면/탭 컨테이너 요소
+ * @param {string} [format='YYYY-MM-DD'] - 반환 포맷 ('YYYY-MM-DD', 'YYYYMMDD', 'YYYY.MM.DD')
+ * @returns {string} 포맷팅된 날짜 문자열
+ */
+function resolveFilterTymd(pane, format) {
+    if (!pane && window.currentPane) pane = window.currentPane;
+    let targetFormat = format;
+    let targetPane = pane;
+    if (typeof pane === 'string' && !format) {
+        var upper = pane.toUpperCase();
+        if (upper === 'YYYY-MM-DD' || upper === 'YYYYMMDD' || upper === 'YYYY.MM.DD' || upper === 'RAW') {
+            targetFormat = upper;
+            targetPane = null;
+        }
+    }
+    if (!targetFormat) targetFormat = 'YYYY-MM-DD';
+    targetFormat = targetFormat.toUpperCase();
+
+    const root = (targetPane && typeof targetPane.querySelector === 'function') ? targetPane : document;
+    const input = root.querySelector('#filterTYmd')
+               || root.querySelector('#filterTymd')
+               || root.querySelector('input[name="tYmd"]')
+               || root.querySelector('input[name="tymd"]')
+               || root.querySelector('input.range-calendar-input:last-of-type');
+
+    let rawVal = '';
+    if (input && input.value) rawVal = String(input.value).trim();
+    else if (input && input.getAttribute('value')) rawVal = String(input.getAttribute('value')).trim();
+
+    if (!rawVal) {
+        return resolveFilterYmd(targetPane, targetFormat);
+    }
+
+    const clean = rawVal.replace(/[^0-9]/g, '');
+    if (clean.length === 8) {
+        const y = clean.substring(0, 4);
+        const m = clean.substring(4, 6);
+        const d = clean.substring(6, 8);
+        if (targetFormat === 'YYYYMMDD') return clean;
+        if (targetFormat === 'YYYY.MM.DD') return `${y}.${m}.${d}`;
+        return `${y}-${m}-${d}`;
+    }
+    if (targetFormat === 'YYYYMMDD') return clean;
+    return rawVal;
+}
+window.resolveFilterTymd = resolveFilterTymd;
+window.getFilterTymd = resolveFilterTymd;
+window.getFilterTYmd = resolveFilterTymd;
+
+/**
+ * Filter Calendar 자동 초기화 헬퍼 (initCalendar 보일러플레이트 제거용)
+ * @param {HTMLElement} [pane] - 화면 탭 컨테이너
+ * @param {object|string} [options] - 초기 옵션 또는 initialYmd
+ */
+function initFilterCalendar(pane, options) {
+    if (!pane && window.currentPane) pane = window.currentPane;
+    options = options || {};
+    if (typeof options === 'string') options = { initialYmd: options };
+
+    const root = (pane && typeof pane.querySelector === 'function') ? pane : document;
+
+    // 1) 기간 달력 체크 (filterFYmd & filterTYmd)
+    const fymdInput = root.querySelector(options.fymdId ? '#' + options.fymdId : '#filterFYmd, #filterFymd');
+    const tymdInput = root.querySelector(options.tymdId ? '#' + options.tymdId : '#filterTYmd, #filterTymd');
+    if (fymdInput && tymdInput && window.AamsCalendar && typeof window.AamsCalendar.initRange === 'function') {
+        window.AamsCalendar.initRange(fymdInput.id || 'filterFYmd', tymdInput.id || 'filterTYmd', {
+            pane: pane,
+            onSelect: options.onSelect
+        });
+        return;
+    }
+
+    // 2) 단일 달력 체크 (filterYmd)
+    const inputId = options.inputId || 'filterYmd';
+    const input = root.querySelector('#' + inputId)
+               || root.querySelector('input[name="ymd"]')
+               || root.querySelector('.aams-calendar-input');
+    if (!input) return;
+
+    const initialYmd = options.initialYmd || input.value || (input.getAttribute ? input.getAttribute('value') : '') || '';
+    if (initialYmd && !input.value) {
+        input.value = initialYmd;
+    }
+
+    if (window.AamsCalendar && typeof window.AamsCalendar.initSimple === 'function') {
+        window.AamsCalendar.initSimple(input.id || inputId, {
+            pane: pane,
+            initialYmd: input.value || initialYmd,
+            onSelect: options.onSelect
+        });
+    }
+}
+window.initFilterCalendar = initFilterCalendar;
+
+/**
+ * Filter DDDW 2칸 분할 셀렉트박스 자동 초기화 헬퍼 (initDddw 보일러플레이트 제거용)
+ * @param {HTMLElement} [pane] - 화면 탭 컨테이너
+ * @param {object} config - 설정 객체:
+ *      selectId: 셀렉트박스 ID (기본: 'filterDddw')
+ *      dddwId: f_dddwctl dddw ID (e.g. 'dddw', 'tr_co_cd', 'sec_cd')
+ *      corpGr: 회사코드 (생략 시 resolveCorpGr(pane) 자동 적용)
+ *      seq: f_dddwctl seq 번호 (기본: 1)
+ *      addWhere: f_dddwctl 추가 조건식
+ *      defaultOptions: API 실패 시 대체 기본 옵션 목록
+ *      defaultVal: 초기 선택값 (생략 시 첫 번째 항목 또는 기존 값)
+ *      codeTitle: 2칸 헤더 코드명 (기본: '코드')
+ *      nameTitle: 2칸 헤더 명칭 (기본: '코드명')
+ *      onSelect: 선택 시 콜백 function(code, name)
+ * @returns {Promise<Array>}
+ */
+function initFilterDddw(pane, config) {
+    if (!pane && window.currentPane) pane = window.currentPane;
+    config = config || {};
+    const selectId = config.selectId || 'filterDddw';
+    const root = (pane && typeof pane.querySelector === 'function') ? pane : document;
+    const selectEl = root.querySelector('#' + selectId) || root.querySelector('select[name="dddw"]');
+    if (!selectEl) return Promise.resolve([]);
+
+    const corpGr = config.corpGr || resolveCorpGr(pane);
+    const dddwId = config.dddwId;
+    const seq = config.seq || 1;
+    const addWhere = config.addWhere || '';
+    const defaultOptions = config.defaultOptions || [];
+
+    function populate(options) {
+        const list = (options && options.length > 0) ? options : defaultOptions;
+        if (!list || list.length === 0) return list;
+
+        selectEl.innerHTML = '';
+        list.forEach(function (opt) {
+            const code = (opt.code != null ? opt.code : (opt.cd != null ? opt.cd : '')).toString().trim();
+            const name = (opt.name != null ? opt.name : (opt.nm != null ? opt.nm : (opt.dscr != null ? opt.dscr : code))).toString().trim();
+            const optEl = document.createElement('option');
+            optEl.value = code;
+            optEl.textContent = name;
+            selectEl.appendChild(optEl);
+        });
+
+        let targetVal = config.defaultVal || selectEl.value;
+        const match = list.find(function(o) {
+            const c = (o.code != null ? o.code : o.cd || '').toString().trim();
+            return c === targetVal;
+        });
+        if (!match && list.length > 0) {
+            targetVal = (list[0].code != null ? list[0].code : list[0].cd || '').toString().trim();
+        }
+        selectEl.value = targetVal;
+
+        if (window.f_dddwctl && typeof window.f_dddwctl.get2ColItemFormatter === 'function') {
+            window.f_dddwctl.get2ColItemFormatter(selectEl, list, {
+                codeTitle: config.codeTitle || "코드",
+                nameTitle: config.nameTitle || "코드명",
+                defaultVal: targetVal,
+                onSelect: function (code, name) {
+                    selectEl.value = code;
+                    if (typeof config.onSelect === 'function') {
+                        config.onSelect(code, name);
+                    }
+                }
+            });
+        }
+        return list;
+    }
+
+    if (dddwId && typeof window.f_dddwctl === 'function') {
+        return window.f_dddwctl(dddwId, corpGr, '', seq, addWhere).then(function (options) {
+            return populate(options);
+        }).catch(function (e) {
+            console.warn('[common.initFilterDddw] f_dddwctl load error, using default options:', e);
+            return populate(defaultOptions);
+        });
+    } else {
+        return Promise.resolve(populate(defaultOptions));
+    }
+}
+window.initFilterDddw = initFilterDddw;
 
 // Session security verification and token monitor on DOMContentLoaded
 document.addEventListener("DOMContentLoaded", function() {
@@ -121,6 +439,115 @@ function formatDate(val, isDateTime = false) {
     return s;
 }
 window.formatDate = formatDate;
+window.formatDateVal = formatDate;
+window.formatDateHyphen = formatDate;
+window.formatDateTimeVal = function(val) { return formatDate(val, true); };
+
+/**
+ * Common Currency / Money Formatter
+ */
+function formatMoney(val) {
+    if (val == null || val === "" || isNaN(val)) return "";
+    return Number(val).toLocaleString("ko-KR");
+}
+window.formatMoney = formatMoney;
+window.numFmt = function(val) { return formatMoney(val) || "0"; };
+
+/**
+ * Common Business Registration Number Formatter (10-digit: 000-00-00000)
+ */
+function formatBizNo(val) {
+    if (!val) return "";
+    var clean = String(val).replace(/\D/g, "");
+    if (clean.length === 10) {
+        return clean.substring(0, 3) + "-" + clean.substring(3, 5) + "-" + clean.substring(5, 10);
+    }
+    return val;
+}
+window.formatBizNo = formatBizNo;
+window.formatIdno = formatBizNo;
+
+/**
+ * Common Date Add Months (PowerBuilder f_add_months compatibility)
+ * @param {string} ymdStr - YYYYMMDD, YYYY-MM-DD, or YYYY.MM.DD
+ * @param {number} months - Months to add/subtract
+ * @param {string} [separator='.'] - Output separator ('.' or '-')
+ * @returns {string}
+ */
+function addMonthsToYmd(ymdStr, months, separator = '.') {
+    if (!ymdStr) return "";
+    var clean = String(ymdStr).replace(/\D/g, "");
+    if (clean.length < 8) return ymdStr;
+    var year = parseInt(clean.substring(0, 4), 10);
+    var month = parseInt(clean.substring(4, 6), 10) - 1;
+    var day = parseInt(clean.substring(6, 8), 10);
+
+    var dt = new Date(year, month, day);
+    dt.setMonth(dt.getMonth() + Number(months || 0));
+
+    var y = dt.getFullYear();
+    var m = String(dt.getMonth() + 1).padStart(2, '0');
+    var d = String(dt.getDate()).padStart(2, '0');
+    return separator ? `${y}${separator}${m}${separator}${d}` : `${y}${m}${d}`;
+}
+window.addMonthsToYmd = addMonthsToYmd;
+window.f_add_months = addMonthsToYmd;
+
+/**
+ * Common Date Dot Formatter (YYYYMMDD / YYYY-MM-DD -> YYYY.MM.DD)
+ */
+function formatDateDot(val) {
+    if (!val || val === '-') return '-';
+    let s = String(val).trim();
+    if (!s) return '-';
+    const clean = s.replace(/[^0-9]/g, '');
+    if (clean.length === 8) {
+        return `${clean.substring(0, 4)}.${clean.substring(4, 6)}.${clean.substring(6, 8)}`;
+    }
+    return formatDate(val).replace(/-/g, '.');
+}
+window.formatDateDot = formatDateDot;
+
+/**
+ * AAMS Tabulator Standard Cell Formatters (그리드 표준 포매터)
+ */
+function aamsNumberFormatter(cell, formatterParams) {
+    const val = cell.getValue();
+    if (val === null || val === undefined || val === '') return '';
+    const num = Number(val);
+    if (isNaN(num)) return val;
+    const decimals = (formatterParams && typeof formatterParams.decimals === 'number') ? formatterParams.decimals : undefined;
+    return formatNumber(num, decimals, '');
+}
+window.aamsNumberFormatter = aamsNumberFormatter;
+
+function aamsIntFormatter(cell) {
+    const val = cell.getValue();
+    if (val === null || val === undefined || val === '') return '';
+    const num = Number(val);
+    if (isNaN(num)) return val;
+    return Math.round(num).toLocaleString('ko-KR');
+}
+window.aamsIntFormatter = aamsIntFormatter;
+
+function aamsChangeFormatter(cell) {
+    const val = cell.getValue();
+    if (val === null || val === undefined || val === '') return '';
+    const num = Number(val);
+    if (isNaN(num)) return val;
+    if (num > 0) return `<span class="cell-price-up">▲ ${num.toLocaleString('ko-KR')}</span>`;
+    if (num < 0) return `<span class="cell-price-down">▼ ${Math.abs(num).toLocaleString('ko-KR')}</span>`;
+    return `<span class="cell-text-muted">- ${num.toLocaleString('ko-KR')}</span>`;
+}
+window.aamsChangeFormatter = aamsChangeFormatter;
+
+function aamsDateFormatter(cell, formatterParams) {
+    const val = cell.getValue();
+    if (!val) return '';
+    const isDot = formatterParams && (formatterParams.dot || formatterParams.format === 'YYYY.MM.DD');
+    return isDot ? formatDateDot(val) : formatDate(val);
+}
+window.aamsDateFormatter = aamsDateFormatter;
 
 /**
  * Common Number Formatter (1234567.89 -> 1,234,567.89)
@@ -576,17 +1003,24 @@ function extendAccessToken() {
     });
 }
 
-// Window resize listener to automatically redraw Tabulator instances and update sidebar menu mode
+// Window resize listener to automatically redraw Tabulator instances and update sidebar menu mode (Debounced)
+var _globalResizeDebounceTimer = null;
+window._aamsIsResizing = false;
 window.addEventListener('resize', function() {
-    if (typeof checkHeaderCollision === 'function') {
-        checkHeaderCollision();
-    }
+    window._aamsIsResizing = true;
+    clearTimeout(_globalResizeDebounceTimer);
+    _globalResizeDebounceTimer = setTimeout(function() {
+        if (typeof checkHeaderCollision === 'function') {
+            checkHeaderCollision();
+        }
 
-    if (typeof Tabulator !== 'undefined') {
-        Tabulator.findTable(".tabulator").forEach(table => {
-            try { table.redraw(true); } catch(e) {}
-        });
-    }
+        if (typeof Tabulator !== 'undefined') {
+            Tabulator.findTable(".tabulator").forEach(table => {
+                try { table.redraw(); } catch(e) {}
+            });
+        }
+        window._aamsIsResizing = false;
+    }, 120);
 });
 
 /**
@@ -603,6 +1037,17 @@ function getCookie(name) {
     }
     return null;
 }
+window.getCookie = getCookie;
+window.getCookieVal = getCookie;
+
+/**
+ * Global Cookie WorkDate Helper
+ */
+function getCookieWorkDate() {
+    return getCookie('workYmd') || getCookie('hyunYmd') || '';
+}
+window.getCookieWorkDate = getCookieWorkDate;
+window.getCookieCorpGr = function() { return resolveCorpGr(); };
 
 /**
  * Global Common WorkDate Helper (공통 기준 작업일자 조회)
@@ -668,8 +1113,31 @@ function setupTabulatorRowSelection(table, onRowChange, options = {}) {
     }
     table._aamsRowSelectionInitialized = true;
 
-    // Use pure RowComponent instance comparison to reliably identify row changes across all screens
+    // Use RowComponent instance & Data Key comparison to reliably identify row changes across all screens
     let lastSelectedRow = null;
+    let lastSelectedRowKey = null;
+
+    function extractRowKey(r) {
+        if (!r) return null;
+        const d = (typeof r.getData === 'function') ? r.getData() : null;
+        if (!d) return null;
+        if (options.keyField && d[options.keyField] !== undefined) {
+            return String(d[options.keyField]);
+        }
+        if (d._rowId !== undefined) return String(d._rowId);
+        if (d.id !== undefined) return String(d.id);
+        const fundCd = d.fundCd || d.fund_cd || d.cd || d.code || '';
+        const corpGr = d.corpGr || d.corp_gr || '';
+        const ymd = d.ymd || d.workDate || '';
+        if (fundCd || corpGr || ymd) {
+            return corpGr + '_' + ymd + '_' + fundCd;
+        }
+        try {
+            return JSON.stringify(d);
+        } catch (e) {
+            return null;
+        }
+    }
 
     // 헬퍼: 행 포커스 및 스크롤 이동
     function focusRow(targetRow) {
@@ -708,8 +1176,6 @@ function setupTabulatorRowSelection(table, onRowChange, options = {}) {
         if (!row) return;
         let rowComp = row;
         // If row is an internal Row model (not RowComponent), obtain its RowComponent
-        // Note: Do NOT access row.getComponent on RowComponent because Tabulator proxy emits a warning:
-        // "The row component does not have a getComponent function"
         if (row && typeof row.getData !== 'function') {
             if (typeof row.getComponent === 'function') {
                 try {
@@ -719,7 +1185,22 @@ function setupTabulatorRowSelection(table, onRowChange, options = {}) {
                 }
             }
         }
-        const isRowChanged = (rowComp !== lastSelectedRow) || force;
+
+        const currentRowKey = extractRowKey(rowComp);
+        const isSameDataKey = (currentRowKey !== null && currentRowKey === lastSelectedRowKey);
+        const isUserClick = !!originalEvent;
+        const isResizing = (window._aamsIsResizing === true);
+
+        // 창 크기 조절(Resize) 중이거나 이미 동일한 키의 데이터 행인 경우, 사용자 명시적 클릭이나 force가 없으면 콜백 재실행 방지 (단순 조회 및 마스터-상세 불필요 재조회 원천 차단)
+        let isRowChanged = false;
+        if (force || isUserClick) {
+            isRowChanged = true;
+        } else if (isResizing) {
+            isRowChanged = false; // 리사이즈 중에는 redraw로 인한 가상 행 변경 콜백 억제
+        } else {
+            isRowChanged = (!isSameDataKey && rowComp !== lastSelectedRow);
+        }
+
         const isSelected = (typeof rowComp.isSelected === 'function' && rowComp.isSelected());
 
         // 1. Ensure single row selection without flickering
@@ -744,6 +1225,7 @@ function setupTabulatorRowSelection(table, onRowChange, options = {}) {
         // 2. Trigger callbacks & rowClick synchronization when row actually changed or forced
         if (isRowChanged) {
             lastSelectedRow = rowComp;
+            lastSelectedRowKey = currentRowKey;
             const d = (typeof rowComp.getData === 'function') ? rowComp.getData() : {};
 
             // ① Custom onRowChange callback
@@ -768,6 +1250,7 @@ function setupTabulatorRowSelection(table, onRowChange, options = {}) {
             }
         }
     }
+
 
     // Ensure arrow keys do not change row selection
     if (table.options) {
@@ -938,6 +1421,7 @@ function setupTabulatorRowSelection(table, onRowChange, options = {}) {
         //    - PC, 태블릿, 모바일 모든 환경에서 조회 또는 새로고침 시 모든 그리드는 첫 번째 행 rowfocus
         table.on("dataLoaded", function(data) {
             lastSelectedRow = null;
+            lastSelectedRowKey = null;
             const isMobile = window.matchMedia('(max-width: 876px)').matches 
                 || window.innerWidth <= 876 
                 || (table.element && table.element.clientWidth > 0 && table.element.clientWidth <= 876);
@@ -1254,6 +1738,21 @@ window.AamsReport = {
     },
 
     /**
+     * 현재 화면 또는 컨테이너의 모바일 뷰 여부 판별 (태블릿-S / 876px 이하 또는 우측 패널 숨김)
+     * @param {HTMLElement} [rootPane] - 화면 컨테이너 요소
+     * @returns {boolean}
+     */
+    isMobileView: function(rootPane) {
+        var root = rootPane || (window.currentPane || document);
+        var right = (root && root.querySelector) ? (root.querySelector('.split-right') || root.querySelector('.report-card') || root.querySelector('.pane-right')) : null;
+        if (right && window.getComputedStyle(right).display === 'none') {
+            return true;
+        }
+        var width = (root && root.clientWidth > 0) ? root.clientWidth : window.innerWidth;
+        return width <= 876;
+    },
+
+    /**
      * 대상 iframe에 리포트 URL 설정 (기본 zoom=120 적용)
      */
     setFrameSrc: function(frameEl, url, zoom) {
@@ -1285,6 +1784,7 @@ window.AamsReport = {
         var btnCloseModal = modalEl ? modalEl.querySelector('.btn-close-modal, .btn-close-report-modal, [id*="Close"]') : null;
         
         var selectedData = null;
+        var lastLoadedKey = null;
 
         function resolveMrd(data) {
             if (typeof config.mrdName === 'function') return config.mrdName(data);
@@ -1305,6 +1805,21 @@ window.AamsReport = {
             return '';
         }
 
+        function resolveDataKey(data) {
+            if (!data) return '';
+            var corp = resolveCorp();
+            var ymd = (typeof config.getYmd === 'function') ? config.getYmd() : (typeof resolveFilterYmd === 'function' ? resolveFilterYmd(root) : '');
+            var id = data.fundCd || data.fund_cd || data.id || data.mainKey || data.code || '';
+            if (id) {
+                return corp + '_' + ymd + '_' + id;
+            }
+            try {
+                return corp + '_' + ymd + '_' + JSON.stringify(resolveParams(data));
+            } catch (e) {
+                return String(data);
+            }
+        }
+
         function showLoading(show) {
             if (loadingEl) loadingEl.style.display = show ? 'block' : 'none';
             if (modalLoadingEl) modalLoadingEl.style.display = show ? 'block' : 'none';
@@ -1315,12 +1830,13 @@ window.AamsReport = {
             if (typeof config.onStatusChange === 'function') config.onStatusChange(selectedData, text);
         }
 
-        function load(data, statusText) {
+        function load(data, statusText, isForce) {
             if (!data) return;
             selectedData = data;
-            if (typeof config.onBeforePreview === 'function') {
-                config.onBeforePreview(data);
-            }
+            
+            var dataKey = resolveDataKey(data);
+            var isAlreadyLoaded = (lastLoadedKey === dataKey) && iframe && iframe.src && iframe.src !== 'about:blank' && !iframe.src.endsWith('about:blank');
+
             if (statusText) {
                 updateStatus(statusText);
             } else if (typeof config.getStatus === 'function') {
@@ -1334,6 +1850,18 @@ window.AamsReport = {
                     titleEl.innerHTML = '<i class="' + iconClass + '" style="margin-right: 4px;"></i> ' + titleVal;
                 }
             }
+
+            // 이미 동일한 데이터의 리포트가 정상 로드되어 있고 강제 새로고침(isForce)이 아니라면,
+            // 화면 리사이즈 등으로 인한 중복 비동기 검증(onBeforePreview) 및 iframe 재할당을 건너뛰어 브라우저 net::ERR_ABORTED 오류 원천 차단
+            if (isAlreadyLoaded && !isForce) {
+                return;
+            }
+            lastLoadedKey = dataKey;
+
+            if (typeof config.onBeforePreview === 'function') {
+                config.onBeforePreview(data);
+            }
+
             var mrd = resolveMrd(data);
             var params = resolveParams(data);
             var previewUrl = (typeof config.buildPreviewUrl === 'function')
@@ -1354,6 +1882,7 @@ window.AamsReport = {
 
         function clear() {
             selectedData = null;
+            lastLoadedKey = null;
             updateStatus(config.defaultStatus || '선택된 항목 없음');
             if (iframe) AamsReport.setFrameSrc(iframe, 'about:blank');
             if (modalIframe) AamsReport.setFrameSrc(modalIframe, 'about:blank');
@@ -1409,7 +1938,6 @@ window.AamsReport = {
             if (modalIframe && selectedData) {
                 var mrd = resolveMrd(selectedData);
                 var params = resolveParams(selectedData);
-                // 모바일 모달 뷰어도 PC 표준과 동일하게 120% 확대 비율 적용
                 var modalZoom = (config.mobileZoom !== undefined) ? config.mobileZoom : (config.zoom !== undefined ? config.zoom : AamsReport.DEFAULT_ZOOM);
                 var url = (typeof config.buildPreviewUrl === 'function')
                     ? config.buildPreviewUrl(selectedData, params)
@@ -1451,6 +1979,28 @@ window.AamsReport = {
             setupModalBackdrop(modalEl, closeModal);
         }
 
+        // 내장 스마트 반응형 리사이즈 핸들러 (모바일 <-> PC 모드 전환 시에만 자동 동기화)
+        var lastIsMobile = AamsReport.isMobileView(root);
+        var autoResizeTimer = null;
+        function handleAutoResponsiveResize() {
+            var currentIsMobile = AamsReport.isMobileView(root);
+            if (lastIsMobile !== currentIsMobile) {
+                lastIsMobile = currentIsMobile;
+                if (!currentIsMobile) {
+                    // 모바일 -> PC 전환 시: 모바일 모달 닫기 & 우측 리포트 패널 안전 복원
+                    closeModal();
+                    if (selectedData && iframe) {
+                        load(selectedData, null, true);
+                    }
+                }
+            }
+        }
+
+        window.addEventListener('resize', function() {
+            clearTimeout(autoResizeTimer);
+            autoResizeTimer = setTimeout(handleAutoResponsiveResize, 150);
+        });
+
         return {
             load: load,
             loadPreview: load,
@@ -1462,10 +2012,68 @@ window.AamsReport = {
             openNewWindow: openNewWindow,
             exportReport: exportReport,
             exportFormat: exportReport,
+            syncResize: handleAutoResponsiveResize,
             getSelectedData: function() { return selectedData; },
             setSelectedData: function(d) { selectedData = d; }
         };
     }
+};
+
+/**
+ * AAMS 전역 반응형 레이아웃 & 리사이즈 유틸리티 (Responsive Layout & Resize Standard)
+ * Master-Detail 및 Report 구조 전 화면 공통
+ */
+window.AamsResponsive = {
+    // 디바운스 헬퍼
+    debounce: function(func, wait) {
+        var timeout;
+        wait = wait || 150;
+        return function() {
+            var context = this, args = arguments;
+            clearTimeout(timeout);
+            timeout = setTimeout(function() {
+                func.apply(context, args);
+            }, wait);
+        };
+    },
+
+    // 현재 모바일 뷰(876px 이하 또는 우측/하단 상세 패널 숨김) 여부 판별
+    isMobile: function(container) {
+        return AamsReport.isMobileView(container);
+    },
+
+    // 뷰포트 모드(모바일 <-> PC)가 실제로 전환되었을 때만 1회 실행되는 안전 리스너 등록
+    onModeChange: function(container, callback, wait) {
+        var root = container || (window.currentPane || document);
+        var lastMode = this.isMobile(root);
+        var debounced = this.debounce(function() {
+            var currentMode = AamsResponsive.isMobile(root);
+            if (lastMode !== currentMode) {
+                var prev = lastMode;
+                lastMode = currentMode;
+                if (typeof callback === 'function') {
+                    callback(currentMode, prev);
+                }
+            }
+        }, wait || 150);
+
+        window.addEventListener('resize', debounced);
+        return function() {
+            window.removeEventListener('resize', debounced);
+        };
+    },
+
+    // 디바운스된 안전한 리사이즈 이벤트 바인딩
+    onResize: function(callback, wait) {
+        var debounced = this.debounce(callback, wait || 150);
+        window.addEventListener('resize', debounced);
+        return function() {
+            window.removeEventListener('resize', debounced);
+        };
+    }
+};
+window.isMobileView = function(root) {
+    return AamsReport.isMobileView(root);
 };
 
 /**

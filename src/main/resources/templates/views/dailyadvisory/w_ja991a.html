@@ -88,13 +88,8 @@
                 }
             }
 
-            function formatDateVal(val) {
-                if (!val) return "";
-                var s = String(val).replace(/[^0-9]/g, "");
-                if (s.length === 8) return s.substring(0, 4) + "." + s.substring(4, 6) + "." + s.substring(6, 8);
-                if (String(val).length >= 10 && String(val).indexOf("-") > 0) return String(val).substring(0, 10).replace(/-/g, ".");
-                return val;
-            }
+            // formatDateVal은 common.js 전역 함수 사용
+
 
             // Update Master Count badge
             function updateMasterCount(count) {
@@ -121,19 +116,8 @@
                 }
             }
 
-            // Extract workDate and corpGr from cookies
-            function getCookieWorkDate() {
-                const matchWork = document.cookie.match(/(?:^|;\s*)workDate=([^;]*)/);
-                if (matchWork && matchWork[1]) return decodeURIComponent(matchWork[1]);
-                const matchHyun = document.cookie.match(/(?:^|;\s*)hyunYmd=([^;]*)/);
-                if (matchHyun && matchHyun[1]) return decodeURIComponent(matchHyun[1]);
-                return "";
-            }
+            // getCookieWorkDate 및 getCookieCorpGr은 common.js 전역 함수 사용
 
-            function getCookieCorpGr() {
-                const matchCorp = document.cookie.match(/(?:^|;\s*)savedCorpGr=([^;]*)/) || document.cookie.match(/(?:^|;\s*)corpGr=([^;]*)/);
-                return matchCorp ? decodeURIComponent(matchCorp[1]) : "";
-            }
 
             // Sync Detail with Triple Fallback (Rule 8)
             function syncDetail(row, masterRowData) {
@@ -344,10 +328,14 @@
                     AamsSplitter.init(pane);
                 }
 
-                // Window resize responsive sync (모바일/데스크톱 전환 시 그리드 재계산)
+                // Window resize responsive sync (디바운스 적용 및 부드러운 redraw)
+                var ja991aResizeTimer = null;
                 window.addEventListener('resize', function() {
-                    if (gridMaster) gridMaster.redraw(true);
-                    if (gridDetail) gridDetail.redraw(true);
+                    clearTimeout(ja991aResizeTimer);
+                    ja991aResizeTimer = setTimeout(function() {
+                        if (gridMaster) gridMaster.redraw();
+                        if (gridDetail) gridDetail.redraw();
+                    }, 120);
                 });
 
                 setTimeout(initGrids, 60);

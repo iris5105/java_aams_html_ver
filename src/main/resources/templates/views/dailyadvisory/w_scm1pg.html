@@ -89,12 +89,7 @@
             let dddwOptionsMap = {};
 
 
-            function getFilterYmd() {
-                const input = pane ? pane.querySelector("#filterYmd") : document.getElementById("filterYmd");
-                if (!input) return "";
-                let val = input.value || "";
-                return val.replace(/\./g, '-');
-            }
+            // 조회일자는 common.js의 전역 헬퍼 함수(getFilterYmd) 사용
 
             // DDDW Retrieval (Rule 7: f_dddwctl (THIS, 'pg_cd', '', '', 1, ''))
             function retrieveDddw() {
@@ -417,7 +412,7 @@
 
             function loadMaster() {
                 const corpGr = resolveCorpGr(pane);
-                const ymd = getFilterYmd();
+                const ymd = getFilterYmd(pane);
                 if (!corpGr) {
                     if (typeof showToast === "function") showToast("소속그룹을 선택해 주세요.", "warning");
                     return;
@@ -469,7 +464,7 @@
                 if (!gridDetail) return;
 
                 const corpGr = resolveCorpGr(pane);
-                const ymd = getFilterYmd();
+                const ymd = getFilterYmd(pane);
                 const newRow = {
                     fseq: gridDetail.getData().length + 1,
                     corpGr: corpGr,

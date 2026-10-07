@@ -83,7 +83,7 @@ public class Sjt1tgController {
     @ResponseBody
     public ResponseEntity<List<Sjt1tgDto>> generateNewFutures(
             @RequestParam(name = "corpGr") String corpGr,
-            @RequestParam(name = "ymd") @org.springframework.format.annotation.DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate ymd) {
+            @RequestParam(name = "ymd") @org.springframework.format.annotation.DateTimeFormat(pattern = "yyyy-MM-dd", fallbackPatterns = {"yyyyMMdd", "yyyy.MM.dd"}) LocalDate ymd) {
         try {
             List<Sjt1tgDto> list = sjt1tgService.generateNewFutures(corpGr, ymd);
             return ResponseEntity.ok(list);

@@ -123,34 +123,8 @@
                 if (val == null || val === "" || isNaN(val)) return "";
                 return Number(val).toLocaleString();
             }
+            // formatDateVal 및 addMonthsToYmd는 common.js의 전역 공통 함수 사용
 
-            // Date Formatter helper
-            function formatDateVal(val) {
-                if (!val) return "";
-                const clean = String(val).replace(/\D/g, "");
-                if (clean.length >= 8) {
-                    return clean.substring(0, 4) + '.' + clean.substring(4, 6) + '.' + clean.substring(6, 8);
-                }
-                return String(val);
-            }
-
-            // Add Months Helper (f_add_months in w_ja010o.srw)
-            function addMonthsToYmd(ymdStr, months) {
-                if (!ymdStr) return "";
-                const clean = String(ymdStr).replace(/\D/g, "");
-                if (clean.length < 8) return ymdStr;
-                const year = parseInt(clean.substring(0, 4), 10);
-                const month = parseInt(clean.substring(4, 6), 10) - 1;
-                const day = parseInt(clean.substring(6, 8), 10);
-
-                const dt = new Date(year, month, day);
-                dt.setMonth(dt.getMonth() + months);
-
-                const y = dt.getFullYear();
-                const m = String(dt.getMonth() + 1).padStart(2, '0');
-                const d = String(dt.getDate()).padStart(2, '0');
-                return `${y}.${m}.${d}`;
-            }
 
             // Exception Rule 1 & Rule 5: Tabsequence-based in-line edit check
             function isCellEditable(cell) {
@@ -552,11 +526,10 @@
 
             // 3. Load Data Function
             function loadJa010oData(force) {
-                const corpGr = resolveCorpGr();
-                const ymdInput = pane ? pane.querySelector("#filterYmd") : document.getElementById("filterYmd");
+                const corpGr = resolveCorpGr(pane);
                 const fundSelect = pane ? pane.querySelector("#filterXx") : document.getElementById("filterXx");
 
-                const ymd = ymdInput ? ymdInput.value.replace(/\D/g, "") : "";
+                const ymd = getFilterYmd(pane, 'YYYYMMDD');
                 const fundCd = fundSelect ? fundSelect.value.trim() : "";
 
                 if (!corpGr) {
@@ -643,11 +616,10 @@
                     return;
                 }
 
-                const corpGr = resolveCorpGr();
-                const ymdInput = pane ? pane.querySelector("#filterYmd") : document.getElementById("filterYmd");
+                const corpGr = resolveCorpGr(pane);
                 const fundSelect = pane ? pane.querySelector("#filterXx") : document.getElementById("filterXx");
 
-                const ymd = ymdInput ? ymdInput.value.replace(/\D/g, "") : "";
+                const ymd = getFilterYmd(pane, 'YYYYMMDD');
                 const fundCd = fundSelect ? fundSelect.value.trim() : "";
 
                 const payload = {
@@ -707,8 +679,7 @@
                             const sheet = workbook.Sheets[firstSheetName];
                             const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
 
-                            const ymdInput = pane ? pane.querySelector("#filterYmd") : document.getElementById("filterYmd");
-                            const currentYmd = ymdInput ? formatDateVal(ymdInput.value) : "";
+                            const currentYmd = getFilterYmd(pane, 'YYYY.MM.DD');
 
                             let matchCount = 0;
                             const gridRows = gridJa010o.getRows();
@@ -781,22 +752,15 @@
             function exportJa010oExcel() {
                 if (!gridJa010o) return;
                 const fundSelect = pane ? pane.querySelector("#filterXx") : document.getElementById("filterXx");
-                const ymdInput = pane ? pane.querySelector("#filterYmd") : document.getElementById("filterYmd");
-
                 const fundCd = fundSelect ? fundSelect.value.trim() : "펀드";
-                const ymd = ymdInput ? ymdInput.value.replace(/\D/g, "") : "";
+                const ymd = getFilterYmd(pane, 'YYYYMMDD');
 
                 gridJa010o.download("xlsx", `주식신용대출잔고_${fundCd}_${ymd}.xlsx`, { sheetName: "신용대출잔고" });
             }
 
-            // 7. Initialize Pure JS Calendar (Rule 16: 순정 상태의 달력)
+            // 7. Initialize Pure JS Calendar (common.js initFilterCalendar 공통 연동)
             function initCalendar() {
-                if (typeof window.AamsCalendar === "object" && typeof window.AamsCalendar.initSimple === "function") {
-                    window.AamsCalendar.initSimple("filterYmd", {
-                        initialYmd: /*[[${ymd}]]*/ '',
-                        pane: pane
-                    });
-                }
+                initFilterCalendar(pane, /*[[${ymd}]]*/ '');
             }
 
             // 8. Connect Toolbar Actions (Rule 9 standard contract functions)

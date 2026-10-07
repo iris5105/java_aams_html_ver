@@ -38,20 +38,9 @@
             let gridJa010d = null;
             let cudManager = null;
 
-            const rawInitialData = /*[[${dataList}]]*/ [];
-
-            function numFmt(val) {
-                if (val == null || val === "") return "0";
-                return Number(val).toLocaleString('ko-KR');
-            }
-
-            function formatDateVal(val) {
-                if (!val) return "";
-                if (val.length === 8) {
-                    return val.substring(0, 4) + '-' + val.substring(4, 6) + '-' + val.substring(6, 8);
-                }
-                return val;
-            }
+            const initialData = /*[[${dataList}]]*/ [];
+            const rawInitialData = initialData;
+            // numFmt 및 formatDateVal은 common.js의 전역 공통 함수 사용
 
             function initJa010dGrid() {
                 const container = pane ? pane.querySelector("#master-grid") : document.getElementById("master-grid");

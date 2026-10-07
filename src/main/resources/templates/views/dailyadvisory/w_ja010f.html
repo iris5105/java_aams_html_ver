@@ -345,10 +345,7 @@
             // 3. Load Data Function
             window.loadJa010fData = function() {
                 const corpGr = resolveCorpGr(pane);
-                const filterYmdInput = pane ? (pane.querySelector("#filterJa010fYmd") || pane.querySelector("#filterYmd")) : (document.getElementById("filterJa010fYmd") || document.getElementById("filterYmd"));
-                const filterDddwSelect = pane ? pane.querySelector("#filterDddw") : document.getElementById("filterDddw");
-
-                const ymd = filterYmdInput ? filterYmdInput.value : "";
+                const ymd = getFilterYmd(pane);
                 const trCoCd = filterDddwSelect ? filterDddwSelect.value : "%";
 
                 if (!corpGr || !ymd) {
@@ -389,8 +386,7 @@
 
             // 4. Add New Row Function (Rule 5 & Exception 1)
             function addNewRow() {
-                const filterYmdInput = pane ? (pane.querySelector("#filterJa010fYmd") || pane.querySelector("#filterYmd")) : (document.getElementById("filterJa010fYmd") || document.getElementById("filterYmd"));
-                const ymd = filterYmdInput ? filterYmdInput.value : "";
+                const ymd = getFilterYmd(pane);
                 const filterDddwSelect = pane ? pane.querySelector("#filterDddw") : document.getElementById("filterDddw");
                 const trCoCd = (filterDddwSelect && filterDddwSelect.value !== "%") ? filterDddwSelect.value : "";
 
@@ -456,8 +452,7 @@
                         showToast("회사그룹을 선택해주세요.", "warning");
                         return;
                     }
-                    const filterYmdInput = pane ? (pane.querySelector("#filterJa010fYmd") || pane.querySelector("#filterYmd")) : (document.getElementById("filterJa010fYmd") || document.getElementById("filterYmd"));
-                    const ymd = filterYmdInput ? filterYmdInput.value : "";
+                    const ymd = getFilterYmd(pane);
 
                     let targetItems = [];
                     let deletedItems = [];

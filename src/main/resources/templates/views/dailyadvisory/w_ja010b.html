@@ -176,20 +176,7 @@
             function getDddwOptions(dddwKey) {
                 return f_dddwctl.getOptions(dddwOptionsMap, dddwKey);
             }
-
-            function numFmt(val) {
-                if (val == null || val === "") return "0";
-                return Number(val).toLocaleString('ko-KR');
-            }
-
-            function formatDateVal(val) {
-                if (!val) return "";
-                const clean = String(val).replace(/\D/g, "");
-                if (clean.length === 8) {
-                    return clean.substring(0, 4) + '.' + clean.substring(4, 6) + '.' + clean.substring(6, 8);
-                }
-                return String(val).replace(/-/g, ".");
-            }
+            // numFmt 및 formatDateVal은 common.js의 전역 공통 함수 사용
 
             // 1. Initialize Master Tabulator Grid
             function initMasterGrid() {
@@ -700,11 +687,15 @@
                     .catch(err => console.error("Error loading master ja010b:", err));
             };
 
-            // Window resize responsive redraw
+            // Window resize responsive redraw (디바운스 적용 및 부드러운 redraw)
+            var ja010bResizeTimer = null;
             window.addEventListener("resize", function() {
-                if (gridMaster) gridMaster.redraw(true);
-                if (gridDetail) gridDetail.redraw(true);
-                if (gridIo) gridIo.redraw(true);
+                clearTimeout(ja010bResizeTimer);
+                ja010bResizeTimer = setTimeout(function() {
+                    if (gridMaster) gridMaster.redraw();
+                    if (gridDetail) gridDetail.redraw();
+                    if (gridIo) gridIo.redraw();
+                }, 120);
             });
 
             let lastLoadedMasterKey = null;

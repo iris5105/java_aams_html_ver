@@ -32,20 +32,7 @@
             var isInitialized = false;
             var reportViewer = null;
 
-            function getFilterCorpGr() {
-                if (typeof resolveCorpGr === 'function') {
-                    return resolveCorpGr(pane);
-                }
-                var el = pane.querySelector('#corpGrSelect') || document.querySelector('#corpGrSelect');
-                if (el && el.value) return el.value;
-                return serverCorpGr || '';
-            }
-
-            function getFilterYmd() {
-                var el = pane.querySelector('#filterYmd') || pane.querySelector('input[name="ymd"]');
-                if (el && el.value) return el.value.replace(/-/g, '').replace(/\./g, '');
-                return (initialYmd || '').replace(/-/g, '').replace(/\./g, '');
-            }
+            // 회사그룹 및 조회일자는 common.js의 전역 헬퍼 함수(resolveCorpGr, getFilterYmd) 사용
 
             function getFilterSeriesGb() {
                 var el = pane.querySelector('#filterDddw') || pane.querySelector('select[name="dddw"]');
@@ -68,78 +55,21 @@
                 return map[val] || "고위험고수익";
             }
 
-            // 달력 컴포넌트 초기화 (AamsCalendar 표준 규격 연동)
+            // 달력 컴포넌트 초기화 (common.js initFilterCalendar 공통 연동)
             function initCalendar() {
-                var filterYmdInput = pane.querySelector('#filterYmd');
-                if (!filterYmdInput) return;
-
-                if (initialYmd && !filterYmdInput.value) {
-                    filterYmdInput.value = initialYmd;
-                }
-
-                if (typeof AamsCalendar !== 'undefined' && typeof AamsCalendar.initSimple === 'function') {
-                    AamsCalendar.initSimple('filterYmd', {
-                        pane: pane,
-                        initialYmd: filterYmdInput.value || initialYmd
-                    });
-                }
+                initFilterCalendar(pane, initialYmd);
             }
 
-            // DDDW 초기화: f_dddwctl 2칸(코드, 코드명) 분할 표출 및 선택 시 코드명만 표출 규격 적용 (규칙 7)
+            // DDDW 초기화: f_dddwctl 2칸(코드, 코드명) 분할 표출 및 선택 시 코드명만 표출 규격 적용 (common.js initFilterDddw 공통 연동)
             function initDddw() {
-                var dddwSelect = pane.querySelector('#filterDddw') || pane.querySelector('select[name="dddw"]');
-                if (!dddwSelect) return;
-                var corpGr = getFilterCorpGr();
-
-                function apply2ColWidget(options) {
-                    dddwSelect.innerHTML = '';
-                    options.forEach(function (opt) {
-                        var code = (opt.code != null ? opt.code : (opt.cd != null ? opt.cd : '')).toString().trim();
-                        var name = (opt.name != null ? opt.name : (opt.nm != null ? opt.nm : (opt.dscr != null ? opt.dscr : code))).toString().trim();
-                        var optEl = document.createElement('option');
-                        optEl.value = code;
-                        optEl.textContent = name;
-                        dddwSelect.appendChild(optEl);
-                    });
-
-                    // 초기 선택값 (기본값: 1110)
-                    var targetVal = dddwSelect.value || "1110";
-                    var match = options.find(function(o) {
-                        var c = (o.code != null ? o.code : o.cd || '').toString().trim();
-                        return c === targetVal;
-                    });
-                    if (!match && options.length > 0) {
-                        targetVal = (options[0].code != null ? options[0].code : options[0].cd || '').toString().trim();
-                    }
-                    dddwSelect.value = targetVal;
-
-                    // 2칸(앞: 코드, 뒤: 코드명) 분할 드롭다운 컴포넌트 생성 및 선택 시 코드명만 버튼에 표출 (규칙 7)
-                    if (window.f_dddwctl && typeof window.f_dddwctl.get2ColItemFormatter === 'function') {
-                        window.f_dddwctl.get2ColItemFormatter(dddwSelect, options, {
-                            codeTitle: "코드",
-                            nameTitle: "자료구분",
-                            defaultVal: targetVal,
-                            onSelect: function (code, name) {
-                                dddwSelect.value = code;
-                            }
-                        });
-                    }
-                }
-
-                if (typeof window.f_dddwctl === 'function') {
-                    window.f_dddwctl('dddw', corpGr, '', 3, '').then(function (options) {
-                        if (options && options.length > 0) {
-                            apply2ColWidget(options);
-                        } else {
-                            apply2ColWidget(getDefaultOptions());
-                        }
-                    }).catch(function (e) {
-                        console.warn('[w_ja020k] f_dddwctl load error, using default options:', e);
-                        apply2ColWidget(getDefaultOptions());
-                    });
-                } else {
-                    apply2ColWidget(getDefaultOptions());
-                }
+                initFilterDddw(pane, {
+                    dddwId: 'dddw',
+                    corpGr: resolveCorpGr(pane),
+                    seq: 3,
+                    nameTitle: '자료구분',
+                    defaultVal: '1110',
+                    defaultOptions: getDefaultOptions()
+                });
             }
 
             function getDefaultOptions() {
@@ -152,7 +82,7 @@
 
             function loadReport() {
                 if (!reportViewer || typeof reportViewer.load !== 'function') return;
-                var ymd = getFilterYmd();
+                var ymd = getFilterYmd(pane, 'YYYYMMDD');
                 var seriesGb = getFilterSeriesGb();
                 var seriesNm = getFilterSeriesNm();
 
@@ -165,10 +95,7 @@
                     return;
                 }
 
-                var displayYmd = ymd;
-                if (ymd.length === 8) {
-                    displayYmd = ymd.substring(0, 4) + '-' + ymd.substring(4, 6) + '-' + ymd.substring(6, 8);
-                }
+                var displayYmd = getFilterYmd(pane);
 
                 reportViewer.load({ ymd: ymd, seriesGb: seriesGb }, "조회일자: " + displayYmd + " (" + seriesNm + ")");
             }
@@ -190,18 +117,18 @@
                         return (seriesGb === '1110') ? 'rd_ja020k1.mrd' : ((seriesGb === '1120') ? 'rd_ja020k2.mrd' : 'rd_ja020k3.mrd');
                     },
                     getParams: function(data) {
-                        var ymd = getFilterYmd();
+                        var ymd = getFilterYmd(pane, 'YYYYMMDD');
                         var seriesGb = getFilterSeriesGb();
-                        var ymdDot = (ymd && ymd.length === 8) ? (ymd.substring(0, 4) + '.' + ymd.substring(4, 6) + '.' + ymd.substring(6, 8)) : (ymd || '');
+                        var ymdDot = getFilterYmd(pane, 'YYYY.MM.DD');
                         return {
-                            corpGr: getFilterCorpGr(),
+                            corpGr: resolveCorpGr(pane),
                             series_gb: seriesGb,
                             gubun: (seriesGb === '1110') ? '2' : ((seriesGb === '1120') ? '1' : ''),
                             ymd: ymdDot
                         };
                     },
                     beforeAction: function(data, action) {
-                        var ymd = getFilterYmd();
+                        var ymd = getFilterYmd(pane);
                         if (!ymd) {
                             if (typeof showToast === "function") showToast("기준일자를 선택해 주세요.", "warning");
                             return false;
@@ -223,7 +150,7 @@
                     }
                 };
                 pane.onCorpGrChange = function () {
-                    var corpGr = getFilterCorpGr();
+                    var corpGr = resolveCorpGr(pane);
                     if (!corpGr) return;
 
                     // 회사 변경 시 해당 회사의 기준일자를 API로 조회하여 달력 input 갱신 (규칙 4)
@@ -231,16 +158,7 @@
                         .then(function (res) { return res.json(); })
                         .then(function (data) {
                             if (data && data.workDate) {
-                                var filterYmdInput = pane.querySelector('#filterYmd');
-                                if (filterYmdInput) {
-                                    filterYmdInput.value = data.workDate;
-                                    if (typeof AamsCalendar !== 'undefined' && typeof AamsCalendar.initSimple === 'function') {
-                                        AamsCalendar.initSimple('filterYmd', {
-                                            pane: pane,
-                                            initialYmd: data.workDate
-                                        });
-                                    }
-                                }
+                                initFilterCalendar(pane, data.workDate);
                             }
                             initDddw();
                         })
@@ -250,16 +168,7 @@
                         });
                 };
                 pane.onRefresh = function () {
-                    var filterYmdInput = pane.querySelector('#filterYmd');
-                    if (filterYmdInput) {
-                        filterYmdInput.value = initialYmd;
-                        if (typeof AamsCalendar !== 'undefined' && typeof AamsCalendar.initSimple === 'function') {
-                            AamsCalendar.initSimple('filterYmd', {
-                                pane: pane,
-                                initialYmd: initialYmd
-                            });
-                        }
-                    }
+                    initFilterCalendar(pane, initialYmd);
                     var dddwSelect = pane.querySelector('#filterDddw') || pane.querySelector('select[name="dddw"]');
                     if (dddwSelect) {
                         dddwSelect.value = "1110";

@@ -90,7 +90,7 @@ public class Ja010eController {
     @GetMapping("/api/daily/ja010e/list")
     @ResponseBody
     public List<Ja010eDto> getList(@RequestParam(name = "corpGr", required = false) String corpGr,
-                                   @RequestParam(name = "ymd", required = false) @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate ymd,
+                                   @RequestParam(name = "ymd", required = false) @DateTimeFormat(pattern = "yyyy-MM-dd", fallbackPatterns = {"yyyyMMdd", "yyyy.MM.dd"}) LocalDate ymd,
                                    @RequestParam(name = "trCoCd", required = false) String trCoCd) {
         if (corpGr == null || corpGr.isBlank() || ymd == null) {
             return Collections.emptyList();

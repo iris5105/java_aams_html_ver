@@ -125,18 +125,27 @@ trigger: always_on
 
 1. **회사그룹(corpGr) 추출 함수 개별 작성 금지:**
    - 화면마다 `function resolveCorpGr()`이나 `function getFilterCorpGr()`을 중복 정의하지 않는다.
-   - [common.js](file:///d:/work/java_aams_html_ver/src/main/resources/static/js/common.js)의 전역 헬퍼 함수 `resolveCorpGr(pane)`을 무조건 호출한다:
+   - [common.js](file:///d:/work/java_aams_html_ver/src/main/resources/static/js/common.js)의 전역 헬퍼 함수 `resolveCorpGr(pane)` 또는 `getFilterCorpGr(pane)`을 호출한다:
      ```javascript
-     var corpGr = resolveCorpGr(pane);
+     var corpGr = resolveCorpGr(pane); // 또는 getFilterCorpGr(pane)
      ```
 
-2. **인라인 편집 셀 선행 선택 핸들러:**
+2. **조회일자(filterYmd) 추출 함수 개별 작성 금지:**
+   - 화면마다 `function getFilterYmd()`를 중복 정의하지 않는다.
+   - [common.js](file:///d:/work/java_aams_html_ver/src/main/resources/static/js/common.js)의 전역 헬퍼 함수 `getFilterYmd(pane, format)` 또는 `resolveFilterYmd(pane, format)`를 무조건 호출한다:
+     ```javascript
+     var ymd = getFilterYmd(pane);                 // "2026-10-06" (기본: YYYY-MM-DD)
+     var ymdRaw = getFilterYmd(pane, 'YYYYMMDD');  // "20261006"   (8자리 순수 숫자)
+     var ymdDot = getFilterYmd(pane, 'YYYY.MM.DD');// "2026.10.06" (점 구분자)
+     ```
+
+3. **인라인 편집 셀 선행 선택 핸들러:**
    - 편집 가능 셀 클릭 시 행 선택을 보장하기 위한 핸들러를 화면마다 만들지 않고, `common.js`의 `aamsCellEdit` 전역 함수를 컬럼 설정에 지정한다:
      ```javascript
      { title: "비고", field: "remark", editor: "input", cellClick: aamsCellEdit }
      ```
 
-3. **MRD 리포트 URL 빌더 (`AamsReport`):**
+4. **MRD 리포트 URL 빌더 (`AamsReport`):**
    - 리포트 미리보기/내보내기 URL을 하드코딩하거나 문자열을 직접 조합하지 않고 `common.js`의 `AamsReport` 유틸리티를 표준으로 사용한다:
      ```javascript
      // 미리보기 (120% 줌 및 타임스탬프 자동 부착)
@@ -148,7 +157,7 @@ trigger: always_on
      window.location.href = exportUrl;
      ```
 
-4. **MRD 일체형 리포트 제어 엔진 (`AamsReport.bindViewer`):**
+5. **MRD 일체형 리포트 제어 엔진 (`AamsReport.bindViewer`):**
    - 개별 화면 스크립트에서 5종 내보내기 버튼(PDF, Excel, Word, PPT, HWP) 클릭 이벤트, 새 창 열기, 모바일 모달 팝업 열기/닫기, iframe 로딩 스피너 제어, 윈도우 리사이징 핸들러 등을 화면마다 중복으로 작성하지 않고 `AamsReport.bindViewer(pane, config)` 1개로 일괄 바인딩한다:
      ```javascript
      // 일체형 리포트 뷰어 바인딩 (5종 다운로드, 새창, 모바일 모달, 로딩 제어 일체화)
@@ -162,18 +171,18 @@ trigger: always_on
                  return {
                      fund_cd: data.fundCd || '',
                      fund_nm: data.fundNm || '',
-                     ymd: getFilterYmd().replace(/-/g, '.')
+                     ymd: getFilterYmd(currentPane, 'YYYY.MM.DD')
                  };
              },
              getTitle: function (data) {
                  return (data.fundNm || '') + ' (' + (data.fundCd || '') + ') 리포트명';
              },
              getStatus: function (data, params) {
-                 return "조회일자: " + getFilterYmd();
+                 return "조회일자: " + getFilterYmd(currentPane);
              },
              getDownloadName: function (data, params) {
                  var safeNm = (data.fundNm || '').trim().replace(/[\\/:*?"<>|]/g, "_") || "리포트";
-                 return (getFilterYmd() || '') + "_" + safeNm + "(" + (data.fundCd || '') + ")";
+                 return (getFilterYmd(currentPane) || '') + "_" + safeNm + "(" + (data.fundCd || '') + ")";
              },
              onBeforePreview: function (data) {
                  // 선택: 특정 회사(2402 등) 사전 원장생성 체크 필요 시 비동기 검증 호출
@@ -196,7 +205,7 @@ trigger: always_on
      };
      ```
 
-5. **공통 UI 팝업 및 알림 (`showToast`, `showAlert`, `setupModalBackdrop`):**
+6. **공통 UI 팝업 및 알림 (`showToast`, `showAlert`, `setupModalBackdrop`):**
    - 단순 알림이나 토스트 표출 시 브라우저 내장 `alert` 대신 `showToast(message, type, duration)` 또는 `showAlert(message, callback)` 공통 함수를 사용한다.
      ```javascript
      // 1) 비동기 토스트 알림 (type: 'info' | 'success' | 'warning' | 'error', duration 기본 3000ms)
@@ -214,7 +223,7 @@ trigger: always_on
      });
      ```
 
-6. **전역 숫자/통화 및 백분율 포맷터 (`formatNumber`, `formatPercent`):**
+7. **전역 숫자/통화 및 백분율 포맷터 (`formatNumber`, `formatPercent`):**
    - 그리드 포매터나 상세 패널 바인딩 시 금액, 수량, 수익률 등을 포맷팅할 때 전역 헬퍼를 사용한다:
      ```javascript
      formatNumber(1234567.89, 2); // "1,234,567.89"

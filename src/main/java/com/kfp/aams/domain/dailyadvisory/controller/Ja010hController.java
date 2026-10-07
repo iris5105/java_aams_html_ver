@@ -41,7 +41,7 @@ public class Ja010hController {
     @GetMapping({"/views/w_ja010h", "/views/dailyadvisory/w_ja010h"})
     public String viewJa010h(@AuthenticationPrincipal Object principalObj,
                              @RequestParam(name = "corpGr", required = false) String paramCorpGr,
-                             @RequestParam(name = "ymd", required = false) @org.springframework.format.annotation.DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate paramYmd,
+                             @RequestParam(name = "ymd", required = false) String paramYmdStr,
                              @CookieValue(name = "savedCorpGr", required = false) String cookieCorpGr1,
                              @CookieValue(name = "corpGr", required = false) String cookieCorpGr2,
                              Model model,
@@ -56,6 +56,7 @@ public class Ja010hController {
         }
         String fullpgm2 = (menuDto != null) ? menuDto.getFullpgm2() : "사무관리 > 자문일일 > 자산명세표";
         List<LocalDate> trDates = (corpGr != null && !corpGr.isBlank()) ? ja010hService.getDates(corpGr) : Collections.emptyList();
+        LocalDate paramYmd = parseLocalDate(paramYmdStr);
         LocalDate ymd = (paramYmd != null) ? paramYmd
                 : (!trDates.isEmpty() ? trDates.get(0) : LocalDate.now());
 
@@ -74,14 +75,15 @@ public class Ja010hController {
     @ResponseBody
     public List<Ja010hMasterDto> getList(@AuthenticationPrincipal Object principalObj,
                                          @RequestParam(name = "corpGr", required = false) String paramCorpGr,
-                                         @RequestParam("ymd") @org.springframework.format.annotation.DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate ymd,
+                                         @RequestParam("ymd") String ymdStr,
                                          @CookieValue(name = "savedCorpGr", required = false) String cookieCorpGr1,
                                          @CookieValue(name = "corpGr", required = false) String cookieCorpGr2) {
         UserPrincipal principal = (principalObj instanceof UserPrincipal p) ? p : null;
         String cookieCorpGr = (cookieCorpGr1 != null && !cookieCorpGr1.isBlank()) ? cookieCorpGr1 : cookieCorpGr2;
         String corpGr = resolveCorpGr(paramCorpGr, cookieCorpGr, principal);
+        LocalDate ymd = parseLocalDate(ymdStr);
 
-        return ja010hService.getFundList(corpGr, ymd);
+        return ja010hService.getFundList(corpGr, ymd != null ? ymd : LocalDate.now());
     }
 
     /**
@@ -106,16 +108,17 @@ public class Ja010hController {
     @GetMapping("/api/daily/ja010h/preview")
     public ResponseEntity<byte[]> previewReport(@AuthenticationPrincipal Object principalObj,
                                                 @RequestParam(name = "corpGr", required = false) String paramCorpGr,
-                                                @RequestParam("ymd") @org.springframework.format.annotation.DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate ymd,
+                                                @RequestParam("ymd") String ymdStr,
                                                 @RequestParam("fundCd") String fundCd,
                                                 @CookieValue(name = "savedCorpGr", required = false) String cookieCorpGr1,
                                                 @CookieValue(name = "corpGr", required = false) String cookieCorpGr2) {
         UserPrincipal principal = (principalObj instanceof UserPrincipal p) ? p : null;
         String cookieCorpGr = (cookieCorpGr1 != null && !cookieCorpGr1.isBlank()) ? cookieCorpGr1 : cookieCorpGr2;
         String corpGr = resolveCorpGr(paramCorpGr, cookieCorpGr, principal);
+        LocalDate ymd = parseLocalDate(ymdStr);
 
         try {
-            RdReportService.ExportResult res = ja010hService.previewReport(corpGr, ymd, fundCd);
+            RdReportService.ExportResult res = ja010hService.previewReport(corpGr, ymd != null ? ymd : LocalDate.now(), fundCd);
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_PDF);
             headers.setContentDisposition(ContentDisposition.inline()
@@ -136,7 +139,7 @@ public class Ja010hController {
     @GetMapping("/api/daily/ja010h/export")
     public ResponseEntity<byte[]> exportReport(@AuthenticationPrincipal Object principalObj,
                                                 @RequestParam(name = "corpGr", required = false) String paramCorpGr,
-                                                @RequestParam("ymd") @org.springframework.format.annotation.DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate ymd,
+                                                @RequestParam("ymd") String ymdStr,
                                                 @RequestParam("fundCd") String fundCd,
                                                 @RequestParam(name = "format", defaultValue = "pdf") String format,
                                                 @CookieValue(name = "savedCorpGr", required = false) String cookieCorpGr1,
@@ -144,9 +147,10 @@ public class Ja010hController {
         UserPrincipal principal = (principalObj instanceof UserPrincipal p) ? p : null;
         String cookieCorpGr = (cookieCorpGr1 != null && !cookieCorpGr1.isBlank()) ? cookieCorpGr1 : cookieCorpGr2;
         String corpGr = resolveCorpGr(paramCorpGr, cookieCorpGr, principal);
+        LocalDate ymd = parseLocalDate(ymdStr);
 
         try {
-            RdReportService.ExportResult res = ja010hService.exportReport(corpGr, ymd, fundCd, format);
+            RdReportService.ExportResult res = ja010hService.exportReport(corpGr, ymd != null ? ymd : LocalDate.now(), fundCd, format);
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.parseMediaType(res.getContentType()));
             headers.setContentDisposition(ContentDisposition.attachment()
@@ -159,6 +163,21 @@ public class Ja010hController {
             log.error("리포트 다운로드 생성 실패 (format={}): {}", format, e.getMessage(), e);
             return ResponseEntity.internalServerError().build();
         }
+    }
+
+    private LocalDate parseLocalDate(String ymdStr) {
+        if (ymdStr == null || ymdStr.isBlank()) return null;
+        String clean = ymdStr.trim().replace(".", "-").replace("/", "-");
+        try {
+            if (clean.length() >= 10) {
+                return LocalDate.parse(clean.substring(0, 10));
+            } else if (clean.replace("-", "").length() == 8) {
+                return LocalDate.parse(clean.replace("-", ""), DateTimeFormatter.ofPattern("yyyyMMdd"));
+            }
+        } catch (Exception e) {
+            log.warn("[Ja010hController] 날짜 파싱 실패: {}", ymdStr);
+        }
+        return null;
     }
 
     private String resolveCorpGr(String paramCorpGr, String cookieCorpGr, UserPrincipal principal) {

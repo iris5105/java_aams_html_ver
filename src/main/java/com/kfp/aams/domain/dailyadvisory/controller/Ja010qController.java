@@ -83,7 +83,7 @@ public class Ja010qController {
     @ResponseBody
     public ResponseEntity<List<Ja010qDto>> getFunds(
             @RequestParam("corpGr") String corpGr,
-            @RequestParam("ymd") @org.springframework.format.annotation.DateTimeFormat(pattern = "yyyy-MM-dd") java.time.LocalDate ymd) {
+            @RequestParam("ymd") @org.springframework.format.annotation.DateTimeFormat(pattern = "yyyy-MM-dd", fallbackPatterns = {"yyyyMMdd", "yyyy.MM.dd"}) java.time.LocalDate ymd) {
         List<Ja010qDto> list = ja010qService.selectJa010qList(corpGr, ymd);
         return ResponseEntity.ok(list);
     }

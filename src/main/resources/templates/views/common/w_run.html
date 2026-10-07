@@ -70,24 +70,9 @@
             var isInitialized = false;
             var isRunning = false;
 
-            function getFilterCorpGr() {
-                var el = pane.querySelector('#filterDddw') || pane.querySelector('#corpGrSelect') || document.querySelector('#corpGrSelect');
-                if (el && el.value) return el.value;
-                if (typeof g_corp_gr !== 'undefined' && g_corp_gr) return g_corp_gr;
-                return '';
-            }
+            // 작업회사(corpGr)는 common.js의 전역 헬퍼 함수(resolveCorpGr / getFilterCorpGr) 사용
 
-            function getFilterFymd() {
-                var el = pane.querySelector('#filterFYmd');
-                if (el && el.value) return el.value.replace(/[^0-9]/g, '');
-                return (new Date()).toISOString().slice(0, 10).replace(/-/g, '');
-            }
-
-            function getFilterTymd() {
-                var el = pane.querySelector('#filterTYmd');
-                if (el && el.value) return el.value.replace(/[^0-9]/g, '');
-                return (new Date()).toISOString().slice(0, 10).replace(/-/g, '');
-            }
+            // 기간 일자는 common.js의 전역 헬퍼 함수(getFilterFymd / getFilterTymd) 사용
 
             function initDefaultDates() {
                 var fEl = pane.querySelector('#filterFYmd');
@@ -252,9 +237,9 @@
             async function executeRun() {
                 if (isRunning) return;
 
-                var corpGr = getFilterCorpGr();
-                var fymdStr = getFilterFymd();
-                var tymdStr = getFilterTymd();
+                var corpGr = resolveCorpGr(pane);
+                var fymdStr = getFilterFymd(pane, 'YYYYMMDD');
+                var tymdStr = getFilterTymd(pane, 'YYYYMMDD');
 
                 if (!corpGr) {
                     if (typeof showToast === "function") showToast("작업회사를 선택해주세요.", "warning");

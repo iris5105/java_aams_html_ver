@@ -546,32 +546,9 @@
                 return Math.round(Number(val)).toLocaleString();
             }
 
+            // dateFormatter, formatDateDot, formatDateHyphen은 common.js 전역 함수 사용
             function dateFormatter(cell) {
-                const val = cell.getValue();
-                if (!val) return "";
-                const clean = String(val).replace(/[-.\s]/g, "");
-                if (clean.length === 8) {
-                    return clean.substring(0, 4) + "." + clean.substring(4, 6) + "." + clean.substring(6, 8);
-                }
-                return String(val).replace(/-/g, ".");
-            }
-
-            function formatDateDot(val) {
-                if (!val) return "";
-                const clean = String(val).replace(/[-.\s]/g, "");
-                if (clean.length === 8) {
-                    return clean.substring(0, 4) + "." + clean.substring(4, 6) + "." + clean.substring(6, 8);
-                }
-                return String(val).replace(/-/g, ".");
-            }
-
-            function formatDateHyphen(val) {
-                if (!val) return "";
-                const clean = String(val).replace(/[-.\s]/g, "");
-                if (clean.length === 8) {
-                    return clean.substring(0, 4) + "-" + clean.substring(4, 6) + "-" + clean.substring(6, 8);
-                }
-                return String(val).replace(/\./g, "-");
+                return formatDateDot(cell.getValue());
             }
 
             // Populate form select dropdowns
@@ -1627,13 +1604,17 @@
                     });
                 }
 
-                // Window resize responsive sync
+                // Window resize responsive sync (디바운스 적용 및 부드러운 redraw)
+                var ja990dResizeTimer = null;
                 window.addEventListener("resize", function() {
-                    if (gridStock) gridStock.redraw(true);
-                    if (gridRight) gridRight.redraw(true);
-                    if (!isMobileView()) {
-                        closeStockModal();
-                    }
+                    clearTimeout(ja990dResizeTimer);
+                    ja990dResizeTimer = setTimeout(function() {
+                        if (gridStock) gridStock.redraw();
+                        if (gridRight) gridRight.redraw();
+                        if (!isMobileView()) {
+                            closeStockModal();
+                        }
+                    }, 120);
                 });
 
                 // ESC key handler for modal

@@ -72,7 +72,7 @@ public class Shm0hjController {
     @ResponseBody
     public List<Shm0hjMasterDto> getMasterList(@AuthenticationPrincipal Object principalObj,
             @RequestParam(name = "corpGr", required = false) String paramCorpGr,
-            @RequestParam(name = "ymd", required = false) @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate ymd,
+            @RequestParam(name = "ymd", required = false) @DateTimeFormat(pattern = "yyyy-MM-dd", fallbackPatterns = {"yyyyMMdd", "yyyy.MM.dd"}) LocalDate ymd,
             @RequestParam(name = "cashCd", required = false) String cashCd,
             @CookieValue(name = "savedCorpGr", required = false) String cookieCorpGr1,
             @CookieValue(name = "corpGr", required = false) String cookieCorpGr2) {
@@ -94,7 +94,7 @@ public class Shm0hjController {
     @ResponseBody
     public Map<String, Object> getNextJmCd(@AuthenticationPrincipal Object principalObj,
                                            @RequestParam(name = "corpGr", required = false) String paramCorpGr,
-                                           @RequestParam(name = "ymd", required = false) @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate ymd,
+                                           @RequestParam(name = "ymd", required = false) @DateTimeFormat(pattern = "yyyy-MM-dd", fallbackPatterns = {"yyyyMMdd", "yyyy.MM.dd"}) LocalDate ymd,
                                            @RequestParam(name = "cashCd", required = false) String cashCd,
                                            @CookieValue(name = "savedCorpGr", required = false) String cookieCorpGr1,
                                            @CookieValue(name = "corpGr", required = false) String cookieCorpGr2) {

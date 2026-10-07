@@ -77,19 +77,8 @@
 
             let brokerOptionsList = [];
 
-            // Helper to format date
-            function formatDateVal(val) {
-                if (!val) return "";
-                const clean = String(val).replace(/\D/g, "");
-                if (clean.length >= 8) {
-                    return clean.substring(0, 4) + '.' + clean.substring(4, 6) + '.' + clean.substring(6, 8);
-                }
-                const str = String(val).trim();
-                if (str.length >= 10) {
-                    return str.substring(0, 10).replace(/[-/]/g, ".");
-                }
-                return str;
-            }
+            // formatDateVal은 common.js의 전역 공통 함수 사용
+
 
             // Exception Rule 1 & Rule 7: tabsequence based editability
             function isRowEditable(cell) {
@@ -432,10 +421,9 @@
             // 3. Load Data Function
             window.loadJa010eData = function() {
                 const corpGr = resolveCorpGr(pane);
-                const filterYmdInput = pane ? pane.querySelector("#filterYmd") : document.getElementById("filterYmd");
                 const filterDddwSelect = pane ? pane.querySelector("#filterDddw") : document.getElementById("filterDddw");
 
-                const ymd = filterYmdInput ? filterYmdInput.value : "";
+                const ymd = getFilterYmd(pane);
                 const trCoCd = filterDddwSelect ? filterDddwSelect.value : "%";
 
                 if (!corpGr || !ymd) {
@@ -476,9 +464,8 @@
 
             // 4. Add New Row Function (Rule 5 & Exception 1)
             function addNewRow() {
-                const filterYmdInput = pane ? pane.querySelector("#filterYmd") : document.getElementById("filterYmd");
                 const filterDddwSelect = pane ? pane.querySelector("#filterDddw") : document.getElementById("filterDddw");
-                const ymd = filterYmdInput ? filterYmdInput.value : "";
+                const ymd = getFilterYmd(pane);
                 const trCoCd = (filterDddwSelect && filterDddwSelect.value !== "%") ? filterDddwSelect.value : "";
 
                 const selectedRows = gridJa010e ? gridJa010e.getSelectedRows() : [];
@@ -575,8 +562,7 @@
                         showToast("회사그룹을 선택해주세요.", "warning");
                         return;
                     }
-                    const filterYmdInput = pane ? pane.querySelector("#filterYmd") : document.getElementById("filterYmd");
-                    const ymd = filterYmdInput ? filterYmdInput.value : "";
+                    const ymd = getFilterYmd(pane);
 
                     let targetItems = [];
                     let deletedItems = [];

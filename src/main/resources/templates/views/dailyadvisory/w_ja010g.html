@@ -53,36 +53,7 @@
                 return yyyy + '-' + mm + '-' + dd;
             }
 
-            // 다중 폴백 회사그룹 취득 (서버 전달값 -> 전역변수 -> MDI/헤더 셀렉트박스 -> 쿠키)
-            function getFilterCorpGr() {
-                if (serverCorpGr && serverCorpGr.trim()) return serverCorpGr.trim();
-                if (window.currentCorpGr && window.currentCorpGr.trim()) return window.currentCorpGr.trim();
-                if (typeof g_corp_gr !== 'undefined' && g_corp_gr) return g_corp_gr;
-
-                var el = pane.querySelector('#filterCorpGr') || document.querySelector('#filterCorpGr')
-                      || pane.querySelector('#corpGrSelect') || document.querySelector('#corpGrSelect');
-                if (el && el.value && el.value.trim()) return el.value.trim();
-
-                if (typeof getCookie === 'function') {
-                    var c = getCookie('savedCorpGr') || getCookie('corpGr') || getCookie('AAMS_CORP_GR');
-                    if (c && c.trim()) return c.trim();
-                }
-                var matchSaved = document.cookie.match(/(?:^|;\s*)savedCorpGr=([^;]*)/);
-                if (matchSaved && matchSaved[1]) return decodeURIComponent(matchSaved[1]).trim();
-
-                var matchCorp = document.cookie.match(/(?:^|;\s*)corpGr=([^;]*)/);
-                if (matchCorp && matchCorp[1]) return decodeURIComponent(matchCorp[1]).trim();
-
-                return '';
-            }
-
-            function getFilterYmd() {
-                var el = pane.querySelector('#filterYmd') || pane.querySelector('input[name="ymd"]');
-                if (el && el.value) return el.value.replace(/[^0-9]/g, '');
-                if (currentWorkDate) return currentWorkDate;
-                if (serverYmd && serverYmd.trim()) return serverYmd.replace(/[^0-9]/g, '');
-                return getTodayYmd().replace(/[^0-9]/g, '');
-            }
+            // 회사그룹 및 조회일자는 common.js의 전역 헬퍼 함수(resolveCorpGr, getFilterYmd) 사용
 
             // 파워빌더 dw_c::ue_valid 명세 100% 반영:
             // cb_2.Enabled = (Object.ymd [1] = idt_workdate)
@@ -90,7 +61,7 @@
                 var btnConfirm = pane.querySelector('#btnConfirmDiff');
                 if (!btnConfirm) return;
 
-                var currentYmd = getFilterYmd();
+                var currentYmd = getFilterYmd(pane, 'YYYYMMDD');
                 var workYmd = (currentWorkDate || '').replace(/[^0-9]/g, '');
                 var isWorkDate = Boolean(workYmd && currentYmd === workYmd);
 
@@ -123,7 +94,7 @@
 
             // 규칙 7: f_dddwctl 초기화 (증권사 tr_co_cd)
             function initDddw() {
-                var corpGr = getFilterCorpGr();
+                var corpGr = resolveCorpGr(pane);
                 if (typeof window.f_dddwctl === 'function') {
                     window.f_dddwctl('tr_co_cd', corpGr, '', 1, '').then(function (options) {
                         dddwOptionsMap['tr_co_cd'] = options || [];
@@ -134,27 +105,18 @@
                 }
             }
 
-            // 달력 초기화: dw_c.ue_getdate 이벤트 미존재이므로 순정 AamsCalendar (initSimple) 연동
+            // 달력 초기화: common.js initFilterCalendar 공통 연동
             function initCalendar() {
                 var ymdInp = pane.querySelector('#filterYmd');
-                if (ymdInp) {
-                    if (serverYmd && serverYmd.trim()) {
-                        ymdInp.value = serverYmd;
-                    } else if (!ymdInp.value) {
-                        ymdInp.value = getTodayYmd();
+                if (ymdInp && serverYmd && serverYmd.trim()) {
+                    ymdInp.value = serverYmd;
+                }
+                initFilterCalendar(pane, {
+                    initialYmd: (ymdInp ? ymdInp.value : "") || serverYmd,
+                    onSelect: function (selectedYmd) {
+                        updateButtonState();
                     }
-                }
-
-                if (typeof AamsCalendar !== 'undefined' && typeof AamsCalendar.initSimple === 'function') {
-                    AamsCalendar.initSimple('filterYmd', {
-                        pane: pane,
-                        initialYmd: (ymdInp ? ymdInp.value : "") || serverYmd || getTodayYmd(),
-                        onSelect: function (selectedYmd) {
-                            updateButtonState();
-                        }
-                    });
-                }
-
+                });
                 if (ymdInp) {
                     ymdInp.addEventListener('change', updateButtonState);
                     ymdInp.addEventListener('input', updateButtonState);
@@ -268,8 +230,8 @@
             }
 
             function loadData() {
-                var corpGr = getFilterCorpGr();
-                var ymd = getFilterYmd();
+                var corpGr = resolveCorpGr(pane);
+                var ymd = getFilterYmd(pane);
 
                 if (!corpGr) {
                     if (typeof showToast === "function") showToast("회사그룹을 선택해주세요.", "warning");
@@ -306,8 +268,8 @@
             // Parent.TriggerEvent ('ue_wpage_Update')
             // f_messageBox ('INFO', '원장생성을 하시면 LOAD된 예수금으로 예수금을 반영합니다.')
             function confirmDiff() {
-                var corpGr = getFilterCorpGr();
-                var ymd = getFilterYmd();
+                var corpGr = resolveCorpGr(pane);
+                var ymd = getFilterYmd(pane, 'YYYYMMDD');
 
                 if (!corpGr) {
                     if (typeof showToast === "function") showToast("회사그룹을 선택해주세요.", "warning");
@@ -387,7 +349,7 @@
                 pane.onCorpGrChange = function (newCorp) {
                     if (newCorp) serverCorpGr = newCorp;
                     initDddw();
-                    var targetCorp = getFilterCorpGr();
+                    var targetCorp = resolveCorpGr(pane);
                     if (targetCorp) {
                         fetch('/api/common/workdate?corpGr=' + encodeURIComponent(targetCorp))
                             .then(function (res) { return res.json(); })
@@ -425,7 +387,7 @@
 
                 // 초기 기준 작업일자 미확보 시 서버 조회 보완
                 if (!currentWorkDate) {
-                    var targetCorp = getFilterCorpGr();
+                    var targetCorp = resolveCorpGr(pane);
                     if (targetCorp) {
                         fetch('/api/common/workdate?corpGr=' + encodeURIComponent(targetCorp))
                             .then(function (res) { return res.json(); })

@@ -61,31 +61,8 @@
             var lastLoadedMasterKey = null;
             var currentSelectedRowData = null;
 
-            function getFilterCorpGr() {
-                var container = currentPane.querySelector('.ja010q-container') || currentPane;
-                var datasetCorpGr = container ? container.getAttribute('data-corp-gr') : '';
-                if (datasetCorpGr) return datasetCorpGr.trim();
-
-                var el = currentPane.querySelector('#corpGrSelect') || document.querySelector('#corpGrSelect');
-                if (el && el.value) return el.value.trim();
-                if (typeof g_corp_gr !== 'undefined' && g_corp_gr) return String(g_corp_gr).trim();
-                return '';
-            }
-
-            function getFilterYmd() {
-                var el = currentPane.querySelector('#filterYmd') || currentPane.querySelector('input[name="ymd"]');
-                if (el && el.value) return el.value.trim();
-                return (new Date()).toISOString().slice(0, 10);
-            }
-
-            function formatDateDot(val) {
-                if (!val) return "";
-                var s = String(val).replace(/[-.]/g, '').trim();
-                if (s.length === 8) {
-                    return s.substring(0, 4) + "." + s.substring(4, 6) + "." + s.substring(6, 8);
-                }
-                return val;
-            }
+            // 회사그룹 및 조회일자는 common.js의 전역 헬퍼 함수(resolveCorpGr, getFilterYmd) 사용
+            // formatDateDot은 common.js의 전역 함수 사용
 
             function initGrid() {
                 var gridEl = currentPane.querySelector('#ja010q-grid');
@@ -187,7 +164,7 @@
                     reportFile: 'rd_ja010q.mrd',
                     modalId: 'ja010qMobileModal',
                     zoom: 120,
-                    getCorpGr: function () { return getFilterCorpGr(); },
+                    getCorpGr: function () { return resolveCorpGr(currentPane); },
                     buildParams: function (data) { return buildReportParams(data); },
                     getTitle: function (data) {
                         return (data.fundNm || '') + ' (' + (data.fundCd || '') + ') 성과보수 상세내역';
@@ -233,8 +210,8 @@
                         reportViewer.openMobile(data);
                     }
                 } else {
-                    var corpGr = getFilterCorpGr();
-                    var ymd = getFilterYmd();
+                    var corpGr = resolveCorpGr(currentPane);
+                    var ymd = getFilterYmd(currentPane);
                     var currentKey = corpGr + "_" + ymd + "_" + (data.fundCd || "");
 
                     if (lastLoadedMasterKey === currentKey) return;
@@ -250,7 +227,7 @@
              * 파워빌더 w_ja010q.srw (ole_rd::ue_retrieve) 조건부 파라미터 계산
              */
             function buildReportParams(data) {
-                var filterYmd = getFilterYmd(); // YYYYMMDD
+                var filterYmd = getFilterYmd(currentPane, 'YYYYMMDD'); // YYYYMMDD
                 var filterClean = (filterYmd || '').replace(/[-.]/g, '');
                 var haejiClean = (data.haejiYmd || '').replace(/[-.]/g, '');
                 var afGyulClean = (data.afGyulYmd || '').replace(/[-.]/g, '');
@@ -305,8 +282,8 @@
             }
 
             function loadFunds() {
-                var corpGr = getFilterCorpGr();
-                var ymd = getFilterYmd();
+                var corpGr = resolveCorpGr(currentPane);
+                var ymd = getFilterYmd(currentPane);
 
                 if (!corpGr) {
                     if (typeof showToast === "function") showToast("회사그룹을 선택해주세요.", "warning");
@@ -385,12 +362,16 @@
                     AamsSplitter.init(currentPane);
                 }
 
-                // Window resize responsive sync
+                // Window resize responsive sync (AamsResponsive 공통 표준)
+                var resizeTimer = null;
                 window.addEventListener('resize', function () {
-                    if (grid) grid.redraw(true);
-                    if (!isMobileView() && currentSelectedRowData && reportViewer) {
-                        reportViewer.loadPreview(currentSelectedRowData);
-                    }
+                    clearTimeout(resizeTimer);
+                    resizeTimer = setTimeout(function () {
+                        if (grid) grid.redraw();
+                        if (reportViewer && typeof reportViewer.syncResize === 'function') {
+                            reportViewer.syncResize();
+                        }
+                    }, 120);
                 });
 
                 // 개발지침 규칙 9: 상단 공통 툴바 표준 계약 함수 연결
@@ -411,7 +392,7 @@
 
                 // 회사그룹 변경 시 기준일자 갱신 (규칙 19번: 자동 조회 금지, 기준일자 값 갱신만 수행)
                 currentPane.onCorpGrChange = function () {
-                    var newCorpGr = getFilterCorpGr();
+                    var newCorpGr = resolveCorpGr(currentPane);
                     if (!newCorpGr) return;
 
                     fetch("/api/daily/ja010q/workdate?corpGr=" + encodeURIComponent(newCorpGr))

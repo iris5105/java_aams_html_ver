@@ -64,7 +64,7 @@
              *   2. f_dddwctl (THIS, 'series_gb', gaa.corp_gr, '', 1, "")
              */
             function ue_dddw_retrieve(corpGr) {
-                var targetCorpGr = corpGr || getFilterCorpGr();
+                var targetCorpGr = corpGr || resolveCorpGr(currentPane);
                 if (!targetCorpGr) return Promise.resolve();
 
                 return f_dddwctl.retrieveMultiple({
@@ -88,43 +88,11 @@
                 return f_dddwctl.getLabel(dddwOptionsMap, dddwKey, codeVal);
             }
 
-            // 회사코드 해결 함수: 셀렉트박스 -> 쿠키 -> 서버 모델값 순으로 해결 (개발지침 1번 준수)
-            function getFilterCorpGr() {
-                var el = currentPane.querySelector('#corpGrSelect') || document.querySelector('#corpGrSelect');
-                if (el && el.value) return el.value;
+            // 회사그룹 및 조회일자는 common.js의 전역 헬퍼 함수(resolveCorpGr, getFilterYmd) 사용
 
-                var matchSaved = document.cookie.match(/(?:^|;\s*)savedCorpGr=([^;]*)/);
-                if (matchSaved && matchSaved[1]) return decodeURIComponent(matchSaved[1]);
-
-                var matchCorp = document.cookie.match(/(?:^|;\s*)corpGr=([^;]*)/);
-                if (matchCorp && matchCorp[1]) return decodeURIComponent(matchCorp[1]);
-
-                if (serverCorpGr) return serverCorpGr;
-                if (typeof g_corp_gr !== 'undefined' && g_corp_gr) return g_corp_gr;
-                return '';
-            }
-
-            function getFilterYmd() {
-                var el = currentPane.querySelector('#filterYmd') || currentPane.querySelector('input[name="ymd"]');
-                if (el && el.value) return el.value.replace(/-/g, '').replace(/\./g, '');
-                return (initialYmd || '').replace(/-/g, '').replace(/\./g, '');
-            }
-
-            // 달력 컴포넌트 초기화 (AamsCalendar 표준 규격 연동)
+            // 달력 컴포넌트 초기화 (common.js initFilterCalendar 공통 연동)
             function initCalendar() {
-                var filterYmdInput = currentPane.querySelector('#filterYmd');
-                if (!filterYmdInput) return;
-
-                if (initialYmd && !filterYmdInput.value) {
-                    filterYmdInput.value = initialYmd;
-                }
-
-                if (typeof AamsCalendar !== 'undefined' && typeof AamsCalendar.initSimple === 'function') {
-                    AamsCalendar.initSimple('filterYmd', {
-                        pane: currentPane,
-                        initialYmd: filterYmdInput.value || initialYmd
-                    });
-                }
+                initFilterCalendar(currentPane, initialYmd);
             }
 
             function initGrid() {
@@ -279,8 +247,8 @@
                         reportViewer.openModal(data, title);
                     }
                 } else {
-                    var corpGr = getFilterCorpGr();
-                    var ymd = getFilterYmd();
+                    var corpGr = resolveCorpGr(currentPane);
+                    var ymd = getFilterYmd(currentPane);
                     var fundCd = data.fundCd || '';
                     var currentKey = corpGr + "_" + ymd + "_" + fundCd;
 
@@ -294,8 +262,8 @@
             }
 
             function loadFunds() {
-                var corpGr = getFilterCorpGr();
-                var ymd = getFilterYmd();
+                var corpGr = resolveCorpGr(currentPane);
+                var ymd = getFilterYmd(currentPane);
 
                 if (!corpGr) {
                     if (typeof showToast === "function") showToast("회사그룹을 선택해주세요.", "warning");
@@ -374,8 +342,8 @@
                 reportViewer = AamsReport.bindViewer(currentPane, {
                     modalSelector: '#ja020k1MobileModal',
                     buildPreviewUrl: function (data) {
-                        var corpGr = getFilterCorpGr();
-                        var ymd = getFilterYmd();
+                        var corpGr = resolveCorpGr(currentPane);
+                        var ymd = getFilterYmd(currentPane);
                         var fundCd = (data && data.fundCd) ? data.fundCd : '';
                         var fundNm = (data && data.fundNm) ? data.fundNm : '';
                         var gugan = (data && data.gugan) ? data.gugan : '1';
@@ -388,8 +356,8 @@
                         return AamsReport.formatPreviewUrl(rawUrl, 120);
                     },
                     buildExportUrl: function (data, format) {
-                        var corpGr = getFilterCorpGr();
-                        var ymd = getFilterYmd();
+                        var corpGr = resolveCorpGr(currentPane);
+                        var ymd = getFilterYmd(currentPane);
                         var fundCd = (data && data.fundCd) ? data.fundCd : '';
                         var fundNm = (data && data.fundNm) ? data.fundNm : '';
                         var gugan = (data && data.gugan) ? data.gugan : '1';
@@ -407,7 +375,7 @@
                         return fundNm + ' (' + fundCd + ') 주간 운용현황';
                     },
                     getStatus: function (data) {
-                        return "기일: " + getFilterYmd();
+                        return "기일: " + getFilterYmd(currentPane);
                     }
                 });
 
@@ -418,7 +386,7 @@
 
                 // 회사그룹 변경 이벤트 연동
                 currentPane.onCorpGrChange = function () {
-                    var newCorpGr = getFilterCorpGr();
+                    var newCorpGr = resolveCorpGr(currentPane);
                     if (!newCorpGr) return;
                     ue_dddw_retrieve(newCorpGr);
                     fetch('/api/daily/ja020k1/workdate?corpGr=' + encodeURIComponent(newCorpGr))
@@ -451,17 +419,16 @@
                     }
                 };
 
-                // Window resize responsive sync
+                // Window resize responsive sync (AamsResponsive 공통 표준)
+                var resizeTimer = null;
                 window.addEventListener('resize', function () {
-                    if (grid) grid.redraw(true);
-                    if (!isMobileView()) {
-                        if (reportViewer && typeof reportViewer.closeModal === 'function') {
-                            reportViewer.closeModal();
+                    clearTimeout(resizeTimer);
+                    resizeTimer = setTimeout(function () {
+                        if (grid) grid.redraw();
+                        if (reportViewer && typeof reportViewer.syncResize === 'function') {
+                            reportViewer.syncResize();
                         }
-                        if (currentSelectedRowData && reportViewer) {
-                            reportViewer.load(currentSelectedRowData, "기일: " + getFilterYmd());
-                        }
-                    }
+                    }, 120);
                 });
 
                 // 파워빌더 eb_direct_retrieve = true 규격 준수: 화면 오픈 시 자동 조회 실행

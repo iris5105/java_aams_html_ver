@@ -410,9 +410,8 @@
 
             // Data Retrieval Function (REST API by Mode)
             window.loadJa020nData = function() {
-                const corpGr = resolveCorpGr();
-                const filterYmdInput = pane ? pane.querySelector("#filterYmd") : document.getElementById("filterYmd");
-                const ymd = filterYmdInput ? filterYmdInput.value : "";
+                const corpGr = resolveCorpGr(pane);
+                const ymd = getFilterYmd(pane);
 
                 if (!corpGr || !ymd) {
                     if (gridJa020n) gridJa020n.setData([]);
@@ -574,7 +573,7 @@
                     if (typeof showToast === "function") showToast("화면이 초기화되었습니다.", "info");
                 };
                 pane.onCorpGrChange = function(newCorpGr) {
-                    const targetCorp = newCorpGr || resolveCorpGr();
+                    const targetCorp = newCorpGr || resolveCorpGr(pane);
                     if (targetCorp) {
                         fetch('/api/common/workdate?corpGr=' + encodeURIComponent(targetCorp))
                             .then(res => res.json())
@@ -598,18 +597,9 @@
 
             const initialYmd = /*[[${ymd}]]*/ '';
 
-            // Pure JS Simple Calendar (Rule 16: dw_c.ue_getdate 미존재 시 순정상태 달력)
+            // Pure JS Simple Calendar (common.js initFilterCalendar 공통 연동)
             function initCalendar() {
-                const filterYmdInput = pane ? pane.querySelector("#filterYmd") : document.getElementById("filterYmd");
-                if (filterYmdInput && initialYmd && !filterYmdInput.value) {
-                    filterYmdInput.value = initialYmd;
-                }
-                if (typeof AamsCalendar !== 'undefined') {
-                    AamsCalendar.initSimple('filterYmd', {
-                        pane: pane,
-                        initialYmd: initialYmd || (filterYmdInput ? filterYmdInput.value : '')
-                    });
-                }
+                initFilterCalendar(pane, initialYmd);
             }
 
             // Guideline 10: Single initialization entry point with isInitialized guard

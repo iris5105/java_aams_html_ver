@@ -69,15 +69,7 @@
                 if (val == null || val === "" || isNaN(val)) return "";
                 return Number(val).toFixed(4);
             }
-
-            function formatDateVal(val) {
-                if (!val) return "";
-                const clean = String(val).replace(/\D/g, "");
-                if (clean.length === 8) {
-                    return clean.substring(0, 4) + "-" + clean.substring(4, 6) + "-" + clean.substring(6, 8);
-                }
-                return String(val).substring(0, 10);
-            }
+            // formatDateVal은 common.js의 전역 함수 사용
 
             // DDDW Option Caches (Populated via ue_dddw_retrieve and f_dddwctl)
             let dddwOptionsMap = {
@@ -877,11 +869,10 @@
 
             // Load Master List
             function loadMasterList() {
-                const corpGr = resolveCorpGr();
-                const filterYmd = pane ? pane.querySelector("#filterYmd") : document.getElementById("filterYmd");
+                const corpGr = resolveCorpGr(pane);
                 const filterDddw = pane ? pane.querySelector("#filterDddw") : document.getElementById("filterDddw");
 
-                const ymd = filterYmd ? filterYmd.value : "";
+                const ymd = getFilterYmd(pane);
                 const cashCd = filterDddw ? filterDddw.value : "%";
 
                 if (!corpGr) {
@@ -1028,9 +1019,8 @@
             function addNewMasterRow() {
                 if (!gridMaster) return;
                 const corpGr = resolveCorpGr(pane);
-                const filterYmd = pane ? pane.querySelector("#filterYmd") : document.getElementById("filterYmd");
                 const filterDddw = pane ? pane.querySelector("#filterDddw") : document.getElementById("filterDddw");
-                const ymd = filterYmd ? filterYmd.value : new Date().toISOString().slice(0, 10);
+                const ymd = getFilterYmd(pane);
                 const cashCd = filterDddw && filterDddw.value !== "%" ? filterDddw.value : "ZS";
 
                 const newRowData = {
@@ -1239,23 +1229,11 @@
                 }
             }
 
-            // Pure JS Simple Calendar (Rule 16)
-            function initCalendar() {
-                if (typeof AamsCalendar !== 'undefined') {
-                    const filterYmd = pane ? pane.querySelector("#filterYmd") : document.getElementById("filterYmd");
-                    const initialYmd = filterYmd ? filterYmd.value : "";
-                    AamsCalendar.initSimple('filterYmd', {
-                        pane: pane,
-                        initialYmd: initialYmd
-                    });
-                }
-            }
-
             let isInitialized = false;
             function startInit() {
                 if (isInitialized) return;
                 isInitialized = true;
-                initCalendar();
+                initFilterCalendar(pane);
                 ue_dddw_retrieve();
                 initMasterGrid();
                 initDetailGrid();

@@ -78,43 +78,34 @@
             var currentSelectedRowData = null;
             var dddwOptionsMap = {};
 
-            // 회사코드 해결 함수: 개발지침 공통 resolveCorpGr 호출
-            function getFilterCorpGr() {
-                return (typeof resolveCorpGr === 'function') ? resolveCorpGr(pane) : (serverCorpGr || '');
-            }
-
-            function getFilterYmd() {
-                var el = pane.querySelector('#filterYmd') || pane.querySelector('input[name="ymd"]');
-                if (el && el.value) return el.value.replace(/-/g, '');
-                return '';
-            }
+            // 회사코드 및 조회일자는 common.js의 전역 헬퍼 함수(resolveCorpGr, getFilterYmd) 사용
 
             // AamsReport 통합 바인딩 (5종 내보내기, 새 창, 모바일 모달, 로딩 제어)
             var reportViewer = (window.AamsReport && typeof window.AamsReport.bindViewer === 'function')
                 ? window.AamsReport.bindViewer(pane, {
                     reportFile: 'rd_ja010h1.mrd',
                     modalId: 'ja010h1MobileModal',
-                    getCorpGr: function () { return getFilterCorpGr(); },
+                    getCorpGr: function () { return resolveCorpGr(pane); },
                     buildParams: function (data) {
                         return {
                             fund_cd: data.fundCd || '',
                             fund_nm: data.fundNm || '',
-                            ymd: (getFilterYmd() || '').replace(/-/g, '.')
+                            ymd: getFilterYmd(pane, 'YYYY.MM.DD')
                         };
                     },
                     getTitle: function (data) {
                         return (data.fundNm || '') + ' (' + (data.fundCd || '') + ') 자산명세표1';
                     },
                     getStatus: function (data, params) {
-                        return "조회일자: " + getFilterYmd();
+                        return "조회일자: " + getFilterYmd(pane);
                     },
                     getDownloadName: function (data, params) {
                         var safeFundNm = (data.fundNm || '').trim().replace(/[\\/:*?"<>|]/g, "_") || "자산명세표";
-                        return (getFilterYmd() || '').replace(/[-.]/g, '') + "_" + safeFundNm + "(" + (data.fundCd || '') + ")";
+                        return getFilterYmd(pane, 'YYYYMMDD') + "_" + safeFundNm + "(" + (data.fundCd || '') + ")";
                     },
                     onBeforePreview: function (data) {
-                        var corpGr = getFilterCorpGr();
-                        var ymd = getFilterYmd();
+                        var corpGr = resolveCorpGr(pane);
+                        var ymd = getFilterYmd(pane);
                         if (corpGr === '2402') {
                             fetch("/api/daily/ja010h1/check-ledger?corpGr=" + encodeURIComponent(corpGr) + "&ymd=" + encodeURIComponent(ymd))
                                 .then(function (res) { return res.json(); })
@@ -133,40 +124,23 @@
                 })
                 : null;
 
-            // 엑세스 쿠키의 현재 영업일 추출
-            function getCookieWorkDate() {
-                var matchWork = document.cookie.match(/(?:^|;\s*)workDate=([^;]*)/);
-                if (matchWork && matchWork[1]) return decodeURIComponent(matchWork[1]);
-                var matchHyun = document.cookie.match(/(?:^|;\s*)hyunYmd=([^;]*)/);
-                if (matchHyun && matchHyun[1]) return decodeURIComponent(matchHyun[1]);
-                return '';
-            }
+            // getCookieWorkDate는 common.js의 전역 공통 함수 사용
 
-            // 달력 컴포넌트 초기화 (wue_lastopen 명세 연동)
+
+            // 달력 컴포넌트 초기화 (common.js initFilterCalendar 공통 연동)
             function initCalendar() {
                 var filterYmdInput = pane.querySelector('#filterYmd');
-                if (!filterYmdInput) return;
-
-                var corpGr = getFilterCorpGr();
-                var targetYmd = filterYmdInput.value || initialYmd;
+                var corpGr = resolveCorpGr(pane);
+                var targetYmd = (filterYmdInput ? filterYmdInput.value : '') || initialYmd;
                 if (!targetYmd && corpGr !== '2402') {
                     targetYmd = getCookieWorkDate();
                 }
-                if (targetYmd) {
-                    filterYmdInput.value = targetYmd;
-                }
-
-                if (typeof AamsCalendar !== 'undefined' && typeof AamsCalendar.initSimple === 'function') {
-                    AamsCalendar.initSimple('filterYmd', {
-                        pane: pane,
-                        initialYmd: filterYmdInput.value || targetYmd
-                    });
-                }
+                initFilterCalendar(pane, targetYmd);
             }
 
             // 증권사 DDDW 초기화: f_dddwctl (THIS, 'sec_cd | tr_co_cd', gaa.corp_gr, '', 1, '')
             function initDddw() {
-                var corpGr = getFilterCorpGr();
+                var corpGr = resolveCorpGr(pane);
                 if (typeof window.f_dddwctl === 'function') {
                     window.f_dddwctl('tr_co_cd', corpGr, '', 1, '').then(function (options) {
                         dddwOptionsMap['tr_co_cd'] = options || [];
@@ -258,7 +232,7 @@
                             },
                             cellDblClick: function (e, cell) {
                                 // 파워빌더 work_gb 더블클릭 메뉴 오픈 로직
-                                var corpGr = getFilterCorpGr();
+                                var corpGr = resolveCorpGr(pane);
                                 var targetPgmNo = (corpGr === '2201') ? '00118' : '00236';
                                 if (window.parent && window.parent.TabManager && typeof window.parent.TabManager.openTabByPgmNo === 'function') {
                                     window.parent.TabManager.openTabByPgmNo(targetPgmNo);
@@ -336,8 +310,8 @@
                         reportViewer.openModal(data, title);
                     }
                 } else {
-                    var corpGr = getFilterCorpGr();
-                    var ymd = getFilterYmd();
+                    var corpGr = resolveCorpGr(pane);
+                    var ymd = getFilterYmd(pane);
                     var currentKey = corpGr + "_" + ymd + "_" + (data.fundCd || "");
 
                     if (lastLoadedMasterKey === currentKey) return;
@@ -351,8 +325,8 @@
 
             // 펀드 목록 조회 (selectFundList)
             function loadFunds() {
-                var corpGr = getFilterCorpGr();
-                var ymd = getFilterYmd();
+                var corpGr = resolveCorpGr(pane);
+                var ymd = getFilterYmd(pane);
 
                 if (!corpGr) {
                     if (typeof showToast === "function") showToast("회사그룹을 선택해주세요.", "warning");
@@ -432,8 +406,8 @@
                     return;
                 }
 
-                var corpGr = getFilterCorpGr();
-                var ymd = getFilterYmd();
+                var corpGr = resolveCorpGr(pane);
+                var ymd = getFilterYmd(pane);
                 var fundNm = currentSelectedRowData.fundNm || '';
                 var fundCd = currentSelectedRowData.fundCd || '';
 
@@ -467,8 +441,8 @@
 
             // 파워빌더 cb_1: 보유자산종합엑셀생성
             function executeTotalExcel() {
-                var corpGr = getFilterCorpGr();
-                var ymd = getFilterYmd();
+                var corpGr = resolveCorpGr(pane);
+                var ymd = getFilterYmd(pane);
 
                 if (!corpGr) {
                     alert("회사그룹을 먼저 선택해주세요.");
@@ -502,12 +476,16 @@
                 var btnTot = pane.querySelector('#btnTotalExcel');
                 if (btnTot) btnTot.addEventListener('click', executeTotalExcel);
 
-                // Window resize responsive sync
+                // Window resize responsive sync (AamsResponsive 공통 표준)
+                var resizeTimer = null;
                 window.addEventListener('resize', function () {
-                    if (grid) grid.redraw(true);
-                    if (!isMobileView() && currentSelectedRowData && reportViewer) {
-                        reportViewer.load(currentSelectedRowData);
-                    }
+                    clearTimeout(resizeTimer);
+                    resizeTimer = setTimeout(function () {
+                        if (grid) grid.redraw();
+                        if (reportViewer && typeof reportViewer.syncResize === 'function') {
+                            reportViewer.syncResize();
+                        }
+                    }, 120);
                 });
 
                 // 상단 툴바 표준 계약 (규칙 9)
@@ -560,7 +538,7 @@
 
                 // 회사그룹 변경 이벤트: 해당 회사의 기준일자를 비동기로 조회하여 달력 갱신
                 pane.onCorpGrChange = function () {
-                    var corpGr = getFilterCorpGr();
+                    var corpGr = resolveCorpGr(pane);
 
                     // corp_gr != '2402'인 경우 엑세스 쿠키에 있는 현재 영업일을 즉시 반영
                     if (corpGr !== '2402') {

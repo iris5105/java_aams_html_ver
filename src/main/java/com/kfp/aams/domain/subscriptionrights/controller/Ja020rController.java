@@ -87,7 +87,7 @@ public class Ja020rController {
     @ResponseBody
     public ResponseEntity<List<Ja020rMasterDto>> getFunds(
             @RequestParam(name = "corpGr", required = false) String paramCorpGr,
-            @RequestParam(name = "ymd") @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate ymd,
+            @RequestParam(name = "ymd") @DateTimeFormat(pattern = "yyyy-MM-dd", fallbackPatterns = {"yyyyMMdd", "yyyy.MM.dd"}) LocalDate ymd,
             @RequestParam(name = "dw", defaultValue = "d_ja020r2c") String dw,
             @AuthenticationPrincipal Object principalObj,
             @CookieValue(name = "savedCorpGr", required = false) String cookieCorpGr1,
@@ -112,7 +112,7 @@ public class Ja020rController {
     @ResponseBody
     public ResponseEntity<List<Ja020rDetailDto>> getDetail(
             @RequestParam(name = "corpGr", required = false) String paramCorpGr,
-            @RequestParam(name = "ymd") @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate ymd,
+            @RequestParam(name = "ymd") @DateTimeFormat(pattern = "yyyy-MM-dd", fallbackPatterns = {"yyyyMMdd", "yyyy.MM.dd"}) LocalDate ymd,
             @RequestParam(name = "fundCd") String fundCd,
             @RequestParam(name = "dw", defaultValue = "d_ja020r2c") String dw,
             @AuthenticationPrincipal Object principalObj,

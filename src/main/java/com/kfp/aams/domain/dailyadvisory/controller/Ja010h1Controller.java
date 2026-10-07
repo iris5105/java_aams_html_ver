@@ -104,7 +104,7 @@ public class Ja010h1Controller {
     @GetMapping("/api/daily/ja010h1/check-ledger")
     @ResponseBody
     public ResponseEntity<Map<String, Object>> checkLedger(@RequestParam("corpGr") String corpGr,
-                                                           @RequestParam("ymd") @org.springframework.format.annotation.DateTimeFormat(pattern = "yyyy-MM-dd") java.time.LocalDate ymd) {
+                                                           @RequestParam("ymd") @org.springframework.format.annotation.DateTimeFormat(pattern = "yyyy-MM-dd", fallbackPatterns = {"yyyyMMdd", "yyyy.MM.dd"}) java.time.LocalDate ymd) {
         Map<String, Object> result = new HashMap<>();
         String errorMsg = ja010hService.checkLedgerValidation(corpGr, ymd);
         if (errorMsg != null) {
@@ -120,7 +120,7 @@ public class Ja010h1Controller {
     @ResponseBody
     public ResponseEntity<List<Ja010hMasterDto>> getFunds(
             @RequestParam("corpGr") String corpGr,
-            @RequestParam("ymd") @org.springframework.format.annotation.DateTimeFormat(pattern = "yyyy-MM-dd") java.time.LocalDate ymd) {
+            @RequestParam("ymd") @org.springframework.format.annotation.DateTimeFormat(pattern = "yyyy-MM-dd", fallbackPatterns = {"yyyyMMdd", "yyyy.MM.dd"}) java.time.LocalDate ymd) {
         List<Ja010hMasterDto> list = ja010hService.getFundList(corpGr, ymd);
         return ResponseEntity.ok(list);
     }

@@ -47,35 +47,11 @@
             let deletedList = [];
 
 
-            function getFilterYmd() {
-                const input = pane ? pane.querySelector("#filterYmd") : document.getElementById("filterYmd");
-                if (!input) return "";
-                let val = input.value || "";
-                return val.replace(/\./g, '-');
-            }
+            // 조회일자는 common.js의 전역 헬퍼 함수(getFilterYmd) 사용
 
-            // Tabulator Formatter Utilities
-            function numberFormatter(cell) {
-                const val = cell.getValue();
-                if (val === null || val === undefined || val === "") return "";
-                const num = Number(val);
-                if (isNaN(num)) return val;
-                return num.toLocaleString('ko-KR');
-            }
-
-            function changeFormatter(cell) {
-                const val = cell.getValue();
-                if (val === null || val === undefined || val === "") return "";
-                const num = Number(val);
-                if (isNaN(num)) return val;
-                const formatted = num.toLocaleString('ko-KR');
-                if (num > 0) {
-                    return `<span class="cell-price-up">▲ ${formatted}</span>`;
-                } else if (num < 0) {
-                    return `<span class="cell-price-down">▼ ${Math.abs(num).toLocaleString('ko-KR')}</span>`;
-                }
-                return formatted;
-            }
+            // 그리드 포매터는 common.js의 aamsNumberFormatter, aamsChangeFormatter 사용
+            const numberFormatter = aamsNumberFormatter;
+            const changeFormatter = aamsChangeFormatter;
 
             // Tabulator Columns (Following d_sjt0tg.srd sequence & tab_order)
             const columns = [
@@ -296,7 +272,7 @@
             // Retrieve Data (wue_retrieve)
             function searchData() {
                 const corpGr = resolveCorpGr(pane);
-                const ymd = getFilterYmd();
+                const ymd = getFilterYmd(pane);
 
                 if (!corpGr) {
                     if (typeof showToast === 'function') showToast("운용사를 선택해주세요.", "warning");
@@ -348,7 +324,7 @@
             function addRow() {
                 if (!gridSjt0tg) return;
                 const corpGr = resolveCorpGr(pane);
-                const ymd = getFilterYmd();
+                const ymd = getFilterYmd(pane);
 
                 const newRowData = {
                     corpGr: corpGr,
@@ -399,7 +375,7 @@
             function saveData() {
                 if (!gridSjt0tg) return;
                 const corpGr = resolveCorpGr(pane);
-                const ymd = getFilterYmd();
+                const ymd = getFilterYmd(pane);
 
                 if (!corpGr || !ymd) {
                     if (typeof showToast === 'function') showToast("운용사 및 종가일자를 확인해주세요.", "warning");
@@ -470,7 +446,7 @@
             // Excel Export (Excel Contract)
             function exportExcel() {
                 if (!gridSjt0tg) return;
-                const ymd = getFilterYmd() || "일자미지정";
+                const ymd = getFilterYmd(pane, 'YYYYMMDD') || "일자미지정";
                 gridSjt0tg.download("xlsx", `주식종가_${ymd}.xlsx`, { sheetName: "주식종가" });
             }
 
@@ -624,23 +600,8 @@
                 initGrid();
                 initExcelLoader();
 
-                // 날짜 기본값 세팅
-                const ymdInput = pane ? pane.querySelector("#filterYmd") : document.getElementById("filterYmd");
-                if (ymdInput && !ymdInput.value) {
-                    const today = new Date();
-                    const yyyy = today.getFullYear();
-                    const mm = String(today.getMonth() + 1).padStart(2, '0');
-                    const dd = String(today.getDate()).padStart(2, '0');
-                    ymdInput.value = `${yyyy}-${mm}-${dd}`;
-                }
-
-                // AamsCalendar 초기화
-                if (typeof AamsCalendar !== 'undefined' && typeof AamsCalendar.initSimple === 'function') {
-                    AamsCalendar.initSimple('filterYmd', {
-                        pane: pane,
-                        initialYmd: ymdInput ? ymdInput.value : ''
-                    });
-                }
+                // AamsCalendar 초기화 (common.js initFilterCalendar 공통 연동)
+                initFilterCalendar(pane);
 
                 // Guideline 9: Standard Toolbar Contracts Binding
                 if (pane) {

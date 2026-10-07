@@ -52,8 +52,8 @@
     </select>
 
     <!-- 3. Available Dates for Calendar Highlight (UZM0UI) -->
-    <select id="selectDistinctDates" resultType="string">
-        SELECT DISTINCT TO_CHAR(t1.ymd, 'YYYY-MM-DD') AS ymd
+    <select id="selectDistinctDates" resultType="java.time.LocalDate">
+        SELECT DISTINCT TRUNC(t1.ymd) AS ymd
           FROM UZM0UI t1
          WHERE t1.corp_gr = #{corpGr}
          ORDER BY ymd DESC

@@ -52,51 +52,13 @@
             var lastLoadedMasterKey = null;
             var currentSelectedRowData = null;
 
-            // 회사코드 해결 함수: 셀렉트박스 -> 쿠키 -> 서버 모델값 순으로 해결 (개발지침 1번 준수)
-            function getFilterCorpGr() {
-                var el = currentPane.querySelector('#corpGrSelect') || document.querySelector('#corpGrSelect');
-                if (el && el.value) return el.value;
+            // 회사그룹은 common.js의 전역 헬퍼 함수(resolveCorpGr / getFilterCorpGr) 사용
 
-                var matchSaved = document.cookie.match(/(?:^|;\s*)savedCorpGr=([^;]*)/);
-                if (matchSaved && matchSaved[1]) return decodeURIComponent(matchSaved[1]);
+            // 기간 일자는 common.js의 전역 헬퍼 함수(getFilterFymd / getFilterTymd) 사용
 
-                var matchCorp = document.cookie.match(/(?:^|;\s*)corpGr=([^;]*)/);
-                if (matchCorp && matchCorp[1]) return decodeURIComponent(matchCorp[1]);
-
-                if (serverCorpGr) return serverCorpGr;
-                if (typeof g_corp_gr !== 'undefined' && g_corp_gr) return g_corp_gr;
-                return '';
-            }
-
-            function getFilterFymd() {
-                var el = currentPane.querySelector('#filterFYmd') || currentPane.querySelector('input[name="fYmd"]') || currentPane.querySelector('#filterFymd');
-                if (el && el.value) return el.value.replace(/-/g, '').replace(/\./g, '');
-                return (initialFymd || '').replace(/-/g, '').replace(/\./g, '');
-            }
-
-            function getFilterTymd() {
-                var el = currentPane.querySelector('#filterTYmd') || currentPane.querySelector('input[name="tYmd"]') || currentPane.querySelector('#filterTymd');
-                if (el && el.value) return el.value.replace(/-/g, '').replace(/\./g, '');
-                return (initialTymd || '').replace(/-/g, '').replace(/\./g, '');
-            }
-
-            // 달력 컴포넌트 초기화 (AamsCalendar Range 모드 연동, 개발지침 달력 규칙 1)
+            // 달력 컴포넌트 초기화 (common.js initFilterCalendar 공통 연동: Range 자동 감지)
             function initCalendar() {
-                var fEl = currentPane.querySelector('#filterFYmd') || currentPane.querySelector('input[name="fYmd"]');
-                var tEl = currentPane.querySelector('#filterTYmd') || currentPane.querySelector('input[name="tYmd"]');
-
-                if (initialFymd && fEl && !fEl.value) {
-                    fEl.value = initialFymd;
-                }
-                if (initialTymd && tEl && !tEl.value) {
-                    tEl.value = initialTymd;
-                }
-
-                if (window.AamsCalendar && typeof window.AamsCalendar.initRange === 'function') {
-                    window.AamsCalendar.initRange('filterFYmd', 'filterTYmd', {
-                        pane: currentPane
-                    });
-                }
+                initFilterCalendar(currentPane);
             }
 
             function initGrid() {
@@ -169,8 +131,8 @@
                     if (lastLoadedMasterKey === currentKey) return;
                     lastLoadedMasterKey = currentKey;
 
-                    var fymd = getFilterFymd();
-                    var tymd = getFilterTymd();
+                    var fymd = getFilterFymd(currentPane, 'YYYYMMDD');
+                    var tymd = getFilterTymd(currentPane, 'YYYYMMDD');
                     var fStr = (fymd.length === 8) ? (fymd.substring(0, 4) + "." + fymd.substring(4, 6) + "." + fymd.substring(6, 8)) : fymd;
                     var tStr = (tymd.length === 8) ? (tymd.substring(0, 4) + "." + tymd.substring(4, 6) + "." + tymd.substring(6, 8)) : tymd;
                     reportViewer.load(data, "조회구간: " + fStr + " ~ " + tStr);
@@ -178,8 +140,8 @@
             }
 
             function loadList() {
-                var corpGr = getFilterCorpGr();
-                var tymd = getFilterTymd();
+                var corpGr = resolveCorpGr(currentPane);
+                var tymd = getFilterTymd(currentPane, 'YYYYMMDD');
 
                 if (!corpGr) {
                     if (typeof showToast === "function") showToast("회사그룹을 선택해주세요.", "warning");
@@ -258,7 +220,7 @@
                 reportViewer = AamsReport.bindViewer(currentPane, {
                     mrdName: function (data) {
                         var fCd = (data && data.fundCd != null) ? String(data.fundCd) : '0';
-                        var cGr = (data && data.corpGr) ? String(data.corpGr) : getFilterCorpGr();
+                        var cGr = (data && data.corpGr) ? String(data.corpGr) : resolveCorpGr(currentPane);
                         if (fCd === '0') return 'rd_ja010j_0.mrd';
                         if (fCd === '1') return (cGr === '2202') ? 'rd_ja010j_2202.mrd' : 'rd_ja010j_1.mrd';
                         if (fCd === '2') return 'rd_ja010j_2.mrd';
@@ -267,12 +229,12 @@
                     modalSelector: '#ja010jMobileModal',
                     getParams: function (data) {
                         return {
-                            corpGr: (data && data.corpGr) ? data.corpGr : getFilterCorpGr(),
+                            corpGr: (data && data.corpGr) ? data.corpGr : resolveCorpGr(currentPane),
                             fundCd: (data && data.fundCd != null) ? data.fundCd : '0',
                             companyName: (data && data.companyName) ? data.companyName : '',
                             fundNm: (data && data.fundNm) ? data.fundNm : '',
-                            fymd: getFilterFymd(),
-                            tymd: getFilterTymd()
+                            fymd: getFilterFymd(currentPane, 'YYYYMMDD'),
+                            tymd: getFilterTymd(currentPane, 'YYYYMMDD')
                         };
                     },
                     getDownloadName: function (data, format) {
@@ -288,7 +250,7 @@
 
                 // 회사그룹 변경 이벤트 연동 (개발지침 달력 규칙 4)
                 currentPane.onCorpGrChange = function () {
-                    var newCorpGr = getFilterCorpGr();
+                    var newCorpGr = resolveCorpGr(currentPane);
                     if (!newCorpGr) return;
                     fetch('/api/daily/ja010j/workdate?corpGr=' + encodeURIComponent(newCorpGr))
                         .then(function (res) { return res.json(); })
@@ -325,19 +287,16 @@
                     }
                 };
 
-                // Window resize responsive sync
+                // Window resize responsive sync (AamsResponsive 공통 표준)
+                var resizeTimer = null;
                 window.addEventListener('resize', function () {
-                    if (grid) grid.redraw(true);
-                    if (!isMobileView() && reportViewer) {
-                        reportViewer.closeModal();
-                        if (currentSelectedRowData) {
-                            var fymd = getFilterFymd();
-                            var tymd = getFilterTymd();
-                            var fStr = (fymd.length === 8) ? (fymd.substring(0, 4) + "." + fymd.substring(4, 6) + "." + fymd.substring(6, 8)) : fymd;
-                            var tStr = (tymd.length === 8) ? (tymd.substring(0, 4) + "." + tymd.substring(4, 6) + "." + tymd.substring(6, 8)) : tymd;
-                            reportViewer.load(currentSelectedRowData, "조회구간: " + fStr + " ~ " + tStr);
+                    clearTimeout(resizeTimer);
+                    resizeTimer = setTimeout(function () {
+                        if (grid) grid.redraw();
+                        if (reportViewer && typeof reportViewer.syncResize === 'function') {
+                            reportViewer.syncResize();
                         }
-                    }
+                    }, 120);
                 });
 
                 // 파워빌더 eb_direct_retrieve = true 규격 준수: 화면 오픈 시 자동 조회 실행

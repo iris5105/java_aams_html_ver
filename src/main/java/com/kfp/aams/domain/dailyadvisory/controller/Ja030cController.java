@@ -87,7 +87,7 @@ public class Ja030cController {
     @ResponseBody
     public List<Ja030cDto> getJa030cList(@AuthenticationPrincipal Object principalObj,
             @RequestParam(name = "corpGr", required = false) String paramCorpGr,
-            @RequestParam(name = "ymd", required = false) @org.springframework.format.annotation.DateTimeFormat(pattern = "yyyy-MM-dd") java.time.LocalDate ymd,
+            @RequestParam(name = "ymd", required = false) @org.springframework.format.annotation.DateTimeFormat(pattern = "yyyy-MM-dd", fallbackPatterns = {"yyyyMMdd", "yyyy.MM.dd"}) java.time.LocalDate ymd,
             @CookieValue(name = "savedCorpGr", required = false) String cookieCorpGr1,
             @CookieValue(name = "corpGr", required = false) String cookieCorpGr2) {
         UserPrincipal principal = (principalObj instanceof UserPrincipal p) ? p : null;
@@ -109,7 +109,7 @@ public class Ja030cController {
     public java.util.Map<String, Object> getNextSeq(@AuthenticationPrincipal Object principalObj,
                                                     @RequestParam(name = "corpGr", required = false) String paramCorpGr,
                                                     @RequestParam(name = "trCd", required = false) String trCd,
-                                                    @RequestParam(name = "ymd", required = false) @org.springframework.format.annotation.DateTimeFormat(pattern = "yyyy-MM-dd") java.time.LocalDate ymd,
+                                                    @RequestParam(name = "ymd", required = false) @org.springframework.format.annotation.DateTimeFormat(pattern = "yyyy-MM-dd", fallbackPatterns = {"yyyyMMdd", "yyyy.MM.dd"}) java.time.LocalDate ymd,
                                                     @RequestParam(name = "fundCd", required = false) String fundCd,
                                                     @CookieValue(name = "savedCorpGr", required = false) String cookieCorpGr1,
                                                     @CookieValue(name = "corpGr", required = false) String cookieCorpGr2) {

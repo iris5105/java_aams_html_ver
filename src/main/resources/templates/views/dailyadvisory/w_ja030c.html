@@ -129,24 +129,7 @@
                     console.error("Failed to retrieve DDDW options for w_ja030c:", err);
                 });
             }
-
-            function numFmt(val) {
-                if (val == null || val === "") return "";
-                return Number(val).toLocaleString('ko-KR');
-            }
-
-            function formatDateVal(val) {
-                if (!val) return "";
-                const clean = String(val).replace(/\D/g, "");
-                if (clean.length >= 8) {
-                    return clean.substring(0, 4) + '.' + clean.substring(4, 6) + '.' + clean.substring(6, 8);
-                }
-                const str = String(val).trim();
-                if (str.length >= 10) {
-                    return str.substring(0, 10).replace(/[-/]/g, ".");
-                }
-                return str;
-            }
+            // numFmt 및 formatDateVal은 common.js의 전역 공통 함수 사용
 
             // Initialize Grid (d_ja030c.srd / SCT0CG)
             function initJa030cGrid() {
@@ -391,8 +374,7 @@
             // Data retrieval function (REST API)
             window.loadJa030cData = function() {
                 const corpGr = resolveCorpGr(pane);
-                const filterYmdInput = pane ? pane.querySelector("#filterYmd") : document.getElementById("filterYmd");
-                const ymd = filterYmdInput ? filterYmdInput.value : "";
+                const ymd = getFilterYmd(pane);
 
                 if (!corpGr || !ymd) {
                     if (gridJa030c) gridJa030c.setData([]);
@@ -462,9 +444,8 @@
                 // Provide default new row data when [입력] toolbar button is clicked
                 pane.getNewRowData = function() {
                     const corpGr = resolveCorpGr(pane);
-                    const filterYmdInput = pane.querySelector("#filterYmd");
                     const filterDddwSelect = pane.querySelector("#filterDddw");
-                    const ymd = filterYmdInput ? filterYmdInput.value : "";
+                    const ymd = getFilterYmd(pane);
                     const trCd = filterDddwSelect ? filterDddwSelect.value : "J15";
 
                     return {
@@ -564,9 +545,8 @@
                     }
 
                     const corpGr = resolveCorpGr(pane);
-                    const filterYmdInput = pane.querySelector("#filterYmd");
                     const filterDddwSelect = pane.querySelector("#filterDddw");
-                    const trYmd = filterYmdInput ? filterYmdInput.value : "";
+                    const trYmd = getFilterYmd(pane);
                     const trCd = filterDddwSelect ? filterDddwSelect.value : "J15";
 
                     const requestPayload = {
