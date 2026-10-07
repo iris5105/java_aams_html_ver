@@ -19,6 +19,12 @@
 # ----------------------------------------------------------------------------
 
 # ----------------------------------------------------------------------------
+# AAMS Dedicated Java 21 Home Override
+if [ -d "/home/aams/aams_web/jdk/jdk-21.0.12" ]; then
+  JAVA_HOME="/home/aams/aams_web/jdk/jdk-21.0.12"
+  PATH="$JAVA_HOME/bin:$PATH"
+fi
+
 # Apache Maven Wrapper startup batch script, version 3.3.4
 #
 # Optional ENV vars
