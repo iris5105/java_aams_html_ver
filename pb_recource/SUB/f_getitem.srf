@@ -1,0 +1,32 @@
+﻿global type f_getitem from function_object
+end type
+
+forward prototypes
+global function string f_getitem (fw_u_dwo adw, long arow, string acolumn)
+end prototypes
+
+global function string f_getitem (fw_u_dwo adw, long arow, string acolumn);IF	arow=0 THEN RETURN ''
+
+String	ls_type, ls_date
+
+ls_type = adw.describe(acolumn+'.ColType')
+
+CHOOSE CASE	ls_type
+	CASE 'date'
+		RETURN	f_nvl (string(adw.GetItemDate (arow, acolumn), 'yyyy.mm.dd'), '')
+	CASE 'datetime', 'timestamp'
+		ls_date = string(adw.GetItemDateTime (arow, acolumn), 'yyyy.mm.dd hh:mm:ss')
+		IF	MidA (ls_date,12)='00:00:00' THEN ls_date = MidA (ls_date, 1, 10)
+		RETURN	f_nvl (ls_date, '')
+	CASE 'time'
+		RETURN	f_nvl (string(adw.GetItemTime (arow, acolumn), 'hh:mm:ss'), '')
+	CASE 'int', 'long', 'number', 'real', 'ulong'
+		RETURN	f_nvl (string(adw.GetItemNumber (arow, acolumn)), '')
+	CASE ELSE
+		IF	MidA (ls_Type,1,4)='char'    THEN RETURN f_replace (f_replace (f_nvl (adw.GetItemstring(arow, acolumn),''), '~r~n', '|'), '"', '')
+		IF	MidA (ls_Type,1,7)='decimal' THEN RETURN f_nvl (string(adw.GetItemNumber (arow, acolumn)), '')
+End CHOOSE
+
+RETURN	'?' + ls_type + '?'
+end function
+

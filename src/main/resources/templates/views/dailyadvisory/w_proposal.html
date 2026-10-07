@@ -531,7 +531,7 @@
                 if (contentEl) contentEl.value = data.content || "";
 
                 const filterSelect = pane ? pane.querySelector('select[name="corpGr"]') : document.getElementById("filterCorpGr");
-                const corpGr = data.corpGr || (filterSelect && filterSelect.value ? filterSelect.value : (getCookieVal("savedCorpGr") || getCookieVal("corpGr") || getCookieVal("corp_gr")));
+                const corpGr = data.corpGr || (filterSelect && filterSelect.value ? filterSelect.value : (getCookieVal("savedCorpGr") || getCookieVal("corpGr")));
 
                 if (corpGr && data.ymd && data.proposer) {
                     fetchProposalComments(corpGr, data.ymd, data.proposer);
@@ -634,7 +634,7 @@
                     const nowYmd = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
                     const userNm = resolveCurrentUserNm();
                     const filterSelect = pane ? pane.querySelector('select[name="corpGr"]') : document.getElementById("filterCorpGr");
-                    const corpGr = filterSelect ? filterSelect.value : (getCookieVal("savedCorpGr") || getCookieVal("corpGr") || getCookieVal("corp_gr") || "");
+                    const corpGr = filterSelect ? filterSelect.value : (getCookieVal("savedCorpGr") || getCookieVal("corpGr") || "");
 
                     return {
                         corpGr: corpGr,

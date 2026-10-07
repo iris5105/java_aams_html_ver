@@ -1,0 +1,38 @@
+﻿global type f_map_ymd from function_object
+end type
+
+forward prototypes
+global function datetime f_map_ymd ()
+end prototypes
+
+global function datetime f_map_ymd ();DateTime ldt, ldt2
+
+// 최종 기준가계산일
+SELECT  gijunga_ymd
+  INTO  :ldt
+FROM    szx0dt t1
+WHERE   corp_gr = :gaa.corp_gr;
+ldt = SQLCA.getitemdatetime (1)
+
+SELECT  MAX(ymd)
+  INTO  :ldt2
+FROM    ma01osmr01 t1
+WHERE   t1.corp_gr = :gaa.corp_gr
+  AND   t1.ymd     > :ldt - 7;
+ldt2 = SQLCA.getitemdatetime (1)  
+  
+IF ldt<ldt2 Then
+   ldt = ldt2
+Else
+   SELECT  MAX(ymd)
+     INTO  :ldt2
+   FROM    ma01osmr04 t1
+   WHERE   t1.corp_gr = :gaa.corp_gr 
+     AND   t1.ymd     > :ldt - 7;
+	ldt2 = SQLCA.getitemdatetime (1)
+   IF ldt<ldt2 THEN ldt = ldt2
+End IF
+
+RETURN   ldt
+end function
+

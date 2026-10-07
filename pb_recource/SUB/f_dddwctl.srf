@@ -1,0 +1,118 @@
+﻿global type f_dddwctl from function_object
+end type
+
+forward prototypes
+global function string f_dddwctl (fw_u_dwo dw, string dddw_id, string corp_gr, string add_data, integer iseq, string swhere)
+end prototypes
+
+global function string f_dddwctl (fw_u_dwo dw, string dddw_id, string corp_gr, string add_data, integer iseq, string swhere);LONG  ll, lR, ll_count, lAdd
+
+STRING   ls_dddw_id, ls_columns, ls_tables, ls_where, ls_default, la_data []
+STRING   SQL_Select, SQL_Where , ls_sort  
+
+DATAWINDOWCHILD   ldwc
+
+ads_jTier   dddw_ds
+
+IF PosA (dddw_ID, ' | ')>0  THEN // 조회조건 dddw Column을 위해
+   ls_dddw_id = MidA (dddw_ID, PosA (dddw_ID, ' | ') + 3)
+   dddw_ID    = LeftA (dddw_ID, PosA (dddw_ID, ' | ') - 1)
+ELSE
+   ls_dddw_id = IIF (PosA('fr_,to_,xx_', LeftA(dddw_ID, 3)) > 0, RightA(dddw_ID, Len(dddw_ID) - 3), dddw_ID)
+END IF
+
+IF dw.GETCHILD (dddw_ID, ldwc)=-1 THEN RETURN ''
+
+ldwc.reset ( )
+IF ls_dddw_id<>'dual' THEN
+   // 조건절에 시간이 있을경우 삭제처리
+   sWhere = F_REPLACE (sWhere, ' 00:00:00', '')
+
+   SELECT sql_columns
+        , sql_tables
+        , sql_where
+        , NVL(sql_remark,'null')
+     INTO :ls_columns
+        , :ls_tables
+        , :ls_where
+        , :ls_sort
+     FROM WDDDWCTL t1
+    WHERE dddw_id = :ls_dddw_id
+      AND seq     = :iSeq;
+
+   IF SQLCA.sqlcode ( )=0 THEN
+      ls_columns = SQLCA.GETITEMSTRING (1)
+      ls_tables  = SQLCA.GETITEMSTRING (2)
+      ls_where   = SQLCA.GETITEMSTRING (3)
+      ls_sort    = SQLCA.GETITEMSTRING (4)
+   ELSE
+      F_MESSAGEBOX ('SQLCA', "dddw_id : " + ls_dddw_id + '(' + STRING (iSeq) + ')')
+      RETURN ''
+   END IF
+
+   IF F_NULL (ls_where) THEN
+      IF TRIM (sWhere)>' ' THEN SQL_Where = '~r~n WHERE~t' + sWhere
+   ELSE
+      SQL_Where = '~r~n WHERE~t' + ls_where
+      IF TRIM (sWhere)>' ' THEN SQL_Where += '~r~n   AND~t' + sWhere
+   END IF
+   IF POS (SQL_Where,':corp_gr')>0 THEN SQL_Where = F_REPLACE (SQL_Where,':corp_gr',CORP_GR)
+   IF POS (lower (SQL_Where),'order')>0 THEN
+      SQL_Select = 'SELECT~t' + ls_columns + "~r~n FROM~t" + ls_tables + SQL_Where + '~r~n--~r~n-- dddw_id : ' + ls_dddw_id + '(' + string (iSeq) + ')'
+   ELSE
+      SQL_Select = 'SELECT~t' + ls_columns + "~r~n FROM~t" + ls_tables + SQL_Where + IIF (POS (ls_sort, '#2') =0, '~r~norder by 1', '~r~norder by 2') + '~r~n--~r~n-- dddw_id : ' + ls_dddw_id + '(' + string (iSeq) + ')'
+   END IF
+
+   dddw_ds  = CREATE ads_jTier
+   ll_count = SQLCA.sql2ds (dddw_id, SQL_Select, dddw_ds, 'xml')
+   IF ll_count=0  Then
+      IF f_null (add_data) THEN ll_count = dddw_ds.insertrow (0)
+   ELSE
+      FOR  ll = 1  TO  ll_count
+         ldwc.insertrow (0)
+         ldwc.SetItem (ll, 1, dddw_ds.GETITEMSTRING (ll,1))
+         ldwc.SetItem (ll, 2, dddw_ds.GETITEMSTRING (ll,2))
+         ldwc.SetItem (ll, 3, dddw_ds.GETITEMSTRING (ll,3))
+      NEXT
+   END IF
+   DESTROY  dddw_ds
+END IF
+
+IF NOT F_NULL (add_data)   THEN
+   lAdd = F_GET_ARRAY (add_data, ',', la_data)
+   FOR  ll = 1  TO  lAdd  STEP 3
+      ll_count ++
+      IF F_NVL(la_data [ll + 1],'전체')='전체'   THEN
+         lR = ldwc.insertrow (1)
+      ELSE
+         lR = ldwc.insertrow (0)
+      END IF
+      ldwc.SetItem (lR, 1, la_data [ll])
+      ldwc.SetItem (lR, 2, la_data [ll + 1])
+      ldwc.SetItem (lR, 3, la_data [ll + 2])
+   NEXT
+END IF
+
+IF ldwc.ROWCOUNT( )=0 THEN
+   ldwc.InsertRow (0)
+   ldwc.SetItem (1, 1, '')
+   ldwc.SetItem (1, 2, '')
+   ldwc.SetItem (1, 3, '')
+ELSE
+   ls_default = ldwc.GETITEMSTRING (1, 1)
+   FOR  ll = ldwc.ROWCOUNT( )  TO  1  STEP -1
+      IF ldwc.GETITEMSTRING (ll, 3)='Default' THEN
+         ls_default = ldwc.GETITEMSTRING (ll, 1)
+         EXIT
+      END IF
+   NEXT
+END IF
+
+dw.Modify (dddw_ID + '.dddw.vscrollbar=no')
+IF ldwc.ROWCOUNT( )>10 THEN dw.Modify (dddw_ID + '.dddw.vscrollbar=yes')
+
+F_DDDWIDTH (dw, dddw_id)
+
+RETURN ls_default
+end function
+

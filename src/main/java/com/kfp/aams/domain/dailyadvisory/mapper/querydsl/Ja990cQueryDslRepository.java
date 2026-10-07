@@ -8,7 +8,6 @@ import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 /**
@@ -97,7 +96,8 @@ public class Ja990cQueryDslRepository {
     }
 
     private String encrypt(String plain) {
-        if (plain == null || plain.isBlank()) return null;
+        if (plain == null || plain.isBlank())
+            return null;
         try {
             return em.createQuery("SELECT function('TO_ENCRYPTS', :plain) FROM Sjx0jb b WHERE rownum = 1", String.class)
                     .setParameter("plain", plain.trim())

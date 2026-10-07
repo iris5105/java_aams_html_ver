@@ -163,9 +163,10 @@ public class DddwService {
         }
 
         // Cache in ConcurrentHashMap only when real data is found (do not cache empty fallback)
-        if (!dddwList.isEmpty()) {
+        if (dddwList != null && !dddwList.isEmpty()) {
             dddwCache.put(cacheKey, dddwList);
         } else {
+            dddwList = new ArrayList<>();
             dddwList.add(new DddwDto("", "데이터없음", ""));
         }
 

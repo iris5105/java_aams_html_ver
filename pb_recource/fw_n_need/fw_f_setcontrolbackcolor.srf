@@ -1,0 +1,56 @@
+﻿global type fw_f_setcontrolbackcolor from function_object
+end type
+
+forward prototypes
+global subroutine fw_f_setcontrolbackcolor (graphicobject agh_controls, long al_rgb)
+end prototypes
+
+global subroutine fw_f_setcontrolbackcolor (graphicobject agh_controls, long al_rgb);Long		ll_ctrlcnt, ll_i
+userobject	luo_object
+statictext		st_temp
+checkbox		cb_temp
+radiobutton	rb_temp
+groupbox		gb_temp
+datawindow	dw_temp
+//Window!, Tab!, UserObject!, picture!, rectangle!
+If agh_controls.TypeOf() = UserObject! Then
+	luo_object = agh_controls
+	ll_ctrlcnt = upperbound(luo_object.control)
+	luo_object.backcolor = al_rgb
+	For ll_i = 1 to ll_ctrlcnt
+		Choose Case luo_object.Control[ll_i].TypeOf()
+			Case statictext!
+				st_temp = luo_object.Control[ll_i]
+				st_temp.backcolor = al_rgb
+			Case checkbox!
+				cb_temp = luo_object.Control[ll_i]
+				cb_temp.backcolor = al_rgb
+			Case radiobutton!
+				rb_temp = luo_object.Control[ll_i]
+				rb_temp.backcolor = al_rgb
+			Case groupbox!				
+				gb_temp = luo_object.Control[ll_i]
+				gb_temp.backcolor = al_rgb
+			Case Else
+				Continue
+		End Choose
+	Next
+Else
+	Choose Case agh_controls.TypeOf()
+		Case statictext!
+			st_temp = agh_controls
+			st_temp.backcolor = al_rgb
+		Case checkbox!
+			cb_temp = agh_controls
+			cb_temp.backcolor = al_rgb
+		Case radiobutton!
+			rb_temp = agh_controls
+			rb_temp.backcolor = al_rgb
+		Case groupbox!				
+			gb_temp = agh_controls
+			gb_temp.backcolor = al_rgb
+	End Choose	
+End If
+
+end subroutine
+

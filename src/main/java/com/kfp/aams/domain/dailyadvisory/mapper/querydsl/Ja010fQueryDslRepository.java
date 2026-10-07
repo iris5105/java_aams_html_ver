@@ -8,7 +8,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
-import java.time.LocalDate;
 import java.util.List;
 
 /**
@@ -75,7 +74,9 @@ public class Ja010fQueryDslRepository {
         if (entity != null) {
             em.remove(entity);
         } else {
-            List<Sht0ye> list = em.createQuery("SELECT y FROM Sht0ye y WHERE y.corpGr = :corpGr AND y.trYmd = :trYmd AND y.fundCd = :fundCd", Sht0ye.class)
+            List<Sht0ye> list = em.createQuery(
+                    "SELECT y FROM Sht0ye y WHERE y.corpGr = :corpGr AND y.trYmd = :trYmd AND y.fundCd = :fundCd",
+                    Sht0ye.class)
                     .setParameter("corpGr", dto.getCorpGr().trim())
                     .setParameter("trYmd", dto.getTrYmd())
                     .setParameter("fundCd", dto.getFundCd().trim())

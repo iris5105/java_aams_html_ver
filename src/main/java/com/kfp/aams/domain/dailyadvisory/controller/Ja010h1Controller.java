@@ -18,7 +18,6 @@ import org.springframework.web.bind.annotation.*;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -32,16 +31,16 @@ public class Ja010h1Controller {
     private final RdReportService rdReportService;
     private final MenuService menuService;
 
-    @GetMapping({"/views/w_ja010h1", "/views/dailyadvisory/w_ja010h1"})
+    @GetMapping({ "/views/w_ja010h1", "/views/dailyadvisory/w_ja010h1" })
     public String ja010h1View(@AuthenticationPrincipal Object principalObj,
-                             @RequestParam(name = "corpGr", required = false) String paramCorpGr,
-                             @RequestParam(name = "ymd", required = false) @org.springframework.format.annotation.DateTimeFormat(pattern = "yyyy-MM-dd") java.time.LocalDate paramYmd,
-                             @CookieValue(name = "savedCorpGr", required = false) String cookieCorpGr1,
-                             @CookieValue(name = "corpGr", required = false) String cookieCorpGr2,
-                             @CookieValue(name = "workDate", required = false) String cookieWorkDate,
-                             jakarta.servlet.http.HttpServletRequest request,
-                             Model model,
-                             HttpSession session) {
+            @RequestParam(name = "corpGr", required = false) String paramCorpGr,
+            @RequestParam(name = "ymd", required = false) @org.springframework.format.annotation.DateTimeFormat(pattern = "yyyy-MM-dd") java.time.LocalDate paramYmd,
+            @CookieValue(name = "savedCorpGr", required = false) String cookieCorpGr1,
+            @CookieValue(name = "corpGr", required = false) String cookieCorpGr2,
+            @CookieValue(name = "workDate", required = false) String cookieWorkDate,
+            jakarta.servlet.http.HttpServletRequest request,
+            Model model,
+            HttpSession session) {
         UserPrincipal principal = (principalObj instanceof UserPrincipal p) ? p : null;
         String cookieCorpGr = (cookieCorpGr1 != null && !cookieCorpGr1.isBlank()) ? cookieCorpGr1 : cookieCorpGr2;
         String corpGr = resolveCorpGr(paramCorpGr, cookieCorpGr, principal);
@@ -54,10 +53,10 @@ public class Ja010h1Controller {
 
         // 파워빌더 w_ja010h1.srw (wue_lastopen) 명세:
         // IF gaa.corp_gr='2402' Then
-        //     SELECT JUNYONG_YMD INTO :ldt FROM SZX0AA aa WHERE aa.corp_gr = :gaa.corp_gr;
-        //     dw_c.object.ymd [1] = SQLCA.getitemdatetime (1)
+        // SELECT JUNYONG_YMD INTO :ldt FROM SZX0AA aa WHERE aa.corp_gr = :gaa.corp_gr;
+        // dw_c.object.ymd [1] = SQLCA.getitemdatetime (1)
         // Else
-        //     dw_c.object.ymd [1] = idt_workdate (엑세스 쿠키에 있는 현재 영업일)
+        // dw_c.object.ymd [1] = idt_workdate (엑세스 쿠키에 있는 현재 영업일)
         // End IF
         String effectiveCookieWorkDate = resolveCookieWorkDate(cookieWorkDate, principal, request);
         java.time.LocalDate workDate;
@@ -83,10 +82,11 @@ public class Ja010h1Controller {
      */
     @GetMapping("/api/daily/ja010h1/workdate")
     @ResponseBody
-    public ResponseEntity<Map<String, String>> getWorkDate(@RequestParam(name = "corpGr", required = false) String corpGr,
-                                                           @CookieValue(name = "workDate", required = false) String cookieWorkDate,
-                                                           @AuthenticationPrincipal Object principalObj,
-                                                           jakarta.servlet.http.HttpServletRequest request) {
+    public ResponseEntity<Map<String, String>> getWorkDate(
+            @RequestParam(name = "corpGr", required = false) String corpGr,
+            @CookieValue(name = "workDate", required = false) String cookieWorkDate,
+            @AuthenticationPrincipal Object principalObj,
+            jakarta.servlet.http.HttpServletRequest request) {
         UserPrincipal principal = (principalObj instanceof UserPrincipal p) ? p : null;
         String effectiveCookieWorkDate = resolveCookieWorkDate(cookieWorkDate, principal, request);
         java.time.LocalDate workDate = ja010hService.getInitialWorkDate(corpGr, effectiveCookieWorkDate);
@@ -104,7 +104,8 @@ public class Ja010h1Controller {
     @GetMapping("/api/daily/ja010h1/check-ledger")
     @ResponseBody
     public ResponseEntity<Map<String, Object>> checkLedger(@RequestParam("corpGr") String corpGr,
-                                                           @RequestParam("ymd") @org.springframework.format.annotation.DateTimeFormat(pattern = "yyyy-MM-dd", fallbackPatterns = {"yyyyMMdd", "yyyy.MM.dd"}) java.time.LocalDate ymd) {
+            @RequestParam("ymd") @org.springframework.format.annotation.DateTimeFormat(pattern = "yyyy-MM-dd", fallbackPatterns = {
+                    "yyyyMMdd", "yyyy.MM.dd" }) java.time.LocalDate ymd) {
         Map<String, Object> result = new HashMap<>();
         String errorMsg = ja010hService.checkLedgerValidation(corpGr, ymd);
         if (errorMsg != null) {
@@ -120,7 +121,8 @@ public class Ja010h1Controller {
     @ResponseBody
     public ResponseEntity<List<Ja010hMasterDto>> getFunds(
             @RequestParam("corpGr") String corpGr,
-            @RequestParam("ymd") @org.springframework.format.annotation.DateTimeFormat(pattern = "yyyy-MM-dd", fallbackPatterns = {"yyyyMMdd", "yyyy.MM.dd"}) java.time.LocalDate ymd) {
+            @RequestParam("ymd") @org.springframework.format.annotation.DateTimeFormat(pattern = "yyyy-MM-dd", fallbackPatterns = {
+                    "yyyyMMdd", "yyyy.MM.dd" }) java.time.LocalDate ymd) {
         List<Ja010hMasterDto> list = ja010hService.getFundList(corpGr, ymd);
         return ResponseEntity.ok(list);
     }
@@ -221,8 +223,10 @@ public class Ja010h1Controller {
      * Helper to resolve corporate group (Guideline 1: no default value)
      */
     private String resolveCorpGr(String paramCorpGr, String cookieCorpGr, UserPrincipal principal) {
-        if (paramCorpGr != null && !paramCorpGr.isBlank()) return paramCorpGr.trim();
-        if (cookieCorpGr != null && !cookieCorpGr.isBlank()) return cookieCorpGr.trim();
+        if (paramCorpGr != null && !paramCorpGr.isBlank())
+            return paramCorpGr.trim();
+        if (cookieCorpGr != null && !cookieCorpGr.isBlank())
+            return cookieCorpGr.trim();
         if (principal != null && principal.getCorpGr() != null && !principal.getCorpGr().isBlank()) {
             return principal.getCorpGr().trim();
         }
@@ -232,7 +236,8 @@ public class Ja010h1Controller {
     /**
      * 엑세스 쿠키 / 토큰에서 현재 영업일 추출
      */
-    private String resolveCookieWorkDate(String cookieWorkDate, UserPrincipal principal, jakarta.servlet.http.HttpServletRequest request) {
+    private String resolveCookieWorkDate(String cookieWorkDate, UserPrincipal principal,
+            jakarta.servlet.http.HttpServletRequest request) {
         if (cookieWorkDate != null && !cookieWorkDate.isBlank()) {
             return cookieWorkDate.trim();
         }

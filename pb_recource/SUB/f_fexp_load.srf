@@ -1,0 +1,72 @@
+﻿global type f_fexp_load from function_object
+end type
+
+forward prototypes
+global function string f_fexp_load (string atable, str_parameter asp)
+end prototypes
+
+global function string f_fexp_load (string atable, str_parameter asp);STRING   ls_path, ls_local, ls_blob_err
+
+BLOB  lb_data
+
+INT   file_no, li_count
+
+LONG	ll_blob
+
+ChangeDirectory (ProfileString (gaa.config, 'INIT Value', 'f_fexp_load Default Directory', gnv_vari.basepath))
+
+IF GetFileOpenName ("Select File", ls_path, ls_local, "pdf", "PDF File/Word 문서/HWP 문서/Excel 통합 문서,*.pdf;*.doc?;*.hwp;*.xls?,모든 자료 (*.*),*.*" )<>1 THEN RETURN ''
+file_no = FileOpen (ls_path, StreamMode!, Read!, Shared!)
+FileReadEx (file_no, lb_data)
+FileClose (file_no)
+
+SetProfileString (gaa.config, 'INIT Value', 'f_fexp_load Default Directory', f_replace (ls_path, ls_local, ''))
+changedirectory(gnv_vari.basepath)
+
+CHOOSE CASE atable
+   CASE 'history'
+      SELECT COUNT (*)
+		  INTO :li_count
+		FROM   history_blob
+      WHERE  bfname = :asp.str [1];
+
+		li_count = SQLCA.getitemnumber (1)
+
+		IF li_count > 0 Then
+			ll_blob = mo_.blob2hex(lb_data, SQLCA.is_updateblob, ls_blob_err)
+
+			UPDATEBLOB  history_blob
+				SET   blob_f = :lb_data
+			WHERE bfname = :asp.str [1];
+      ELSE
+         gw_mdi.setmicrohelp (asp.str [1] + ' 생성')
+         INSERT INTO  history_blob (
+                  bfname )                         /* _1: */
+         VALUES ( :asp.str[1]                                /* _1: */
+                );
+			IF SQLCA.SQLCode()<>0 THEN MessageBox ('history_blob INSERT 실패:' + string (SQLCA.SQLDBCode), SQLCA.SQLErrText())
+
+			ll_blob = mo_.blob2hex(lb_data, SQLCA.is_updateblob, ls_blob_err)
+         UPDATEBLOB  history_blob
+            SET   blob_f = :lb_data
+         WHERE bfname = :asp.str [1];
+      End IF
+
+   CASE 'weekly'
+		ll_blob = mo_.blob2hex(lb_data, SQLCA.is_updateblob, ls_blob_err)
+
+      UPDATEBLOB  weekly
+         SET   blob_f = :lb_data
+      WHERE corp_gr = :asp.str [1]
+        AND cre_ymd = :asp.dt [1]
+        AND sb_nm   = :asp.str [2];
+END CHOOSE
+IF SQLCA.SQLCode()<>0   Then
+   f_messageBox ('SQLCA', 'UPDATEBLOB ' + atable)
+   RETURN ''
+End IF
+commitJ ()
+
+RETURN   f_replace (RightA (ls_local, 4), '.', '')
+end function
+

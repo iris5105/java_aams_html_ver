@@ -1,0 +1,34 @@
+﻿global type f_loadingfind from function_object
+end type
+
+forward prototypes
+global subroutine f_loadingfind (boolean ag_action)
+end prototypes
+
+global subroutine f_loadingfind (boolean ag_action);n_loading	lu_bar
+
+lu_bar = CREATE n_loading
+
+IF	ag_action	Then
+	CHOOSE CASE	SharedObjectRegister ('n_loading', 'aamsfind')
+		CASE Success!
+			CHOOSE CASE	SharedObjectGet ('aamsfind', lu_bar)
+				CASE Success!
+					lu_bar.uf_start ('w_loadingfind')
+				CASE SharedObjectCreateInstanceError!
+					MessageBox ('error', 'The local reference to the shared object could not be created')
+				CASE SharedObjectNotExistsError!
+					SharedObjectUnregister ('n_loading')
+				END CHOOSE
+		CASE SharedObjectExistsError!
+			MessageBox ('error', 'The instance name has already been used')
+		CASE SharedObjectCreateInstanceError!
+			MessageBox ('error', 'The object could not be created')
+		CASE SharedObjectCreatePBSessionError!
+			MessageBox ('error', 'The shared object session could not be created')
+	END CHOOSE
+Else
+	SharedObjectUnregister ('aamsfind')
+End IF
+end subroutine
+

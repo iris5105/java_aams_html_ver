@@ -18,6 +18,10 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 
+import com.kfp.aams.util.CookieCryptoUtil;
+import org.springframework.ui.Model;
+import org.springframework.web.bind.annotation.CookieValue;
+
 import java.util.Map;
 
 @Slf4j
@@ -30,7 +34,12 @@ public class AuthController {
     private final com.kfp.aams.common.service.WorkDateService workDateService;
 
     @GetMapping({ "/login", "/w_login_aams" })
-    public String loginPage() {
+    public String loginPage(@CookieValue(name = "savedEmail", required = false) String savedEmailCookie,
+                            @CookieValue(name = "savedCorpGr", required = false) String savedCorpGr,
+                            Model model) {
+        String decryptedEmail = CookieCryptoUtil.decrypt(savedEmailCookie);
+        model.addAttribute("savedEmail", decryptedEmail != null ? decryptedEmail : "");
+        model.addAttribute("savedCorpGr", savedCorpGr != null ? savedCorpGr : "");
         return "w_login_aams";
     }
 
@@ -40,7 +49,8 @@ public class AuthController {
         if (userId == null || userId.isBlank()) {
             return ResponseEntity.badRequest().body(Map.of("exists", false, "message", "아이디를 입력해주세요."));
         }
-        UserDto userDto = userQueryDslRepository.findUserRoleAndCorpGr(userId.trim());
+        String rawUserId = CookieCryptoUtil.decrypt(userId.trim());
+        UserDto userDto = userQueryDslRepository.findUserRoleAndCorpGr(rawUserId);
         if (userDto == null) {
             return ResponseEntity.ok(Map.of("exists", false));
         }
@@ -119,34 +129,46 @@ public class AuthController {
         refreshCookie.setMaxAge(7 * 24 * 60 * 60);
         response.addCookie(refreshCookie);
 
-        // Set savedEmail Cookie for login auto-fill (30 days)
+        // Set savedEmail Cookie for login auto-fill (30 days, encrypted)
         if (userDto.getEncEMail() != null && !userDto.getEncEMail().isBlank()) {
-            Cookie savedEmailCookie = new Cookie("savedEmail", userDto.getEncEMail());
+            Cookie savedEmailCookie = new Cookie("savedEmail", CookieCryptoUtil.encrypt(userDto.getEncEMail()));
             savedEmailCookie.setPath("/");
             savedEmailCookie.setMaxAge(30 * 24 * 60 * 60);
             response.addCookie(savedEmailCookie);
         }
 
-        // Set savedCorpGr Cookie for login logo & active corpGr (30 days)
+        // Set savedCorpGr & corpGr Cookie for login logo & active corpGr (30 days)
         if (userDto.getCorpGr() != null && !userDto.getCorpGr().isBlank()) {
             Cookie savedCorpGrCookie = new Cookie("savedCorpGr", userDto.getCorpGr());
             savedCorpGrCookie.setPath("/");
             savedCorpGrCookie.setMaxAge(30 * 24 * 60 * 60);
             response.addCookie(savedCorpGrCookie);
+
+            Cookie corpGrCookie = new Cookie("corpGr", userDto.getCorpGr());
+            corpGrCookie.setPath("/");
+            corpGrCookie.setMaxAge(30 * 24 * 60 * 60);
+            response.addCookie(corpGrCookie);
         }
 
-        // Set userId Cookie for client scripts (30 days)
+        // corp_gr 쿠키 삭제 (corpGr 단일화)
+        Cookie clearCorpGrCookie = new Cookie("corp_gr", "");
+        clearCorpGrCookie.setPath("/");
+        clearCorpGrCookie.setMaxAge(0);
+        response.addCookie(clearCorpGrCookie);
+
+        // Set userId Cookie for client scripts (30 days, encrypted)
         if (userDto.getUserId() != null && !userDto.getUserId().isBlank()) {
-            Cookie userIdCookie = new Cookie("userId", userDto.getUserId());
+            Cookie userIdCookie = new Cookie("userId", CookieCryptoUtil.encrypt(userDto.getUserId()));
             userIdCookie.setPath("/");
             userIdCookie.setMaxAge(30 * 24 * 60 * 60);
             response.addCookie(userIdCookie);
-
-            Cookie userIdSnakeCookie = new Cookie("user_id", userDto.getUserId());
-            userIdSnakeCookie.setPath("/");
-            userIdSnakeCookie.setMaxAge(30 * 24 * 60 * 60);
-            response.addCookie(userIdSnakeCookie);
         }
+
+        // user_id 쿠키 삭제 (userId 단일화)
+        Cookie clearUserIdCookie = new Cookie("user_id", "");
+        clearUserIdCookie.setPath("/");
+        clearUserIdCookie.setMaxAge(0);
+        response.addCookie(clearUserIdCookie);
 
         // Set userNm Cookie for client scripts (30 days)
         if (userDto.getUserNm() != null && !userDto.getUserNm().isBlank()) {
@@ -174,10 +196,11 @@ public class AuthController {
         adminYnCookie.setMaxAge(30 * 24 * 60 * 60);
         response.addCookie(adminYnCookie);
 
-        Cookie adminCookie = new Cookie("admin", "Y".equalsIgnoreCase(userDto.getAdminYn()) ? "Y" : "N");
-        adminCookie.setPath("/");
-        adminCookie.setMaxAge(30 * 24 * 60 * 60);
-        response.addCookie(adminCookie);
+        // admin 쿠키 삭제 (adminYn 단일화)
+        Cookie clearAdminCookie = new Cookie("admin", "");
+        clearAdminCookie.setPath("/");
+        clearAdminCookie.setMaxAge(0);
+        response.addCookie(clearAdminCookie);
 
         log.info("User {} logged in successfully (adminYn: {}). Assigned corpGr: {}, workDate: {}.", userDto.getUserId(),
                 userDto.getAdminYn(), userDto.getCorpGr(), workDate);
@@ -257,6 +280,16 @@ public class AuthController {
         savedCorpGrCookie.setMaxAge(30 * 24 * 60 * 60);
         response.addCookie(savedCorpGrCookie);
 
+        Cookie corpGrCookie = new Cookie("corpGr", newCorpGr);
+        corpGrCookie.setPath("/");
+        corpGrCookie.setMaxAge(30 * 24 * 60 * 60);
+        response.addCookie(corpGrCookie);
+
+        Cookie clearCorpGrCookie = new Cookie("corp_gr", "");
+        clearCorpGrCookie.setPath("/");
+        clearCorpGrCookie.setMaxAge(0);
+        response.addCookie(clearCorpGrCookie);
+
         String switchedWorkDate = workDateService.getWorkDateOrDefault(newCorpGr);
         Cookie workDateCookie = new Cookie("workDate", switchedWorkDate);
         workDateCookie.setPath("/");
@@ -264,16 +297,16 @@ public class AuthController {
         response.addCookie(workDateCookie);
 
         if (principal.getUserId() != null && !principal.getUserId().isBlank()) {
-            Cookie userIdCookie = new Cookie("userId", principal.getUserId());
+            Cookie userIdCookie = new Cookie("userId", CookieCryptoUtil.encrypt(principal.getUserId()));
             userIdCookie.setPath("/");
             userIdCookie.setMaxAge(30 * 24 * 60 * 60);
             response.addCookie(userIdCookie);
-
-            Cookie userIdSnakeCookie = new Cookie("user_id", principal.getUserId());
-            userIdSnakeCookie.setPath("/");
-            userIdSnakeCookie.setMaxAge(30 * 24 * 60 * 60);
-            response.addCookie(userIdSnakeCookie);
         }
+
+        Cookie clearUserIdCookie = new Cookie("user_id", "");
+        clearUserIdCookie.setPath("/");
+        clearUserIdCookie.setMaxAge(0);
+        response.addCookie(clearUserIdCookie);
 
         log.info("User {} switched company corpGr to {}, workDate: {}", principal.getUserId(), newCorpGr, switchedWorkDate);
 
@@ -307,10 +340,20 @@ public class AuthController {
         userIdCookie.setMaxAge(0);
         response.addCookie(userIdCookie);
 
-        Cookie userIdSnakeCookie = new Cookie("user_id", null);
-        userIdSnakeCookie.setPath("/");
-        userIdSnakeCookie.setMaxAge(0);
-        response.addCookie(userIdSnakeCookie);
+        Cookie clearUserIdSnakeCookie = new Cookie("user_id", null);
+        clearUserIdSnakeCookie.setPath("/");
+        clearUserIdSnakeCookie.setMaxAge(0);
+        response.addCookie(clearUserIdSnakeCookie);
+
+        Cookie clearCorpGrSnakeCookie = new Cookie("corp_gr", null);
+        clearCorpGrSnakeCookie.setPath("/");
+        clearCorpGrSnakeCookie.setMaxAge(0);
+        response.addCookie(clearCorpGrSnakeCookie);
+
+        Cookie clearAdminCookie = new Cookie("admin", null);
+        clearAdminCookie.setPath("/");
+        clearAdminCookie.setMaxAge(0);
+        response.addCookie(clearAdminCookie);
 
         return ResponseEntity.ok(LoginResponseDto.builder()
                 .success(true)

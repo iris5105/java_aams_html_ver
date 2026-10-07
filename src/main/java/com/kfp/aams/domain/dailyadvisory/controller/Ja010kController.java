@@ -15,7 +15,6 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -28,14 +27,14 @@ public class Ja010kController {
     private final Ja010kService ja010kService;
     private final MenuService menuService;
 
-    @GetMapping({"/views/w_ja010k", "/views/dailyadvisory/w_ja010k"})
+    @GetMapping({ "/views/w_ja010k", "/views/dailyadvisory/w_ja010k" })
     public String viewJa010k(@AuthenticationPrincipal Object principalObj,
-                             @RequestParam(name = "corpGr", required = false) String paramCorpGr,
-                             @RequestParam(name = "fymd", required = false) @org.springframework.format.annotation.DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate paramFymd,
-                             @RequestParam(name = "tymd", required = false) @org.springframework.format.annotation.DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate paramTymd,
-                             @CookieValue(name = "savedCorpGr", required = false) String cookieCorpGr1,
-                             @CookieValue(name = "corpGr", required = false) String cookieCorpGr2,
-                             Model model) {
+            @RequestParam(name = "corpGr", required = false) String paramCorpGr,
+            @RequestParam(name = "fymd", required = false) @org.springframework.format.annotation.DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate paramFymd,
+            @RequestParam(name = "tymd", required = false) @org.springframework.format.annotation.DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate paramTymd,
+            @CookieValue(name = "savedCorpGr", required = false) String cookieCorpGr1,
+            @CookieValue(name = "corpGr", required = false) String cookieCorpGr2,
+            Model model) {
         UserPrincipal principal = (principalObj instanceof UserPrincipal p) ? p : null;
         String cookieCorpGr = (cookieCorpGr1 != null && !cookieCorpGr1.isBlank()) ? cookieCorpGr1 : cookieCorpGr2;
         String corpGr = resolveCorpGr(paramCorpGr, cookieCorpGr, principal);
@@ -134,13 +133,16 @@ public class Ja010kController {
             return ResponseEntity.ok(Map.of("success", true, "message", "저장이 완료되었습니다."));
         } catch (Exception e) {
             log.error("Error saving ja010k detail:", e);
-            return ResponseEntity.internalServerError().body(Map.of("success", false, "message", "저장 중 오류가 발생했습니다: " + e.getMessage()));
+            return ResponseEntity.internalServerError()
+                    .body(Map.of("success", false, "message", "저장 중 오류가 발생했습니다: " + e.getMessage()));
         }
     }
 
     private String resolveCorpGr(String paramCorpGr, String cookieCorpGr, UserPrincipal principal) {
-        if (paramCorpGr != null && !paramCorpGr.isBlank()) return paramCorpGr;
-        if (cookieCorpGr != null && !cookieCorpGr.isBlank()) return cookieCorpGr;
+        if (paramCorpGr != null && !paramCorpGr.isBlank())
+            return paramCorpGr;
+        if (cookieCorpGr != null && !cookieCorpGr.isBlank())
+            return cookieCorpGr;
         if (principal != null && principal.getCorpGr() != null && !principal.getCorpGr().isBlank()) {
             return principal.getCorpGr();
         }

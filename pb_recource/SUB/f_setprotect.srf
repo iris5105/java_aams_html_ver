@@ -1,0 +1,62 @@
+﻿global type f_setprotect from function_object
+end type
+
+forward prototypes
+global subroutine f_setprotect (fw_u_dwo dw, boolean ag_set, string ag_target[])
+end prototypes
+
+global subroutine f_setprotect (fw_u_dwo dw, boolean ag_set, string ag_target[]);DATASTORE	lds
+
+BOOLEAN	lb_word
+
+LONG  ll, lw, lCol, ll_obj
+
+STRING   ls_obj, ls_text, ls_mod, ls_icon_name
+
+lds = CREATE DATASTORE
+lds.dataobject = dw.dataobject
+
+lCol = long (lds.object.DataWindow.Column.Count)
+FOR  ll = 1  TO  lCol
+   ls_obj = lds.describe ('#'+string (ll)+'.name')
+	lb_word = FALSE
+	FOR  lw = 1  TO  UPPERBOUND (ag_target)
+		IF	ag_target [lw]=ls_obj	Then
+			lb_word = TRUE
+			EXIT
+		End IF
+	NEXT
+   IF lb_word	Then
+		IF ag_set THEN
+			ls_text = ls_obj + '.protect=1 ' + ls_obj + '.background.mode=1'
+		ELSE
+			ls_text = ls_obj + ".protect='" + f_nvl(lds.describe(ls_obj + '.protect'), '0') + "' " + ls_obj + '.background.mode=2'
+		END IF
+		ls_mod = dw.MODIFY (ls_text)
+		IF	f_null (ls_mod)	Then
+			IF lds.describe (ls_obj+'.Edit.style')='dddw' THEN dw.MODIFY (ls_obj+'.dddw.UseAsBorder=' + IIF (ag_set,'no','yes') + "'")
+			IF	NOT ag_set THEN f_dddwidth (dw, ls_obj)
+		Else
+			IF	gaa.login='yjs1992@hitel.net' And lds.describe (ls_obj+'.protect')<>'?' THEN messageBox ('f_setprotect ERR (' + dw.dataobject + ')', ls_mod + '~r~n' + ls_text)
+		End IF
+		ls_icon_name = ''
+		IF STRING(lds.describe('p_dd_' + ls_obj + '.name'))<>'!' Then
+			ls_icon_name = 'p_dd_' + ls_obj
+		ELSEIF STRING(lds.describe('p_d2_' + ls_obj + '.name'))<>'!'	Then
+			ls_icon_name = 'p_d2_' + ls_obj
+		ELSEIF STRING(lds.describe('p_xx_' + ls_obj + '.name'))<>'!'	Then
+			ls_icon_name = 'p_xx_' + ls_obj
+		ELSEIF STRING(lds.describe('p_mm_' + ls_obj + '.name'))<>'!'	Then
+			ls_icon_name = 'p_mm_' + ls_obj
+		END IF
+		IF	f_notnull (ls_icon_name)	Then
+			ls_text = ls_icon_name + '.visible=' + IIF (ag_set,'0','1')
+			IF STRING(lds.describe('p_disabled_' + ls_obj + '.name'))<>'!'	THEN ls_text = ' p_disabled_' + ls_obj + '.visible=' + IIF (ag_set,'1','0') 	// 아이콘 같이 처리
+			dw.MODIFY (ls_text)
+		End IF
+   End IF
+NEXT
+
+DESTROY lds
+end subroutine
+

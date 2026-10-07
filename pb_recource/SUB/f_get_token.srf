@@ -1,0 +1,36 @@
+﻿global type f_get_token from function_object
+end type
+
+forward prototypes
+global function string f_get_token (ref string source, string separator)
+end prototypes
+
+global function string f_get_token (ref string source, string separator);////////////////////////////////////////////////////////////////////////////////////
+//    함 수 :  f_Get_Token
+//    설 명 :  이 함수는 문자열에서 구분문자를 검색하여 구분문자 왼쪽 부분의
+//             문자열을 Return하고, 원래의 문자열은 구분문자의 오른쪽 부분의
+//             문자열로 대체한다.
+//             (Return되는 문자열에는 구분문자가 포함되지 않는다.)
+//             만일, 문자열내에 구분문자가 보이지 않으면, 전체 문자열을 Return한다.
+//
+//    ARGUMENTS:
+//             Source			는 문자열
+//             Separator		는 구분문자
+////////////////////////////////////////////////////////////////////////////////////
+LONG	P
+
+String	Ret
+
+P = PosA (Source, Separator)	// 구분문자의 위치를 찾는다.
+
+IF	P=0	Then		// 만일, Separator가 없는 경우에는 전체 Source String을 Return하고 본래의 Source의 크기는 "0"이 된다.
+	Ret = Source
+	Source = ""
+Else
+	Ret = MidA (Source, 1, P - 1)               									// 구분문자의 왼쪽 문자열을 추출
+	Source = RightA (Source, LenA (Source) - p - LenA (separator) + 1)   // 본래의 Source String은 구분문자의 오른쪽 부분의 문자열을 갖는다.
+End IF
+
+RETURN	Ret
+end function
+

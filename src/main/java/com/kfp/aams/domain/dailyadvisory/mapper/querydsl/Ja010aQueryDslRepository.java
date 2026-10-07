@@ -28,12 +28,11 @@ public class Ja010aQueryDslRepository {
     private final JPAQueryFactory queryFactory;
     private final jakarta.persistence.EntityManager em;
 
-    private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd");
-
     /**
      * PB w_ja010a.srw dw_list::ue_insertstart 스크립트 기반 회사코드 채번:
      * ls_corp_gr = string (idt_workdate,'yy') + '01'
-     * SELECT NVL(max(corp_gr) + 1, :ls_corp_gr) FROM szx0aa t1 WHERE t1.corp_gr >= :ls_corp_gr;
+     * SELECT NVL(max(corp_gr) + 1, :ls_corp_gr) FROM szx0aa t1 WHERE t1.corp_gr >=
+     * :ls_corp_gr;
      */
     public String getNextCorpGr() {
         String currentYY01 = java.time.LocalDate.now().format(DateTimeFormatter.ofPattern("yy")) + "01";
@@ -54,7 +53,8 @@ public class Ja010aQueryDslRepository {
     }
 
     public void saveMaster(Ja010aMasterDto master) {
-        if (master == null || master.getCorpGr() == null || master.getCorpGr().isBlank()) return;
+        if (master == null || master.getCorpGr() == null || master.getCorpGr().isBlank())
+            return;
         String corpGr = master.getCorpGr().trim();
         Szx0aa entity = em.find(Szx0aa.class, corpGr);
         if (entity == null) {
@@ -78,12 +78,13 @@ public class Ja010aQueryDslRepository {
     }
 
     public void saveDetail(Ja010aDetailDto detail) {
-        if (detail == null || detail.getCorpGr() == null || detail.getYmd() == null) return;
+        if (detail == null || detail.getCorpGr() == null || detail.getYmd() == null)
+            return;
         String corpGr = detail.getCorpGr().trim();
         java.time.LocalDate ymd = detail.getYmd();
 
-        com.kfp.aams.domain.dailyadvisory.entity.Szx0abId id = 
-            new com.kfp.aams.domain.dailyadvisory.entity.Szx0abId(corpGr, ymd);
+        com.kfp.aams.domain.dailyadvisory.entity.Szx0abId id = new com.kfp.aams.domain.dailyadvisory.entity.Szx0abId(
+                corpGr, ymd);
         Szx0ab entity = em.find(Szx0ab.class, id);
         if (entity == null) {
             entity = new Szx0ab();
@@ -103,14 +104,16 @@ public class Ja010aQueryDslRepository {
     }
 
     public void deleteMaster(Ja010aMasterDto master) {
-        if (master == null || master.getCorpGr() == null) return;
+        if (master == null || master.getCorpGr() == null)
+            return;
         String corpGr = master.getCorpGr().trim();
         QSzx0aa q = QSzx0aa.szx0aa;
         queryFactory.delete(q).where(q.corpGr.eq(corpGr)).execute();
     }
 
     public void deleteDetail(Ja010aDetailDto detail) {
-        if (detail == null || detail.getCorpGr() == null || detail.getYmd() == null) return;
+        if (detail == null || detail.getCorpGr() == null || detail.getYmd() == null)
+            return;
         String corpGr = detail.getCorpGr().trim();
         java.time.LocalDate ymd = detail.getYmd();
         QSzx0ab q = QSzx0ab.szx0ab;
@@ -141,8 +144,7 @@ public class Ja010aQueryDslRepository {
                 .customerGr(e.getCustomerGr())
                 .expenseYn(e.getExpenseYn())
                 .pVisible(1)
-                .build()
-        ).collect(Collectors.toList());
+                .build()).collect(Collectors.toList());
     }
 
     public List<Ja010aDetailDto> findDetailList(String corpGr) {
@@ -171,12 +173,12 @@ public class Ja010aQueryDslRepository {
                 .faxNo(e.getFaxNo())
                 .email(e.getEmail())
                 .pVisible(1)
-                .build()
-        ).collect(Collectors.toList());
+                .build()).collect(Collectors.toList());
     }
 
     private String formatDateString(String val) {
-        if (val == null || val.isBlank()) return "";
+        if (val == null || val.isBlank())
+            return "";
         String text = val.trim();
         if (text.length() >= 10 && (text.charAt(4) == '-' || text.charAt(4) == '/' || text.charAt(4) == '.')) {
             return text.substring(0, 4) + "-" + text.substring(5, 7) + "-" + text.substring(8, 10);

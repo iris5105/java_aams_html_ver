@@ -7,8 +7,6 @@ import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
-import java.time.LocalDate;
-
 /**
  * JPA Repository for w_ja010o (주식 신용/대출잔고 LOAD)
  * - SJM0JM_COLL C/U/D 및 Merge 영속화 (순수 JPA Entity 기반)
@@ -68,7 +66,6 @@ public class Ja010oQueryDslRepository {
                 dto.getCorpGr(),
                 dto.getYmd(),
                 dto.getFundCd(),
-                dto.getJmCd()
-        );
+                dto.getJmCd());
     }
 }

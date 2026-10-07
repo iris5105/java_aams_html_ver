@@ -5,7 +5,6 @@ import com.kfp.aams.domain.dailyadvisory.service.RdReportService;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -18,7 +17,8 @@ import java.util.*;
 /**
  * Crownix Report (MRD) 범용 API 컨트롤러
  * - 어떤 MRD 파일명이든, 몇 개의 가변 파라미터가 오든 단일 엔드포인트로 리포트 생성 및 내보내기 처리
- * - GET: iframe 인라인 미리보기 (/api/common/rd/preview) 및 파일 다운로드 (/api/common/rd/export)
+ * - GET: iframe 인라인 미리보기 (/api/common/rd/preview) 및 파일 다운로드
+ * (/api/common/rd/export)
  * - POST: JSON Body 기반 리포트 생성 지원
  */
 @Slf4j
@@ -32,8 +32,7 @@ public class RdReportController {
 
     // 예약어 키 목록 (RD 파라미터가 아닌 컨트롤러 제어용 파라미터)
     private static final Set<String> RESERVED_KEYS = new HashSet<>(Arrays.asList(
-            "mrdname", "corpgr", "format", "downloadname", "params", "t", "_"
-    ));
+            "mrdname", "corpgr", "format", "downloadname", "params", "t", "_"));
 
     @Data
     public static class RdReportRequest {
@@ -62,11 +61,13 @@ public class RdReportController {
             RdReportService.ExportResult result = rdReportService.generateReport(
                     corpGr, mrdName, mergedParams, "pdf", downloadName);
 
-            String encodedFilename = URLEncoder.encode(result.getFilename(), StandardCharsets.UTF_8).replaceAll("\\+", "%20");
+            String encodedFilename = URLEncoder.encode(result.getFilename(), StandardCharsets.UTF_8).replaceAll("\\+",
+                    "%20");
 
             return ResponseEntity.ok()
                     .contentType(MediaType.APPLICATION_PDF)
-                    .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + encodedFilename + "\"; filename*=UTF-8''" + encodedFilename)
+                    .header(HttpHeaders.CONTENT_DISPOSITION,
+                            "inline; filename=\"" + encodedFilename + "\"; filename*=UTF-8''" + encodedFilename)
                     .body(result.getData());
         } catch (Exception e) {
             log.error("RD 공통 미리보기 실패: mrdName={}, error={}", mrdName, e.getMessage(), e);
@@ -92,12 +93,14 @@ public class RdReportController {
             RdReportService.ExportResult result = rdReportService.generateReport(
                     corpGr, mrdName, mergedParams, format, downloadName);
 
-            String encodedFilename = URLEncoder.encode(result.getFilename(), StandardCharsets.UTF_8).replaceAll("\\+", "%20");
+            String encodedFilename = URLEncoder.encode(result.getFilename(), StandardCharsets.UTF_8).replaceAll("\\+",
+                    "%20");
             MediaType mediaType = MediaType.parseMediaType(result.getContentType());
 
             return ResponseEntity.ok()
                     .contentType(mediaType)
-                    .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + encodedFilename + "\"; filename*=UTF-8''" + encodedFilename)
+                    .header(HttpHeaders.CONTENT_DISPOSITION,
+                            "attachment; filename=\"" + encodedFilename + "\"; filename*=UTF-8''" + encodedFilename)
                     .body(result.getData());
         } catch (Exception e) {
             log.error("RD 공통 내보내기 실패: mrdName={}, format={}, error={}", mrdName, format, e.getMessage(), e);
@@ -114,11 +117,13 @@ public class RdReportController {
             RdReportService.ExportResult result = rdReportService.generateReport(
                     req.getCorpGr(), req.getMrdName(), req.getParams(), "pdf", req.getDownloadName());
 
-            String encodedFilename = URLEncoder.encode(result.getFilename(), StandardCharsets.UTF_8).replaceAll("\\+", "%20");
+            String encodedFilename = URLEncoder.encode(result.getFilename(), StandardCharsets.UTF_8).replaceAll("\\+",
+                    "%20");
 
             return ResponseEntity.ok()
                     .contentType(MediaType.APPLICATION_PDF)
-                    .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + encodedFilename + "\"; filename*=UTF-8''" + encodedFilename)
+                    .header(HttpHeaders.CONTENT_DISPOSITION,
+                            "inline; filename=\"" + encodedFilename + "\"; filename*=UTF-8''" + encodedFilename)
                     .body(result.getData());
         } catch (Exception e) {
             log.error("RD 공통 POST 미리보기 실패: mrdName={}, error={}", req.getMrdName(), e.getMessage(), e);
@@ -135,15 +140,18 @@ public class RdReportController {
             RdReportService.ExportResult result = rdReportService.generateReport(
                     req.getCorpGr(), req.getMrdName(), req.getParams(), req.getFormat(), req.getDownloadName());
 
-            String encodedFilename = URLEncoder.encode(result.getFilename(), StandardCharsets.UTF_8).replaceAll("\\+", "%20");
+            String encodedFilename = URLEncoder.encode(result.getFilename(), StandardCharsets.UTF_8).replaceAll("\\+",
+                    "%20");
             MediaType mediaType = MediaType.parseMediaType(result.getContentType());
 
             return ResponseEntity.ok()
                     .contentType(mediaType)
-                    .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + encodedFilename + "\"; filename*=UTF-8''" + encodedFilename)
+                    .header(HttpHeaders.CONTENT_DISPOSITION,
+                            "attachment; filename=\"" + encodedFilename + "\"; filename*=UTF-8''" + encodedFilename)
                     .body(result.getData());
         } catch (Exception e) {
-            log.error("RD 공통 POST 내보내기 실패: mrdName={}, format={}, error={}", req.getMrdName(), req.getFormat(), e.getMessage(), e);
+            log.error("RD 공통 POST 내보내기 실패: mrdName={}, format={}, error={}", req.getMrdName(), req.getFormat(),
+                    e.getMessage(), e);
             return ResponseEntity.internalServerError().build();
         }
     }
@@ -159,8 +167,10 @@ public class RdReportController {
         if (allParams != null) {
             for (Map.Entry<String, String> entry : allParams.entrySet()) {
                 String key = entry.getKey();
-                if (key == null || key.isBlank()) continue;
-                if (RESERVED_KEYS.contains(key.trim().toLowerCase())) continue;
+                if (key == null || key.isBlank())
+                    continue;
+                if (RESERVED_KEYS.contains(key.trim().toLowerCase()))
+                    continue;
 
                 merged.put(key.trim(), entry.getValue());
             }

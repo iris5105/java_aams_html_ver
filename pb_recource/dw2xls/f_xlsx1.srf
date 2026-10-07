@@ -1,0 +1,67 @@
+﻿global type f_xlsx1 from function_object
+end type
+
+forward prototypes
+global subroutine f_xlsx1 (ads_jTier ag_ds, string ag_name, string ag_sheet_name, string ag_title1, string ag_title2, string ag_title3, string ag_title4)
+end prototypes
+
+global subroutine f_xlsx1 (ads_jTier ag_ds, string ag_name, string ag_sheet_name, string ag_title1, string ag_title2, string ag_title3, string ag_title4);STRING	ls_add
+
+INT	li_ret
+
+ls_add = '(' + f_sysdate_str ('dd_hh24miss') + ')'
+
+n_dwr_service_parm	lnvo_parm
+
+lnvo_parm = create n_dwr_service_parm
+
+// n_dwr_service_parm.txt 설명참조
+
+//lnvo_parm.ib_header = false
+//lnvo_parm.ib_foreground = false
+//lnvo_parm.ib_background = false
+//lnvo_parm.ib_detail = false
+//lnvo_parm.ib_summary = false
+//lnvo_parm.ib_footer = false
+//lnvo_parm.ib_group_header = false
+//lnvo_parm.ib_group_trailer = false
+//lnvo_parm.ib_keep_band_height = true
+//lnvo_parm.ib_enable_merge_cells = false
+//lnvo_parm.ib_show_progress = false
+//lnvo_parm.ib_hide_grid = true
+lnvo_parm.is_version = 'OOXML'
+lnvo_parm.is_sheet_name = ag_sheet_name
+//lnvo_parm.ib_group_pagebreak = true
+//lnvo_parm.ib_group_pageheader = false
+//lnvo_parm.ib_nested = false
+//lnvo_parm.id_min_width = 100
+//lnvo_parm.id_min_height = 100
+//lnvo_parm.ib_background_color = true
+//lnvo_parm.ib_lines = true
+//lnvo_parm.ib_rectangles = true
+//lnvo_parm.ib_trim_overlapped = false
+//lnvo_parm.ib_export_invisible = true
+//lnvo_parm.ib_always_export_grid_header = false
+//lnvo_parm.ib_font_height_expression = false
+//lnvo_parm.ib_grid_columns_by_rowheight = false
+//lnvo_parm.ib_export_hidden_treeview_levels = false
+//lnvo_parm.ib_nested_workaround = true
+//lnvo_parm.ib_check_suppressed = true
+//lnvo_parm.ib_pictures = true
+//lnvo_parm.ib_draw_dw_grid_lines = false
+//lnvo_parm.ib_fix_date_base = false
+//lnvo_parm.ib_nonvisual_calc_height = true
+
+IF	f_notnull (ag_title1)	Then
+	lnvo_parm.is_title_text = ag_title1
+	lnvo_parm.is_title_sub1 = ag_title2
+	lnvo_parm.is_title_sub2 = ag_title3
+	lnvo_parm.is_title_sub3 = ag_title4
+End IF
+
+li_ret = uf_save_ds_as_excel_parm (ag_ds, gaa.excel + ag_name + ls_add + '.xlsx', lnvo_parm)
+if li_ret=1 then ShellExecute (handle (this), 'open', gaa.excel + ag_name + ls_add + '.xlsx', '', '', 1)
+
+changedirectory(gnv_vari.basepath)
+end subroutine
+

@@ -1,0 +1,235 @@
+﻿forward
+global type m_mdiwindow from menu
+end type
+type m_file from menu within m_mdiwindow
+end type
+type m_preview from menu within m_file
+end type
+type m_printersetup from menu within m_file
+end type
+type m_file from menu within m_mdiwindow
+m_preview m_preview
+m_printersetup m_printersetup
+end type
+type m_help from menu within m_mdiwindow
+end type
+type m_helpindex from menu within m_help
+end type
+type m_help from menu within m_mdiwindow
+m_helpindex m_helpindex
+end type
+global type m_mdiwindow from menu
+m_file m_file
+m_help m_help
+end type
+end forward
+
+global type m_mdiwindow from menu
+m_file m_file
+m_help m_help
+end type
+global m_mdiwindow m_mdiwindow
+
+on m_mdiwindow.create
+m_mdiwindow=this
+call super::create
+this.menutextcolor = 134217735
+this.menubackcolor = 134217732
+this.menuhighlightcolor = 134217741
+this.textsize = 8
+this.weight = 400
+this.facename = "Tahoma"
+this.titlebackcolor = 134217730
+this.bitmapbackcolor = 12632256
+this.menubitmaps = true
+this.titlegradient = true
+this.toolbartextcolor = 134217746
+this.toolbarbackcolor = 67108864
+this.toolbarhighlightcolor = 134217741
+this.toolbargradient = true
+this.bitmapgradient = true
+this.m_file=create m_file
+this.m_help=create m_help
+this.Item[UpperBound(this.Item)+1]=this.m_file
+this.Item[UpperBound(this.Item)+1]=this.m_help
+end on
+
+on m_mdiwindow.destroy
+call super::destroy
+destroy(this.m_file)
+destroy(this.m_help)
+end on
+
+type m_file from menu within m_mdiwindow
+m_preview m_preview
+m_printersetup m_printersetup
+end type
+
+on m_file.create
+call super::create
+this.visible = false
+this.text = "파일[&F]"
+this.menutextcolor = 134217735
+this.menubackcolor = 134217732
+this.menuhighlightcolor = 134217741
+this.textsize = 8
+this.weight = 400
+this.facename = "Tahoma"
+this.titlebackcolor = 134217730
+this.bitmapbackcolor = 12632256
+this.menubitmaps = true
+this.titlegradient = true
+this.toolbartextcolor = 134217746
+this.toolbarbackcolor = 67108864
+this.toolbarhighlightcolor = 134217741
+this.toolbargradient = true
+this.bitmapgradient = true
+this.m_preview=create m_preview
+this.m_printersetup=create m_printersetup
+this.Item[UpperBound(this.Item)+1]=this.m_preview
+this.Item[UpperBound(this.Item)+1]=this.m_printersetup
+end on
+
+on m_file.destroy
+call super::destroy
+destroy(this.m_preview)
+destroy(this.m_printersetup)
+end on
+
+type m_preview from menu within m_file
+end type
+
+on m_preview.create
+call super::create
+this.visible = false
+this.text = "미리보기~tCtrl+E"
+this.enabled = false
+this.shortcut = 325
+this.menutextcolor = 134217735
+this.menubackcolor = 134217732
+this.menuhighlightcolor = 134217741
+this.textsize = 8
+this.weight = 400
+this.facename = "Tahoma"
+this.titlebackcolor = 134217730
+this.bitmapbackcolor = 12632256
+this.menubitmaps = true
+this.titlegradient = true
+this.toolbartextcolor = 134217746
+this.toolbarbackcolor = 67108864
+this.toolbarhighlightcolor = 134217741
+this.toolbargradient = true
+this.bitmapgradient = true
+end on
+
+event clicked;//window activesheet
+//activesheet = gw_mdi.GetActiveSheet()
+//
+//activesheet.triggerevent('ue_preview')
+end event
+
+on m_preview.destroy
+call super::destroy
+end on
+
+type m_printersetup from menu within m_file
+end type
+
+on clicked;/* Do printer setup */
+PrintSetup ()
+end on
+
+on m_printersetup.create
+call super::create
+this.text = "프린터설정~tAlt+P"
+this.shortcut = 592
+this.microhelp = "프린터 SETUP"
+this.menutextcolor = 134217735
+this.menubackcolor = 134217732
+this.menuhighlightcolor = 134217741
+this.textsize = 8
+this.weight = 400
+this.facename = "Tahoma"
+this.titlebackcolor = 134217730
+this.bitmapbackcolor = 12632256
+this.menubitmaps = true
+this.titlegradient = true
+this.toolbartextcolor = 134217746
+this.toolbarbackcolor = 67108864
+this.toolbarhighlightcolor = 134217741
+this.toolbargradient = true
+this.bitmapgradient = true
+end on
+
+on m_printersetup.destroy
+call super::destroy
+end on
+
+type m_help from menu within m_mdiwindow
+m_helpindex m_helpindex
+end type
+
+on m_help.create
+call super::create
+this.visible = false
+this.text = "도움말[&H]"
+this.shifttoright = true
+this.menutextcolor = 134217735
+this.menubackcolor = 134217732
+this.menuhighlightcolor = 134217741
+this.textsize = 8
+this.weight = 400
+this.facename = "Tahoma"
+this.titlebackcolor = 134217730
+this.bitmapbackcolor = 12632256
+this.menubitmaps = true
+this.titlegradient = true
+this.toolbartextcolor = 134217746
+this.toolbarbackcolor = 67108864
+this.toolbarhighlightcolor = 134217741
+this.toolbargradient = true
+this.bitmapgradient = true
+this.m_helpindex=create m_helpindex
+this.Item[UpperBound(this.Item)+1]=this.m_helpindex
+end on
+
+on m_help.destroy
+call super::destroy
+destroy(this.m_helpindex)
+end on
+
+type m_helpindex from menu within m_help
+end type
+
+on clicked;/* Display help contents */
+/* ShowHelp ("myapp.hlp", Index!) */
+end on
+
+on m_helpindex.create
+call super::create
+this.text = "목차 ~tAlt+F1"
+this.shortcut = 624
+this.microhelp = "Display Help index"
+this.toolbaritemtext = "도움말"
+this.toolbaritemspace = 2
+this.menutextcolor = 134217735
+this.menubackcolor = 134217732
+this.menuhighlightcolor = 134217741
+this.textsize = 8
+this.weight = 400
+this.facename = "Tahoma"
+this.titlebackcolor = 134217730
+this.bitmapbackcolor = 12632256
+this.menubitmaps = true
+this.titlegradient = true
+this.toolbartextcolor = 134217746
+this.toolbarbackcolor = 67108864
+this.toolbarhighlightcolor = 134217741
+this.toolbargradient = true
+this.bitmapgradient = true
+end on
+
+on m_helpindex.destroy
+call super::destroy
+end on
+

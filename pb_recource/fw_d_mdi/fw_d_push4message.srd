@@ -1,0 +1,78 @@
+﻿release 12.6;
+datawindow(units=0 timer_interval=0 color=67108864 brushmode=0 transparency=0 gradient.angle=0 gradient.color=8421504 gradient.focus=0 gradient.repetition.count=0 gradient.repetition.length=100 gradient.repetition.mode=0 gradient.scale=100 gradient.spread=100 gradient.transparency=0 picture.blur=0 picture.clip.bottom=0 picture.clip.left=0 picture.clip.right=0 picture.clip.top=0 picture.mode=0 picture.scale.x=100 picture.scale.y=100 picture.transparency=0 processing=1 HTMLDW=no print.printername="" print.documentname="" print.orientation = 0 print.margin.left = 110 print.margin.right = 110 print.margin.top = 96 print.margin.bottom = 96 print.paper.source = 0 print.paper.size = 0 print.canusedefaultprinter=yes print.prompt=no print.buttons=no print.preview.buttons=no print.cliptext=no print.overrideprintjob=no print.collate=yes print.background=no print.preview.background=no print.preview.outline=yes hidegrayline=no showbackcoloronxp=no picture.file="" grid.lines=0 selected.mouse=no )
+header(height=0 color="536870912" transparency="0" gradient.color="8421504" gradient.transparency="0" gradient.angle="0" brushmode="0" gradient.repetition.mode="0" gradient.repetition.count="0" gradient.repetition.length="100" gradient.focus="0" gradient.scale="100" gradient.spread="100" )
+summary(height=0 color="536870912" transparency="0" gradient.color="8421504" gradient.transparency="0" gradient.angle="0" brushmode="0" gradient.repetition.mode="0" gradient.repetition.count="0" gradient.repetition.length="100" gradient.focus="0" gradient.scale="100" gradient.spread="100" )
+footer(height=0 color="536870912" transparency="0" gradient.color="8421504" gradient.transparency="0" gradient.angle="0" brushmode="0" gradient.repetition.mode="0" gradient.repetition.count="0" gradient.repetition.length="100" gradient.focus="0" gradient.scale="100" gradient.spread="100" )
+detail(height=96 color="536870912" transparency="0" gradient.color="8421504" gradient.transparency="0" gradient.angle="0" brushmode="0" gradient.repetition.mode="0" gradient.repetition.count="0" gradient.repetition.length="100" gradient.focus="0" gradient.scale="100" gradient.spread="100" pointer="HyperLink!" )
+table(column=(type=char(7) updatewhereclause=yes name=board_no dbname="board_no" )
+ column=(type=decimal(0) updatewhereclause=yes name=docu_no dbname="docu_no" )
+ column=(type=char(500) updatewhereclause=yes name=docu_title dbname="docu_title" )
+ column=(type=char(67) updatewhereclause=yes name=row_id dbname="row_id" )
+ retrieve="SELECT la.board_no
+     , la.docu_no
+     , la.docu_title
+     , la.row_id
+FROM   ( select t1.board_no
+              , t1.docu_no
+              , t1.docu_title
+              , t1.reg_dt
+              , sys_id || corp_gr || board_no || TO_CHAR(docu_no)    AS row_id
+           from fw_docu_mst t1
+          where t1.sys_id  = :as_sys_id
+            and t1.role_no is null
+            and ((t1.board_no ='0000001')
+                   OR (t1.board_no ='0000003' And t1.linked_pgm_no = :as_corp_gr || '_' || :as_user_id)
+                   OR (t1.board_no ='0000002' And t1.corp_gr =:as_corp_gr)
+                   OR (t1.board_no ='0000011' And '2200' =:as_corp_gr))
+            and now ()    Between t1.start_dtm And nvl(t1.end_dtm,now () + 1)
+            and not exists ( select 1
+                               from fw_docu_log ta
+                              where ta.sys_id    = t1.sys_id
+                                and ta.corp_gr   LIKE :as_corp_gr
+                                and ta.read_user = :as_user_id
+                                and ta.board_no  = t1.board_no
+                                and ta.docu_no   = t1.docu_no )
+         UNION ALL
+         select t1.board_no
+              , t1.docu_no
+              , t1.docu_title
+              , t1.reg_dt
+              , t1.sys_id || t1.corp_gr || t1.board_no || TO_CHAR(t1.docu_no)
+           from fw_docu_mst t1
+              , fw_user_mst t2
+          where t1.sys_id  = :as_sys_id
+            and not exists ( select 1
+                               from fw_docu_log ta
+                              where ta.sys_id    = t1.sys_id
+                                and ta.read_user = t2.user_id
+                                and ta.board_no  = t1.board_no
+                                and ta.docu_no   = t1.docu_no
+                                and t1.corp_gr   LIKE :as_corp_gr )
+            and ((t1.board_no ='0000001')
+                   OR (t1.board_no ='0000003' And t1.linked_pgm_no = :as_corp_gr || '_' || :as_user_id)
+                   OR (t1.board_no ='0000002' And t1.corp_gr =:as_corp_gr)
+                   OR (t1.board_no ='0000011' And '2200' =:as_corp_gr))
+            and now ()    Between t1.start_dtm And NVL(t1.end_dtm,now () + 1)
+            and t2.sys_id  = t1.sys_id
+            and t2.corp_gr = :as_corp_gr
+            and t2.user_id = :as_user_id
+            and t2.dept_cd = t1.role_no
+       ) la
+ORDER BY la.reg_dt DESC" arguments=(("as_sys_id", string),("as_corp_gr", string),("as_user_id", string)) )
+text(band=header alignment="2" text="제 목" border="0" color="33554432" x="489" y="12" height="76" width="1362" html.valueishtml="0"  name=fw_docu_mst_docu_title_t visible="1"  font.face="맑은 고딕" font.height="-10" font.weight="400"  font.family="3" font.pitch="2" font.charset="129" background.mode="1" background.color="536870912" background.transparency="0" background.gradient.color="8421504" background.gradient.transparency="0" background.gradient.angle="0" background.brushmode="0" background.gradient.repetition.mode="0" background.gradient.repetition.count="0" background.gradient.repetition.length="100" background.gradient.focus="0" background.gradient.scale="100" background.gradient.spread="100" tooltip.backcolor="134217752" tooltip.delay.initial="0" tooltip.delay.visible="32000" tooltip.enabled="0" tooltip.hasclosebutton="0" tooltip.icon="0" tooltip.isbubble="0" tooltip.maxwidth="0" tooltip.textcolor="134217751" tooltip.transparency="0" transparency="0" )
+text(band=header alignment="2" text="종 류" border="0" color="33554432" x="146" y="12" height="76" width="334" html.valueishtml="0"  name=board_no_t visible="1"  font.face="맑은 고딕" font.height="-10" font.weight="400"  font.family="3" font.pitch="2" font.charset="129" background.mode="1" background.color="536870912" background.transparency="0" background.gradient.color="8421504" background.gradient.transparency="0" background.gradient.angle="0" background.brushmode="0" background.gradient.repetition.mode="0" background.gradient.repetition.count="0" background.gradient.repetition.length="100" background.gradient.focus="0" background.gradient.scale="100" background.gradient.spread="100" tooltip.backcolor="134217752" tooltip.delay.initial="0" tooltip.delay.visible="32000" tooltip.enabled="0" tooltip.hasclosebutton="0" tooltip.icon="0" tooltip.isbubble="0" tooltip.maxwidth="0" tooltip.textcolor="134217751" tooltip.transparency="0" transparency="0" )
+text(band=header alignment="2" text="순번" border="0" color="19737901" x="9" y="12" height="76" width="128" html.valueishtml="0"  name=docu_no_t visible="1"  font.face="맑은 고딕" font.height="-10" font.weight="400"  font.family="3" font.pitch="2" font.charset="129" background.mode="1" background.color="536870912" background.transparency="0" background.gradient.color="0" background.gradient.transparency="0" background.gradient.angle="0" background.brushmode="0" background.gradient.repetition.mode="0" background.gradient.repetition.count="0" background.gradient.repetition.length="0" background.gradient.focus="0" background.gradient.scale="0" background.gradient.spread="0" tooltip.backcolor="0" tooltip.delay.initial="0" tooltip.delay.visible="0" tooltip.enabled="0" tooltip.hasclosebutton="0" tooltip.icon="0" tooltip.isbubble="0" tooltip.maxwidth="0" tooltip.textcolor="0" tooltip.transparency="0" transparency="0" )
+column(band=detail id=1 alignment="0" tabsequence=32766 border="0" color="33554432" x="146" y="12" height="76" width="334" format="[general]" html.valueishtml="0"  name=board_no visible="1" dddw.name=fw_dddw_board_no dddw.displaycolumn=board_nm dddw.datacolumn=board_no dddw.percentwidth=0 dddw.lines=0 dddw.limit=0 dddw.allowedit=no dddw.useasborder=no dddw.case=any  font.face="맑은 고딕" font.height="-10" font.weight="400"  font.family="3" font.pitch="2" font.charset="129" background.mode="1" background.color="536870912" background.transparency="0" background.gradient.color="8421504" background.gradient.transparency="0" background.gradient.angle="0" background.brushmode="0" background.gradient.repetition.mode="0" background.gradient.repetition.count="0" background.gradient.repetition.length="100" background.gradient.focus="0" background.gradient.scale="100" background.gradient.spread="100" tooltip.backcolor="134217752" tooltip.delay.initial="0" tooltip.delay.visible="32000" tooltip.enabled="0" tooltip.hasclosebutton="0" tooltip.icon="0" tooltip.isbubble="0" tooltip.maxwidth="0" tooltip.textcolor="134217751" tooltip.transparency="0" transparency="0" )
+column(band=detail id=3 alignment="0" tabsequence=32766 border="0" color="33554432" x="489" y="12" height="76" width="1362" format="[general]" html.valueishtml="0"  name=docu_title visible="1" edit.limit=200 edit.case=any edit.focusrectangle=no edit.autoselect=yes edit.autohscroll=yes edit.useellipsis=yes  font.face="맑은 고딕" font.height="-10" font.weight="400"  font.family="3" font.pitch="2" font.charset="129" background.mode="1" background.color="536870912" background.transparency="0" background.gradient.color="8421504" background.gradient.transparency="0" background.gradient.angle="0" background.brushmode="0" background.gradient.repetition.mode="0" background.gradient.repetition.count="0" background.gradient.repetition.length="100" background.gradient.focus="0" background.gradient.scale="100" background.gradient.spread="100" tooltip.backcolor="134217752" tooltip.delay.initial="0" tooltip.delay.visible="32000" tooltip.enabled="0" tooltip.hasclosebutton="0" tooltip.icon="0" tooltip.isbubble="0" tooltip.maxwidth="0" tooltip.textcolor="134217751" tooltip.transparency="0" transparency="0" )
+column(band=detail id=2 alignment="2" tabsequence=32766 border="0" color="19737901" x="9" y="12" height="68" width="128" format="[general]" html.valueishtml="0"  name=docu_no visible="1" edit.limit=0 edit.case=any edit.focusrectangle=no edit.autoselect=no  font.face="맑은 고딕" font.height="-10" font.weight="400"  font.family="3" font.pitch="2" font.charset="129" background.mode="1" background.color="536870912" background.transparency="0" background.gradient.color="8421504" background.gradient.transparency="0" background.gradient.angle="0" background.brushmode="0" background.gradient.repetition.mode="0" background.gradient.repetition.count="0" background.gradient.repetition.length="100" background.gradient.focus="0" background.gradient.scale="100" background.gradient.spread="100" tooltip.backcolor="134217752" tooltip.delay.initial="0" tooltip.delay.visible="32000" tooltip.enabled="0" tooltip.hasclosebutton="0" tooltip.icon="0" tooltip.isbubble="0" tooltip.maxwidth="0" tooltip.textcolor="134217751" tooltip.transparency="0" transparency="0" )
+htmltable(border="1" )
+htmlgen(clientevents="1" clientvalidation="1" clientcomputedfields="1" clientformatting="0" clientscriptable="0" generatejavascript="1" encodeselflinkargs="1" netscapelayers="0" pagingmethod=0 generatedddwframes="1" )
+xhtmlgen() cssgen(sessionspecific="0" )
+xmlgen(inline="0" )
+xsltgen()
+jsgen()
+export.xml(headgroups="1" includewhitespace="0" metadatatype=0 savemetadata=0 )
+import.xml()
+export.pdf(method=0 distill.custompostscript="0" xslfop.print="0" )
+export.xhtml()
+ 

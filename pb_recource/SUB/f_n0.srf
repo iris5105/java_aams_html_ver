@@ -1,0 +1,30 @@
+﻿global type f_n0 from function_object
+end type
+
+forward prototypes
+global function string f_n0 (decimal id_data, long il_length, long il_scale)
+end prototypes
+
+global function string f_n0 (decimal id_data, long il_length, long il_scale);DEC   ld_abs_data
+
+STRING   ls_data, ls_format
+
+IF il_scale>0 THEN
+      ls_format = '0.' + Fill ('0', il_scale)
+ELSE
+      ls_format = '0'
+END IF
+
+ld_abs_data = ABS (id_data)
+ls_data     = string (ld_abs_data, ls_format)
+
+IF id_data<0 THEN
+      IF il_length>Len(ls_data) THEN ls_data = Right(Fill('0', il_length) + ls_data, il_length - 1)
+      ls_data = '-' + ls_data
+ELSE
+      IF il_length>Len(ls_data) THEN ls_data = Right(Fill('0', il_length) + ls_data, il_length)
+END IF
+
+RETURN ls_data
+end function
+

@@ -1,0 +1,15 @@
+﻿global type fw_f_setblob2string from function_object
+end type
+
+forward prototypes
+global function string fw_f_setblob2string (blob ab_blob)
+end prototypes
+
+global function string fw_f_setblob2string (blob ab_blob);Choose Case gnv_vari.getclienttype
+	Case 'WEB'
+		Return string(ab_blob, EncodingANSI!)
+	Case 'PB'
+		Return string(ab_blob, EncodingUTF8!)
+End Choose
+end function
+

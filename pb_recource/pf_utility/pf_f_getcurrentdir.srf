@@ -1,0 +1,19 @@
+﻿global type pf_f_getcurrentdir from function_object
+end type
+
+forward prototypes
+global function string pf_f_getcurrentdir ()
+end prototypes
+
+global function string pf_f_getcurrentdir ();string ls_path
+
+IF gnv_vari.getclienttype = 'PB' THEN
+	ls_path = getCurrentDirectory()
+ELSE
+	ls_path = gnv_vari.getcachedir
+END IF
+
+Return ls_path
+
+end function
+

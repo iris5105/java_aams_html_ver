@@ -1,0 +1,72 @@
+﻿forward
+global type u_ja020a_t5 from utt_listole
+end type
+end forward
+
+global type u_ja020a_t5 from utt_listole
+string text = "총괄표"
+string ts_find = "jc_join=~'~'"
+end type
+global u_ja020a_t5 u_ja020a_t5
+
+type variables
+
+end variables
+
+on u_ja020a_t5.create
+call super::create
+end on
+
+on u_ja020a_t5.destroy
+call super::destroy
+end on
+
+type ln_temptop from utt_listole`ln_temptop within u_ja020a_t5
+end type
+
+type ln_tempstart from utt_listole`ln_tempstart within u_ja020a_t5
+end type
+
+type ln_templeft from utt_listole`ln_templeft within u_ja020a_t5
+end type
+
+type ln_cond_start from utt_listole`ln_cond_start within u_ja020a_t5
+end type
+
+type ln_tempright from utt_listole`ln_tempright within u_ja020a_t5
+end type
+
+type ln_cond1_yline from utt_listole`ln_cond1_yline within u_ja020a_t5
+end type
+
+type ln_dw1_yline from utt_listole`ln_dw1_yline within u_ja020a_t5
+end type
+
+type ln_tempbutton from utt_listole`ln_tempbutton within u_ja020a_t5
+end type
+
+type dw_pagelist from utt_listole`dw_pagelist within u_ja020a_t5
+boolean visible = true
+string dataobject = "d_ja020a_t5"
+boolean eb_null_line = false
+end type
+
+event dw_pagelist::rowfocuschanged_if;call super::rowfocuschanged_if;iu_wpage.tab_string [1] = Object.jc_join [currentrow]
+RETURN 0
+end event
+
+type ole_rd from utt_listole`ole_rd within u_ja020a_t5
+end type
+
+event ole_rd::ue_retrieve;call super::ue_retrieve;ole_rd.uf_fileopen ('rd_ja020a.mrd',&
+                           'title[수요예측 참여 총괄표]' + &
+                           'jc_join[' + dw_pagelist.object.jc_join [row] + ']' )
+
+end event
+
+type st_move from utt_listole`st_move within u_ja020a_t5
+end type
+
+type rb_onepage from utt_listole`rb_onepage within u_ja020a_t5
+end type
+

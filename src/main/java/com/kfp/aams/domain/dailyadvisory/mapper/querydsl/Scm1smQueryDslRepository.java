@@ -11,7 +11,6 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 
 /**
  * JPA Repository for w_scm1sm (채권 단가 관리)
@@ -24,14 +23,16 @@ public class Scm1smQueryDslRepository {
     private final EntityManager em;
 
     public void insertScm1sm(Scm1smDto dto) {
-        if (dto == null || dto.getCorpGr() == null || dto.getYmd() == null || dto.getJmCd() == null) return;
+        if (dto == null || dto.getCorpGr() == null || dto.getYmd() == null || dto.getJmCd() == null)
+            return;
 
         LocalDate ymd = dto.getYmd();
         Scm1smId id = new Scm1smId(dto.getCorpGr().trim(), ymd, dto.getJmCd().trim());
         Scm1sm entity = em.find(Scm1sm.class, id);
 
         BigDecimal jySuikRt = calculateJySuikRt(dto);
-        String asCjCd = (dto.getAsCjCd() != null && !dto.getAsCjCd().isBlank()) ? dto.getAsCjCd().trim() : dto.getJmCd().trim();
+        String asCjCd = (dto.getAsCjCd() != null && !dto.getAsCjCd().isBlank()) ? dto.getAsCjCd().trim()
+                : dto.getJmCd().trim();
 
         if (entity == null) {
             entity = Scm1sm.builder()
@@ -53,14 +54,16 @@ public class Scm1smQueryDslRepository {
     }
 
     public int updateScm1sm(Scm1smDto dto) {
-        if (dto == null || dto.getCorpGr() == null || dto.getYmd() == null || dto.getJmCd() == null) return 0;
+        if (dto == null || dto.getCorpGr() == null || dto.getYmd() == null || dto.getJmCd() == null)
+            return 0;
 
         LocalDate ymd = dto.getYmd();
         Scm1smId id = new Scm1smId(dto.getCorpGr().trim(), ymd, dto.getJmCd().trim());
         Scm1sm entity = em.find(Scm1sm.class, id);
 
         if (entity != null) {
-            String asCjCd = (dto.getAsCjCd() != null && !dto.getAsCjCd().isBlank()) ? dto.getAsCjCd().trim() : dto.getJmCd().trim();
+            String asCjCd = (dto.getAsCjCd() != null && !dto.getAsCjCd().isBlank()) ? dto.getAsCjCd().trim()
+                    : dto.getJmCd().trim();
             entity.setAsCjCd(asCjCd);
             entity.setDanga(dto.getDanga());
             entity.setJySuikRt(calculateJySuikRt(dto));
@@ -71,7 +74,8 @@ public class Scm1smQueryDslRepository {
     }
 
     public int deleteScm1sm(Scm1smDto dto) {
-        if (dto == null || dto.getCorpGr() == null || dto.getYmd() == null || dto.getJmCd() == null) return 0;
+        if (dto == null || dto.getCorpGr() == null || dto.getYmd() == null || dto.getJmCd() == null)
+            return 0;
 
         LocalDate ymd = dto.getYmd();
         Scm1smId id = new Scm1smId(dto.getCorpGr().trim(), ymd, dto.getJmCd().trim());

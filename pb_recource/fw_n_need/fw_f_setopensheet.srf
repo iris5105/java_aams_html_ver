@@ -1,0 +1,44 @@
+﻿global type fw_f_setopensheet from function_object
+end type
+
+forward prototypes
+global subroutine fw_f_setopensheet (string as_pgmno)
+end prototypes
+
+global subroutine fw_f_setopensheet (string as_pgmno);String	ls_pgm_id, ls_pgm_nm
+String	ls_parameter1, ls_parameter2, ls_parameter3
+
+ls_pgm_id		= gnv_rolemenu.of_getpgmid(as_pgmno)
+ls_pgm_nm		= gnv_rolemenu.of_getpgmnm(as_pgmno)
+ls_parameter1	= gnv_rolemenu.of_getpgmparameter(as_pgmno, '1')
+ls_parameter2	= gnv_rolemenu.of_getpgmparameter(as_pgmno, '2')
+ls_parameter3	= gnv_rolemenu.of_getpgmparameter(as_pgmno, '3')
+
+If fw_f_nvls(ls_pgm_id, '') <> '' Then
+	gw_mdi.of_opensheet(as_pgmno, ls_pgm_id, ls_pgm_nm, ls_parameter1, ls_parameter2, ls_parameter3)
+Else
+	Choose Case as_pgmno
+		Case '00023', '00024', '00025', '00026'
+			fw_n_dso	lds_ds
+			lds_ds = create fw_n_dso
+			lds_ds.dataobject = 'fw_d_opensheet_ds1'
+			lds_ds.setTransObject( sqlca )
+			lds_ds.retrieve(gnv_vari.is_sys_id, as_pgmno)
+			
+			ls_pgm_id = lds_ds.getitemstring(1, 'pgm_id')
+			ls_pgm_nm = lds_ds.getitemstring(1, 'pgm_nm')
+			ls_parameter1 = lds_ds.getitemstring(1, 'parameter1')
+			ls_parameter2 = lds_ds.getitemstring(1, 'parameter2')
+			ls_parameter3 = lds_ds.getitemstring(1, 'parameter3')
+			
+			If fw_f_nvls(ls_parameter1, '') = '' Then ls_parameter1 = ''
+			If fw_f_nvls(ls_parameter2, '') = '' Then ls_parameter2 = ''
+			If fw_f_nvls(ls_parameter3, '') = '' Then ls_parameter3 = ''
+			
+			gw_mdi.of_opensheet(as_pgmno, ls_pgm_id, ls_pgm_nm, ls_parameter1, ls_parameter2, ls_parameter3)
+			Return
+	End Choose
+	Messagebox('Check', '권한이 없습니다. 관리자에 문의 하십시요.')
+End If
+end subroutine
+

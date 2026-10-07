@@ -1,0 +1,18 @@
+﻿global type f_mm from function_object
+end type
+
+forward prototypes
+global function integer f_mm (datetime afymd, datetime atymd)
+end prototypes
+
+global function integer f_mm (datetime afymd, datetime atymd);INT   li_mm
+
+SELECT  trunc(months_between (:atymd + 1, :afymd),2)
+  INTO  :li_mm
+FROM    dual;
+
+li_mm = SQLCA.getitemnumber (1)
+
+RETURN   li_mm
+end function
+

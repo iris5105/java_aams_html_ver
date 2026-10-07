@@ -74,7 +74,7 @@
             if (param5) {
                 const isDirectCorpGrOnly = /^\s*corp_gr\s*=\s*'[^']*'\s*$/i.test(param5.trim());
                 if (isDirectCorpGrOnly) {
-                    const cookieAdmin = (`; ${document.cookie}`).split('; admin=').length === 2 || (`; ${document.cookie}`).split('; role=ADMIN').length === 2;
+                    const cookieAdmin = /(?:^|;\s*)adminYn=Y/i.test(document.cookie) || /(?:^|;\s*)role=ADMIN/i.test(document.cookie);
                     if (!cookieAdmin) actualWhere = param5;
                 } else {
                     actualWhere = param5;

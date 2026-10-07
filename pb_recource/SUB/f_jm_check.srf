@@ -1,0 +1,51 @@
+﻿global type f_jm_check from function_object
+end type
+
+forward prototypes
+global function string f_jm_check (string sjm_cd)
+end prototypes
+
+global function string f_jm_check (string sjm_cd);//	종목코드 CHECK DIGIT 산출 방법
+String	sBuf, sJm
+
+INT	iLen, iJm, iFlag
+
+iLen	= LenA (sJm_Cd)
+sJm	= ''
+iJm	= 0
+iFlag	= 1
+
+DO WHILE  iLen<>0
+	sBuf = MidA (sJm_Cd, iLen, 1)
+	CHOOSE CASE	 AscA (sBuf)
+		CASE 48 TO 57
+			sJm = sBuf + sJm
+		CASE 65 TO 90
+			sJm = string (AscA(sBuf) - 55) + sJm
+		CASE ELSE
+			f_messageBox ('I001', sJm_Cd)
+			RETURN 'FALSE'
+	END CHOOSE
+	iLen --
+LOOP
+
+iLen = LenA (sJm)
+sBuf = ''
+DO WHILE  iLen<>0
+	IF	iFlag=2 THEN iFlag = 1 ELSE iFlag = 2
+	sBuf = string(integer(MidA (sJm, iLen, 1)) * iFlag) + sBuf
+	iLen --
+LOOP
+
+iLen = LenA (sBuf)
+iJm = 0
+DO WHILE  iLen<>0
+	iJm += integer (MidA (sBuf, iLen, 1))
+	iLen	--
+LOOP
+
+iJm = Mod (10 - Mod (iJm, 10), 10)
+
+RETURN	sJm_cd + string(iJm)
+end function
+

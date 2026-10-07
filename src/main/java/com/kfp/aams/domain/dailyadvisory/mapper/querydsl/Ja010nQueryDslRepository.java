@@ -8,7 +8,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -21,11 +20,13 @@ import java.util.List;
 public class Ja010nQueryDslRepository {
 
     private final EntityManager em;
+
     public List<Ja010nDto> selectJa010nList() {
         List<Skt0bm> entities = em.createQuery(
                 "SELECT b FROM Skt0bm b " +
                         "WHERE b.corpGr = 'JISU' AND b.colId = 'kospi_jisu' " +
-                        "ORDER BY b.ymd DESC", Skt0bm.class)
+                        "ORDER BY b.ymd DESC",
+                Skt0bm.class)
                 .getResultList();
 
         List<Ja010nDto> result = new ArrayList<>();

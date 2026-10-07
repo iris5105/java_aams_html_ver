@@ -1,0 +1,49 @@
+﻿global type appeongetclientversion from function_object
+end type
+
+forward prototypes
+global function integer appeongetclientversion (ref string as_version)
+end prototypes
+
+global function integer appeongetclientversion (ref string as_version);//==============================================================================
+// 
+// Copyright ? 2001-2015 Appeon, Inc. and its subsidiaries. All rights reserved.
+//  
+//------------------------------------------------------------------------------
+// Function: appeongetclientversion()
+//------------------------------------------------------------------------------
+// Description: 
+// 				Returns the version of Appeon client that runs your application.
+//	
+// Arguments:(None)
+//	
+// Returns:  string
+//------------------------------------------------------------------------------
+// Author:	APPEON		Date: 2015-12
+//------------------------------------------------------------------------------
+// Revision History: 
+//				1.0   Initial version
+//==============================================================================
+
+String strRet
+Integer li_return
+
+strRet= appeongetclienttype()
+if strRet= "WEB" Then
+	AppeonExtFuncs funs
+	funs = Create AppeonExtFuncs
+	li_return = funs.of_getappeonwebversion (as_version)
+	Destroy funs   
+elseif strRet= "MOBILE" then
+	eon_mobile_awsex aws
+	aws = Create eon_mobile_awsex
+	li_return = aws.of_getversion(as_version)
+	Destroy aws
+end if
+
+if isnull(as_version) then
+	li_return =  -1
+end if
+Return li_return
+end function
+

@@ -1,0 +1,49 @@
+﻿release 12.6;
+datawindow(units=0 timer_interval=0 color=1073741824 brushmode=0 transparency=0 gradient.angle=0 gradient.color=8421504 gradient.focus=0 gradient.repetition.count=0 gradient.repetition.length=100 gradient.repetition.mode=0 gradient.scale=100 gradient.spread=100 gradient.transparency=0 picture.blur=0 picture.clip.bottom=0 picture.clip.left=0 picture.clip.right=0 picture.clip.top=0 picture.mode=0 picture.scale.x=100 picture.scale.y=100 picture.transparency=0 processing=0 HTMLDW=no print.printername="" print.documentname="" print.orientation = 0 print.margin.left = 110 print.margin.right = 110 print.margin.top = 96 print.margin.bottom = 96 print.paper.source = 0 print.paper.size = 0 print.canusedefaultprinter=yes print.prompt=no print.buttons=no print.preview.buttons=no print.cliptext=no print.overrideprintjob=no print.collate=yes print.background=no print.preview.background=no print.preview.outline=yes hidegrayline=no showbackcoloronxp=no picture.file="" )
+header(height=0 color="536870912" transparency="0" gradient.color="8421504" gradient.transparency="0" gradient.angle="0" brushmode="0" gradient.repetition.mode="0" gradient.repetition.count="0" gradient.repetition.length="100" gradient.focus="0" gradient.scale="100" gradient.spread="100" )
+summary(height=0 color="536870912" transparency="0" gradient.color="8421504" gradient.transparency="0" gradient.angle="0" brushmode="0" gradient.repetition.mode="0" gradient.repetition.count="0" gradient.repetition.length="100" gradient.focus="0" gradient.scale="100" gradient.spread="100" )
+footer(height=0 color="536870912" transparency="0" gradient.color="8421504" gradient.transparency="0" gradient.angle="0" brushmode="0" gradient.repetition.mode="0" gradient.repetition.count="0" gradient.repetition.length="100" gradient.focus="0" gradient.scale="100" gradient.spread="100" )
+detail(height=564 color="536870912" transparency="0" gradient.color="8421504" gradient.transparency="0" gradient.angle="0" brushmode="0" gradient.repetition.mode="0" gradient.repetition.count="0" gradient.repetition.length="100" gradient.focus="0" gradient.scale="100" gradient.spread="100" )
+table(column=(type=char(8) update=yes updatewhereclause=yes key=yes name=corp_gr dbname="FW_PLANUSER.CORP_GR" dbalias="la.CORP_GR" )
+ column=(type=char(12) update=yes updatewhereclause=yes key=yes name=sys_id dbname="FW_PLANUSER.SYS_ID" dbalias="la.SYS_ID" )
+ column=(type=char(50) update=yes updatewhereclause=yes key=yes name=user_id dbname="FW_PLANUSER.USER_ID" dbalias="la.USER_ID" )
+ column=(type=char(8) update=yes updatewhereclause=yes key=yes name=ymd dbname="FW_PLANUSER.YMD" dbalias="la.YMD" )
+ column=(type=char(400) update=yes updatewhereclause=yes name=description dbname="FW_PLANUSER.DESCRIPTION" dbalias="la.DESCRIPTION" )
+ column=(type=char(1) update=yes updatewhereclause=yes name=importance dbname="FW_PLANUSER.IMPORTANCE" dbalias="la.IMPORTANCE" values="상	3/중	2/하	1/" )
+ column=(type=char(20) update=yes updatewhereclause=yes name=reg_id dbname="FW_PLANUSER.REG_ID" dbalias="la.REG_ID" )
+ column=(type=char(20) update=yes updatewhereclause=yes name=reg_dt dbname="FW_PLANUSER.REG_DT" dbalias="la.REG_DT" )
+ column=(type=char(20) update=yes updatewhereclause=yes name=upd_id dbname="FW_PLANUSER.UPD_ID" dbalias="la.UPD_ID" )
+ column=(type=char(20) update=yes updatewhereclause=yes name=upd_dt dbname="FW_PLANUSER.UPD_DT" dbalias="la.UPD_DT" )
+ retrieve="SELECT  la.corp_gr
+      , la.sys_id
+      , la.user_id
+      , la.ymd
+      , la.description
+      , la.importance
+      , la.reg_id
+      , la.reg_dt
+      , la.upd_id
+      , la.upd_dt
+FROM    fw_planuser la
+WHERE   la.corp_gr = :corp_gr
+  AND   la.sys_id  = :as_sys_id
+  AND   la.ymd     = :as_ymd
+  AND   la.user_id = :as_user_id
+
+" update="fw_planuser" updatewhere=0 updatekeyinplace=yes arguments=(("corp_gr", string),("as_sys_id", string),("as_user_id", string),("as_ymd", string)) )
+column(band=detail id=6 alignment="0" tabsequence=20 border="2" color="19737901" x="82" y="128" height="424" width="247" format="[general]" html.valueishtml="0"  name=importance visible="1" radiobuttons.columns=1 radiobuttons.scale=yes radiobuttons.threed=no  font.face="맑은 고딕" font.height="-10" font.weight="700"  font.family="3" font.pitch="2" font.charset="129" background.mode="1" background.color="536870912" background.transparency="0" background.gradient.color="8421504" background.gradient.transparency="0" background.gradient.angle="0" background.brushmode="0" background.gradient.repetition.mode="0" background.gradient.repetition.count="0" background.gradient.repetition.length="100" background.gradient.focus="0" background.gradient.scale="100" background.gradient.spread="100" tooltip.backcolor="134217752" tooltip.delay.initial="0" tooltip.delay.visible="32000" tooltip.enabled="0" tooltip.hasclosebutton="0" tooltip.icon="0" tooltip.isbubble="0" tooltip.maxwidth="0" tooltip.textcolor="134217751" tooltip.transparency="0" transparency="0" )
+column(band=detail id=5 alignment="0" tabsequence=10 border="2" color="19737901" x="389" y="128" height="424" width="1504" format="[general]" html.valueishtml="0"  name=description visible="1" edit.limit=500 edit.case=any edit.focusrectangle=no edit.autoselect=yes edit.autohscroll=yes edit.autovscroll=yes  font.face="맑은 고딕" font.height="-11" font.weight="400"  font.family="3" font.pitch="2" font.charset="129" background.mode="1" background.color="536870912" background.transparency="0" background.gradient.color="8421504" background.gradient.transparency="0" background.gradient.angle="0" background.brushmode="0" background.gradient.repetition.mode="0" background.gradient.repetition.count="0" background.gradient.repetition.length="100" background.gradient.focus="0" background.gradient.scale="100" background.gradient.spread="100" tooltip.backcolor="134217752" tooltip.delay.initial="0" tooltip.delay.visible="32000" tooltip.enabled="0" tooltip.hasclosebutton="0" tooltip.icon="0" tooltip.isbubble="0" tooltip.maxwidth="0" tooltip.textcolor="134217751" tooltip.transparency="0" transparency="0" )
+column(band=detail id=4 alignment="1" tabsequence=32766 border="0" color="0" x="1449" y="32" height="80" width="439" format="@@@@.@@.@@" html.valueishtml="0"  name=ymd visible="1" edit.limit=0 edit.case=any edit.focusrectangle=no edit.autoselect=no  font.face="맑은 고딕" font.height="-10" font.weight="400"  font.family="3" font.pitch="2" font.charset="129" background.mode="1" background.color="536870912" background.transparency="0" background.gradient.color="8421504" background.gradient.transparency="0" background.gradient.angle="0" background.brushmode="0" background.gradient.repetition.mode="0" background.gradient.repetition.count="0" background.gradient.repetition.length="100" background.gradient.focus="0" background.gradient.scale="100" background.gradient.spread="100" tooltip.backcolor="134217752" tooltip.delay.initial="0" tooltip.delay.visible="32000" tooltip.enabled="0" tooltip.hasclosebutton="0" tooltip.icon="0" tooltip.isbubble="0" tooltip.maxwidth="0" tooltip.textcolor="134217751" tooltip.transparency="0" transparency="0" )
+text(band=detail alignment="2" text="내용" border="0" color="19737901" x="389" y="36" height="68" width="379" html.valueishtml="0"  name=description_t visible="1"  font.face="맑은 고딕" font.height="-10" font.weight="700"  font.family="3" font.pitch="2" font.charset="129" background.mode="1" background.color="536870912" background.transparency="0" background.gradient.color="8421504" background.gradient.transparency="0" background.gradient.angle="0" background.brushmode="0" background.gradient.repetition.mode="0" background.gradient.repetition.count="0" background.gradient.repetition.length="100" background.gradient.focus="0" background.gradient.scale="100" background.gradient.spread="100" tooltip.backcolor="134217752" tooltip.delay.initial="0" tooltip.delay.visible="32000" tooltip.enabled="0" tooltip.hasclosebutton="0" tooltip.icon="0" tooltip.isbubble="0" tooltip.maxwidth="0" tooltip.textcolor="134217751" tooltip.transparency="0" transparency="0" )
+text(band=detail alignment="2" text="중요도" border="0" color="19737901" x="59" y="36" height="68" width="306" html.valueishtml="0"  name=importance_t visible="1"  font.face="맑은 고딕" font.height="-10" font.weight="400"  font.family="3" font.pitch="2" font.charset="129" background.mode="1" background.color="536870912" background.transparency="0" background.gradient.color="8421504" background.gradient.transparency="0" background.gradient.angle="0" background.brushmode="0" background.gradient.repetition.mode="0" background.gradient.repetition.count="0" background.gradient.repetition.length="100" background.gradient.focus="0" background.gradient.scale="100" background.gradient.spread="100" tooltip.backcolor="134217752" tooltip.delay.initial="0" tooltip.delay.visible="32000" tooltip.enabled="0" tooltip.hasclosebutton="0" tooltip.icon="0" tooltip.isbubble="0" tooltip.maxwidth="0" tooltip.textcolor="134217751" tooltip.transparency="0" transparency="0" )
+htmltable(border="1" )
+htmlgen(clientevents="1" clientvalidation="1" clientcomputedfields="1" clientformatting="0" clientscriptable="0" generatejavascript="1" encodeselflinkargs="1" netscapelayers="0" pagingmethod=0 generatedddwframes="1" )
+xhtmlgen() cssgen(sessionspecific="0" )
+xmlgen(inline="0" )
+xsltgen()
+jsgen()
+export.xml(headgroups="1" includewhitespace="0" metadatatype=0 savemetadata=0 )
+import.xml()
+export.pdf(method=0 distill.custompostscript="0" xslfop.print="0" )
+export.xhtml()
+ 

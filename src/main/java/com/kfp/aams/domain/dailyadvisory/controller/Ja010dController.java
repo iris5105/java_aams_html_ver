@@ -13,7 +13,6 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 
 import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 @Controller
@@ -24,7 +23,7 @@ public class Ja010dController {
     private final com.kfp.aams.menu.service.MenuService menuService;
     private final com.kfp.aams.common.service.DddwService dddwService;
 
-    @GetMapping({"/views/w_ja010d", "/views/dailyadvisory/w_ja010d"})
+    @GetMapping({ "/views/w_ja010d", "/views/dailyadvisory/w_ja010d" })
     public String viewJa010d(@AuthenticationPrincipal Object principalObj,
             @RequestParam(name = "corpGr", required = false) String paramCorpGr,
             @RequestParam(name = "trYmd", required = false) String paramTrYmd,
@@ -41,7 +40,8 @@ public class Ja010dController {
         if (paramTrYmd != null && !paramTrYmd.isBlank()) {
             try {
                 trYmd = LocalDate.parse(paramTrYmd.trim());
-            } catch (Exception ignored) {}
+            } catch (Exception ignored) {
+            }
         }
 
         String addWhere = null;
@@ -102,7 +102,8 @@ public class Ja010dController {
             if (principal != null) {
                 modUser = principal.getEmail();
             } else {
-                var auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+                var auth = org.springframework.security.core.context.SecurityContextHolder.getContext()
+                        .getAuthentication();
                 if (auth != null && auth.getPrincipal() instanceof UserPrincipal p) {
                     modUser = p.getEmail();
                 }
@@ -111,12 +112,14 @@ public class Ja010dController {
             ja010dService.saveJa010d(req, modUser);
             return org.springframework.http.ResponseEntity.ok(java.util.Map.of("success", true, "message", "저장되었습니다."));
         } catch (Exception e) {
-            org.slf4j.LoggerFactory.getLogger(Ja010dController.class).error("[Ja010dController] Error saving Ja010d: ", e);
+            org.slf4j.LoggerFactory.getLogger(Ja010dController.class).error("[Ja010dController] Error saving Ja010d: ",
+                    e);
             String errMsg = e.getMessage();
             if (e.getCause() != null && e.getCause().getMessage() != null) {
                 errMsg += " (" + e.getCause().getMessage() + ")";
             }
-            return org.springframework.http.ResponseEntity.badRequest().body(java.util.Map.of("success", false, "message", errMsg != null ? errMsg : "저장 중 오류가 발생했습니다."));
+            return org.springframework.http.ResponseEntity.badRequest()
+                    .body(java.util.Map.of("success", false, "message", errMsg != null ? errMsg : "저장 중 오류가 발생했습니다."));
         }
     }
 

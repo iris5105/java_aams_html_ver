@@ -1,0 +1,20 @@
+﻿global type f_center from function_object
+end type
+
+forward prototypes
+global subroutine f_center (window aw_window)
+end prototypes
+
+global subroutine f_center (window aw_window);LONG	ll_add_xpos, ll_add_ypos
+
+ll_add_xpos = Round((gw_mdi.width - aw_window.width) / 2, 0)
+If gw_mdi.height - aw_window.height < 1 Then
+	ll_add_ypos = 0
+Else
+	ll_add_ypos = Round((gw_mdi.height - aw_window.height) / 2, 0)
+End If		
+
+aw_window.x = gw_mdi.x + ll_add_xpos
+aw_window.y = gw_mdi.y + ll_add_ypos
+end subroutine
+

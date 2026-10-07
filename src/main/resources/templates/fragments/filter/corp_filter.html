@@ -31,7 +31,9 @@
                     // Sync cookies with current selection
                     document.cookie = "savedCorpGr=" + encodeURIComponent(val) + "; path=/; max-age=" + (30 * 24 * 60 * 60);
                     document.cookie = "corpGr=" + encodeURIComponent(val) + "; path=/; max-age=" + (30 * 24 * 60 * 60);
-                    document.cookie = "corp_gr=" + encodeURIComponent(val) + "; path=/; max-age=" + (30 * 24 * 60 * 60);
+                    document.cookie = "corp_gr=; path=/; max-age=0";
+                    document.cookie = "admin=; path=/; max-age=0";
+                    document.cookie = "user_id=; path=/; max-age=0";
 
                     // Locate active tab pane to isolate MDI scope
                     const pane = selectEl.closest('.tab-pane') || selectEl.closest('.view-container') || document.querySelector('.tab-pane.active') || document;
@@ -74,8 +76,8 @@
                 const serverCorpGr = /*[[${corpGr}]]*/ "";
                 const serverAdminYn = /*[[${adminYn}]]*/ "";
 
-                const cookieCorpGr = serverCorpGr || getCookieVal("corp_gr") || getCookieVal("corpGr") || getCookieVal("savedCorpGr");
-                const cookieAdmin = serverAdminYn || getCookieVal("adminYn") || getCookieVal("admin") || getCookieVal("role");
+                const cookieCorpGr = serverCorpGr || getCookieVal("corpGr") || getCookieVal("savedCorpGr");
+                const cookieAdmin = serverAdminYn || getCookieVal("adminYn") || getCookieVal("role");
                 const isAdmin = (cookieAdmin === "Y" || cookieAdmin === "true" || cookieAdmin === "1" || String(cookieAdmin).toUpperCase() === "ADMIN");
 
                 // If SSR options are not present or empty, retrieve via f_dddwctl

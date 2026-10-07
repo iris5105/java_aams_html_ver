@@ -1,0 +1,54 @@
+﻿global type appeonsethinttext from function_object
+end type
+
+forward prototypes
+global function integer appeonsethinttext (singlelineedit sle_target, string as_hinttext)
+end prototypes
+
+global function integer appeonsethinttext (singlelineedit sle_target, string as_hinttext);//==============================================================================
+// 
+// Copyright ? 2001-2006 Appeon, Inc. and its subsidiaries. All rights reserved.
+// 
+//------------------------------------------------------------------------------
+// Function: appeonsethinttext()
+//------------------------------------------------------------------------------
+// Description: 
+//				Sets the hinttext property of the sle_target.
+//      
+// Arguments: 
+//               singlelineedit   sle_target                  
+//               string   as_hinttext                    
+// Returns:  integer
+//				1 - Success.
+//				-1 - It is called in PowerBuilder or Appeon Web, or there is an error.
+//				-2 - The singlelineedit is invalid.
+//				-3 - The as_hinttext argument is null.
+//------------------------------------------------------------------------------
+// Author:         APPEON            Date: 2014-12
+//------------------------------------------------------------------------------
+// Revision History: 
+//                                  1.0   Initial version
+//==============================================================================
+
+integer IRet
+AppeonExtFuncs  funs
+
+If isvalid(sle_target) = FALSE   Then
+   Return -2
+End if
+
+If   isnull(as_hinttext) = TRUE Then
+   Return -3
+End if
+	
+If appeongetclienttype()="MOBILE" Then
+	funs = Create AppeonExtFuncs
+	IRet = funs.of_sethinttext(sle_target, as_hinttext)
+	Destroy funs
+Else
+   IRet = -1
+End if
+
+Return IRet
+end function
+

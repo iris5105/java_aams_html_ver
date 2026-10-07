@@ -1,0 +1,103 @@
+﻿global type f_objecthelp from function_object
+end type
+
+forward prototypes
+global function integer f_objecthelp (readonly userobject arg_object)
+end prototypes
+
+global function integer f_objecthelp (readonly userobject arg_object);LONG	ll_PrintJob
+
+BOOLEAN lb_return
+
+ll_PrintJob = PrintOpen ()
+IF ll_PrintJob<0  Then
+   MessageBox ("ERROR", "Print open error", StopSign!)
+   RETURN -1
+End IF
+
+// 도움말 출력하기
+
+STRING	ls_Help, ls_ObjectName, ls_Line, ls_blob_err
+
+BLOB	lbl_Help
+
+LONG	ll_Y, ll_blob
+
+INT   li_Line
+
+ls_ObjectName = arg_object.classname ()
+ 
+// Set the font for Job.
+PrintDefineFont (ll_PrintJob, 1, '맑은 고딕', -10, 400, Variable!, AnyFont!, FALSE, FALSE)
+PrintDefineFont (ll_PrintJob, 2, '맑은 고딕', -8, 400, Default!, AnyFont!, FALSE, FALSE)
+
+PrintSetFont (ll_PrintJob, 1)
+PrintRect (ll_PrintJob, 800, 600, 6700, 300, 10)
+PrintLine (ll_PrintJob, 1800, 600, 1800, 900, 10)
+PrintText (ll_PrintJob, '작 업 화 면', 960, 650)
+
+PrintText (ll_PrintJob, arg_object.Text, 1900, 650)
+PrintRect (ll_PrintJob, 800, 1000, 6700, 10000, 10)
+
+arg_object.Print (ll_PrintJob, 850, 1050, 6600, 3900)
+
+PrintLine (ll_PrintJob, 800, 5000, 7500, 5000, 10)
+PrintLine (ll_PrintJob, 800, 5200, 7500, 5200, 10)
+
+PrintText (ll_PrintJob, '상   세   설   명', 3500, 5005)
+
+SELECTBLOB  obj_help
+  INTO  :lbl_Help
+FROM    whlp00m  t1
+WHERE   obj_id = :ls_ObjectName;
+
+ll_blob = mo_.hex2blob(SQLCA.is_hexfile, lbl_Help, ls_blob_err)
+
+CHOOSE CASE SQLCA.sqlcode ()
+   CASE 0 // select OK
+      ls_Help = string (f_nvl (lbl_Help,' '))
+      ll_Y = 5100 ; PrintSetFont (ll_PrintJob, 2)
+      FOR  li_Line = 1  TO  40
+         ls_Line = f_get_Token (ls_Help, '~r~n')
+         ll_y = ll_Y + 140
+         PrintText (ll_PrintJob, ls_Line, 830, ll_Y)
+      NEXT
+
+      // Add Next Page
+      DO WHILE LenA (ls_Help)>0
+         IF PrintPage (ll_PrintJob)=-1 Then
+            MessageBox ('Error', 'printPage error', StopSign!)
+            EXIT
+         Else
+            PrintSetFont (ll_PrintJob, 1)
+            PrintRect (ll_PrintJob, 800, 600, 6700, 300, 10)
+            PrintLine (ll_PrintJob, 1800, 600, 1800, 900, 10)
+            PrintText (ll_PrintJob, '작 업 화 면', 960, 650)
+
+            PrintText (ll_PrintJob, arg_object.Text, 1900, 650)
+            PrintRect (ll_PrintJob, 800, 1000, 6700, 10000, 10)
+
+            ll_Y = 1000 ; PrintSetFont (ll_PrintJob, 2)
+            FOR  li_Line = 1  TO  70
+               ls_Line = f_get_Token (ls_Help, '~r~n')
+               ll_y = ll_Y + 140
+               PrintText (ll_PrintJob, ls_Line, 830, ll_Y)
+            NEXT
+         End IF
+      LOOP
+
+   CASE 100 // Not found
+      PrintText (ll_PrintJob, ' ', 4000, 5500)
+
+   CASE ELSE
+      MessageBox ('도움말 에러:' + string(SQLCA.SQLCode()), SQLCA.SQLErrText())
+END CHOOSE
+
+IF PrintClose (ll_PrintJob)<0 Then
+   MessageBox ('ERROR', 'Printer close error', StopSign!)
+   RETURN -1
+End IF
+
+RETURN   MessageBox ('도움말 출력', "'" + arg_object.Text+ "'의 도움말을 프린터로 출력하였습니다.", Information!)
+end function
+

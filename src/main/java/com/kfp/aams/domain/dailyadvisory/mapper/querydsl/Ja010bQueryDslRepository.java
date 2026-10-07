@@ -8,7 +8,6 @@ import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
-import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -27,10 +26,12 @@ public class Ja010bQueryDslRepository {
     /**
      * PB w_ja010b.srw dw_list::ue_insertstart 기반 펀드코드 채번:
      * ll_fund = dec(string(idt_workdate,'yy')) * 100
-     * SELECT NVL(MAX (fund_cd),:ll_fund) + 1 INTO :ll_fund FROM szm0ia WHERE corp_gr = :corp_gr AND fund_cd > TO_CHAR(:ll_fund)
+     * SELECT NVL(MAX (fund_cd),:ll_fund) + 1 INTO :ll_fund FROM szm0ia WHERE
+     * corp_gr = :corp_gr AND fund_cd > TO_CHAR(:ll_fund)
      */
     public String getNextFundCd(String corpGr) {
-        if (corpGr == null || corpGr.isBlank()) return "0001";
+        if (corpGr == null || corpGr.isBlank())
+            return "0001";
         int yyBase = (LocalDate.now().getYear() % 100) * 100;
         String baseStr = String.valueOf(yyBase);
         try {
@@ -38,7 +39,8 @@ public class Ja010bQueryDslRepository {
                     "SELECT m.fundCd FROM Szm0ia m " +
                             " WHERE m.corpGr = :corpGr " +
                             "   AND m.fundCd > :baseStr " +
-                            " ORDER BY m.fundCd DESC", String.class)
+                            " ORDER BY m.fundCd DESC",
+                    String.class)
                     .setParameter("corpGr", corpGr.trim())
                     .setParameter("baseStr", baseStr)
                     .setMaxResults(1)
@@ -49,7 +51,8 @@ public class Ja010bQueryDslRepository {
                 long val = Long.parseLong(maxCd) + 1;
                 return String.format("%04d", val);
             }
-        } catch (Exception ignored) {}
+        } catch (Exception ignored) {
+        }
         return String.format("%04d", yyBase + 1);
     }
 
@@ -205,7 +208,8 @@ public class Ja010bQueryDslRepository {
     }
 
     private String truncateModUser(String modUser) {
-        if (modUser == null || modUser.isBlank()) return "SYSTEM";
+        if (modUser == null || modUser.isBlank())
+            return "SYSTEM";
         String trimmed = modUser.trim();
         return trimmed.length() > 40 ? trimmed.substring(0, 40) : trimmed;
     }
@@ -219,7 +223,8 @@ public class Ja010bQueryDslRepository {
     }
 
     public void deleteMaster(Ja010bMasterDto m) {
-        if (m == null || m.getCorpGr() == null || m.getFundCd() == null) return;
+        if (m == null || m.getCorpGr() == null || m.getFundCd() == null)
+            return;
         Szm0iaId id = new Szm0iaId(m.getCorpGr().trim(), m.getFundCd().trim());
         Szm0ia entity = em.find(Szm0ia.class, id);
         if (entity != null) {
@@ -228,7 +233,8 @@ public class Ja010bQueryDslRepository {
     }
 
     private String encrypt(String plain) {
-        if (plain == null || plain.isBlank()) return null;
+        if (plain == null || plain.isBlank())
+            return null;
         try {
             return em.createQuery("SELECT function('TO_ENCRYPTS', :plain) FROM Szm0ia m WHERE rownum = 1", String.class)
                     .setParameter("plain", plain.trim())
