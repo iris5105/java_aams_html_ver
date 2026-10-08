@@ -80,7 +80,8 @@ public class GlobalExceptionHandler {
             return null;
         }
 
-        log.error("Unhandled Exception at [{}] : {}", request.getRequestURI(), ex.getMessage(), ex);
+        // 화면 번호, 유저 ID, 오류 서비스/매퍼/SQL, 요청 파라미터 구조화 상세 로그 기록
+        ErrorLogHelper.logDetailedError(request, ex);
 
         if (response.isCommitted()) {
             log.warn("Response already committed for [{}], skipping error response body.", request.getRequestURI());
@@ -99,6 +100,7 @@ public class GlobalExceptionHandler {
             body.put("error", "Internal Server Error");
             body.put("message", ex.getMessage() != null ? ex.getMessage() : "서버 처리 중 오류가 발생했습니다.");
             body.put("path", uri);
+            body.put("screen", ErrorLogHelper.extractScreenInfo(request));
 
             return ResponseEntity
                     .status(HttpStatus.INTERNAL_SERVER_ERROR)
