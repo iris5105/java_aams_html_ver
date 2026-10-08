@@ -95,4 +95,24 @@ public class Ja010hTests {
         assertThat(hwpRes.getContentType()).isEqualTo("application/x-hwp");
         System.out.println("HWP 생성 완료: " + hwpRes.getFilename() + " (" + hwpRes.getData().length + " bytes)");
     }
+
+    @Autowired
+    private RdReportService rdReportService;
+
+    @Test
+    @DisplayName("rd_ja010q.mrd 리포트 생성 테스트")
+    void testJa010qReport() throws Exception {
+        java.util.Map<String, Object> params = new java.util.LinkedHashMap<>();
+        params.put("fund_cd", "2406");
+        params.put("fund_nm", "송암물산(0)");
+        params.put("ymd", "20250622");
+        params.put("bf", "2025.06.21");
+        params.put("af", "2025.06.22");
+        params.put("corp_gr", "2402");
+
+        RdReportService.ExportResult res = rdReportService.generateReport("2402", "rd_ja010q.mrd", params, "pdf", "test_ja010q");
+        assertThat(res).isNotNull();
+        assertThat(res.getData()).isNotEmpty();
+        System.out.println("ja010q PDF 생성 성공! 크기: " + res.getData().length + " bytes");
+    }
 }

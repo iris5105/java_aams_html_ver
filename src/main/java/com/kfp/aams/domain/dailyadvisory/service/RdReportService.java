@@ -100,6 +100,12 @@ public class RdReportService {
         return "";
     }
 
+    static {
+        // 리눅스/컨테이너 및 무두(Headless) 서버 환경에서 X11 디스플레이 연결 시도 차단
+        System.setProperty("java.awt.headless", "true");
+        System.setProperty("file.encoding", "UTF-8");
+    }
+
     /**
      * lib 폴더의 JAR들을 독립적으로 로드하는 격리된 URLClassLoader 반환
      */
@@ -109,15 +115,32 @@ public class RdReportService {
         }
 
         try {
-            Path baseLib = Paths.get(System.getProperty("user.dir"), "lib");
-            if (!Files.exists(baseLib)) {
-                baseLib = Paths.get("d:/work/java_aams_html_ver/lib");
+            // 다양한 배포 환경을 고려한 lib 디렉터리 후보 탐색
+            Path[] candidatePaths = new Path[] {
+                Paths.get(System.getProperty("user.dir", "."), "lib"),
+                Paths.get("lib"),
+                Paths.get("/app/lib"),
+                Paths.get("d:/work/java_aams_html_ver/lib")
+            };
+
+            Path baseLib = null;
+            File[] jarFiles = null;
+            for (Path candidate : candidatePaths) {
+                if (Files.exists(candidate) && Files.isDirectory(candidate)) {
+                    File[] files = candidate.toFile().listFiles((dir, name) -> name.toLowerCase().endsWith(".jar"));
+                    if (files != null && files.length > 0) {
+                        baseLib = candidate;
+                        jarFiles = files;
+                        log.info("Crownix RD lib 디렉터리 발견: {} (JAR 개수: {})", candidate.toAbsolutePath(), files.length);
+                        break;
+                    }
+                }
             }
 
-            File[] jarFiles = baseLib.toFile().listFiles((dir, name) -> name.toLowerCase().endsWith(".jar"));
             if (jarFiles == null || jarFiles.length == 0) {
-                log.warn("lib 폴더에서 JAR 파일을 찾을 수 없습니다: {}", baseLib);
-                rdClassLoader = (URLClassLoader) RdReportService.class.getClassLoader();
+                log.warn("어떠한 후보 경로에서도 RD lib 폴더의 JAR 파일을 찾을 수 없습니다. (애플리케이션 클래스로더 위임 생성)");
+                // Spring Boot의 LaunchedClassLoader 캐스팅 에러 방지를 위해 빈 URL 배열의 독립 URLClassLoader 생성
+                rdClassLoader = new URLClassLoader(new URL[0], RdReportService.class.getClassLoader());
                 return rdClassLoader;
             }
 
@@ -337,6 +360,7 @@ public class RdReportService {
             URLClassLoader classLoader = getRdClassLoader();
             Thread.currentThread().setContextClassLoader(classLoader);
 
+            log.debug("RD 리포트 엔진 구동 준비 - ServerSideRD 로드 중...");
             Class<?> ssrdClass = classLoader.loadClass("m2soft.javard.gui.ServerSideRD");
             Object ssrd = ssrdClass.getDeclaredConstructor().newInstance();
 
@@ -346,19 +370,26 @@ public class RdReportService {
             Method applyLicMethod = rdCtrl.getClass().getMethod("ApplyLicense", String.class);
             applyLicMethod.invoke(rdCtrl, "0.0.0.0");
 
+            log.info("RD 리포트 FileOpen 호출 시작 - MRD: {}, Param: {}", mrdPath.getFileName(), paramStr);
             Method fileOpenMethod = rdCtrl.getClass().getMethod("FileOpen", String.class, String.class);
             Object openedObj = fileOpenMethod.invoke(rdCtrl, mrdPath.toAbsolutePath().toString(), paramStr);
             if (!Boolean.TRUE.equals(openedObj)) {
                 Method getErrMsgMethod = rdCtrl.getClass().getMethod("GetLastErrorMessage");
                 String errMsg = (String) getErrMsgMethod.invoke(rdCtrl);
+                log.error("RD FileOpen 실패 (MRD: {}): {}", mrdPath.getFileName(), errMsg);
                 throw new RuntimeException("RD FileOpen 실패 (" + mrdPath.getFileName() + "): " + errMsg);
             }
+            log.info("RD FileOpen 성공 (MRD: {})", mrdPath.getFileName());
 
             String outFilePath = tempOut.toAbsolutePath().toString();
+            log.info("RD 파일 변환 저장 시작 - 메소드: {}, 파일: {}", saveMethodName, outFilePath);
             Method saveMethod = rdCtrl.getClass().getMethod(saveMethodName, String.class);
             Object savedObj = saveMethod.invoke(rdCtrl, outFilePath);
             if (!Boolean.TRUE.equals(savedObj) || !Files.exists(tempOut) || Files.size(tempOut) == 0) {
-                throw new RuntimeException("리포트 파일 변환 실패 (" + normalizedFormat + ")");
+                Method getErrMsgMethod = rdCtrl.getClass().getMethod("GetLastErrorMessage");
+                String errMsg = (String) getErrMsgMethod.invoke(rdCtrl);
+                log.error("리포트 파일 변환 저장 실패 ({}, MRD: {}): {}", normalizedFormat, mrdPath.getFileName(), errMsg);
+                throw new RuntimeException("리포트 파일 변환 실패 (" + normalizedFormat + "): " + errMsg);
             }
 
             byte[] fileBytes = Files.readAllBytes(tempOut);
@@ -366,13 +397,19 @@ public class RdReportService {
                     ? (downloadFilename.endsWith(ext) ? downloadFilename : downloadFilename + ext)
                     : ("report_" + System.currentTimeMillis() + ext);
 
-            log.info("RD 리포트 생성 성공: {} (크기: {} bytes)", finalName, fileBytes.length);
+            log.info("RD 리포트 생성 완료: {} (크기: {} bytes)", finalName, fileBytes.length);
 
             return ExportResult.builder()
                     .data(fileBytes)
                     .filename(finalName)
                     .contentType(contentType)
                     .build();
+        } catch (Throwable t) {
+            log.error("Crownix RD 리포트 엔진 실행 중 심각한 오류 발생 (MRD: {}): {}", mrdPath.getFileName(), t.getMessage(), t);
+            if (t instanceof Exception e) {
+                throw e;
+            }
+            throw new RuntimeException("Crownix RD 엔진 치명적 오류: " + t.getMessage(), t);
         } finally {
             Thread.currentThread().setContextClassLoader(originalClassLoader);
             try {
