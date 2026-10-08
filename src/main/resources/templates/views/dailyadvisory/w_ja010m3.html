@@ -941,10 +941,16 @@
                     }
                 });
 
-                // Window resize responsive sync (AamsResponsive 공통 표준)
+                // Window resize responsive sync (AamsResponsive 공통 표준 및 탭 닫힘 좀비 호출 방지)
                 var resizeTimer = null;
                 var lastIsMobileState = isMobileView();
-                window.addEventListener('resize', function () {
+                function ja010m3ResizeHandler() {
+                    if (!pane || (pane !== document && !document.contains(pane))) {
+                        window.removeEventListener('resize', ja010m3ResizeHandler);
+                        return;
+                    }
+                    if (pane.classList && pane.classList.contains('tab-pane') && !pane.classList.contains('active')) return;
+
                     clearTimeout(resizeTimer);
                     resizeTimer = setTimeout(function () {
                         if (grid) grid.redraw();
@@ -959,7 +965,8 @@
                             }
                         }
                     }, 120);
-                });
+                }
+                window.addEventListener('resize', ja010m3ResizeHandler);
 
                 // Initial Load (Rule: eb_direct_retrieve = true)
                 setTimeout(loadGrid, 100);

@@ -338,9 +338,10 @@
                 initCalendar();
                 initGrid();
 
-                // 리포트 뷰어 일체형 자동 바인딩 (계좌별 주간 운용현황 전용 엔드포인트 연동)
+                // 리포트 뷰어 일체형 자동 바인딩 (계좌별 주간 운용현황 전용 엔드포인트 연동, 자동 반응형 리사이즈)
                 reportViewer = AamsReport.bindViewer(currentPane, {
                     modalSelector: '#ja020k1MobileModal',
+                    grid: function () { return grid; },
                     buildPreviewUrl: function (data) {
                         var corpGr = resolveCorpGr(currentPane);
                         var ymd = getFilterYmd(currentPane);
@@ -418,18 +419,6 @@
                         showToast("화면이 초기화되었습니다.", "info");
                     }
                 };
-
-                // Window resize responsive sync (AamsResponsive 공통 표준)
-                var resizeTimer = null;
-                window.addEventListener('resize', function () {
-                    clearTimeout(resizeTimer);
-                    resizeTimer = setTimeout(function () {
-                        if (grid) grid.redraw();
-                        if (reportViewer && typeof reportViewer.syncResize === 'function') {
-                            reportViewer.syncResize();
-                        }
-                    }, 120);
-                });
 
                 // 파워빌더 eb_direct_retrieve = true 규격 준수: 화면 오픈 시 자동 조회 실행
                 setTimeout(function () {

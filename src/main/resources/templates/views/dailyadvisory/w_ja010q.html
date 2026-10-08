@@ -158,12 +158,13 @@
                 });
             }
 
-            // AamsReport 통합 바인딩 (5종 내보내기, 새 창, 모바일 모달, 로딩 제어)
+            // AamsReport 통합 바인딩 (5종 내보내기, 새 창, 모바일 모달, 로딩 제어, 자동 반응형 리사이즈)
             var reportViewer = (window.AamsReport && typeof window.AamsReport.bindViewer === 'function')
                 ? window.AamsReport.bindViewer(currentPane, {
                     reportFile: 'rd_ja010q.mrd',
                     modalId: 'ja010qMobileModal',
                     zoom: 120,
+                    grid: function () { return grid; },
                     getCorpGr: function () { return resolveCorpGr(currentPane); },
                     buildParams: function (data) { return buildReportParams(data); },
                     getTitle: function (data) {
@@ -361,18 +362,6 @@
                 if (window.AamsSplitter && typeof window.AamsSplitter.init === 'function') {
                     AamsSplitter.init(currentPane);
                 }
-
-                // Window resize responsive sync (AamsResponsive 공통 표준)
-                var resizeTimer = null;
-                window.addEventListener('resize', function () {
-                    clearTimeout(resizeTimer);
-                    resizeTimer = setTimeout(function () {
-                        if (grid) grid.redraw();
-                        if (reportViewer && typeof reportViewer.syncResize === 'function') {
-                            reportViewer.syncResize();
-                        }
-                    }, 120);
-                });
 
                 // 개발지침 규칙 9: 상단 공통 툴바 표준 계약 함수 연결
                 currentPane.onRetrieve = currentPane.onSearch = function () {

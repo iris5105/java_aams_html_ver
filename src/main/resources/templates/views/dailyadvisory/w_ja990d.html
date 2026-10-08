@@ -1604,9 +1604,15 @@
                     });
                 }
 
-                // Window resize responsive sync (디바운스 적용 및 부드러운 redraw)
+                // Window resize responsive sync (디바운스 적용, 탭 닫힘 좀비 호출 방지 및 부드러운 redraw)
                 var ja990dResizeTimer = null;
-                window.addEventListener("resize", function() {
+                function ja990dResizeHandler() {
+                    if (!pane || (pane !== document && !document.contains(pane))) {
+                        window.removeEventListener("resize", ja990dResizeHandler);
+                        return;
+                    }
+                    if (pane.classList && pane.classList.contains("tab-pane") && !pane.classList.contains("active")) return;
+
                     clearTimeout(ja990dResizeTimer);
                     ja990dResizeTimer = setTimeout(function() {
                         if (gridStock) gridStock.redraw();
@@ -1615,7 +1621,8 @@
                             closeStockModal();
                         }
                     }, 120);
-                });
+                }
+                window.addEventListener("resize", ja990dResizeHandler);
 
                 // ESC key handler for modal
                 document.addEventListener("keydown", function(e) {

@@ -966,15 +966,10 @@
                 initCommentGrid();
                 initCommentTools();
 
-                // 모바일/데스크톱 화면 전환 및 윈도우 리사이즈 대응 그리드 리드로우
-                let resizeTimer = null;
-                window.addEventListener('resize', function() {
-                    clearTimeout(resizeTimer);
-                    resizeTimer = setTimeout(function() {
-                        if (gridMaster) gridMaster.redraw();
-                        if (gridComment) gridComment.redraw();
-                    }, 100);
-                });
+                // 모바일/데스크톱 화면 전환 및 윈도우 리사이즈 대응 그리드 리드로우 (공통 AamsResponsive 연동: 탭 닫힘 시 자동 파기 및 활성 탭 가드)
+                if (window.AamsResponsive && typeof window.AamsResponsive.bindGridResize === 'function') {
+                    AamsResponsive.bindGridResize(pane, [function() { return gridMaster; }, function() { return gridComment; }]);
+                }
 
                 // eb_direct_retrieve = true 명세 반영 자동 조회
                 setTimeout(() => {

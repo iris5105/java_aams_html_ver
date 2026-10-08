@@ -328,15 +328,10 @@
                     AamsSplitter.init(pane);
                 }
 
-                // Window resize responsive sync (디바운스 적용 및 부드러운 redraw)
-                var ja991aResizeTimer = null;
-                window.addEventListener('resize', function() {
-                    clearTimeout(ja991aResizeTimer);
-                    ja991aResizeTimer = setTimeout(function() {
-                        if (gridMaster) gridMaster.redraw();
-                        if (gridDetail) gridDetail.redraw();
-                    }, 120);
-                });
+                // Window resize responsive sync (AamsResponsive 연동: 탭 닫힘 시 자동 파기 및 활성 탭 가드)
+                if (window.AamsResponsive && typeof window.AamsResponsive.bindGridResize === 'function') {
+                    AamsResponsive.bindGridResize(pane, [function() { return gridMaster; }, function() { return gridDetail; }]);
+                }
 
                 setTimeout(initGrids, 60);
             }

@@ -216,9 +216,9 @@
                 initCalendar();
                 initGrid();
 
-                // 리포트 뷰어 일체형 자동 바인딩 (공통 프래그먼트 및 모듈 연동)
+                // 리포트 뷰어 일체형 자동 바인딩 (공통 프래그먼트 및 모듈 연동, 자동 반응형 리사이즈)
                 reportViewer = AamsReport.bindViewer(currentPane, {
-                    mrdName: function (data) {
+                    reportFile: function (data) {
                         var fCd = (data && data.fundCd != null) ? String(data.fundCd) : '0';
                         var cGr = (data && data.corpGr) ? String(data.corpGr) : resolveCorpGr(currentPane);
                         if (fCd === '0') return 'rd_ja010j_0.mrd';
@@ -227,6 +227,7 @@
                         return 'rd_ja010j_6.mrd';
                     },
                     modalSelector: '#ja010jMobileModal',
+                    grid: function () { return grid; },
                     getParams: function (data) {
                         return {
                             corpGr: (data && data.corpGr) ? data.corpGr : resolveCorpGr(currentPane),
@@ -286,18 +287,6 @@
                         showToast("화면이 초기화되었습니다.", "info");
                     }
                 };
-
-                // Window resize responsive sync (AamsResponsive 공통 표준)
-                var resizeTimer = null;
-                window.addEventListener('resize', function () {
-                    clearTimeout(resizeTimer);
-                    resizeTimer = setTimeout(function () {
-                        if (grid) grid.redraw();
-                        if (reportViewer && typeof reportViewer.syncResize === 'function') {
-                            reportViewer.syncResize();
-                        }
-                    }, 120);
-                });
 
                 // 파워빌더 eb_direct_retrieve = true 규격 준수: 화면 오픈 시 자동 조회 실행
                 setTimeout(function () {

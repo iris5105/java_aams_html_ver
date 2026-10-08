@@ -85,6 +85,7 @@
                 ? window.AamsReport.bindViewer(pane, {
                     reportFile: 'rd_ja010h1.mrd',
                     modalId: 'ja010h1MobileModal',
+                    grid: function() { return grid; },
                     getCorpGr: function () { return resolveCorpGr(pane); },
                     buildParams: function (data) {
                         return {
@@ -476,17 +477,7 @@
                 var btnTot = pane.querySelector('#btnTotalExcel');
                 if (btnTot) btnTot.addEventListener('click', executeTotalExcel);
 
-                // Window resize responsive sync (AamsResponsive 공통 표준)
-                var resizeTimer = null;
-                window.addEventListener('resize', function () {
-                    clearTimeout(resizeTimer);
-                    resizeTimer = setTimeout(function () {
-                        if (grid) grid.redraw();
-                        if (reportViewer && typeof reportViewer.syncResize === 'function') {
-                            reportViewer.syncResize();
-                        }
-                    }, 120);
-                });
+                // 리사이즈 및 모바일/PC 반응형 동기화는 AamsReport.bindViewer 공통 모듈(aams_report.js)에서 자동 처리됨
 
                 // 상단 툴바 표준 계약 (규칙 9)
                 pane.onSearch = function () {

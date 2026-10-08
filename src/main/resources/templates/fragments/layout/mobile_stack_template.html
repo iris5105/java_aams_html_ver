@@ -235,12 +235,18 @@
      */
     function setupMobileStackResizeHandler(scopePane) {
         let resizeTimer = null;
-        window.addEventListener('resize', function() {
+        function stackResizeHandler() {
+            if (!scopePane || (scopePane !== document && !document.contains(scopePane))) {
+                window.removeEventListener('resize', stackResizeHandler);
+                return;
+            }
+            if (scopePane.classList && scopePane.classList.contains('tab-pane') && !scopePane.classList.contains('active')) return;
             clearTimeout(resizeTimer);
             resizeTimer = setTimeout(function() {
                 redrawAllStackGrids(scopePane);
             }, 100);
-        });
+        }
+        window.addEventListener('resize', stackResizeHandler);
     }
 </script>
 </html>
