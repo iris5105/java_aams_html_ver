@@ -2171,4 +2171,398 @@ window.sanitizeGridData = function(grid, dataList, extraAllowedFields) {
     return window.sanitizeGridRowData(grid, dataList, extraAllowedFields);
 };
 
+/**
+ * 전역 API 호출(fetch) 인터셉터
+ * 현재 활성화된 화면의 프로그램 번호(X-Pgm-No) 및 화면 ID(X-Pgm-Id)를
+ * 모든 API 요청 헤더에 자동으로 부착하여 서버 에러 발생 시 정확한 화면을 추적할 수 있도록 지원합니다.
+ */
+(function() {
+    if (window._aamsFetchIntercepted) return;
+    window._aamsFetchIntercepted = true;
 
+    var originalFetch = window.fetch;
+    window.fetch = function(input, init) {
+        init = init || {};
+        var headers = new Headers(init.headers || {});
+
+        try {
+            var activeTabKey = window.tabManager ? window.tabManager.activeTabKey : null;
+            var activeTab = (window.tabManager && Array.isArray(window.tabManager.openTabs))
+                ? window.tabManager.openTabs.find(function(t) { return t.tabKey === activeTabKey || t.pgmNo === activeTabKey; })
+                : null;
+            var activePane = document.querySelector('.tab-pane.active') || window.currentPane;
+
+            var pgmNo = (activeTab && activeTab.pgmNo) || (activePane && activePane.getAttribute('data-pgm-no')) || window.g_currentPgmNo || '';
+            var pgmId = (activeTab && activeTab.pgmId) || (activePane && activePane.getAttribute('data-pgm-id')) || '';
+
+            if (pgmNo && !headers.has('X-Pgm-No')) {
+                headers.set('X-Pgm-No', pgmNo);
+            }
+            if (pgmId && !headers.has('X-Pgm-Id')) {
+                headers.set('X-Pgm-Id', pgmId);
+            }
+        } catch (e) {
+            // 헤더 부착 실패 시에도 원래 fetch는 정상 동작 보장
+        }
+
+
+/**
+ * ============================================================================
+ * AAMS Crownix MRD Report Viewer & Export Module (Dual Fallback Safety Net)
+ * ----------------------------------------------------------------------------
+ * aams_report.js와 완전 동기화된 안전망 엔진.
+ * 서버 배포 시 브라우저 캐시 지연 또는 스크립트 로드 순서 문제 시에도
+ * 어디서나 reportViewer 및 AamsReport가 100% 정상 참조되도록 보장합니다.
+ * ============================================================================
+ */
+(function(window) {
+    'use strict';
+    if (window.AamsReport && typeof window.AamsReport.bindViewer === 'function') {
+        return;
+    }
+
+    var AamsReport = {
+        DEFAULT_ZOOM: 120,
+
+        buildPreviewUrl: function(mrdName, params, options) {
+            options = options || {};
+            var qs = ['mrdName=' + encodeURIComponent(mrdName)];
+            if (options.corpGr) qs.push('corpGr=' + encodeURIComponent(options.corpGr));
+            if (options.downloadName) qs.push('downloadName=' + encodeURIComponent(options.downloadName));
+            if (options.timestamp !== false) qs.push('t=' + new Date().getTime());
+
+            if (params && typeof params === 'object') {
+                for (var k in params) {
+                    if (params.hasOwnProperty(k) && params[k] !== undefined && params[k] !== null) {
+                        qs.push(encodeURIComponent(k) + '=' + encodeURIComponent(params[k]));
+                    }
+                }
+            }
+
+            var rawUrl = '/api/common/rd/preview?' + qs.join('&');
+            return this.formatPreviewUrl(rawUrl, options.zoom);
+        },
+
+        buildExportUrl: function(mrdName, params, format, options) {
+            options = options || {};
+            var qs = ['mrdName=' + encodeURIComponent(mrdName)];
+            qs.push('format=' + encodeURIComponent(format || 'pdf'));
+            if (options.corpGr) qs.push('corpGr=' + encodeURIComponent(options.corpGr));
+            if (options.downloadName) qs.push('downloadName=' + encodeURIComponent(options.downloadName));
+            qs.push('t=' + new Date().getTime());
+
+            if (params && typeof params === 'object') {
+                for (var k in params) {
+                    if (params.hasOwnProperty(k) && params[k] !== undefined && params[k] !== null) {
+                        qs.push(encodeURIComponent(k) + '=' + encodeURIComponent(params[k]));
+                    }
+                }
+            }
+
+            return '/api/common/rd/export?' + qs.join('&');
+        },
+
+        formatPreviewUrl: function(url, zoom) {
+            if (!url || url === 'about:blank') return url || '';
+            var cleanUrl = url.split('#')[0];
+            if (zoom === 'fit' || zoom === 'page-fit' || zoom === 'Fit') {
+                return cleanUrl + '#toolbar=1&navpanes=0&view=Fit';
+            }
+            if (zoom === 'width' || zoom === 'page-width' || zoom === 'FitH') {
+                return cleanUrl + '#toolbar=1&navpanes=0&view=FitH';
+            }
+            var targetZoom = (zoom !== undefined && zoom !== null) ? zoom : this.DEFAULT_ZOOM;
+            return cleanUrl + '#toolbar=1&navpanes=0&zoom=' + encodeURIComponent(targetZoom);
+        },
+
+        isMobileView: function(rootPane) {
+            var root = rootPane || (window.currentPane || document);
+            var right = (root && root.querySelector) ? (root.querySelector('.split-right') || root.querySelector('.report-card') || root.querySelector('.pane-right')) : null;
+            if (right && window.getComputedStyle(right).display === 'none') {
+                return true;
+            }
+            var width = (root && root.clientWidth > 0) ? root.clientWidth : window.innerWidth;
+            return width <= 876;
+        },
+
+        setFrameSrc: function(frameEl, url, zoom) {
+            if (!frameEl) return;
+            if (!url || url === 'about:blank') {
+                frameEl.src = 'about:blank';
+                return;
+            }
+            frameEl.src = this.formatPreviewUrl(url, zoom);
+        },
+
+        bindViewer: function(rootPane, config) {
+            config = config || {};
+            var root = rootPane || document;
+            var iframe = root.querySelector(config.iframeSelector || '#report-frame, .report-frame');
+            var loadingEl = root.querySelector(config.loadingSelector || '#preview-loading, .report-loading');
+            var statusEl = root.querySelector(config.statusSelector || '#preview-status, .preview-status');
+            var modalEl = root.querySelector(config.modalSelector || (config.modalId ? ('#' + config.modalId) : null) || '.report-modal-backdrop')
+                       || document.querySelector(config.modalSelector || (config.modalId ? ('#' + config.modalId) : null) || '.report-modal-backdrop');
+            var modalIframe = modalEl ? modalEl.querySelector('iframe') : null;
+            var modalLoadingEl = modalEl ? modalEl.querySelector('.report-loading, [id*="loading"]') : null;
+            var modalTitleEl = modalEl ? modalEl.querySelector('.modal-title, .report-modal-title') : null;
+            var btnOpenNewWindow = root.querySelector('#btnOpenNewWindow, .btn-open-new-window');
+            var btnCloseModal = modalEl ? modalEl.querySelector('.btn-close-modal, .btn-close-report-modal, [id*="Close"]') : null;
+            
+            var selectedData = null;
+            var lastLoadedKey = null;
+
+            function resolveMrd(data) {
+                if (typeof config.mrdName === 'function') return config.mrdName(data);
+                if (config.mrdName) return config.mrdName;
+                if (typeof config.reportFile === 'function') return config.reportFile(data);
+                return config.reportFile || '';
+            }
+
+            function resolveParams(data) {
+                if (typeof config.getParams === 'function') return config.getParams(data);
+                if (typeof config.buildParams === 'function') return config.buildParams(data);
+                return data || {};
+            }
+
+            function resolveCorp() {
+                if (typeof config.getCorpGr === 'function') return config.getCorpGr();
+                if (typeof window.resolveCorpGr === 'function') return window.resolveCorpGr(root);
+                return '';
+            }
+
+            function resolveDataKey(data) {
+                if (!data) return '';
+                var corp = resolveCorp();
+                var ymd = (typeof config.getYmd === 'function') ? config.getYmd() : (typeof window.resolveFilterYmd === 'function' ? window.resolveFilterYmd(root) : '');
+                var id = data.fundCd || data.fund_cd || data.id || data.mainKey || data.code || '';
+                if (id) {
+                    return corp + '_' + ymd + '_' + id;
+                }
+                try {
+                    return corp + '_' + ymd + '_' + JSON.stringify(resolveParams(data));
+                } catch (e) {
+                    return String(data);
+                }
+            }
+
+            function showLoading(show) {
+                if (loadingEl) loadingEl.style.display = show ? 'block' : 'none';
+                if (modalLoadingEl) modalLoadingEl.style.display = show ? 'block' : 'none';
+            }
+
+            function updateStatus(text) {
+                if (statusEl) statusEl.textContent = text || '';
+                if (typeof config.onStatusChange === 'function') config.onStatusChange(selectedData, text);
+            }
+
+            function load(data, statusText, isForce) {
+                if (!data) return;
+                selectedData = data;
+                
+                var dataKey = resolveDataKey(data);
+                var isAlreadyLoaded = (lastLoadedKey === dataKey) && iframe && iframe.src && iframe.src !== 'about:blank' && !iframe.src.endsWith('about:blank');
+
+                if (statusText) {
+                    updateStatus(statusText);
+                } else if (typeof config.getStatus === 'function') {
+                    updateStatus(config.getStatus(data, resolveParams(data)));
+                }
+                if (typeof config.getTitle === 'function') {
+                    var titleEl = root.querySelector('#preview-header-title, .preview-header-title');
+                    if (titleEl) {
+                        var titleVal = config.getTitle(data);
+                        var iconClass = config.iconClass || 'fa-solid fa-file-invoice';
+                        titleEl.innerHTML = '<i class="' + iconClass + '" style="margin-right: 4px;"></i> ' + titleVal;
+                    }
+                }
+
+                if (isAlreadyLoaded && !isForce) {
+                    return;
+                }
+                lastLoadedKey = dataKey;
+
+                if (typeof config.onBeforePreview === 'function') {
+                    config.onBeforePreview(data);
+                }
+
+                var mrd = resolveMrd(data);
+                var params = resolveParams(data);
+                var previewUrl = (typeof config.buildPreviewUrl === 'function')
+                    ? config.buildPreviewUrl(data, params)
+                    : (mrd ? AamsReport.buildPreviewUrl(mrd, params, { corpGr: resolveCorp(), zoom: config.zoom }) : null);
+                if (!previewUrl) return;
+                
+                showLoading(true);
+                if (iframe) {
+                    iframe.onload = function() { showLoading(false); };
+                    AamsReport.setFrameSrc(iframe, previewUrl, config.zoom);
+                }
+                if (modalIframe && modalEl && modalEl.style.display !== 'none') {
+                    modalIframe.onload = function() { showLoading(false); };
+                    AamsReport.setFrameSrc(modalIframe, previewUrl, config.zoom);
+                }
+            }
+
+            function clear() {
+                selectedData = null;
+                lastLoadedKey = null;
+                updateStatus(config.defaultStatus || '선택된 항목 없음');
+                if (iframe) AamsReport.setFrameSrc(iframe, 'about:blank');
+                if (modalIframe) AamsReport.setFrameSrc(modalIframe, 'about:blank');
+                showLoading(false);
+            }
+
+            function exportReport(format) {
+                if (!selectedData) {
+                    if (typeof window.showToast === 'function') window.showToast('내보낼 항목을 먼저 선택해주세요.', 'warning');
+                    else alert('내보낼 항목을 먼저 선택해주세요.');
+                    return;
+                }
+                if (typeof config.beforeAction === 'function' && config.beforeAction(selectedData, 'export') === false) return;
+                var mrd = resolveMrd(selectedData);
+                var params = resolveParams(selectedData);
+                var dlName = typeof config.getDownloadName === 'function' ? config.getDownloadName(selectedData, format) : null;
+                var url = (typeof config.buildExportUrl === 'function')
+                    ? config.buildExportUrl(selectedData, format, params)
+                    : AamsReport.buildExportUrl(mrd, params, format, {
+                        corpGr: resolveCorp(),
+                        downloadName: dlName
+                    });
+                if (url) window.location.href = url;
+            }
+
+            function openNewWindow() {
+                if (!selectedData) {
+                    if (typeof window.showToast === 'function') window.showToast('조회할 항목을 먼저 선택해주세요.', 'warning');
+                    else alert('조회할 항목을 먼저 선택해주세요.');
+                    return;
+                }
+                if (typeof config.beforeAction === 'function' && config.beforeAction(selectedData, 'newWindow') === false) return;
+                var mrd = resolveMrd(selectedData);
+                var params = resolveParams(selectedData);
+                var url = (typeof config.buildPreviewUrl === 'function')
+                    ? config.buildPreviewUrl(selectedData, params)
+                    : AamsReport.buildPreviewUrl(mrd, params, { corpGr: resolveCorp(), zoom: config.zoom });
+                if (url) window.open(url, '_blank');
+            }
+
+            function openModal(data, title) {
+                if (!modalEl) {
+                    modalEl = root.querySelector(config.modalSelector || (config.modalId ? ('#' + config.modalId) : null) || '.report-modal-backdrop')
+                           || document.querySelector(config.modalSelector || (config.modalId ? ('#' + config.modalId) : null) || '.report-modal-backdrop');
+                }
+                if (!modalEl) return;
+                selectedData = data || selectedData;
+                if (!title && typeof config.getTitle === 'function' && selectedData) {
+                    title = config.getTitle(selectedData);
+                }
+                if (modalTitleEl && title) modalTitleEl.textContent = title;
+                modalEl.style.display = 'flex';
+                if (modalIframe && selectedData) {
+                    var mrd = resolveMrd(selectedData);
+                    var params = resolveParams(selectedData);
+                    var modalZoom = (config.mobileZoom !== undefined) ? config.mobileZoom : (config.zoom !== undefined ? config.zoom : AamsReport.DEFAULT_ZOOM);
+                    var url = (typeof config.buildPreviewUrl === 'function')
+                        ? config.buildPreviewUrl(selectedData, params)
+                        : AamsReport.buildPreviewUrl(mrd, params, { corpGr: resolveCorp(), zoom: modalZoom });
+                    showLoading(true);
+                    modalIframe.onload = function() { showLoading(false); };
+                    AamsReport.setFrameSrc(modalIframe, url, modalZoom);
+                }
+            }
+
+            function closeModal() {
+                if (modalEl) modalEl.style.display = 'none';
+                if (modalIframe) AamsReport.setFrameSrc(modalIframe, 'about:blank');
+            }
+
+            var exportBtns = root.querySelectorAll('.btn-export-format, .export-btn, [data-format]');
+            exportBtns.forEach(function(btn) {
+                btn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    var fmt = btn.getAttribute('data-format');
+                    if (fmt) exportReport(fmt);
+                });
+            });
+
+            if (btnOpenNewWindow) {
+                btnOpenNewWindow.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    openNewWindow();
+                });
+            }
+
+            if (btnCloseModal) {
+                btnCloseModal.addEventListener('click', closeModal);
+            }
+            if (modalEl && typeof window.setupModalBackdrop === 'function') {
+                window.setupModalBackdrop(modalEl, closeModal);
+            }
+
+            var lastIsMobile = AamsReport.isMobileView(root);
+            var autoResizeTimer = null;
+
+            function smartResizeHandler() {
+                if (root && root !== document && !document.contains(root)) {
+                    window.removeEventListener('resize', debouncedResize);
+                    return;
+                }
+                if (root && root.classList && root.classList.contains('tab-pane') && !root.classList.contains('active')) {
+                    return;
+                }
+
+                var targetGrid = (typeof config.grid === 'function') ? config.grid() : (config.grid || (typeof config.getGrid === 'function' ? config.getGrid() : null));
+                if (targetGrid && typeof targetGrid.redraw === 'function') {
+                    targetGrid.redraw();
+                }
+
+                var currentIsMobile = AamsReport.isMobileView(root);
+                if (lastIsMobile !== currentIsMobile) {
+                    lastIsMobile = currentIsMobile;
+                    if (!currentIsMobile) {
+                        closeModal();
+                        if (selectedData && iframe) {
+                            load(selectedData, null, true);
+                        }
+                    }
+                }
+            }
+
+            function debouncedResize() {
+                clearTimeout(autoResizeTimer);
+                autoResizeTimer = setTimeout(smartResizeHandler, 120);
+            }
+
+            window.addEventListener('resize', debouncedResize);
+
+            var viewerInstance = {
+                load: load,
+                loadPreview: load,
+                clear: clear,
+                openModal: openModal,
+                openMobile: openModal,
+                closeModal: closeModal,
+                closeMobile: closeModal,
+                openNewWindow: openNewWindow,
+                exportReport: exportReport,
+                exportFormat: exportReport,
+                syncResize: smartResizeHandler,
+                getSelectedData: function() { return selectedData; },
+                setSelectedData: function(d) { selectedData = d; },
+                destroy: function() {
+                    window.removeEventListener('resize', debouncedResize);
+                    clear();
+                }
+            };
+
+            if (root && typeof root === 'object') {
+                root._aamsReportViewer = viewerInstance;
+            }
+
+            return viewerInstance;
+        }
+    };
+
+    window.AamsReport = AamsReport;
+
+})(window);
