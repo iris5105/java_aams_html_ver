@@ -217,32 +217,35 @@
                 initGrid();
 
                 // 리포트 뷰어 일체형 자동 바인딩 (공통 프래그먼트 및 모듈 연동, 자동 반응형 리사이즈)
-                reportViewer = AamsReport.bindViewer(currentPane, {
-                    reportFile: function (data) {
-                        var fCd = (data && data.fundCd != null) ? String(data.fundCd) : '0';
-                        var cGr = (data && data.corpGr) ? String(data.corpGr) : resolveCorpGr(currentPane);
-                        if (fCd === '0') return 'rd_ja010j_0.mrd';
-                        if (fCd === '1') return (cGr === '2202') ? 'rd_ja010j_2202.mrd' : 'rd_ja010j_1.mrd';
-                        if (fCd === '2') return 'rd_ja010j_2.mrd';
-                        return 'rd_ja010j_6.mrd';
-                    },
-                    modalSelector: '#ja010jMobileModal',
-                    grid: function () { return grid; },
-                    getParams: function (data) {
-                        return {
-                            corpGr: (data && data.corpGr) ? data.corpGr : resolveCorpGr(currentPane),
-                            fundCd: (data && data.fundCd != null) ? data.fundCd : '0',
-                            companyName: (data && data.companyName) ? data.companyName : '',
-                            fundNm: (data && data.fundNm) ? data.fundNm : '',
-                            fymd: getFilterFymd(currentPane, 'YYYYMMDD'),
-                            tymd: getFilterTymd(currentPane, 'YYYYMMDD')
-                        };
-                    },
-                    getDownloadName: function (data, format) {
-                        var cName = (data && data.companyName) ? data.companyName : '수요예측';
-                        return cName + '_참여표';
-                    }
-                });
+                var reportEngine = window.AamsReport;
+                reportViewer = (reportEngine && typeof reportEngine.bindViewer === 'function')
+                    ? reportEngine.bindViewer(currentPane, {
+                        reportFile: function (data) {
+                            var fCd = (data && data.fundCd != null) ? String(data.fundCd) : '0';
+                            var cGr = (data && data.corpGr) ? String(data.corpGr) : resolveCorpGr(currentPane);
+                            if (fCd === '0') return 'rd_ja010j_0.mrd';
+                            if (fCd === '1') return (cGr === '2202') ? 'rd_ja010j_2202.mrd' : 'rd_ja010j_1.mrd';
+                            if (fCd === '2') return 'rd_ja010j_2.mrd';
+                            return 'rd_ja010j_6.mrd';
+                        },
+                        modalSelector: '#ja010jMobileModal',
+                        grid: function () { return grid; },
+                        getParams: function (data) {
+                            return {
+                                corpGr: (data && data.corpGr) ? data.corpGr : resolveCorpGr(currentPane),
+                                fundCd: (data && data.fundCd != null) ? data.fundCd : '0',
+                                companyName: (data && data.companyName) ? data.companyName : '',
+                                fundNm: (data && data.fundNm) ? data.fundNm : '',
+                                fymd: getFilterFymd(currentPane, 'YYYYMMDD'),
+                                tymd: getFilterTymd(currentPane, 'YYYYMMDD')
+                            };
+                        },
+                        getDownloadName: function (data, format) {
+                            var cName = (data && data.companyName) ? data.companyName : '수요예측';
+                            return cName + '_참여표';
+                        }
+                    })
+                    : null;
 
                 // 개발지침 규칙 9: 상단 공통 툴바 표준 계약 함수 연결
                 currentPane.onRetrieve = currentPane.onSearch = function () {

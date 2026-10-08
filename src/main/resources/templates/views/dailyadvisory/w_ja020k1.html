@@ -339,24 +339,26 @@
                 initGrid();
 
                 // 리포트 뷰어 일체형 자동 바인딩 (계좌별 주간 운용현황 전용 엔드포인트 연동, 자동 반응형 리사이즈)
-                reportViewer = AamsReport.bindViewer(currentPane, {
-                    modalSelector: '#ja020k1MobileModal',
-                    grid: function () { return grid; },
-                    buildPreviewUrl: function (data) {
-                        var corpGr = resolveCorpGr(currentPane);
-                        var ymd = getFilterYmd(currentPane);
-                        var fundCd = (data && data.fundCd) ? data.fundCd : '';
-                        var fundNm = (data && data.fundNm) ? data.fundNm : '';
-                        var gugan = (data && data.gugan) ? data.gugan : '1';
-                        var rawUrl = '/api/daily/ja020k1/preview?corpGr=' + encodeURIComponent(corpGr) +
-                            '&fundCd=' + encodeURIComponent(fundCd) +
-                            '&fundNm=' + encodeURIComponent(fundNm) +
-                            '&ymd=' + encodeURIComponent(ymd) +
-                            '&gugan=' + encodeURIComponent(gugan) +
-                            '&t=' + new Date().getTime();
-                        return AamsReport.formatPreviewUrl(rawUrl, 120);
-                    },
-                    buildExportUrl: function (data, format) {
+                var reportEngine = window.AamsReport;
+                reportViewer = (reportEngine && typeof reportEngine.bindViewer === 'function')
+                    ? reportEngine.bindViewer(currentPane, {
+                        modalSelector: '#ja020k1MobileModal',
+                        grid: function () { return grid; },
+                        buildPreviewUrl: function (data) {
+                            var corpGr = resolveCorpGr(currentPane);
+                            var ymd = getFilterYmd(currentPane);
+                            var fundCd = (data && data.fundCd) ? data.fundCd : '';
+                            var fundNm = (data && data.fundNm) ? data.fundNm : '';
+                            var gugan = (data && data.gugan) ? data.gugan : '1';
+                            var rawUrl = '/api/daily/ja020k1/preview?corpGr=' + encodeURIComponent(corpGr) +
+                                '&fundCd=' + encodeURIComponent(fundCd) +
+                                '&fundNm=' + encodeURIComponent(fundNm) +
+                                '&ymd=' + encodeURIComponent(ymd) +
+                                '&gugan=' + encodeURIComponent(gugan) +
+                                '&t=' + new Date().getTime();
+                            return reportEngine.formatPreviewUrl(rawUrl, 120);
+                        },
+                        buildExportUrl: function (data, format) {
                         var corpGr = resolveCorpGr(currentPane);
                         var ymd = getFilterYmd(currentPane);
                         var fundCd = (data && data.fundCd) ? data.fundCd : '';

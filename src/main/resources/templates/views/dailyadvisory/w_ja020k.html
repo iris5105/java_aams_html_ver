@@ -111,31 +111,34 @@
                 initDddw();
 
                 // 3. 리포트 뷰어 일체형 자동 바인딩 (공통 프래그먼트 연동)
-                reportViewer = AamsReport.bindViewer(pane, {
-                    mrdName: function(data) {
-                        var seriesGb = getFilterSeriesGb();
-                        return (seriesGb === '1110') ? 'rd_ja020k1.mrd' : ((seriesGb === '1120') ? 'rd_ja020k2.mrd' : 'rd_ja020k3.mrd');
-                    },
-                    getParams: function(data) {
-                        var ymd = getFilterYmd(pane, 'YYYYMMDD');
-                        var seriesGb = getFilterSeriesGb();
-                        var ymdDot = getFilterYmd(pane, 'YYYY.MM.DD');
-                        return {
-                            corpGr: resolveCorpGr(pane),
-                            series_gb: seriesGb,
-                            gubun: (seriesGb === '1110') ? '2' : ((seriesGb === '1120') ? '1' : ''),
-                            ymd: ymdDot
-                        };
-                    },
-                    beforeAction: function(data, action) {
-                        var ymd = getFilterYmd(pane);
-                        if (!ymd) {
-                            if (typeof showToast === "function") showToast("기준일자를 선택해 주세요.", "warning");
-                            return false;
+                var reportEngine = window.AamsReport;
+                reportViewer = (reportEngine && typeof reportEngine.bindViewer === 'function')
+                    ? reportEngine.bindViewer(pane, {
+                        mrdName: function(data) {
+                            var seriesGb = getFilterSeriesGb();
+                            return (seriesGb === '1110') ? 'rd_ja020k1.mrd' : ((seriesGb === '1120') ? 'rd_ja020k2.mrd' : 'rd_ja020k3.mrd');
+                        },
+                        getParams: function(data) {
+                            var ymd = getFilterYmd(pane, 'YYYYMMDD');
+                            var seriesGb = getFilterSeriesGb();
+                            var ymdDot = getFilterYmd(pane, 'YYYY.MM.DD');
+                            return {
+                                corpGr: resolveCorpGr(pane),
+                                series_gb: seriesGb,
+                                gubun: (seriesGb === '1110') ? '2' : ((seriesGb === '1120') ? '1' : ''),
+                                ymd: ymdDot
+                            };
+                        },
+                        beforeAction: function(data, action) {
+                            var ymd = getFilterYmd(pane);
+                            if (!ymd) {
+                                if (typeof showToast === "function") showToast("기준일자를 선택해 주세요.", "warning");
+                                return false;
+                            }
+                            return true;
                         }
-                        return true;
-                    }
-                });
+                    })
+                    : null;
 
                 // 4. 상단 툴바 표준 계약 (규칙 9)
                 pane.onSearch = function () {

@@ -308,38 +308,41 @@
                 initGrid();
 
                 // 리포트 뷰어 일체형 자동 바인딩 (w_ja020k1 표준 패턴 준수)
-                reportViewer = AamsReport.bindViewer(currentPane, {
-                    grid: function () { return grid; },
-                    modalSelector: '#ja010hMobileModal',
-                    buildPreviewUrl: function (data) {
-                        var corpGr = resolveCorpGr(currentPane);
-                        var ymd = getFilterYmd(currentPane);
-                        var fundCd = (data && data.fundCd) ? data.fundCd : '';
-                        var rawUrl = '/api/daily/ja010h/preview?corpGr=' + encodeURIComponent(corpGr) +
-                            '&ymd=' + encodeURIComponent(ymd) +
-                            '&fundCd=' + encodeURIComponent(fundCd) +
-                            '&t=' + new Date().getTime();
-                        return AamsReport.formatPreviewUrl(rawUrl, 120);
-                    },
-                    buildExportUrl: function (data, format) {
-                        var corpGr = resolveCorpGr(currentPane);
-                        var ymd = getFilterYmd(currentPane);
-                        var fundCd = (data && data.fundCd) ? data.fundCd : '';
-                        return '/api/daily/ja010h/export?corpGr=' + encodeURIComponent(corpGr) +
-                            '&ymd=' + encodeURIComponent(ymd) +
-                            '&fundCd=' + encodeURIComponent(fundCd) +
-                            '&format=' + encodeURIComponent(format || 'pdf') +
-                            '&t=' + new Date().getTime();
-                    },
-                    getTitle: function (data) {
-                        var fundNm = (data && data.fundNm) ? data.fundNm : '';
-                        var fundCd = (data && data.fundCd) ? data.fundCd : '';
-                        return fundNm + ' (' + fundCd + ') 자산명세표';
-                    },
-                    getStatus: function (data) {
-                        return "기준일자: " + getFilterYmd(currentPane);
-                    }
-                });
+                var reportEngine = window.AamsReport;
+                reportViewer = (reportEngine && typeof reportEngine.bindViewer === 'function')
+                    ? reportEngine.bindViewer(currentPane, {
+                        grid: function () { return grid; },
+                        modalSelector: '#ja010hMobileModal',
+                        buildPreviewUrl: function (data) {
+                            var corpGr = resolveCorpGr(currentPane);
+                            var ymd = getFilterYmd(currentPane);
+                            var fundCd = (data && data.fundCd) ? data.fundCd : '';
+                            var rawUrl = '/api/daily/ja010h/preview?corpGr=' + encodeURIComponent(corpGr) +
+                                '&ymd=' + encodeURIComponent(ymd) +
+                                '&fundCd=' + encodeURIComponent(fundCd) +
+                                '&t=' + new Date().getTime();
+                            return reportEngine.formatPreviewUrl(rawUrl, 120);
+                        },
+                        buildExportUrl: function (data, format) {
+                            var corpGr = resolveCorpGr(currentPane);
+                            var ymd = getFilterYmd(currentPane);
+                            var fundCd = (data && data.fundCd) ? data.fundCd : '';
+                            return '/api/daily/ja010h/export?corpGr=' + encodeURIComponent(corpGr) +
+                                '&ymd=' + encodeURIComponent(ymd) +
+                                '&fundCd=' + encodeURIComponent(fundCd) +
+                                '&format=' + encodeURIComponent(format || 'pdf') +
+                                '&t=' + new Date().getTime();
+                        },
+                        getTitle: function (data) {
+                            var fundNm = (data && data.fundNm) ? data.fundNm : '';
+                            var fundCd = (data && data.fundCd) ? data.fundCd : '';
+                            return fundNm + ' (' + fundCd + ') 자산명세표';
+                        },
+                        getStatus: function (data) {
+                            return "기준일자: " + getFilterYmd(currentPane);
+                        }
+                    })
+                    : null;
 
                 // 개발지침 규칙 9: 표준 계약 함수 연결
                 currentPane.onRetrieve = currentPane.onSearch = function () {

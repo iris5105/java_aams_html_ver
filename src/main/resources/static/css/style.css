@@ -2223,9 +2223,82 @@ body.header-compact-mode.sidebar-backdrop-open::after {
         padding: 0 8px;
     }
 
-    /* 모바일 모드 변환 시 회사 로고 숨김으로 공간 확보 */
+    /* 모바일 모드에서도 회사 로고 표출 (햄버거 메뉴 옆 슬림 배치) */
     .top-header-logo {
+        display: flex !important;
+        width: auto !important;
+        min-width: unset !important;
+        max-width: 120px !important;
+        height: 100% !important;
+        padding: 0 4px !important;
+        border-right: none !important;
+        justify-content: flex-start !important;
+        align-items: center !important;
+    }
+
+    .top-header-logo .top-company-logo {
+        max-height: 24px !important;
+        max-width: 100% !important;
+        height: auto !important;
+        width: auto !important;
+        object-fit: contain !important;
+    }
+
+    /* ==========================================================================
+       모바일 환경(<= 876px) MDI 탭 바 및 닫기 버튼 가운데 정렬
+       - 탭이 열렸을 때 탭 목록과 [모두 닫기] 버튼이 가운데(center)에 균형있게 배치
+       ========================================================================== */
+    .tab-bar-container {
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
+        justify-content: center !important;
+        padding: 4px 6px 6px 6px !important;
+        gap: 4px !important;
+    }
+
+    .tab-bar {
+        width: 100% !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        overflow-x: auto !important;
+        scrollbar-width: none !important;
+        -ms-overflow-style: none !important;
+        padding-bottom: 2px !important;
+    }
+
+    .tab-bar::-webkit-scrollbar {
         display: none !important;
+    }
+
+    .tab-item {
+        max-width: 140px !important;
+        min-width: 80px !important;
+        flex: 0 0 auto !important;
+        padding: 4px 8px !important;
+        font-size: 11px !important;
+        border-radius: 4px 4px 0 0 !important;
+    }
+
+    .tab-bar-actions {
+        width: 100% !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        padding: 2px 0 0 0 !important;
+        margin: 0 auto !important;
+    }
+
+    .btn-close-all {
+        margin: 0 auto !important;
+        padding: 4px 14px !important;
+        font-size: 11px !important;
+        height: 26px !important;
+        display: inline-flex !important;
+        justify-content: center !important;
+        align-items: center !important;
+        border-radius: 4px !important;
     }
 
     .top-header-left {
