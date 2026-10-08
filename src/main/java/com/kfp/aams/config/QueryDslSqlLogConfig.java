@@ -33,6 +33,7 @@ public class QueryDslSqlLogConfig implements BeanPostProcessor {
     private static final Logger log = LoggerFactory.getLogger("com.kfp.aams.sql");
     private static final String ANSI_RESET = "\u001B[0m";
     private static final String ANSI_BLUE = "\u001B[1;34m"; // Bold Blue for QueryDSL visibility
+    private static final String ANSI_RED = "\u001B[1;31m";  // Bold Red for SQL Execution Failures
 
     @Override
     public Object postProcessAfterInitialization(Object bean, String beanName) throws BeansException {
@@ -117,11 +118,20 @@ public class QueryDslSqlLogConfig implements BeanPostProcessor {
                             params.clear();
                         } else if ("executeQuery".equals(methodName) || "executeUpdate".equals(methodName) || "execute".equals(methodName) || "executeLargeUpdate".equals(methodName)) {
                             long start = System.currentTimeMillis();
-                            Object result = method.invoke(targetPs, args);
-                            long elapsed = System.currentTimeMillis() - start;
+                            try {
+                                Object result = method.invoke(targetPs, args);
+                                long elapsed = System.currentTimeMillis() - start;
 
-                            handleLog(sql, params, elapsed);
-                            return result;
+                                handleLog(sql, params, elapsed);
+                                return result;
+                            } catch (Throwable t) {
+                                long elapsed = System.currentTimeMillis() - start;
+                                Throwable cause = (t instanceof java.lang.reflect.InvocationTargetException) 
+                                        ? ((java.lang.reflect.InvocationTargetException) t).getTargetException() 
+                                        : t;
+                                handleFailLog(sql, params, elapsed, cause);
+                                throw cause;
+                            }
                         } else if ("unwrap".equals(methodName) && args != null && args.length == 1) {
                             Class<?> iface = (Class<?>) args[0];
                             if (iface.isInstance(targetPs)) {
@@ -138,6 +148,43 @@ public class QueryDslSqlLogConfig implements BeanPostProcessor {
                     }
                 }
         );
+    }
+
+    private void handleFailLog(String sql, Map<Integer, Object> params, long elapsedTime, Throwable cause) {
+        try {
+            if (isMyBatisExecution()) {
+                return;
+            }
+
+            CallerInfo caller = findCallerInfo();
+            String executableSql = formatExecutableSql(sql, params);
+            String formattedSql = formatSql(executableSql);
+
+            StringBuilder sb = new StringBuilder();
+            sb.append("\n").append(ANSI_RED).append("---------------- [QueryDSL / JPA SQL Execution FAILED (").append(elapsedTime).append(")ms] ----------------").append(ANSI_RESET).append("\n");
+            if (caller != null) {
+                if (caller.service != null) {
+                    sb.append("Service    : ").append(caller.service).append("\n");
+                }
+                if (caller.repository != null) {
+                    sb.append("Repository : ").append(caller.repository).append("\n");
+                }
+            }
+            if (cause != null) {
+                Throwable root = cause;
+                while (root.getCause() != null && root.getCause() != root) {
+                    root = root.getCause();
+                }
+                sb.append("Error      : ").append(root.getClass().getSimpleName()).append(": ").append(root.getMessage() != null ? root.getMessage() : cause.getMessage()).append("\n");
+            }
+            sb.append(ANSI_RED).append("-----------------------------------------------------------------------").append(ANSI_RESET).append("\n");
+            sb.append(formattedSql).append("\n");
+            sb.append("Parameters : ").append(formatParamsSummary(params)).append("\n");
+            sb.append(ANSI_RED).append("-----------------------------------------------------------------------").append(ANSI_RESET);
+
+            log.error(sb.toString(), cause);
+        } catch (Exception ignored) {
+        }
     }
 
     private void handleLog(String sql, Map<Integer, Object> params, long elapsedTime) {

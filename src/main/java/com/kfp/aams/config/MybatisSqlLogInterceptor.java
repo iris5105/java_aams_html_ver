@@ -34,31 +34,37 @@ public class MybatisSqlLogInterceptor implements Interceptor {
     private static final Logger log = LoggerFactory.getLogger("com.kfp.aams.sql");
     private static final String ANSI_RESET = "\u001B[0m";
     private static final String ANSI_YELLOW = "\u001B[1;33m"; // Bold Yellow for MyBatis visibility
+    private static final String ANSI_RED = "\u001B[1;31m";    // Bold Red for MyBatis Execution Failures
 
     @Override
     public Object intercept(Invocation invocation) throws Throwable {
         long startTime = System.currentTimeMillis();
-        Object result = invocation.proceed();
-        long elapsedTime = System.currentTimeMillis() - startTime;
+        try {
+            Object result = invocation.proceed();
+            long elapsedTime = System.currentTimeMillis() - startTime;
+            handleSuccessLog(invocation, elapsedTime);
+            return result;
+        } catch (Throwable t) {
+            long elapsedTime = System.currentTimeMillis() - startTime;
+            handleFailLog(invocation, elapsedTime, t);
+            throw t;
+        }
+    }
 
+    private void handleSuccessLog(Invocation invocation, long elapsedTime) {
         try {
             StatementHandler statementHandler = (StatementHandler) invocation.getTarget();
             BoundSql boundSql = statementHandler.getBoundSql();
             String sql = boundSql.getSql();
 
             if (sql != null && !sql.isBlank()) {
-                // 1. MappedStatement 및 Mapper ID 추출
                 MappedStatement ms = resolveMappedStatement(statementHandler);
                 String mapperId = ms != null ? ms.getId() : null;
                 Configuration configuration = ms != null ? ms.getConfiguration() : null;
-
-                // 2. 호출한 Service / Controller 정보 추출
                 String serviceInfo = findCallerService();
 
-                // 3. 파라미터가 물음표(?)에 대입된 완성형 SQL 생성
                 String executableSql = generateExecutableSql(configuration, boundSql);
                 String formattedSql = formatSql(executableSql);
-
                 Object paramObj = boundSql.getParameterObject();
 
                 StringBuilder sb = new StringBuilder();
@@ -76,11 +82,48 @@ public class MybatisSqlLogInterceptor implements Interceptor {
 
                 log.info(sb.toString());
             }
-        } catch (Exception e) {
-            // Logging failure should not break execution
+        } catch (Exception ignored) {
         }
+    }
 
-        return result;
+    private void handleFailLog(Invocation invocation, long elapsedTime, Throwable cause) {
+        try {
+            StatementHandler statementHandler = (StatementHandler) invocation.getTarget();
+            BoundSql boundSql = statementHandler.getBoundSql();
+            String sql = boundSql != null ? boundSql.getSql() : "";
+
+            MappedStatement ms = resolveMappedStatement(statementHandler);
+            String mapperId = ms != null ? ms.getId() : null;
+            Configuration configuration = ms != null ? ms.getConfiguration() : null;
+            String serviceInfo = findCallerService();
+
+            String executableSql = (boundSql != null) ? generateExecutableSql(configuration, boundSql) : sql;
+            String formattedSql = formatSql(executableSql);
+            Object paramObj = boundSql != null ? boundSql.getParameterObject() : null;
+
+            StringBuilder sb = new StringBuilder();
+            sb.append("\n").append(ANSI_RED).append("---------------- [MyBatis SQL Execution FAILED (").append(elapsedTime).append(")ms] ----------------").append(ANSI_RESET).append("\n");
+            if (serviceInfo != null && !serviceInfo.equals("-")) {
+                sb.append("Service   : ").append(serviceInfo).append("\n");
+            }
+            if (mapperId != null) {
+                sb.append("Mapper ID : ").append(mapperId).append("\n");
+            }
+            if (cause != null) {
+                Throwable root = cause;
+                while (root.getCause() != null && root.getCause() != root) {
+                    root = root.getCause();
+                }
+                sb.append("Error     : ").append(root.getClass().getSimpleName()).append(": ").append(root.getMessage() != null ? root.getMessage() : cause.getMessage()).append("\n");
+            }
+            sb.append(ANSI_RED).append("----------------------------------------------------------------").append(ANSI_RESET).append("\n");
+            sb.append(formattedSql).append("\n");
+            sb.append("Parameters: ").append(paramObj != null ? paramObj : "None").append("\n");
+            sb.append(ANSI_RED).append("----------------------------------------------------------------").append(ANSI_RESET);
+
+            log.error(sb.toString(), cause);
+        } catch (Exception ignored) {
+        }
     }
 
     /**

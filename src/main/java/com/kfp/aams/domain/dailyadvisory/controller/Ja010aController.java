@@ -4,6 +4,7 @@ import com.kfp.aams.domain.dailyadvisory.dto.Ja010aDetailDto;
 import com.kfp.aams.domain.dailyadvisory.dto.Ja010aMasterDto;
 import com.kfp.aams.domain.dailyadvisory.service.Ja010aService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -12,6 +13,7 @@ import org.springframework.web.bind.annotation.ResponseBody;
 
 import java.util.List;
 
+@Slf4j
 @Controller
 @RequiredArgsConstructor
 public class Ja010aController {
@@ -55,6 +57,7 @@ public class Ja010aController {
             ja010aService.saveJa010a(request);
             return java.util.Map.of("success", true, "message", "정상적으로 저장되었습니다.");
         } catch (Exception e) {
+            log.error("w_ja010a 저장 중 오류 발생: {}", e.getMessage(), e);
             return java.util.Map.of("success", false, "message", "저장 중 오류가 발생했습니다: " + e.getMessage());
         }
     }

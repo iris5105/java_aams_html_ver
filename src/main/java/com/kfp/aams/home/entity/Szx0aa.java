@@ -1,6 +1,7 @@
 package com.kfp.aams.home.entity;
 
 import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
@@ -26,33 +27,43 @@ public class Szx0aa {
     @Column(name = "COMPANY_NAME", length = 80)
     private String companyName;
 
+    @Convert(converter = com.kfp.aams.common.converter.StringToDateConverter.class)
     @Column(name = "HYUN_YMD")
     private String hyunYmd;
 
+    @Convert(converter = com.kfp.aams.common.converter.StringToDateConverter.class)
     @Column(name = "GIJUNGA_YMD")
     private String gijungaYmd;
 
+    @Convert(converter = com.kfp.aams.common.converter.StringToDateConverter.class)
     @Column(name = "JUNYONG_YMD")
     private String junyongYmd;
 
+    @Convert(converter = com.kfp.aams.common.converter.StringToDateConverter.class)
     @Column(name = "IKYONG_YMD")
     private String ikyongYmd;
 
+    @Convert(converter = com.kfp.aams.common.converter.StringToDateConverter.class)
     @Column(name = "THIKYONG_YMD")
     private String thikyongYmd;
 
+    @Convert(converter = com.kfp.aams.common.converter.StringToDateConverter.class)
     @Column(name = "LAST_YMD")
     private String lastYmd;
 
+    @Convert(converter = com.kfp.aams.common.converter.StringToDateConverter.class)
     @Column(name = "SYMD")
     private String symd;
 
+    @Convert(converter = com.kfp.aams.common.converter.StringToDateConverter.class)
     @Column(name = "EYMD")
     private String eymd;
 
+    @Convert(converter = com.kfp.aams.common.converter.StringToDateConverter.class)
     @Column(name = "CHECK_YMD")
     private String checkYmd;
 
+    @Convert(converter = com.kfp.aams.common.converter.StringToDateConverter.class)
     @Column(name = "H2O")
     private String h2o;
 
