@@ -2245,27 +2245,16 @@ body.header-compact-mode.sidebar-backdrop-open::after {
     }
 
     /* ==========================================================================
-       모바일 환경(<= 876px) MDI 탭 바 및 닫기 버튼 가운데 정렬
-       - 탭이 열렸을 때 탭 목록과 [모두 닫기] 버튼이 가운데(center)에 균형있게 배치
+       모바일 환경(<= 876px) 탭 아이콘화 (이미지 2번 표준 규격)
+       - 탭 이름(.tab-title)은 가리고, 컴팩트한 사각형 탭 박스 중앙에 x 표시만 단독 표출
        ========================================================================== */
-    .tab-bar-container {
-        display: flex !important;
-        flex-direction: column !important;
-        align-items: center !important;
-        justify-content: center !important;
-        padding: 4px 6px 6px 6px !important;
-        gap: 4px !important;
-    }
-
     .tab-bar {
-        width: 100% !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
         overflow-x: auto !important;
+        flex: 1 1 auto !important;
+        min-width: 0 !important;
         scrollbar-width: none !important;
         -ms-overflow-style: none !important;
-        padding-bottom: 2px !important;
+        gap: 4px !important;
     }
 
     .tab-bar::-webkit-scrollbar {
@@ -2273,32 +2262,51 @@ body.header-compact-mode.sidebar-backdrop-open::after {
     }
 
     .tab-item {
-        max-width: 140px !important;
-        min-width: 80px !important;
-        flex: 0 0 auto !important;
-        padding: 4px 8px !important;
-        font-size: 11px !important;
+        width: 36px !important;
+        min-width: 36px !important;
+        max-width: 36px !important;
+        height: 28px !important;
+        padding: 0 !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        flex: 0 0 36px !important;
         border-radius: 4px 4px 0 0 !important;
+        box-sizing: border-box !important;
+        text-align: center !important;
+        cursor: pointer !important;
     }
 
-    .tab-bar-actions {
-        width: 100% !important;
+    /* 탭 타이틀(이름) 숨김 처리 */
+    .tab-item .tab-title {
+        display: none !important;
+    }
+
+    /* x 표시 버튼 탭 박스 정중앙 단독 배치 */
+    .tab-item .tab-close-btn {
         display: flex !important;
         align-items: center !important;
         justify-content: center !important;
-        padding: 2px 0 0 0 !important;
-        margin: 0 auto !important;
+        width: 100% !important;
+        height: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        font-size: 16px !important;
+        line-height: 1 !important;
+        color: #94a3b8 !important;
+        border-radius: 4px 4px 0 0 !important;
+        cursor: pointer !important;
+        text-align: center !important;
+        transition: color 0.15s ease, background-color 0.15s ease !important;
     }
 
-    .btn-close-all {
-        margin: 0 auto !important;
-        padding: 4px 14px !important;
-        font-size: 11px !important;
-        height: 26px !important;
-        display: inline-flex !important;
-        justify-content: center !important;
-        align-items: center !important;
-        border-radius: 4px !important;
+    .tab-item.active .tab-close-btn {
+        color: #0f172a !important;
+        font-weight: 700 !important;
+    }
+
+    .tab-item .tab-close-btn:hover {
+        color: #ef4444 !important;
     }
 
     .top-header-left {
