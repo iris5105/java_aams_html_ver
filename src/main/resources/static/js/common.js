@@ -2201,6 +2201,8 @@ window.sanitizeGridData = function(grid, dataList, extraAllowedFields) {
             if (pgmId && !headers.has('X-Pgm-Id')) {
                 headers.set('X-Pgm-Id', pgmId);
             }
+        } catch (e) {
+            // 헤더 자동 부착 중 예외 발생 시 요청 흐름 방해하지 않음
         }
 
         init.headers = headers;
