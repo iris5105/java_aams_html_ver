@@ -2201,10 +2201,12 @@ window.sanitizeGridData = function(grid, dataList, extraAllowedFields) {
             if (pgmId && !headers.has('X-Pgm-Id')) {
                 headers.set('X-Pgm-Id', pgmId);
             }
-        } catch (e) {
-            // 헤더 부착 실패 시에도 원래 fetch는 정상 동작 보장
         }
 
+        init.headers = headers;
+        return originalFetch.call(this, input, init);
+    };
+})();
 
 /**
  * ============================================================================
