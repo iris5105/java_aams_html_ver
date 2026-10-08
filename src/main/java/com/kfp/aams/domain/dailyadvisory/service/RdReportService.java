@@ -356,11 +356,12 @@ public class RdReportService {
 
         Path tempOut = Files.createTempFile("rd_export_", ext);
         ClassLoader originalClassLoader = Thread.currentThread().getContextClassLoader();
+        long totalStart = System.currentTimeMillis();
         try {
+            long t1 = System.currentTimeMillis();
             URLClassLoader classLoader = getRdClassLoader();
             Thread.currentThread().setContextClassLoader(classLoader);
 
-            log.debug("RD 리포트 엔진 구동 준비 - ServerSideRD 로드 중...");
             Class<?> ssrdClass = classLoader.loadClass("m2soft.javard.gui.ServerSideRD");
             Object ssrd = ssrdClass.getDeclaredConstructor().newInstance();
 
@@ -369,26 +370,33 @@ public class RdReportService {
 
             Method applyLicMethod = rdCtrl.getClass().getMethod("ApplyLicense", String.class);
             applyLicMethod.invoke(rdCtrl, "0.0.0.0");
+            long licTime = System.currentTimeMillis() - t1;
 
-            log.info("RD 리포트 FileOpen 호출 시작 - MRD: {}, Param: {}", mrdPath.getFileName(), paramStr);
+            log.info("RD 리포트 FileOpen 호출 시작 - MRD: {}, Param: {} (엔진준비: {}ms)", mrdPath.getFileName(), paramStr, licTime);
+            long t2 = System.currentTimeMillis();
             Method fileOpenMethod = rdCtrl.getClass().getMethod("FileOpen", String.class, String.class);
             Object openedObj = fileOpenMethod.invoke(rdCtrl, mrdPath.toAbsolutePath().toString(), paramStr);
+            long openTime = System.currentTimeMillis() - t2;
+
             if (!Boolean.TRUE.equals(openedObj)) {
                 Method getErrMsgMethod = rdCtrl.getClass().getMethod("GetLastErrorMessage");
                 String errMsg = (String) getErrMsgMethod.invoke(rdCtrl);
-                log.error("RD FileOpen 실패 (MRD: {}): {}", mrdPath.getFileName(), errMsg);
+                log.error("RD FileOpen 실패 (MRD: {}, 소요시간: {}ms): {}", mrdPath.getFileName(), openTime, errMsg);
                 throw new RuntimeException("RD FileOpen 실패 (" + mrdPath.getFileName() + "): " + errMsg);
             }
-            log.info("RD FileOpen 성공 (MRD: {})", mrdPath.getFileName());
+            log.info("RD FileOpen 성공 (MRD: {}, 소요시간: {}ms)", mrdPath.getFileName(), openTime);
 
             String outFilePath = tempOut.toAbsolutePath().toString();
             log.info("RD 파일 변환 저장 시작 - 메소드: {}, 파일: {}", saveMethodName, outFilePath);
+            long t3 = System.currentTimeMillis();
             Method saveMethod = rdCtrl.getClass().getMethod(saveMethodName, String.class);
             Object savedObj = saveMethod.invoke(rdCtrl, outFilePath);
+            long saveTime = System.currentTimeMillis() - t3;
+
             if (!Boolean.TRUE.equals(savedObj) || !Files.exists(tempOut) || Files.size(tempOut) == 0) {
                 Method getErrMsgMethod = rdCtrl.getClass().getMethod("GetLastErrorMessage");
                 String errMsg = (String) getErrMsgMethod.invoke(rdCtrl);
-                log.error("리포트 파일 변환 저장 실패 ({}, MRD: {}): {}", normalizedFormat, mrdPath.getFileName(), errMsg);
+                log.error("리포트 파일 변환 저장 실패 ({}, MRD: {}, 소요시간: {}ms): {}", normalizedFormat, mrdPath.getFileName(), saveTime, errMsg);
                 throw new RuntimeException("리포트 파일 변환 실패 (" + normalizedFormat + "): " + errMsg);
             }
 
@@ -397,7 +405,9 @@ public class RdReportService {
                     ? (downloadFilename.endsWith(ext) ? downloadFilename : downloadFilename + ext)
                     : ("report_" + System.currentTimeMillis() + ext);
 
-            log.info("RD 리포트 생성 완료: {} (크기: {} bytes)", finalName, fileBytes.length);
+            long totalTime = System.currentTimeMillis() - totalStart;
+            log.info("RD 리포트 생성 완료: {} (크기: {} bytes, 엔진준비: {}ms, FileOpen: {}ms, 변환저장: {}ms, 총소요: {}ms)",
+                    finalName, fileBytes.length, licTime, openTime, saveTime, totalTime);
 
             return ExportResult.builder()
                     .data(fileBytes)
