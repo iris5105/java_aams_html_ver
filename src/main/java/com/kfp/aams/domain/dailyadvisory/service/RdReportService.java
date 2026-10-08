@@ -15,6 +15,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
+import java.awt.Font;
+import java.awt.GraphicsEnvironment;
 import java.io.*;
 import java.lang.reflect.Method;
 import java.net.URL;
@@ -26,6 +28,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -151,10 +154,119 @@ public class RdReportService {
 
             rdClassLoader = new URLClassLoader(urls, RdReportService.class.getClassLoader());
             log.info("Crownix RD 전용 독립 ClassLoader 생성 완료 (JAR 개수: {})", urls.length);
+
+            // 리눅스 및 무두(Headless) 환경에서 맑은 고딕 등 한글 폰트 강제 주입
+            initCustomFonts(rdClassLoader);
+
             return rdClassLoader;
         } catch (Exception e) {
             log.error("RD ClassLoader 생성 실패: {}", e.getMessage(), e);
             throw new RuntimeException("RD ClassLoader 생성 실패", e);
+        }
+    }
+
+    private static volatile boolean fontsInitialized = false;
+
+    /**
+     * 리눅스 및 무두(Headless) 서버 환경에서 Crownix RD 엔진, iText, JVM AWT에 맑은 고딕 등 한글 폰트를 강제 등록
+     */
+    private static synchronized void initCustomFonts(ClassLoader classLoader) {
+        if (fontsInitialized) {
+            return;
+        }
+        fontsInitialized = true;
+
+        List<String> fontDirs = List.of(
+            "/usr/share/fonts",
+            "/usr/share/fonts/windows",
+            "/usr/share/fonts/google-noto-cjk",
+            "/home/aams/aams_web/fonts",
+            "/home/aams/.fonts",
+            Paths.get(System.getProperty("user.dir", "."), "fonts").toAbsolutePath().toString(),
+            "C:/Windows/Fonts"
+        );
+
+        // 1. sun.java2d.fontpath 시스템 프로퍼티 설정
+        String existingFontPath = System.getProperty("sun.java2d.fontpath", "");
+        StringBuilder fontPathSb = new StringBuilder(existingFontPath);
+        for (String d : fontDirs) {
+            try {
+                if (Files.isDirectory(Paths.get(d))) {
+                    if (!fontPathSb.isEmpty()) fontPathSb.append(File.pathSeparator);
+                    fontPathSb.append(d);
+                }
+            } catch (Exception ignored) {}
+        }
+        if (!fontPathSb.isEmpty()) {
+            System.setProperty("sun.java2d.fontpath", fontPathSb.toString());
+        }
+
+        // 2. Crownix RD FontGenerator.registerDirectory 호출 (핵심: Crownix 내부 폰트 매퍼에 디렉터리 바인딩)
+        try {
+            Class<?> fontGenClass = classLoader.loadClass("m2soft.javard.gui.FontGenerator");
+            Method regDirMethod = fontGenClass.getMethod("registerDirectory", String.class, String.class);
+            for (String d : fontDirs) {
+                try {
+                    Path p = Paths.get(d);
+                    if (Files.isDirectory(p)) {
+                        regDirMethod.invoke(null, p.toAbsolutePath().toString(), "UTF-8");
+                        log.info("Crownix FontGenerator 디렉터리 등록 완료: {}", p.toAbsolutePath());
+                    }
+                } catch (Exception ex) {
+                    log.debug("FontGenerator 등록 예외 ({}): {}", d, ex.getMessage());
+                }
+            }
+        } catch (Exception e) {
+            log.debug("Crownix FontGenerator 클래스 접근 예외: {}", e.getMessage());
+        }
+
+        // 3. iText FontFactory.registerDirectory 호출 (iText 기반 PDF 생성기 호환)
+        try {
+            Class<?> fontFactoryClass = classLoader.loadClass("com.lowagie.text.FontFactory");
+            Method regDirMethod = fontFactoryClass.getMethod("registerDirectory", String.class);
+            for (String d : fontDirs) {
+                try {
+                    Path p = Paths.get(d);
+                    if (Files.isDirectory(p)) {
+                        regDirMethod.invoke(null, p.toAbsolutePath().toString());
+                        log.info("iText FontFactory 디렉터리 등록 완료: {}", p.toAbsolutePath());
+                    }
+                } catch (Exception ex) {
+                    log.debug("iText FontFactory 등록 예외 ({}): {}", d, ex.getMessage());
+                }
+            }
+        } catch (Exception e) {
+            log.debug("iText FontFactory 클래스 접근 예외: {}", e.getMessage());
+        }
+
+        // 4. JVM AWT GraphicsEnvironment 폰트 직접 등록
+        try {
+            GraphicsEnvironment ge = GraphicsEnvironment.getLocalGraphicsEnvironment();
+            for (String d : fontDirs) {
+                try {
+                    Path p = Paths.get(d);
+                    if (Files.isDirectory(p)) {
+                        try (var stream = Files.walk(p, 1)) {
+                            stream.filter(Files::isRegularFile)
+                                  .filter(f -> {
+                                      String fn = f.getFileName().toString().toLowerCase();
+                                      return fn.endsWith(".ttf") || fn.endsWith(".ttc") || fn.endsWith(".otf");
+                                  })
+                                  .forEach(f -> {
+                                      try {
+                                          Font font = Font.createFont(Font.TRUETYPE_FONT, f.toFile());
+                                          ge.registerFont(font);
+                                          log.debug("JVM AWT 폰트 등록: {} ({})", font.getFontName(), f.getFileName());
+                                      } catch (Exception ignored) {}
+                                  });
+                        }
+                    }
+                } catch (Exception ex) {
+                    log.debug("AWT 폰트 탐색 예외 ({}): {}", d, ex.getMessage());
+                }
+            }
+        } catch (Exception e) {
+            log.debug("AWT GraphicsEnvironment 등록 예외: {}", e.getMessage());
         }
     }
 

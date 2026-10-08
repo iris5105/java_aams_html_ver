@@ -115,4 +115,18 @@ public class Ja010hTests {
         assertThat(res.getData()).isNotEmpty();
         System.out.println("ja010q PDF 생성 성공! 크기: " + res.getData().length + " bytes");
     }
+
+    @Test
+    @DisplayName("자산명세표(rd_ja010h) 폰트 주입 및 PDF 생성 검증")
+    void testJa010hReportWithFonts() throws Exception {
+        java.util.Map<String, Object> params = new java.util.LinkedHashMap<>();
+        params.put("fund_cd", "2601");
+        params.put("fund_nm", "승엽물산");
+        params.put("ymd", "2026.10.07");
+        params.put("corp_gr", "2601,2601");
+        RdReportService.ExportResult res = rdReportService.generateReport("2601", "rd_ja010h.mrd", params, "pdf", "test_ja010h");
+        assertThat(res).isNotNull();
+        assertThat(res.getData()).isNotEmpty();
+        System.out.println("ja010h PDF 생성 성공! 크기: " + res.getData().length + " bytes");
+    }
 }
