@@ -82,10 +82,12 @@
             const toolbarButtons = pane.querySelector('.toolbar-buttons');
             if (toolbarButtons) {
                 if (auth.commBtnAuthYn === false) {
-                    toolbarButtons.style.display = 'none';
+                    toolbarButtons.style.setProperty('display', 'none', 'important');
+                    toolbarButtons.classList.add('btn-auth-hidden');
                     return;
                 } else {
-                    toolbarButtons.style.display = '';
+                    toolbarButtons.style.removeProperty('display');
+                    toolbarButtons.classList.remove('btn-auth-hidden');
                 }
             }
 
@@ -105,9 +107,11 @@
                 const btn = pane.querySelector(item.selector);
                 if (btn) {
                     if (item.auth) {
-                        btn.style.display = ''; // CSS 기본 display 적용
+                        btn.style.removeProperty('display'); // CSS 기본 display 적용
+                        btn.classList.remove('btn-auth-hidden');
                     } else {
-                        btn.style.display = 'none'; // 권한 미보유 시 숨김 처리
+                        btn.style.setProperty('display', 'none', 'important'); // 권한 미보유 시 강제 숨김 처리
+                        btn.classList.add('btn-auth-hidden');
                     }
                 }
             });
@@ -137,7 +141,7 @@
             if (!container) return false;
             const btnRefresh = container.querySelector('.btn-refresh');
             if (!btnRefresh) return false;
-            const isInlineNone = btnRefresh.style.display === 'none' || btnRefresh.classList.contains('d-none');
+            const isInlineNone = btnRefresh.style.display === 'none' || btnRefresh.classList.contains('d-none') || btnRefresh.classList.contains('btn-auth-hidden');
             const computedDisplay = (window.getComputedStyle && btnRefresh.isConnected) ? window.getComputedStyle(btnRefresh).display : '';
             return (!isInlineNone && computedDisplay !== 'none');
         },

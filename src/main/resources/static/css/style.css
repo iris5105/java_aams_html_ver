@@ -2480,13 +2480,24 @@ body.header-compact-mode.sidebar-backdrop-open::after {
     /* ==========================================================================
        Tablet-S / Mobile (<= 876px): 상단 공통 툴바 버튼 아이콘화
        - 상단 툴바(view-toolbar) 내 버튼은 공간 절약을 위해 아이콘만 표출
-       - 단, 화면(HTML) 추가 액션 버튼 및 DDDW 선택 컴포넌트는 텍스트 보존
+       - 단, 권한 미보유 숨김 버튼(btn-auth-hidden 또는 display: none)은 절대 노출 금지
+       - 화면(HTML) 추가 액션 버튼 및 DDDW 선택 컴포넌트는 텍스트 보존
        ========================================================================== */
-    .tab-content-container .view-toolbar button:not(.dddw-select-btn):not(.btn-keep-text):not(.ja020n-pb-btn):not(.btn-run-action):not(.btn-action),
-    .tab-content-container .view-toolbar .t-btn:not(.dddw-select-btn):not(.btn-keep-text):not(.ja020n-pb-btn):not(.btn-run-action):not(.btn-action),
-    .tab-content-container .grid-tool-btn:not(.dddw-select-btn):not(.btn-keep-text):not(.ja020n-pb-btn):not(.btn-run-action):not(.btn-action),
-    .tab-content-container .btn-mode:not(.dddw-select-btn):not(.btn-keep-text):not(.ja020n-pb-btn):not(.btn-run-action):not(.btn-action),
-    .tab-content-container .btn-sub-grid:not(.dddw-select-btn):not(.btn-keep-text):not(.ja020n-pb-btn):not(.btn-run-action):not(.btn-action) {
+    /* 1. 권한 미보유 또는 숨김 처리된 버튼은 모바일에서도 무조건 완전 숨김 유지 */
+    .tab-content-container .view-toolbar button.btn-auth-hidden,
+    .tab-content-container .view-toolbar .t-btn.btn-auth-hidden,
+    .tab-content-container .view-toolbar button[style*="display: none"],
+    .tab-content-container .view-toolbar .t-btn[style*="display: none"],
+    .btn-auth-hidden {
+        display: none !important;
+    }
+
+    /* 2. 정상 노출되는 버튼에 대해서만 아이콘화 스타일 적용 */
+    .tab-content-container .view-toolbar button:not(.dddw-select-btn):not(.btn-keep-text):not(.ja020n-pb-btn):not(.btn-run-action):not(.btn-action):not(.btn-auth-hidden):not([style*="display: none"]),
+    .tab-content-container .view-toolbar .t-btn:not(.dddw-select-btn):not(.btn-keep-text):not(.ja020n-pb-btn):not(.btn-run-action):not(.btn-action):not(.btn-auth-hidden):not([style*="display: none"]),
+    .tab-content-container .grid-tool-btn:not(.dddw-select-btn):not(.btn-keep-text):not(.ja020n-pb-btn):not(.btn-run-action):not(.btn-action):not(.btn-auth-hidden):not([style*="display: none"]),
+    .tab-content-container .btn-mode:not(.dddw-select-btn):not(.btn-keep-text):not(.ja020n-pb-btn):not(.btn-run-action):not(.btn-action):not(.btn-auth-hidden):not([style*="display: none"]),
+    .tab-content-container .btn-sub-grid:not(.dddw-select-btn):not(.btn-keep-text):not(.ja020n-pb-btn):not(.btn-run-action):not(.btn-action):not(.btn-auth-hidden):not([style*="display: none"]) {
         font-size: 0 !important;
         width: auto !important;
         max-width: fit-content !important;
