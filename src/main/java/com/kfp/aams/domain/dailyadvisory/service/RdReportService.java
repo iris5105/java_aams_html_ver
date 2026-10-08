@@ -206,7 +206,9 @@ public class RdReportService {
     public String buildRdParam(String corpGr, Map<String, Object> params) {
         corpGr = resolveCorpGr(corpGr);
         StringBuilder sb = new StringBuilder();
-        sb.append("/rv ");
+
+        // 파워빌더 u_rd.sru 표준: Crownix Data Server(rdagent.jsp) 데이터소스 연결 파라미터
+        sb.append("/rcontype [Data Server] /rf [http://app.aams.kr:8080/DataServer/rdagent.jsp] /rsn [KFP] /rv ");
 
         boolean hasCorpGr = false;
         boolean hasZoom = false;
@@ -369,7 +371,11 @@ public class RdReportService {
             Object rdCtrl = getRdCtrlMethod.invoke(ssrd);
 
             Method applyLicMethod = rdCtrl.getClass().getMethod("ApplyLicense", String.class);
-            applyLicMethod.invoke(rdCtrl, "0.0.0.0");
+            try {
+                applyLicMethod.invoke(rdCtrl, "http://app.aams.kr:8080/DataServer/rdagent.jsp");
+            } catch (Exception e) {
+                applyLicMethod.invoke(rdCtrl, "0.0.0.0");
+            }
             long licTime = System.currentTimeMillis() - t1;
 
             log.info("RD 리포트 FileOpen 호출 시작 - MRD: {}, Param: {} (엔진준비: {}ms)", mrdPath.getFileName(), paramStr, licTime);
