@@ -277,7 +277,8 @@
                             hozAlign: "center",
                             headerHozAlign: "center",
                             headerSort: false,
-                            editor: "input",
+                            editor: aamsDateEditor,
+                            cellClick: aamsCellEdit,
                             editable: isCellEditable,
                             formatter: function(cell) {
                                 const row = cell.getRow().getData();
@@ -285,19 +286,19 @@
                                 return formatDateVal(cell.getValue());
                             },
                             cellEdited: function(cell) {
-                                const row = cell.getRow();
-                                const rowData = row.getData();
-                                if (rowData && rowData.isSummaryRow) return;
-                                rowData.isEdited = true;
-                                const newStart = cell.getValue();
-                                if (newStart) {
-                                    const formattedStart = formatDateVal(newStart);
-                                    row.update({
-                                        collStart: formattedStart,
-                                        collEnd: addMonthsToYmd(formattedStart, 6),
-                                        isEdited: true
-                                    });
-                                }
+                                aamsValidateDateCell(cell, function(c, validStart) {
+                                    const row = c.getRow();
+                                    const rowData = row.getData();
+                                    if (rowData && rowData.isSummaryRow) return;
+                                    rowData.isEdited = true;
+                                    if (validStart) {
+                                        row.update({
+                                            collStart: validStart,
+                                            collEnd: addMonthsToYmd(validStart, 6, '-'),
+                                            isEdited: true
+                                        });
+                                    }
+                                });
                             }
                         },
                         // p_dd_coll_start (Grid Internal Rule 3, 4: Empty column with calendar popup button)
@@ -327,11 +328,11 @@
                                         format: 'dot',
                                         onSelect: function(dotYmd) {
                                              const formattedStart = formatDateVal(dotYmd);
-                                            row.update({
-                                                collStart: formattedStart,
-                                                collEnd: addMonthsToYmd(formattedStart, 6),
-                                                isEdited: true
-                                            });
+                                             row.update({
+                                                 collStart: formattedStart,
+                                                 collEnd: addMonthsToYmd(formattedStart, 6, '-'),
+                                                 isEdited: true
+                                             });
                                         }
                                     });
                                 }
@@ -344,7 +345,8 @@
                             hozAlign: "center",
                             headerHozAlign: "center",
                             headerSort: false,
-                            editor: "input",
+                            editor: aamsDateEditor,
+                            cellClick: aamsCellEdit,
                             editable: isCellEditable,
                             formatter: function(cell) {
                                 const row = cell.getRow().getData();
@@ -352,9 +354,11 @@
                                 return formatDateVal(cell.getValue());
                             },
                             cellEdited: function(cell) {
-                                const row = cell.getRow();
-                                if (row.getData().isSummaryRow) return;
-                                row.update({ isEdited: true });
+                                aamsValidateDateCell(cell, function(c, validEnd) {
+                                    const row = c.getRow();
+                                    if (row.getData().isSummaryRow) return;
+                                    row.update({ collEnd: validEnd, isEdited: true });
+                                });
                             }
                         },
                         // p_dd_coll_end (Grid Internal Rule 3, 4: Empty column with calendar popup button)
@@ -610,6 +614,11 @@
                 if (saveList.length === 0) {
                     alert("저장할 수정 내역이 없습니다.");
                     return;
+                }
+
+                // 날짜 컬럼(시작일자, 만기일자) 유효성 일괄 검증
+                if (typeof aamsValidateGridDates === 'function') {
+                    if (!aamsValidateGridDates(gridJa010o, ["collStart", "collEnd"])) return;
                 }
 
                 if (!confirm(`총 ${saveList.length}건의 담보 내역을 저장하시겠습니까?`)) {

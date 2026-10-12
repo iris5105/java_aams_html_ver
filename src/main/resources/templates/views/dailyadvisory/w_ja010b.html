@@ -278,11 +278,11 @@
                             hozAlign: "center", 
                             minWidth: 85, 
                             formatter: cell => formatDateVal(cell.getValue()),
-                            editor: "input",
+                            editor: aamsDateEditor,
                             editable: (cell) => !cell.getValue() || cell.getRow().getData().isNew,
                             cellClick: aamsCellEdit
                         },
-                        { title: "(재)<br/>계약일", headerCssClass: "col-hdr-blue", field: "reSeoljYmd", hozAlign: "center", minWidth: 85, formatter: cell => `<span class="cell-text-blue">${formatDateVal(cell.getValue())}</span>`, editor: "input", cellClick: aamsCellEdit },
+                        { title: "(재)<br/>계약일", headerCssClass: "col-hdr-blue", field: "reSeoljYmd", hozAlign: "center", minWidth: 85, formatter: cell => `<span class="cell-text-blue">${formatDateVal(cell.getValue())}</span>`, editor: aamsDateEditor, cellClick: aamsCellEdit },
                         // p_dd_re_seolj_ymd (Grid Internal Rule 3, 4: Empty column with calendar popup button)
                         {
                             title: "",
@@ -327,7 +327,7 @@
                         { title: "계약<br/>횟수", field: "gyulGi", hozAlign: "center", minWidth: 60 },
                         { title: "계약<br/>기간", field: "sintakGigan", hozAlign: "center", minWidth: 60, editor: "number", cellClick: aamsCellEdit },
                         { title: "만기예정일", field: "afGyulYmd", hozAlign: "center", minWidth: 85, formatter: cell => formatDateVal(cell.getValue()) },
-                        { title: "계약종료일", headerCssClass: "col-hdr-red", field: "haejiYmd", hozAlign: "center", minWidth: 85, formatter: cell => `<span class="cell-text-red">${formatDateVal(cell.getValue())}</span>`, editor: "input", cellClick: aamsCellEdit },
+                        { title: "계약종료일", headerCssClass: "col-hdr-red", field: "haejiYmd", hozAlign: "center", minWidth: 85, formatter: cell => `<span class="cell-text-red">${formatDateVal(cell.getValue())}</span>`, editor: aamsDateEditor, cellClick: aamsCellEdit },
                         { 
                             title: "운용역", 
                             field: "unyongSabun", 
@@ -428,12 +428,12 @@
                     columns: [
                         { title: "No.", formatter: "rownum", hozAlign: "center", width: 45, resizable: false, widthGrow: 0 },
                         { title: "회<br/>기", field: "gyulGi", hozAlign: "center", width: 55, editor: "number" },
-                        { title: "(전)<br/>결산일자", field: "bfGyulYmd", hozAlign: "center", width: 95, formatter: cell => formatDateVal(cell.getValue()), editor: "input" },
-                        { title: "(당)<br/>결산일자", field: "afGyulYmd", hozAlign: "center", width: 95, formatter: cell => formatDateVal(cell.getValue()), editor: "input" },
+                        { title: "(전)<br/>결산일자", field: "bfGyulYmd", hozAlign: "center", width: 95, formatter: cell => formatDateVal(cell.getValue()), editor: aamsDateEditor, cellClick: aamsCellEdit },
+                        { title: "(당)<br/>결산일자", field: "afGyulYmd", hozAlign: "center", width: 95, formatter: cell => formatDateVal(cell.getValue()), editor: aamsDateEditor, cellClick: aamsCellEdit },
                         { title: "구간<br/>일수", field: "ilsu", hozAlign: "center", width: 70, editor: "number" },
                         { title: "결산기<br/>손익액", field: "giSonikAek", hozAlign: "right", minWidth: 100, formatter: cell => numFmt(cell.getValue()), editor: "number" },
                         { title: "워터마크<br/>대상원본", field: "wmSeoljAek", hozAlign: "right", minWidth: 110, formatter: cell => numFmt(cell.getValue()), editor: "number" },
-                        { title: "계약<br/>종료일", field: "haejiYmd", hozAlign: "center", width: 95, formatter: cell => formatDateVal(cell.getValue()), editor: "input" }
+                        { title: "계약<br/>종료일", field: "haejiYmd", hozAlign: "center", width: 95, formatter: cell => formatDateVal(cell.getValue()), editor: aamsDateEditor, cellClick: aamsCellEdit }
                     ]
                 });
 
@@ -458,7 +458,7 @@
                     columnDefaults: { vertAlign: "middle", headerSortTristate: true },
                     columns: [
                         { title: "No.", formatter: "rownum", hozAlign: "center", width: 45, resizable: false, widthGrow: 0 },
-                        { title: "입출일자", field: "trYmd", hozAlign: "center", width: 95, formatter: cell => formatDateVal(cell.getValue()), editor: "input" },
+                        { title: "입출일자", field: "trYmd", hozAlign: "center", width: 95, formatter: cell => formatDateVal(cell.getValue()), editor: aamsDateEditor, cellClick: aamsCellEdit },
                         { title: "입금액", field: "inAek", hozAlign: "right", minWidth: 95, formatter: cell => numFmt(cell.getValue()), editor: "number" },
                         { title: "출금액", field: "outAek", hozAlign: "right", minWidth: 95, formatter: cell => numFmt(cell.getValue()), editor: "number" },
                         { title: "입출금조정액", field: "ioJo", hozAlign: "right", minWidth: 100, formatter: cell => numFmt(cell.getValue()), editor: "number" },

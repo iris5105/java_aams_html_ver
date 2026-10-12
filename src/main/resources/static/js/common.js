@@ -537,6 +537,224 @@ function formatDateDot(val) {
 window.formatDateDot = formatDateDot;
 
 /**
+ * ============================================================================
+ * AAMS Common Date Validator & Tabulator Date Editor Engine
+ * ============================================================================
+ * 날짜 수기 입력 시 형식 및 실제 달력 일자(윤년, 월별 말일) 유효성을 정밀 검증하고,
+ * 유효하지 않은 날짜 입력을 원천 차단하며 표준 포맷으로 정규화합니다.
+ */
+
+/**
+ * Common Date Validator & Normalizer
+ * @param {string|number|Date} val - 입력 날짜값 (예: "2026-10-12", "20261012", "2026.10.12")
+ * @param {string} [separator='-'] - 반환 포맷 구분자 ('-' 또는 '.')
+ * @returns {string|null} 유효하면 'YYYY-MM-DD' (또는 지정 구분자), 빈 값이면 '', 유효하지 않으면 null
+ */
+function parseValidDate(val, separator = '-') {
+    if (val === null || val === undefined) return '';
+    let s = String(val).trim();
+    if (!s || s === '-') return '';
+
+    let year = 0, month = 0, day = 0;
+
+    // 1) 구분자가 포함된 경우 (예: 2026-10-12, 2026.10.12, 2026/10/12, 2026-1-5)
+    if (s.includes('-') || s.includes('.') || s.includes('/')) {
+        let parts = s.split(/[-./]/);
+        if (parts.length === 3) {
+            year = parseInt(parts[0], 10);
+            month = parseInt(parts[1], 10);
+            day = parseInt(parts[2], 10);
+        } else {
+            return null;
+        }
+    } else {
+        // 2) 숫자만 있는 경우 (예: 20261012)
+        let clean = s.replace(/[^0-9]/g, '');
+        if (clean.length === 8) {
+            year = parseInt(clean.substring(0, 4), 10);
+            month = parseInt(clean.substring(4, 6), 10);
+            day = parseInt(clean.substring(6, 8), 10);
+        } else {
+            return null;
+        }
+    }
+
+    if (isNaN(year) || isNaN(month) || isNaN(day)) return null;
+
+    // 3) 연도 범위 체크 (1900 ~ 2100)
+    if (year < 1900 || year > 2100) return null;
+
+    // 4) 월 범위 체크 (1 ~ 12)
+    if (month < 1 || month > 12) return null;
+
+    // 5) 일자 범위 체크 (윤년 및 각 월별 실제 일수)
+    let maxDays = new Date(year, month, 0).getDate();
+    if (day < 1 || day > maxDays) return null;
+
+    let yStr = String(year);
+    let mStr = String(month).padStart(2, '0');
+    let dStr = String(day).padStart(2, '0');
+
+    return separator ? `${yStr}${separator}${mStr}${separator}${dStr}` : `${yStr}${mStr}${dStr}`;
+}
+window.parseValidDate = parseValidDate;
+
+/**
+ * Common Date Validity Checker
+ * @param {string|number|Date} val
+ * @returns {boolean} 유효한 날짜이면 true, 아니면 false
+ */
+function isValidDate(val) {
+    if (!val || val === '-') return false;
+    let parsed = parseValidDate(val);
+    return parsed !== null && parsed !== '';
+}
+window.isValidDate = isValidDate;
+
+/**
+ * Tabulator Common Date Cell Editor (aamsDateEditor)
+ * 그리드 셀에 수기로 날짜 입력 시 실시간 유효성 검증을 수행하고,
+ * 유효하지 않은 날짜(예: 2026-99-99) 입력 시 경고 알림과 함께 원래 값으로 복원합니다.
+ * 유효한 날짜 입력 시 표준 'YYYY-MM-DD'로 자동 정규화합니다.
+ */
+function aamsDateEditor(cell, onRendered, success, cancel, editorParams) {
+    if (typeof aamsCellEdit === 'function') {
+        try { aamsCellEdit(null, cell); } catch(e) {}
+    }
+
+    const input = document.createElement("input");
+    input.type = "text";
+    input.className = "tabulator-date-editor";
+    input.style.width = "100%";
+    input.style.height = "100%";
+    input.style.textAlign = "center";
+    input.style.padding = "2px 4px";
+    input.style.boxSizing = "border-box";
+    input.maxLength = 10;
+    input.placeholder = (editorParams && editorParams.placeholder) || "YYYY-MM-DD";
+
+    const curVal = cell.getValue();
+    const formattedCur = parseValidDate(curVal) || (curVal ? String(curVal) : "");
+    input.value = formattedCur;
+
+    onRendered(function() {
+        input.focus();
+        input.select();
+    });
+
+    let isCommitted = false;
+    function commitValue() {
+        if (isCommitted) return;
+        isCommitted = true;
+
+        const val = input.value.trim();
+        if (!val || val === "-") {
+            if (editorParams && editorParams.required) {
+                if (typeof showToast === "function") showToast("날짜를 입력해주세요.", "warning");
+                else alert("날짜를 입력해주세요.");
+                cancel();
+                return;
+            }
+            success("");
+            return;
+        }
+
+        const sep = (editorParams && editorParams.separator) || "-";
+        const validDate = parseValidDate(val, sep);
+        if (!validDate) {
+            const msg = (editorParams && editorParams.invalidMessage) || "올바른 날짜(YYYY-MM-DD)를 입력해주세요.";
+            if (typeof showToast === "function") showToast(msg, "warning");
+            else alert(msg);
+            cancel();
+            return;
+        }
+
+        success(validDate);
+    }
+
+    input.addEventListener("keydown", function(e) {
+        if (e.key === "Enter") {
+            commitValue();
+        } else if (e.key === "Escape") {
+            isCommitted = true;
+            cancel();
+        }
+    });
+
+    input.addEventListener("blur", function() {
+        commitValue();
+    });
+
+    return input;
+}
+window.aamsDateEditor = aamsDateEditor;
+
+/**
+ * Tabulator Cell Edit Date Validator Helper (aamsValidateDateCell)
+ * cellEdited 이벤트 핸들러에서 셀 값을 검증할 때 사용
+ * @param {CellComponent} cell - Tabulator 셀 객체
+ * @param {Function} [onValid] - 유효할 경우 실행할 콜백 (cell, validDate)
+ * @returns {boolean} 유효 여부
+ */
+function aamsValidateDateCell(cell, onValid) {
+    if (!cell) return false;
+    const val = cell.getValue();
+    if (!val || val === "-") {
+        if (typeof onValid === 'function') onValid(cell, "");
+        return true;
+    }
+    const valid = parseValidDate(val);
+    if (!valid) {
+        if (typeof showToast === "function") {
+            showToast("올바른 날짜(YYYY-MM-DD)를 입력해주세요.", "warning");
+        } else {
+            alert("올바른 날짜(YYYY-MM-DD)를 입력해주세요.");
+        }
+        const oldVal = cell.getOldValue() || "";
+        cell.setValue(oldVal, true);
+        return false;
+    }
+    if (val !== valid) {
+        cell.setValue(valid, true);
+    }
+    if (typeof onValid === 'function') {
+        onValid(cell, valid);
+    }
+    return true;
+}
+window.aamsValidateDateCell = aamsValidateDateCell;
+
+/**
+ * Grid-wide Date Columns Validator (저장 전 일괄 날짜 유효성 검증기)
+ * @param {Tabulator} grid - 대상 그리드 인스턴스
+ * @param {string[]} dateFields - 검증할 날짜 컬럼 field 명 목록 (예: ['collStart', 'collEnd'])
+ * @returns {boolean} 모든 행의 날짜가 유효하면 true, 아니면 false
+ */
+function aamsValidateGridDates(grid, dateFields) {
+    if (!grid || !Array.isArray(dateFields) || dateFields.length === 0) return true;
+    const rows = grid.getRows();
+    for (let i = 0; i < rows.length; i++) {
+        const d = rows[i].getData();
+        if (d.isSummaryRow) continue;
+        for (let j = 0; j < dateFields.length; j++) {
+            const field = dateFields[j];
+            const val = d[field];
+            if (val && val !== "-" && !isValidDate(val)) {
+                if (typeof rows[i].select === 'function') rows[i].select();
+                const col = grid.getColumn(field);
+                const colTitle = col ? col.getDefinition().title.replace(/<[^>]*>/g, '').trim() : field;
+                const msg = `${i + 1}번째 행의 ${colTitle}에 올바르지 않은 날짜(${val})가 입력되어 있습니다.`;
+                if (typeof showToast === "function") showToast(msg, "warning");
+                else alert(msg);
+                return false;
+            }
+        }
+    }
+    return true;
+}
+window.aamsValidateGridDates = aamsValidateGridDates;
+
+/**
  * AAMS Tabulator Standard Cell Formatters (그리드 표준 포매터)
  */
 function aamsNumberFormatter(cell, formatterParams) {
