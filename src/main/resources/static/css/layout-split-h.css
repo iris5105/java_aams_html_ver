@@ -9,9 +9,9 @@
 .layout-split-h {
     display: flex;
     flex-direction: row;
-    flex: 1 1 auto;
-    min-height: 0;
-    height: calc(100% - 90px);
+    flex: 1 1 0 !important;
+    min-height: 0 !important;
+    height: auto !important;
     width: 100%;
     overflow: hidden;
     padding: 8px;
@@ -151,8 +151,9 @@
 
 .layout-split-h .pane-body,
 .layout-split-h .grid-table-wrapper {
-    flex: 1 1 auto;
-    min-height: 0;
+    flex: 1 1 0 !important;
+    min-height: 0 !important;
+    height: auto !important;
     width: 100%;
     overflow: hidden;
     position: relative;
@@ -186,9 +187,12 @@
 
     .layout-split-h {
         flex-direction: column !important;
+        flex: 1 1 0 !important;
+        min-height: 0 !important;
+        height: auto !important;
         padding: 4px !important;
         gap: 6px !important;
-        height: calc(100% - 110px) !important;
+        box-sizing: border-box !important;
     }
 
     .layout-split-h > .split-gutter-h {
@@ -245,6 +249,7 @@
     .layout-split-h:has(> .report-viewer) > .master-section {
         flex: 1 1 100% !important;
         height: 100% !important;
+        min-height: 0 !important;
         max-width: 100% !important;
     }
 

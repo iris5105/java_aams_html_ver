@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
-<div class="view-container layout-split ja010m3-container" th:fragment="ja010m3View" style="display: flex; flex-direction: column; height: 100%; width: 100%; overflow: hidden;">
+<div class="view-container layout-split ja010m3-container" th:fragment="ja010m3View" style="display: flex; flex-direction: column; height: 100%; width: 100%; overflow: hidden; padding-bottom: 0 !important;">
 
     <!-- 1. 상단 공통 툴바 (Row 1: 공통 액션 버튼 + 네비게이션 브레드크럼) -->
     <div class="view-toolbar">
@@ -780,6 +780,9 @@
                         const formatted = cudManager ? cudManager.formatData(data || []) : (data || []);
                         grid.setData(formatted).then(() => {
                             grid.redraw(true);
+                            setTimeout(() => {
+                                if (grid) grid.redraw(true);
+                            }, 60);
                             if (countEl) {
                                 countEl.textContent = (data ? data.length : 0) + "건";
                             }
