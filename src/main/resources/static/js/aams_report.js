@@ -26,6 +26,11 @@
             if (options.downloadName) qs.push('downloadName=' + encodeURIComponent(options.downloadName));
             if (options.timestamp !== false) qs.push('t=' + new Date().getTime());
 
+            // 모바일 환경(너비 <= 876px 또는 모바일 디바이스)일 때 M2soft HTML5 뷰어 모드(format=html) 자동 적용
+            var isMobile = (options.isMobile !== undefined) ? options.isMobile : this.isMobileView(options.rootPane);
+            var reqFormat = options.format || (isMobile ? 'html' : 'pdf');
+            if (reqFormat) qs.push('format=' + encodeURIComponent(reqFormat));
+
             if (params && typeof params === 'object') {
                 for (var k in params) {
                     if (params.hasOwnProperty(k) && params[k] !== undefined && params[k] !== null) {
@@ -74,6 +79,10 @@
         formatPreviewUrl: function(url, zoom) {
             if (!url || url === 'about:blank') return url || '';
             var cleanUrl = url.split('#')[0];
+            // HTML 포맷 미리보기의 경우 PDF 전용 해시 파라미터 제외
+            if (/format=html/i.test(cleanUrl) || /format=htm/i.test(cleanUrl)) {
+                return cleanUrl;
+            }
             if (zoom === 'fit' || zoom === 'page-fit' || zoom === 'Fit') {
                 return cleanUrl + '#toolbar=1&navpanes=0&view=Fit';
             }
@@ -211,9 +220,15 @@
 
                 var mrd = resolveMrd(data);
                 var params = resolveParams(data);
+                var isMobile = AamsReport.isMobileView(root);
                 var previewUrl = (typeof config.buildPreviewUrl === 'function')
                     ? config.buildPreviewUrl(data, params)
-                    : (mrd ? AamsReport.buildPreviewUrl(mrd, params, { corpGr: resolveCorp(), zoom: config.zoom }) : null);
+                    : (mrd ? AamsReport.buildPreviewUrl(mrd, params, {
+                        corpGr: resolveCorp(),
+                        zoom: config.zoom,
+                        isMobile: isMobile,
+                        rootPane: root
+                    }) : null);
                 if (!previewUrl) return;
                 
                 showLoading(true);
@@ -288,7 +303,13 @@
                     var modalZoom = (config.mobileZoom !== undefined) ? config.mobileZoom : (config.zoom !== undefined ? config.zoom : AamsReport.DEFAULT_ZOOM);
                     var url = (typeof config.buildPreviewUrl === 'function')
                         ? config.buildPreviewUrl(selectedData, params)
-                        : AamsReport.buildPreviewUrl(mrd, params, { corpGr: resolveCorp(), zoom: modalZoom });
+                        : AamsReport.buildPreviewUrl(mrd, params, {
+                            corpGr: resolveCorp(),
+                            zoom: modalZoom,
+                            isMobile: true,
+                            format: 'html',
+                            rootPane: root
+                        });
                     showLoading(true);
                     modalIframe.onload = function() { showLoading(false); };
                     AamsReport.setFrameSrc(modalIframe, url, modalZoom);

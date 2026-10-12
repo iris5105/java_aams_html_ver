@@ -2,7 +2,7 @@ package com.kfp.aams.domain.dailyadvisory.controller;
 
 import com.kfp.aams.domain.dailyadvisory.dto.Ja010hMasterDto;
 import com.kfp.aams.domain.dailyadvisory.service.Ja010hService;
-import com.kfp.aams.domain.dailyadvisory.service.RdReportService;
+import com.kfp.aams.common.service.RdReportService;
 import com.kfp.aams.menu.service.MenuService;
 import com.kfp.aams.security.UserPrincipal;
 import jakarta.servlet.http.HttpSession;
@@ -203,15 +203,23 @@ public class Ja010h1Controller {
             @RequestParam("corpGr") String corpGr,
             @RequestParam("ymd") @org.springframework.format.annotation.DateTimeFormat(pattern = "yyyy-MM-dd") java.time.LocalDate ymd,
             @RequestParam("fundCd") String fundCd,
-            @RequestParam(value = "fundNm", required = false) String fundNm) {
+            @RequestParam(value = "fundNm", required = false) String fundNm,
+            @RequestParam(value = "format", defaultValue = "pdf") String format,
+            @RequestHeader(value = "User-Agent", required = false) String userAgent) {
         try {
+            boolean isMobile = (format != null && format.toLowerCase().contains("htm"))
+                    || (userAgent != null && (userAgent.toLowerCase().contains("mobile") || userAgent.toLowerCase().contains("android") || userAgent.toLowerCase().contains("iphone") || userAgent.toLowerCase().contains("ipad")));
+            String effectiveFormat = isMobile ? "html" : "pdf";
+
             String ymdStr = (ymd != null) ? ymd.toString() : "";
             RdReportService.ExportResult exportResult = rdReportService.generateJa010h1Report(
-                    corpGr, ymdStr, fundCd, fundNm, "pdf");
+                    corpGr, ymdStr, fundCd, fundNm, effectiveFormat);
+
+            MediaType mediaType = isMobile ? MediaType.valueOf("text/html; charset=UTF-8") : MediaType.APPLICATION_PDF;
 
             return ResponseEntity.ok()
-                    .contentType(MediaType.APPLICATION_PDF)
-                    .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"report.pdf\"")
+                    .contentType(mediaType)
+                    .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + exportResult.getFilename() + "\"")
                     .body(exportResult.getData());
         } catch (Exception e) {
             log.error("자산명세표1 (w_ja010h1) 리포트 미리보기 오류: ", e);

@@ -1,7 +1,7 @@
-package com.kfp.aams.domain.dailyadvisory.controller;
+package com.kfp.aams.common.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.kfp.aams.domain.dailyadvisory.service.RdReportService;
+import com.kfp.aams.common.service.RdReportService;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -45,7 +45,8 @@ public class RdReportController {
 
     /**
      * 범용 리포트 미리보기 (GET /api/common/rd/preview)
-     * - iframe src 바인딩용 인라인 PDF 스트림 반환
+     * - 데스크톱: PDF 브라우저 인라인 스트림 반환
+     * - 모바일(User-Agent 감지 또는 format=html): M2soft HTML5 인라인 스트림 반환 (브라우저 PDF 차단 문제 완전 해결)
      */
     @GetMapping("/preview")
     public ResponseEntity<byte[]> preview(
@@ -54,18 +55,23 @@ public class RdReportController {
             @RequestParam(value = "format", defaultValue = "pdf") String format,
             @RequestParam(value = "downloadName", required = false) String downloadName,
             @RequestParam(value = "params", required = false) String paramsJson,
+            @RequestHeader(value = "User-Agent", required = false) String userAgent,
             @RequestParam Map<String, String> allParams) {
 
         try {
             Map<String, Object> mergedParams = extractDynamicParams(allParams, paramsJson);
+            String effectiveFormat = resolvePreviewFormat(format, userAgent);
             RdReportService.ExportResult result = rdReportService.generateReport(
-                    corpGr, mrdName, mergedParams, "pdf", downloadName);
+                    corpGr, mrdName, mergedParams, effectiveFormat, downloadName);
 
             String encodedFilename = URLEncoder.encode(result.getFilename(), StandardCharsets.UTF_8).replaceAll("\\+",
                     "%20");
+            MediaType mediaType = isHtmlFormat(effectiveFormat)
+                    ? MediaType.valueOf("text/html; charset=UTF-8")
+                    : MediaType.APPLICATION_PDF;
 
             return ResponseEntity.ok()
-                    .contentType(MediaType.APPLICATION_PDF)
+                    .contentType(mediaType)
                     .header(HttpHeaders.CONTENT_DISPOSITION,
                             "inline; filename=\"" + encodedFilename + "\"; filename*=UTF-8''" + encodedFilename)
                     .body(result.getData());
@@ -112,16 +118,22 @@ public class RdReportController {
      * JSON 바디 기반 미리보기 (POST /api/common/rd/preview)
      */
     @PostMapping("/preview")
-    public ResponseEntity<byte[]> previewPost(@RequestBody RdReportRequest req) {
+    public ResponseEntity<byte[]> previewPost(
+            @RequestBody RdReportRequest req,
+            @RequestHeader(value = "User-Agent", required = false) String userAgent) {
         try {
+            String effectiveFormat = resolvePreviewFormat(req.getFormat(), userAgent);
             RdReportService.ExportResult result = rdReportService.generateReport(
-                    req.getCorpGr(), req.getMrdName(), req.getParams(), "pdf", req.getDownloadName());
+                    req.getCorpGr(), req.getMrdName(), req.getParams(), effectiveFormat, req.getDownloadName());
 
             String encodedFilename = URLEncoder.encode(result.getFilename(), StandardCharsets.UTF_8).replaceAll("\\+",
                     "%20");
+            MediaType mediaType = isHtmlFormat(effectiveFormat)
+                    ? MediaType.valueOf("text/html; charset=UTF-8")
+                    : MediaType.APPLICATION_PDF;
 
             return ResponseEntity.ok()
-                    .contentType(MediaType.APPLICATION_PDF)
+                    .contentType(mediaType)
                     .header(HttpHeaders.CONTENT_DISPOSITION,
                             "inline; filename=\"" + encodedFilename + "\"; filename*=UTF-8''" + encodedFilename)
                     .body(result.getData());
@@ -129,6 +141,25 @@ public class RdReportController {
             log.error("RD 공통 POST 미리보기 실패: mrdName={}, error={}", req.getMrdName(), e.getMessage(), e);
             return ResponseEntity.internalServerError().build();
         }
+    }
+
+    private String resolvePreviewFormat(String format, String userAgent) {
+        if (format != null && isHtmlFormat(format)) {
+            return "html";
+        }
+        if (userAgent != null) {
+            String ua = userAgent.toLowerCase();
+            if (ua.contains("mobile") || ua.contains("android") || ua.contains("iphone") || ua.contains("ipad")) {
+                return "html";
+            }
+        }
+        return (format != null && !format.isBlank()) ? format : "pdf";
+    }
+
+    private boolean isHtmlFormat(String format) {
+        if (format == null) return false;
+        String f = format.trim().toLowerCase();
+        return "html".equals(f) || "htm".equals(f) || "html5".equals(f);
     }
 
     /**

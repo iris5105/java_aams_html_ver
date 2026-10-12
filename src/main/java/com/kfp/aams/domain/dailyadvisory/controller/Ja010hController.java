@@ -2,7 +2,7 @@ package com.kfp.aams.domain.dailyadvisory.controller;
 
 import com.kfp.aams.domain.dailyadvisory.dto.Ja010hMasterDto;
 import com.kfp.aams.domain.dailyadvisory.service.Ja010hService;
-import com.kfp.aams.domain.dailyadvisory.service.RdReportService;
+import com.kfp.aams.common.service.RdReportService;
 import com.kfp.aams.menu.service.MenuService;
 import com.kfp.aams.security.UserPrincipal;
 import jakarta.servlet.http.HttpSession;
@@ -110,6 +110,8 @@ public class Ja010hController {
                                                 @RequestParam(name = "corpGr", required = false) String paramCorpGr,
                                                 @RequestParam("ymd") String ymdStr,
                                                 @RequestParam("fundCd") String fundCd,
+                                                @RequestParam(value = "format", defaultValue = "pdf") String format,
+                                                @RequestHeader(value = "User-Agent", required = false) String userAgent,
                                                 @CookieValue(name = "savedCorpGr", required = false) String cookieCorpGr1,
                                                 @CookieValue(name = "corpGr", required = false) String cookieCorpGr2) {
         UserPrincipal principal = (principalObj instanceof UserPrincipal p) ? p : null;
@@ -117,10 +119,15 @@ public class Ja010hController {
         String corpGr = resolveCorpGr(paramCorpGr, cookieCorpGr, principal);
         LocalDate ymd = parseLocalDate(ymdStr);
 
+        boolean isMobile = (format != null && format.toLowerCase().contains("htm"))
+                || (userAgent != null && (userAgent.toLowerCase().contains("mobile") || userAgent.toLowerCase().contains("android") || userAgent.toLowerCase().contains("iphone") || userAgent.toLowerCase().contains("ipad")));
+        String effectiveFormat = isMobile ? "html" : "pdf";
+
         try {
-            RdReportService.ExportResult res = ja010hService.previewReport(corpGr, ymd != null ? ymd : LocalDate.now(), fundCd);
+            RdReportService.ExportResult res = ja010hService.exportReport(corpGr, ymd != null ? ymd : LocalDate.now(), fundCd, effectiveFormat);
+            MediaType mediaType = isMobile ? MediaType.valueOf("text/html; charset=UTF-8") : MediaType.APPLICATION_PDF;
             HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_PDF);
+            headers.setContentType(mediaType);
             headers.setContentDisposition(ContentDisposition.inline()
                     .filename(res.getFilename(), StandardCharsets.UTF_8)
                     .build());
@@ -128,7 +135,7 @@ public class Ja010hController {
                     .headers(headers)
                     .body(res.getData());
         } catch (Exception e) {
-            log.error("PDF 미리보기 생성 실패: {}", e.getMessage(), e);
+            log.error("미리보기 생성 실패: {}", e.getMessage(), e);
             return ResponseEntity.internalServerError().build();
         }
     }

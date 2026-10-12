@@ -4,7 +4,7 @@ import com.kfp.aams.common.service.WorkDateService;
 import com.kfp.aams.domain.dailyadvisory.dto.Ja010m3Dto;
 import com.kfp.aams.domain.dailyadvisory.dto.Ja010m3SaveDto;
 import com.kfp.aams.domain.dailyadvisory.service.Ja010m3Service;
-import com.kfp.aams.domain.dailyadvisory.service.RdReportService;
+import com.kfp.aams.common.service.RdReportService;
 import com.kfp.aams.menu.service.MenuService;
 import com.kfp.aams.security.UserPrincipal;
 import lombok.RequiredArgsConstructor;
@@ -204,6 +204,8 @@ public class Ja010m3Controller {
             @RequestParam("fundCd") String fundCd,
             @RequestParam(value = "fundNm", required = false) String fundNm,
             @RequestParam("gyulYmd") String gyulYmd,
+            @RequestParam(value = "format", defaultValue = "pdf") String format,
+            @RequestHeader(value = "User-Agent", required = false) String userAgent,
             @AuthenticationPrincipal Object principalObj,
             @CookieValue(name = "savedCorpGr", required = false) String cookieCorpGr1,
             @CookieValue(name = "corpGr", required = false) String cookieCorpGr2) {
@@ -212,13 +214,19 @@ public class Ja010m3Controller {
         String cookieCorpGr = (cookieCorpGr1 != null && !cookieCorpGr1.isBlank()) ? cookieCorpGr1 : cookieCorpGr2;
         String corpGr = resolveCorpGr(paramCorpGr, cookieCorpGr, principal);
 
+        boolean isMobile = (format != null && format.toLowerCase().contains("htm"))
+                || (userAgent != null && (userAgent.toLowerCase().contains("mobile") || userAgent.toLowerCase().contains("android") || userAgent.toLowerCase().contains("iphone") || userAgent.toLowerCase().contains("ipad")));
+        String effectiveFormat = isMobile ? "html" : "pdf";
+
         try {
             RdReportService.ExportResult exportResult = ja010m3Service.generateReport(
-                    corpGr, mrdName, fundCd, fundNm, gyulYmd, "pdf");
+                    corpGr, mrdName, fundCd, fundNm, gyulYmd, effectiveFormat);
+
+            MediaType mediaType = isMobile ? MediaType.valueOf("text/html; charset=UTF-8") : MediaType.APPLICATION_PDF;
 
             return ResponseEntity.ok()
-                    .contentType(MediaType.APPLICATION_PDF)
-                    .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"ja010m3_preview.pdf\"")
+                    .contentType(mediaType)
+                    .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + exportResult.getFilename() + "\"")
                     .body(exportResult.getData());
         } catch (Exception e) {
             log.error("성과보수 상세내역 (w_ja010m3) 미리보기 오류: ", e);

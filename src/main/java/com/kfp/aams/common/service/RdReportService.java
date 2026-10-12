@@ -1,4 +1,4 @@
-package com.kfp.aams.domain.dailyadvisory.service;
+package com.kfp.aams.common.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kfp.aams.security.UserPrincipal;
@@ -460,6 +460,13 @@ public class RdReportService {
                 contentType = "application/x-hwp";
                 saveMethodName = "SaveAsHwpFile";
                 break;
+            case "html":
+            case "htm":
+            case "html5":
+                ext = ".html";
+                contentType = "text/html; charset=UTF-8";
+                saveMethodName = "SaveAsHtmlFile";
+                break;
             case "pdf":
             default:
                 ext = ".pdf";
@@ -519,6 +526,12 @@ public class RdReportService {
             }
 
             byte[] fileBytes = Files.readAllBytes(tempOut);
+
+            // HTML 포맷인 경우 모바일 반응형 뷰포트 메타태그 및 중앙 정렬 스타일 주입
+            if ("html".equals(normalizedFormat) || "htm".equals(normalizedFormat) || "html5".equals(normalizedFormat)) {
+                fileBytes = injectMobileFriendlyHtmlStyles(fileBytes);
+            }
+
             String finalName = (downloadFilename != null && !downloadFilename.isBlank())
                     ? (downloadFilename.endsWith(ext) ? downloadFilename : downloadFilename + ext)
                     : ("report_" + System.currentTimeMillis() + ext);
@@ -543,6 +556,56 @@ public class RdReportService {
             try {
                 Files.deleteIfExists(tempOut);
             } catch (Exception ignored) {}
+        }
+    }
+
+    /**
+     * M2soft SaveAsHtmlFile로 생성된 HTML 문서에 모바일 친화적 뷰포트 메타태그와 반응형 A4 래퍼 스타일을 주입
+     */
+    private byte[] injectMobileFriendlyHtmlStyles(byte[] originalBytes) {
+        try {
+            String html = new String(originalBytes, StandardCharsets.UTF_8);
+            String customHead = """
+                <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=3.0, user-scalable=yes" />
+                <style type="text/css">
+                    html, body {
+                        margin: 0 !important;
+                        padding: 0 !important;
+                        background-color: #f1f5f9 !important;
+                        -webkit-text-size-adjust: 100%;
+                    }
+                    body {
+                        padding: 12px !important;
+                        display: flex !important;
+                        flex-direction: column !important;
+                        align-items: center !important;
+                        box-sizing: border-box !important;
+                    }
+                    div[style*="position:relative"] {
+                        background-color: #ffffff !important;
+                        box-shadow: 0 4px 14px rgba(0,0,0,0.15) !important;
+                        border-radius: 4px !important;
+                        margin-bottom: 24px !important;
+                    }
+                    @media (max-width: 876px) {
+                        body {
+                            padding: 6px !important;
+                        }
+                    }
+                </style>
+                """;
+
+            if (html.contains("<HEAD>") || html.contains("<head>")) {
+                html = html.replaceFirst("(?i)<head>", "<head>\n" + customHead);
+            } else if (html.contains("<BODY>") || html.contains("<body>")) {
+                html = html.replaceFirst("(?i)<body>", "<head>\n" + customHead + "</head>\n<body>");
+            } else {
+                html = customHead + "\n" + html;
+            }
+            return html.getBytes(StandardCharsets.UTF_8);
+        } catch (Exception e) {
+            log.warn("HTML 모바일 반응형 스타일 주입 실패, 원본 유지: {}", e.getMessage());
+            return originalBytes;
         }
     }
 

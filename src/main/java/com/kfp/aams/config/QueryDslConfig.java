@@ -6,14 +6,11 @@ import com.querydsl.jpa.impl.JPAQueryFactory;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-@Configuration(proxyBeanMethods = false)
+@Configuration
 public class QueryDslConfig {
 
-    @PersistenceContext
-    private EntityManager entityManager;
-
     @Bean
-    public JPAQueryFactory jpaQueryFactory() {
+    public JPAQueryFactory jpaQueryFactory(EntityManager entityManager) {
         return new JPAQueryFactory(entityManager);
     }
 }

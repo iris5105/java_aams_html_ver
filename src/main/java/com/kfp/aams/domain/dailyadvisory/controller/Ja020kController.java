@@ -1,7 +1,7 @@
 package com.kfp.aams.domain.dailyadvisory.controller;
 
 import com.kfp.aams.domain.dailyadvisory.service.Ja020kService;
-import com.kfp.aams.domain.dailyadvisory.service.RdReportService;
+import com.kfp.aams.common.service.RdReportService;
 import com.kfp.aams.menu.service.MenuService;
 import com.kfp.aams.security.UserPrincipal;
 import lombok.RequiredArgsConstructor;
@@ -14,6 +14,7 @@ import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.CookieValue;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 
@@ -81,14 +82,22 @@ public class Ja020kController {
     public ResponseEntity<byte[]> previewReport(
             @RequestParam(value = "corpGr", required = false) String corpGr,
             @RequestParam(value = "seriesGb", defaultValue = "1110") String seriesGb,
-            @RequestParam("ymd") String ymd) {
+            @RequestParam("ymd") String ymd,
+            @RequestParam(value = "format", defaultValue = "pdf") String format,
+            @RequestHeader(value = "User-Agent", required = false) String userAgent) {
         try {
+            boolean isMobile = (format != null && format.toLowerCase().contains("htm"))
+                    || (userAgent != null && (userAgent.toLowerCase().contains("mobile") || userAgent.toLowerCase().contains("android") || userAgent.toLowerCase().contains("iphone") || userAgent.toLowerCase().contains("ipad")));
+            String effectiveFormat = isMobile ? "html" : "pdf";
+
             RdReportService.ExportResult exportResult = rdReportService.generateJa020kReport(
-                    corpGr, seriesGb, ymd, "pdf");
+                    corpGr, seriesGb, ymd, effectiveFormat);
+
+            MediaType mediaType = isMobile ? MediaType.valueOf("text/html; charset=UTF-8") : MediaType.APPLICATION_PDF;
 
             return ResponseEntity.ok()
-                    .contentType(MediaType.APPLICATION_PDF)
-                    .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"ja020k_report.pdf\"")
+                    .contentType(mediaType)
+                    .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + exportResult.getFilename() + "\"")
                     .body(exportResult.getData());
         } catch (Exception e) {
             log.error("일(종목)별 운용현황 (w_ja020k) 리포트 미리보기 오류: ", e);

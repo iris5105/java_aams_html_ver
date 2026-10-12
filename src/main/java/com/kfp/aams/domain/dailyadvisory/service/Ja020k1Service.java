@@ -1,5 +1,6 @@
 package com.kfp.aams.domain.dailyadvisory.service;
 
+import com.kfp.aams.common.service.RdReportService;
 import com.kfp.aams.domain.dailyadvisory.dto.GuganDto;
 import com.kfp.aams.domain.dailyadvisory.dto.Uzm0hyDto;
 import com.kfp.aams.domain.dailyadvisory.mapper.Uzm0hyMapper;

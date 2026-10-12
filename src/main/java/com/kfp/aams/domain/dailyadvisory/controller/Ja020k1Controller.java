@@ -2,7 +2,7 @@ package com.kfp.aams.domain.dailyadvisory.controller;
 
 import com.kfp.aams.domain.dailyadvisory.dto.Uzm0hyDto;
 import com.kfp.aams.domain.dailyadvisory.service.Ja020k1Service;
-import com.kfp.aams.domain.dailyadvisory.service.RdReportService;
+import com.kfp.aams.common.service.RdReportService;
 import com.kfp.aams.menu.service.MenuService;
 import com.kfp.aams.security.UserPrincipal;
 import lombok.RequiredArgsConstructor;
@@ -15,6 +15,7 @@ import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.CookieValue;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 
@@ -107,6 +108,8 @@ public class Ja020k1Controller {
             @RequestParam(value = "fundNm", required = false) String fundNm,
             @RequestParam("ymd") @org.springframework.format.annotation.DateTimeFormat(pattern = "yyyy-MM-dd", fallbackPatterns = {"yyyyMMdd", "yyyy.MM.dd"}) java.time.LocalDate ymd,
             @RequestParam(value = "gugan", defaultValue = "1") String gugan,
+            @RequestParam(value = "format", defaultValue = "pdf") String format,
+            @RequestHeader(value = "User-Agent", required = false) String userAgent,
             @CookieValue(name = "savedCorpGr", required = false) String cookieCorpGr1,
             @CookieValue(name = "corpGr", required = false) String cookieCorpGr2) {
         try {
@@ -114,12 +117,18 @@ public class Ja020k1Controller {
             String cookieCorpGr = (cookieCorpGr1 != null && !cookieCorpGr1.isBlank()) ? cookieCorpGr1 : cookieCorpGr2;
             corpGr = resolveCorpGr(corpGr, cookieCorpGr, principal);
 
+            boolean isMobile = (format != null && format.toLowerCase().contains("htm"))
+                    || (userAgent != null && (userAgent.toLowerCase().contains("mobile") || userAgent.toLowerCase().contains("android") || userAgent.toLowerCase().contains("iphone") || userAgent.toLowerCase().contains("ipad")));
+            String effectiveFormat = isMobile ? "html" : "pdf";
+
             RdReportService.ExportResult exportResult = ja020k1Service.generateReport(
-                    corpGr, fundCd, fundNm, ymd, gugan, "pdf");
+                    corpGr, fundCd, fundNm, ymd, gugan, effectiveFormat);
+
+            MediaType mediaType = isMobile ? MediaType.valueOf("text/html; charset=UTF-8") : MediaType.APPLICATION_PDF;
 
             return ResponseEntity.ok()
-                    .contentType(MediaType.APPLICATION_PDF)
-                    .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"ja020k1_preview.pdf\"")
+                    .contentType(mediaType)
+                    .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + exportResult.getFilename() + "\"")
                     .body(exportResult.getData());
         } catch (Exception e) {
             log.error("계좌(종목)별 주간 운용현황 미리보기 오류: ", e);

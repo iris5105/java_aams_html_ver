@@ -2,7 +2,7 @@ package com.kfp.aams.domain.dailyadvisory.controller;
 
 import com.kfp.aams.domain.dailyadvisory.dto.Ja010qDto;
 import com.kfp.aams.domain.dailyadvisory.service.Ja010qService;
-import com.kfp.aams.domain.dailyadvisory.service.RdReportService;
+import com.kfp.aams.common.service.RdReportService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
@@ -11,6 +11,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 
@@ -96,14 +97,22 @@ public class Ja010qController {
             @RequestParam(value = "haejiYmd", required = false) String haejiYmd,
             @RequestParam(value = "afGyulYmd", required = false) String afGyulYmd,
             @RequestParam(value = "bfStart", required = false) String bfStart,
-            @RequestParam(value = "af", required = false) String af) {
+            @RequestParam(value = "af", required = false) String af,
+            @RequestParam(value = "format", defaultValue = "pdf") String format,
+            @RequestHeader(value = "User-Agent", required = false) String userAgent) {
         try {
+            boolean isMobile = (format != null && format.toLowerCase().contains("htm"))
+                    || (userAgent != null && (userAgent.toLowerCase().contains("mobile") || userAgent.toLowerCase().contains("android") || userAgent.toLowerCase().contains("iphone") || userAgent.toLowerCase().contains("ipad")));
+            String effectiveFormat = isMobile ? "html" : "pdf";
+
             RdReportService.ExportResult exportResult = ja010qService.generateReport(
-                    fundCd, fundNm, ymd, haejiYmd, afGyulYmd, bfStart, af, "pdf");
+                    fundCd, fundNm, ymd, haejiYmd, afGyulYmd, bfStart, af, effectiveFormat);
+
+            MediaType mediaType = isMobile ? MediaType.valueOf("text/html; charset=UTF-8") : MediaType.APPLICATION_PDF;
 
             return ResponseEntity.ok()
-                    .contentType(MediaType.APPLICATION_PDF)
-                    .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"ja010q_preview.pdf\"")
+                    .contentType(mediaType)
+                    .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + exportResult.getFilename() + "\"")
                     .body(exportResult.getData());
         } catch (Exception e) {
             log.error("성과보수 상세내역 (w_ja010q) 미리보기 오류: ", e);

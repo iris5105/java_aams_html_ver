@@ -1,5 +1,6 @@
 package com.kfp.aams.domain.dailyadvisory.service;
 
+import com.kfp.aams.common.service.RdReportService;
 import com.kfp.aams.domain.dailyadvisory.dto.Ja010jDto;
 import com.kfp.aams.domain.dailyadvisory.mapper.Ja010jMapper;
 import lombok.RequiredArgsConstructor;
