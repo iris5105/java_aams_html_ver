@@ -623,33 +623,52 @@ public class RdReportService {
         try {
             String html = new String(originalBytes, StandardCharsets.UTF_8);
             String customHead = """
-                <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=3.0, user-scalable=yes" />
+                <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=0.25, maximum-scale=5.0, user-scalable=yes" />
                 <style type="text/css">
-                    html, body {
+                    html {
                         margin: 0 !important;
                         padding: 0 !important;
-                        background-color: #f1f5f9 !important;
+                        background-color: #525659 !important;
                         -webkit-text-size-adjust: 100%;
+                        overflow-x: auto !important;
+                        overflow-y: auto !important;
+                        -webkit-overflow-scrolling: touch;
                     }
                     body {
-                        padding: 12px !important;
+                        margin: 0 !important;
+                        padding: 12px 8px !important;
                         display: flex !important;
                         flex-direction: column !important;
-                        align-items: center !important;
+                        align-items: flex-start !important; /* 모바일 좌측 잘림(음수 좌표 Data Loss) 원천 차단: 항상 x=0부터 시작 */
+                        justify-content: flex-start !important;
                         box-sizing: border-box !important;
+                        min-width: 100% !important;
+                        width: max-content !important; /* 보고서 A4 전체 너비만큼 컨테이너 확장하여 가로 스크롤 보장 */
+                        background-color: #525659 !important;
                     }
                     div[style*="position:relative"] {
                         background-color: #ffffff !important;
-                        box-shadow: 0 4px 14px rgba(0,0,0,0.15) !important;
+                        box-shadow: 0 4px 14px rgba(0,0,0,0.25) !important;
                         border-radius: 4px !important;
                         margin-bottom: 24px !important;
+                        margin-left: 0 !important;
+                        margin-right: auto !important;
                     }
-                    @media (max-width: 876px) {
+                    @media (min-width: 876px) {
                         body {
-                            padding: 6px !important;
+                            align-items: center !important;
+                        }
+                        div[style*="position:relative"] {
+                            margin-left: auto !important;
+                            margin-right: auto !important;
                         }
                     }
                 </style>
+                <script type="text/javascript">
+                    window.addEventListener('DOMContentLoaded', function() {
+                        window.scrollTo(0, 0);
+                    });
+                </script>
                 """;
 
             if (html.contains("<HEAD>") || html.contains("<head>")) {
