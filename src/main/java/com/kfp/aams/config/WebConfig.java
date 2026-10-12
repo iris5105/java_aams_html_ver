@@ -30,9 +30,49 @@ public class WebConfig implements WebMvcConfigurer {
     @Primary
     public ObjectMapper objectMapper() {
         ObjectMapper mapper = new ObjectMapper();
-        mapper.registerModule(new JavaTimeModule());
+        JavaTimeModule javaTimeModule = new JavaTimeModule();
+        javaTimeModule.addDeserializer(java.time.LocalDate.class, new com.fasterxml.jackson.databind.JsonDeserializer<>() {
+            @Override
+            public java.time.LocalDate deserialize(com.fasterxml.jackson.core.JsonParser p, com.fasterxml.jackson.databind.DeserializationContext ctxt) throws java.io.IOException {
+                return parseLocalDate(p.getText());
+            }
+        });
+        mapper.registerModule(javaTimeModule);
         mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
         return mapper;
+    }
+
+    @Override
+    public void addFormatters(org.springframework.format.FormatterRegistry registry) {
+        registry.addConverter(new org.springframework.core.convert.converter.Converter<String, java.time.LocalDate>() {
+            @Override
+            public java.time.LocalDate convert(String source) {
+                return parseLocalDate(source);
+            }
+        });
+    }
+
+    public static java.time.LocalDate parseLocalDate(String source) {
+        if (source == null || source.trim().isEmpty()) {
+            return null;
+        }
+        String clean = source.trim().replace(".", "-").replace("/", "-");
+        if (clean.contains("-")) {
+            String[] parts = clean.split("-");
+            if (parts.length == 3) {
+                try {
+                    int year = Integer.parseInt(parts[0]);
+                    int month = Integer.parseInt(parts[1]);
+                    int day = Integer.parseInt(parts[2]);
+                    return java.time.LocalDate.of(year, month, day);
+                } catch (Exception ignored) {}
+            }
+            return java.time.LocalDate.parse(clean, java.time.format.DateTimeFormatter.ISO_LOCAL_DATE);
+        }
+        if (clean.length() == 8 && clean.chars().allMatch(Character::isDigit)) {
+            return java.time.LocalDate.parse(clean, java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd"));
+        }
+        return java.time.LocalDate.parse(clean);
     }
 
     @Override

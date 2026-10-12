@@ -47,18 +47,7 @@
             let deletedList = [];
 
 
-            // Date Resolver
-            function resolveYmd() {
-                const ymdInput = pane ? pane.querySelector(".filter-bar input[name='ymd'], .filter-bar input.filter-ymd") : null;
-                if (ymdInput && ymdInput.value) {
-                    return ymdInput.value.replace(/-/g, "");
-                }
-                const today = new Date();
-                const y = today.getFullYear();
-                const m = String(today.getMonth() + 1).padStart(2, '0');
-                const d = String(today.getDate()).padStart(2, '0');
-                return `${y}${m}${d}`;
-            }
+            // 조회일자는 common.js의 전역 헬퍼 함수(getFilterYmd) 사용
 
             // Number Formatter with Comma and Decimals
             function numberFormatter(cell, decimals = 2) {
@@ -190,7 +179,7 @@
             // Fetch Data
             function fetchData(force = false) {
                 const corpGr = resolveCorpGr(pane);
-                const ymd = resolveYmd();
+                const ymd = getFilterYmd(pane);
 
                 if (!corpGr) {
                     if (typeof showToast === 'function') showToast("소속 회사코드를 확인할 수 없습니다.", "warning");
@@ -237,7 +226,7 @@
                 if (!gridScm1sm) return;
 
                 const corpGr = resolveCorpGr(pane);
-                const ymd = resolveYmd();
+                const ymd = getFilterYmd(pane);
 
                 const newRowData = {
                     corpGr: corpGr,
@@ -288,7 +277,7 @@
                 if (!gridScm1sm) return;
 
                 const corpGr = resolveCorpGr(pane);
-                const ymd = resolveYmd();
+                const ymd = getFilterYmd(pane);
 
                 const insertList = [];
                 const updateList = [];
@@ -352,7 +341,7 @@
             // Toolbar Actions: [엑셀 다운로드]
             function handleExcel() {
                 if (!gridScm1sm) return;
-                const ymd = resolveYmd();
+                const ymd = getFilterYmd(pane, 'YYYYMMDD');
                 gridScm1sm.download("xlsx", `채권단가_${ymd}.xlsx`, { sheetName: "채권단가" });
             }
 

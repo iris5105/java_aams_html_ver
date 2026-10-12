@@ -16,7 +16,7 @@ import java.time.LocalDate;
 public class Ja010oFilterDto {
     private String corpGr;       // 회사그룹코드
 
-    @DateTimeFormat(pattern = "yyyy-MM-dd")
+    @DateTimeFormat(pattern = "yyyy-MM-dd", fallbackPatterns = {"yyyyMMdd", "yyyy.MM.dd"})
     @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd")
     private LocalDate ymd;       // 기준일자
 

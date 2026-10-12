@@ -269,7 +269,7 @@
             // f_messageBox ('INFO', '원장생성을 하시면 LOAD된 예수금으로 예수금을 반영합니다.')
             function confirmDiff() {
                 var corpGr = resolveCorpGr(pane);
-                var ymd = getFilterYmd(pane, 'YYYYMMDD');
+                var ymd = getFilterYmd(pane);
 
                 if (!corpGr) {
                     if (typeof showToast === "function") showToast("회사그룹을 선택해주세요.", "warning");
@@ -278,7 +278,8 @@
 
                 // 점검일자가 기준 작업일자와 일치하는지 재검증 (파워빌더 cb_2.Enabled 조건)
                 var workYmd = (currentWorkDate || '').replace(/[^0-9]/g, '');
-                if (workYmd && ymd !== workYmd) {
+                var ymdClean = (ymd || '').replace(/[^0-9]/g, '');
+                if (workYmd && ymdClean !== workYmd) {
                     var msgAlert = "점검일자가 기준 작업일자와 일치할 때만 차액반영이 가능합니다.";
                     if (typeof showToast === "function") showToast(msgAlert, "warning");
                     else alert(msgAlert);
