@@ -8,6 +8,7 @@ import com.kfp.aams.menu.service.MenuService;
 import com.kfp.aams.security.UserPrincipal;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -38,8 +39,8 @@ public class Ja010jController {
     @GetMapping({"/views/w_ja010j", "/views/dailyadvisory/w_ja010j"})
     public String ja010jView(@AuthenticationPrincipal Object principalObj,
                              @RequestParam(name = "corpGr", required = false) String paramCorpGr,
-                             @RequestParam(name = "fymd", required = false) @org.springframework.format.annotation.DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate paramFymd,
-                             @RequestParam(name = "tymd", required = false) @org.springframework.format.annotation.DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate paramTymd,
+                             @RequestParam(name = "fymd", required = false) @DateTimeFormat(pattern = "yyyy-MM-dd", fallbackPatterns = {"yyyyMMdd", "yyyy.MM.dd"}) LocalDate paramFymd,
+                             @RequestParam(name = "tymd", required = false) @DateTimeFormat(pattern = "yyyy-MM-dd", fallbackPatterns = {"yyyyMMdd", "yyyy.MM.dd"}) LocalDate paramTymd,
                              @CookieValue(name = "savedCorpGr", required = false) String cookieCorpGr1,
                              @CookieValue(name = "corpGr", required = false) String cookieCorpGr2,
                              Model model) {
@@ -104,7 +105,7 @@ public class Ja010jController {
     @ResponseBody
     public ResponseEntity<List<Ja010jDto>> getList(
             @RequestParam("corpGr") String corpGr,
-            @RequestParam("ymd") @org.springframework.format.annotation.DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate ymd) {
+            @RequestParam("ymd") @DateTimeFormat(pattern = "yyyy-MM-dd", fallbackPatterns = {"yyyyMMdd", "yyyy.MM.dd"}) LocalDate ymd) {
         List<Ja010jDto> list = ja010jService.selectJa010jList(corpGr, ymd);
         return ResponseEntity.ok(list);
     }
@@ -115,8 +116,8 @@ public class Ja010jController {
             @RequestParam("fundCd") String fundCd,
             @RequestParam(value = "companyName", required = false) String companyName,
             @RequestParam(value = "fundNm", required = false) String fundNm,
-            @RequestParam("fymd") @org.springframework.format.annotation.DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate fymd,
-            @RequestParam("tymd") @org.springframework.format.annotation.DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate tymd) {
+            @RequestParam("fymd") @DateTimeFormat(pattern = "yyyy-MM-dd", fallbackPatterns = {"yyyyMMdd", "yyyy.MM.dd"}) LocalDate fymd,
+            @RequestParam("tymd") @DateTimeFormat(pattern = "yyyy-MM-dd", fallbackPatterns = {"yyyyMMdd", "yyyy.MM.dd"}) LocalDate tymd) {
         try {
             RdReportService.ExportResult exportResult = ja010jService.generateReport(
                     corpGr, fundCd, companyName, fundNm, fymd, tymd, "pdf");
@@ -137,8 +138,8 @@ public class Ja010jController {
             @RequestParam("fundCd") String fundCd,
             @RequestParam(value = "companyName", required = false) String companyName,
             @RequestParam(value = "fundNm", required = false) String fundNm,
-            @RequestParam("fymd") @org.springframework.format.annotation.DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate fymd,
-            @RequestParam("tymd") @org.springframework.format.annotation.DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate tymd,
+            @RequestParam("fymd") @DateTimeFormat(pattern = "yyyy-MM-dd", fallbackPatterns = {"yyyyMMdd", "yyyy.MM.dd"}) LocalDate fymd,
+            @RequestParam("tymd") @DateTimeFormat(pattern = "yyyy-MM-dd", fallbackPatterns = {"yyyyMMdd", "yyyy.MM.dd"}) LocalDate tymd,
             @RequestParam(value = "format", defaultValue = "pdf") String format) {
         try {
             RdReportService.ExportResult exportResult = ja010jService.generateReport(
