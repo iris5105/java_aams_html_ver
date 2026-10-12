@@ -125,9 +125,14 @@ public class Ja010hController {
 
         try {
             RdReportService.ExportResult res = ja010hService.exportReport(corpGr, ymd != null ? ymd : LocalDate.now(), fundCd, effectiveFormat);
-            MediaType mediaType = isMobile ? MediaType.valueOf("text/html; charset=UTF-8") : MediaType.APPLICATION_PDF;
+            if (isMobile) {
+                return ResponseEntity.ok()
+                        .contentType(MediaType.valueOf("text/html; charset=UTF-8"))
+                        .body(res.getData());
+            }
+
             HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(mediaType);
+            headers.setContentType(MediaType.APPLICATION_PDF);
             headers.setContentDisposition(ContentDisposition.inline()
                     .filename(res.getFilename(), StandardCharsets.UTF_8)
                     .build());

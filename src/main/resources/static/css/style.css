@@ -94,6 +94,11 @@ body, html {
     filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.4));
 }
 
+/* PC 환경에서는 사이드바 로고를 숨김 (상단 헤더에 표출되므로) */
+.sidebar-logo {
+    display: none;
+}
+
 .user-info {
     display: flex;
     align-items: center;
@@ -2223,25 +2228,27 @@ body.header-compact-mode.sidebar-backdrop-open::after {
         padding: 0 8px;
     }
 
-    /* 모바일 모드에서도 회사 로고 표출 (햄버거 메뉴 옆 슬림 배치) */
+    /* 모바일 환경(<= 876px)에서는 상단 헤더 로고를 숨겨 계정 상태와 겹침을 방지하고, 사이드바 검색창 위로 이동 */
     .top-header-logo {
-        display: flex !important;
-        width: auto !important;
-        min-width: unset !important;
-        max-width: 120px !important;
-        height: 100% !important;
-        padding: 0 4px !important;
-        border-right: none !important;
-        justify-content: flex-start !important;
-        align-items: center !important;
+        display: none !important;
     }
 
-    .top-header-logo .top-company-logo {
-        max-height: 24px !important;
+    .sidebar-logo {
+        display: flex !important;
+        align-items: center;
+        justify-content: center;
+        padding: 10px 14px 8px;
+        background-color: #1e293b;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .sidebar-logo .sidebar-company-logo {
+        max-height: 28px !important;
         max-width: 100% !important;
         height: auto !important;
         width: auto !important;
         object-fit: contain !important;
+        filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.4));
     }
 
     /* ==========================================================================

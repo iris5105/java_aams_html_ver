@@ -213,10 +213,14 @@ public class Ja010h1Controller {
             RdReportService.ExportResult exportResult = rdReportService.generateJa010h1Report(
                     corpGr, ymdStr, fundCd, fundNm, effectiveFormat);
 
-            MediaType mediaType = isMobile ? MediaType.valueOf("text/html; charset=UTF-8") : MediaType.APPLICATION_PDF;
+            if (isMobile) {
+                return ResponseEntity.ok()
+                        .contentType(MediaType.valueOf("text/html; charset=UTF-8"))
+                        .body(exportResult.getData());
+            }
 
             return ResponseEntity.ok()
-                    .contentType(mediaType)
+                    .contentType(MediaType.APPLICATION_PDF)
                     .header(HttpHeaders.CONTENT_DISPOSITION, com.kfp.aams.common.controller.RdReportController.buildContentDisposition("inline", exportResult.getFilename()))
                     .body(exportResult.getData());
         } catch (Exception e) {

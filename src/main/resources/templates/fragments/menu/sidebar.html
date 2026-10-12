@@ -2,6 +2,13 @@
 <html xmlns:th="http://www.thymeleaf.org">
 <!-- Left Menu Tree Sidebar Fragment -->
 <aside class="left-sidebar" th:fragment="leftSidebar">
+    <!-- 모바일 전용 로고 영역 (화면 폭 <= 876px 환경에서 프로그램 검색창 위에 표출) -->
+    <div class="sidebar-logo"
+         th:onclick="${adminYn != null and #strings.equalsIgnoreCase(adminYn, 'Y')} ? 'openCompanyModal()' : null"
+         th:style="${adminYn != null and #strings.equalsIgnoreCase(adminYn, 'Y')} ? 'cursor: pointer;' : null"
+         th:title="${adminYn != null and #strings.equalsIgnoreCase(adminYn, 'Y')} ? '회사 변경' : null">
+        <img th:src="@{'/img/right_logo/fw_top_logo_right_' + ${corpGr} + '.png'}" src="/img/right_logo/fw_top_logo_right_2200.png" alt="Company Logo" class="sidebar-company-logo" onerror="this.src='/img/right_logo/fw_top_logo_right_2200.png'">
+    </div>
     <div class="sidebar-search" style="position: relative;">
         <input type="text" id="sidebarSearchInput" class="search-input" placeholder="전체 프로그램 검색 (명칭/번호/ID)" oninput="filterSidebarMenu(this.value)" onfocus="filterSidebarMenu(this.value)" onkeydown="handleSidebarSearchKeydown(event)" autocomplete="off">
         <div id="sidebarSearchDropdown" class="search-dropdown-list" style="display: none;"></div>

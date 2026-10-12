@@ -268,41 +268,85 @@ public class RdReportService {
     }
 
     /**
-     * 클래스패스 리소스의 MRD 템플릿 파일을 로컬 임시 캐시 디렉터리로 추출하여 파일 경로 반환
+     * 클래스패스(rd/) 및 소스 디렉터리(src/main/resources/rd)의 MRD 템플릿 파일을
+     * 대소문자 무관(case-insensitive)하게 탐색하여 안전하게 파일 경로 반환
      */
     public synchronized Path getTemplatePath(String mrdFileName) throws IOException {
-        Path cached = TEMPLATE_CACHE.get(mrdFileName);
+        if (mrdFileName == null || mrdFileName.isBlank()) {
+            throw new IllegalArgumentException("MRD 템플릿 파일명이 유효하지 않습니다.");
+        }
+        String cleanName = mrdFileName.trim();
+
+        Path cached = TEMPLATE_CACHE.get(cleanName);
         if (cached != null && Files.exists(cached) && Files.size(cached) > 0) {
             return cached;
         }
 
-        ClassPathResource resource = new ClassPathResource("rd/" + mrdFileName);
-        Path target;
         Path tempDir = Path.of(System.getProperty("java.io.tmpdir"), "aams_rd_templates");
         if (!Files.exists(tempDir)) {
             Files.createDirectories(tempDir);
         }
-        target = tempDir.resolve(mrdFileName);
+        Path target = tempDir.resolve(cleanName);
+
+        // 1. 클래스패스 리소스 탐색 (원형 -> 소문자 -> 대문자 순)
+        ClassPathResource resource = new ClassPathResource("rd/" + cleanName);
+        if (!resource.exists()) {
+            resource = new ClassPathResource("rd/" + cleanName.toLowerCase());
+        }
+        if (!resource.exists()) {
+            resource = new ClassPathResource("rd/" + cleanName.toUpperCase());
+        }
 
         if (resource.exists()) {
             try (InputStream in = resource.getInputStream()) {
                 Files.copy(in, target, StandardCopyOption.REPLACE_EXISTING);
-            }
-        } else {
-            Path fallback = Paths.get("pb_recource/02. RD", mrdFileName);
-            if (!Files.exists(fallback)) {
-                fallback = Paths.get(System.getProperty("user.dir"), "pb_recource/02. RD", mrdFileName);
-            }
-            if (Files.exists(fallback)) {
-                Files.copy(fallback, target, StandardCopyOption.REPLACE_EXISTING);
-            } else {
-                throw new FileNotFoundException("리포트 템플릿 파일을 찾을 수 없습니다: classpath:rd/" + mrdFileName + " 또는 " + fallback.toAbsolutePath());
+                TEMPLATE_CACHE.put(cleanName, target);
+                log.info("RD 템플릿 클래스패스 로드 완료: {} -> {}", cleanName, target.toAbsolutePath());
+                return target;
             }
         }
 
-        TEMPLATE_CACHE.put(mrdFileName, target);
-        log.info("RD 템플릿 추출 완료: {} -> {}", mrdFileName, target.toAbsolutePath());
-        return target;
+        // 2. src/main/resources/rd 및 target/classes/rd 디렉터리 직접 탐색 (대소문자 무관 매칭)
+        Path[] candidateDirs = new Path[] {
+            Paths.get("src", "main", "resources", "rd"),
+            Paths.get(System.getProperty("user.dir", "."), "src", "main", "resources", "rd"),
+            Paths.get("target", "classes", "rd"),
+            Paths.get(System.getProperty("user.dir", "."), "target", "classes", "rd")
+        };
+
+        for (Path dir : candidateDirs) {
+            if (dir != null && Files.exists(dir) && Files.isDirectory(dir)) {
+                // 2-1. 직접 매칭 또는 소문자 파일 매칭
+                Path exact = dir.resolve(cleanName);
+                if (Files.exists(exact) && Files.isRegularFile(exact)) {
+                    Files.copy(exact, target, StandardCopyOption.REPLACE_EXISTING);
+                    TEMPLATE_CACHE.put(cleanName, target);
+                    log.info("RD 템플릿 소스 폴더 로드 완료: {} -> {}", cleanName, target.toAbsolutePath());
+                    return target;
+                }
+                Path lower = dir.resolve(cleanName.toLowerCase());
+                if (Files.exists(lower) && Files.isRegularFile(lower)) {
+                    Files.copy(lower, target, StandardCopyOption.REPLACE_EXISTING);
+                    TEMPLATE_CACHE.put(cleanName, target);
+                    log.info("RD 템플릿 소스 폴더 로드 완료 (소문자 매칭): {} -> {}", cleanName, target.toAbsolutePath());
+                    return target;
+                }
+
+                // 2-2. 디렉터리 내 파일 전체 대소문자 무시(case-insensitive) 매칭
+                try (var stream = Files.list(dir)) {
+                    for (Path file : stream.toList()) {
+                        if (Files.isRegularFile(file) && file.getFileName().toString().equalsIgnoreCase(cleanName)) {
+                            Files.copy(file, target, StandardCopyOption.REPLACE_EXISTING);
+                            TEMPLATE_CACHE.put(cleanName, target);
+                            log.info("RD 템플릿 대소문자 무시 매칭 완료: {} -> {}", cleanName, target.toAbsolutePath());
+                            return target;
+                        }
+                    }
+                } catch (Exception ignored) {}
+            }
+        }
+
+        throw new FileNotFoundException("리포트 템플릿 파일을 찾을 수 없습니다: " + cleanName + " (참조 경로: src/main/resources/rd, classpath:rd/)");
     }
 
     // =========================================================================

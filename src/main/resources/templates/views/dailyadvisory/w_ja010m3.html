@@ -623,7 +623,9 @@
                 const fundNm = data.xxFundCd || "";
                 const gyulYmd = (data.gyulYmd || "").replace(/\./g, '-');
 
-                const previewUrl = `/api/daily/ja010m3/preview?corpGr=${encodeURIComponent(corpGr)}&mrdName=${encodeURIComponent(mrd)}&fundCd=${encodeURIComponent(fundCd)}&fundNm=${encodeURIComponent(fundNm)}&gyulYmd=${encodeURIComponent(gyulYmd)}&t=${new Date().getTime()}`;
+                const isMob = (typeof isMobileView === 'function') ? isMobileView() : (window.innerWidth <= 876);
+                const fmt = isMob ? 'html' : 'pdf';
+                const previewUrl = `/api/daily/ja010m3/preview?corpGr=${encodeURIComponent(corpGr)}&mrdName=${encodeURIComponent(mrd)}&fundCd=${encodeURIComponent(fundCd)}&fundNm=${encodeURIComponent(fundNm)}&gyulYmd=${encodeURIComponent(gyulYmd)}&format=${fmt}&t=${new Date().getTime()}`;
                 currentReportUrl = previewUrl;
 
                 if (statusEl) {
@@ -706,7 +708,7 @@
                         const rptFundCd = reportData.fundCd || "";
                         const rptFundNm = reportData.xxFundCd || "";
                         const rptGyulYmd = (reportData.gyulYmd || "").replace(/\./g, '-');
-                        const previewUrl = `/api/daily/ja010m3/preview?corpGr=${encodeURIComponent(corpGr)}&mrdName=${encodeURIComponent(mrd)}&fundCd=${encodeURIComponent(rptFundCd)}&fundNm=${encodeURIComponent(rptFundNm)}&gyulYmd=${encodeURIComponent(rptGyulYmd)}&t=${new Date().getTime()}`;
+                        const previewUrl = `/api/daily/ja010m3/preview?corpGr=${encodeURIComponent(corpGr)}&mrdName=${encodeURIComponent(mrd)}&fundCd=${encodeURIComponent(rptFundCd)}&fundNm=${encodeURIComponent(rptFundNm)}&gyulYmd=${encodeURIComponent(rptGyulYmd)}&format=html&t=${new Date().getTime()}`;
                         modalFrame.src = previewUrl;
                         modalFrame.onload = function() {
                             if (loadingEl) loadingEl.style.display = "none";

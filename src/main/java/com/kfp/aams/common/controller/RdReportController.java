@@ -64,12 +64,14 @@ public class RdReportController {
             RdReportService.ExportResult result = rdReportService.generateReport(
                     corpGr, mrdName, mergedParams, effectiveFormat, downloadName);
 
-            MediaType mediaType = isHtmlFormat(effectiveFormat)
-                    ? MediaType.valueOf("text/html; charset=UTF-8")
-                    : MediaType.APPLICATION_PDF;
+            if (isHtmlFormat(effectiveFormat)) {
+                return ResponseEntity.ok()
+                        .contentType(MediaType.valueOf("text/html; charset=UTF-8"))
+                        .body(result.getData());
+            }
 
             return ResponseEntity.ok()
-                    .contentType(mediaType)
+                    .contentType(MediaType.APPLICATION_PDF)
                     .header(HttpHeaders.CONTENT_DISPOSITION, buildContentDisposition("inline", result.getFilename()))
                     .body(result.getData());
         } catch (Exception e) {
@@ -120,12 +122,14 @@ public class RdReportController {
             RdReportService.ExportResult result = rdReportService.generateReport(
                     req.getCorpGr(), req.getMrdName(), req.getParams(), effectiveFormat, req.getDownloadName());
 
-            MediaType mediaType = isHtmlFormat(effectiveFormat)
-                    ? MediaType.valueOf("text/html; charset=UTF-8")
-                    : MediaType.APPLICATION_PDF;
+            if (isHtmlFormat(effectiveFormat)) {
+                return ResponseEntity.ok()
+                        .contentType(MediaType.valueOf("text/html; charset=UTF-8"))
+                        .body(result.getData());
+            }
 
             return ResponseEntity.ok()
-                    .contentType(mediaType)
+                    .contentType(MediaType.APPLICATION_PDF)
                     .header(HttpHeaders.CONTENT_DISPOSITION, buildContentDisposition("inline", result.getFilename()))
                     .body(result.getData());
         } catch (Exception e) {
