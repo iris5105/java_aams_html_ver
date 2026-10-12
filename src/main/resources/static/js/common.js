@@ -1949,10 +1949,21 @@ function aamsCellEdit(e, cell) {
                 table.deselectRow();
             }
             row.select();
+
+            // 행 선택 변경에 따른 DOM 갱신 및 마우스 이벤트 버블링 완료 후 에디터 안전 진입
+            setTimeout(function() {
+                try {
+                    if (typeof cell.edit === 'function') {
+                        cell.edit();
+                    }
+                } catch(err) {}
+            }, 30);
+            return;
         }
     } catch(err) {}
+
     if (typeof cell.edit === 'function') {
-        cell.edit(true);
+        cell.edit();
     }
 }
 

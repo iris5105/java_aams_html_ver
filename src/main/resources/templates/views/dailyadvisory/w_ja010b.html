@@ -189,6 +189,7 @@
                     height: "100%",
                     selectableRows: 1,
                     selectableRowsRollingSelection: true,
+                    editTriggerEvent: "click",
                     placeholder: "<span>조회된 계좌 계약정보가 없습니다.</span>",
                     columnDefaults: { vertAlign: "middle", headerSortTristate: true },
                     rowFormatter: function(row) {
@@ -363,12 +364,12 @@
                     ]
                 });
 
-                function syncJa010bDetail(row, data) {
+                function syncJa010bDetail(row, masterRowData) {
                     if (!row) return;
                     if (!row.isSelected || !row.isSelected()) {
                         row.select();
                     }
-                    const d = data || (row.getData ? row.getData() : null);
+                    const d = masterRowData || (row.getData ? row.getData() : null);
                     if (!d) return;
                     const specialNote = d.specialNote || "";
                     const mle = pane ? pane.querySelector("#mleSpecialNote") : document.getElementById("mleSpecialNote");
@@ -386,16 +387,12 @@
                     syncJa010bDetail(row, data);
                 }, { autoSelectFirst: false });
 
-                // 2. Tabulator standard rowClick fallback (guarantees visual selection)
+                // 2. Tabulator standard rowClick fallback (Rule 8)
                 gridMaster.on("rowClick", function(e, row) {
-                    if (row && (!row.isSelected || !row.isSelected())) {
-                        row.select();
-                    }
-                    const data = row ? row.getData() : null;
-                    syncJa010bDetail(row, data);
+                    syncJa010bDetail(row, row ? row.getData() : null);
                 });
 
-                // 3. Tabulator rowSelectionChanged fallback
+                // 3. Tabulator rowSelectionChanged fallback (Rule 8)
                 gridMaster.on("rowSelectionChanged", function(data, rows) {
                     if (rows && rows.length > 0) {
                         syncJa010bDetail(rows[0], rows[0].getData());
