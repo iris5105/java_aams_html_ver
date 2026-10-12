@@ -210,14 +210,11 @@ public class RdReportService {
                     Path p = Paths.get(d);
                     if (Files.isDirectory(p)) {
                         regDirMethod.invoke(null, p.toAbsolutePath().toString(), "UTF-8");
-                        log.info("Crownix FontGenerator 디렉터리 등록 완료: {}", p.toAbsolutePath());
                     }
-                } catch (Exception ex) {
-                    log.debug("FontGenerator 등록 예외 ({}): {}", d, ex.getMessage());
+                } catch (Exception ignored) {
                 }
             }
-        } catch (Exception e) {
-            log.debug("Crownix FontGenerator 클래스 접근 예외: {}", e.getMessage());
+        } catch (Exception ignored) {
         }
 
         // 3. iText FontFactory.registerDirectory 호출 (iText 기반 PDF 생성기 호환)
@@ -229,44 +226,44 @@ public class RdReportService {
                     Path p = Paths.get(d);
                     if (Files.isDirectory(p)) {
                         regDirMethod.invoke(null, p.toAbsolutePath().toString());
-                        log.info("iText FontFactory 디렉터리 등록 완료: {}", p.toAbsolutePath());
                     }
-                } catch (Exception ex) {
-                    log.debug("iText FontFactory 등록 예외 ({}): {}", d, ex.getMessage());
+                } catch (Exception ignored) {
                 }
             }
-        } catch (Exception e) {
-            log.debug("iText FontFactory 클래스 접근 예외: {}", e.getMessage());
+        } catch (Exception ignored) {
         }
 
         // 4. JVM AWT GraphicsEnvironment 폰트 직접 등록
         try {
             GraphicsEnvironment ge = GraphicsEnvironment.getLocalGraphicsEnvironment();
+            int fontCount = 0;
             for (String d : fontDirs) {
                 try {
                     Path p = Paths.get(d);
                     if (Files.isDirectory(p)) {
                         try (var stream = Files.walk(p, 1)) {
-                            stream.filter(Files::isRegularFile)
+                            var list = stream.filter(Files::isRegularFile)
                                   .filter(f -> {
                                       String fn = f.getFileName().toString().toLowerCase();
                                       return fn.endsWith(".ttf") || fn.endsWith(".ttc") || fn.endsWith(".otf");
                                   })
-                                  .forEach(f -> {
-                                      try {
-                                          Font font = Font.createFont(Font.TRUETYPE_FONT, f.toFile());
-                                          ge.registerFont(font);
-                                          log.debug("JVM AWT 폰트 등록: {} ({})", font.getFontName(), f.getFileName());
-                                      } catch (Exception ignored) {}
-                                  });
+                                  .toList();
+                            for (Path f : list) {
+                                try {
+                                    Font font = Font.createFont(Font.TRUETYPE_FONT, f.toFile());
+                                    ge.registerFont(font);
+                                    fontCount++;
+                                } catch (Exception ignored) {}
+                            }
                         }
                     }
-                } catch (Exception ex) {
-                    log.debug("AWT 폰트 탐색 예외 ({}): {}", d, ex.getMessage());
+                } catch (Exception ignored) {
                 }
             }
-        } catch (Exception e) {
-            log.debug("AWT GraphicsEnvironment 등록 예외: {}", e.getMessage());
+            if (fontCount > 0) {
+                log.info("리포트 엔진 폰트 등록 완료 (총 {}개)", fontCount);
+            }
+        } catch (Exception ignored) {
         }
     }
 

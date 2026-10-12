@@ -128,7 +128,7 @@ public class Ja020k1Controller {
 
             return ResponseEntity.ok()
                     .contentType(mediaType)
-                    .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + exportResult.getFilename() + "\"")
+                    .header(HttpHeaders.CONTENT_DISPOSITION, com.kfp.aams.common.controller.RdReportController.buildContentDisposition("inline", exportResult.getFilename()))
                     .body(exportResult.getData());
         } catch (Exception e) {
             log.error("계좌(종목)별 주간 운용현황 미리보기 오류: ", e);
@@ -155,12 +155,9 @@ public class Ja020k1Controller {
             RdReportService.ExportResult exportResult = ja020k1Service.generateReport(
                     corpGr, fundCd, fundNm, ymd, gugan, format);
 
-            String encodedFileName = URLEncoder.encode(exportResult.getFilename(), StandardCharsets.UTF_8)
-                    .replaceAll("\\+", "%20");
-
             return ResponseEntity.ok()
                     .contentType(MediaType.parseMediaType(exportResult.getContentType()))
-                    .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + encodedFileName + "\"")
+                    .header(HttpHeaders.CONTENT_DISPOSITION, com.kfp.aams.common.controller.RdReportController.buildContentDisposition("attachment", exportResult.getFilename()))
                     .body(exportResult.getData());
         } catch (Exception e) {
             log.error("계좌(종목)별 주간 운용현황 내보내기 오류: ", e);

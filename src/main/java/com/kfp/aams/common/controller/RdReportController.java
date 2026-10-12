@@ -64,16 +64,13 @@ public class RdReportController {
             RdReportService.ExportResult result = rdReportService.generateReport(
                     corpGr, mrdName, mergedParams, effectiveFormat, downloadName);
 
-            String encodedFilename = URLEncoder.encode(result.getFilename(), StandardCharsets.UTF_8).replaceAll("\\+",
-                    "%20");
             MediaType mediaType = isHtmlFormat(effectiveFormat)
                     ? MediaType.valueOf("text/html; charset=UTF-8")
                     : MediaType.APPLICATION_PDF;
 
             return ResponseEntity.ok()
                     .contentType(mediaType)
-                    .header(HttpHeaders.CONTENT_DISPOSITION,
-                            "inline; filename=\"" + encodedFilename + "\"; filename*=UTF-8''" + encodedFilename)
+                    .header(HttpHeaders.CONTENT_DISPOSITION, buildContentDisposition("inline", result.getFilename()))
                     .body(result.getData());
         } catch (Exception e) {
             log.error("RD 공통 미리보기 실패: mrdName={}, error={}", mrdName, e.getMessage(), e);
@@ -99,14 +96,11 @@ public class RdReportController {
             RdReportService.ExportResult result = rdReportService.generateReport(
                     corpGr, mrdName, mergedParams, format, downloadName);
 
-            String encodedFilename = URLEncoder.encode(result.getFilename(), StandardCharsets.UTF_8).replaceAll("\\+",
-                    "%20");
             MediaType mediaType = MediaType.parseMediaType(result.getContentType());
 
             return ResponseEntity.ok()
                     .contentType(mediaType)
-                    .header(HttpHeaders.CONTENT_DISPOSITION,
-                            "attachment; filename=\"" + encodedFilename + "\"; filename*=UTF-8''" + encodedFilename)
+                    .header(HttpHeaders.CONTENT_DISPOSITION, buildContentDisposition("attachment", result.getFilename()))
                     .body(result.getData());
         } catch (Exception e) {
             log.error("RD 공통 내보내기 실패: mrdName={}, format={}, error={}", mrdName, format, e.getMessage(), e);
@@ -126,21 +120,37 @@ public class RdReportController {
             RdReportService.ExportResult result = rdReportService.generateReport(
                     req.getCorpGr(), req.getMrdName(), req.getParams(), effectiveFormat, req.getDownloadName());
 
-            String encodedFilename = URLEncoder.encode(result.getFilename(), StandardCharsets.UTF_8).replaceAll("\\+",
-                    "%20");
             MediaType mediaType = isHtmlFormat(effectiveFormat)
                     ? MediaType.valueOf("text/html; charset=UTF-8")
                     : MediaType.APPLICATION_PDF;
 
             return ResponseEntity.ok()
                     .contentType(mediaType)
-                    .header(HttpHeaders.CONTENT_DISPOSITION,
-                            "inline; filename=\"" + encodedFilename + "\"; filename*=UTF-8''" + encodedFilename)
+                    .header(HttpHeaders.CONTENT_DISPOSITION, buildContentDisposition("inline", result.getFilename()))
                     .body(result.getData());
         } catch (Exception e) {
             log.error("RD 공통 POST 미리보기 실패: mrdName={}, error={}", req.getMrdName(), e.getMessage(), e);
             return ResponseEntity.internalServerError().build();
         }
+    }
+
+    /**
+     * RFC 6266 / RFC 5987 호환 안전한 Content-Disposition 헤더 생성
+     * - ASCII filename fallback을 제공하여 Tomcat의 ISO-8859-1 직렬화 시 UnmappableCharacterException 원천 방지
+     * - filename*=UTF-8''... 표준 인코딩으로 모든 브라우저에서 한글 파일명 정상 표출
+     */
+    public static String buildContentDisposition(String dispositionType, String filename) {
+        if (filename == null || filename.isBlank()) {
+            filename = "report.pdf";
+        }
+        String ext = "";
+        int dotIdx = filename.lastIndexOf('.');
+        if (dotIdx >= 0) {
+            ext = filename.substring(dotIdx);
+        }
+        String asciiFallback = "report" + ext;
+        String encodedFilename = URLEncoder.encode(filename, StandardCharsets.UTF_8).replace("+", "%20");
+        return dispositionType + "; filename=\"" + asciiFallback + "\"; filename*=UTF-8''" + encodedFilename;
     }
 
     private String resolvePreviewFormat(String format, String userAgent) {
@@ -171,14 +181,11 @@ public class RdReportController {
             RdReportService.ExportResult result = rdReportService.generateReport(
                     req.getCorpGr(), req.getMrdName(), req.getParams(), req.getFormat(), req.getDownloadName());
 
-            String encodedFilename = URLEncoder.encode(result.getFilename(), StandardCharsets.UTF_8).replaceAll("\\+",
-                    "%20");
             MediaType mediaType = MediaType.parseMediaType(result.getContentType());
 
             return ResponseEntity.ok()
                     .contentType(mediaType)
-                    .header(HttpHeaders.CONTENT_DISPOSITION,
-                            "attachment; filename=\"" + encodedFilename + "\"; filename*=UTF-8''" + encodedFilename)
+                    .header(HttpHeaders.CONTENT_DISPOSITION, buildContentDisposition("attachment", result.getFilename()))
                     .body(result.getData());
         } catch (Exception e) {
             log.error("RD 공통 POST 내보내기 실패: mrdName={}, format={}, error={}", req.getMrdName(), req.getFormat(),

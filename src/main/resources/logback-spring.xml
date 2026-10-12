@@ -11,11 +11,11 @@
     <property name="FILE_LOG_PATTERN"
               value="%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%15.15t] %-40.40logger{39} : %msg%n" />
 
-    <!-- 1. 콘솔(터미널) 출력 Appender -->
+    <!-- 1. 콘솔(터미널) 출력 Appender (Windows 기본 콘솔 인코딩 MS949 적용하여 한글 깨짐 원천 방지) -->
     <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
         <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
             <pattern>${CONSOLE_LOG_PATTERN}</pattern>
-            <charset>UTF-8</charset>
+            <charset>MS949</charset>
         </encoder>
     </appender>
 
@@ -60,8 +60,10 @@
         </rollingPolicy>
     </appender>
 
-    <!-- 패키지별 로깅 레벨 -->
-    <logger name="com.kfp.aams" level="DEBUG" />
+    <!-- 패키지별 로깅 레벨 (공통 서비스 과도한 로그 억제 및 업무 로거 관리) -->
+    <logger name="com.kfp.aams" level="INFO" />
+    <logger name="com.kfp.aams.domain" level="DEBUG" />
+    <logger name="com.kfp.aams.common.service.RdReportService" level="INFO" />
     <logger name="com.kfp.aams.security" level="INFO" />
     <logger name="com.kfp.aams.sql" level="INFO" />
     <logger name="org.springframework.web" level="INFO" />

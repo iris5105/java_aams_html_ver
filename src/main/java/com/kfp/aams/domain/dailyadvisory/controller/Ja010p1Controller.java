@@ -89,7 +89,7 @@ public class Ja010p1Controller {
 
             return ResponseEntity.ok()
                     .contentType(mediaType)
-                    .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + exportResult.getFilename() + "\"")
+                    .header(HttpHeaders.CONTENT_DISPOSITION, com.kfp.aams.common.controller.RdReportController.buildContentDisposition("inline", exportResult.getFilename()))
                     .body(exportResult.getData());
         } catch (Exception e) {
             log.error("채권/현금 만기현황 (w_ja010p1) 미리보기 오류: ", e);
@@ -105,12 +105,9 @@ public class Ja010p1Controller {
         try {
             RdReportService.ExportResult exportResult = rdReportService.generateJa010p1Report(corpGr, ymd, format);
 
-            String encodedFileName = URLEncoder.encode(exportResult.getFilename(), StandardCharsets.UTF_8)
-                    .replaceAll("\\+", "%20");
-
             return ResponseEntity.ok()
                     .contentType(MediaType.parseMediaType(exportResult.getContentType()))
-                    .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + encodedFileName + "\"")
+                    .header(HttpHeaders.CONTENT_DISPOSITION, com.kfp.aams.common.controller.RdReportController.buildContentDisposition("attachment", exportResult.getFilename()))
                     .body(exportResult.getData());
         } catch (Exception e) {
             log.error("채권/현금 만기현황 (w_ja010p1) 내보내기 오류: ", e);

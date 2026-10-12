@@ -165,7 +165,7 @@ public class Ja010h1Controller {
 
             return ResponseEntity.ok()
                     .contentType(MediaType.parseMediaType(exportResult.getContentType()))
-                    .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + encodedFileName + "\"")
+                    .header(HttpHeaders.CONTENT_DISPOSITION, com.kfp.aams.common.controller.RdReportController.buildContentDisposition("attachment", exportResult.getFilename()))
                     .body(exportResult.getData());
         } catch (Exception e) {
             log.error("자산명세표1 (w_ja010h1) 리포트 다운로드 오류: ", e);
@@ -185,12 +185,10 @@ public class Ja010h1Controller {
 
             String ymdClean = (ymd != null) ? ymd.toString().replace("-", "") : "";
             String fileName = "보유자산종합현황(" + ymdClean + ").xlsx";
-            String encodedFileName = URLEncoder.encode(fileName, StandardCharsets.UTF_8)
-                    .replaceAll("\\+", "%20");
 
             return ResponseEntity.ok()
                     .contentType(MediaType.parseMediaType(exportResult.getContentType()))
-                    .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + encodedFileName + "\"")
+                    .header(HttpHeaders.CONTENT_DISPOSITION, com.kfp.aams.common.controller.RdReportController.buildContentDisposition("attachment", fileName))
                     .body(exportResult.getData());
         } catch (Exception e) {
             log.error("보유자산종합 엑셀 다운로드 오류: ", e);
@@ -219,7 +217,7 @@ public class Ja010h1Controller {
 
             return ResponseEntity.ok()
                     .contentType(mediaType)
-                    .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + exportResult.getFilename() + "\"")
+                    .header(HttpHeaders.CONTENT_DISPOSITION, com.kfp.aams.common.controller.RdReportController.buildContentDisposition("inline", exportResult.getFilename()))
                     .body(exportResult.getData());
         } catch (Exception e) {
             log.error("자산명세표1 (w_ja010h1) 리포트 미리보기 오류: ", e);

@@ -112,7 +112,7 @@ public class Ja010qController {
 
             return ResponseEntity.ok()
                     .contentType(mediaType)
-                    .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + exportResult.getFilename() + "\"")
+                    .header(HttpHeaders.CONTENT_DISPOSITION, com.kfp.aams.common.controller.RdReportController.buildContentDisposition("inline", exportResult.getFilename()))
                     .body(exportResult.getData());
         } catch (Exception e) {
             log.error("성과보수 상세내역 (w_ja010q) 미리보기 오류: ", e);
@@ -134,12 +134,9 @@ public class Ja010qController {
             RdReportService.ExportResult exportResult = ja010qService.generateReport(
                     fundCd, fundNm, ymd, haejiYmd, afGyulYmd, bfStart, af, format);
 
-            String encodedFileName = URLEncoder.encode(exportResult.getFilename(), StandardCharsets.UTF_8)
-                    .replaceAll("\\+", "%20");
-
             return ResponseEntity.ok()
                     .contentType(MediaType.parseMediaType(exportResult.getContentType()))
-                    .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + encodedFileName + "\"")
+                    .header(HttpHeaders.CONTENT_DISPOSITION, com.kfp.aams.common.controller.RdReportController.buildContentDisposition("attachment", exportResult.getFilename()))
                     .body(exportResult.getData());
         } catch (Exception e) {
             log.error("성과보수 상세내역 (w_ja010q) 내보내기 오류: ", e);
