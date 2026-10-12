@@ -71,18 +71,24 @@ function verifyCorpGrCookie() {
 function resolveCorpGr(pane) {
     if (!pane && window.currentPane) pane = window.currentPane;
 
-    // 1. 현재 화면/탭 pane 또는 DOM에서 filterCorpGr / corpGr / corpGrSelect / filterDddw 선택 요소를 최우선으로 확인
-    const selectEl = pane ? (pane.querySelector("#corpGrSelect") || pane.querySelector("#filterCorpGr") || pane.querySelector("select[name='corpGr']") || pane.querySelector("#filterDddw"))
-                          : (document.getElementById("corpGrSelect") || document.getElementById("filterCorpGr") || document.querySelector("select[name='corpGr']"));
+    // 1. 현재 화면/탭 pane에서 filterCorpGr / corpGr / corpGrSelect 선택 요소 확인
+    const selectEl = pane ? (pane.querySelector("#filterCorpGr") || pane.querySelector("select[name='corpGr']") || pane.querySelector("#corpGrSelect"))
+                          : (document.getElementById("filterCorpGr") || document.querySelector("select[name='corpGr']") || document.getElementById("corpGrSelect"));
     if (selectEl && selectEl.value && String(selectEl.value).trim()) {
         return String(selectEl.value).trim();
     }
 
-    // 2. 전역 변수 확인
+    // 2. 상단 글로벌 헤더 셀렉트박스(#corpGrSelect) 확인
+    const globalCorpEl = document.getElementById("corpGrSelect");
+    if (globalCorpEl && globalCorpEl.value && String(globalCorpEl.value).trim()) {
+        return String(globalCorpEl.value).trim();
+    }
+
+    // 3. 전역 변수 확인
     if (window.currentCorpGr && String(window.currentCorpGr).trim()) return String(window.currentCorpGr).trim();
     if (typeof g_corp_gr !== 'undefined' && g_corp_gr && String(g_corp_gr).trim()) return String(g_corp_gr).trim();
 
-    // 3. 쿠키 확인
+    // 4. 쿠키 확인 (savedCorpGr 우선, 그 다음 corpGr)
     const m = document.cookie.match(/(?:^|;\s*)savedCorpGr=([^;]*)/) 
            || document.cookie.match(/(?:^|;\s*)corpGr=([^;]*)/);
     if (m && m[1]) return decodeURIComponent(m[1]).trim();

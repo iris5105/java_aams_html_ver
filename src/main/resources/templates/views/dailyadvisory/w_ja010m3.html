@@ -190,7 +190,7 @@
             function initFilterDddw() {
                 const selectEl = pane ? pane.querySelector("#filterDddw") : document.getElementById("filterDddw");
                 if (!selectEl) return Promise.resolve();
-                const corpGr = resolveCorpGr();
+                const corpGr = resolveCorpGr(pane);
 
                 if (typeof window.f_dddwctl === 'function') {
                     // 웹 프로젝트 변환 f_dddwctl 호출을 통해 dual 데이터 생성
@@ -545,7 +545,7 @@
                 }
 
                 currentSelectedRowData = data;
-                const corpGr = resolveCorpGr();
+                const corpGr = resolveCorpGr(pane);
 
                 // 2) Bind Memo (mle_cond) & 권한 보호 (Rule 12: corpGr == '2402' 및 tblGb == 'a'만 수정 허용)
                 const memoEl = pane ? pane.querySelector("#ja010m3-memo") : document.getElementById("ja010m3-memo");
@@ -617,7 +617,7 @@
                     return;
                 }
 
-                const corpGr = resolveCorpGr();
+                const corpGr = resolveCorpGr(pane);
                 const mrd = (data.mrdNm || "").trim();
                 const fundCd = data.fundCd || "";
                 const fundNm = data.xxFundCd || "";
@@ -737,7 +737,7 @@
                     return;
                 }
 
-                const corpGr = resolveCorpGr();
+                const corpGr = resolveCorpGr(pane);
                 const mrd = (currentSelectedRowData.mrdNm || "").trim();
                 const fundCd = currentSelectedRowData.fundCd || "";
                 const fundNm = currentSelectedRowData.xxFundCd || "";

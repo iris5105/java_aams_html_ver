@@ -87,7 +87,7 @@
              * 2. dw_list::ue_dddw_retrieve: f_dddwctl (THIS, 'pg_cd', '', '', 1, '')
              */
             function ue_dddw_retrieve(corpGr) {
-                const targetCorp = corpGr || resolveCorpGr();
+                const targetCorp = corpGr || resolveCorpGr(pane);
                 return window.f_dddwctl.retrieveMultiple({
                     filter_dddw: ['dddw', targetCorp, '', 1, "szx1pt.obj_id='W_JA030C'"],
                     pg_cd: ['pg_cd', '', '', 1, '']
