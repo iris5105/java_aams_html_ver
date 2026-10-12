@@ -13,6 +13,8 @@ trigger: always_on
 7. srw에 f_dddwctl이 있는 항목이 있다면 srd파일의 해당 컬럼은 f_dddwctl.js에 올바른 parameter를 전달하여 해당 리스트를 보여주도록 하고, f_dddwctl로 넘어오는 드롭다운 리스트는 무조건 2칸(앞: 코드, 뒤: 코드명)으로 분할 구성하며, 화면(그리드 셀)에는 코드명이 나오게끔 처리한다.
 8. **테이블 행 선택(Row Select) 및 마스터-디테일 연동 표준 규격:**
    - Tabulator 그리드 생성 시 편집 가능 셀(input, list 드롭다운 등)의 이벤트 전파 중단(stopPropagation) 및 비편집 셀 클릭 시에도 안정적인 단일 행 선택과 연동을 보장하기 위해 `common.js`의 `setupTabulatorRowSelection(grid, syncDetailFunc)`을 연결한다.
+   - **인라인 편집 그리드 원클릭 편집 진입 필수 옵션 (`editTriggerEvent: "click"`):**
+     - 편집 가능한 컬럼(`editor` 존재)이 포함된 그리드는 초기화 옵션에 반드시 `editTriggerEvent: "click"`을 명시하여 단일 행 선택(`selectableRows: 1`) 환경에서도 비선택 행의 셀을 단 1회 클릭했을 때 행 선택과 동시에 즉각 에디터(`<input>`, `list` 등)가 열리고 포커스가 유지되도록 보장한다.
    - 마스터-디테일 구조(또는 상세 패널/서브 그리드 연동 화면)에서는 다음의 **삼중 안전망(Triple Fallback)**을 표준 계약으로 일관되게 적용한다:
      ```javascript
      // 1) 전역 헬퍼 연결 (캡처링/버블링 단일 이벤트 바인딩)
@@ -47,7 +49,7 @@ trigger: always_on
          loadDetailGrid(data);
      }
      ```
-   - 인라인 편집 셀의 경우 컬럼 설정에 `cellClick: aamsCellEdit`를 지정하여 셀 편집 진입 전 선행 행 선택을 보장한다.
+   - 인라인 편집 셀의 경우 컬럼 설정에 `cellClick: aamsCellEdit`를 지정하여 셀 편집 진입 전 선행 행 선택을 보장한다. `common.js`의 `aamsCellEdit`는 비선택 행 클릭 시 행 선택 전환 후 지연 실행을 통해 마우스 이벤트 버블링과 DOM 포커스 간섭을 원천 차단하므로, 화면 스크립트의 `rowClick`이나 `syncDetail` 등에서 불필요하게 `row.select()`를 중복 호출하지 않는다.
    - 데이터 조회 후(또는 초기 로드/새로고침 시) 데이터가 존재할 경우 행 선택 및 포커스는 **규칙 15번의 rowfocus 2대 표준 정책**에 따라 자동 분기 처리된다.
    - 단일 그리드 화면에서도 행 선택 시 활성화 표시를 위해 `setupTabulatorRowSelection(grid)`를 적용한다.
 9. 화면 내에 [조회], [입력] 등의 액션 버튼을 중복 생성하지 않고, 상단 공통 툴바(fragments/tab_header :: toolbarButtons)를 사용하며 pane.onSearch, pane.onInput, pane.onSave, pane.onCorpGrChange 표준 계약 함수를 연결한다.
@@ -74,6 +76,38 @@ trigger: always_on
     - **필터 변경 시 기존 데이터 유지 규격:** 사용자가 필터 조건(날짜, DDDW, 코드검색, 회사그룹 등)을 변경하더라도, 테이블(그리드)이나 상세 패널에 보여지는 데이터는 사용자가 상단 툴바의 [조회] 버튼을 클릭하여 새로운 조회가 완료되기 전까지 **기존 데이터를 그대로 유지하여 표출**한다. 필터 변경 이벤트(onCorpGrChange, 날짜 선택, 코드 선택 등)에서 `grid.clearData()` 등으로 기존 데이터를 비우지 않는다.
     - 필터 조작 시에는 해당 UI 요소의 값 바인딩(input 값 갱신, 하이라이트 달력 날짜 목록 갱신 등)만 수행하며, 실제 데이터 조회 및 테이블 갱신은 **사용자가 상단 툴바의 [조회] 버튼(`pane.onSearch`)을 클릭했을 때에만 단독으로 실행**되도록 한다. (단, 파워빌더 화면 원본에 `boolean eb_direct_retrieve = true` 구문이 있는 경우 화면 초기 진입 시 1회 자동 조회는 정상 유지)
     - 상단 툴바의 [새로고침] 버튼은 조회된 그리드 데이터나 수정 중인 폼을 초기 상태로 되돌리는 용도로만 동작하며, 이 때에만 `clearData()`를 수행한다.
+20. **그리드 날짜(Date) 타입 컬럼 수기 입력 유효성 검증 표준 규격:**
+    - 신용/대출 시작일자, 만기일자, 약정일자, 회계기일 등 날짜 데이터를 그리드 셀에서 수기로 입력받는 경우, 날짜 포맷 오류(예: 8자리 미달/초과) 및 유효하지 않은 일자(예: 20261340, 20260230 등)가 서버로 전송되는 문제를 원천 방지하기 위해 다음 3단계 표준 검증 체계를 필수 적용한다:
+      1) **에디터 지정 (`aamsDateEditor`):** 날짜 수기 입력 컬럼 정의 시 `editor: (window.aamsDateEditor || "input")`를 지정하여 입력/포커스 아웃 시점에 구분자 자동 정규화(YYYY-MM-DD 또는 YYYYMMDD) 및 1차 형식 검증을 수행한다.
+      2) **셀 편집 완료 검증 (`aamsValidateDateCell`):** `cellEdited` 콜백에 `aamsValidateDateCell`을 연결하여 연/월/일 범위(1~12월, 월별 말일, 윤년)를 정밀 검증하고, 유효하지 않은 값 입력 시 `showToast("올바른 날짜(YYYY-MM-DD)를 입력해주세요.", "warning")` 경고 표출 및 이전 값으로 자동 롤백한다:
+         ```javascript
+         {
+             title: "시작일자",
+             field: "startDate",
+             hozAlign: "center",
+             editor: window.aamsDateEditor || "input",
+             editorParams: { separator: "-" }, // 기본 "-" (YYYY-MM-DD), 필요 시 "" (YYYYMMDD)
+             cellClick: aamsCellEdit,
+             cellEdited: function(cell) {
+                 aamsValidateDateCell(cell, function(c, validDate) {
+                     markRowUpdated(c); // 유효성 통과 시 변경 상태 마킹
+                 });
+             }
+         }
+         ```
+      3) **저장 시 전수 검증 (`aamsValidateGridDates`):** 상단 공통 [저장] 버튼(`pane.onSave`) 실행 시, 서버 통신 전에 `aamsValidateGridDates(grid, ['startDate', 'endDate'])`를 호출하여 전체 행의 날짜 유효성을 일괄 검사하고 실패 시 저장을 즉각 차단한다:
+         ```javascript
+         pane.onSave = function() {
+             if (!aamsValidateGridDates(grid, ['startDate', 'endDate'])) {
+                 return; // 잘못된 날짜가 포함된 경우 저장 중단
+             }
+             saveData();
+         };
+         ```
+21. **그리드 행/셀 테두리 및 행 선택 아웃라인 정합성 규격 (Zero-Row-Outline 원칙):**
+    - 그리드 행 선택(`.tabulator-selected`) 및 포커스(`:focus`) 시 행 전체 요소에 `outline` 속성을 지정하지 않는다 (`outline: none !important`).
+    - `layout: "fitDataFill"` 등 그리드 전체 너비가 가변적이거나 컨테이너보다 작은 구조에서 행 엘리먼트에 outline이 부여되면 우측 끝 빈 공간이나 마지막 컬럼 셀 상단/우측에 불필요한 테두리 선이 돌출되거나 이중 테두리가 생기는 시각적 결함이 발생한다.
+    - 행 및 셀 선택 하이라이트는 공통 CSS의 배경색(`background-color: #bae6fd`)과 셀 테두리(`border-bottom`, `border-right`)로만 표현하며, 개별 화면 CSS나 인라인 스타일에서 행/셀에 커스텀 `outline`을 임의로 부여하는 것을 엄격히 금지한다.
 
 ---
 
@@ -118,6 +152,10 @@ trigger: always_on
 
 6. **개별 화면 내 중복 `<style>` 블록 생성 금지:**
    - 행 선택 하이라이트(`.tabulator-selected`), 인라인 편집 셀 테두리(`.cell-editable-blue`), MRD 리포트 내보내기 버튼(`.btn-export-format`, `.report-export-group`), 분할 스플리터 레이아웃 등은 이미 공통 CSS에 완전 구현되어 있으므로 각 화면 템플릿에 로컬 `<style>` 블록을 중복 작성하지 않는다.
+
+7. **행 선택 하이라이트 및 셀 테두리 돌출 방지 (Zero-Row-Outline):**
+   - 그리드 행 선택(`.tabulator-selected`) 및 포커스(`:focus`) 스타일은 행 전체에 `outline`을 주지 않고, 셀 배경색(`.tabulator-cell`의 `#bae6fd`) 및 셀 경계선(`border-bottom`, `border-right`)으로만 구성한다.
+   - `fitDataFill` 모드에서 마지막 컬럼 바깥의 빈 영역이나 마지막 셀 상단/우측에 불필요한 돌출 테두리가 생기지 않도록 개별 화면에서 커스텀 outline을 절대 추가하지 않는다.
 
 ---
 
@@ -231,6 +269,42 @@ trigger: always_on
      formatPercent(12.345, 2);     // "12.35%"
      ```
 
+8. **그리드 날짜 유효성 검증 공통 유틸리티 (`aamsDateEditor`, `aamsValidateDateCell`, `aamsValidateGridDates`, `parseValidDate`):**
+   - 그리드 컬럼에서 날짜를 인라인으로 수기 입력받을 때 날짜 형식 및 논리적 유효성(윤년, 월별 말일)을 검증하기 위한 4종 공통 유틸리티를 호출한다:
+     ```javascript
+     // 1) 날짜 인라인 에디터 (Tabulator column editor)
+     // - 숫자만 입력 시 자동 하이픈 변환, 엔터/블러 시 유효성 검증
+     {
+         title: "시작일자",
+         field: "startDate",
+         hozAlign: "center",
+         editor: window.aamsDateEditor || "input",
+         editorParams: { separator: "-" }, // 기본 "-" (YYYY-MM-DD), 필요 시 "" (YYYYMMDD)
+         cellClick: aamsCellEdit,
+         cellEdited: function(cell) {
+             // 2) 셀 편집 완료 검증기: 실패 시 이전 값으로 롤백 및 토스트 경고
+             aamsValidateDateCell(cell, function(c, validDate) {
+                 markRowUpdated(c);
+             });
+         }
+     }
+
+     // 3) 저장 전 그리드 일괄 날짜 검증기
+     // - 대상 그리드의 전체 행 중 유효하지 않은 날짜가 하나라도 있으면 false 반환 및 토스트 경고
+     if (!aamsValidateGridDates(grid, ['startDate', 'endDate'])) {
+         return; // 저장 차단
+     }
+
+     // 4) 단일 날짜 문자열 정규화 및 유효성 검사기
+     parseValidDate("20261012");      // "2026-10-12"
+     parseValidDate("2026-13-01");   // null (유효하지 않음)
+     ```
+
+9. **인라인 편집 셀 원클릭 선행 선택 핸들러 (`aamsCellEdit` 및 `editTriggerEvent: "click"`):**
+   - 인라인 편집이 가능한 컬럼에는 `cellClick: aamsCellEdit`를 지정하고 그리드 옵션에는 `editTriggerEvent: "click"`을 지정한다:
+     - `aamsCellEdit`는 비선택 행의 셀을 클릭했을 때 행 선택(`row.select()`)을 먼저 실행한 뒤, DOM 갱신과 마우스 이벤트 버블링이 끝난 후 지연 실행(`setTimeout`)으로 안전하게 에디터를 실행하여 **단 1회 클릭으로 행 선택과 에디터 진입이 동시에 완료**되도록 보장한다.
+     - 외부 이벤트나 `syncDetail`에서 불필요하게 `row.select()`를 중복 호출하여 에디터 포커스를 빼앗지 않도록 한다.
+
 ---
 
 MDI 환경 스크립트 및 조각 뷰 작성 규칙 (가비지 코드 방지)
@@ -317,6 +391,9 @@ MDI 환경 스크립트 및 조각 뷰 작성 규칙 (가비지 코드 방지)
 2. 해당 컬럼은 p_xx_(컬럼명)에서의 컬럼의 뒤에 타이틀이 없는 빈칸을 만들고 그곳에 돋보기 버튼을 눌러서 해당 컬럼에 대한 다이나믹서치(코드검색,모달)를 적용시켜준다.
 3. SRD 파일에서 p_dd_(컬럼명) 가 있다면 이는 달력 팝업버튼이다.
 4. p_dd_(컬럼명)의 컬럼의 뒤에 빈칸을 만들고 해당 칸의 달력을 눌렀을 때 날자선택 팝업이 뜬다.
+5. **날짜(Date) 컬럼 인라인 편집 및 달력 팝업 구성 규격:**
+   - 날짜를 수기로 직접 입력할 수 있는 컬럼은 `editor: (window.aamsDateEditor || "input")`, `cellClick: aamsCellEdit`, `cellEdited: aamsValidateDateCell`을 연동한다.
+   - 달력 팝업 버튼(`p_dd_` 컬럼)과 함께 배치되는 경우, 달력 팝업 선택 시에도 `parseValidDate`를 거쳐 셀에 값이 주입되도록 구성하며 저장 시 `aamsValidateGridDates`로 전수 검증한다.
 
 그리드 컬럼 데이터 정렬 기준 (Tabulator hozAlign)
 1. dto의 데이터의 형식 구분은 .srd 파일의 각 컬럼별 데이터 타입을 따른다.
