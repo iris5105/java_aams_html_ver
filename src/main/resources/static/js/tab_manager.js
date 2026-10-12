@@ -12,6 +12,11 @@ class TabManager {
     }
 
     init() {
+        if ('scrollRestoration' in history) {
+            history.scrollRestoration = 'manual';
+        }
+        window.scrollTo(0, 0);
+
         this.openTabs = [];
         this.activeTabKey = null;
         this.activeTopPgmNo = null;
@@ -330,7 +335,12 @@ class TabManager {
         document.querySelectorAll("#tabBar .tab-item").forEach(item => {
             if (item.getAttribute("data-tab-key") === tabKey || item.getAttribute("data-pgm-no") === tabKey) {
                 item.classList.add("active");
-                item.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+                // window 레벨 스크롤을 유발하지 않도록 tabBar 컨테이너 내부만 안전하게 가로 스크롤
+                const tabBar = document.getElementById("tabBar");
+                if (tabBar) {
+                    const scrollLeft = item.offsetLeft - tabBar.offsetLeft - (tabBar.clientWidth / 2) + (item.clientWidth / 2);
+                    tabBar.scrollTo({ left: Math.max(0, scrollLeft), behavior: 'smooth' });
+                }
             } else {
                 item.classList.remove("active");
             }
@@ -496,7 +506,12 @@ class TabManager {
                     parent.classList.remove("collapsed");
                     parent = parent.parentElement ? parent.parentElement.closest(".menu-group") : null;
                 }
-                el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                // 사이드바 내부 컨테이너만 스크롤하여 최상위 window 스크롤(헤더 밀림) 방지
+                const menuScroll = el.closest(".sidebar-menu") || el.closest(".left-sidebar");
+                if (menuScroll) {
+                    const topPos = el.offsetTop - menuScroll.offsetTop;
+                    menuScroll.scrollTo({ top: Math.max(0, topPos - 40), behavior: 'smooth' });
+                }
             } else {
                 el.classList.remove("active");
             }
