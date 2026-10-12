@@ -306,7 +306,23 @@ public class RdReportService {
             }
         }
 
-        // 2. src/main/resources/rd 및 target/classes/rd 디렉터리 직접 탐색 (대소문자 무관 매칭)
+        // 2. JAR 패키징 배포 환경(리눅스 등) 대비: 클래스패스 상의 모든 rd/* 리소스를 대소문자 무관(case-insensitive) 탐색
+        try {
+            org.springframework.core.io.support.PathMatchingResourcePatternResolver resolver = new org.springframework.core.io.support.PathMatchingResourcePatternResolver();
+            org.springframework.core.io.Resource[] resources = resolver.getResources("classpath*:rd/*");
+            for (org.springframework.core.io.Resource r : resources) {
+                if (r.isReadable() && r.getFilename() != null && r.getFilename().equalsIgnoreCase(cleanName)) {
+                    try (InputStream in = r.getInputStream()) {
+                        Files.copy(in, target, StandardCopyOption.REPLACE_EXISTING);
+                        TEMPLATE_CACHE.put(cleanName, target);
+                        log.info("RD 템플릿 클래스패스 대소문자 무시 패턴 매칭 완료: {} (실제: {}) -> {}", cleanName, r.getFilename(), target.toAbsolutePath());
+                        return target;
+                    }
+                }
+            }
+        } catch (Exception ignored) {}
+
+        // 3. src/main/resources/rd 및 target/classes/rd 디렉터리 직접 탐색 (로컬 소스 환경 지원)
         Path[] candidateDirs = new Path[] {
             Paths.get("src", "main", "resources", "rd"),
             Paths.get(System.getProperty("user.dir", "."), "src", "main", "resources", "rd"),
