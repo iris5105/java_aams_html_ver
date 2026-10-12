@@ -160,13 +160,14 @@ public class Ja010jController {
 
     /**
      * Helper to resolve corporate group (Guideline 1: no default value)
+     * filter에 corpGr 관련 dddw가 없는 화면이므로 엑세스토큰(UserPrincipal)의 corpGr을 최우선으로 반영
      */
     private String resolveCorpGr(String paramCorpGr, String cookieCorpGr, UserPrincipal principal) {
         if (paramCorpGr != null && !paramCorpGr.isBlank()) return paramCorpGr.trim();
-        if (cookieCorpGr != null && !cookieCorpGr.isBlank()) return cookieCorpGr.trim();
         if (principal != null && principal.getCorpGr() != null && !principal.getCorpGr().isBlank()) {
             return principal.getCorpGr().trim();
         }
+        if (cookieCorpGr != null && !cookieCorpGr.isBlank()) return cookieCorpGr.trim();
         return null;
     }
 }

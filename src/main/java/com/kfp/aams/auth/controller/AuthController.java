@@ -148,6 +148,11 @@ public class AuthController {
             corpGrCookie.setPath("/");
             corpGrCookie.setMaxAge(30 * 24 * 60 * 60);
             response.addCookie(corpGrCookie);
+
+            Cookie userCorpGrCookie = new Cookie("userCorpGr", userDto.getCorpGr());
+            userCorpGrCookie.setPath("/");
+            userCorpGrCookie.setMaxAge(30 * 24 * 60 * 60);
+            response.addCookie(userCorpGrCookie);
         }
 
         // corp_gr 쿠키 삭제 (corpGr 단일화)
@@ -284,6 +289,11 @@ public class AuthController {
         corpGrCookie.setPath("/");
         corpGrCookie.setMaxAge(30 * 24 * 60 * 60);
         response.addCookie(corpGrCookie);
+
+        Cookie userCorpGrCookie = new Cookie("userCorpGr", newCorpGr);
+        userCorpGrCookie.setPath("/");
+        userCorpGrCookie.setMaxAge(30 * 24 * 60 * 60);
+        response.addCookie(userCorpGrCookie);
 
         Cookie clearCorpGrCookie = new Cookie("corp_gr", "");
         clearCorpGrCookie.setPath("/");

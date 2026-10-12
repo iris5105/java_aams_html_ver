@@ -62,33 +62,56 @@ function verifyCorpGrCookie() {
 }
 
 /**
+/**
  * Safe Resolution for Current corpGr / filterCorpGr
- * Resolves corpGr in priority:
- * 1. #corpGrSelect or #filterCorpGr or select[name='corpGr'] element within pane / document
- * 2. window.currentCorpGr or g_corp_gr
- * 3. savedCorpGr / corpGr / corp_gr cookie
+ * 1. 현재 화면/탭 pane 내 필터에 corpGr 관련 dddw/선택 요소(#filterCorpGr, select[name='corpGr'])가 직접 존재하는 경우:
+ *    -> 해당 화면 필터의 선택값을 최우선으로 반환
+ * 2. 현재 화면/탭 pane 내 필터에 corpGr 관련 dddw가 없는 경우 (예: w_ja010f 등):
+ *    -> 다른 화면에서 바꾼 쿠키(savedCorpGr)나 전역 상태로 오염되지 않도록,
+ *       "엑세스 토큰에 저장된 로그인 사용자의 corpGr"을 최우선으로 반환!
+ *       (window.tokenCorpGr, meta[name='token-corp-gr'], userCorpGr 불변 쿠키)
  */
 function resolveCorpGr(pane) {
     if (!pane && window.currentPane) pane = window.currentPane;
 
-    // 1. 현재 화면/탭 pane에서 filterCorpGr / corpGr / corpGrSelect 선택 요소 확인
-    const selectEl = pane ? (pane.querySelector("#filterCorpGr") || pane.querySelector("select[name='corpGr']") || pane.querySelector("#corpGrSelect"))
-                          : (document.getElementById("filterCorpGr") || document.querySelector("select[name='corpGr']") || document.getElementById("corpGrSelect"));
-    if (selectEl && selectEl.value && String(selectEl.value).trim()) {
-        return String(selectEl.value).trim();
+    // 1. 현재 화면/탭 pane의 필터 영역에 corpGr 관련 dddw/선택 요소가 직접 존재하는지 확인
+    const paneSelectEl = pane ? (pane.querySelector("#filterCorpGr") || pane.querySelector("select[name='corpGr']")) : null;
+    if (paneSelectEl && paneSelectEl.value && String(paneSelectEl.value).trim()) {
+        return String(paneSelectEl.value).trim();
     }
 
-    // 2. 상단 글로벌 헤더 셀렉트박스(#corpGrSelect) 확인
+    // 2. filter에 corpGr 관련 dddw가 없는 경우 -> 엑세스토큰에 저장된 corpGr을 최우선 반환
+    // 2-1) MDI 메인 프레임워크 전역 변수 (UserPrincipal에서 추출 주입)
+    if (window.tokenCorpGr && String(window.tokenCorpGr).trim()) {
+        return String(window.tokenCorpGr).trim();
+    }
+    // 2-2) 메타 태그 (w_home5.html)
+    const metaTokenEl = document.querySelector('meta[name="token-corp-gr"]');
+    if (metaTokenEl && metaTokenEl.content && String(metaTokenEl.content).trim()) {
+        return String(metaTokenEl.content).trim();
+    }
+    // 2-3) 불변 사용자 소속 토큰 쿠키 (userCorpGr)
+    const mUser = document.cookie.match(/(?:^|;\s*)userCorpGr=([^;]*)/);
+    if (mUser && mUser[1]) {
+        const val = decodeURIComponent(mUser[1]).trim();
+        if (val) return val;
+    }
+    // 2-4) 현재 화면/탭 pane에 서버가 주입한 data-token-corp-gr 속성
+    if (pane && typeof pane.getAttribute === 'function') {
+        const paneTokenCorp = pane.getAttribute('data-token-corp-gr');
+        if (paneTokenCorp && paneTokenCorp.trim()) return paneTokenCorp.trim();
+    }
+
+    // 3. 글로벌 상단 헤더 셀렉트박스(#corpGrSelect) 확인 (전사 관리자 모달 등)
     const globalCorpEl = document.getElementById("corpGrSelect");
     if (globalCorpEl && globalCorpEl.value && String(globalCorpEl.value).trim()) {
         return String(globalCorpEl.value).trim();
     }
 
-    // 3. 전역 변수 확인
+    // 4. 최후의 폴백 (비로그인 환경 등)
     if (window.currentCorpGr && String(window.currentCorpGr).trim()) return String(window.currentCorpGr).trim();
     if (typeof g_corp_gr !== 'undefined' && g_corp_gr && String(g_corp_gr).trim()) return String(g_corp_gr).trim();
 
-    // 4. 쿠키 확인 (savedCorpGr 우선, 그 다음 corpGr)
     const m = document.cookie.match(/(?:^|;\s*)savedCorpGr=([^;]*)/) 
            || document.cookie.match(/(?:^|;\s*)corpGr=([^;]*)/);
     if (m && m[1]) return decodeURIComponent(m[1]).trim();

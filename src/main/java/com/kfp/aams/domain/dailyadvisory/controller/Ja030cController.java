@@ -162,11 +162,11 @@ public class Ja030cController {
         if (paramCorpGr != null && !paramCorpGr.isBlank()) {
             return paramCorpGr;
         }
+        if (principal != null && principal.getCorpGr() != null && !principal.getCorpGr().isBlank()) {
+            return principal.getCorpGr();
+        }
         if (cookieCorpGr != null && !cookieCorpGr.isBlank()) {
             return cookieCorpGr;
-        }
-        if (principal != null && principal.getCorpGr() != null) {
-            return principal.getCorpGr();
         }
         return "";
     }

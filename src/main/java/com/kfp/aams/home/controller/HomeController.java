@@ -41,6 +41,8 @@ public class HomeController {
         String activePgmNo = (topMenuList != null && !topMenuList.isEmpty()) ? topMenuList.get(0).getPgmNo() : "00804";
         List<MenuDto> sideMenuList = menuService.getSideMenuList(activePgmNo, userId, userNm);
 
+        String tokenCorpGr = (principal != null && principal.getCorpGr() != null) ? principal.getCorpGr().trim() : "";
+        model.addAttribute("tokenCorpGr", tokenCorpGr);
         model.addAttribute("corpGr", corpGr);
         model.addAttribute("companyName", principal.getCompanyName());
         model.addAttribute("userNm", userNm);

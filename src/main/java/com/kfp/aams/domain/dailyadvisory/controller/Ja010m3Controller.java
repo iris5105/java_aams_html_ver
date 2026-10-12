@@ -265,11 +265,11 @@ public class Ja010m3Controller {
     private String resolveCorpGr(String paramCorpGr, String cookieCorpGr, UserPrincipal principal) {
         if (paramCorpGr != null && !paramCorpGr.isBlank())
             return paramCorpGr;
-        if (cookieCorpGr != null && !cookieCorpGr.isBlank())
-            return cookieCorpGr;
         if (principal != null && principal.getCorpGr() != null && !principal.getCorpGr().isBlank()) {
             return principal.getCorpGr();
         }
+        if (cookieCorpGr != null && !cookieCorpGr.isBlank())
+            return cookieCorpGr;
         return "";
     }
 }
