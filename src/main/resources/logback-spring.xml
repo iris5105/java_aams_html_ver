@@ -11,11 +11,14 @@
     <property name="FILE_LOG_PATTERN"
               value="%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%15.15t] %-40.40logger{39} : %msg%n" />
 
-    <!-- 1. 콘솔(터미널) 출력 Appender (Windows 기본 콘솔 인코딩 MS949 적용하여 한글 깨짐 원천 방지) -->
+    <!-- 콘솔 출력 인코딩: 시스템 프로퍼티 console.charset 이 전달되면 해당 인코딩(Windows 개발 PC: MS949), 미전달 시 표준 UTF-8(Linux 서버 배포) 적용 -->
+    <property name="CONSOLE_CHARSET" value="${console.charset:-UTF-8}" />
+
+    <!-- 1. 콘솔(터미널) 출력 Appender -->
     <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
         <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
             <pattern>${CONSOLE_LOG_PATTERN}</pattern>
-            <charset>MS949</charset>
+            <charset>${CONSOLE_CHARSET}</charset>
         </encoder>
     </appender>
 

@@ -56,7 +56,8 @@ public class RdReportController {
             @RequestParam(value = "downloadName", required = false) String downloadName,
             @RequestParam(value = "params", required = false) String paramsJson,
             @RequestHeader(value = "User-Agent", required = false) String userAgent,
-            @RequestParam Map<String, String> allParams) {
+            @RequestParam Map<String, String> allParams,
+            jakarta.servlet.http.HttpServletResponse response) {
 
         try {
             Map<String, Object> mergedParams = extractDynamicParams(allParams, paramsJson);
@@ -65,9 +66,11 @@ public class RdReportController {
                     corpGr, mrdName, mergedParams, effectiveFormat, downloadName);
 
             if (isHtmlFormat(effectiveFormat)) {
-                return ResponseEntity.ok()
-                        .contentType(MediaType.valueOf("text/html; charset=UTF-8"))
-                        .body(result.getData());
+                response.setContentType("text/html; charset=UTF-8");
+                response.setContentLength(result.getData().length);
+                response.getOutputStream().write(result.getData());
+                response.getOutputStream().flush();
+                return null;
             }
 
             return ResponseEntity.ok()
@@ -116,16 +119,19 @@ public class RdReportController {
     @PostMapping("/preview")
     public ResponseEntity<byte[]> previewPost(
             @RequestBody RdReportRequest req,
-            @RequestHeader(value = "User-Agent", required = false) String userAgent) {
+            @RequestHeader(value = "User-Agent", required = false) String userAgent,
+            jakarta.servlet.http.HttpServletResponse response) {
         try {
             String effectiveFormat = resolvePreviewFormat(req.getFormat(), userAgent);
             RdReportService.ExportResult result = rdReportService.generateReport(
                     req.getCorpGr(), req.getMrdName(), req.getParams(), effectiveFormat, req.getDownloadName());
 
             if (isHtmlFormat(effectiveFormat)) {
-                return ResponseEntity.ok()
-                        .contentType(MediaType.valueOf("text/html; charset=UTF-8"))
-                        .body(result.getData());
+                response.setContentType("text/html; charset=UTF-8");
+                response.setContentLength(result.getData().length);
+                response.getOutputStream().write(result.getData());
+                response.getOutputStream().flush();
+                return null;
             }
 
             return ResponseEntity.ok()

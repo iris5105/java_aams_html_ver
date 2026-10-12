@@ -52,7 +52,7 @@ pipeline {
 
                     # 4. 젠킨스가 빌드 종료 후 프로세스를 종료시키지 않도록 설정하고 24시간 백그라운드 실행
                     echo ">>> AAMS 서버 24시간 백그라운드 구동 시작..."
-                    BUILD_ID=dontKillMe JENKINS_NODE_COOKIE=dontKillMe nohup ${JAVA_HOME}/bin/java -jar ${DEPLOY_DIR}/${JAR_NAME} --server.port=${PORT} > ${DEPLOY_DIR}/app.log 2>&1 &
+                    BUILD_ID=dontKillMe JENKINS_NODE_COOKIE=dontKillMe nohup ${JAVA_HOME}/bin/java -Dfile.encoding=UTF-8 -Dconsole.charset=UTF-8 -jar ${DEPLOY_DIR}/${JAR_NAME} --server.port=${PORT} > ${DEPLOY_DIR}/app.log 2>&1 &
 
                     sleep 5
 

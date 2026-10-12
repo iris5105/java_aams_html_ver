@@ -208,7 +208,8 @@ public class Ja010m3Controller {
             @RequestHeader(value = "User-Agent", required = false) String userAgent,
             @AuthenticationPrincipal Object principalObj,
             @CookieValue(name = "savedCorpGr", required = false) String cookieCorpGr1,
-            @CookieValue(name = "corpGr", required = false) String cookieCorpGr2) {
+            @CookieValue(name = "corpGr", required = false) String cookieCorpGr2,
+            jakarta.servlet.http.HttpServletResponse response) {
 
         UserPrincipal principal = (principalObj instanceof UserPrincipal p) ? p : null;
         String cookieCorpGr = (cookieCorpGr1 != null && !cookieCorpGr1.isBlank()) ? cookieCorpGr1 : cookieCorpGr2;
@@ -223,9 +224,11 @@ public class Ja010m3Controller {
                     corpGr, mrdName, fundCd, fundNm, gyulYmd, effectiveFormat);
 
             if (isMobile) {
-                return ResponseEntity.ok()
-                        .contentType(MediaType.valueOf("text/html; charset=UTF-8"))
-                        .body(exportResult.getData());
+                response.setContentType("text/html; charset=UTF-8");
+                response.setContentLength(exportResult.getData().length);
+                response.getOutputStream().write(exportResult.getData());
+                response.getOutputStream().flush();
+                return null;
             }
 
             return ResponseEntity.ok()
