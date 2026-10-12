@@ -27,7 +27,7 @@ pipeline {
                 echo '>>> [2/3] Maven 패키징 빌드 시작...'
                 sh '''
                     chmod +x mvnw
-                    ./mvnw clean package -DskipTests
+                    ./mvnw clean package -Dmaven.test.skip=true
                 '''
             }
         }
