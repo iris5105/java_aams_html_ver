@@ -2016,8 +2016,11 @@ function aamsCellEdit(e, cell) {
                 options.columnDefaults.vertAlign = "middle";
             }
 
-            // When single row selection is configured, enable rolling selection to prevent deselecting on click
-            if ((options.selectableRows === 1 || options.selectable === 1) && options.selectableRowsRollingSelection === undefined) {
+            // Default to single row selection (selectableRows: 1) if not explicitly configured
+            if (options.selectableRows === undefined && options.selectable === undefined) {
+                options.selectableRows = 1;
+                options.selectableRowsRollingSelection = true;
+            } else if ((options.selectableRows === 1 || options.selectable === 1) && options.selectableRowsRollingSelection === undefined) {
                 options.selectableRowsRollingSelection = true;
             }
 

@@ -53,6 +53,8 @@ function initPublicStocksGrid() {
     gridPublicStocks = new Tabulator(el, {
         layout: "fitColumns",
         height: "100%",
+        selectableRows: 1,
+        selectableRowsRollingSelection: true,
         placeholder: "<span>데이터가 없습니다.</span>",
         columns: [
             { title: "발행기관", field: "balhCo", hozAlign: "center", width: 100 },
@@ -85,6 +87,8 @@ function initSubscriptionsGrid() {
     gridSubscriptions = new Tabulator(el, {
         layout: "fitColumns",
         height: "100%",
+        selectableRows: 1,
+        selectableRowsRollingSelection: true,
         placeholder: "<span>데이터가 없습니다.</span>",
         columns: [
             { title: "종목명", field: "jmNm", minWidth: 110 },
@@ -113,6 +117,8 @@ function initProposalsGrid() {
     gridProposals = new Tabulator(el, {
         layout: "fitColumns",
         height: "100%",
+        selectableRows: 1,
+        selectableRowsRollingSelection: true,
         placeholder: "<span>데이터가 없습니다.</span>",
         columns: [
             { title: "의뢰일시", field: "ymd", hozAlign: "center", width: 120, formatter: cell => formatDate(cell.getValue(), true) },
@@ -137,6 +143,8 @@ function initDayTrGrid() {
     gridDayTr = new Tabulator(el, {
         layout: "fitColumns",
         height: "100%",
+        selectableRows: 1,
+        selectableRowsRollingSelection: true,
         placeholder: "<span>데이터가 없습니다.</span>",
         columns: [
             { title: "거래유형", field: "jasanGb", minWidth: 90 },
@@ -163,6 +171,8 @@ function initGyulGrid() {
     gridGyul = new Tabulator(el, {
         layout: "fitColumns",
         height: "100%",
+        selectableRows: 1,
+        selectableRowsRollingSelection: true,
         placeholder: "<span>데이터가 없습니다.</span>",
         columns: [
             { title: "계약만료월", field: "gyulYmd", hozAlign: "center", width: 100, formatter: cell => formatDate(cell.getValue()) },
@@ -187,6 +197,8 @@ function initRateGrid() {
     gridRate = new Tabulator(el, {
         layout: "fitColumns",
         height: "100%",
+        selectableRows: 1,
+        selectableRowsRollingSelection: true,
         placeholder: "<span>데이터가 없습니다.</span>",
         columns: [
             { title: "종목코드", field: "jmCd", hozAlign: "center", width: 90 },
