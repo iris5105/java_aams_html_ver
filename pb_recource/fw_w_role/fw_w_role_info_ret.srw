@@ -416,6 +416,9 @@ end type
 type st_windelaytime from w_window1st5ncn`st_windelaytime within fw_w_role_info_ret
 end type
 
+type st_top_rect from w_window1st5ncn`st_top_rect within fw_w_role_info_ret
+end type
+
 type p_close from w_window1st5ncn`p_close within fw_w_role_info_ret
 end type
 
@@ -742,6 +745,7 @@ if inv_authority.of_SetAllUserRole(ls_user_id) < 1 then
 	messagebox('Notice', '해당 시스템을 사용할 수 있는 권한이 없습니다')
 	return
 end if
+
 
 dw_role_list.reset()
 dw_role_list.retrieve(gnv_vari.is_sys_id, gnv_vari.is_login_dt, &

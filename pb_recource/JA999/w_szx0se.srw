@@ -150,7 +150,7 @@ END CHOOSE
 end event
 
 event dw_list::ue_dddw_retrieve;call super::ue_dddw_retrieve;F_DDDWCTL (THIS, 'series_g1', gaa.corp_gr, '', 1, "corp_gr='" + dw_c.object.dddw [1] + "'")
-F_DDDWCTL (THIS, 'jy_fa_cd', gaa.corp_gr, '', 1, '')
+//F_DDDWCTL (THIS, 'jy_fa_cd', gaa.corp_gr, '', 1, '')
 f_dddwctl (THIS, 'bm_gr', gaa.corp_gr, '', 1, '')
 f_dddwctl (THIS, 'gugan', '', ',,', 1, '')
 f_dddwctl (THIS, 'ga', '', ',,', 1, '')

@@ -115,7 +115,7 @@ table(column=(type=char(1) updatewhereclause=yes name=chk dbname="chk" values="	
                                                   WHERE d8.NATION_CD = 'KR'
                                                     AND d8.HOLI_YMD  = tg.YMD ) 
                              ) p1
-                     WHERE YMD = :tymd ) tg  ON tg.jm_cd = t1.JM_CD
+                     WHERE YMD = F_OPEN_YMD(:tymd,'-') ) tg  ON tg.jm_cd = t1.JM_CD
      , TABLE(F_HIGH_LOW (:corp_gr, :fymd, :tymd)) hl
  WHERE t1.CORP_GR = :corp_gr
    AND t1.YMD     = :tymd

@@ -23,6 +23,7 @@ public class Ja010bService {
 
     private final Ja010bMapper ja010bMapper;
     private final com.kfp.aams.domain.dailyadvisory.mapper.querydsl.Ja010bQueryDslRepository ja010bQueryDslRepository;
+    private final com.kfp.aams.common.service.WorkDateService workDateService;
 
     public List<Ja010bMasterDto> getMasterList(String corpGr) {
         if (corpGr == null || corpGr.isBlank()) {
@@ -84,10 +85,23 @@ public class Ja010bService {
 
         // 1. 마스터 (SZM0IA)
         if (request.getMasterList() != null) {
+            String workDate = (corpGr != null && !corpGr.isBlank()) ? workDateService.getWorkDateOrDefault(corpGr) : null;
+            String cleanWorkDate = (workDate != null) ? workDate.replaceAll("\\D", "") : null;
+
             for (Ja010bMasterDto master : request.getMasterList()) {
                 if (master.getCorpGr() == null || master.getCorpGr().isBlank()) {
                     master.setCorpGr(corpGr);
                 }
+
+                // PB w_ja010b.srw dw_list::itemchanged 유효성 검증 (재설정일이 작업일보다 클 수 없습니다)
+                if (master.getReSeoljYmd() != null && cleanWorkDate != null && cleanWorkDate.length() == 8) {
+                    String cleanReSeolj = master.getReSeoljYmd().replaceAll("\\D", "");
+                    if (cleanReSeolj.length() == 8 && cleanReSeolj.compareTo(cleanWorkDate) > 0) {
+                        String name = (master.getFundNm() != null && !master.getFundNm().isBlank()) ? master.getFundNm() : master.getFundCd();
+                        throw new IllegalArgumentException("재설정일이 작업일보다 클 수 없습니다. (" + name + ")");
+                    }
+                }
+
                 if (Boolean.TRUE.equals(master.getIsNew())) {
                     if (master.getFundCd() == null || master.getFundCd().isBlank()) {
                         master.setFundCd(ja010bQueryDslRepository.getNextFundCd(master.getCorpGr()));

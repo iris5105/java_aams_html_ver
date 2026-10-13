@@ -202,7 +202,8 @@ end type
 event dw_list::ue_dddw_retrieve;call super::ue_dddw_retrieve;f_dddwctl (THIS, 'type_gb', dw_c.object.dddw [1], '', 9, "")
 f_dddwctl (THIS, 'unyong_sabun', dw_c.object.dddw [1], '', 1, "")
 f_dddwctl (THIS, 'series_gb', dw_c.object.dddw [1], '', 1, "")
-f_dddwctl (THIS, 'target_jasan', dw_c.object.dddw [1], '', 1, "")
+//f_dddwctl (THIS, 'target_jasan', dw_c.object.dddw [1], '', 1, "")
+f_dddwctl (THIS, 'target_jasan', '', '', 1, "")
 f_dddwctl (THIS, 'mg_cd', dw_c.object.dddw [1], '', 1, "")
 end event
 
@@ -230,6 +231,10 @@ CHOOSE CASE DWO.NAME
              , :gnv_vari.is_user_id  /* _7- */
              ) ;
    CASE 're_seolj_ymd'
+		if DATETIME (DATE (MID (data,1,10))) > idt_workdate then 
+			RETURN uf_itemerr (row, dwo.name, '재설정일이 작업일보다 클 수 없습니다.')
+	   end if
+		
       IF GETITEMSTATUS (ROW, 0, PRIMARY!) = NEWMODIFIED! Then
          dw_1.object.tr_ymd [1]   = DATETIME (DATE (MID (data,1,10)))
          Object.bf_gyul_ymd [row] = null_dt

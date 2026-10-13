@@ -136,9 +136,30 @@ event dw_pagelist::itemchanged;call super::itemchanged;IF	AncestorReturnValue=1 
 
 accepttext ()
 
-LONG	ll, ll_detail
-
+LONG	ll, ll_detail, ll_test
+STRING  ls_jm_cd
 ll_detail = dw_pagedetail.rowcount ()
+
+	IF dwo.name = 'nabib_ymd' THEN
+		 ls_jm_cd = Object.jmcd[row]
+		 
+		 SELECT 1
+			INTO :ll_test
+			FROM SJG1JC t1
+		  WHERE t1.SJ_JM_CD = :ls_jm_cd
+			 AND t1.nabib_ymd = :data;
+		 
+		 // DB 조회 결과 상태값 확인 (데이터가 없거나 에러인 경우)
+		 IF SQLCA.SQLCode = 100 THEN
+			  f_messageBox ("I000", "청약금 납입일을 다시 확인해 주세요")
+			  RETURN 1 // 입력 거부 및 포커스 유지
+		 ELSEIF SQLCA.SQLCode = -1 THEN
+			  f_messageBox ("E000", "DB 조회 중 오류가 발생했습니다.~r~n" + SQLCA.SQLErrText)
+			  RETURN 1 
+		 END IF
+	END IF
+
+
 
 IF dwo.name='cy_ymd' And Object.sc_jusu [row]>0  Then
    Object.cy_jusu [row] = Object.sc_jusu [row]
