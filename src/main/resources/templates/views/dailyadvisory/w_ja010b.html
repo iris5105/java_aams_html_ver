@@ -783,8 +783,12 @@
                     .then(data => {
                         if (gridDetail) {
                             const formatted = cudManagerDetail ? cudManagerDetail.formatData(data) : (Array.isArray(data) ? data : []);
-                            gridDetail.setData(formatted);
-                            setTimeout(() => { gridDetail.redraw(true); }, 50);
+                            gridDetail.setData(formatted).then(() => {
+                                setTimeout(() => { gridDetail.redraw(true); }, 50);
+                                if (window.AamsFocusManager && typeof window.AamsFocusManager.restoreFocus === 'function') {
+                                    window.AamsFocusManager.restoreFocus(gridMaster);
+                                }
+                            });
                         }
                     })
                     .catch(err => console.error("Error fetching detail:", err));
@@ -794,8 +798,12 @@
                     .then(data => {
                         if (gridIo) {
                             const formatted = cudManagerIo ? cudManagerIo.formatData(data) : (Array.isArray(data) ? data : []);
-                            gridIo.setData(formatted);
-                            setTimeout(() => { gridIo.redraw(true); }, 50);
+                            gridIo.setData(formatted).then(() => {
+                                setTimeout(() => { gridIo.redraw(true); }, 50);
+                                if (window.AamsFocusManager && typeof window.AamsFocusManager.restoreFocus === 'function') {
+                                    window.AamsFocusManager.restoreFocus(gridMaster);
+                                }
+                            });
                         }
                     })
                     .catch(err => console.error("Error fetching IO:", err));

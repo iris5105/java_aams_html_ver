@@ -16,15 +16,15 @@ description: "AAMS 차세대 웹 시스템 개발 표준 종합 헌장 및 세�
 | 파트 번호 및 문서명 | 주요 다룸 내용 | 바로가기 |
 | :--- | :--- | :--- |
 | **01. 백엔드 표준 가이드** | `corp_gr` 규격, srd 기반 DTO 매핑, `xx_` 컬럼 양방향 프로퍼티, JPA/QueryDSL(단일 테이블 조회/CUD) vs MyBatis(복합 조인) 기준, REST API 및 프로시저 호출 | [01-backend-standard.md](file:///d:/work/java_aams_html_ver/.agents/rules/01-backend-standard.md) |
-| **02. Tabulator 그리드 표준** | srd 기반 컬럼 정의, 원클릭 인라인 편집, `p_xx_` 돋보기/`p_dd_` 달력 버튼(36px), 3단계 날짜 검증, 행 선택 삼중 안전망, **Rowfocus 2대 정책** | [02-tabulator-grid.md](file:///d:/work/java_aams_html_ver/.agents/rules/02-tabulator-grid.md) |
-| **03. UI 스타일링 및 CSS 표준** | **Zero-Inline-Style 원칙**, 헤더 색상 클래스(`headerCssClass`), 데이터 셀 텍스트 색상, 가격/등락률 표준 클래스, 거래구분 및 상태 배지 | [03-ui-styling-css.md](file:///d:/work/java_aams_html_ver/.agents/rules/03-ui-styling-css.md) |
+| **02. Tabulator 그리드 표준** | srd 기반 컬럼 정의, 원클릭 인라인 편집, `p_xx_` 돋보기/`p_dd_` 달력 버튼(36px), 3단계 날짜 검증, 행 선택 삼중 안전망, **Rowfocus 2대 정책**, **srd Summary 밴드 합계 행(Summary Row) 표준** | [02-tabulator-grid.md](file:///d:/work/java_aams_html_ver/.agents/rules/02-tabulator-grid.md) |
+| **03. UI 스타일링 및 CSS 표준** | **Zero-Inline-Style 원칙**, 헤더 색상 클래스(`headerCssClass`), 데이터 셀 텍스트 색상, 가격/등락률 표준 클래스, 거래구분 및 상태 배지, **Summary 행 스타일** | [03-ui-styling-css.md](file:///d:/work/java_aams_html_ver/.agents/rules/03-ui-styling-css.md) |
 | **04. 공통 컴포넌트 & JS 유틸리티** | 상단 공통 툴바 표준 계약, dw_c 기반 필터 프래그먼트, **상시 활성화 & 수동 조회 단일 정책 (자동조회 금지/기존데이터 유지)**, DDDW 2칸 분할, 캘린더, 코드 검색, 재사용 JS 함수 | [04-common-components-js.md](file:///d:/work/java_aams_html_ver/.agents/rules/04-common-components-js.md) |
 | **05. 레이아웃 & 반응형 표준** | MDI 단일 진입점 초기화(`startInit`), Zero-Garbage Code, `AamsSplitter` 드래그 리사이징, 권한별 폼 잠금 동기화, 반응형 브레이크포인트 (1415px, 876px), 모바일 세로 스택 | [05-layout-responsive.md](file:///d:/work/java_aams_html_ver/.agents/rules/05-layout-responsive.md) |
 | **06. MRD 리포트 뷰어 표준** | Crownix Report 아키텍처, 백엔드 공통 RD API, 공통 리포트 프래그먼트, `AamsReport.bindViewer` 일체형 엔진 바인딩, 5종 포맷 내보내기, 상단 공통 [엑셀] 버튼 연동 | [06-report-viewer.md](file:///d:/work/java_aams_html_ver/.agents/rules/06-report-viewer.md) |
 
 ---
 
-## 🏛️ AAMS 개발 불변 10대 핵심 헌장 (Core 10 Principles)
+## 🏛️ AAMS 개발 불변 11대 핵심 헌장 (Core 11 Principles)
 
 1. **회사그룹(`corp_gr`) 기본값 Fallback 절대 금지:**
    - 쿼리, 서비스, 프론트엔드 어디에서도 `corp_gr`에 임의의 기본값(예: `"000"`, `"2402"`)을 강제하지 않습니다. 항상 세션 및 상단 선택 컨텍스트에서 추출합니다.
@@ -54,3 +54,6 @@ description: "AAMS 차세대 웹 시스템 개발 표준 종합 헌장 및 세�
    - 3) 상단 저장 버튼 시 전수 검증 (`aamsValidateGridDates`)
 10. **공통 모듈 및 전역 자원 최대 재사용 (Zero-Garbage Code):**
     - MDI 부모에서 이미 로드된 JS/CSS를 화면 조각 HTML 내에서 중복 임포트하지 않으며, 공통 유틸리티 함수(`resolveCorpGr`, `getFilterYmd`, `showToast`, `formatNumber`, `AamsReport.bindViewer`)를 재정의하지 않고 즉시 호출합니다.
+11. **파워빌더 DataWindow Summary 밴드 합계 행 표준 및 저장 방어 (Zero-Summary-Leakage):**
+    - `.srd`의 `summary` 밴드(라벨 및 집계식)가 존재하는 경우 Tabulator 푸터 대신 데이터 마지막 행(`{ isSummaryRow: true, ... }`, `.aams-summary-row` 연노랑 배경)으로 구성합니다.
+    - 데이터가 0건일 때는 표출하지 않으며, 행 추가/복사 시 항상 맨 마지막 위치를 유지하고, DB 저장 시에는 CUD 목록에서 원천 배제합니다.

@@ -86,6 +86,8 @@ formatter: function (cell) {
    - 첨부파일 클립: `.file-badge`
 4. **완료/해지 행 시각적 잠금**:
    - 완료 또는 해지된 행: `row.getElement().classList.add('row-completed');`
+5. **파워빌더 DataWindow Summary 합계 행 표준**:
+   - 합계 행: `row.getElement().classList.add('aams-summary-row');` (파워빌더 표준 연노랑 배경 `#fbf2c4`, 테두리, `font-weight: 600`, 행 선택 및 텍스트 선택 방지 `pointer-events: none`, `user-select: none` 적용)
 
 ---
 

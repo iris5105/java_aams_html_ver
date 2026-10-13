@@ -1487,6 +1487,79 @@ function loadDddwOptions(selectId, dddwId, seq, addWhere, addOrderBy, defaultVal
 }
 
 /**
+/**
+ * AAMS Master-Detail Focus Preservation & Multi-Grid Coordination Manager
+ *
+ * [핵심 해결 과제: 마스터-디테일 연동 시 서브 그리드의 마스터 셀/컬럼 포커스 탈취 원천 차단]
+ * 1. 마스터 그리드에서 사용자가 특정 컬럼 셀을 클릭하면 해당 셀/컬럼을 전역 활성 타겟으로 기억하고 시각적 포커스 링(.aams-focused-cell)을 부여.
+ * 2. 디테일/서브 그리드가 비동기 조회되어 데이터가 로드되고 행 선택이 일어나더라도,
+ *    마스터 그리드의 활성 셀이나 에디터(<input>)의 포커스를 서브 그리드가 빼앗지 못하도록(shouldBlockFocusSteal) 원천 방어.
+ * 3. 비동기 렌더링에 의해 마스터 그리드 셀의 포커스가 일시적으로 blur되더라도 즉각 복원(restoreFocus).
+ */
+const AamsFocusManager = {
+    activeGrid: null,
+    activeCellEl: null,
+    activeField: null,
+    activeRow: null,
+    activeInputEl: null,
+    lastInteractionTime: 0,
+
+    markActive: function(grid, cellEl, field, row, inputEl) {
+        if (!grid) return;
+        this.activeGrid = grid;
+        this.activeCellEl = cellEl || null;
+        this.activeField = field || (cellEl && cellEl.getAttribute ? cellEl.getAttribute("tabulator-field") : null);
+        this.activeRow = row || null;
+        this.activeInputEl = inputEl || (cellEl && cellEl.querySelector ? cellEl.querySelector("input, textarea, select") : null);
+        this.lastInteractionTime = Date.now();
+    },
+
+    shouldBlockFocusSteal: function(requestingGrid) {
+        // 1. 사용자가 최근(8초 이내) 다른 그리드(예: 마스터 그리드)를 클릭/편집 중이었다면,
+        // 서브 그리드가 포커스를 가져가지 못하도록 완전 차단
+        if (this.activeGrid && this.activeGrid !== requestingGrid) {
+            if (this.activeGrid.element && document.body.contains(this.activeGrid.element)) {
+                if (Date.now() - this.lastInteractionTime < 8000) {
+                    return true;
+                }
+            }
+        }
+
+        // 2. 현재 활성 엘리먼트가 INPUT, TEXTAREA, SELECT 이거나 .tabulator-cell 이면 탈취 차단
+        const active = document.activeElement;
+        if (active && active !== document.body && active !== document.documentElement) {
+            if (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.tagName === 'SELECT') {
+                return true;
+            }
+            const activeTable = active.closest('.tabulator');
+            if (activeTable && activeTable !== requestingGrid.element) {
+                return true;
+            }
+            if (active.classList && (active.classList.contains('tabulator-cell') || active.classList.contains('tabulator-editing'))) {
+                return true;
+            }
+        }
+        return false;
+    },
+
+    restoreFocus: function(grid) {
+        const targetGrid = grid || this.activeGrid;
+        if (!targetGrid || !targetGrid.element || !document.body.contains(targetGrid.element)) return;
+
+        if (Date.now() - this.lastInteractionTime > 8000) return;
+
+        try {
+            if (this.activeInputEl && document.body.contains(this.activeInputEl)) {
+                if (document.activeElement !== this.activeInputEl) {
+                    this.activeInputEl.focus({ preventScroll: true });
+                }
+            }
+        } catch(e) {}
+    }
+};
+window.AamsFocusManager = AamsFocusManager;
+
+/**
  * Tabulator Grid Row Selection & Change Synchronization Engine (AAMS Standard)
  * 
  * [Solves 4 Core Interaction Issues]
@@ -1546,12 +1619,20 @@ function setupTabulatorRowSelection(table, onRowChange, options = {}) {
             try { targetRow.scrollTo("nearest"); } catch(e) {}
         }
         const rowEl = (typeof targetRow.getElement === 'function') ? targetRow.getElement() : null;
-        if (rowEl) {
-            if (!rowEl.hasAttribute('tabindex')) {
-                rowEl.setAttribute('tabindex', '-1');
-            }
-            try { rowEl.focus({ preventScroll: true }); } catch(e) {}
+        if (!rowEl) return;
+
+        if (!rowEl.hasAttribute('tabindex')) {
+            rowEl.setAttribute('tabindex', '-1');
         }
+
+        // [포커스 탈취 방지 가드: Master-Detail 환경 핵심 안정화]
+        // 현재 브라우저의 활성 포커스가 다른 테이블(예: 마스터 그리드)이나
+        // 입력 폼에 머물러 있다면, 비동기 서브 그리드 조회가 포커스를 빼앗지 않도록 차단
+        if (AamsFocusManager.shouldBlockFocusSteal(table)) {
+            return;
+        }
+
+        try { rowEl.focus({ preventScroll: true }); } catch(e) {}
     }
 
     // 헬퍼: 현재 화면/탭에 reportViewer가 존재하는지 판별
@@ -1780,17 +1861,184 @@ function setupTabulatorRowSelection(table, onRowChange, options = {}) {
                 e.preventDefault();
                 return;
             }
+
             const targetRow = findRowFromEvent(e);
             if (targetRow) {
+                // 사용자가 마스터/상위 그리드를 클릭했음을 FocusManager에 기록 (서브 그리드의 비동기 포커스 탈취 차단)
+                AamsFocusManager.markActive(table, null, null, targetRow);
                 doSelect(targetRow, false, e);
             }
         }, true);
 
-        // 2. cellEditing Hook: For keyboard Tab navigation into another row's editor
+        // 헬퍼: 드롭다운(dddw 및 하드코딩 list)의 기존 화면 표시 라벨/값 추출
+        function getCellDisplayLabel(cell) {
+            if (!cell) return "";
+            const colDef = cell.getColumn().getDefinition();
+            const val = cell.getValue();
+            const rowData = (typeof cell.getRow === 'function' && cell.getRow() && typeof cell.getRow().getData === 'function') ? cell.getRow().getData() : {};
+            const field = cell.getField();
+
+            // 1. 포매터 함수가 있는 경우 포매터 실행 결과에서 텍스트 추출 시도
+            if (typeof colDef.formatter === 'function') {
+                try {
+                    const formatted = colDef.formatter(cell);
+                    if (formatted != null && typeof formatted === 'string') {
+                        const temp = document.createElement("div");
+                        temp.innerHTML = formatted;
+                        const txt = temp.textContent || temp.innerText || "";
+                        if (txt.trim()) return txt.trim();
+                    }
+                } catch (e) {}
+            }
+
+            // 2. editorParams.values / valuesLookup 확인 (하드코딩 및 동적 리스트)
+            let editorParams = colDef.editorParams;
+            if (typeof editorParams === 'function') {
+                try { editorParams = editorParams(cell); } catch(e) {}
+            }
+            if (editorParams) {
+                let vals = editorParams.values;
+                if (!vals && typeof editorParams.valuesLookup === 'function') {
+                    try { vals = editorParams.valuesLookup(cell); } catch(e) {}
+                }
+                if (Array.isArray(vals)) {
+                    const matched = vals.find(it => {
+                        if (it == null) return false;
+                        if (typeof it === 'object') {
+                            const itemVal = (it.value !== undefined) ? it.value : (it.code !== undefined ? it.code : (it.cd !== undefined ? it.cd : ''));
+                            return String(itemVal).trim() === String(val).trim();
+                        }
+                        return String(it).trim() === String(val).trim();
+                    });
+                    if (matched) {
+                        if (typeof matched === 'object') {
+                            return matched.label || matched.name || matched.dscr || matched.value || String(val);
+                        }
+                        return String(matched);
+                    }
+                }
+            }
+
+            // 3. f_dddwctl 연동 확인
+            if (window.f_dddwctl && typeof window.f_dddwctl.getLabel === 'function') {
+                try {
+                    const pane = cell.getTable().element ? (cell.getTable().element.closest('.tab-pane') || cell.getTable().element.closest('.view-container')) : null;
+                    const dddwMap = (pane && pane._dddwOptionsMap) || window.dddwOptionsMap;
+                    if (dddwMap) {
+                        const dddwLabel = window.f_dddwctl.getLabel(dddwMap, field, val);
+                        if (dddwLabel && dddwLabel !== String(val)) return dddwLabel;
+                    }
+                } catch(e) {}
+            }
+
+            // 4. 행 데이터에서 별칭/명칭 필드 확인 (예: seriesGbNm, mgNm, typeGbNm, xx_ 등)
+            if (rowData) {
+                const candidates = [
+                    rowData[field + 'Nm'],
+                    rowData[field + '_nm'],
+                    rowData[field + 'Name'],
+                    rowData['xx_' + field],
+                    rowData['xx' + field.charAt(0).toUpperCase() + field.slice(1)]
+                ];
+                for (let c of candidates) {
+                    if (c != null && String(c).trim() !== '') return String(c).trim();
+                }
+            }
+
+            return (val !== undefined && val !== null) ? String(val) : "";
+        }
+
+        // 2. cellEditing Hook: Active Editor Tracking & DDDW/List 기존 값 표시 보존
         table.on("cellEditing", function(cell) {
-            if (cell && typeof cell.getRow === 'function') {
-                const r = cell.getRow();
-                if (r) doSelect(r);
+            if (!cell) return;
+            const r = (typeof cell.getRow === 'function') ? cell.getRow() : null;
+            if (r) doSelect(r);
+
+            const colDef = cell.getColumn().getDefinition();
+            const isListEditor = (colDef.editor === "list" || (typeof colDef.editor === 'string' && colDef.editor.includes('list')) || (colDef.editorParams && (colDef.editorParams.values || colDef.editorParams.valuesLookup)));
+
+            function applyDropdownPreservation() {
+                const cellEl = (typeof cell.getElement === 'function') ? cell.getElement() : null;
+                if (!cellEl) return;
+
+                const input = cellEl.querySelector("input, textarea, select");
+                if (input) {
+                    AamsFocusManager.markActive(table, null, cell.getField(), r, input);
+                }
+
+                if (isListEditor) {
+                    const displayLabel = getCellDisplayLabel(cell);
+                    const rawVal = cell.getValue();
+
+                    if (input && displayLabel) {
+                        // input이 비어있거나 변경 전인 경우 기존 표시 라벨 주입
+                        if (!input.value || input.value === String(rawVal)) {
+                            input.value = displayLabel;
+                        }
+                        input.placeholder = displayLabel;
+                        input.setAttribute("data-original-val", (rawVal !== undefined && rawVal !== null) ? String(rawVal) : "");
+                        input.setAttribute("data-original-label", displayLabel);
+                    }
+
+                    // 셀 우측에 작은 드롭다운 화살표(▼) 표시
+                    if (!cellEl.querySelector(".aams-dddw-arrow")) {
+                        const arrow = document.createElement("span");
+                        arrow.className = "aams-dddw-arrow";
+                        arrow.innerHTML = "&#9660;";
+                        cellEl.appendChild(arrow);
+                    }
+
+                    // 드롭다운 팝업 리스트(.tabulator-edit-list) 열릴 때 기존 값 항목 active 하이라이트 & 스크롤 안착
+                    const editLists = document.querySelectorAll(".tabulator-edit-list");
+                    editLists.forEach(function(listEl) {
+                        if (listEl && listEl.style.display !== 'none') {
+                            const items = listEl.querySelectorAll(".tabulator-edit-list-item");
+                            let matchedItem = null;
+                            items.forEach(function(item) {
+                                const itemText = (item.textContent || '').trim();
+                                const itemVal = item.dataset.value;
+                                if (itemVal != null && rawVal != null && String(itemVal).trim() === String(rawVal).trim()) {
+                                    matchedItem = item;
+                                } else if (displayLabel && (itemText === displayLabel || itemText.includes(displayLabel))) {
+                                    if (!matchedItem) matchedItem = item;
+                                }
+                            });
+
+                            if (matchedItem) {
+                                items.forEach(it => it.classList.remove("active"));
+                                matchedItem.classList.add("active");
+                                try { matchedItem.scrollIntoView({ block: "nearest" }); } catch(e) {}
+                            }
+                        }
+                    });
+                }
+            }
+
+            // Tabulator의 에디터 DOM 생성 시점에 맞춰 즉시 + 지연(15ms, 45ms) 다중 실행으로 누락 방지
+            applyDropdownPreservation();
+            setTimeout(applyDropdownPreservation, 15);
+            setTimeout(applyDropdownPreservation, 45);
+        });
+
+        table.on("cellEdited", function(cell) {
+            if (cell && typeof cell.getElement === 'function') {
+                const cellEl = cell.getElement();
+                if (cellEl) {
+                    const arrow = cellEl.querySelector(".aams-dddw-arrow");
+                    if (arrow) arrow.remove();
+                    AamsFocusManager.markActive(table, null, cell.getField(), cell.getRow());
+                }
+            }
+        });
+
+        table.on("cellEditCancelled", function(cell) {
+            if (cell && typeof cell.getElement === 'function') {
+                const cellEl = cell.getElement();
+                if (cellEl) {
+                    const arrow = cellEl.querySelector(".aams-dddw-arrow");
+                    if (arrow) arrow.remove();
+                    AamsFocusManager.markActive(table, null, cell.getField(), cell.getRow());
+                }
             }
         });
 
@@ -1836,6 +2084,12 @@ function setupTabulatorRowSelection(table, onRowChange, options = {}) {
                         if (rows && rows.length > 0) {
                             doSelect(rows[0], true);
                             focusRow(rows[0]);
+
+                            // [Master-Detail Focus Preservation]
+                            // 서브 그리드 데이터 로드 후 상위 마스터 그리드의 클릭 셀 포커스 복원
+                            if (AamsFocusManager.activeGrid && AamsFocusManager.activeGrid !== table) {
+                                AamsFocusManager.restoreFocus();
+                            }
                         }
                     }, 60);
                 }
@@ -1942,9 +2196,11 @@ function setupTabulatorRowSelection(table, onRowChange, options = {}) {
 function aamsCellEdit(e, cell) {
     if (!cell) return;
     try {
+        const table = cell.getTable();
         const row = cell.getRow();
+        const cellEl = (typeof cell.getElement === 'function') ? cell.getElement() : null;
+
         if (row && typeof row.select === 'function' && !row.isSelected()) {
-            const table = cell.getTable();
             if (table && typeof table.deselectRow === 'function') {
                 table.deselectRow();
             }
@@ -1955,6 +2211,13 @@ function aamsCellEdit(e, cell) {
                 try {
                     if (typeof cell.edit === 'function') {
                         cell.edit();
+                        if (cellEl) {
+                            const input = cellEl.querySelector("input, textarea, select");
+                            if (input) {
+                                AamsFocusManager.markActive(table, null, cell.getField(), row, input);
+                                input.focus();
+                            }
+                        }
                     }
                 } catch(err) {}
             }, 30);
@@ -1964,6 +2227,18 @@ function aamsCellEdit(e, cell) {
 
     if (typeof cell.edit === 'function') {
         cell.edit();
+        try {
+            const cellEl = (typeof cell.getElement === 'function') ? cell.getElement() : null;
+            if (cellEl) {
+                const input = cellEl.querySelector("input, textarea, select");
+                if (input) {
+                    const table = cell.getTable();
+                    const row = cell.getRow();
+                    AamsFocusManager.markActive(table, null, cell.getField(), row, input);
+                    input.focus();
+                }
+            }
+        } catch(e) {}
     }
 }
 
@@ -1997,6 +2272,86 @@ function aamsCellEdit(e, cell) {
         });
     }
 
+    // Tabulator editor: "list" (하드코딩 및 동적 DDDW) 타입 불일치 방지 및 기존 값 보존 정규화
+    function processColumnsListEditor(columns) {
+        if (!Array.isArray(columns)) return;
+        columns.forEach(col => {
+            if (!col) return;
+            if (col.editor === "list" || (typeof col.editor === 'string' && col.editor.includes('list'))) {
+                const rawParams = col.editorParams;
+                col.editorParams = function(cell) {
+                    let params = (typeof rawParams === 'function') ? rawParams(cell) : Object.assign({}, rawParams);
+                    if (!params) params = {};
+
+                    const cellVal = cell ? cell.getValue() : null;
+
+                    // 1. values 배열인 경우 (하드코딩된 드롭다운: String vs Number 타입 불일치 완전 해결)
+                    if (Array.isArray(params.values)) {
+                        params.values = params.values.map(v => {
+                            if (v == null) return v;
+                            if (typeof v === 'object') {
+                                const itemVal = (v.value !== undefined) ? v.value : (v.code !== undefined ? v.code : v.cd);
+                                const itemLabel = (v.label !== undefined) ? v.label : (v.name !== undefined ? v.name : (v.dscr !== undefined ? v.dscr : String(itemVal)));
+                                const isMatch = (cellVal !== undefined && cellVal !== null && String(itemVal).trim() === String(cellVal).trim());
+                                return {
+                                    label: itemLabel,
+                                    value: isMatch ? cellVal : itemVal,
+                                    code: isMatch ? cellVal : itemVal,
+                                    name: itemLabel
+                                };
+                            }
+                            const isMatch = (cellVal !== undefined && cellVal !== null && String(v).trim() === String(cellVal).trim());
+                            return {
+                                label: String(v),
+                                value: isMatch ? cellVal : v
+                            };
+                        });
+                    }
+
+                    // 2. valuesLookup이 함수인 경우 (동적 DDDW 옵션)
+                    if (typeof params.valuesLookup === 'function') {
+                        const origLookup = params.valuesLookup;
+                        params.valuesLookup = function(c, term) {
+                            const result = origLookup(c, term);
+                            if (Array.isArray(result)) {
+                                return result.map(v => {
+                                    if (v == null) return v;
+                                    if (typeof v === 'object') {
+                                        const itemVal = (v.value !== undefined) ? v.value : (v.code !== undefined ? v.code : v.cd);
+                                        const itemLabel = (v.label !== undefined) ? v.label : (v.name !== undefined ? v.name : (v.dscr !== undefined ? v.dscr : String(itemVal)));
+                                        const isMatch = (cellVal !== undefined && cellVal !== null && String(itemVal).trim() === String(cellVal).trim());
+                                        return {
+                                            label: itemLabel,
+                                            value: isMatch ? cellVal : itemVal,
+                                            code: isMatch ? cellVal : itemVal,
+                                            name: itemLabel
+                                        };
+                                    }
+                                    const isMatch = (cellVal !== undefined && cellVal !== null && String(v).trim() === String(cellVal).trim());
+                                    return {
+                                        label: String(v),
+                                        value: isMatch ? cellVal : v
+                                    };
+                                });
+                            }
+                            return result;
+                        };
+                    }
+
+                    // 자동완성 억제 & 빈칸 방지 기본 옵션 적용
+                    if (params.autocomplete === undefined) params.autocomplete = false;
+                    if (params.clearable === undefined) params.clearable = false;
+
+                    return params;
+                };
+            }
+
+            if (col.columns && Array.isArray(col.columns)) {
+                processColumnsListEditor(col.columns);
+            }
+        });
+    }
+
     function applyPatch() {
         if (!window.Tabulator || window.Tabulator._isAamsPatched) return;
 
@@ -2006,6 +2361,7 @@ function aamsCellEdit(e, cell) {
             // Convert headerCssClass to cssClass and delete headerCssClass before passing to Tabulator
             if (options && options.columns) {
                 processColumnsHeaderCss(options.columns);
+                processColumnsListEditor(options.columns);
             }
 
             // Ensure default columnDefaults.vertAlign = "middle" so Tabulator natively injects justifyContent based on hozAlign
@@ -2027,15 +2383,21 @@ function aamsCellEdit(e, cell) {
             // Instantiate original Tabulator
             const table = new OriginalTabulator(container, options);
 
-            // Hook dynamic column APIs to process headerCssClass
+            // Hook dynamic column APIs to process headerCssClass & listEditor
             const origSetColumns = table.setColumns;
             table.setColumns = function(cols) {
-                if (cols) processColumnsHeaderCss(cols);
+                if (cols) {
+                    processColumnsHeaderCss(cols);
+                    processColumnsListEditor(cols);
+                }
                 return origSetColumns.apply(table, arguments);
             };
             const origAddColumn = table.addColumn;
             table.addColumn = function(col, before, toColumn) {
-                if (col) processColumnsHeaderCss([col]);
+                if (col) {
+                    processColumnsHeaderCss([col]);
+                    processColumnsListEditor([col]);
+                }
                 return origAddColumn.apply(table, arguments);
             };
 

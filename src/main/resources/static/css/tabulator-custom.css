@@ -258,6 +258,7 @@
 .tabulator-aams-grid .tabulator-cell.tabulator-editing,
 .tabulator-dw-grid .tabulator-cell.tabulator-editing,
 .tabulator .tabulator-cell.tabulator-editing {
+    position: relative !important;
     padding: 0 !important;
     border: 2px solid #2563eb !important;
     z-index: 10 !important;
@@ -275,7 +276,7 @@
     width: 100% !important;
     height: 100% !important;
     box-sizing: border-box !important;
-    padding: 2px 6px !important;
+    padding: 2px 18px 2px 6px !important;
     margin: 0 !important;
     border: none !important;
     outline: none !important;
@@ -284,6 +285,39 @@
     font-size: 11px !important;
     border-radius: 0 !important;
     box-shadow: none !important;
+}
+
+.tabulator-cell.tabulator-editing input::placeholder {
+    color: #1e293b !important;
+    opacity: 1 !important;
+}
+
+/* DDDW & List Dropdown Arrow Indicator */
+.tabulator-cell.tabulator-editing .aams-dddw-arrow {
+    position: absolute !important;
+    right: 5px !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    font-size: 8px !important;
+    color: #64748b !important;
+    pointer-events: none !important;
+    z-index: 15 !important;
+    user-select: none !important;
+}
+
+/* Prevent unwanted cell focus outlines */
+.tabulator .tabulator-cell:focus,
+.tabulator-aams-grid .tabulator-cell:focus,
+.tabulator-dw-grid .tabulator-cell:focus {
+    outline: none !important;
+    box-shadow: none !important;
+}
+
+/* Standard Tabulator Edit List (Dropdown) Item Active & Hover Highlight */
+.tabulator-edit-list .tabulator-edit-list-item:hover,
+.tabulator-edit-list .tabulator-edit-list-item.active {
+    background-color: #2563eb !important;
+    color: #ffffff !important;
 }
 
 /* 7. DDDW 2-Column Dropdown List Standard Styling (Development Guide Rule 6) */
@@ -729,6 +763,55 @@
         box-sizing: content-box !important;
     }
 }
+
+/* ==========================================================================
+   13. Tabulator Summary (합계) Row Standard Styling
+   - 파워빌더 DataWindow Summary Band 표준: 연노랑 (#fbf2c4) 배경
+   - .tabulator-aams-grid의 :nth-child(even) 및 .tabulator-selected 스타일보다 항상 우선
+   - 합계 행은 단순 요약 표시 용도이므로 행 선택(Select) 및 마우스 클릭, 텍스트 드래그 선택 차단
+   ========================================================================== */
+.tabulator .tabulator-row.aams-summary-row,
+.tabulator-aams-grid .tabulator-row.aams-summary-row,
+.tabulator-dw-grid .tabulator-row.aams-summary-row,
+.tabulator-aams-grid .tabulator-row.aams-summary-row:nth-child(even),
+.tabulator-aams-grid .tabulator-row.aams-summary-row:nth-child(odd),
+.tabulator-dw-grid .tabulator-row.aams-summary-row:nth-child(even),
+.tabulator-dw-grid .tabulator-row.aams-summary-row:nth-child(odd),
+.tabulator-row.aams-summary-row,
+.tabulator-row.aams-summary-row:hover,
+.tabulator-row.aams-summary-row.tabulator-selected {
+    background-color: #fbf2c4 !important;
+    border-top: 1px solid #cbd5e1 !important;
+    border-bottom: 1px solid #cbd5e1 !important;
+    color: #1e293b !important;
+    font-weight: 600 !important;
+    cursor: default !important;
+    pointer-events: none !important;
+    user-select: none !important;
+    -webkit-user-select: none !important;
+    -moz-user-select: none !important;
+    -ms-user-select: none !important;
+    outline: none !important;
+    box-shadow: none !important;
+}
+
+.tabulator .tabulator-row.aams-summary-row .tabulator-cell,
+.tabulator-aams-grid .tabulator-row.aams-summary-row .tabulator-cell,
+.tabulator-dw-grid .tabulator-row.aams-summary-row .tabulator-cell,
+.tabulator-aams-grid .tabulator-row.aams-summary-row.tabulator-selected .tabulator-cell,
+.tabulator-row.aams-summary-row .tabulator-cell,
+.tabulator-row.aams-summary-row.tabulator-selected .tabulator-cell {
+    background-color: #fbf2c4 !important;
+    color: inherit !important;
+    pointer-events: none !important;
+    user-select: none !important;
+    -webkit-user-select: none !important;
+    -moz-user-select: none !important;
+    -ms-user-select: none !important;
+    outline: none !important;
+    box-shadow: none !important;
+}
+
 
 
 
