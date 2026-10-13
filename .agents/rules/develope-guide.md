@@ -35,13 +35,15 @@ description: "AAMS 차세대 웹 시스템 개발 표준 종합 헌장 및 세�
    - 단일 테이블에 대한 기본 조회 및 CUD(등록/수정/삭제)는 **Spring Data JPA / EntityManager**(동적 검색 조건은 QueryDSL)를 사용하고, 2개 이상의 테이블 조인이나 복합 서브쿼리는 **MyBatis XML** 형식으로 작성합니다.
 4. **인라인 편집 그리드 원클릭 편집 진입 필수 옵션 (`editTriggerEvent: "click"`):**
    - 편집 가능한 셀이 포함된 그리드는 단일 행 선택(`selectableRows: 1`) 환경에서도 비선택 행의 셀 클릭 즉시 에디터가 열리도록 `editTriggerEvent: "click"`을 필수 지정하고 컬럼에 `cellClick: aamsCellEdit`를 부여합니다.
-5. **마스터-디테일 행 선택 삼중 안전망 및 중복 fetch 방지 가드:**
+5. **마스터-디테일 행 선택 삼중 안전망 및 중복 fetch 방지 가드 (새로고침 시 리셋 필수):**
    - `setupTabulatorRowSelection(grid, syncDetail)`, `grid.on("rowClick")`, `grid.on("rowSelectionChanged")` 삼중 안전망을 적용하고, 동일 키값 재조회 방지 가드(`lastLoadedMasterKey === currentKey`)를 둡니다.
+   - 상단 [새로고침](`pane.onRefresh`) 시에는 반드시 `lastLoadedMasterKey = null`로 초기화하여 재조회 시 첫 행 데이터 조회가 차단되지 않도록 보장합니다 (Zero-Stale-Key).
 6. **데이터 조회 및 새로고침 시 행 포커스(Row Focus) 2대 표준 정책:**
    - **리포트 뷰어가 있는 경우:** 모바일(`width <= 876px`)에서는 첫 행 자동 선택 금지(deselect 유지), PC/태블릿(`width > 876px`)에서는 첫 번째 행 자동 선택(`rows[0].select()`).
    - **리포트 뷰어가 없는 경우:** 전 디바이스 환경에서 첫 번째 행을 자동 선택하여 상세 폼/그리드 즉시 바인딩.
-7. **상단 필터 및 조회 버튼 상시 활성화 & 수동 조회 단일 정책 (웹 표준 UX 정책):**
+7. **상단 필터 및 조회 버튼 상시 활성화 & 수동 조회 단일 정책 (MDI pane 툴바 표준 계약):**
    - 상단 필터바와 상단 툴바 [조회] 버튼은 항상 활성화(`enabled`) 상태를 유지합니다.
+   - 화면 스크립트에서는 `document.currentScript.closest('.tab-pane')`으로 최상위 탭 `pane`을 획득하고 `pane.onSearch`, `pane.onRefresh` 등을 필수로 바인딩합니다 (하드코딩 ID 금지).
    - **필터 조건(날짜, DDDW, 코드검색, 회사그룹) 변경 시 자동 조회를 절대 실행하지 않습니다.**
    - 필터 조건이 변경되어도 테이블의 **기존 데이터는 그대로 유지하여 표출**하며, 오직 상단 [조회] 버튼(`pane.onSearch`) 클릭 시에만 단독 실행합니다.
 8. **그리드 인라인 스타일 작성 절대 금지 (Zero-Inline-Style):**

@@ -93,7 +93,12 @@
     (function () {
         'use strict';
 
-        var currentPane = document.getElementById('pane-W_JA032A') || document.querySelector('.ja032a-container');
+        var currentScript = document.currentScript;
+        var pane = currentScript ? (currentScript.closest('.tab-pane') || currentScript.closest('.view-container')) : null;
+        if (!pane) {
+            pane = document.querySelector('.tab-pane.active') || document.querySelector('.ja032a-container') || document;
+        }
+        var currentPane = pane;
         if (!currentPane) return;
 
         var isInitialized = false;
@@ -1545,11 +1550,84 @@
             });
         }
 
-        // 12. 전체 초기화 실행 (MDI 싱글 엔트리포인트 패턴)
+        // 12. 상단 공통 툴바 표준 계약 이벤트 바인딩 (개발 표준 규칙 04)
+        function initEvents() {
+            var targets = [pane];
+            var vc = pane.querySelector ? pane.querySelector('.view-container') : null;
+            if (vc && vc !== pane) targets.push(vc);
+
+            targets.forEach(function (t) {
+                // [조회]
+                t.onSearch = t.onRetrieve = function () {
+                    loadMasterGrid();
+                };
+
+                // [저장]
+                t.onSave = function () {
+                    saveData();
+                };
+
+                // [새로고침]
+                t.onClear = t.onRefresh = function () {
+                    if (gridMaster) gridMaster.clearData();
+                    if (gridPort) gridPort.clearData();
+                    if (gridDetail) gridDetail.clearData();
+
+                    currentMasterRowData = null;
+                    currentPortRowData = null;
+                    lastLoadedMasterKey = null;
+                    lastLoadedPortKey = null;
+
+                    if (window.showToast) {
+                        window.showToast("화면이 초기화되었습니다.", "info");
+                    }
+                };
+
+                // [입력] (마스터 행 추가)
+                t.onInput = t.onInsert = function () {
+                    var btnMAdd = currentPane.querySelector('#btnMasterAdd');
+                    if (btnMAdd) btnMAdd.click();
+                };
+
+                // [회사그룹 변경]
+                t.onCorpGrChange = function (newCorpGr) {
+                    var cg = newCorpGr || resolveCorpGr(currentPane);
+                    if (!cg) return;
+
+                    fetch("/api/usportfoliomodel/ja032a/workdate?corpGr=" + encodeURIComponent(cg))
+                        .then(function (res) { return res.json(); })
+                        .then(function (data) {
+                            if (data && data.workDate) {
+                                var ymdInput = currentPane.querySelector('#filterYmd');
+                                if (ymdInput) {
+                                    ymdInput.value = data.workDate;
+                                }
+                            }
+                            loadTtDddw();
+                        })
+                        .catch(function (err) {
+                            console.warn("[Ja032a] workDate 동기화 실패:", err);
+                            loadTtDddw();
+                        });
+                };
+
+                // [엑셀]
+                t.onExcel = function () {
+                    if (gridMaster) {
+                        var ymdStr = getFilterYmd(currentPane, 'YYYYMMDD') || '';
+                        gridMaster.download("xlsx", "포트폴리오모델등록_" + ymdStr + ".xlsx", { sheetName: "펀드마스터" });
+                    }
+                };
+            });
+        }
+
+        // 13. 전체 초기화 실행 (MDI 싱글 엔트리포인트 패턴)
         function startInit() {
             if (isInitialized || currentPane.dataset.initialized === "true") return;
             isInitialized = true;
             currentPane.dataset.initialized = "true";
+
+            initEvents();
 
             loadTtDddw().then(function () {
                 initMasterGrid();

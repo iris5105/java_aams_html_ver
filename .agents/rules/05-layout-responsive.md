@@ -18,7 +18,9 @@ AAMS는 MDI 탭 구조로 동작하므로, 개별 업무 화면 HTML은 완전�
 
 ```javascript
 (function() {
-    var pane = document.getElementById("tab-w_ja032a"); // 해당 탭의 루트 엘리먼트
+    var currentScript = document.currentScript;
+    var pane = currentScript ? (currentScript.closest('.tab-pane') || currentScript.closest('.view-container')) : null;
+    if (!pane) pane = document.querySelector('.tab-pane.active') || document;
     var isInitialized = false;
 
     function startInit() {

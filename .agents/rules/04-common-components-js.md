@@ -56,6 +56,38 @@ currentPane.onRefresh = function() {
     if (grid) grid.clearData();
     resetDetailPanel();
 };
+### 1.3 MDI 환경 `pane` 컨테이너 획득 표준 규격 (Zero-Hardcoded-ID & Pane Scoping)
+MDI 프레임워크의 상단 공통 툴바(`button.js`)는 버튼 클릭 시 `getActiveTabPane(btn)`을 통해 최상위 MDI 탭 엘리먼트인 **`.tab-pane`**을 기준으로 계약 함수(`pane.onSearch`, `pane.onSave` 등)를 탐색합니다.
+- **금지 패턴**: `document.getElementById('pane-W_...')`와 같이 임의의 ID를 하드코딩하거나, 자식 요소인 `.view-container`에만 계약 함수를 바인딩하면 툴바 버튼 클릭 시 이벤트를 수신하지 못합니다.
+- **표준 패턴**: 반드시 `document.currentScript`를 활용하여 상위 `.tab-pane`을 획득하고, 양방향 폴백을 지정합니다:
+  ```javascript
+  const currentScript = document.currentScript;
+  const pane = currentScript ? (currentScript.closest('.tab-pane') || currentScript.closest('.view-container')) : null;
+  ```
+
+### 1.4 새로고침(`onRefresh`) 시 상태 완전 초기화 (Zero-Stale-Key 원칙)
+새로고침 실행 시 그리드 데이터만 비우고 상태 변수를 유지하면 심각한 연동 결함이 발생합니다.
+- **상태 키 누락 시 결함**: 마스터-디테일 중복 fetch 방지 가드 키(`lastLoadedMasterKey`)가 남아 있으면, 새로고침 후 [조회]를 눌러 첫 번째 행이 자동 선택(Row Focus)될 때 이전 키와 동일하여 **상세 서브 그리드 조회가 차단(`return`)**됩니다.
+- **필수 초기화 목록**:
+  1. 모든 연동 그리드 데이터 클리어 (`gridMaster.clearData()`, `gridDetail.clearData()` 등)
+  2. 마스터/서브 중복 조회 가드 키 초기화 (`lastLoadedMasterKey = null; lastLoadedSubKey = null;`)
+  3. 선택된 행 데이터 캐시 초기화 (`currentMasterRowData = null; currentSelectedRow = null;`)
+  4. 안내 토스트 표출 (`showToast("화면이 초기화되었습니다.", "info");`)
+
+```javascript
+pane.onClear = pane.onRefresh = function () {
+    if (gridMaster) gridMaster.clearData();
+    if (gridDetail) gridDetail.clearData();
+
+    // 상태 키 및 선택 행 완전 리셋 (새로고침 후 재조회 시 첫 행 연동 보장)
+    lastLoadedMasterKey = null;
+    lastLoadedSubKey = null;
+    currentMasterRowData = null;
+
+    if (typeof showToast === 'function') {
+        showToast("화면이 초기화되었습니다.", "info");
+    }
+};
 ```
 
 ---

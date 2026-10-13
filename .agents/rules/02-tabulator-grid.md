@@ -162,8 +162,9 @@ trigger: always_on
          }
      });
      ```
-2. **동일 키 중복 API 호출 방지 가드**:
-   - 상세 연동 함수(`syncDetail`)는 동일한 키값에 대한 불필요한 중복 fetch를 방지하는 가드(`lastLoadedMasterKey === currentKey`)를 반드시 둔다:
+2. **동일 키 중복 API 호출 방지 가드 및 새로고침 시 리셋 필수 규칙**:
+   - 상세 연동 함수(`syncDetail`)는 동일한 키값에 대한 불필요한 중복 fetch를 방지하는 가드(`lastLoadedMasterKey === currentKey`)를 반드시 둔다.
+   - **새로고침/재조회 시 가드 리셋 필수**: 상단 [새로고침](`pane.onRefresh`) 및 마스터 재조회 진입 시 반드시 `lastLoadedMasterKey = null`로 초기화해야 한다. 이를 누락하면 새로고침 후 [조회] 시 첫 번째 행이 자동 선택되어도 중복 가드에 걸려 **하위 상세 그리드 조회가 차단(`return`)**되는 결함이 발생한다:
      ```javascript
      let lastLoadedMasterKey = null;
      function syncDetail(row, masterRowData) {
