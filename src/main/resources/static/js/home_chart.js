@@ -74,7 +74,9 @@ function initDualChart() {
 
 function loadDualChart() {
     const noDataEl = document.getElementById('dualChartNoData');
-    fetch('/api/home/chart-data')
+    const corpGr = window.currentCorpGr || '';
+    const url = corpGr ? `/api/home/chart-data?corpGr=${encodeURIComponent(corpGr)}` : '/api/home/chart-data';
+    fetch(url)
         .then(res => res.json())
         .then(data => {
             if (!dualChartInstance) return;

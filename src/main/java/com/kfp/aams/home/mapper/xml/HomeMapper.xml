@@ -166,11 +166,11 @@
              , NVL(t1.g90104, 0) / 100000000                           AS cv2Chtvalue001
              , t1.fund1                                                AS cv2Chtvalue002
           FROM fw_day_chtdata t1
-         WHERE t1.corp_gr = #{corpGr}
-           AND t1.YMD Between ADD_MONTHS(TO_DATE(NVL(#{ymd}, TO_CHAR(CURRENT_DATE, 'YYYYMMDD')), 'YYYYMMDD') - 1, -6)
-                          And TO_DATE(NVL(#{ymd}, TO_CHAR(CURRENT_DATE, 'YYYYMMDD')), 'YYYYMMDD')
+         WHERE t1.corp_gr = #{corpGr, jdbcType=VARCHAR}
+           AND t1.YMD Between ADD_MONTHS(TO_DATE(NVL(#{ymd, jdbcType=VARCHAR}, TO_CHAR(CURRENT_DATE, 'YYYYMMDD')), 'YYYYMMDD') - 1, -6)
+                          And TO_DATE(NVL(#{ymd, jdbcType=VARCHAR}, TO_CHAR(CURRENT_DATE, 'YYYYMMDD')), 'YYYYMMDD')
            AND t1.FUND_CURRENCY = 'KRW'
-           AND t1.weekday = TO_CHAR(TO_DATE(NVL(#{ymd}, TO_CHAR(CURRENT_DATE, 'YYYYMMDD')), 'YYYYMMDD') - 1, 'dy')
+           AND t1.weekday = TO_CHAR(TO_DATE(NVL(#{ymd, jdbcType=VARCHAR}, TO_CHAR(CURRENT_DATE, 'YYYYMMDD')), 'YYYYMMDD') - 1, 'dy', 'NLS_DATE_LANGUAGE=KOREAN')
          ORDER BY t1.ymd ASC
     </select>
 </mapper>
