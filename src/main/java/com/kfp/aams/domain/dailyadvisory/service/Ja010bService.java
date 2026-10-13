@@ -95,7 +95,7 @@ public class Ja010bService {
 
                 // PB w_ja010b.srw dw_list::itemchanged 유효성 검증 (재설정일이 작업일보다 클 수 없습니다)
                 if (master.getReSeoljYmd() != null && cleanWorkDate != null && cleanWorkDate.length() == 8) {
-                    String cleanReSeolj = master.getReSeoljYmd().replaceAll("\\D", "");
+                    String cleanReSeolj = master.getReSeoljYmd().toString().replaceAll("\\D", "");
                     if (cleanReSeolj.length() == 8 && cleanReSeolj.compareTo(cleanWorkDate) > 0) {
                         String name = (master.getFundNm() != null && !master.getFundNm().isBlank()) ? master.getFundNm() : master.getFundCd();
                         throw new IllegalArgumentException("재설정일이 작업일보다 클 수 없습니다. (" + name + ")");

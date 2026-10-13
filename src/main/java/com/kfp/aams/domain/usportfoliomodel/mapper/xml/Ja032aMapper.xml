@@ -1,0 +1,156 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.kfp.aams.domain.usportfoliomodel.mapper.Ja032aMapper">
+
+    <!-- 1. 마스터 펀드 목록 조회 (d_ja032a1.srd) -->
+    <select id="selectMasterList" resultType="com.kfp.aams.domain.usportfoliomodel.dto.Ja032aMasterDto">
+        SELECT t1.CORP_GR                                               AS corp_gr
+             , t1.FUND_CD                                               AS fund_cd
+             , ia.FUND_NM                                               AS fund_nm
+             , ia.FUND_NM                                               AS xx_fund_cd
+             , TO_CHAR(t1.TR_YMD, 'YYYY-MM-DD')                        AS tr_ymd
+             , t1.WONBON_AEK                                            AS wonbon_aek
+             , t1.JM_PER                                                AS jm_per
+             , t1.USD_WONBON_AEK                                        AS usd_wonbon_aek
+             , t1.YEAR_BETA                                             AS year_beta
+             , t1.MON_BETA                                              AS mon_beta
+             , t1.RISK_VALUE                                            AS risk_value
+             , t1.FX_SU                                                 AS fx_su
+             , t1.FX_AMT                                                AS fx_amt
+             , t1.OPT_PREMIUM                                           AS opt_premium
+             , t1.OPT_NOMINAL_AMT                                       AS nominal_amt
+             , t1.DEL                                                   AS del
+             , (SELECT NVL(SUM(STOCK_CHUI),0)
+                  FROM USPM_OPT ta
+                 WHERE ta.CORP_GR = t1.CORP_GR
+                   AND ta.FUND_CD = t1.FUND_CD
+                   AND ta.YMD     = t1.TR_YMD)                          AS stock_chui
+             , 0                                                        AS p_visible
+             , ROUND(t1.USD_WONBON_AEK * NVL(t1.JM_PER, 0) / 100, 2)   AS usd_tuja
+          FROM SZT0IA_V t1
+             , SZM0IA   ia
+         WHERE t1.CORP_GR       = #{corpGr}
+           AND t1.TR_YMD        = #{ymd}
+           AND NVL(t1.DEL,'N')  = 'N'
+           AND ia.CORP_GR       = t1.CORP_GR
+           AND ia.FUND_CD       = t1.FUND_CD
+         ORDER BY t1.FUND_CD ASC, t1.TR_YMD DESC
+    </select>
+
+    <!-- 2. 포트 목록 조회 (d_ja032a2.srd) -->
+    <select id="selectPortList" resultType="com.kfp.aams.domain.usportfoliomodel.dto.Ja032aPortDto">
+        SELECT t1.CORP_GR                                               AS corp_gr
+             , TO_CHAR(t1.FYMD, 'YYYY-MM-DD')                          AS fymd
+             , TO_CHAR(t1.TYMD, 'YYYY-MM-DD')                          AS tymd
+             , t1.FUND_CD                                               AS fund_cd
+             , t1.PORT_NUM                                              AS port_num
+             , t1.TT                                                    AS tt
+             , t1.INST_DAYS                                             AS inst_days
+             , TO_CHAR(t1.MANGI, 'YYYY-MM-DD')                         AS mangi_ymd
+             , t1.DT                                                    AS dt
+             , t1.PUT_Z                                                 AS z
+             , t1.JM_PER                                                AS jm_per
+             , t1.USD_TUJA                                              AS usd_tuja
+             , t1.YEAR_BETA                                             AS year_beta
+             , t1.MON_BETA                                              AS mon_beta
+             , t1.PRICE_PER                                             AS price_per
+             , F_OPT_DATE_COLOR (t1.TYMD, t1.MANGI)                     AS opt_color
+             , #{fundJmPer}                                             AS fund_jm_per
+             , CASE WHEN (SELECT COUNT(*)
+                            FROM USPM_PORT ta
+                           WHERE ta.CORP_GR  = #{corpGr}
+                             AND ta.FUND_CD  = t1.FUND_CD
+                             AND ta.TYMD     = t1.TYMD
+                             AND ta.PORT_NUM LIKE t1.PORT_NUM || '%') = 1
+                    THEN '1'
+                    ELSE '0' END                                        AS p_visible
+          FROM USPM_PORT t1
+         WHERE t1.CORP_GR = #{corpGr}
+           AND t1.FUND_CD = #{fundCd}
+           AND t1.TYMD    = #{trYmd}
+         ORDER BY t1.PORT_NUM ASC
+    </select>
+
+    <!-- 3. 종목 상세 목록 조회 (d_ja032a3.srd / d_ja032a3a.srd) -->
+    <select id="selectDetailList" resultType="com.kfp.aams.domain.usportfoliomodel.dto.Ja032aDetailDto">
+        SELECT t1.CORP_GR                                               AS corp_gr
+             , TO_CHAR(t1.YMD, 'YYYY-MM-DD')                           AS ymd
+             , t1.FUND_CD                                               AS fund_cd
+             , t1.PORT_NUM                                              AS port_num
+             , t1.JM_CD                                                 AS yj_cd
+             , NVL(ya.JM_NM, jj.JJ_NM)                                  AS xx_yj_cd
+             , t1.USD_TUJA                                              AS usd_tuja
+             , t1.TARGET_RETURN_PER                                     AS target_return_per
+             , t1.PRICE_PER                                             AS price_per
+             , t1.COL                                                   AS col
+             , t1.OVRS_EXCG_CD                                          AS ovrs_excg_cd
+             , NVL(opt.STOCK_CHUI, 0)                                   AS stock_chui
+             , NVL(opt.OPT_NOMINAL_AMT, 0)                              AS opt_nominal_amt
+             , (NVL(t1.USD_TUJA, 0) - NVL(opt.STOCK_CHUI, 0) - NVL(opt.OPT_NOMINAL_AMT, 0)) AS settable_amount
+             , 1                                                        AS p_visible
+          FROM USPM t1
+          LEFT JOIN SYM0YA ya
+                 ON ya.CORP_GR = t1.CORP_GR
+                AND ya.JM_CD   = t1.JM_CD
+          LEFT JOIN SJM0JJ jj
+                 ON jj.KOSCOM_CD = t1.JM_CD
+                AND jj.DANC_GB   IN ('A','C')
+          LEFT OUTER JOIN USPM_OPT opt
+                       ON opt.CORP_GR = t1.CORP_GR
+                      AND opt.FUND_CD = t1.FUND_CD
+                      AND opt.YMD     = t1.YMD
+                      AND opt.JM_CD   = t1.JM_CD
+                      AND opt.PORT    = '(' || #{portNum} || ')'
+         WHERE t1.CORP_GR  = #{corpGr}
+           AND t1.FUND_CD  = #{fundCd}
+           AND t1.YMD      = #{ymd}
+           AND t1.PORT_NUM = #{portNum}
+           AND (ya.JM_CD IS NOT NULL OR jj.KOSCOM_CD IS NOT NULL)
+         ORDER BY t1.PORT_NUM ASC, t1.COL ASC, t1.JM_CD ASC
+    </select>
+
+    <!-- 4. 환율 조회 (SYX1HY) -->
+    <select id="selectUsdExchangeRate" resultType="java.math.BigDecimal">
+        SELECT NVL(MAX(t1.GIJUN_RT), 0)
+          FROM SYX1HY t1
+         WHERE t1.CORP_GR   = #{corpGr}
+           AND t1.GIJUN_YMD = #{trYmd}
+           AND t1.CURRENCY  = 'USD'
+    </select>
+
+    <!-- 5. 잔존일수 계산 -->
+    <select id="calculateDays" resultType="java.lang.Long">
+        SELECT TRUNC(#{toDate}) - TRUNC(#{fromDate})
+          FROM DUAL
+    </select>
+
+    <!-- 6. 마스터 수정 (SZT0IA_V) -->
+    <update id="updateMaster">
+        UPDATE SZT0IA_V
+           SET JM_PER         = #{jmPer}
+             , USD_WONBON_AEK = #{usdWonbonAek}
+         WHERE CORP_GR        = #{corpGr}
+           AND TR_YMD         = TO_DATE(#{trYmd}, 'YYYY-MM-DD')
+           AND FUND_CD        = #{fundCd}
+    </update>
+
+    <!-- 7. 마스터 삭제 플래그 (SZT0IA_V DEL='Y') -->
+    <update id="deleteMasterFlag">
+        UPDATE SZT0IA_V
+           SET DEL     = 'Y'
+         WHERE CORP_GR = #{corpGr}
+           AND TR_YMD  = #{trYmd}
+           AND FUND_CD = #{fundCd}
+    </update>
+
+    <!-- 8. 변동성재계산 프로시저 호출 (SR_JA032A) -->
+    <select id="callSrJa032a" statementType="CALLABLE">
+        {CALL SR_JA032A(
+            #{corpGr, mode=IN, jdbcType=VARCHAR},
+            #{ymd, mode=IN, jdbcType=VARCHAR},
+            #{pMsg, mode=INOUT, jdbcType=VARCHAR}
+        )}
+    </select>
+
+</mapper>
