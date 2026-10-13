@@ -450,12 +450,6 @@ CREATE OR REPLACE FUNCTION KFP.F_BETA (
 -- 지수대비 베타
 --
     w_tab                          BETA_TAB;
-
-    w_days                         NUMBER := 0;
-    d20                            DATE;
-    d60                            DATE;
-    d120                           DATE;
-
     w_beta                         NUMBER;
     w_beta20                       NUMBER;
     w_beta60                       NUMBER;
@@ -463,109 +457,46 @@ CREATE OR REPLACE FUNCTION KFP.F_BETA (
 BEGIN
     w_tab := BETA_TAB( );
 
-    -- 구간 시작일
-    for xx IN (
-        SELECT t1.YMD
-             , NVL(t1.JONGA,0) / LAG(NVL(t1.JONGA,0)) OVER (PARTITION BY t1.JM_CD
-                                       ORDER BY t1.JM_CD, t1.YMD) - 1  AS rt
-          FROM SYT0LP t1  /* 해외수신 종목 시세 */
-         WHERE t1.CORP_GR = p_corp_gr                /* 운용(자문)사 */
-           AND t1.YMD     BETWEEN p_fymd AND p_tymd  /* 적용기준일자 */
-           AND t1.YMD     NOT IN (SELECT HOLI_YMD
-                                    FROM SZX0HL ta  /* 공휴일 */
-                                   WHERE ta.NATION_CD = 'US'
-                                     AND ta.HOLI_YMD  >= p_fymd  /* 공휴일일자 */
-                                  )                 /* 적용기준일자 */
-           AND t1.JM_CD   = p_jm_cd                  /* 종목코드 */
-         ORDER BY t1.YMD DESC
-    ) loop
-        if  xx.rt IS NULL   then    CONTINUE;
-        end if;
-
-        w_days := w_days + 1;
-        if  w_days <= 20    then    d20 := xx.ymd;
-        end if;
-        if  w_days <= 60    then    d60 := xx.ymd;
-        end if;
-        if  w_days <= 120   then    d120 := xx.ymd;
-        end if;
-    end loop;
-
-    WITH DAEBI_RT AS (
-         SELECT t1.JM_CD
-              , t1.YMD
-              , NVL(t1.JONGA,0) / LAG(NVL(t1.JONGA,0)) OVER (PARTITION BY t1.JM_CD
-                                        ORDER BY t1.JM_CD, t1.YMD) - 1  AS rt
-           FROM SYT0LP t1  /* 해외수신 종목 시세 */
-          WHERE t1.CORP_GR = p_corp_gr                /* 운용(자문)사 */
-            AND t1.YMD     BETWEEN p_fymd AND p_tymd  /* 적용기준일자 */
-            AND t1.YMD     NOT IN (SELECT HOLI_YMD
-                                     FROM SZX0HL ta  /* 공휴일 */
-                                    WHERE ta.NATION_CD = 'US'
-                                      AND ta.HOLI_YMD  >= p_fymd)
-            AND t1.JM_CD   IN (p_jisu_jm, p_jm_cd)    /* 종목코드 */
-         ) , 
-     RT AS (
-         SELECT t1.ymd
-              , MAX(CASE WHEN t1.jm_cd=p_jisu_jm THEN t1.rt END)  AS jisu_rt
-              , MAX(CASE WHEN t1.jm_cd=p_jm_cd   THEN t1.rt END)  AS jm_rt
-           FROM DAEBI_RT t1
-          GROUP BY t1.ymd
-          ORDER BY t1.ymd DESC
-         ) , 
-     AVG_VALUES AS (
-         SELECT AVG(jisu_rt)                                                    AS jisu_avg    /* _1- */
-              , AVG(jm_rt)                                                      AS jm_avg      /* _2- */
-              , AVG(CASE WHEN t1.ymd BETWEEN d20 AND p_tymd  THEN jisu_rt END)  AS jisu_avg20  /* _3- */
-              , AVG(CASE WHEN t1.ymd BETWEEN d20 AND p_tymd  THEN jm_rt END)    AS jm_avg20    /* _4- */
-              , AVG(CASE WHEN t1.ymd BETWEEN d60 AND p_tymd  THEN jisu_rt END)  AS jisu_avg60  /* _5- */
-              , AVG(CASE WHEN t1.ymd BETWEEN d60 AND p_tymd  THEN jm_rt END)    AS jm_avg60    /* _6- */
-              , AVG(CASE WHEN t1.ymd BETWEEN d120 AND p_tymd THEN jisu_rt END)  AS jisu_avg120 /* _7- */
-              , AVG(CASE WHEN t1.ymd BETWEEN d120 AND p_tymd THEN jm_rt END)    AS jm_avg120   /* _8- */
-           FROM RT t1
-          WHERE t1.ymd BETWEEN p_fymd + 1 AND p_tymd
-         ) , 
-     COV_VAR AS (
-         SELECT SUM((t1.jm_rt - t2.jm_avg) * (t1.jisu_rt - t2.jisu_avg)) / COUNT(t1.jisu_rt)  AS COV
-              , VARIANCE(t1.jisu_rt)                                                          AS VAR
-           FROM RT t1
-              , AVG_VALUES t2
-         ) , 
-     COV_VAR20 AS (
-         SELECT SUM((t1.jm_rt - t2.jm_avg20) * (t1.jisu_rt - t2.jisu_avg20)) / COUNT(t1.jisu_rt)  AS COV
-              , VARIANCE(t1.jisu_rt)                                                              AS VAR
-           FROM RT         t1
-              , AVG_VALUES t2
-          WHERE t1.ymd BETWEEN d20 AND p_tymd
-         ) , 
-     COV_VAR60 AS (
-         SELECT SUM((t1.jm_rt - t2.jm_avg60) * (t1.jisu_rt - t2.jisu_avg60)) / COUNT(t1.jisu_rt)  AS COV
-              , VARIANCE(t1.jisu_rt)                                                              AS VAR
-           FROM RT         t1
-              , AVG_VALUES t2
-          WHERE t1.ymd BETWEEN d60 AND p_tymd
-         ) , 
-     COV_VAR120 AS (
-         SELECT SUM((t1.jm_rt - t2.jm_avg120) * (t1.jisu_rt - t2.jisu_avg120)) / COUNT(t1.jisu_rt)  AS COV
-              , VARIANCE(t1.jisu_rt)                                                                AS VAR
-           FROM RT         t1
-              , AVG_VALUES t2
-          WHERE t1.ymd BETWEEN d120 AND p_tymd
-         )
-    -- Main SQL --
-    --------------
-    SELECT MAX(t1.COV / t1.VAR)
-         , MAX(t20.COV / t20.VAR)
-         , MAX(t60.COV / t60.VAR)
-         , MAX(t120.COV / t120.VAR)
+    -- 단일 SQL로 모든 구간(전체, 20일, 60일, 120일)의 Beta 계산
+    WITH BASE_DATA AS (
+       -- 1. 기준일자 내의 종목과 지수 데이터 조회 및 수익률(RT) 계산
+       SELECT JM_CD
+            , YMD
+            , NVL(JONGA,0) / NULLIF(LAG(NVL(JONGA,0)) OVER (PARTITION BY JM_CD ORDER BY YMD), 0) - 1  AS RT
+         FROM SYT0LP t1  /* 해외수신 종목 시세 */
+        WHERE CORP_GR    = p_corp_gr
+          AND YMD        BETWEEN p_fymd AND p_tymd
+          AND JM_CD      IN (p_jisu_jm, p_jm_cd)
+          AND NOT EXISTS (SELECT 1
+                            FROM SZX0HL ta  /* 공휴일 */
+                           WHERE ta.NATION_CD = 'US'
+                             AND ta.HOLI_YMD  >= p_fymd
+                             AND ta.HOLI_YMD  = T1.YMD)
+       ) , 
+     PIVOT_RT AS (
+       -- 2. 일자별 종목/지수 수익률 PIVOT 및 최근 영업일 기준 역순 번호(RN) 부여
+       SELECT YMD
+            , MAX(CASE WHEN JM_CD = p_jisu_jm THEN RT END)  AS JISU_RT
+            , MAX(CASE WHEN JM_CD = p_jm_cd   THEN RT END)  AS JM_RT
+            , ROW_NUMBER( ) OVER (ORDER BY YMD DESC)        AS RN
+         FROM BASE_DATA t1
+        GROUP BY YMD
+       HAVING MAX(CASE WHEN JM_CD = p_jisu_jm THEN RT END) IS NOT NULL AND
+              MAX(CASE WHEN JM_CD = p_jm_cd   THEN RT END) IS NOT NULL -- 첫 날(p_fymd)은 LAG 연산에 의해 수익률이 NULL이 되므로 계산에서 제외됨
+       )
+    /* -------- *
+     * Main SQL *
+     * -------- */
+    -- 3. 오라클 내장 선형회귀 기울기 함수(REGR_SLOPE)를 사용하여 베타(Beta) 즉시 산출
+    SELECT REGR_SLOPE(JM_RT, JISU_RT)
+         , REGR_SLOPE(CASE WHEN RN <= 20  THEN JM_RT END, CASE WHEN RN <= 20  THEN JISU_RT END)
+         , REGR_SLOPE(CASE WHEN RN <= 60  THEN JM_RT END, CASE WHEN RN <= 60  THEN JISU_RT END)
+         , REGR_SLOPE(CASE WHEN RN <= 120 THEN JM_RT END, CASE WHEN RN <= 120 THEN JISU_RT END)
       INTO w_beta
          , w_beta20
          , w_beta60
          , w_beta120
-      FROM COV_VAR t1
-         , COV_VAR20 t20
-         , COV_VAR60 t60
-         , COV_VAR120 t120;
+      FROM PIVOT_RT t1;
 
     w_tab.extend;
     w_tab (1) := BETA_REC (ROUND(w_beta, 4), ROUND(w_beta20, 4), ROUND(w_beta60, 4), ROUND(w_beta120, 4));
@@ -605,11 +536,12 @@ BEGIN
                                         ORDER BY t1.KOSCOM_CD, t1.YMD) - 1  AS rt
           FROM SJT1TG t1  /* 주식/선물/Option 종목별 종가(영업일만 존재) */
          WHERE t1.YMD       BETWEEN p_fymd AND p_tymd
-           AND t1.YMD       NOT IN (SELECT HOLI_YMD
-                                      FROM SZX0HL ta  /* 공휴일 */
-                                     WHERE ta.NATION_CD = 'KR'
-                                       AND ta.HOLI_YMD  >= p_fymd)
            AND t1.KOSCOM_CD = p_jm_cd
+           AND NOT EXISTS (SELECT 1
+                             FROM SZX0HL ta  /* 공휴일 */
+                            WHERE ta.NATION_CD = 'US'
+                              AND ta.HOLI_YMD  >= p_fymd
+                              AND ta.HOLI_YMD  = T1.YMD)
          ORDER BY t1.YMD DESC
     ) loop
         if  xx.rt IS NULL   then    CONTINUE;
@@ -625,79 +557,78 @@ BEGIN
     end loop;
 
     WITH DAEBI_RT AS (
-         SELECT t1.KOSCOM_CD
-              , t1.YMD
-              , NVL(t1.CLOSE, 0) / LAG(NVL(t1.CLOSE, 0)) OVER (PARTITION BY t1.KOSCOM_CD
-                                         ORDER BY t1.KOSCOM_CD, t1.YMD) - 1  AS rt
-           FROM SJT1TG t1  /* 주식/선물/Option 종목별 종가(영업일만 존재) */
-          WHERE t1.YMD       BETWEEN p_fymd AND p_tymd
-            AND t1.YMD       NOT IN (SELECT HOLI_YMD
-                                       FROM SZX0HL ta  /* 공휴일 */
-                                      WHERE ta.NATION_CD = 'KR'
-                                        AND ta.HOLI_YMD  >= p_fymd)
-            AND t1.KOSCOM_CD IN (p_jisu_jm, p_jm_cd)
-         UNION ALL
-         SELECT T2.COL_ID
-              , T2.YMD
-              , NVL(t2.COL_VAL, 0) / LAG(NVL(t2.COL_VAL, 0)) OVER (PARTITION BY t2.COL_ID
-                                           ORDER BY t2.COL_ID, t2.YMD) - 1  AS rt
-           FROM SKT0BM t2  /* 벤치마크수익률/성과보수 산출기준 각종비율 */
-          WHERE t2.YMD BETWEEN p_fymd AND p_tymd
-            AND t2.YMD NOT IN (SELECT HOLI_YMD
-                                 FROM SZX0HL ta  /* 공휴일 */
-                                WHERE ta.NATION_CD = 'KR'
-                                  AND ta.HOLI_YMD  >= p_fymd)
-         ) , 
+       SELECT t1.KOSCOM_CD
+            , t1.YMD
+            , NVL(t1.CLOSE, 0) / LAG(NVL(t1.CLOSE, 0)) OVER (PARTITION BY t1.KOSCOM_CD
+                                       ORDER BY t1.KOSCOM_CD, t1.YMD) - 1  AS rt
+         FROM SJT1TG t1  /* 주식/선물/Option 종목별 종가(영업일만 존재) */
+        WHERE t1.YMD       BETWEEN p_fymd AND p_tymd
+          AND t1.YMD       NOT IN (SELECT HOLI_YMD
+                                     FROM SZX0HL ta  /* 공휴일 */
+                                    WHERE ta.NATION_CD = 'KR'
+                                      AND ta.HOLI_YMD  >= p_fymd)
+          AND t1.KOSCOM_CD IN (p_jisu_jm, p_jm_cd)
+       UNION ALL
+       SELECT T2.COL_ID
+            , T2.YMD
+            , NVL(t2.COL_VAL, 0) / LAG(NVL(t2.COL_VAL, 0)) OVER (PARTITION BY t2.COL_ID
+                                         ORDER BY t2.COL_ID, t2.YMD) - 1  AS rt
+         FROM SKT0BM t2  /* 벤치마크수익률/성과보수 산출기준 각종비율 */
+        WHERE t2.YMD BETWEEN p_fymd AND p_tymd
+          AND t2.YMD NOT IN (SELECT HOLI_YMD
+                               FROM SZX0HL ta  /* 공휴일 */
+                              WHERE ta.NATION_CD = 'KR'
+                                AND ta.HOLI_YMD  >= p_fymd)
+       ) , 
      RT AS (
-         SELECT t1.ymd
-              , MAX(CASE WHEN t1.KOSCOM_CD=p_jisu_jm THEN t1.rt END)  AS jisu_rt
-              , MAX(CASE WHEN t1.KOSCOM_CD=p_jm_cd   THEN t1.rt END)  AS jm_rt
-           FROM DAEBI_RT t1
-          GROUP BY t1.ymd
-          ORDER BY t1.ymd DESC
-         ) , 
+       SELECT t1.ymd
+            , MAX(CASE WHEN t1.KOSCOM_CD=p_jisu_jm THEN t1.rt END)  AS jisu_rt
+            , MAX(CASE WHEN t1.KOSCOM_CD=p_jm_cd   THEN t1.rt END)  AS jm_rt
+         FROM DAEBI_RT t1
+        GROUP BY t1.ymd
+        ORDER BY t1.ymd DESC
+       ) , 
      AVG_VALUES AS (
-         SELECT AVG(jisu_rt)                                                    AS jisu_avg    /* _1- */
-              , AVG(jm_rt)                                                      AS jm_avg      /* _2- */
-              , AVG(CASE WHEN t1.ymd BETWEEN d20 AND p_tymd  THEN jisu_rt END)  AS jisu_avg20  /* _3- */
-              , AVG(CASE WHEN t1.ymd BETWEEN d20 AND p_tymd  THEN jm_rt END)    AS jm_avg20    /* _4- */
-              , AVG(CASE WHEN t1.ymd BETWEEN d60 AND p_tymd  THEN jisu_rt END)  AS jisu_avg60  /* _5- */
-              , AVG(CASE WHEN t1.ymd BETWEEN d60 AND p_tymd  THEN jm_rt END)    AS jm_avg60    /* _6- */
-              , AVG(CASE WHEN t1.ymd BETWEEN d120 AND p_tymd THEN jisu_rt END)  AS jisu_avg120 /* _7- */
-              , AVG(CASE WHEN t1.ymd BETWEEN d120 AND p_tymd THEN jm_rt END)    AS jm_avg120   /* _8- */
-           FROM RT t1
-          WHERE t1.ymd BETWEEN p_fymd + 1 AND p_tymd
-         ) , 
+       SELECT AVG(jisu_rt)                                                    AS jisu_avg    /* _1- */
+            , AVG(jm_rt)                                                      AS jm_avg      /* _2- */
+            , AVG(CASE WHEN t1.ymd BETWEEN d20 AND p_tymd  THEN jisu_rt END)  AS jisu_avg20  /* _3- */
+            , AVG(CASE WHEN t1.ymd BETWEEN d20 AND p_tymd  THEN jm_rt END)    AS jm_avg20    /* _4- */
+            , AVG(CASE WHEN t1.ymd BETWEEN d60 AND p_tymd  THEN jisu_rt END)  AS jisu_avg60  /* _5- */
+            , AVG(CASE WHEN t1.ymd BETWEEN d60 AND p_tymd  THEN jm_rt END)    AS jm_avg60    /* _6- */
+            , AVG(CASE WHEN t1.ymd BETWEEN d120 AND p_tymd THEN jisu_rt END)  AS jisu_avg120 /* _7- */
+            , AVG(CASE WHEN t1.ymd BETWEEN d120 AND p_tymd THEN jm_rt END)    AS jm_avg120   /* _8- */
+         FROM RT t1
+        WHERE t1.ymd BETWEEN p_fymd + 1 AND p_tymd
+       ) , 
      COV_VAR AS (
-         SELECT SUM((t1.jm_rt - t2.jm_avg) * (t1.jisu_rt - t2.jisu_avg)) / COUNT(t1.jisu_rt)  AS COV
-              , VARIANCE(t1.jisu_rt)                                                          AS VAR
-           FROM RT t1
-              , AVG_VALUES t2
-         ) , 
+       SELECT SUM((t1.jm_rt - t2.jm_avg) * (t1.jisu_rt - t2.jisu_avg)) / COUNT(t1.jisu_rt)  AS COV
+            , VARIANCE(t1.jisu_rt)                                                          AS VAR
+         FROM RT t1
+            , AVG_VALUES t2
+       ) , 
      COV_VAR20 AS (
-         SELECT SUM((t1.jm_rt - t2.jm_avg20) * (t1.jisu_rt - t2.jisu_avg20)) / COUNT(t1.jisu_rt)  AS COV
-              , VARIANCE(t1.jisu_rt)                                                              AS VAR
-           FROM RT         t1
-              , AVG_VALUES t2
-          WHERE t1.ymd BETWEEN d20 AND p_tymd
-         ) , 
+       SELECT SUM((t1.jm_rt - t2.jm_avg20) * (t1.jisu_rt - t2.jisu_avg20)) / COUNT(t1.jisu_rt)  AS COV
+            , VARIANCE(t1.jisu_rt)                                                              AS VAR
+         FROM RT         t1
+            , AVG_VALUES t2
+        WHERE t1.ymd BETWEEN d20 AND p_tymd
+       ) , 
      COV_VAR60 AS (
-         SELECT SUM((t1.jm_rt - t2.jm_avg60) * (t1.jisu_rt - t2.jisu_avg60)) / COUNT(t1.jisu_rt)  AS COV
-              , VARIANCE(t1.jisu_rt)                                                              AS VAR
-           FROM RT         t1
-              , AVG_VALUES t2
-          WHERE t1.ymd BETWEEN d60 AND p_tymd
-         ) , 
+       SELECT SUM((t1.jm_rt - t2.jm_avg60) * (t1.jisu_rt - t2.jisu_avg60)) / COUNT(t1.jisu_rt)  AS COV
+            , VARIANCE(t1.jisu_rt)                                                              AS VAR
+         FROM RT         t1
+            , AVG_VALUES t2
+        WHERE t1.ymd BETWEEN d60 AND p_tymd
+       ) , 
      COV_VAR120 AS (
-         SELECT SUM((t1.jm_rt - t2.jm_avg120) * (t1.jisu_rt - t2.jisu_avg120)) / COUNT(t1.jisu_rt)  AS COV
-              , VARIANCE(t1.jisu_rt)                                                                AS VAR
-           FROM RT         t1
-              , AVG_VALUES t2
-          WHERE t1.ymd BETWEEN d120 AND p_tymd
-         )
+       SELECT SUM((t1.jm_rt - t2.jm_avg120) * (t1.jisu_rt - t2.jisu_avg120)) / COUNT(t1.jisu_rt)  AS COV
+            , VARIANCE(t1.jisu_rt)                                                                AS VAR
+         FROM RT         t1
+            , AVG_VALUES t2
+        WHERE t1.ymd BETWEEN d120 AND p_tymd
+       )
     -- Main SQL --
     --------------
-
     --------------------------------------------------------------------------------
     -- 내부 함수(테이블) 이용한 쿼리 실행
     --------------------------------------------------------------------------------
@@ -750,23 +681,40 @@ END;
 /
 
 CREATE OR REPLACE FUNCTION KFP.F_BLOB2STR (
-    p_blob                         IN    blob
- )  RETURN VARCHAR IS
-    w_str                          VARCHAR (32000);
-
-    w_amount                       NUMBER := 32000;
-    w_pos                          NUMBER := 1;
-    w_blob_len                     INTEGER;
+    p_blob                         IN    BLOB,
+    p_pos                          IN    NUMBER DEFAULT 0 -- 0: 전체, 1: 1~1500자, 2: 1501자 이후
+ )  RETURN VARCHAR2 IS
+    v_str                          VARCHAR2(32767);
 BEGIN
-    w_blob_len := DBMS_LOB.getlength (p_blob);
+    -- 1. BLOB 데이터가 없거나 비어있는 경우 처리
+    if  p_blob IS NULL OR DBMS_LOB.GETLENGTH(p_blob) = 0 THEN
+        RETURN ' ';
+    end if;
 
-    -- Read chunks of the BLOB and write them to the file until complete.
-    while w_pos <= w_blob_len loop
-        DBMS_LOB.read ( p_blob, w_amount, w_pos, w_str );
-        w_pos := w_pos + w_amount;
-    end loop;
+    -- 2. BLOB을 RAW로 추출 후 VARCHAR2로 캐스팅 (최대 32767 바이트)
+    -- DBMS_LOB.SUBSTR(대상, 읽을바이트수, 시작위치)
+    v_str := UTL_RAW.CAST_TO_VARCHAR2(DBMS_LOB.SUBSTR(p_blob, 32767, 1));
 
-    RETURN  w_str;
+    -- 3. p_pos 파라미터에 따른 분기 처리
+    if  p_pos = 1 THEN
+        -- 1500자까지만 반환
+        RETURN SUBSTR (v_str, 1, 1500);
+
+    elsif p_pos = 2 THEN
+        -- 1501자부터 끝까지 반환 (기존 1500 중복 버그 수정)
+        if LENGTH (v_str) > 1500 THEN
+            RETURN SUBSTR (v_str, 1501);
+        else
+            RETURN NULL;
+        end if;
+
+    else
+        -- p_pos가 0이거나 생략된 경우 (기존 F_BLOB2STR 역할)
+        RETURN v_str;
+    end if;
+
+EXCEPTION WHEN OTHERS THEN 
+    RETURN NULL;
 END;
 /
 
@@ -1254,17 +1202,17 @@ END;
 /
 
 CREATE OR REPLACE FUNCTION KFP.F_CLOB2STR (
-    p_clob                         IN    clob
- ) RETURN VARCHAR IS
-    BEGINNING                    INTEGER := 32700;
-    ENDING                       INTEGER := 1;
-    w_str                        VARCHAR (32700) DEFAULT '';
+    p_clob                         IN    CLOB
+ )  RETURN VARCHAR2 IS
+    PRAGMA                         UDF;
 BEGIN
-    if  p_clob is not null  then
-        DBMS_LOB.READ (p_clob, BEGINNING, ENDING, w_str);
-    else    w_str := ' ';
+    -- NULL이거나 길이가 0인 Empty CLOB 처리
+    if  p_clob IS NULL OR DBMS_LOB.GETLENGTH(p_clob) = 0 THEN
+        RETURN ' ';
     end if;
-    RETURN  w_str;
+
+    -- DBMS_LOB.SUBSTR을 사용하여 바로 반환 (PL/SQL VARCHAR2 최대 길이 32767)
+    RETURN DBMS_LOB.SUBSTR( p_clob, 32767, 1 );
 END;
 /
 
@@ -1272,71 +1220,71 @@ CREATE OR REPLACE FUNCTION KFP.F_COMMISSION (
     p_corp_gr                      IN    VARCHAR,
     p_fund_cd                      IN    VARCHAR,
     p_ymd                          IN    VARCHAR
- ) RETURN COMMISSION_TAB AS
+ )  RETURN COMMISSION_TAB AS
 -- 성과보수 현황
 --
-    w_tab                        COMMISSION_TAB;
+    w_tab                          COMMISSION_TAB;
 
-    w_ymd                        DATE;
+    w_ymd                          DATE;
 
-    w_nav                        NUMBER;
-    w_pj                         NUMBER;
+    w_nav                          NUMBER;
+    w_pj                           NUMBER;
 
-    w_baedang                    NUMBER;
-    w_ija                        NUMBER;
-    w_bond_sonik                 NUMBER;
+    w_baedang                      NUMBER;
+    w_ija                          NUMBER;
+    w_bond_sonik                   NUMBER;
 
-    w_stock_pyunga               NUMBER;
-    w_bond_pyunga                NUMBER;
+    w_stock_pyunga                 NUMBER;
+    w_bond_pyunga                  NUMBER;
 
-    w_sonik                      NUMBER;
-    w_pyunga_sonik               NUMBER;
+    w_sonik                        NUMBER;
+    w_pyunga_sonik                 NUMBER;
 
-    w_commission_sonik           NUMBER;
-    w_commission                 NUMBER;
+    w_commission_sonik             NUMBER;
+    w_commission                   NUMBER;
 BEGIN
     w_ymd := TO_DATE (p_ymd,'yyyymmdd');
-    w_tab := COMMISSION_TAB();
+    w_tab := COMMISSION_TAB( );
 
-    FOR xx IN (
+    for xx IN (
         SELECT t1.FUND_CD                                               /* _1- */
              , NVL(t1.BM_PER,0) / 100                 AS bm_rt          /* _2- */
              , NVL(t1.SUCCESS_PER,0) / 100            AS commission_rt  /* _3- */
              , t1.TARGET_JASAN                                          /* _4- */
              , gi.BF_GYUL_YMD + 1                     AS bf             /* _5- */
              , NVL(gi.haeji_ymd - 1, gi.AF_GYUL_YMD)  AS af             /* _6- */
-          FROM SZM0IA t1
-             , SZM0GI gi
+          FROM SZM0IA t1  /* 자문 계좌정보 */
+             , SZM0GI gi  /* 집합투자증권(펀드) 결산구간 */
          WHERE t1.CORP_GR = p_corp_gr
            AND t1.FUND_CD LIKE p_fund_cd
            AND gi.CORP_GR = t1.CORP_GR
            AND gi.FUND_CD = t1.FUND_CD
-           AND p_ymd      Between gi.BF_GYUL_YMD + 1 AND gi.AF_GYUL_YMD
+           AND p_ymd      BETWEEN gi.BF_GYUL_YMD + 1 AND gi.AF_GYUL_YMD
     ) loop
-        if  xx.af > p_ymd   then    xx.af   := p_ymd;
+        if  xx.af > p_ymd   then    xx.af := p_ymd;
         end if;
 
         SELECT NVL(SUM(t1.sun_jasan_aek),0)
           INTO w_nav
-          FROM SKT0GI t1
+          FROM SKT0GI t1  /* 펀드별 기준가 */
          WHERE t1.corp_gr = p_corp_gr
            AND t1.fund_cd = xx.fund_cd
            AND t1.ymd     = xx.af
            AND t1.work_gb = 'A';
 
-        SELECT NVL(SUM(CASE When t1.GWAMOK IN ('60300','60400')                 THEN NVL(t1.JUNJ, 0) - NVL(t1.DR_AEK, 0) + NVL(t1.CR_AEK, 0) END),0)  /* _1- */
-             , NVL(SUM(CASE When t1.GWAMOK='60500'                              THEN NVL(t1.JUNJ,0) - NVL(t1.DR_AEK,0) + NVL(t1.CR_AEK,0) END),0)     /* _2- */
-             , NVL(SUM(CASE When t1.GWAMOK='90102'                              THEN NVL(t1.JUNJ,0) + NVL(t1.DR_AEK,0) END),0)                        /* _3- */
-             , NVL(SUM(CASE When t1.GWAMOK='A0202'                              THEN NVL(t1.JUNJ,0) + NVL(t1.DR_AEK,0) END),0)                        /* _4- */
-             , NVL(SUM(CASE When t1.GWAMOK='A0402'                              THEN NVL(t1.JUNJ,0) + NVL(t1.DR_AEK,0) - NVL(t1.CR_AEK,0) END),0)     /* _5- */
-             , NVL(SUM(CASE When t1.GWAMOK IN ('A02A2','A02A3','A0231','A02A1') THEN NVL(t1.JUNJ, 0) + NVL(t1.DR_AEK, 0) END),0)                      /* _6- */
+        SELECT NVL(SUM(CASE WHEN t1.GWAMOK IN ('60300','60400')                 THEN NVL(t1.JUNJ,0) - NVL(t1.DR_AEK,0) + NVL(t1.CR_AEK,0) END),0)  /* _1- */
+             , NVL(SUM(CASE WHEN t1.GWAMOK='60500'                              THEN NVL(t1.JUNJ,0) - NVL(t1.DR_AEK,0) + NVL(t1.CR_AEK,0) END),0)  /* _2- */
+             , NVL(SUM(CASE WHEN t1.GWAMOK='90102'                              THEN NVL(t1.JUNJ,0) + NVL(t1.DR_AEK,0) END),0)                     /* _3- */
+             , NVL(SUM(CASE WHEN t1.GWAMOK='A0202'                              THEN NVL(t1.JUNJ,0) + NVL(t1.DR_AEK,0) END),0)                     /* _4- */
+             , NVL(SUM(CASE WHEN t1.GWAMOK='A0402'                              THEN NVL(t1.JUNJ,0) + NVL(t1.DR_AEK,0) - NVL(t1.CR_AEK,0) END),0)  /* _5- */
+             , NVL(SUM(CASE WHEN t1.GWAMOK IN ('A02A2','A02A3','A0231','A02A1') THEN NVL(t1.JUNJ,0) + NVL(t1.DR_AEK,0) END),0)                     /* _6- */
           INTO w_baedang       /* _1- */
              , w_ija           /* _2- */
              , w_pyunga_sonik  /* _3- */
              , w_bond_pyunga   /* _4- */
              , w_pj            /* _5- */
              , w_stock_pyunga  /* _6- */
-          FROM SKM0AG t1
+          FROM SKM0AG t1  /* 총계정원장 */
          WHERE CORP_GR = p_corp_gr
            AND YMD     = xx.af
            AND FUND_CD = xx.fund_cd
@@ -1345,7 +1293,7 @@ BEGIN
 
         if  xx.target_jasan = '--'  then    -- 성과보수 없음
             w_tab.extend;
-            w_tab (w_tab.LAST)  := COMMISSION_REC (xx.fund_cd, NULL, NULL, 0, 0);
+            w_tab (w_tab.LAST) := COMMISSION_REC (xx.fund_cd, NULL, NULL, 0, 0);
 
         elsif xx.target_jasan = '++'    then    -- 계약원금초과
             w_tab.extend;
@@ -1353,48 +1301,49 @@ BEGIN
             w_sonik        := w_nav - w_pj;
             w_pyunga_sonik := 0;
 
-            w_commission_sonik  := w_sonik - TRUNC (w_nav * xx.bm_rt);
+            w_commission_sonik := w_sonik - TRUNC (w_nav * xx.bm_rt);
             if  w_commission_sonik < 0      then
-                    w_commission    := 0;
-            else    w_commission    := TRUNC (w_commission_sonik * xx.commission_rt, -4);
+                    w_commission := 0;
+            else    w_commission := TRUNC (w_commission_sonik * xx.commission_rt, -4);
             end if;
-            w_tab (w_tab.LAST)  := COMMISSION_REC (xx.fund_cd, w_sonik, w_pyunga_sonik, w_commission_sonik, w_commission);
+            w_tab (w_tab.LAST) := COMMISSION_REC (xx.fund_cd, w_sonik, w_pyunga_sonik, w_commission_sonik, w_commission);
 
         elsif xx.target_jasan = '+J'    then    -- 주식손익
             SELECT NVL(SUM(NVL(t1.gyul_aek,0) - NVL(t1.meib_chui_aek,0) - NVL(ja.CY_SUSU,0)),0)
               INTO w_sonik
-              FROM SJT0JG t1
-              Left OUTER JOIN ( SELECT b.sj_jm_cd             AS jm_cd
-                                     , NVL(SUM(a.cy_susu),0)  AS cy_susu
-                                  FROM SJG1FC a
-                                     , SJG1JC b
-                                 WHERE a.corp_gr = p_corp_gr
-                                   AND a.fund_cd = xx.fund_cd
-                                   AND b.JC_JOIN = a.JC_JOIN
-                                   AND b.sj_ymd  Between ADD_MONTHS (xx.bf,-6) AND xx.af
-                                 GROUP BY b.sj_jm_cd ) ja  ON ja.jm_cd = t1.jm_cd
+              FROM SJT0JG t1  /* 주식거래 내역 */
+                   LEFT OUTER JOIN (SELECT p2.sj_jm_cd             AS jm_cd
+                                         , NVL(SUM(p1.cy_susu),0)  AS cy_susu
+                                      FROM SJG1FC p1  /* 펀드별 배정/청약 내역 */
+                                         , SJG1JC p2  /* 종목별 공모 기본정보 및 배정/청약내역(공통) */
+                                     WHERE p1.corp_gr = p_corp_gr
+                                       AND p1.fund_cd = xx.fund_cd
+                                       AND p2.JC_JOIN = p1.JC_JOIN
+                                       AND p2.sj_ymd  BETWEEN ADD_MONTHS (xx.bf,-6) AND xx.af
+                                     GROUP BY p2.sj_jm_cd) ja
+                                ON ja.jm_cd = t1.jm_cd
              WHERE t1.corp_gr = p_corp_gr
                AND t1.fund_cd = xx.fund_cd
-               AND t1.tr_ymd  Between xx.bf AND xx.af
+               AND t1.tr_ymd  BETWEEN xx.bf AND xx.af
                AND t1.tr_cd   LIKE 'K%';
 
-            w_commission_sonik  := w_sonik + w_stock_pyunga;
+            w_commission_sonik := w_sonik + w_stock_pyunga;
             if  w_commission_sonik < 0      then
-                    w_commission    := 0;
-            else    w_commission    := TRUNC (w_commission_sonik * xx.commission_rt, -4);
+                    w_commission := 0;
+            else    w_commission := TRUNC (w_commission_sonik * xx.commission_rt, -4);
             end if;
 
             w_tab.extend;
-            w_tab (w_tab.LAST)  := COMMISSION_REC (xx.fund_cd, w_sonik, w_stock_pyunga, w_commission_sonik, w_commission);
+            w_tab (w_tab.LAST) := COMMISSION_REC (xx.fund_cd, w_sonik, w_stock_pyunga, w_commission_sonik, w_commission);
 
-        else    -- 기간손익
+        else    /* 기간손익 */
             w_sonik := w_nav - w_pj;
-            if  xx.target_jasan = '-C'      then    -- 채권손익 제외
-                SELECT NVL(SUM(CASE When t1.GWAMOK IN ('50105','50201')
+            if  xx.target_jasan = '-C'  then    -- 채권손익 제외
+                SELECT NVL(SUM(CASE WHEN t1.GWAMOK IN ('50105','50201')
                                     THEN (NVL(t1.JUNJ,0) + NVL(t1.DR_AEK,0) - NVL(t1.CR_AEK,0)) * -1
                                     ELSE NVL(t1.JUNJ,0) - NVL(t1.DR_AEK,0) + NVL(t1.CR_AEK,0) END),0)
                   INTO w_bond_sonik
-                  FROM SKM0AG t1
+                  FROM SKM0AG t1  /* 총계정원장 */
                  WHERE CORP_GR = p_corp_gr
                    AND YMD     = xx.af
                    AND FUND_CD = xx.fund_cd
@@ -1404,16 +1353,16 @@ BEGIN
                 w_sonik        := w_sonik - w_bond_sonik - w_ija;
                 w_pyunga_sonik := w_pyunga_sonik - w_bond_pyunga;
             end if;
-            w_commission_sonik  := w_sonik + w_pyunga_sonik;
-            if  w_commission_sonik < 0      then
-                    w_commission    := 0;
-            else    w_commission    := TRUNC (w_commission_sonik * xx.commission_rt, -4);
+            w_commission_sonik := w_sonik + w_pyunga_sonik;
+            if  w_commission_sonik < 0  then
+                    w_commission := 0;
+            else    w_commission := TRUNC (w_commission_sonik * xx.commission_rt, -4);
             end if;
 
             w_tab.extend;
-            w_tab (w_tab.LAST)  := COMMISSION_REC (xx.fund_cd, w_sonik, w_pyunga_sonik, w_commission_sonik, w_commission);
+            w_tab (w_tab.LAST) := COMMISSION_REC (xx.fund_cd, w_sonik, w_pyunga_sonik, w_commission_sonik, w_commission);
         end if;
-    END LOOP;
+    end loop;
 
     RETURN  w_tab;
 END;
@@ -1459,55 +1408,55 @@ CREATE OR REPLACE FUNCTION KFP.F_COVCUR (
     p_currency                     IN    VARCHAR,
     p_aek                          IN    NUMBER,
     p_fund_currency                IN    VARCHAR
-)   RETURN NUMBER IS
+ )  RETURN NUMBER IS
 -- 외화(원화)를 외화로 환산처리
 --
-    w_won_aek                    NUMBER;
-    w_ret                        NUMBER;
+    w_won_aek                      NUMBER;
+    w_ret                          NUMBER;
 BEGIN
     if  p_currency = p_fund_currency    then
         RETURN p_aek;
     else
         if  p_currency = 'KRW'  then
-            w_won_aek   := p_aek;
+            w_won_aek := p_aek;
         else
             BEGIN
-                SELECT trunc(p_aek * gijun_rt)
+                SELECT TRUNC(p_aek * gijun_rt)
                   INTO w_won_aek
-                  FROM SYX1HY t1
+                  FROM SYX1HY t1  /* 운용(자문)사 개별 환율 */
                  WHERE t1.corp_gr   = p_corp_gr
-                   AND t1.gijun_ymd = p_ymd
-                   AND t1.currency  = p_currency;
-            EXCEPTION WHEN OTHERS then
+                   AND t1.currency  = p_currency
+                   AND t1.gijun_ymd = p_ymd;
+            EXCEPTION WHEN OTHERS THEN 
                 BEGIN
-                    SELECT trunc(p_aek * gijun_rt)
+                    SELECT TRUNC(p_aek * gijun_rt)
                       INTO w_won_aek
-                      FROM SYX0HY t1
-                     WHERE t1.gijun_ymd = p_ymd
-                       AND t1.currency  = p_currency;
-                EXCEPTION WHEN OTHERS then
+                      FROM SYX0HY t1  /* (개별 환율이 없을경우)적용 환율 */
+                     WHERE t1.currency  = p_currency
+                       AND t1.gijun_ymd = p_ymd;
+                EXCEPTION WHEN OTHERS THEN 
                     RETURN -1;
                 END;
             END;
         end if;
         if  p_fund_currency = 'KRW'     then
-            w_ret   := trunc (w_won_aek);
+            w_ret := TRUNC (w_won_aek);
         else
             BEGIN
-                SELECT F_ROUND (w_won_aek / gijun_rt,p_fund_currency)
+                SELECT F_ROUND (w_won_aek / gijun_rt, p_fund_currency)
                   INTO w_ret
-                  FROM SYX1HY t1
+                  FROM SYX1HY t1  /* 운용(자문)사 개별 환율 */
                  WHERE t1.corp_gr   = p_corp_gr
-                   AND t1.gijun_ymd = p_ymd
-                   AND t1.currency  = p_fund_currency;
-            EXCEPTION WHEN OTHERS then
+                   AND t1.currency  = p_fund_currency
+                   AND t1.gijun_ymd = p_ymd;
+            EXCEPTION WHEN OTHERS THEN 
                 BEGIN
-                    SELECT F_ROUND (w_won_aek / gijun_rt,p_fund_currency)
+                    SELECT F_ROUND (w_won_aek / gijun_rt, p_fund_currency)
                       INTO w_ret
-                      FROM SYX0HY t1
-                     WHERE t1.gijun_ymd = p_ymd
-                       AND t1.currency  = p_fund_currency;
-                EXCEPTION WHEN OTHERS then
+                      FROM SYX0HY t1  /* (개별 환율이 없을경우)적용 환율 */
+                     WHERE t1.currency  = p_fund_currency
+                       AND t1.gijun_ymd = p_ymd;
+                EXCEPTION WHEN OTHERS THEN 
                     RETURN -1;
                 END;
             END;
@@ -1522,27 +1471,27 @@ CREATE OR REPLACE FUNCTION KFP.F_COVWON (
     p_ymd                          IN    DATE,
     p_currency                     IN    VARCHAR,
     p_tr_aek                       IN    NUMBER
-)   RETURN NUMBER IS
+ )  RETURN NUMBER IS
 -- 외화액을 원화로 환산처리
 --
-    w_ret                        NUMBER;
+    w_ret                          NUMBER;
 BEGIN
     BEGIN
-        SELECT trunc(gijun_rt * p_tr_aek)
+        SELECT TRUNC(gijun_rt * p_tr_aek)
           INTO w_ret
-          FROM SYX1HY t1
+          FROM SYX1HY t1  /* 운용(자문)사 개별 환율 */
          WHERE t1.corp_gr   = p_corp_gr
-           AND t1.gijun_ymd = p_ymd
-           AND t1.currency  = p_currency;
-    EXCEPTION WHEN OTHERS then
+           AND t1.currency  = p_currency
+           AND t1.gijun_ymd = p_ymd;
+    EXCEPTION WHEN OTHERS THEN 
         BEGIN
-            SELECT trunc(gijun_rt * p_tr_aek)
+            SELECT TRUNC(gijun_rt * p_tr_aek)
               INTO w_ret
-              FROM SYX0HY t1
-             WHERE t1.gijun_ymd = p_ymd
-               AND t1.currency  = p_currency;
-        EXCEPTION WHEN OTHERS then
-            w_ret   := -1;
+              FROM SYX0HY t1  /* (개별 환율이 없을경우)적용 환율 */
+             WHERE t1.currency  = p_currency
+               AND t1.gijun_ymd = p_ymd;
+        EXCEPTION WHEN OTHERS THEN 
+            w_ret := -1;
         END;
     END;
     RETURN  w_ret;
@@ -1554,206 +1503,206 @@ CREATE OR REPLACE FUNCTION KFP.F_COVWON_TR (
     p_ymd                          IN    DATE,
     p_currency                     IN    VARCHAR,
     p_tr_aek                       IN    NUMBER
-)   RETURN NUMBER IS
+ )  RETURN NUMBER IS
 -- 외화액을 원화로 환산처리(거래환율)
 --
-    w_trans_rt                   NUMBER;
+    w_trans_rt                     NUMBER;
 BEGIN
     BEGIN
         SELECT gijun_rt
           INTO w_trans_rt
-          FROM SYX1HY t1
+          FROM SYX1HY t1  /* 운용(자문)사 개별 환율 */
          WHERE t1.corp_gr   = p_corp_gr
-           AND t1.gijun_ymd = p_ymd
-           AND t1.currency  = p_currency;
-    EXCEPTION WHEN OTHERS then
+           AND t1.currency  = p_currency
+           AND t1.gijun_ymd = p_ymd;
+    EXCEPTION WHEN OTHERS THEN 
         BEGIN
             SELECT trans_rt
               INTO w_trans_rt
-              FROM SYX0HY t1
-             WHERE t1.gijun_ymd = p_ymd
-               AND t1.currency  = p_currency;
-        EXCEPTION WHEN OTHERS then
-            w_trans_rt  := -1;
+              FROM SYX0HY t1  /* (개별 환율이 없을경우)적용 환율 */
+             WHERE t1.currency  = p_currency
+               AND t1.gijun_ymd = p_ymd;
+        EXCEPTION WHEN OTHERS THEN 
+            w_trans_rt := -1;
         END;
     END;
 
-    RETURN  NVL(TRUNC(NVL(p_tr_aek,0) * w_trans_rt,0),0);
+    RETURN NVL (TRUNC(NVL(p_tr_aek,0) * w_trans_rt,0),0);
 END;
 /
 
-CREATE OR REPLACE FUNCTION KFP.f_currency_enm (
-    p_currency                     IN    varchar
-)   RETURN VARCHAR IS
+CREATE OR REPLACE FUNCTION KFP.F_CURRENCY_ENM (
+    p_currency                     IN    VARCHAR
+ )  RETURN VARCHAR IS
 -- 통화 영문명
 --
-    w_currency_enm               szx0wa.currency_enm%type;
+    w_currency_enm                 szx0wa.currency_enm%type;
 BEGIN
-    begin
+    BEGIN
         SELECT currency_enm
           INTO w_currency_enm
-          FROM SZX0WA t1
+          FROM SZX0WA t1  /* 국가코드 */
          WHERE t1.currency = p_currency
            AND ROWNUM = 1;
-    exception when OTHERS then
+    EXCEPTION WHEN OTHERS THEN 
         RETURN  p_currency;
-    end;
+    END;
 
     RETURN  w_currency_enm;
 END;
 /
 
-CREATE OR REPLACE FUNCTION KFP.f_currency_gb (
-    p_currency                     IN    varchar
-)   RETURN VARCHAR IS
+CREATE OR REPLACE FUNCTION KFP.F_CURRENCY_GB (
+    p_currency                     IN    VARCHAR
+ )  RETURN VARCHAR IS
 -- 통화국가여부
 --
-    w_currency_gb                varchar(1);
+    w_currency_gb                  VARCHAR(1);
 BEGIN
     SELECT MIN(currency_gb)
       INTO w_currency_gb
-      FROM SZX0WA t1
+      FROM SZX0WA t1  /* 국가코드 */
      WHERE t1.currency = p_currency;
 
     RETURN  w_currency_gb;
 END;
 /
 
-CREATE OR REPLACE FUNCTION KFP.f_currency_nm (
-    p_currency                     IN    varchar
-)   RETURN VARCHAR IS
+CREATE OR REPLACE FUNCTION KFP.F_CURRENCY_NM (
+    p_currency                     IN    VARCHAR
+ )  RETURN VARCHAR IS
 -- 통화 한글명
 --
-    w_currency_nm                szx0wa.currency_nm%type;
+    w_currency_nm                  szx0wa.currency_nm%type;
 BEGIN
-    begin
+    BEGIN
         SELECT currency_nm
           INTO w_currency_nm
-          FROM SZX0WA t1
+          FROM SZX0WA t1  /* 국가코드 */
          WHERE t1.currency = p_currency
            AND ROWNUM = 1;
-    exception when OTHERS then
+    EXCEPTION WHEN OTHERS THEN 
         RETURN  p_currency;
-    end;
+    END;
 
     RETURN  w_currency_nm;
 END;
 /
 
-CREATE OR REPLACE FUNCTION KFP.f_currency_rt (
-    p_corp_gr                      IN    varchar,
-    p_ymd                          IN    date,
-    p_currency                     IN    varchar
-)   RETURN NUMBER IS
+CREATE OR REPLACE FUNCTION KFP.F_CURRENCY_RT (
+    p_corp_gr                      IN    VARCHAR,
+    p_ymd                          IN    DATE,
+    p_currency                     IN    VARCHAR
+ )  RETURN NUMBER IS
 -- 기준일 환율구하기
 --
-    w_currency_rt                number;
+    w_currency_rt                  NUMBER;
 BEGIN
-    begin
+    BEGIN
         SELECT gijun_rt
           INTO w_currency_rt
-          FROM SYX1HY t1
+          FROM SYX1HY t1  /* 운용(자문)사 개별 환율 */
          WHERE t1.corp_gr   = p_corp_gr
-           AND t1.gijun_ymd = p_ymd
-           AND t1.currency  = p_currency;
-    exception when OTHERS then
-        begin
+           AND t1.currency  = p_currency
+           AND t1.gijun_ymd = p_ymd;
+    EXCEPTION WHEN OTHERS THEN 
+        BEGIN
             SELECT gijun_rt
               INTO w_currency_rt
-              FROM SYX0HY t1
-             WHERE t1.gijun_ymd = p_ymd
-               AND t1.currency  = p_currency;
-        exception when OTHERS then
-            w_currency_rt   := -1;
-        end;
-    end;
+              FROM SYX0HY t1  /* (개별 환율이 없을경우)적용 환율 */
+             WHERE t1.currency  = p_currency
+               AND t1.gijun_ymd = p_ymd;
+        EXCEPTION WHEN OTHERS THEN 
+            w_currency_rt := -1;
+        END;
+    END;
 
     RETURN  w_currency_rt;
 END;
 /
 
-CREATE OR REPLACE FUNCTION KFP.f_currency_rt1 (
-    p_corp_gr                      IN    varchar,
-    p_ymd                          IN    date,
-    p_currency                     IN    varchar
-)   RETURN NUMBER IS
+CREATE OR REPLACE FUNCTION KFP.F_CURRENCY_RT1 (
+    p_corp_gr                      IN    VARCHAR,
+    p_ymd                          IN    DATE,
+    p_currency                     IN    VARCHAR
+ )  RETURN NUMBER IS
 -- 기준일 환율구하기(당일 환율이 모두 0인 경우 전일 환율로)
 --
-    w_ymd                        date;
-    w_cnt1                       number;
-    w_cnt2                       number;
+    w_ymd                          DATE;
+    w_cnt1                         NUMBER;
+    w_cnt2                         NUMBER;
 
-    w_currency_rt                number;
+    w_currency_rt                  NUMBER;
 BEGIN
     SELECT NVL(SUM(CASE WHEN gijun_rt=0 THEN 1 END), 0)
          , COUNT(*)
       INTO w_cnt1
          , w_cnt2
-      FROM SYX0HY t1
+      FROM SYX0HY t1  /* (개별 환율이 없을경우)적용 환율 */
      WHERE t1.gijun_ymd = p_ymd;
 
     -- 아직 환율 LOAD 전이면 전일 환율 사용
-    w_ymd   := p_ymd;
-    if  w_cnt1 = w_cnt2 then    w_ymd   := p_ymd - 1;
+    w_ymd := p_ymd;
+    if  w_cnt1 = w_cnt2 then    w_ymd := p_ymd - 1;
     end if;
 
-    begin
+    BEGIN
         SELECT gijun_rt
           INTO w_currency_rt
-          FROM SYX1HY t1
+          FROM SYX1HY t1  /* 운용(자문)사 개별 환율 */
          WHERE t1.corp_gr   = p_corp_gr
-           AND t1.gijun_ymd = w_ymd
-           AND t1.currency  = p_currency;
-    exception when OTHERS then
-        begin
+           AND t1.currency  = p_currency
+           AND t1.gijun_ymd = w_ymd;
+    EXCEPTION WHEN OTHERS THEN 
+        BEGIN
             SELECT gijun_rt
               INTO w_currency_rt
-              FROM SYX0HY t1
-             WHERE t1.gijun_ymd = w_ymd
-               AND t1.currency  = p_currency;
-        exception when OTHERS then
-            w_currency_rt   := -1;
-        end;
-    end;
+              FROM SYX0HY t1  /* (개별 환율이 없을경우)적용 환율 */
+             WHERE t1.currency  = p_currency
+               AND t1.gijun_ymd = w_ymd;
+        EXCEPTION WHEN OTHERS THEN 
+            w_currency_rt := -1;
+        END;
+    END;
 
     RETURN  w_currency_rt;
 END;
 /
 
 CREATE OR REPLACE FUNCTION KFP.F_CURRENCY_SORT (
-    p_currency                     IN    varchar
-)   RETURN VARCHAR IS
+    p_currency                     IN    VARCHAR
+ )  RETURN VARCHAR IS
 -- 통화 SORT 순서
 --
-    w_sort                       varchar(20);
+    w_sort                         VARCHAR(20);
 BEGIN
     if  p_currency IN ('USD','CNY','HKD','JPY','EUR')   then
-            w_sort  := '1';
-    else    w_sort  := '2';
+            w_sort := '1';
+    else    w_sort := '2';
     end if;
 
-    begin
+    BEGIN
         SELECT w_sort || MIN(currency_gb) || currency
           INTO w_sort
-          FROM SZX0WA t1
+          FROM SZX0WA t1  /* 국가코드 */
          WHERE t1.currency = p_currency
          GROUP BY currency;
-    exception when OTHERS then
+    EXCEPTION WHEN OTHERS THEN 
         RETURN  '99' || p_currency;
-    end;
+    END;
 
     RETURN  w_sort;
 END;
 /
 
 CREATE OR REPLACE FUNCTION KFP.F_DANC_NM (
-    p_jm_cd                        IN    varchar
-)   RETURN VARCHAR IS
+    p_jm_cd                        IN    VARCHAR
+ )  RETURN VARCHAR IS
 -- 주식 단축식별자명
 --
-    w_danc_nm                    varchar(40);
+    w_danc_nm                      VARCHAR(40);
 BEGIN
-    begin
+    BEGIN
         SELECT CASE danc_gb WHEN 'A' THEN '(시장)'
                             WHEN 'B' THEN '(비상장)'
                             WHEN 'C' THEN '(코스닥)'
@@ -1762,11 +1711,11 @@ BEGIN
                                      ELSE '(권리주)'
                END
           INTO w_danc_nm
-          FROM SJM0JJ t1
+          FROM SJM0JJ t1  /* 주식종목 */
          WHERE t1.jm_cd = p_jm_cd;
-    exception when OTHERS then
-        w_danc_nm   := p_jm_cd;
-    end;
+    EXCEPTION WHEN OTHERS THEN 
+        w_danc_nm := p_jm_cd;
+    END;
 
     RETURN  w_danc_nm;
 END;
@@ -1795,10 +1744,10 @@ CREATE OR REPLACE FUNCTION KFP.F_DANGJ (
     p_junj                         IN    NUMBER,
     p_dr_aek                       IN    NUMBER,
     p_cr_aek                       IN    NUMBER
-)   RETURN NUMBER IS
+ )  RETURN NUMBER IS
 -- 계정잔액(전잔이 없는경우 당일금액)
 --
-    w_aek                        NUMBER;
+    w_aek                          NUMBER;
 BEGIN
     w_aek   := CASE p_chadae_gb WHEN 'D' THEN NVL(p_junj,0) + NVL(p_dr_aek,0) - NVL(p_cr_aek,0)
                                 WHEN 'C' THEN NVL(p_junj,0) - NVL(p_dr_aek,0) + NVL(p_cr_aek,0)
@@ -1809,11 +1758,11 @@ END;
 
 CREATE OR REPLACE FUNCTION KFP.F_DATE_COLOR (
     p_ymd                          IN    DATE
-)   RETURN NUMBER DETERMINISTIC IS
+ )  RETURN NUMBER DETERMINISTIC IS
 -- 일자별 컬러값
 --
-    w_holi_ymd                   DATE;
-    w_color                      NUMBER;
+    w_holi_ymd                     DATE;
+    w_color                        NUMBER;
 BEGIN
     if  p_ymd IS NULL   then    RETURN 2960685;
     end if;
@@ -1821,19 +1770,19 @@ BEGIN
     BEGIN
         SELECT holi_ymd
           INTO w_holi_ymd
-          FROM SZX0HL t1
+          FROM SZX0HL t1  /* 공휴일 */
          WHERE nation_cd = 'KR'
-           AND holi_ymd  = trunc(p_ymd,'dd');
+           AND holi_ymd  = TRUNC(p_ymd,'dd');
 
         RETURN 255;
-    EXCEPTION WHEN OTHERS then
+    EXCEPTION WHEN OTHERS THEN 
         NULL;
     END;
 
     -- holiday 등록되지 않은 해
-    if  INSTR ('0101,0301,0501,0505,0606,0815,1003,1225',TO_CHAR(p_ymd,'mmdd')) > 0 then    RETURN 255; -- 양력휴일 Check
+    if INSTR ('0101,0301,0501,0505,0606,0815,1003,1225', TO_CHAR(p_ymd,'mmdd')) > 0 then    RETURN 255; -- 양력휴일 Check
     end if;
-    if  TO_CHAR (p_ymd, 'd') IN ('1','7')   then    RETURN 255;
+    if TO_CHAR (p_ymd, 'd') IN ('1','7')   then RETURN 255;
     end if;
 
     RETURN 2960685;
@@ -1843,17 +1792,17 @@ END;
 CREATE OR REPLACE FUNCTION KFP.F_DATE_GUGAN_COLOR (
     p_fymd                         IN    DATE,
     p_tymd                         IN    DATE
-)   RETURN NUMBER DETERMINISTIC IS
+ )  RETURN NUMBER DETERMINISTIC IS
 -- 일자구간 컬러값
 --
-    w_days                       NUMBER;
+    w_days                         NUMBER;
 BEGIN
     if  p_fymd IS NULL  then    RETURN 255;
     end if;
     if  p_tymd IS NULL  then    RETURN 255;
     end if;
 
-    w_days  := ABS(F_DAYS (p_tymd, p_fymd));
+    w_days := ABS (F_DAYS (p_tymd, p_fymd));
 
     if  w_days > 30     then    RETURN 16719390;
     elsif w_days > 14   then    RETURN 8388736;
@@ -1866,17 +1815,17 @@ END;
 CREATE OR REPLACE FUNCTION KFP.F_DAY365 (
     p_fymd                         IN    DATE,
     p_tymd                         IN    DATE
-)   RETURN NUMBER DETERMINISTIC IS
+ )  RETURN NUMBER DETERMINISTIC IS
 -- 일수(한편넣기)
 --
-    w_days                       NUMBER;
+    w_days                         NUMBER;
 BEGIN
     BEGIN
         SELECT p_tymd - p_fymd INTO w_days FROM DUAL;
-    EXCEPTION WHEN OTHERS then
-        w_days  := 0;
+    EXCEPTION WHEN OTHERS THEN 
+        w_days := 0;
     END;
-    if  w_days = 366    then    w_days  := 365;
+    if  w_days = 366    then    w_days := 365;
     end if;
     RETURN  w_days;
 END;
@@ -1903,55 +1852,54 @@ CREATE OR REPLACE FUNCTION KFP.F_DCF_ILSU (
     p_ija_dcf                      IN    VARCHAR,
     p_bf_ymd                       IN    DATE,
     p_af_ymd                       IN    DATE
-)   RETURN NUMBER IS
+ )  RETURN NUMBER IS
 -- 해외채권 계산일수에 따른 일수계산
 --
-    w_ilsu                       NUMBER;
-    w_mod_ymd                    DATE;
+    w_ilsu                         NUMBER;
+    w_mod_ymd                      DATE;
 
-    d1                           NUMBER;
-    d2                           NUMBER;
+    d1                             NUMBER;
+    d2                             NUMBER;
 BEGIN
     BEGIN
         if  p_ija_dcf = '1' then
-            w_ilsu  := p_af_ymd - p_bf_ymd;     -- act/act
+            w_ilsu := p_af_ymd - p_bf_ymd;  /* act/act */
 
         elsif p_ija_dcf = '4'   then    -- 30/360
-            w_ilsu  := (TO_CHAR (p_af_ymd, 'yyyy') - TO_CHAR (p_bf_ymd, 'yyyy')) * 360 + (TO_CHAR (p_af_ymd, 'mm') - TO_CHAR (p_bf_ymd, 'mm')) * 30;
+            w_ilsu := (TO_CHAR (p_af_ymd, 'yyyy') - TO_CHAR (p_bf_ymd, 'yyyy')) * 360 + (TO_CHAR (p_af_ymd, 'mm') - TO_CHAR (p_bf_ymd, 'mm')) * 30;
 
             if  p_bf_ymd = LAST_DAY (p_bf_ymd)      then
-                    d1  := 30;
-            else    d1  := TO_CHAR (p_bf_ymd, 'dd');
+                    d1 := 30;
+            else    d1 := TO_CHAR (p_bf_ymd, 'dd');
             end if;
             if  p_af_ymd = LAST_DAY (p_af_ymd)      then
-                    d2  := 30;
-            else    d2  := TO_CHAR (p_af_ymd, 'dd');
+                    d2 := 30;
+            else    d2 := TO_CHAR (p_af_ymd, 'dd');
             end if;
 
-            w_ilsu  := w_ilsu + (d2 - d1);
+            w_ilsu := w_ilsu + (d2 - d1);
 
         elsif p_ija_dcf = '5'   then    -- 30E/360
-            if  TO_CHAR (p_bf_ymd, 'yyyymm') = TO_CHAR (p_af_ymd, 'yyyymm')     then
-                w_ilsu  := LEAST (TO_CHAR (p_af_ymd, 'dd'), '30') - LEAST (TO_CHAR (p_bf_ymd, 'dd'), '30');
-            else
-                w_ilsu  := (TRUNC (months_between (p_af_ymd,LAST_DAY (p_bf_ymd) + 1)) * 30) + (30 - LEAST (TO_CHAR (p_bf_ymd, 'dd'), '30')) + LEAST (TO_CHAR (p_af_ymd, 'dd'), '30');
+            if TO_CHAR (p_bf_ymd, 'yyyymm') = TO_CHAR (p_af_ymd, 'yyyymm')     then
+                    w_ilsu := LEAST (TO_CHAR (p_af_ymd, 'dd'), '30') - LEAST (TO_CHAR (p_bf_ymd, 'dd'), '30');
+            else    w_ilsu := (TRUNC (months_between (p_af_ymd,LAST_DAY (p_bf_ymd) + 1)) * 30) + (30 - LEAST (TO_CHAR (p_bf_ymd, 'dd'), '30')) + LEAST (TO_CHAR (p_af_ymd, 'dd'), '30');
             end if;
         else
-            if  TRUNC (months_between(p_af_ymd,p_bf_ymd)) = 0   then
-                w_ilsu  := 0;
+            if TRUNC (months_between(p_af_ymd, p_bf_ymd)) = 0   then
+                w_ilsu := 0;
             else
                 if  p_ija_dcf = '2' then
-                        w_ilsu  := 365 / (12 / TRUNC (months_between(p_af_ymd,p_bf_ymd)));   -- act/365
-                else    w_ilsu  := 360 / (12 / TRUNC (months_between(p_af_ymd,p_bf_ymd)));  -- act/360
+                        w_ilsu := 365 / (12 / TRUNC (months_between(p_af_ymd, p_bf_ymd)));  /* act/365 */
+                else    w_ilsu := 360 / (12 / TRUNC (months_between(p_af_ymd, p_bf_ymd)));  /* act/360 */
                 end if;
             end if;
-            if  TRUNC (months_between(p_af_ymd,p_bf_ymd)) != months_between (p_af_ymd, p_bf_ymd)    then
-                w_mod_ymd   := ADD_MONTHS (p_bf_ymd,TRUNC (months_between (p_af_ymd,p_bf_ymd)));
-                w_ilsu      := TRUNC (w_ilsu) + (p_af_ymd - w_mod_ymd);
+            if TRUNC (months_between(p_af_ymd, p_bf_ymd)) != months_between (p_af_ymd, p_bf_ymd)    then
+                w_mod_ymd := ADD_MONTHS (p_bf_ymd, TRUNC (months_between (p_af_ymd, p_bf_ymd)));
+                w_ilsu    := TRUNC (w_ilsu) + (p_af_ymd - w_mod_ymd);
             end if;
         end if;
-    EXCEPTION WHEN OTHERS then
-        w_ilsu  := 0;
+    EXCEPTION WHEN OTHERS THEN 
+        w_ilsu := 0;
     END;
     RETURN  w_ilsu;
 END;
@@ -1963,53 +1911,53 @@ CREATE OR REPLACE FUNCTION KFP.F_DGTVR (
     p_fund_cd                      IN    VARCHAR,
     p_port_num                     IN    VARCHAR,
     p_jm_cd                        IN    VARCHAR
-)   RETURN DGTVR_TAB AS
+ )  RETURN DGTVR_TAB AS
 --
 -- 델타,감마,세타,베가,로
 --
-    w_tab                        DGTVR_TAB;
+    w_tab                          DGTVR_TAB;
 
-    w_year_T                     NUMBER;
-    W_year_sigma                 NUMBER;
+    w_year_T                       NUMBER;
+    W_year_sigma                   NUMBER;
 
-    w_r                          NUMBER;
-    w_d1                         NUMBER;
-    w_d2                         NUMBER;
+    w_r                            NUMBER;
+    w_d1                           NUMBER;
+    w_d2                           NUMBER;
 
-    call_delta                   NUMBER;
-    put_delta                    NUMBER;
-    w_gamma                      NUMBER;
-    w_vega                       NUMBER;
-    call_theta                   NUMBER;
-    put_theta                    NUMBER;
-    call_rho                     NUMBER;
-    put_rho                      NUMBER;
+    call_delta                     NUMBER;
+    put_delta                      NUMBER;
+    w_gamma                        NUMBER;
+    w_vega                         NUMBER;
+    call_theta                     NUMBER;
+    put_theta                      NUMBER;
+    call_rho                       NUMBER;
+    put_rho                        NUMBER;
 BEGIN
-    w_tab   := DGTVR_TAB();
+    w_tab := DGTVR_TAB( );
 
     SELECT IJA_PER / 100
       INTO w_r
-      FROM SYM0YA t1
+      FROM SYM0YA t1  /* 해외 자산종목 */
      WHERE CORP_GR  = p_corp_gr
        AND JASAN_GB = '5'
        AND JM_NM    = '기준금리'
        AND CURRENCY = 'USD'
        AND BALH_YMD = (SELECT MAX(BALH_YMD)
-                         FROM SYM0YA h1
+                         FROM SYM0YA h1  /* 해외 자산종목 */
                         WHERE CORP_GR  = p_corp_gr
                           AND JASAN_GB = '5'
                           AND JM_NM    = '기준금리'
                           AND CURRENCY = 'USD'
-                          AND p_ymd    Between BALH_YMD AND SANGHW_YMD);
+                          AND p_ymd    BETWEEN BALH_YMD AND SANGHW_YMD);
 
-    FOR xx IN (
-        SELECT t1.TT
-             , t2.JONGA          AS S
-             , t1.DT             AS T
-             , t2.PUT_PRICE       AS K
-             , t2.TT_VOLATILITY  AS sigma
-          FROM USPM_PORT t1
-             , USPM      t2
+    for xx IN (
+        SELECT t1.TT                       /* _1- */
+             , t2.JONGA          AS S      /* _2- */
+             , t1.DT             AS T      /* _3- */
+             , t2.PUT_PRICE      AS K      /* _4- */
+             , t2.TT_VOLATILITY  AS sigma  /* _5- */
+          FROM USPM_PORT t1  /* US Portfolio Model PORT별 정보 */
+             , USPM      t2  /* US Portfolio Model 일변 기준정보 */
          WHERE t1.CORP_GR  = p_corp_gr
            AND t1.FUND_CD  = p_fund_cd
            AND t1.TYMD     = p_ymd
@@ -2020,24 +1968,24 @@ BEGIN
            AND t2.JM_CD    = p_jm_cd
            AND t2.PORT_NUM = t1.PORT_NUM
     ) loop
-        w_year_T        := xx.T / 365;
-        w_year_sigma    := xx.sigma * (365 / xx.T) ** (1 / 2);
+        w_year_T     := xx.T / 365;
+        w_year_sigma := xx.sigma * (365 / xx.T) ** (1 / 2);
 
-        call_delta  := F_STD_CDF ((LN(xx.S / xx.K) + (w_r + POWER(w_year_sigma, 2) / 2) * w_year_T) / (w_year_sigma * SQRT(w_year_T)));
-        put_delta   := F_STD_CDF ((LN(xx.S / xx.K) + (w_r + POWER(w_year_sigma, 2) / 2) * w_year_T) / (w_year_sigma * SQRT(w_year_T))) - 1;
+        call_delta := F_STD_CDF ((LN(xx.S / xx.K) + (w_r + POWER(w_year_sigma, 2) / 2) * w_year_T) / (w_year_sigma * SQRT(w_year_T)));
+        put_delta  := F_STD_CDF ((LN(xx.S / xx.K) + (w_r + POWER(w_year_sigma, 2) / 2) * w_year_T) / (w_year_sigma * SQRT(w_year_T))) - 1;
 
         w_gamma := F_STD_PDF ((LN(xx.S / xx.K) + (w_r + POWER(w_year_sigma, 2) / 2) * w_year_T) / (w_year_sigma * SQRT(w_year_T))) / (xx.S * w_year_sigma * SQRT(w_year_T));
 
-        w_d1    := (LN(xx.S / xx.K) + (w_r + 0.5 * w_year_sigma * w_year_sigma) * w_year_T) / (w_year_sigma * SQRT(w_year_T));
-        w_d2    := w_d1 - w_year_sigma * SQRT(w_year_T);
+        w_d1 := (LN(xx.S / xx.K) + (w_r + 0.5 * w_year_sigma * w_year_sigma) * w_year_T) / (w_year_sigma * SQRT(w_year_T));
+        w_d2 := w_d1 - w_year_sigma * SQRT (w_year_T);
 
-        call_theta  := - (xx.S * F_STD_PDF (w_d1) * w_year_sigma) / (2 * SQRT(w_year_T)) - w_r * xx.K * EXP( - w_r * w_year_T) * F_STD_CDF (w_d2);
-        put_theta   := - (xx.S * F_STD_PDF (w_d1) * w_year_sigma) / (2 * SQRT(w_year_T)) + w_r * xx.K * EXP( - w_r * w_year_T) * F_STD_CDF ( - w_d2);
+        call_theta := - (xx.S * F_STD_PDF (w_d1) * w_year_sigma) / (2 * SQRT(w_year_T)) - w_r * xx.K * EXP (- w_r * w_year_T) * F_STD_CDF (w_d2);
+        put_theta  := - (xx.S * F_STD_PDF (w_d1) * w_year_sigma) / (2 * SQRT(w_year_T)) + w_r * xx.K * EXP (- w_r * w_year_T) * F_STD_CDF (- w_d2);
 
-        w_vega  := xx.S * F_STD_PDF (w_d1) * SQRT(w_year_T) / 100;
+        w_vega := xx.S * F_STD_PDF (w_d1) * SQRT (w_year_T) / 100;
 
-        call_rho    := xx.K * w_year_T * EXP( - w_r * w_year_T) * F_STD_CDF (w_d2) / 100;
-        put_rho     := - xx.K * w_year_T * EXP( - w_r * w_year_T) * F_STD_CDF ( - w_d2) / 100;
+        call_rho := xx.K * w_year_T * EXP (- w_r * w_year_T) * F_STD_CDF (w_d2) / 100;
+        put_rho  := - xx.K * w_year_T * EXP (- w_r * w_year_T) * F_STD_CDF (- w_d2) / 100;
 
         w_tab.extend;
         w_tab (w_tab.LAST)  := DGTVR_REC (xx.S, xx.K, xx.T, w_r, xx.sigma, ROUND(w_year_sigma, 4),
@@ -2046,10 +1994,10 @@ BEGIN
                                           ROUND(call_theta / 365, 6), ROUND(put_theta / 365, 6),
                                           ROUND(w_vega, 6),
                                           ROUND(call_rho, 6), ROUND(put_rho, 6));
-    END LOOP;
+    end loop;
 
     RETURN  w_tab;
-EXCEPTION WHEN OTHERS THEN
+EXCEPTION WHEN OTHERS THEN 
     w_tab.extend;
     RETURN  w_tab;
 END;
@@ -2061,45 +2009,45 @@ CREATE OR REPLACE FUNCTION KFP.F_DGTVR_COM (
     p_K                            IN    NUMBER,
     p_r                            IN    NUMBER,
     p_sigma                        IN    NUMBER
-)   RETURN DGTVR_TAB AS
+ )  RETURN DGTVR_TAB AS
 --
 -- 델타,감마,세타,베가,로
 --
-    w_tab                        DGTVR_TAB;
+    w_tab                          DGTVR_TAB;
 
-    w_year_T                     NUMBER;
+    w_year_T                       NUMBER;
 
-    w_d1                         NUMBER;
-    w_d2                         NUMBER;
+    w_d1                           NUMBER;
+    w_d2                           NUMBER;
 
-    call_delta                   NUMBER;
-    put_delta                    NUMBER;
-    w_gamma                      NUMBER;
-    w_vega                       NUMBER;
-    call_theta                   NUMBER;
-    put_theta                    NUMBER;
-    call_rho                     NUMBER;
-    put_rho                      NUMBER;
+    call_delta                     NUMBER;
+    put_delta                      NUMBER;
+    w_gamma                        NUMBER;
+    w_vega                         NUMBER;
+    call_theta                     NUMBER;
+    put_theta                      NUMBER;
+    call_rho                       NUMBER;
+    put_rho                        NUMBER;
 BEGIN
-    w_tab   := DGTVR_TAB();
+    w_tab := DGTVR_TAB( );
 
-    w_year_T    := p_T / 365;
+    w_year_T := p_T / 365;
 
-    call_delta  := F_STD_CDF ((LN(p_S / p_K) + (p_r + POWER(p_sigma, 2) / 2) * w_year_T) / (p_sigma * SQRT(w_year_T)));
-    put_delta   := F_STD_CDF ((LN(p_S / p_K) + (p_r + POWER(p_sigma, 2) / 2) * w_year_T) / (p_sigma * SQRT(w_year_T))) - 1;
+    call_delta := F_STD_CDF ((LN(p_S / p_K) + (p_r + POWER(p_sigma, 2) / 2) * w_year_T) / (p_sigma * SQRT(w_year_T)));
+    put_delta  := F_STD_CDF ((LN(p_S / p_K) + (p_r + POWER(p_sigma, 2) / 2) * w_year_T) / (p_sigma * SQRT(w_year_T))) - 1;
 
     w_gamma := F_STD_PDF ((LN(p_S / p_K) + (p_r + POWER(p_sigma, 2) / 2) * w_year_T) / (p_sigma * SQRT(w_year_T))) / (p_S * p_sigma * SQRT(w_year_T));
 
-    w_d1    := (LN(p_S / p_K) + (p_r + 0.5 * p_sigma * p_sigma) * w_year_T) / (p_sigma * SQRT(w_year_T));
-    w_d2    := w_d1 - p_sigma * SQRT(w_year_T);
+    w_d1 := (LN(p_S / p_K) + (p_r + 0.5 * p_sigma * p_sigma) * w_year_T) / (p_sigma * SQRT(w_year_T));
+    w_d2 := w_d1 - p_sigma * SQRT (w_year_T);
 
-    call_theta  := - (p_S * F_STD_PDF (w_d1) * p_sigma) / (2 * SQRT(w_year_T)) - p_r * p_K * EXP(- p_r * w_year_T) * F_STD_CDF (w_d2);
-    put_theta   := - (p_S * F_STD_PDF (w_d1) * p_sigma) / (2 * SQRT(w_year_T)) + p_r * p_K * EXP(- p_r * w_year_T) * F_STD_CDF (- w_d2);
+    call_theta := - (p_S * F_STD_PDF (w_d1) * p_sigma) / (2 * SQRT(w_year_T)) - p_r * p_K * EXP (- p_r * w_year_T) * F_STD_CDF (w_d2);
+    put_theta  := - (p_S * F_STD_PDF (w_d1) * p_sigma) / (2 * SQRT(w_year_T)) + p_r * p_K * EXP (- p_r * w_year_T) * F_STD_CDF (- w_d2);
 
-    w_vega  := p_S * F_STD_PDF (w_d1) * SQRT(w_year_T) / 100;
+    w_vega := p_S * F_STD_PDF (w_d1) * SQRT (w_year_T) / 100;
 
-    call_rho    := p_K * w_year_T * EXP(- p_r * w_year_T) * F_STD_CDF (w_d2) / 100;
-    put_rho     := - p_K * w_year_T * EXP(- p_r * w_year_T) * F_STD_CDF (- w_d2) / 100;
+    call_rho := p_K * w_year_T * EXP (- p_r * w_year_T) * F_STD_CDF (w_d2) / 100;
+    put_rho  := - p_K * w_year_T * EXP (- p_r * w_year_T) * F_STD_CDF (- w_d2) / 100;
 
     w_tab.extend;
     w_tab (w_tab.LAST)  := DGTVR_REC (p_S, p_K, p_T, p_r, p_Sigma, ROUND(p_sigma, 4),
@@ -2110,7 +2058,7 @@ BEGIN
                                       ROUND(call_rho, 6), ROUND(put_rho, 6));
 
     RETURN  w_tab;
-EXCEPTION WHEN OTHERS THEN
+EXCEPTION WHEN OTHERS THEN 
     w_tab.extend;
     w_tab (w_tab.LAST)  := DGTVR_REC (p_S, p_K, p_T, p_r, p_Sigma, ROUND(p_sigma, 4),
                                       NULL, NULL,
@@ -2238,75 +2186,74 @@ CREATE OR REPLACE FUNCTION KFP.F_FULLPATH (
     w_fullpath                     VARCHAR (500);
 BEGIN
     WITH t_pgm4path (
-               level_no    /* _1- */
-             , sys_id      /* _2- */
-             , pgm_no      /* _3- */
-             , parent_pgm  /* _4- */
-             , pgm_nm      /* _5- */
-             )
-         AS (
-             SELECT 1                                          AS level_no    /* _1- */
-                  , lz.sys_id                                  AS sys_id      /* _2- */
-                  , lz.pgm_no                                  AS pgm_no      /* _3- */
-                  , lz.parent_pgm                              AS parent_pgm  /* _4- */
-                  , F_N0(lz.sort_order,3) || ':' || lz.pgm_nm  AS pgm_nm      /* _5- */
-               FROM FW_PGM_MST lz  /* 프로그램 */
-              WHERE lz.sys_id = p_sys_id
-                AND lz.pgm_no = p_pgm_no
-             UNION ALL
-             SELECT level_no + 1                               /* _1- */
-                  , lz.sys_id                                  /* _2- */
-                  , lz.pgm_no                                  /* _3- */
-                  , lz.parent_pgm                              /* _4- */
-                  , F_N0(lz.sort_order,3) || ':' || lz.pgm_nm  /* _5- */
-               FROM FW_PGM_MST lz  /* 프로그램 */
-                  , T_PGM4PATH ly
-              WHERE lz.sys_id     = p_sys_id
-                AND ly.sys_id     = lz.sys_id
-                AND ly.parent_pgm = lz.pgm_no
-             )
-         -- Main SQL --
-         --------------
-         SELECT MAX(CASE When level_no=3 THEN lx.pgm_nm END)
-                   || ' > ' || MAX(CASE When level_no=2 THEN lx.pgm_nm END)
-                   || ' > ' || MAX(CASE When level_no=1 THEN lx.pgm_nm END)
-           INTO w_fullpath
-           FROM T_PGM4PATH lx;
+         level_no    /* _1- */
+       , sys_id      /* _2- */
+       , pgm_no      /* _3- */
+       , parent_pgm  /* _4- */
+       , pgm_nm      /* _5- */
+       ) AS (
+         SELECT 1                                          AS level_no    /* _1- */
+              , lz.sys_id                                  AS sys_id      /* _2- */
+              , lz.pgm_no                                  AS pgm_no      /* _3- */
+              , lz.parent_pgm                              AS parent_pgm  /* _4- */
+              , F_N0(lz.sort_order,3) || ':' || lz.pgm_nm  AS pgm_nm      /* _5- */
+           FROM FW_PGM_MST lz  /* 프로그램 */
+          WHERE lz.sys_id = p_sys_id
+            AND lz.pgm_no = p_pgm_no
+         UNION ALL
+         SELECT level_no + 1                               /* _1- */
+              , lz.sys_id                                  /* _2- */
+              , lz.pgm_no                                  /* _3- */
+              , lz.parent_pgm                              /* _4- */
+              , F_N0(lz.sort_order,3) || ':' || lz.pgm_nm  /* _5- */
+           FROM FW_PGM_MST lz  /* 프로그램 */
+              , T_PGM4PATH ly
+          WHERE lz.sys_id     = p_sys_id
+            AND ly.sys_id     = lz.sys_id
+            AND ly.parent_pgm = lz.pgm_no
+       )
+    -- Main SQL --
+    --------------
+    SELECT MAX(CASE WHEN level_no=3 THEN lx.pgm_nm END)
+              || ' > ' || MAX(CASE WHEN level_no=2 THEN lx.pgm_nm END)
+              || ' > ' || MAX(CASE WHEN level_no=1 THEN lx.pgm_nm END)
+      INTO w_fullpath
+      FROM T_PGM4PATH lx;
 
     RETURN  w_fullpath;
 END;
 /
 
 CREATE OR REPLACE FUNCTION KFP.F_FUND_COLOR (
-    p_corp_gr                   IN        varchar,
-    p_fund_cd                   IN        varchar,
-    p_ymd                       IN        date default null
-)               RETURN  NUMBER  IS
+    p_corp_gr                      IN    VARCHAR,
+    p_fund_cd                      IN    VARCHAR,
+    p_ymd                          IN    DATE DEFAULT NULL
+ )  RETURN NUMBER IS
 -- 펀드명 색상
 --
-    w_ymd                       date;
-    w_color                     number;
+    w_ymd                          DATE;
+    w_color                        NUMBER;
 BEGIN
-    if  p_ymd is null   then
+    if  p_ymd IS NULL   then
         SELECT hyun_ymd
           INTO w_ymd
-        FROM   szx0aa t1
-        WHERE  t1.corp_gr = p_corp_gr;
+          FROM SZX0AA t1  /* 작업관련 일자관리 */
+         WHERE t1.corp_gr = p_corp_gr;
     else
-        w_ymd   := p_ymd;
+        w_ymd := p_ymd;
     end if;
 
-    begin
-        SELECT CASE WHEN NVL(haeji_ymd,w_ymd) < w_ymd
-                         THEN 8421504
-                         ELSE 2960685 END
+    BEGIN
+        SELECT CASE WHEN NVL(haeji_ymd, w_ymd) < w_ymd
+                    THEN 8421504
+                    ELSE 2960685 END
           INTO w_color
-        FROM   szm0ia t1
-        WHERE  t1.corp_gr = p_corp_gr
-          AND  t1.fund_cd = p_fund_cd;
-    exception when  OTHERS  then
+          FROM SZM0IA t1  /* 자문 계좌정보 */
+         WHERE t1.corp_gr = p_corp_gr
+           AND t1.fund_cd = p_fund_cd;
+    EXCEPTION WHEN OTHERS THEN 
         w_color := 128;
-    end;
+    END;
 
     RETURN  w_color;
 END;
@@ -2316,10 +2263,10 @@ CREATE OR REPLACE FUNCTION KFP.F_FUND_NM (
     p_corp_gr                      IN    VARCHAR,
     p_fund_cd                      IN    VARCHAR,
     p_nm_gb                        IN    VARCHAR DEFAULT 'nm'
-)   RETURN VARCHAR IS
+ )  RETURN VARCHAR IS
 -- 펀드명
 --
-    w_fund_nm                    szm0ia.fund_nm%type;
+    w_fund_nm                      szm0ia.fund_nm%type;
 BEGIN
     if  p_fund_cd IS NULL   then
         RETURN NULL;
@@ -2329,14 +2276,14 @@ BEGIN
                                         ELSE fund_nm
                END
           INTO w_fund_nm
-          FROM SZM0IA t1
+          FROM SZM0IA t1  /* 자문 계좌정보 */
          WHERE t1.corp_gr = p_corp_gr
            AND t1.fund_cd = p_fund_cd;
-    EXCEPTION WHEN OTHERS then
-        w_fund_nm   := p_fund_cd;
+    EXCEPTION WHEN OTHERS THEN 
+        w_fund_nm := p_fund_cd;
     END;
 
-    RETURN  NVL(w_fund_nm,p_fund_cd || ' szm0fd 미등록');
+    RETURN NVL (w_fund_nm, p_fund_cd || ' szm0fd 미등록');
 END;
 /
 
@@ -2344,37 +2291,37 @@ CREATE OR REPLACE FUNCTION KFP.F_FUND_SUCCESS (
     p_corp_gr                      IN    VARCHAR,
     p_fund_cd                      IN    VARCHAR,
     p_ymd                          IN    DATE DEFAULT NULL
-)   RETURN VARCHAR IS
+ )  RETURN VARCHAR IS
 -- 성과보수 펀드
 --
-    w_ymd                        DATE;
-    w_success                    VARCHAR (2);
+    w_ymd                          DATE;
+    w_success                      VARCHAR (2);
 BEGIN
     if  p_ymd IS NULL   then
         SELECT hyun_ymd
           INTO w_ymd
-          FROM SZX0AA t1
+          FROM SZX0AA t1  /* 작업관련 일자관리 */
          WHERE t1.corp_gr = p_corp_gr;
     else
-        w_ymd   := p_ymd;
+        w_ymd := p_ymd;
     end if;
 
     BEGIN
         SELECT CASE WHEN t1.SUCCESS_PER > 0 THEN 'ok'
                                             ELSE 'no' END
           INTO w_success
-          FROM SKT0GS t1
+          FROM SKT0GS t1  /* 결산실적 */
          WHERE t1.corp_gr  = p_corp_gr
            AND t1.fund_cd  = p_fund_cd
            AND t1.gyul_ymd = (SELECT MAX(gyul_ymd)
-                                FROM SKT0GS ta
+                                FROM SKT0GS ta  /* 결산실적 */
                                WHERE ta.corp_gr  = p_corp_gr
                                  AND ta.gyul_ymd <= p_ymd);
-    EXCEPTION WHEN OTHERS then
+    EXCEPTION WHEN OTHERS THEN 
         SELECT CASE WHEN t1.SUCCESS_PER > 0 THEN 'ok'
                                             ELSE 'no' END
           INTO w_success
-          FROM SZM0IA t1
+          FROM SZM0IA t1  /* 자문 계좌정보 */
          WHERE t1.corp_gr = p_corp_gr
            AND t1.fund_cd = p_fund_cd;
     END;
@@ -2387,38 +2334,38 @@ CREATE OR REPLACE FUNCTION KFP.F_FUND_SUIK_PER (
     p_corp_gr                      IN    VARCHAR,
     p_fund_cd                      IN    VARCHAR,
     p_ymd                          IN    VARCHAR
-)   RETURN SUIK_PER_TAB AS
+ )  RETURN SUIK_PER_TAB AS
 -- 펀드수익률(평잔수익률)
 --
-    w_tab                        SUIK_PER_TAB;
+    w_tab                          SUIK_PER_TAB;
 
-    w_FST_SEOLJ_SUIK_PER         NUMBER;
-    w_RE_SEOLJ_SUIK_PER          NUMBER;
-    w_WONBON_AEK                 NUMBER;
-    w_NAV                        NUMBER;
-    w_FST_PJ                     NUMBER;
-    w_RE_PJ                      NUMBER;
+    w_FST_SEOLJ_SUIK_PER           NUMBER;
+    w_RE_SEOLJ_SUIK_PER            NUMBER;
+    w_WONBON_AEK                   NUMBER;
+    w_NAV                          NUMBER;
+    w_FST_PJ                       NUMBER;
+    w_RE_PJ                        NUMBER;
 
-    w_ymd                        DATE;
-    w_af_ymd                     DATE;
-    w_fst_seolj_ymd              DATE;
-    w_re_seolj_ymd               DATE;
+    w_ymd                          DATE;
+    w_af_ymd                       DATE;
+    w_fst_seolj_ymd                DATE;
+    w_re_seolj_ymd                 DATE;
 
-    w_suik_rt                    NUMBER;
-    w_pj                         NUMBER;
+    w_suik_rt                      NUMBER;
+    w_pj                           NUMBER;
 BEGIN
-    if  LENGTH (p_ymd) = 10     then
-            w_ymd   := TO_DATE (p_ymd,'yyyy.mm.dd');
-    else    w_ymd   := TO_DATE (p_ymd,'yyyymmdd');
+    if LENGTH (p_ymd) = 10     then
+            w_ymd := TO_DATE (p_ymd,'yyyy.mm.dd');
+    else    w_ymd := TO_DATE (p_ymd,'yyyymmdd');
     end if;
-    w_tab   := SUIK_PER_TAB();
+    w_tab := SUIK_PER_TAB( );
 
-    FOR xx IN (
+    for xx IN (
         SELECT ia.FUND_CD
              , ia.FST_SEOLJ_YMD
              , ia.RE_SEOLJ_YMD
              , ia.HAEJI_YMD
-          FROM SZM0IA ia
+          FROM SZM0IA ia  /* 자문 계좌정보 */
          WHERE ia.corp_gr = p_corp_gr
            AND ia.fund_cd LIKE p_fund_cd
          ORDER BY fund_cd
@@ -2426,67 +2373,67 @@ BEGIN
         w_fst_seolj_ymd := xx.fst_seolj_ymd;
         w_re_seolj_ymd  := xx.re_seolj_ymd;
 
-        w_suik_rt   := 1;
-        FOR x1 IN (
+        w_suik_rt := 1;
+        for x1 IN (
             SELECT t1.bf_gyul_ymd
                  , t1.af_gyul_ymd
-              FROM SZM0GI t1
-             WHERE t1.corp_gr = p_corp_gr
-               AND t1.fund_cd = xx.fund_cd
-               AND (t1.bf_gyul_ymd + 1)  < w_ymd
+              FROM SZM0GI t1  /* 집합투자증권(펀드) 결산구간 */
+             WHERE t1.corp_gr           = p_corp_gr
+               AND t1.fund_cd           = xx.fund_cd
+               AND (t1.bf_gyul_ymd + 1) < w_ymd
              ORDER BY t1.bf_gyul_ymd
         ) loop
             if  xx.haeji_ymd IS NOT NULL    then
-                w_af_ymd    := LEAST(x1.af_gyul_ymd, xx.haeji_ymd);
+                w_af_ymd := LEAST(x1.af_gyul_ymd, xx.haeji_ymd);
             else
-                w_af_ymd    := LEAST(x1.af_gyul_ymd, w_ymd);
+                w_af_ymd := LEAST(x1.af_gyul_ymd, w_ymd);
             end if;
 
             SELECT NVL(TRUNC(AVG(INVEST_AMT)),0)
               INTO w_pj
-              FROM UZM0HY t1
+              FROM UZM0HY t1  /* 계좌별 수요예측 집계자료 */
              WHERE t1.corp_gr = p_corp_gr
                AND t1.fund_cd = xx.fund_cd
-               AND t1.ymd     Between  (x1.bf_gyul_ymd + 1) AND w_af_ymd;
+               AND t1.ymd     BETWEEN (x1.bf_gyul_ymd + 1) AND w_af_ymd;
 
             if  w_pj != 0   then
                 BEGIN
                     SELECT w_suik_rt * t1.NAV / w_pj
                       INTO w_suik_rt
-                      FROM UZM0HY t1
+                      FROM UZM0HY t1  /* 계좌별 수요예측 집계자료 */
                      WHERE t1.corp_gr = p_corp_gr
                        AND t1.fund_cd = xx.fund_cd
                        AND t1.ymd     = w_af_ymd;
-                EXCEPTION WHEN OTHERS then
+                EXCEPTION WHEN OTHERS THEN 
                     CONTINUE;
                 END;
             end if;
-        END LOOP;
+        end loop;
 
         BEGIN
             SELECT t1.INVEST_AMT
                  , t1.NAV
                  , (w_suik_rt - 1) * 100
                  , CASE WHEN NVL(w_pj,0)=0 THEN 0
-                                           ELSE (t1.NAV - t1.INVEST_AMT) / w_pj * 100 END
+                                           ELSE (t1.NAV - t1.INVEST_AMT) / t1.INVEST_AMT * 100 END
               INTO w_WONBON_AEK
                  , w_NAV
                  , w_FST_SEOLJ_SUIK_PER
                  , w_RE_SEOLJ_SUIK_PER
-              FROM UZM0HY t1
+              FROM UZM0HY t1  /* 계좌별 수요예측 집계자료 */
              WHERE t1.corp_gr = p_corp_gr
                AND t1.fund_cd = xx.fund_cd
                AND t1.ymd     = w_ymd;
-        EXCEPTION WHEN OTHERS THEN
-            w_WONBON_AEK            := 0;
-            w_NAV                   := 0;
-            w_FST_SEOLJ_SUIK_PER    := 0;
-            w_RE_SEOLJ_SUIK_PER     := 0;
+        EXCEPTION WHEN OTHERS THEN 
+            w_WONBON_AEK         := 0;
+            w_NAV                := 0;
+            w_FST_SEOLJ_SUIK_PER := 0;
+            w_RE_SEOLJ_SUIK_PER  := 0;
         END;
 
         w_tab.extend;
-        w_tab (w_tab.LAST)  := SUIK_PER_REC (xx.FUND_CD, w_FST_SEOLJ_SUIK_PER, w_RE_SEOLJ_SUIK_PER, w_FST_PJ, w_pj, w_WONBON_AEK, w_NAV);
-    END LOOP;
+        w_tab (w_tab.LAST) := SUIK_PER_REC (xx.FUND_CD, w_FST_SEOLJ_SUIK_PER, w_RE_SEOLJ_SUIK_PER, w_FST_PJ, w_pj, w_WONBON_AEK, w_NAV);
+    end loop;
 
     RETURN  w_tab;
 END;
@@ -2496,90 +2443,90 @@ CREATE OR REPLACE FUNCTION KFP.F_FUND_SUIK_PER1 (
     p_corp_gr                      IN    VARCHAR,
     p_fund_cd                      IN    VARCHAR,
     p_ymd                          IN    VARCHAR
-)   RETURN SUIK_PER_TAB AS
+ )  RETURN SUIK_PER_TAB AS
 -- 펀드수익률(평잔수익률) - 순자산제외포함
 --
-    w_tab                        SUIK_PER_TAB;
+    w_tab                          SUIK_PER_TAB;
 
-    w_FST_SEOLJ_SUIK_PER         NUMBER;
-    w_RE_SEOLJ_SUIK_PER          NUMBER;
-    w_WONBON_AEK                 NUMBER;
-    w_NAV                        NUMBER;
-    w_FST_PJ                     NUMBER;
-    w_RE_PJ                      NUMBER;
+    w_FST_SEOLJ_SUIK_PER           NUMBER;
+    w_RE_SEOLJ_SUIK_PER            NUMBER;
+    w_WONBON_AEK                   NUMBER;
+    w_NAV                          NUMBER;
+    w_FST_PJ                       NUMBER;
+    w_RE_PJ                        NUMBER;
 
-    w_ymd                        DATE;
-    w_af_ymd                     DATE;
-    w_re_seolj_ymd               DATE;
+    w_ymd                          DATE;
+    w_af_ymd                       DATE;
+    w_re_seolj_ymd                 DATE;
 
-    w_suik_rt                    NUMBER;
-    w_pj                         NUMBER;
+    w_suik_rt                      NUMBER;
+    w_pj                           NUMBER;
 BEGIN
-    w_ymd   := TO_DATE (p_ymd,'yyyymmdd');
-    w_tab   := SUIK_PER_TAB();
+    w_ymd := TO_DATE (p_ymd,'yyyymmdd');
+    w_tab := SUIK_PER_TAB( );
 
-    FOR xx IN (
+    for xx IN (
         SELECT ia.FUND_CD
              , ia.RE_SEOLJ_YMD
              , ia.HAEJI_YMD
              , aa.CUSTOMER_GR
-          FROM SZM0IA ia
-             , SZX0AA aa
+          FROM SZM0IA ia  /* 자문 계좌정보 */
+             , SZX0AA aa  /* 작업관련 일자관리 */
          WHERE ia.corp_gr = p_corp_gr
            AND ia.fund_cd LIKE p_fund_cd
            AND aa.corp_gr = ia.corp_gr
          ORDER BY fund_cd
     ) loop
-        w_re_seolj_ymd  := xx.re_seolj_ymd;
+        w_re_seolj_ymd := xx.re_seolj_ymd;
 
-        w_suik_rt   := 1;
-        FOR x1 IN (
+        w_suik_rt := 1;
+        for x1 IN (
             SELECT t1.bf_gyul_ymd
                  , t1.af_gyul_ymd
-              FROM SZM0GI t1
-             WHERE t1.corp_gr = p_corp_gr
-               AND t1.fund_cd = xx.fund_cd
-               AND (t1.bf_gyul_ymd + 1)  < w_ymd
+              FROM SZM0GI t1  /* 집합투자증권(펀드) 결산구간 */
+             WHERE t1.corp_gr           = p_corp_gr
+               AND t1.fund_cd           = xx.fund_cd
+               AND (t1.bf_gyul_ymd + 1) < w_ymd
              ORDER BY t1.bf_gyul_ymd
         ) loop
             if  xx.haeji_ymd IS NOT NULL    then
-                    w_af_ymd    := LEAST(x1.af_gyul_ymd, xx.haeji_ymd);
-            else    w_af_ymd    := LEAST(x1.af_gyul_ymd, w_ymd);
+                    w_af_ymd := LEAST(x1.af_gyul_ymd, xx.haeji_ymd);
+            else    w_af_ymd := LEAST(x1.af_gyul_ymd, w_ymd);
             end if;
 
             BEGIN
                 if  xx.customer_gr = '자산운용' then
                     SELECT INVEST_AMT
                       INTO w_pj
-                      FROM UZM0HY t1
+                      FROM UZM0HY t1  /* 계좌별 수요예측 집계자료 */
                      WHERE t1.corp_gr = p_corp_gr
                        AND t1.fund_cd = xx.fund_cd
                        AND t1.ymd     = w_af_ymd;
                 else
                     SELECT NVL(TRUNC(AVG(INVEST_AMT)),0)
                       INTO w_pj
-                      FROM UZM0HY t1
+                      FROM UZM0HY t1  /* 계좌별 수요예측 집계자료 */
                      WHERE t1.corp_gr = p_corp_gr
                        AND t1.fund_cd = xx.fund_cd
-                       AND t1.ymd     Between  (x1.bf_gyul_ymd + 1) AND w_af_ymd;
+                       AND t1.ymd     BETWEEN (x1.bf_gyul_ymd + 1) AND w_af_ymd;
                 end if;
-            EXCEPTION WHEN OTHERS then
-                w_pj    := 0;
+            EXCEPTION WHEN OTHERS THEN 
+                w_pj := 0;
             END;
 
             if  w_pj != 0   then
                 BEGIN
                     SELECT w_suik_rt * (t1.NAV + NVL(t1.EX_SIGA_AEK,0)) / w_pj
                       INTO w_suik_rt
-                      FROM UZM0HY t1
+                      FROM UZM0HY t1  /* 계좌별 수요예측 집계자료 */
                      WHERE t1.corp_gr = p_corp_gr
                        AND t1.fund_cd = xx.fund_cd
                        AND t1.ymd     = w_af_ymd;
-                EXCEPTION WHEN OTHERS then
+                EXCEPTION WHEN OTHERS THEN 
                     CONTINUE;
                 END;
             end if;
-        END LOOP;
+        end loop;
 
         BEGIN
             SELECT t1.INVEST_AMT
@@ -2591,20 +2538,20 @@ BEGIN
                  , w_NAV
                  , w_FST_SEOLJ_SUIK_PER
                  , w_RE_SEOLJ_SUIK_PER
-              FROM UZM0HY t1
+              FROM UZM0HY t1  /* 계좌별 수요예측 집계자료 */
              WHERE t1.corp_gr = p_corp_gr
                AND t1.fund_cd = xx.fund_cd
                AND t1.ymd     = w_ymd;
-        EXCEPTION WHEN OTHERS THEN
-            w_WONBON_AEK            := 0;
-            w_NAV                   := 0;
-            w_FST_SEOLJ_SUIK_PER    := 0;
-            w_RE_SEOLJ_SUIK_PER     := 0;
+        EXCEPTION WHEN OTHERS THEN 
+            w_WONBON_AEK         := 0;
+            w_NAV                := 0;
+            w_FST_SEOLJ_SUIK_PER := 0;
+            w_RE_SEOLJ_SUIK_PER  := 0;
         END;
 
         w_tab.extend;
-        w_tab (w_tab.LAST)  := SUIK_PER_REC (xx.FUND_CD, w_FST_SEOLJ_SUIK_PER, w_RE_SEOLJ_SUIK_PER, w_FST_PJ, w_pj, w_WONBON_AEK, w_NAV);
-    END LOOP;
+        w_tab (w_tab.LAST) := SUIK_PER_REC (xx.FUND_CD, w_FST_SEOLJ_SUIK_PER, w_RE_SEOLJ_SUIK_PER, w_FST_PJ, w_pj, w_WONBON_AEK, w_NAV);
+    end loop;
 
     RETURN  w_tab;
 END;
@@ -2621,38 +2568,38 @@ CREATE OR REPLACE FUNCTION KFP.F_FV_ETC (
     i_pyom_iyul                    IN    NUMBER,   /* 표면이자율 */
     i_tot_ija_hoicha               IN    NUMBER,
     i_sunme_gb                     IN    VARCHAR   /* 선매출이자 계산여부 */
-)   RETURN NUMBER IS
+ )  RETURN NUMBER IS
 -- 만기이자채권(복리채, 단리채)의 만기금액을 계산한다.
 --
-    w_sunme_days                 NUMBER := 0; -- 선매출일수
-    w_mangi_mm                   NUMBER; -- 만기월수
-    r_mangi_amt                  NUMBER; -- 만기금액
+    w_sunme_days                   NUMBER := 0;  /* 선매출일수 */
+    w_mangi_mm                     NUMBER;  /* 만기월수 */
+    r_mangi_amt                    NUMBER;  /* 만기금액 */
 BEGIN
-    if  i_sunme_gb = 'Y'    then    w_sunme_days    := i_balh_ymd - i_medo_ymd;    -- 선매출 일수
+    if  i_sunme_gb = 'Y'    then    w_sunme_days := i_balh_ymd - i_medo_ymd;  -- 선매출 일수
     end if;
 
-    w_mangi_mm  := ROUND(months_between(i_sanghw_ymd,i_balh_ymd));
+    w_mangi_mm := ROUND (months_between(i_sanghw_ymd, i_balh_ymd));
 
     if  i_ija_gigub_gb IN ('4','5','6','D','E','F') then    -- 복리채
         if  i_sunhu_gb = '1'    then
-                r_mangi_amt := i_aekm * Power(1 - i_pyom_iyul * i_ija_mons / 12, (w_mangi_mm / i_ija_mons) * -1);   -- 선급
-        else    r_mangi_amt := i_aekm * Power(1 + i_pyom_iyul / (12 / i_ija_mons), i_tot_ija_hoicha); -- 후급
+                r_mangi_amt := i_aekm * POWER (1 - i_pyom_iyul * i_ija_mons / 12, (w_mangi_mm / i_ija_mons) * -1);  /* 선급 */
+        else    r_mangi_amt := i_aekm * POWER (1 + i_pyom_iyul / (12 / i_ija_mons), i_tot_ija_hoicha);              /* 후급 */
         end if;
-        if  w_sunme_days > 0    then    r_mangi_amt := r_mangi_amt + (i_aekm * Power(1 + i_pyom_iyul * i_ija_mons / 12, w_sunme_days / 365 / i_ija_mons * 12)); -- 선매출이자
+        if  w_sunme_days > 0    then    r_mangi_amt := r_mangi_amt + (i_aekm * POWER(1 + i_pyom_iyul * i_ija_mons / 12, w_sunme_days / 365 / i_ija_mons * 12));  -- 선매출이자
         end if;
-    else    -- 단리채
+    else    /* 단리채 */
         if  i_sunhu_gb = '1'    then
-                r_mangi_amt := i_aekm * (1 + i_pyom_iyul / (1 - i_pyom_iyul) * w_mangi_mm / 12);    -- 선급
-        else    r_mangi_amt := i_aekm * (1 + i_pyom_iyul * w_mangi_mm / 12);    -- 후급
+                r_mangi_amt := i_aekm * (1 + i_pyom_iyul / (1 - i_pyom_iyul) * w_mangi_mm / 12);  /* 선급 */
+        else    r_mangi_amt := i_aekm * (1 + i_pyom_iyul * w_mangi_mm / 12);                      /* 후급 */
         end if;
-        if  w_sunme_days > 0    then    r_mangi_amt := r_mangi_amt + i_aekm * i_pyom_iyul * w_sunme_days / 365; -- 선매출이자
+        if  w_sunme_days > 0    then    r_mangi_amt := r_mangi_amt + i_aekm * i_pyom_iyul * w_sunme_days / 365;  -- 선매출이자
         end if;
     end if;
 
     if  i_ija_gigub_gb IN ('4','5','6','D','E','F') then
-        RETURN  TRUNC(r_mangi_amt + 0.00009);   -- 복리채
+        RETURN TRUNC (r_mangi_amt + 0.00009);   /* 복리채 */
     else
-        RETURN  TRUNC(r_mangi_amt);
+        RETURN TRUNC (r_mangi_amt);
     end if;
 END;
 /
@@ -2663,18 +2610,18 @@ CREATE OR REPLACE FUNCTION KFP.F_G20_YMD (
     p_baed_mth                     IN    VARCHAR,
     p_baej_mth                     IN    VARCHAR,
     p_G25_ymd                      IN    DATE
-)   RETURN DATE IS
+ )  RETURN DATE IS
 -- 배당확정일자 : 2차확정(주총)배당 처리키 위해
 --
-    w_tr_ymd                     DATE;
+    w_tr_ymd                       DATE;
 BEGIN
     SELECT MAX(tr_ymd)
       INTO w_tr_ymd
-      FROM SJT0BK t1
+      FROM SJT0BK t1  /* 발행기관별 배당권리 내역 */
      WHERE t1.corp_gr  = '%'
-       AND t1.tr_cd    = 'G20'
-       AND t1.tr_ymd   Between p_brok_ymd AND NVL(p_G25_ymd, now ())
+       AND t1.tr_ymd   BETWEEN p_brok_ymd AND NVL(p_G25_ymd, now ( ))
        AND t1.balh_co  = p_balh_co
+       AND t1.tr_cd    = 'G20'
        AND t1.brok_ymd = p_brok_ymd
        AND t1.baed_mth = p_baed_mth
        AND t1.baej_mth = p_baej_mth;
@@ -2687,17 +2634,17 @@ CREATE OR REPLACE FUNCTION KFP.F_GAEK (
     p_corp_gr                      IN    VARCHAR,
     p_ymd                          IN    DATE,
     p_fund_cd                      IN    VARCHAR
-)   RETURN NUMBER IS
+ )  RETURN NUMBER IS
 -- 권리평가액
 --
-    w_aek                        NUMBER;
+    w_aek                          NUMBER;
 BEGIN
     SELECT NVL(SUM(NVL(bfil_chui_aek,0) + NVL(up_chui_aek,0)
-                   - NVL(dw_chui_aek,0) + NVL(sonik,0)
-                   + NVL(gongs_up_chui_aek,0)
-                   - NVL(gongs_dw_chui_aek,0)),0)
+                                        - NVL(dw_chui_aek,0) + NVL(sonik,0)
+                                        + NVL(gongs_up_chui_aek,0)
+                                        - NVL(gongs_dw_chui_aek,0)),0)
       INTO w_aek
-      FROM SJM0JM t1
+      FROM SJM0JM t1  /* 주식 보유현황 */
      WHERE corp_gr = p_corp_gr
        AND ymd     = p_ymd
        AND fund_cd = p_fund_cd
@@ -2714,38 +2661,38 @@ CREATE OR REPLACE FUNCTION KFP.F_GETDT (
     v_mm                           NUMBER;
 BEGIN
     -- 1. 개월 수 계산 (한 번만 수행)
-    v_mm    := MONTHS_BETWEEN(i_to_ymd, i_fr_ymd);
+    v_mm := MONTHS_BETWEEN (i_to_ymd, i_fr_ymd);
 
     -- 2. 조건에 따른 결과 반환 (큰 숫자부터 비교하여 효율화)
-    RETURN CASE When v_mm >= 12 THEN '12'
-                When v_mm >= 9  THEN '9'
-                When v_mm >= 6  THEN '6'
-                When v_mm >= 3  THEN '3'
+    RETURN CASE WHEN v_mm >= 12 THEN '12'
+                WHEN v_mm >= 9  THEN '9'
+                WHEN v_mm >= 6  THEN '6'
+                WHEN v_mm >= 3  THEN '3'
                                 ELSE '0' END;
 END;
 /
 
 CREATE OR REPLACE FUNCTION KFP.F_GETDT3 (
     p_ymd                          IN    DATE
-)   RETURN DATE IS
+ )  RETURN DATE IS
 -- 기준가 전일대비일 구하기
 --
-    w_ymd                        DATE;
-    w_chk                        VARCHAR(1);
+    w_ymd                          DATE;
+    w_chk                          VARCHAR(1);
 BEGIN
-    w_ymd   := p_ymd - 1;
+    w_ymd := p_ymd - 1;
     LOOP
         BEGIN
             SELECT '1'
               INTO w_chk
-              FROM SZX0HL t1
+              FROM SZX0HL t1  /* 공휴일 */
              WHERE t1.nation_cd = 'KR'
                AND t1.holi_ymd  = w_ymd;
-        EXCEPTION WHEN NO_DATA_FOUND then
+        EXCEPTION WHEN NO_DATA_FOUND THEN 
             EXIT;
         END;
-        w_ymd   := w_ymd - 1;
-    END LOOP;
+        w_ymd := w_ymd - 1;
+    end loop;
 
     RETURN  (w_ymd - 1);
 END;
@@ -2780,27 +2727,27 @@ CREATE OR REPLACE FUNCTION KFP.F_GET_GWAMOK (
     p_jasan_gr1                    IN    VARCHAR,
     p_jm_cd                        IN    VARCHAR,
     p_gb                           IN    VARCHAR
-)   RETURN VARCHAR IS
-    w_cash_cd                    VARCHAR (10);
-    w_gwamok                     VARCHAR (40);
-    w_gwamok_cd                  VARCHAR (40);
-    w_gwamok_nm                  VARCHAR (40);
-    w_jm_gr                      VARCHAR (1);
-    w_tr_cd                      VARCHAR (3);
-    w_jasan_gb                   VARCHAR (4);
-    w_tr_ymd                     DATE;
+ )  RETURN VARCHAR IS
+    w_cash_cd                      VARCHAR (10);
+    w_gwamok                       VARCHAR (40);
+    w_gwamok_cd                    VARCHAR (40);
+    w_gwamok_nm                    VARCHAR (40);
+    w_jm_gr                        VARCHAR (1);
+    w_tr_cd                        VARCHAR (3);
+    w_jasan_gb                     VARCHAR (4);
+    w_tr_ymd                       DATE;
 BEGIN
     if  p_jasan_gr1 = '1'   then
         BEGIN
             SELECT jm_gr
               INTO w_jm_gr
-              FROM UZM0UI t1
+              FROM UZM0UI t1  /* 정보계 신탁재산 명세부 */
              WHERE t1.corp_gr = p_corp_gr
                AND t1.fund_cd = p_fund_cd
                AND t1.ymd     = p_ymd
                AND t1.jm_cd   = p_jm_cd;
-        EXCEPTION WHEN NO_DATA_FOUND then
-            w_gwamok    := '';
+        EXCEPTION WHEN NO_DATA_FOUND THEN 
+            w_gwamok := '';
         END;
 
         if  w_jm_gr = '1'       then    -- 채권
@@ -2811,17 +2758,17 @@ BEGIN
                   INTO w_tr_cd
                      , w_tr_ymd
                      , w_jasan_gb
-                  FROM SCT0CG t1
-                     , SCM0CJ t2
+                  FROM SCT0CG t1  /* 채권거래내역 */
+                     , SCM0CJ t2  /* 채권종목 */
                  WHERE t1.corp_gr = p_corp_gr
                    AND t1.fund_cd = p_fund_cd
-                   AND t1.tr_cd   LIKE 'J%'
-                   AND t1.jm_cd   = p_jm_cd
                    AND t1.tr_ymd  = (SELECT MAX(tr_ymd)
-                                       FROM SCT0CG ta
+                                       FROM SCT0CG ta  /* 채권거래내역 */
                                       WHERE ta.corp_gr = p_corp_gr
                                         AND ta.fund_cd = p_fund_cd
                                         AND ta.jm_cd   = p_jm_cd)
+                   AND t1.jm_cd   = p_jm_cd
+                   AND t1.tr_cd   LIKE 'J%'
                    AND t2.corp_gr = t1.corp_gr
                    AND t2.jm_cd   = t1.jm_cd;
             END;
@@ -2831,21 +2778,21 @@ BEGIN
                      , tr_ymd
                   INTO w_tr_cd
                      , w_tr_ymd
-                  FROM SHT0HG t1
+                  FROM SHT0HG t1  /* 현금거래내역 */
                  WHERE t1.corp_gr = p_corp_gr
                    AND t1.fund_cd = p_fund_cd
-                   AND t1.tr_cd   LIKE 'J%'
-                   AND t1.jm_cd   = p_jm_cd
                    AND t1.tr_ymd  = (SELECT MAX(tr_ymd)
-                                       FROM SHT0HG ta
+                                       FROM SHT0HG ta  /* 현금거래내역 */
                                       WHERE ta.corp_gr = p_corp_gr
                                         AND ta.fund_cd = p_fund_cd
-                                        AND ta.jm_cd   = p_jm_cd);
-            EXCEPTION WHEN NO_DATA_FOUND then
+                                        AND ta.jm_cd   = p_jm_cd)
+                   AND t1.jm_cd   = p_jm_cd
+                   AND t1.tr_cd   LIKE 'J%';
+            EXCEPTION WHEN NO_DATA_FOUND THEN 
                 BEGIN
                     SELECT DISTINCT cash_cd
                       INTO w_cash_cd
-                      FROM SHM0HJ t1
+                      FROM SHM0HJ t1  /* 현금 종목정보 */
                      WHERE corp_gr = p_corp_gr
                        AND jm_cd   = p_jm_cd;
                 END;
@@ -2856,43 +2803,43 @@ BEGIN
                      , tr_ymd
                   INTO w_tr_cd
                      , w_tr_ymd
-                  FROM SJT0JG t1
+                  FROM SJT0JG t1  /* 주식거래 내역 */
                  WHERE t1.corp_gr = p_corp_gr
                    AND t1.fund_cd = p_fund_cd
-                   AND t1.tr_cd   LIKE 'J%'
-                   AND t1.jm_cd   = p_jm_cd
                    AND t1.tr_ymd  = (SELECT MAX(tr_ymd)
-                                       FROM SJT0JG ta
+                                       FROM SJT0JG ta  /* 주식거래 내역 */
                                       WHERE ta.corp_gr = p_corp_gr
                                         AND ta.fund_cd = p_fund_cd
-                                        AND ta.jm_cd   = p_jm_cd);
-            EXCEPTION WHEN NO_DATA_FOUND then
+                                        AND ta.jm_cd   = p_jm_cd)
+                   AND t1.jm_cd   = p_jm_cd
+                   AND t1.tr_cd   LIKE 'J%';
+            EXCEPTION WHEN NO_DATA_FOUND THEN 
                 BEGIN
                     SELECT tr_cd
                          , MIN(tr_ymd)
                       INTO w_tr_cd
                          , w_tr_ymd
-                      FROM SJT0SK t1
+                      FROM SJT0SK t1  /* 상장 공시 */
                      WHERE new_jm_cd = p_jm_cd
                      GROUP BY tr_cd;
-                EXCEPTION WHEN NO_DATA_FOUND then
+                EXCEPTION WHEN NO_DATA_FOUND THEN 
                     BEGIN
                         SELECT tr_cd
                              , MIN(tr_ymd)
                           INTO w_tr_cd
                              , w_tr_ymd
-                          FROM SJT0FS t1
+                          FROM SJT0FS t1  /* 펀드별 종목별 수탁사 수령내역 */
                          WHERE fund_cd = p_fund_cd
                            AND jm_cd   = p_jm_cd
                          GROUP BY tr_cd;
-                    EXCEPTION WHEN NO_DATA_FOUND then
-                        w_tr_cd     := '';
-                        w_tr_ymd    := '';
+                    EXCEPTION WHEN NO_DATA_FOUND THEN 
+                        w_tr_cd  := '';
+                        w_tr_ymd := '';
                     END;
                 END;
             END;
         else
-            w_gwamok    := '';
+            w_gwamok := '';
             RETURN  w_gwamok;
         end if;
 
@@ -2900,31 +2847,31 @@ BEGIN
             BEGIN
                 SELECT SUBSTR(bigo,-2)
                   INTO w_jasan_gb
-                  FROM SKT0BU t1
-                 WHERE corp_gr              = p_corp_gr
-                   AND fund_cd              = p_fund_cd
-                   AND tr_ymd               = w_tr_ymd
-                   AND tr_cd                = w_tr_cd
-                   AND chadae_gb            = 'D'
-                   AND NVL(jm_cd, p_jm_cd)  = p_jm_cd;
-            EXCEPTION WHEN OTHERS then
-                w_jasan_gb  := '';
+                  FROM SKT0BU t1  /* 분개장 */
+                 WHERE corp_gr             = p_corp_gr
+                   AND fund_cd             = p_fund_cd
+                   AND tr_ymd              = w_tr_ymd
+                   AND tr_cd               = w_tr_cd
+                   AND chadae_gb           = 'D'
+                   AND NVL(jm_cd, p_jm_cd) = p_jm_cd;
+            EXCEPTION WHEN OTHERS THEN 
+                w_jasan_gb := '';
             END;
         end if;
 
         BEGIN
             SELECT gwamok
               INTO w_gwamok_cd
-              FROM SZX0GA t1
+              FROM SZX0GA t1  /* 거래코드별 분개유형 */
              WHERE t1.tr_cd    = w_tr_cd
                AND t1.jasan_gb = w_jasan_gb
                AND t1.row_no   = (SELECT MIN(row_no)
-                                    FROM SZX0GA ta
-                                   WHERE ta.tr_cd               = w_tr_cd
-                                     AND ta.jasan_gb            = w_jasan_gb
-                                     AND ta.chadae_gb           = 'D'
-                                     AND SUBSTR(ta.gwamok,1,1)  = '1');
-        EXCEPTION WHEN NO_DATA_FOUND then
+                                    FROM SZX0GA ta  /* 거래코드별 분개유형 */
+                                   WHERE ta.tr_cd     = w_tr_cd
+                                     AND SUBSTR(ta.gwamok,1,1) = '1'
+                                     AND ta.jasan_gb  = w_jasan_gb
+                                     AND ta.chadae_gb = 'D');
+        EXCEPTION WHEN NO_DATA_FOUND THEN 
             w_gwamok_cd := '';
         END;
 
@@ -2941,14 +2888,14 @@ BEGIN
         BEGIN
             SELECT gwamok_nm
               INTO w_gwamok_nm
-              FROM SZX0GM t1
+              FROM SZX0GM t1  /* 계정과목 */
              WHERE gwamok = w_gwamok_cd;
-        EXCEPTION WHEN NO_DATA_FOUND then
+        EXCEPTION WHEN NO_DATA_FOUND THEN 
             w_gwamok_nm := '';
         END;
-        w_gwamok    := w_gwamok_nm;
+        w_gwamok := w_gwamok_nm;
     else
-        w_gwamok    := w_gwamok_cd;
+        w_gwamok := w_gwamok_cd;
     end if;
 
     RETURN  w_gwamok;
@@ -3436,55 +3383,55 @@ CREATE OR REPLACE FUNCTION KFP.F_HIGH_LOW (
     p_corp_gr                      IN    VARCHAR,
     p_fymd                         IN    DATE,
     p_tymd                         IN    DATE
- ) RETURN HIGH_LOW_TAB AS
+ )  RETURN HIGH_LOW_TAB AS
 --
 -- 구간 최고가, 최저가
 --
-    w_tab                        HIGH_LOW_TAB;
+    w_tab                          HIGH_LOW_TAB;
 
-    w_jonga                      NUMBER;
+    w_jonga                        NUMBER;
 
-    w_max_ymd                    DATE;
-    w_max_jonga                  NUMBER;
-    w_min_ymd                    DATE;
-    w_min_jonga                  NUMBER;
+    w_max_ymd                      DATE;
+    w_max_jonga                    NUMBER;
+    w_min_ymd                      DATE;
+    w_min_jonga                    NUMBER;
 BEGIN
-    w_tab   := HIGH_LOW_TAB( );
+    w_tab := HIGH_LOW_TAB( );
 
-    FOR jm IN (
+    for jm IN (
         SELECT DISTINCT t1.JM_CD
              , t1.OVRS_EXCG_CD
-          FROM USPM_DD t1
+          FROM USPM_DD t1  /* US Portfolio Model 종목 일별 기준변동성 현황 */
          WHERE t1.CORP_GR = p_corp_gr
            AND t1.YMD     = p_tymd
     ) loop
         w_max_jonga := 1;
         w_min_jonga := 999999999;
         if  jm.ovrs_excg_cd = 'KRX' then
-            FOR xx IN (
+            for xx IN (
                 SELECT t1.YMD
                      , NVL(t1.CLOSE,0)                                  AS jonga
                      , LAG(NVL(t1.CLOSE,0)) OVER (PARTITION BY t1.KOSCOM_CD
                                                       ORDER BY t1.YMD)  AS bf_jonga
-                     , CASE When LAG(NVL(t1.CLOSE,0)) OVER (PARTITION BY t1.KOSCOM_CD
+                     , CASE WHEN LAG(NVL(t1.CLOSE,0)) OVER (PARTITION BY t1.KOSCOM_CD
                                                                 ORDER BY t1.YMD)=0
                             THEN 0
                             ELSE NVL(t1.CLOSE,0) / LAG(NVL(t1.CLOSE,0)) OVER (PARTITION BY t1.KOSCOM_CD
                                                                                   ORDER BY t1.YMD) - 1
                        END                                              AS rt
-                  FROM SJT1TG t1
+                  FROM SJT1TG t1  /* 주식/선물/Option 종목별 종가(영업일만 존재) */
                  WHERE t1.YMD       BETWEEN p_fymd AND p_tymd
-                   AND t1.YMD       NOT IN ( SELECT HOLI_YMD
-                                               FROM SZX0HL ta
-                                              WHERE ta.NATION_CD = 'KR'
-                                                AND ta.HOLI_YMD  >= p_fymd )
+                   AND t1.YMD       NOT IN (SELECT HOLI_YMD
+                                              FROM SZX0HL ta  /* 공휴일 */
+                                             WHERE ta.NATION_CD = 'KR'
+                                               AND ta.HOLI_YMD  >= p_fymd)
                    AND t1.KOSCOM_CD = jm.JM_CD
                  ORDER BY t1.YMD DESC
             ) loop
                 if  xx.rt IS NULL   then    CONTINUE;
                 end if;
 
-                if  xx.ymd = p_tymd then    w_jonga := xx.jonga;
+                if  xx.ymd = p_tymd THEN    w_jonga := xx.jonga;
                 end if;
                 if  xx.jonga > w_max_jonga  then
                     w_max_jonga := xx.jonga;
@@ -3494,32 +3441,32 @@ BEGIN
                     w_min_jonga := xx.jonga;
                     w_min_ymd   := xx.ymd;
                 end if;
-            END LOOP;
+            end loop;
         else
-            FOR xx IN (
+            for xx IN (
                 SELECT t1.YMD
                      , NVL(t1.JONGA,0)                                                                      AS jonga
                      , LAG(NVL(t1.JONGA,0)) OVER (PARTITION BY t1.JM_CD
                                                       ORDER BY t1.YMD)                                      AS bf_jonga
-                     , CASE When LAG(NVL(t1.JONGA,0)) OVER (PARTITION BY t1.JM_CD
+                     , CASE WHEN LAG(NVL(t1.JONGA,0)) OVER (PARTITION BY t1.JM_CD
                                                                 ORDER BY t1.YMD)=0
                             THEN 0
                             ELSE NVL(t1.JONGA,0) / LAG(NVL(t1.JONGA,0)) OVER (PARTITION BY t1.JM_CD
                                                                                   ORDER BY t1.YMD) - 1 END  AS rt
-                  FROM SYT0LP t1
+                  FROM SYT0LP t1  /* 해외수신 종목 시세 */
                  WHERE t1.CORP_GR = p_corp_gr
                    AND t1.YMD     BETWEEN p_fymd AND p_tymd
-                   AND t1.YMD     NOT IN ( SELECT HOLI_YMD
-                                             FROM SZX0HL ta
-                                            WHERE ta.NATION_CD = 'US'
-                                              AND ta.HOLI_YMD  >= p_fymd )
+                   AND t1.YMD     NOT IN (SELECT HOLI_YMD
+                                            FROM SZX0HL ta  /* 공휴일 */
+                                           WHERE ta.NATION_CD = 'US'
+                                             AND ta.HOLI_YMD  >= p_fymd)
                    AND t1.JM_CD   = jm.jm_cd
                  ORDER BY t1.YMD DESC
             ) loop
                 if  xx.rt IS NULL   then    CONTINUE;
                 end if;
 
-                if  xx.ymd = p_tymd then    w_jonga := xx.jonga;
+                if  xx.ymd = p_tymd THEN    w_jonga := xx.jonga;
                 end if;
                 if  xx.jonga > w_max_jonga  then
                     w_max_jonga := xx.jonga;
@@ -3529,12 +3476,13 @@ BEGIN
                     w_min_jonga := xx.jonga;
                     w_min_ymd   := xx.ymd;
                 end if;
-            END LOOP;
+            end loop;
         end if;
-        w_tab.extend;   w_tab (w_tab.count) := HIGH_LOW_REC (jm.jm_cd,
-                                                             F_NTRIM (w_max_jonga, 0, 2) || ' ( ' || F_N# ((w_jonga / w_max_jonga - 1) * 100, 0, 2) || '% ) ', w_max_ymd,
-                                                             F_NTRIM (w_min_jonga, 0, 2) || ' ( ' || F_N# ((w_jonga / w_min_jonga - 1) * 100, 0, 2) || '% ) ', w_min_ymd);
-    END LOOP;
+        w_tab.extend;
+        w_tab (w_tab.count) := HIGH_LOW_REC (jm.jm_cd,
+                                             F_NTRIM (w_max_jonga, 0, 2) || ' ( ' || F_N# ((w_jonga / w_max_jonga - 1) * 100, 0, 2) || '% ) ', w_max_ymd,
+                                             F_NTRIM (w_min_jonga, 0, 2) || ' ( ' || F_N# ((w_jonga / w_min_jonga - 1) * 100, 0, 2) || '% ) ', w_min_ymd);
+    end loop;
 
     RETURN  w_tab;
 END;
@@ -4105,19 +4053,19 @@ BEGIN
 END;
 /
 
-CREATE OR REPLACE FUNCTION KFP.f_jan (
-    p_chadae_gb                 IN        varchar,
-    p_junj                      IN        number,
-    p_dr_aek                    IN        number,
-    p_cr_aek                    IN        number
-)               RETURN  NUMBER  IS
+CREATE OR REPLACE FUNCTION KFP.F_JAN (
+    p_chadae_gb                    IN    VARCHAR,
+    p_junj                         IN    NUMBER,
+    p_dr_aek                       IN    NUMBER,
+    p_cr_aek                       IN    NUMBER
+ )  RETURN NUMBER IS
 -- 계정구분에 따른 잔액을 구함
 --
-    w_jan                       number;
+    w_jan                          NUMBER;
 BEGIN
-    if  p_chadae_gb = 'D'       then    w_jan := nvl(p_junj,0)+nvl(p_dr_aek,0)-nvl(p_cr_aek,0); -- 차변계정
-    elsif  p_chadae_gb = 'C'    then    w_jan := nvl(p_junj,0)-nvl(p_dr_aek,0)+nvl(p_cr_aek,0); -- 대변계정
-    else                                w_jan := 0;
+    if  p_chadae_gb = 'D'   then    w_jan := NVL (p_junj,0) + NVL (p_dr_aek,0) - NVL (p_cr_aek,0);  -- 차변계정
+    elsif p_chadae_gb = 'C' then    w_jan := NVL (p_junj,0) - NVL (p_dr_aek,0) + NVL (p_cr_aek,0);  -- 대변계정
+    else                            w_jan := 0;
     end if;
     RETURN  w_jan;
 END;
@@ -4129,35 +4077,35 @@ CREATE OR REPLACE FUNCTION KFP.F_JASAN_NM (
     p_fund_cd                      IN    VARCHAR,
     p_jm_gr                        IN    VARCHAR,
     p_currency                     IN    VARCHAR
-)   RETURN VARCHAR IS
+ )  RETURN VARCHAR IS
 -- 자산분류명
 --
-    w_jasan_nm                   VARCHAR (80);
+    w_jasan_nm                     VARCHAR (80);
 BEGIN
     BEGIN
         SELECT sebu_cd_nm || CASE WHEN p_currency IS NOT NULL THEN '(' || p_currency || ')' END
           INTO w_jasan_nm
-          FROM SZX0GR t1
+          FROM SZX0GR t1  /* 그룹코드 */
          WHERE gr_cd   = '96'
            AND sebu_cd = p_jm_gr;
-    EXCEPTION WHEN NO_DATA_FOUND then
-        w_jasan_nm  := '';
+    EXCEPTION WHEN NO_DATA_FOUND THEN 
+        w_jasan_nm := '';
     END;
 
     RETURN  w_jasan_nm;
 END;
 /
 
-CREATE OR REPLACE FUNCTION KFP.f_jeokyo_nm (
+CREATE OR REPLACE FUNCTION KFP.F_JEOKYO_NM (
     p_jeokyo_cd                    IN    VARCHAR
-)   RETURN VARCHAR IS
+ )  RETURN VARCHAR IS
 -- 적요명
 --
-    w_nm                         szx0gy.jeokyo_nm%type;
+    w_nm                           szx0gy.jeokyo_nm%type;
 BEGIN
     SELECT NVL(MIN(jeokyo_nm), p_jeokyo_cd)
       INTO w_nm
-      FROM SZX0GY t1
+      FROM SZX0GY t1  /* 적요코드 */
      WHERE jeokyo_cd = p_jeokyo_cd;
 
     RETURN  w_nm;
@@ -4166,25 +4114,25 @@ END;
 
 CREATE OR REPLACE FUNCTION KFP.F_JJ_NM (
     p_jm_cd                        IN    VARCHAR
-)   RETURN VARCHAR IS
+ )  RETURN VARCHAR IS
 -- 주식종목명
 --
-    w_jj_nm                      VARCHAR (160);
+    w_jj_nm                        VARCHAR (160);
 BEGIN
     BEGIN
-        if  LENGTH (p_jm_cd) = 12   then
+        if LENGTH (p_jm_cd) = 12   then
             SELECT jj_nm
               INTO w_jj_nm
-              FROM SJM0JJ t1
+              FROM SJM0JJ t1  /* 주식종목 */
              WHERE t1.jm_cd = p_jm_cd;
         else
             SELECT jj_nm
               INTO w_jj_nm
-              FROM SJM0JJ t1
+              FROM SJM0JJ t1  /* 주식종목 */
              WHERE t1.koscom_cd = p_jm_cd
                AND ROWNUM = 1;
         end if;
-    EXCEPTION WHEN OTHERS then
+    EXCEPTION WHEN OTHERS THEN 
         w_jj_nm := p_jm_cd;
     END;
 
@@ -4192,17 +4140,17 @@ BEGIN
 END;
 /
 
-CREATE OR REPLACE FUNCTION KFP.f_jk_nm (
-    p_corp_gr                   IN        varchar,
-    p_jk_gu                     IN        varchar,
-    p_jk_cd                     IN        varchar
-)              RETURN  VARCHAR  IS
+CREATE OR REPLACE FUNCTION KFP.F_JK_NM (
+    p_corp_gr                      IN    VARCHAR,
+    p_jk_gu                        IN    VARCHAR,
+    p_jk_cd                        IN    VARCHAR
+ )  RETURN VARCHAR IS
 -- 컴플관련 적용 코드명
 --
-    w_nm                        varchar(60);
+    w_nm                           VARCHAR(60);
 BEGIN
-    if  p_jk_gu in ('CH01','DN00')  then
-        w_nm    := f_jm_nm (p_corp_gr, p_jk_cd);
+    if  p_jk_gu IN ('CH01','DN00')  then
+        w_nm := F_JM_NM (p_corp_gr, p_jk_cd);
     end if;
 
     RETURN  w_nm;
@@ -4211,63 +4159,63 @@ END;
 
 CREATE OR REPLACE FUNCTION KFP.F_JM_CHECK (
     SJM_CD                         IN    VARCHAR
-)   RETURN VARCHAR IS
+ )  RETURN VARCHAR IS
 -- 종목코드 CHECK DIGIT 산출 방법
 --
-    sBuf                         VARCHAR (30);
-    sJm                          VARCHAR (30);
-    c                            VARCHAR (1);
-    i                            integer;
-    iLen                         integer;
-    iJm                          integer;
-    iFlag                        integer;
-    len                          integer;
+    sBuf                           VARCHAR (30);
+    sJm                            VARCHAR (30);
+    c                              VARCHAR (1);
+    i                              integer;
+    iLen                           integer;
+    iJm                            integer;
+    iFlag                          integer;
+    len                            integer;
 BEGIN
     -- EX) KR612345101
     len := LENGTH (sJm_Cd);
     sJm := '';
     iJm := 0;
-    iFlag   := 1;
-    FOR j IN 1..len LOOP
-        i   := len - j + 1;
-        c   := SUBSTR(sJm_Cd,i,1);
-        if  ascii (c) between 48 AND 57         then    sJm := c || sJm;
-        elsif ascii (c) between 65 AND 90       then    sJm := (ascii (c) - 55) || sJm;
+    iFlag := 1;
+    for j IN 1..len loop
+        i := len - j + 1;
+        c := SUBSTR  (sJm_Cd, i,1);
+        if  ascii (c) BETWEEN 48 AND 57     then    sJm := c || sJm;
+        elsif ascii (c) BETWEEN 65 AND 90   then    sJm := (ascii (c) - 55) || sJm;
         else
             RETURN  ' ';
         end if;
-    END LOOP;
+    end loop;
 
     -- EX) 2027612345101
-    len     := LENGTH (sJm);
-    sBuf    := '';
-    FOR j IN 1..len LOOP
-        i   := len - j + 1;
-        c   := SUBSTRB (sJm,i,1);
+    len  := LENGTH (sJm);
+    sBuf := '';
+    for j IN 1..len loop
+        i := len - j + 1;
+        c := SUBSTRB (sJm, i,1);
         if  iFlag = 2   then
-                iFlag   := 1;
+                iFlag := 1;
         else    iFlag := 2;
         end if;
         BEGIN
-            sBuf    := TO_CHAR(TO_NUMBER (c) * iFlag) || sBuf;
-        EXCEPTION WHEN OTHERS then
-            sBuf    := '0' || sBuf;
+            sBuf := TO_CHAR  (TO_NUMBER (c) * iFlag) || sBuf;
+        EXCEPTION WHEN OTHERS THEN 
+            sBuf := '0' || sBuf;
         END;
-    END LOOP;
+    end loop;
 
     -- EX) 40471214385202
     iJm := 0;
     len := LENGTH (sBuf);
-    FOR j IN 1..len LOOP
-        i   := len - j + 1;
-        c   := SUBSTRB (sBuf,i,1);
+    for j IN 1..len loop
+        i := len - j + 1;
+        c := SUBSTRB (sBuf, i,1);
         BEGIN
             iJm := iJm + TO_NUMBER (c);
-        EXCEPTION WHEN OTHERS then
+        EXCEPTION WHEN OTHERS THEN 
             iJm := iJm + 0;
         END;
-    END LOOP;
-    iJm := Mod (10 - Mod(iJm, 10), 10);
+    end loop;
+    iJm := MOD (10 - MOD(iJm, 10), 10);
 
     RETURN  sJm_cd || iJm;
 END;
@@ -4277,8 +4225,8 @@ CREATE OR REPLACE FUNCTION KFP.F_JM_MANGI (
     p_corp_gr                      IN    VARCHAR,
     p_jm_cd                        IN    VARCHAR,
     p_ymd                          IN    DATE
-)   RETURN DATE IS
-    w_dt_sanghw                  DATE;
+ )  RETURN DATE IS
+    w_dt_sanghw                    DATE;
 BEGIN
     if  p_jm_cd LIKE 'KR7%' OR p_jm_cd LIKE 'KR4%'  then
         RETURN NULL;
@@ -4287,17 +4235,17 @@ BEGIN
     BEGIN
         SELECT sanghw_ymd
           INTO w_dt_sanghw
-          FROM SCM0CJ t1
+          FROM SCM0CJ t1  /* 채권종목 */
          WHERE jm_cd  = p_jm_cd
            AND ROWNUM = 1;
-    EXCEPTION WHEN NO_DATA_FOUND then
+    EXCEPTION WHEN NO_DATA_FOUND THEN 
         BEGIN
             SELECT sanghw_ymd
               INTO w_dt_sanghw
-              FROM SHM0HJ t1
+              FROM SHM0HJ t1  /* 현금 종목정보 */
              WHERE jm_cd  = p_jm_cd
                AND ROWNUM = 1;
-        EXCEPTION WHEN NO_DATA_FOUND then
+        EXCEPTION WHEN NO_DATA_FOUND THEN 
             w_dt_sanghw := '';
         END;
     END;
@@ -4309,85 +4257,85 @@ END;
 CREATE OR REPLACE FUNCTION KFP.F_JM_NM (
     p_corp_gr                      IN    VARCHAR,
     p_jm_cd                        IN    VARCHAR
-)   RETURN VARCHAR IS
+ )  RETURN VARCHAR IS
 -- 모든종목 종목명 Found
 --
-    w_nm                         VARCHAR (200);
+    w_nm                           VARCHAR (200);
 BEGIN
-    if  LENGTH (p_jm_cd) = 12 OR p_jm_cd LIKE 'KR%' OR p_jm_cd LIKE 'TR%'       then
+    if LENGTH (p_jm_cd) = 12 OR p_jm_cd LIKE 'KR%' OR p_jm_cd LIKE 'TR%'       then
         BEGIN
             SELECT NVL(jj.jj_nm || cj.cj_nm || sc.fund_nm || hj.hj_nm || kj.sj_nm || ya.jm_nm || dj.jm_nm || tj.jm_nm || gj.jm_nm, p_jm_cd)
               INTO w_nm
               FROM DUAL t0
-                 , SJM0JJ jj
-                 , SCM0CJ cj
-                 , SJM0SC sc
-                 , SHM0HJ hj
-                 , SSX0KJ kj
-                 , SYM0YA ya
-                 , SDX0DJ dj
-                 , OTS0JM tj
-                 , SGM0JM gj
-             WHERE jj.jm_cd(+)            = p_jm_cd
-               AND NVL('x', jj.rowid(+))  = NVL('x', t0.dummy)
-               AND cj.corp_gr(+)          = F_LINK_CORP_GR(p_corp_gr)
-               AND cj.jm_cd(+)            = p_jm_cd
-               AND NVL('x', cj.rowid(+))  = NVL('x', t0.dummy)
-               AND sc.corp_gr(+)          = p_corp_gr
-               AND sc.tasa_jm_cd(+)       = p_jm_cd
-               AND NVL('x', sc.rowid(+))  = NVL('x', t0.dummy)
-               AND hj.corp_gr(+)          = p_corp_gr
-               AND hj.jm_cd(+)            = p_jm_cd
-               AND NVL('x', hj.rowid(+))  = NVL('x', t0.dummy)
-               AND kj.corp_gr(+)          = p_corp_gr
-               AND kj.sj_cd(+)            = p_jm_cd
-               AND NVL('x', kj.rowid(+))  = NVL('x', t0.dummy)
-               AND ya.corp_gr(+)          = p_corp_gr
-               AND ya.jm_cd(+)            = p_jm_cd
-               AND NVL('x', ya.rowid(+))  = NVL('x', t0.dummy)
-               AND dj.corp_gr(+)          = p_corp_gr
-               AND dj.jm_cd(+)            = p_jm_cd
-               AND NVL('x', dj.rowid(+))  = NVL('x', t0.dummy)
-               AND tj.corp_gr(+)          = p_corp_gr
-               AND tj.jm_cd(+)            = p_jm_cd
-               AND NVL('x', tj.rowid(+))  = NVL('x', t0.dummy)
-               AND gj.corp_gr(+)          = p_corp_gr
-               AND gj.jm_cd(+)            = p_jm_cd
-               AND NVL('x', gj.rowid(+))  = NVL('x', t0.dummy);
-        EXCEPTION WHEN OTHERS THEN
-            w_nm    := p_jm_cd;
+                 , SJM0JJ jj  /* 주식종목 */
+                 , SCM0CJ cj  /* 채권종목 */
+                 , SJM0SC sc  /* 타사집합투자증권 정보 */
+                 , SHM0HJ hj  /* 현금 종목정보 */
+                 , SSX0KJ kj  /* 파생종목 */
+                 , SYM0YA ya  /* 해외 자산종목 */
+                 , SDX0DJ dj  /* 대차(담보) 종목정보 */
+                 , OTS0JM tj  /* OTS 종목정보 */
+                 , SGM0JM gj  /* 대체투자종목정보 */
+             WHERE jj.jm_cd(+)           = p_jm_cd
+               AND NVL('x', jj.rowid(+)) = NVL('x', t0.dummy)
+               AND cj.corp_gr(+)         = F_LINK_CORP_GR(p_corp_gr)
+               AND cj.jm_cd(+)           = p_jm_cd
+               AND NVL('x', cj.rowid(+)) = NVL('x', t0.dummy)
+               AND sc.corp_gr(+)         = p_corp_gr
+               AND sc.tasa_jm_cd(+)      = p_jm_cd
+               AND NVL('x', sc.rowid(+)) = NVL('x', t0.dummy)
+               AND hj.corp_gr(+)         = p_corp_gr
+               AND hj.jm_cd(+)           = p_jm_cd
+               AND NVL('x', hj.rowid(+)) = NVL('x', t0.dummy)
+               AND kj.corp_gr(+)         = p_corp_gr
+               AND kj.sj_cd(+)           = p_jm_cd
+               AND NVL('x', kj.rowid(+)) = NVL('x', t0.dummy)
+               AND ya.corp_gr(+)         = p_corp_gr
+               AND ya.jm_cd(+)           = p_jm_cd
+               AND NVL('x', ya.rowid(+)) = NVL('x', t0.dummy)
+               AND dj.corp_gr(+)         = p_corp_gr
+               AND dj.jm_cd(+)           = p_jm_cd
+               AND NVL('x', dj.rowid(+)) = NVL('x', t0.dummy)
+               AND tj.corp_gr(+)         = p_corp_gr
+               AND tj.jm_cd(+)           = p_jm_cd
+               AND NVL('x', tj.rowid(+)) = NVL('x', t0.dummy)
+               AND gj.corp_gr(+)         = p_corp_gr
+               AND gj.jm_cd(+)           = p_jm_cd
+               AND NVL('x', gj.rowid(+)) = NVL('x', t0.dummy);
+        EXCEPTION WHEN OTHERS THEN 
+            w_nm := p_jm_cd;
         END;
     else
         BEGIN
             SELECT jm_nm
               INTO w_nm
-              FROM SYM0YA t1
+              FROM SYM0YA t1  /* 해외 자산종목 */
              WHERE t1.corp_gr = p_corp_gr
                AND t1.jm_cd   = p_jm_cd;
-        EXCEPTION WHEN OTHERS THEN
+        EXCEPTION WHEN OTHERS THEN 
             SELECT NVL(t1.tr_co_nm || ia.fund_nm, p_jm_cd)
               INTO w_nm
               FROM DUAL t0
-                 , SZX2MM t1
-                 , SZM0IA ia
-             WHERE t1.corp_gr(+)          = p_corp_gr
-               AND t1.tr_co_cd(+)         = p_jm_cd
-               AND NVL('x', t1.rowid(+))  = NVL('x', t0.dummy)
-               AND ia.corp_gr(+)          = p_corp_gr
-               AND ia.fund_cd(+)          = p_jm_cd
-               AND NVL('x', ia.rowid(+))  = NVL('x', t0.dummy);
+                 , SZX2MM t1  /* 매매처 */
+                 , SZM0IA ia  /* 자문 계좌정보 */
+             WHERE t1.corp_gr(+)         = p_corp_gr
+               AND t1.tr_co_cd(+)        = p_jm_cd
+               AND NVL('x', t1.rowid(+)) = NVL('x', t0.dummy)
+               AND ia.corp_gr(+)         = p_corp_gr
+               AND ia.fund_cd(+)         = p_jm_cd
+               AND NVL('x', ia.rowid(+)) = NVL('x', t0.dummy);
         END;
     end if;
 
-    if  LENGTH (p_jm_cd) = 5    then
+    if LENGTH (p_jm_cd) = 5    then
         BEGIN
             SELECT gwamok_nm
               INTO w_nm
-              FROM SZX0GM t1
+              FROM SZX0GM t1  /* 계정과목 */
              WHERE gwamok = p_jm_cd;
 
             RETURN  w_nm;
-        EXCEPTION WHEN OTHERS THEN
+        EXCEPTION WHEN OTHERS THEN 
             NULL;
         END;
     end if;
@@ -4426,30 +4374,30 @@ CREATE OR REPLACE FUNCTION KFP.F_JONGA (
     p_corp_gr                      IN    VARCHAR,
     p_koscom_cd                    IN    VARCHAR,  /* 표준코드(12자리)인 경우 단축코드 조회 후 조회 */
     p_ymd                          IN    DATE DEFAULT NULL
-)   RETURN NUMBER IS
+ )  RETURN NUMBER IS
 -- 주식/해외주식/채권/해외채권 종가
 --
-    w_koscom_cd                  VARCHAR(6);
-    w_ymd                        DATE;
-    w_jonga                      NUMBER;
+    w_koscom_cd                    VARCHAR(6);
+    w_ymd                          DATE;
+    w_jonga                        NUMBER;
 BEGIN
     if  p_ymd IS NULL   then
         SELECT F_TRADE_YMD (junyong_ymd,'-')
           INTO w_ymd
-          FROM SZX0AA t1
+          FROM SZX0AA t1  /* 작업관련 일자관리 */
          WHERE t1.corp_gr = p_corp_gr;
     else
-        w_ymd   := F_TRADE_YMD (p_ymd, '-');
+        w_ymd := F_TRADE_YMD (p_ymd, '-');
     end if;
 
-    if  LENGTH (p_koscom_cd) <> 6   then
+    if LENGTH (p_koscom_cd) <> 6   then
         BEGIN
             SELECT KOSCOM_CD
               INTO w_koscom_cd
-              FROM SJM0JJ t1
+              FROM SJM0JJ t1  /* 주식종목 */
              WHERE t1.DANC_GB IN ('A','C','D','G')
                AND JM_CD      = p_koscom_cd;
-        EXCEPTION WHEN OTHERS then
+        EXCEPTION WHEN OTHERS THEN 
             RETURN NULL;
         END;
     else
@@ -4457,20 +4405,20 @@ BEGIN
     end if;
 
     BEGIN
-        SELECT close
+        SELECT CLOSE
           INTO w_jonga
-          FROM SJT0TG t1
+          FROM SJT0TG t1  /* 주식/선물/Option 종목별 종가(영업일만 존재) */
          WHERE t1.corp_gr   = p_corp_gr
            AND t1.ymd       = w_ymd
            AND t1.koscom_cd = w_koscom_cd;
-    EXCEPTION WHEN OTHERS then
+    EXCEPTION WHEN OTHERS THEN 
         BEGIN
-            SELECT close
+            SELECT CLOSE
               INTO w_jonga
-              FROM SJT1TG t1
+              FROM SJT1TG t1  /* 주식/선물/Option 종목별 종가(영업일만 존재) */
              WHERE t1.ymd       = w_ymd
                AND t1.koscom_cd = w_koscom_cd;
-        EXCEPTION WHEN NO_DATA_FOUND then
+        EXCEPTION WHEN NO_DATA_FOUND THEN 
             w_jonga := NULL;
         END;
     END;
@@ -4478,27 +4426,27 @@ BEGIN
 END;
 /
 
-CREATE OR REPLACE FUNCTION KFP.f_junil_daebi (
+CREATE OR REPLACE FUNCTION KFP.F_JUNIL_DAEBI (
     p_corp_gr                      IN    VARCHAR,
     p_fund_cd                      IN    VARCHAR,
     p_yong_ymd                     IN    DATE,  /* 영업일 */
     p_gijun_ga                     IN    NUMBER
-)   RETURN NUMBER IS
+ )  RETURN NUMBER IS
 -- 펀드 영업일 기준 전일대비액 return
 --
-    w_yong_bymd                  DATE;
-    w_daebi                      NUMBER;
+    w_yong_bymd                    DATE;
+    w_daebi                        NUMBER;
 BEGIN
     w_yong_bymd := F_OPEN_YMD (p_yong_ymd, '-1');
 
     BEGIN
         SELECT p_gijun_ga - gijun_ga
           INTO w_daebi
-          FROM SKT0GI t1
+          FROM SKT0GI t1  /* 펀드별 기준가 */
          WHERE t1.corp_gr = p_corp_gr
-           AND t1.ymd     = w_yong_bymd - 1
-           AND t1.fund_cd = p_fund_cd;
-    EXCEPTION WHEN OTHERS then
+           AND t1.fund_cd = p_fund_cd
+           AND t1.ymd     = w_yong_bymd - 1;
+    EXCEPTION WHEN OTHERS THEN 
         w_daebi := p_gijun_ga - 1000;
     END;
 
@@ -4511,10 +4459,10 @@ CREATE OR REPLACE FUNCTION KFP.F_JUSU (
     p_ymd                          IN    DATE,
     p_fund_cd                      IN    VARCHAR,
     p_jm_cd                        IN    VARCHAR
-)   RETURN NUMBER IS
+ )  RETURN NUMBER IS
 -- 주식종목마스타의 운용가능주수
 --
-    w_jusu                       NUMBER;
+    w_jusu                         NUMBER;
 BEGIN
     -- 운용가능주수 = 전일보유주수+당일증가주수-당일감소주수+공시증가주수-공시감소주수-
     --                전일질권주수-당일질권증가+당일질권감소-공개매수할당
@@ -4524,13 +4472,13 @@ BEGIN
                                      - NVL(bfil_jilg_jusu,0) - NVL(jilg_up_jusu,0) + NVL(jilg_dw_jusu,0)
                                      - NVL(mesu_hald_jusu,0) - NVL(lock_jusu,0)
           INTO w_jusu
-          FROM SJM0JM t1
+          FROM SJM0JM t1  /* 주식 보유현황 */
          WHERE t1.corp_gr = p_corp_gr
-           AND t1.ymd     = p_ymd
            AND t1.fund_cd = p_fund_cd
+           AND t1.ymd     = p_ymd
            AND t1.jm_cd   = p_jm_cd;
-    EXCEPTION WHEN NO_DATA_FOUND then
-        w_jusu  := -1;
+    EXCEPTION WHEN NO_DATA_FOUND THEN 
+        w_jusu := -1;
     END;
     RETURN  w_jusu;
 END;
@@ -4539,18 +4487,18 @@ END;
 CREATE OR REPLACE FUNCTION KFP.F_KOSCOM_NM (
     p_corp_gr                      IN    VARCHAR,
     p_jm_cd                        IN    VARCHAR
-)   RETURN VARCHAR IS
+ )  RETURN VARCHAR IS
 -- 주식 단축코드 종목명
 --
-    w_jm_nm                      VARCHAR(50);
+    w_jm_nm                        VARCHAR(50);
 BEGIN
     BEGIN
         SELECT jj_nm
           INTO w_jm_nm
-          FROM SJM0JJ t1
+          FROM SJM0JJ t1  /* 주식종목 */
          WHERE koscom_cd = p_jm_cd
            AND ROWNUM = 1;
-    EXCEPTION WHEN OTHERS then
+    EXCEPTION WHEN OTHERS THEN 
         w_jm_nm := p_jm_cd;
     END;
     RETURN  w_jm_nm;
@@ -4558,28 +4506,28 @@ END;
 /
 
 CREATE OR REPLACE FUNCTION KFP.F_KSDCODE (
-    p_gr_cd                     IN        varchar,
-    p_sebu_cd                   IN        varchar
-)              RETURN  VARCHAR  IS
+    p_gr_cd                        IN    VARCHAR,
+    p_sebu_cd                      IN    VARCHAR
+ )  RETURN VARCHAR IS
 -- KSD 예탁결제용 그룹코드명
 --
-    w_leng                      number;
-    w_sebu_cd                   ksdcode.sebu_cd%type;
-    w_nm                        ksdcode.sebu_cd_nm%type;
+    w_leng                         NUMBER;
+    w_sebu_cd                      ksdcode.sebu_cd%type;
+    w_nm                           ksdcode.sebu_cd_nm%type;
 BEGIN
-    if  p_sebu_cd is null   then    RETURN  null;
+    if  p_sebu_cd IS NULL   then    RETURN NULL;
     end if;
 
     if  p_sebu_cd = 'max'   then
-        SELECT NVL(max (lengthb (sebu_cd_nm)),0)
+        SELECT NVL(MAX (lengthb (sebu_cd_nm)),0)
           INTO w_leng
-        FROM   ksdcode t1
-        WHERE  gr_cd = p_gr_cd;
+          FROM KSDCODE t1  /* 차세대 KSD 예탁결재용 그룹코드 */
+         WHERE gr_cd = p_gr_cd;
         if  w_leng = 0  then
-                w_nm    := null;
+                w_nm := NULL;
         elsif w_leng > 40   then
-                w_nm    := '40';
-        else    w_nm    := to_char (w_leng);
+                w_nm := '40';
+        else    w_nm := TO_CHAR (w_leng);
         end if;
     else
 --        if  p_gr_cd = 'CORP_GR' then
@@ -4593,23 +4541,23 @@ BEGIN
 --            RETURN F_JM_NM ('1700', p_sebu_cd);
 --        end if;
 
-        if  p_gr_cd = 'K01' And length(p_sebu_cd) = 10  then
-                w_sebu_cd := substrb(p_sebu_cd,2,5);
+        if  p_gr_cd = 'K01' AND LENGTH (p_sebu_cd) = 10  then
+                w_sebu_cd := SUBSTRB(p_sebu_cd,2,5);
         else    w_sebu_cd := p_sebu_cd;
         end if;
 
-        begin
+        BEGIN
             SELECT sebu_cd_nm
               INTO w_nm
-            FROM   ksdcode t1
-            WHERE  gr_cd   = p_gr_cd
-              AND  sebu_cd = w_sebu_cd;
-        exception when  OTHERS  then
+              FROM KSDCODE t1  /* 차세대 KSD 예탁결재용 그룹코드 */
+             WHERE gr_cd   = p_gr_cd
+               AND sebu_cd = w_sebu_cd;
+        EXCEPTION WHEN OTHERS THEN 
             if  w_sebu_cd = '0' then
-                    w_nm    := '해당없슴';
-            else    w_nm    := '미등록';
+                    w_nm := '해당없슴';
+            else    w_nm := '미등록';
             end if;
-        end;
+        END;
     end if;
     RETURN  w_nm;
 END;
@@ -4640,26 +4588,26 @@ CREATE OR REPLACE FUNCTION KFP.F_MAIL_NM (
     p_mail_gb                      IN    VARCHAR,
     p_corp_gr                      IN    VARCHAR,
     p_mail_cd                      IN    VARCHAR
-)   RETURN VARCHAR IS
-    w_nm                         VARCHAR (80);
+ )  RETURN VARCHAR IS
+    w_nm                           VARCHAR (80);
 BEGIN
     BEGIN
-        if  SUBSTR (p_mail_gb,1,1) = 'F'    then
+        if SUBSTR (p_mail_gb,1,1) = 'F'    then
             SELECT fund_nm
               INTO w_nm
-              FROM SZM0IA t1
+              FROM SZM0IA t1  /* 자문 계좌정보 */
              WHERE t1.corp_gr = p_corp_gr
                AND t1.fund_cd = p_mail_cd;
 
         elsif SUBSTR (p_mail_gb,1,1) = 'G'  then
             SELECT sell_nm
               INTO w_nm
-              FROM SZX0PA t1
+              FROM SZX0PA t1  /* 판매사코드 */
              WHERE t1.corp_gr = p_corp_gr
                AND t1.sell_co = p_mail_cd;
         end if;
-    EXCEPTION WHEN OTHERS then
-        w_nm    := p_mail_cd;
+    EXCEPTION WHEN OTHERS THEN 
+        w_nm := p_mail_cd;
     END;
     RETURN  w_nm;
 END;
@@ -4670,31 +4618,31 @@ CREATE OR REPLACE FUNCTION KFP.F_MEIB_YMD (
     p_ymd                          IN    DATE,
     p_fund_cd                      IN    VARCHAR,
     p_jm_cd                        IN    VARCHAR
-)   RETURN DATE IS
+ )  RETURN DATE IS
 -- 발행일자
 --
-    w_balh_ymd                   DATE;
+    w_balh_ymd                     DATE;
 BEGIN
     BEGIN
         SELECT lst_meib_ymd
           INTO w_balh_ymd
-          FROM SCM0CM t1
+          FROM SCM0CM t1  /* 채권 보유현황 */
          WHERE t1.corp_gr  = p_corp_gr
-           AND t1.ymd      = p_ymd
            AND t1.fund_cd  = p_fund_cd
+           AND t1.ymd      = p_ymd
            AND t1.jm_cd    = p_jm_cd
            AND t1.buy_date = '%';
-    EXCEPTION WHEN OTHERS then
+    EXCEPTION WHEN OTHERS THEN 
         BEGIN
             SELECT lst_meib_ymd
               INTO w_balh_ymd
-              FROM SHM0HM t1
+              FROM SHM0HM t1  /* 현금 보유현황 */
              WHERE t1.corp_gr = p_corp_gr
-               AND t1.ymd     = p_ymd
                AND t1.fund_cd = p_fund_cd
+               AND t1.ymd     = p_ymd
                AND t1.jm_cd   = p_jm_cd;
-        EXCEPTION WHEN OTHERS then
-            w_balh_ymd  := NULL;
+        EXCEPTION WHEN OTHERS THEN 
+            w_balh_ymd := NULL;
         END;
     END;
 
@@ -4706,17 +4654,17 @@ CREATE OR REPLACE FUNCTION KFP.F_MIJIGUB_AEK (
     p_corp_gr                      IN    VARCHAR,
     p_ymd                          IN    DATE,
     p_fund_cd                      IN    VARCHAR
-)   RETURN NUMBER IS
+ )  RETURN NUMBER IS
 -- 미수입(지급)액
 --
-    w_aek                        NUMBER;
+    w_aek                          NUMBER;
 BEGIN
-    SELECT SUM(t1.siga_aek) 
+    SELECT SUM(t1.siga_aek)
       INTO w_aek
-      FROM UZM0UI t1
+      FROM UZM0UI t1  /* 정보계 신탁재산 명세부 */
      WHERE t1.corp_gr = p_corp_gr
-       AND t1.ymd     = p_ymd
        AND t1.fund_cd = p_fund_cd
+       AND t1.ymd     = p_ymd
        AND t1.jm_gr   = '2'
        AND t1.jm_cd   IN ('12001','20201');
 
@@ -4728,14 +4676,14 @@ CREATE OR REPLACE FUNCTION KFP.F_MISUBAED_AEK (
     p_corp_gr                      IN    VARCHAR,
     p_ymd                          IN    DATE,
     p_fund_cd                      IN    VARCHAR
-)   RETURN NUMBER IS
+ )  RETURN NUMBER IS
 -- 주식+현금배당금
 --
-    w_aek                        NUMBER;
+    w_aek                          NUMBER;
 BEGIN
     SELECT NVL(SUM(misu_baed_aek),0)
       INTO w_aek
-      FROM SJM0JM t1
+      FROM SJM0JM t1  /* 주식 보유현황 */
      WHERE corp_gr = p_corp_gr
        AND ymd     = p_ymd
        AND fund_cd = p_fund_cd;
@@ -4748,16 +4696,16 @@ CREATE OR REPLACE FUNCTION KFP.F_MISUBAED_JAEK (
     p_corp_gr                      IN    VARCHAR,
     p_ymd                          IN    DATE,
     p_fund_cd                      IN    VARCHAR
-)   RETURN NUMBER IS
+ )  RETURN NUMBER IS
 -- 주식배당금평가액
 --
-    w_aek                        NUMBER;
+    w_aek                          NUMBER;
 BEGIN
     SELECT NVL(SUM(NVL(bfil_chui_aek,0) + NVL(up_chui_aek,0) - NVL(dw_chui_aek,0)
-                   + NVL(sonik,0)
-                   + NVL(gongs_up_chui_aek,0) - NVL(gongs_dw_chui_aek,0)),0)
+                                        + NVL(sonik,0)
+                                        + NVL(gongs_up_chui_aek,0) - NVL(gongs_dw_chui_aek,0)),0)
       INTO w_aek
-      FROM SJM0JM t1
+      FROM SJM0JM t1  /* 주식 보유현황 */
      WHERE corp_gr = p_corp_gr
        AND ymd     = p_ymd
        AND fund_cd = p_fund_cd
@@ -4963,39 +4911,39 @@ end;
 CREATE OR REPLACE FUNCTION KFP.F_OBJ_NM (
     p_bun                          IN    VARCHAR,
     p_pgm_id                       IN    VARCHAR
-)   RETURN VARCHAR IS
+ )  RETURN VARCHAR IS
 -- Object 명
 --
-    w_nm                         fw_pgm_mst.pgm_nm%type;
+    w_nm                           fw_pgm_mst.pgm_nm%type;
 BEGIN
     BEGIN
         SELECT pgm_nm
           INTO w_nm
-          FROM FW_PGM_MST t1
+          FROM FW_PGM_MST t1  /* 프로그램 */
          WHERE pgm_id = p_pgm_id;
-    EXCEPTION WHEN OTHERS then
-        w_nm    := p_pgm_id;
+    EXCEPTION WHEN OTHERS THEN 
+        w_nm := p_pgm_id;
     END;
 
     RETURN  w_nm;
 END;
 /
 
-CREATE OR REPLACE FUNCTION KFP.f_obj_no (
+CREATE OR REPLACE FUNCTION KFP.F_OBJ_NO (
     p_bun                          IN    VARCHAR,
     p_pgm_id                       IN    VARCHAR
-)   RETURN VARCHAR IS
+ )  RETURN VARCHAR IS
 -- 화면번호
 --
-    w_no                         fw_pgm_mst.pgm_go%type;
+    w_no                           fw_pgm_mst.pgm_go%type;
 BEGIN
     BEGIN
         SELECT pgm_go
           INTO w_no
-          FROM FW_PGM_MST t1
+          FROM FW_PGM_MST t1  /* 프로그램 */
          WHERE pgm_id = p_pgm_id;
-    EXCEPTION WHEN OTHERS then
-        w_no    := '';
+    EXCEPTION WHEN OTHERS THEN 
+        w_no := '';
     END;
 
     RETURN  w_no;
@@ -5006,65 +4954,65 @@ CREATE OR REPLACE FUNCTION KFP.F_OPEN_US (
     p_ymd                          IN    DATE,
     p_gb                           IN    VARCHAR,
     p_nation                       IN    VARCHAR DEFAULT 'US'
-)   RETURN DATE IS
+ )  RETURN DATE IS
 -- 입력일 기준 이전(후) 경과 영업일 return
 --
-    w_next                       NUMBER;
-    w_add                        NUMBER DEFAULT 0;
-    w_ymd                        DATE;
+    w_next                         NUMBER;
+    w_add                          NUMBER   default 0;
+    w_ymd                          DATE;
 BEGIN
-    if  SUBSTR (p_gb,1,1) IN ('+','M')  then
-            w_next  := 1;
-    else    w_next  := -1;
+    if SUBSTR (p_gb,1,1) IN ('+','M')  then
+            w_next := 1;
+    else    w_next := -1;
     end if;
 
-    w_ymd   := TRUNC(p_ymd,'dd');
+    w_ymd := TRUNC  (p_ymd,'dd');
     if  p_gb IN ('+','-','M','0','+0','-0','M0')    then
         LOOP
             BEGIN
                 SELECT holi_ymd
                   INTO w_ymd
-                  FROM SZX0HL t1
+                  FROM SZX0HL t1  /* 공휴일 */
                  WHERE NATION_CD = p_nation
                    AND HOLI_YMD  = w_ymd;
-            EXCEPTION WHEN NO_DATA_FOUND then
+            EXCEPTION WHEN NO_DATA_FOUND THEN 
                 EXIT;
             END;
-            w_ymd   := w_ymd + w_next;
-        END LOOP;
+            w_ymd := w_ymd + w_next;
+        end loop;
     else
         LOOP
-            w_ymd   := w_ymd + w_next;
+            w_ymd := w_ymd + w_next;
             BEGIN
                 SELECT holi_ymd
                   INTO w_ymd
-                  FROM SZX0HL t1
+                  FROM SZX0HL t1  /* 공휴일 */
                  WHERE NATION_CD = p_nation
                    AND HOLI_YMD  = w_ymd;
-            EXCEPTION WHEN NO_DATA_FOUND then
-                w_add   := w_add + 1;
-                if  w_add = SUBSTR (p_gb,2) then    exit;
+            EXCEPTION WHEN NO_DATA_FOUND THEN 
+                w_add := w_add + 1;
+                if  w_add = SUBSTR (p_gb,2) then    EXIT;
                 end if;
             END;
-        END LOOP;
+        end loop;
     end if;
 
     -- 익영업일이 월이 변경된 경우 전영업일(해외채권 이자일 계산시 사용 ijs_BDC 컬럼)
-    if  SUBSTR (p_gb,1,1) = 'M' AND TO_CHAR (p_ymd,'yyyymm') != TO_CHAR (w_ymd,'yyyymm')    then
-        w_ymd   := TRUNC(p_ymd,'dd');
-        w_next  := -1;
+    if SUBSTR (p_gb,1,1) = 'M' AND TO_CHAR (p_ymd,'yyyymm') != TO_CHAR (w_ymd,'yyyymm') then
+        w_ymd  := TRUNC  (p_ymd,'dd');
+        w_next := -1;
         LOOP
             BEGIN
                 SELECT holi_ymd
                   INTO w_ymd
-                  FROM SZX0HL t1
+                  FROM SZX0HL t1  /* 공휴일 */
                  WHERE NATION_CD = p_nation
                    AND HOLI_YMD  = w_ymd;
-            EXCEPTION WHEN NO_DATA_FOUND then
+            EXCEPTION WHEN NO_DATA_FOUND THEN 
                 EXIT;
             END;
-            w_ymd   := w_ymd + w_next;
-        END LOOP;
+            w_ymd := w_ymd + w_next;
+        end loop;
     end if;
 
     RETURN  w_ymd;
@@ -5074,65 +5022,65 @@ END;
 CREATE OR REPLACE FUNCTION KFP.F_OPEN_YMD (
     p_ymd                          IN    DATE,
     p_gb                           IN    VARCHAR
-)   RETURN DATE IS
+ )  RETURN DATE IS
 -- 입력일 기준 이전(후) 경과 영업일 return
 --
-    w_next                       NUMBER;
-    w_add                        NUMBER DEFAULT 0;
-    w_ymd                        DATE;
+    w_next                         NUMBER;
+    w_add                          NUMBER   default 0;
+    w_ymd                          DATE;
 BEGIN
-    if  SUBSTR (p_gb,1,1) IN ('+','M')  then
-            w_next  := 1;
-    else    w_next  := -1;
+    if SUBSTR (p_gb,1,1) IN ('+','M')  then
+            w_next := 1;
+    else    w_next := -1;
     end if;
 
-    w_ymd   := trunc(p_ymd,'dd');
+    w_ymd := TRUNC  (p_ymd,'dd');
     if  p_gb IN ('+','-','M','0','+0','-0','M0')    then
         LOOP
             BEGIN
                 SELECT holi_ymd
                   INTO w_ymd
-                  FROM SZX0HL t1
+                  FROM SZX0HL t1  /* 공휴일 */
                  WHERE nation_cd = 'KR'
                    AND holi_ymd  = w_ymd;
-            EXCEPTION WHEN NO_DATA_FOUND then
+            EXCEPTION WHEN NO_DATA_FOUND THEN 
                 EXIT;
             END;
-            w_ymd   := w_ymd + w_next;
-        END LOOP;
+            w_ymd := w_ymd + w_next;
+        end loop;
     else
         LOOP
-            w_ymd   := w_ymd + w_next;
+            w_ymd := w_ymd + w_next;
             BEGIN
                 SELECT holi_ymd
                   INTO w_ymd
-                  FROM SZX0HL t1
+                  FROM SZX0HL t1  /* 공휴일 */
                  WHERE nation_cd = 'KR'
                    AND holi_ymd  = w_ymd;
-            EXCEPTION WHEN NO_DATA_FOUND then
-                w_add   := w_add + 1;
-                if  w_add = SUBSTR (p_gb,2) then    exit;
+            EXCEPTION WHEN NO_DATA_FOUND THEN 
+                w_add := w_add + 1;
+                if  w_add = SUBSTR (p_gb,2) then    EXIT;
                 end if;
             END;
-        END LOOP;
+        end loop;
     end if;
 
     -- 익영업일이 월이 변경된 경우 전영업일(해외채권 이자일 계산시 사용 ijs_BDC 컬럼)
-    if  SUBSTR (p_gb,1,1) = 'M' AND TO_CHAR (p_ymd,'yyyymm') != TO_CHAR (w_ymd,'yyyymm')    then
-        w_ymd   := trunc(p_ymd,'dd');
-        w_next  := -1;
+    if SUBSTR (p_gb,1,1) = 'M' AND TO_CHAR (p_ymd,'yyyymm') != TO_CHAR (w_ymd,'yyyymm') then
+        w_ymd  := TRUNC  (p_ymd,'dd');
+        w_next := -1;
         LOOP
             BEGIN
                 SELECT holi_ymd
                   INTO w_ymd
-                  FROM SZX0HL t1
+                  FROM SZX0HL t1  /* 공휴일 */
                  WHERE nation_cd = 'KR'
                    AND holi_ymd  = w_ymd;
-            EXCEPTION WHEN NO_DATA_FOUND then
+            EXCEPTION WHEN NO_DATA_FOUND THEN 
                 EXIT;
             END;
-            w_ymd   := w_ymd + w_next;
-        END LOOP;
+            w_ymd := w_ymd + w_next;
+        end loop;
     end if;
 
     RETURN  w_ymd;
@@ -5146,23 +5094,23 @@ CREATE OR REPLACE FUNCTION KFP.F_OPTION_PRICE (
     p_r                            IN    NUMBER,
     p_sigma                        IN    NUMBER,
     p_option_type                  IN    CHAR  /* 'C' or 'P' */
-)   RETURN NUMBER IS
-    d1                           NUMBER;
-    d2                           NUMBER;
-    call_price                   NUMBER;
-    put_price                    NUMBER;
+ )  RETURN NUMBER IS
+    d1                             NUMBER;
+    d2                             NUMBER;
+    call_price                     NUMBER;
+    put_price                      NUMBER;
 BEGIN
     if  p_S <= 0 OR p_K <= 0 OR p_T <= 0 OR p_sigma <= 0    then
         RETURN NULL;
     end if;
 
-    d1  := (LN(p_S / p_K) + (p_r + 0.5 * p_sigma * p_sigma) * p_T) / (p_sigma * SQRT(p_T));
-    d2  := d1 - p_sigma * SQRT(p_T);
+    d1 := (LN(p_S / p_K) + (p_r + 0.5 * p_sigma * p_sigma) * p_T) / (p_sigma * SQRT(p_T));
+    d2 := d1 - p_sigma * SQRT  (p_T);
 
-    call_price  := p_S * F_STD_CDF(d1) - p_K * EXP( - p_r * p_T) * F_STD_CDF(d2);
-    put_price   := p_K * EXP( - p_r * p_T) * F_STD_CDF( - d2) - p_S * F_STD_CDF( - d1);
+    call_price := p_S * F_STD_CDF(d1) - p_K * EXP  (- p_r * p_T) * F_STD_CDF(d2);
+    put_price  := p_K * EXP  (- p_r * p_T) * F_STD_CDF(- d2) - p_S * F_STD_CDF(- d1);
 
-    if  UPPER (p_option_type) = 'C' then
+    if UPPER (p_option_type) = 'C' then
         RETURN call_price;
     elsif UPPER (p_option_type) = 'P'   then
         RETURN put_price;
@@ -5178,16 +5126,16 @@ CREATE OR REPLACE FUNCTION KFP.F_OPTION_VEGA (
     p_T                            IN    NUMBER,
     p_r                            IN    NUMBER,
     p_sigma                        IN    NUMBER
-)   RETURN NUMBER IS
-    d1                           NUMBER;
-    vega                         NUMBER;
+ )  RETURN NUMBER IS
+    d1                             NUMBER;
+    vega                           NUMBER;
 BEGIN
     if  p_T <= 0 OR p_sigma <= 0    then
         RETURN NULL;
     end if;
 
-    d1  := (LN(p_S / p_K) + (p_r + 0.5 * p_sigma * p_sigma) * p_T) / (p_sigma * SQRT(p_T));
-    vega    := p_S * EXP(-0.5 * d1 * d1) / SQRT(2 * 3.14159265359) * SQRT(p_T);
+    d1   := (LN(p_S / p_K) + (p_r + 0.5 * p_sigma * p_sigma) * p_T) / (p_sigma * SQRT(p_T));
+    vega := p_S * EXP  (-0.5 * d1 * d1) / SQRT  (2 * 3.14159265359) * SQRT  (p_T);
     RETURN vega;
 END;
 /
@@ -5198,20 +5146,20 @@ CREATE OR REPLACE FUNCTION KFP.F_OPT_COLOR (
     p_fund_cd                      IN    VARCHAR,
     p_jm_cd                        IN    VARCHAR,
     p_jonga                        IN    NUMBER
-)   RETURN VARCHAR IS
+ )  RETURN VARCHAR IS
 -- 옵션 행사가 종가대비 색상
 --
-    w_hangsa_ga                  NUMBER;
+    w_hangsa_ga                    NUMBER;
 BEGIN
     SELECT NVL(MAX(jm.HANGSA_GA),0)
       INTO w_hangsa_ga
-      FROM SYM0YA jm
-         , SYM0YZ t1
+      FROM SYM0YA jm  /* 해외 자산종목 */
+         , SYM0YZ t1  /* 해외 자산 보유현황 */
      WHERE jm.CORP_GR      = p_corp_gr
        AND jm.CHANGE_JM_CD = p_jm_cd
        AND t1.CORP_GR      = jm.CORP_GR
-       AND t1.YMD          = p_ymd
        AND t1.FUND_CD      = p_fund_cd
+       AND t1.YMD          = p_ymd
        AND t1.JM_CD        = jm.JM_CD;
 
     if  w_hangsa_ga = 0 then
@@ -5227,17 +5175,17 @@ END;
 CREATE OR REPLACE FUNCTION KFP.F_OPT_DATE_COLOR (
     p_fymd                         IN    DATE,
     p_tymd                         IN    DATE
-)   RETURN NUMBER DETERMINISTIC IS
+ )  RETURN NUMBER DETERMINISTIC IS
 -- 일자구간 컬러값
 --
-    w_days                       NUMBER;
+    w_days                         NUMBER;
 BEGIN
     if  p_fymd IS NULL  then    RETURN 255;
     end if;
     if  p_tymd IS NULL  then    RETURN 255;
     end if;
 
-    w_days  := ABS(F_DAYS (p_tymd, p_fymd));
+    w_days := ABS  (F_DAYS (p_tymd, p_fymd));
 
     if  w_days >= 10    then    RETURN 16719390;
     elsif w_days >= 5   then    RETURN 8388736;
@@ -5819,14 +5767,14 @@ END;
 CREATE OR REPLACE FUNCTION KFP.F_QUERYPARAMS (
     p_id                           IN    VARCHAR,
     p_params                       IN    VARCHAR
-)   RETURN VARCHAR IS
+ )  RETURN VARCHAR IS
 --
 -- QUERYPARAMS
-    w_data                       VARCHAR2(4096);
+    w_data                         VARCHAR2(4096);
 BEGIN
-    w_data  := SUBSTR (p_params,INSTR (p_params,p_id));
-    w_data  := SUBSTR(w_data,INSTR(w_data,'"') + 1);
-    w_data  := SUBSTR(w_data,1,INSTR(w_data,'"') - 1);
+    w_data := SUBSTR (p_params, INSTR (p_params, p_id));
+    w_data := SUBSTR (w_data, INSTR(w_data,'"') + 1);
+    w_data := SUBSTR (w_data,1, INSTR(w_data,'"') - 1);
 
     RETURN  w_data;
 END;
@@ -6599,15 +6547,14 @@ END;
 CREATE OR REPLACE FUNCTION KFP.F_TAX_RT (
     p_tax_gb                       IN    VARCHAR,
     p_ymd                          IN    DATE DEFAULT sysdate
-)   RETURN NUMBER IS
+ )  RETURN NUMBER IS
 -- 세율(2014년 기준)
 --
-    w_tax_rt                     NUMBER;
+    w_tax_rt                       NUMBER;
 BEGIN
-    if  p_tax_gb = '0'          then    w_tax_rt    := 0;       -- 비과세
-    elsif p_tax_gb IN ('1','5') then    w_tax_rt    := 0.154;   -- 개인소득세
-    elsif p_tax_gb = '2'        then    w_tax_rt    := 0;       -- 법인소득세
-    else                                w_tax_rt    := 0; 
+    if  p_tax_gb = '0'          then    w_tax_rt := 0;      -- 비과세
+    elsif p_tax_gb = '2'        then    w_tax_rt := 0;      -- 법인소득세
+    else                                w_tax_rt := 0.154;  /* 개인소득세 */
     end if;
 
     RETURN  w_tax_rt;
@@ -7464,25 +7411,25 @@ END;
 CREATE OR REPLACE FUNCTION KFP.F_WORKDATE (
     p_corp_gr                      IN    VARCHAR,
     p_next_day                     IN    NUMBER DEFAULT 0
-)   RETURN DATE IS
+ )  RETURN DATE IS
 -- Calender 익(전)영업일자
 --
-    w_ymd                        DATE;
+    w_ymd                          DATE;
 BEGIN
     if  p_next_day > -1 then
-        SELECT f_open_ymd(hyun_ymd,'+' || p_next_day)
+        SELECT F_OPEN_YMD(hyun_ymd,'+' || p_next_day)
           INTO w_ymd
-          FROM SZX0AA t1
+          FROM SZX0AA t1  /* 작업관련 일자관리 */
          WHERE t1.corp_gr = p_corp_gr;
     else
-        SELECT f_open_ymd(hyun_ymd,p_next_day)
+        SELECT F_OPEN_YMD(hyun_ymd, p_next_day)
           INTO w_ymd
-          FROM SZX0AA t1
+          FROM SZX0AA t1  /* 작업관련 일자관리 */
          WHERE t1.corp_gr = p_corp_gr;
     end if;
     RETURN  w_ymd;
-EXCEPTION WHEN OTHERS THEN
-    RETURN  now ();
+EXCEPTION WHEN OTHERS THEN 
+    RETURN  now ( );
 END;
 /
 
@@ -7497,11 +7444,11 @@ BEGIN
     BEGIN
         SELECT F_DAYS (p_fymd, p_tymd) - COUNT(*)
           INTO w_days
-          FROM SZX0HL t1
+          FROM SZX0HL t1  /* 공휴일 */
          WHERE t1.nation_cd = 'KR'
            AND t1.holi_ymd  BETWEEN p_fymd AND p_tymd;
     EXCEPTION WHEN OTHERS THEN 
-        w_days  := 0;
+        w_days := 0;
     END;
     RETURN  w_days;
 END;
@@ -7699,15 +7646,15 @@ CREATE OR REPLACE FUNCTION KFP.SPF_FW_DEFINE_WORD_C1 (
     ps_sys_id                      IN    VARCHAR2,
     ps_word_sec                    IN    VARCHAR2,
     ps_word                        IN    VARCHAR2
-)   RETURN VARCHAR2 IS
-    ps_word_next                 VARCHAR2(200);
+ )  RETURN VARCHAR2 IS
+    ps_word_next                   VARCHAR2(200);
 BEGIN
 
     SELECT CASE WHEN ps_word_sec IN ('lng_org','lng_kor') THEN ta.lng_kor
-                WHEN ps_word_sec='lng_eng'                THEN NVL(ta.lng_eng,ta.lng_kor)
-                WHEN ps_word_sec='lng_chn'                THEN NVL(ta.lng_chn,ta.lng_kor)
-                WHEN ps_word_sec='lng_vit'                THEN NVL(ta.lng_vit,ta.lng_kor)
-                WHEN ps_word_sec='lng_loc'                THEN NVL(ta.lng_loc,ta.lng_kor)
+                WHEN ps_word_sec='lng_eng'                THEN NVL(ta.lng_eng, ta.lng_kor)
+                WHEN ps_word_sec='lng_chn'                THEN NVL(ta.lng_chn, ta.lng_kor)
+                WHEN ps_word_sec='lng_vit'                THEN NVL(ta.lng_vit, ta.lng_kor)
+                WHEN ps_word_sec='lng_loc'                THEN NVL(ta.lng_loc, ta.lng_kor)
                                                           ELSE ps_word
            END  AS word_next
       INTO ps_word_next
@@ -7718,7 +7665,7 @@ BEGIN
 
     RETURN ps_word_next;
 
-EXCEPTION WHEN NO_DATA_FOUND THEN
+EXCEPTION WHEN NO_DATA_FOUND THEN 
     RETURN ps_word;
 WHEN OTHERS THEN
     RETURN 'FAIL';
@@ -7731,33 +7678,33 @@ CREATE OR REPLACE FUNCTION KFP.SPF_FW_FULLROLLMENU_1SUB (
  )  RETURN NUMBER IS
     vl_level_no                    NUMBER (2);
 BEGIN
-    WITH MAXLVL
-       ( LEVEL_NO
+    WITH MAXLVL (
+         LEVEL_NO
        , SYS_ID
        , PGM_NO
        , PARENT_PGM
+       ) AS (
+         SELECT 1              AS level_no
+              , lz.sys_id      AS sys_id
+              , lz.pgm_no      AS pgm_no
+              , lz.parent_pgm  AS parent_pgm
+           FROM FW_PGM_MST lz  /* 프로그램 */
+          WHERE lz.sys_id = Ps_sys_id
+            AND lz.pgm_no = Ps_pgm_no
+         UNION ALL
+         SELECT level_no + 1
+              , t2.sys_id
+              , t2.pgm_no
+              , t2.parent_pgm
+           FROM FW_PGM_MST t2  /* 프로그램 */
+                INNER JOIN MAXLVL t3
+                        ON t2.sys_id     = Ps_sys_id
+                       AND t3.sys_id     = t2.sys_id
+                       AND t3.parent_pgm = t2.pgm_no
        )
-     AS ( SELECT 1              AS level_no
-            , lz.sys_id      AS sys_id
-            , lz.pgm_no      AS pgm_no
-            , lz.parent_pgm  AS parent_pgm
-         FROM FW_PGM_MST lz
-        WHERE lz.sys_id = Ps_sys_id
-          AND lz.pgm_no = Ps_pgm_no
-       UNION ALL
-       SELECT level_no + 1
-            , t2.sys_id
-            , t2.pgm_no
-            , t2.parent_pgm
-         FROM FW_PGM_MST t2
-        Inner JOIN MAXLVL t3  ON t2.sys_id     = Ps_sys_id
-                             AND t3.sys_id     = t2.sys_id
-                             AND t3.parent_pgm = t2.pgm_no
-        )
-      --------------------------------------------------------------------------------
-      -- 내부 함수&테이블 이용한 쿼리 실행
-      --------------------------------------------------------------------------------
-      SELECT NVL(MAX(lx.level_no), 0) INTO vl_level_no FROM MAXLVL lx;
+    -- Main SQL --
+    --------------
+    SELECT NVL(MAX(lx.level_no), 0) INTO vl_level_no FROM MAXLVL lx;
 
     RETURN vl_level_no;
 
@@ -7773,45 +7720,44 @@ CREATE OR REPLACE FUNCTION KFP.SPF_FW_FULLROLLMENU_2SUB (
  )  RETURN VARCHAR IS
     vs_pgm4path                    VARCHAR (200);
 BEGIN
-    WITH t_pgm4path
-       ( level_no
+    WITH t_pgm4path (
+         level_no
        , sys_id
        , pgm_no
        , parent_pgm
        , pgm_nm
+       ) AS (
+         SELECT 1              AS level_no    /* _1- */
+              , lz.sys_id      AS sys_id      /* _2- */
+              , lz.pgm_no      AS pgm_no      /* _3- */
+              , lz.parent_pgm  AS parent_pgm  /* _4- */
+              , lz.pgm_nm      AS pgm_nm      /* _5- */
+           FROM FW_PGM_MST lz  /* 프로그램 */
+          WHERE lz.sys_id = Ps_sys_id
+            AND lz.pgm_no = Ps_pgm_no
+         UNION ALL
+         SELECT level_no + 1    /* _1- */
+              , t26.sys_id      /* _2- */
+              , t26.pgm_no      /* _3- */
+              , t26.parent_pgm  /* _4- */
+              , t26.pgm_nm      /* _5- */
+           FROM FW_PGM_MST t26  /* 프로그램 */
+              , T_PGM4PATH t25
+          WHERE t26.sys_id     = Ps_sys_id
+            AND t25.sys_id     = t26.sys_id
+            AND t25.parent_pgm = t26.pgm_no
        )
-     AS ( SELECT 1              AS level_no    /* _1- */
-            , lz.sys_id      AS sys_id      /* _2- */
-            , lz.pgm_no      AS pgm_no      /* _3- */
-            , lz.parent_pgm  AS parent_pgm  /* _4- */
-            , lz.pgm_nm      AS pgm_nm      /* _5- */
-         FROM FW_PGM_MST lz
-        WHERE lz.sys_id = Ps_sys_id
-          AND lz.pgm_no = Ps_pgm_no
-       UNION ALL
-       SELECT level_no + 1    /* _1- */
-            , t26.sys_id      /* _2- */
-            , t26.pgm_no      /* _3- */
-            , t26.parent_pgm  /* _4- */
-            , t26.pgm_nm      /* _5- */
-         FROM FW_PGM_MST t26
-            , T_PGM4PATH t25
-        WHERE t26.sys_id     = Ps_sys_id
-          AND t25.sys_id     = t26.sys_id
-          AND t25.parent_pgm = t26.pgm_no
-        )
-      --------------------------------------------------------------------------------
-      -- 내부 함수(테이블) 이용한 쿼리 실행
-      --------------------------------------------------------------------------------
-      SELECT MAX(CASE When level_no=5 THEN lx.pgm_no ELSE '0' END) || ';' ||
-             MAX(CASE When level_no=4 THEN lx.pgm_no ELSE '0' END) || ';' ||
-             MAX(CASE When level_no=3 THEN lx.pgm_no ELSE '0' END) || ';' ||
-             MAX(CASE When level_no=2 THEN lx.pgm_no ELSE '0' END) || 'tab' ||
-             MAX(CASE When level_no=4 THEN SPF_FW_MLANG4NODE1 ('biz4penta', Ps_langtype, lx.pgm_nm) ELSE '' END) || ' > ' ||
-             MAX(CASE When level_no=3 THEN SPF_FW_MLANG4NODE1 ('biz4penta', Ps_langtype, lx.pgm_nm) ELSE '' END) || ' > ' ||
-             MAX(CASE When level_no=2 THEN SPF_FW_MLANG4NODE1 ('biz4penta', Ps_langtype, lx.pgm_nm) ELSE '' END)  AS pgm_path
-        INTO vs_pgm4path
-        FROM T_PGM4PATH lx;
+    -- Main SQL --
+    --------------
+    SELECT MAX(CASE WHEN level_no=5 THEN lx.pgm_no ELSE '0' END) || ';' ||
+           MAX(CASE WHEN level_no=4 THEN lx.pgm_no ELSE '0' END) || ';' ||
+           MAX(CASE WHEN level_no=3 THEN lx.pgm_no ELSE '0' END) || ';' ||
+           MAX(CASE WHEN level_no=2 THEN lx.pgm_no ELSE '0' END) || 'tab' ||
+           MAX(CASE WHEN level_no=4 THEN SPF_FW_MLANG4NODE1 ('biz4penta', Ps_langtype, lx.pgm_nm) ELSE '' END) || ' > ' ||
+           MAX(CASE WHEN level_no=3 THEN SPF_FW_MLANG4NODE1 ('biz4penta', Ps_langtype, lx.pgm_nm) ELSE '' END) || ' > ' ||
+           MAX(CASE WHEN level_no=2 THEN SPF_FW_MLANG4NODE1 ('biz4penta', Ps_langtype, lx.pgm_nm) ELSE '' END)  AS pgm_path
+      INTO vs_pgm4path
+      FROM T_PGM4PATH lx;
 
     RETURN vs_pgm4path;
 

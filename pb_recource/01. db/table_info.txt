@@ -232,6 +232,24 @@ COMMENT ON COLUMN KFP.API_CFG.EXPIRES_IN IS '토큰 만료 시간';
 COMMENT ON COLUMN KFP.API_CFG.ISSUED_AT IS '토큰 발급 시각';
 COMMENT ON COLUMN KFP.API_CFG.TOKEN_URL IS '토큰 발급 URL';
 
+CREATE TABLE KFP.API_CLEAN_LOG
+(
+    LOG_DATE    TIMESTAMP(6) DEFAULT SYSTIMESTAMP,
+    TABLE_NAME  VARCHAR2(100),
+    EXEC_SQL    VARCHAR2(2000),
+    DELETED_CNT NUMBER,
+    STATUS      VARCHAR2(20),
+    ERR_MSG     VARCHAR2(4000)
+)
+TABLESPACE DATA_KFP
+STORAGE
+(
+    INITIAL 64K
+    NEXT 1M
+)
+NOCOMPRESS;
+
+
 CREATE TABLE KFP.API_CONTRACT_DETAIL
 (
     API_KEY VARCHAR2(64) NOT NULL
@@ -890,6 +908,74 @@ STORAGE
     NEXT 1M
 );
 
+CREATE OR REPLACE TRIGGER KFP.DT_API_DAILY_ITEMCHARTPRICE_SUB_I  
+    AFTER INSERT  
+    ON API_DAILY_ITEMCHARTPRICE_SUB FOR EACH ROW 
+------------------------------
+-- 주식 일자별 종가 trigger --
+------------------------------
+DECLARE
+    w_koscom_cd                    VARCHAR2(20);
+    w_cnt                          NUMBER;
+BEGIN
+    if NVL (:new.STCK_BSOP_DATE,'00000000') > '00000000'    then
+        BEGIN
+            SELECT KEY1
+                 , NUM1
+              INTO w_koscom_cd
+                 , w_cnt
+              FROM API_Q qq  /* API 요청 및 처리결과 */
+             WHERE qq.API_KEY = :new.API_KEY
+               AND qq.KEY1 IS NOT NULL;
+
+            if  :new.SEQ <= w_cnt OR NVL (w_cnt,0) = 0 then
+                MERGE INTO SJT1TG t1  /* 주식/선물/Option 종목별 종가(영업일만 존재) */
+                   USING DUAL ON ( t1.YMD       = TO_DATE(:new.STCK_BSOP_DATE,'yyyymmdd')
+                               AND t1.KOSCOM_CD = w_koscom_cd )
+                WHEN MATCHED THEN
+                     UPDATE
+                        SET OPEN     = :new.STCK_OPRC
+                          , HIGH     = :new.STCK_HGPR
+                          , LOW      = :new.STCK_LWPR
+                          , CLOSE    = :new.STCK_CLPR
+                          , VOLUME   = :new.ACML_VOL
+                          , VALUE    = :new.ACML_TR_PBMN
+                          , PRECLOSE = :new.STCK_CLPR - :new.PRDY_VRSS
+                          , CHANGE   = :new.PRDY_VRSS
+                          , CYBOS_DT = sysdate
+                WHEN NOT MATCHED THEN
+                     INSERT ( YMD        /* _1- */
+                            , KOSCOM_CD  /* _2- */
+                            , OPEN       /* _3- */
+                            , HIGH       /* _4- */
+                            , LOW        /* _5- */
+                            , CLOSE      /* _6- */
+                            , VOLUME     /* _7- */
+                            , VALUE      /* _8- */
+                            , PRECLOSE   /* _9- */
+                            , CHANGE     /* _10- */
+                            , CYBOS_DT   /* _11- */
+                            )
+                     VALUES ( TO_DATE(:new.STCK_BSOP_DATE,'yyyymmdd')  /* _1- */
+                            , w_koscom_cd                              /* _2- */
+                            , :new.STCK_OPRC                           /* _3- */
+                            , :new.STCK_HGPR                           /* _4- */
+                            , :new.STCK_LWPR                           /* _5- */
+                            , :new.STCK_CLPR                           /* _6- */
+                            , :new.ACML_VOL                            /* _7- */
+                            , :new.ACML_TR_PBMN                        /* _8- */
+                            , :new.STCK_CLPR - :new.PRDY_VRSS          /* _9- */
+                            , :new.PRDY_VRSS                           /* _10- */
+                            , sysdate                                  /* _11- */
+                            );
+            end if;
+        EXCEPTION WHEN OTHERS THEN 
+            NULL;
+        END;
+    end if;
+END;
+/
+
 COMMENT ON COLUMN KFP.API_DAILY_ITEMCHARTPRICE_SUB.STCK_BSOP_DATE IS '주식 영업 일자';
 COMMENT ON COLUMN KFP.API_DAILY_ITEMCHARTPRICE_SUB.STCK_CLPR IS '주식 종가';
 COMMENT ON COLUMN KFP.API_DAILY_ITEMCHARTPRICE_SUB.STCK_OPRC IS '주식 시가2';
@@ -966,58 +1052,74 @@ STORAGE
 );
 
 CREATE OR REPLACE TRIGGER KFP.DT_API_DAILY_PRICE_SUB_I  
-    AFTER INSERT ON API_DAILY_PRICE_SUB  
-    FOR EACH ROW 
-------------------------------------
--- 해외주식 과거주가 갱신 trigger --
-------------------------------------
+    AFTER INSERT  
+    ON API_DAILY_PRICE_SUB FOR EACH ROW 
+---------------------------------
+-- 해외주식 기간별시세 trigger --
+---------------------------------
 DECLARE
-    w_corp_gr                    VARCHAR2(8);
-    w_jm_cd                      VARCHAR2(20);
-    w_cnt                        NUMBER;
+    w_koscom_cd                    VARCHAR2(20);
+    w_cnt                          NUMBER;
 BEGIN
-    if NVL (:new.XYMD,'00000000') > '00000000' AND :new.TVOL > 0    then
-        BEGIN
-            SELECT CORP_GR
-                 , KEY1
-                 , NUM1
-              INTO w_corp_gr
-                 , w_jm_cd
-                 , w_cnt
-              FROM API_Q qq
-             WHERE qq.KEY1 IS NOT NULL
-               AND qq.API_KEY = :new.API_KEY;
 
-            if  :new.SEQ <= w_cnt   then
-                MERGE INTO SYT0LP t1 
-                   USING DUAL  ON ( t1.CORP_GR = w_corp_gr
-                                AND t1.YMD     = TO_DATE(:new.XYMD,'yyyymmdd')
-                                AND t1.JM_CD   = w_jm_cd )
+    if NVL (:new.XYMD,'00000000') > '00000000'    then
+        BEGIN
+            SELECT KEY1
+                 , NUM1
+              INTO w_koscom_cd
+                 , w_cnt
+              FROM API_Q qq  /* API 요청 및 처리결과 */
+             WHERE qq.API_KEY = :new.API_KEY
+               AND qq.KEY1 IS NOT NULL;
+
+            if  :new.SEQ <= w_cnt OR NVL (w_cnt,0) = 0 then
+                MERGE INTO SJT1TG t1  /* 주식/선물/Option 종목별 종가(영업일만 존재) */
+                   USING DUAL ON ( t1.YMD       = TO_DATE(:new.XYMD,'yyyymmdd')
+                               AND t1.KOSCOM_CD = w_koscom_cd )
                 WHEN MATCHED THEN
                      UPDATE
-                        SET JONGA     = :new.CLOS
-                          , TVOL      = :new.TVOL
-                          , TAMT      = :new.TAMT
-                          , LOAD_TIME = sysdate
+                        SET OPEN     = :new.OPEN
+                          , HIGH     = :new.HIGH
+                          , LOW      = :new.LOW
+                          , CLOSE    = :new.CLOS
+                          , VOLUME   = :new.TVOL
+                          , PRECLOSE = :new.CLOS + (CASE WHEN :new.SIGN < 3 THEN :new.DIFF * -1 
+                                                         ELSE CASE WHEN :new.SIGN > 3 THEN :new.DIFF
+                                                                   ELSE :new.DIFF
+                                                              END
+                                                     END)
+                                                         
+                          , CHANGE   = :new.DIFF
+                          , CYBOS_DT = sysdate
                 WHEN NOT MATCHED THEN
-                     INSERT ( CORP_GR    /* _1- */
-                            , YMD        /* _2- */
-                            , JM_CD      /* _3- */
-                            , JONGA      /* _4- */
-                            , TVOL       /* _5- */
-                            , TAMT       /* _6- */
-                            , LOAD_TIME  /* _7- */
+                     INSERT ( YMD        /* _1- */
+                            , KOSCOM_CD  /* _2- */
+                            , OPEN       /* _3- */
+                            , HIGH       /* _4- */
+                            , LOW        /* _5- */
+                            , CLOSE      /* _6- */
+                            , VOLUME     /* _7- */
+                            , PRECLOSE   /* _8- */
+                            , CHANGE     /* _9- */
+                            , CYBOS_DT   /* _10- */
                             )
-                     VALUES ( w_corp_gr                      /* _1- */
-                            , TO_DATE(:new.XYMD,'yyyymmdd')  /* _2- */
-                            , w_jm_cd                        /* _3- */
-                            , :new.CLOS                      /* _4- */
-                            , :new.TVOL                      /* _5- */
-                            , :new.TAMT                      /* _6- */
-                            , sysdate                        /* _7- */
+                     VALUES ( TO_DATE(:new.XYMD,'yyyymmdd')  /* _1- */
+                            , w_koscom_cd                              /* _2- */
+                            , :new.OPEN                           /* _3- */
+                            , :new.HIGH                           /* _4- */
+                            , :new.LOW                           /* _5- */
+                            , :new.CLOS                           /* _6- */
+                            , :new.TVOL                            /* _7- */
+                            , :new.CLOS + (CASE WHEN :new.SIGN < 3 THEN :new.DIFF * -1 
+                                                ELSE CASE WHEN :new.SIGN > 3 THEN :new.DIFF
+                                                          ELSE :new.DIFF
+                                                     END
+                                           END)          /* _8- */
+                            , :new.DIFF                           /* _9- */
+                            , sysdate                                  /* _10- */
                             );
             end if;
-        EXCEPTION WHEN OTHERS then
+        EXCEPTION WHEN OTHERS THEN 
             NULL;
         END;
     end if;
@@ -1883,71 +1985,6 @@ STORAGE
     NEXT 1M
 );
 
-CREATE OR REPLACE TRIGGER KFP.DT_API_INQUIRE_DAILY_PRICE_SUB_I  
-    AFTER INSERT ON API_INQUIRE_DAILY_PRICE_SUB  
-    FOR EACH ROW 
-------------------------------
--- 주식 일자별 종가 trigger --
-------------------------------
-DECLARE
-    w_koscom_cd                  VARCHAR2(20);
-    w_cnt number;
-BEGIN
-    if NVL (:new.STCK_BSOP_DATE,'00000000') > '00000000'    then
-        BEGIN
-            SELECT KEY1
-                 , NUM1
-              INTO w_koscom_cd
-                 , w_cnt
-              FROM API_Q qq
-             WHERE qq.KEY1 IS NOT NULL
-               AND qq.API_KEY = :new.API_KEY;
-
-            if  :new.SEQ <= w_cnt OR NVL(w_cnt,0)=0 then
-                MERGE INTO SJT1TG t1 
-                   USING DUAL  ON ( t1.YMD       = TO_DATE(:new.STCK_BSOP_DATE,'yyyymmdd')
-                                AND t1.KOSCOM_CD = w_koscom_cd )
-                WHEN MATCHED THEN
-                     UPDATE
-                        SET OPEN     = :new.STCK_OPRC
-                          , HIGH     = :new.STCK_HGPR
-                          , LOW      = :new.STCK_LWPR
-                          , CLOSE    = :new.STCK_CLPR
-                          , VOLUME   = :new.ACML_VOL
-                          , PRECLOSE = :new.STCK_CLPR - :new.PRDY_VRSS
-                          , CHANGE   = :new.PRDY_VRSS
-                          , CYBOS_DT = sysdate
-                WHEN NOT MATCHED THEN
-                     INSERT ( YMD        /* _1- */
-                            , KOSCOM_CD  /* _2- */
-                            , OPEN       /* _3- */
-                            , HIGH       /* _4- */
-                            , LOW        /* _5- */
-                            , CLOSE      /* _6- */
-                            , VOLUME     /* _7- */
-                            , PRECLOSE   /* _8- */
-                            , CHANGE     /* _9- */
-                            , CYBOS_DT   /* _10- */
-                            )
-                     VALUES ( TO_DATE(:new.STCK_BSOP_DATE,'yyyymmdd')  /* _1- */
-                            , w_koscom_cd                              /* _2- */
-                            , :new.STCK_OPRC                           /* _3- */
-                            , :new.STCK_HGPR                           /* _4- */
-                            , :new.STCK_LWPR                           /* _5- */
-                            , :new.STCK_CLPR                           /* _6- */
-                            , :new.ACML_VOL                            /* _7- */
-                            , :new.STCK_CLPR - :new.PRDY_VRSS          /* _8- */
-                            , :new.PRDY_VRSS                           /* _9- */
-                            , sysdate                                  /* _10- */
-                            );
-            end if;
-        EXCEPTION WHEN OTHERS then
-            NULL;
-        END;
-    end if;
-END;
-/
-
 COMMENT ON COLUMN KFP.API_INQUIRE_DAILY_PRICE_SUB.STCK_BSOP_DATE IS '주식 영업 일자';
 COMMENT ON COLUMN KFP.API_INQUIRE_DAILY_PRICE_SUB.STCK_OPRC IS '주식 시가2';
 COMMENT ON COLUMN KFP.API_INQUIRE_DAILY_PRICE_SUB.STCK_HGPR IS '주식 최고가';
@@ -2783,6 +2820,7 @@ BEGIN
                      , EXPR_DATE   = :new.EXPR_DATE
                      , TRD_FR_DATE = :new.TRD_FR_DATE
                      , TRD_TO_DATE = :new.TRD_TO_DATE
+                     , CTRT_SIZE   = :new.CTRT_SIZE
                  WHERE SRS_CD = w_jm_cd;
             end if;
         end if;
@@ -5612,6 +5650,46 @@ STORAGE
 );
 
 
+CREATE TABLE KFP.FW_ROLE_MEMB_20260914
+(
+    SYS_ID          VARCHAR2(12) NOT NULL,
+    ROLE_NO         VARCHAR2(7) NOT NULL,
+    MEMB_SEQ        NUMBER(3) NOT NULL,
+    MEMB_CODE1      VARCHAR2(30),
+    MEMB_NAME1      VARCHAR2(100),
+    MEMB_CODE2      VARCHAR2(30),
+    MEMB_NAME2      VARCHAR2(100),
+    MEMB_CODE3      VARCHAR2(30),
+    MEMB_NAME3      VARCHAR2(100),
+    MEMB_CODE4      VARCHAR2(30),
+    MEMB_NAME4      VARCHAR2(100),
+    MEMB_CODE5      VARCHAR2(30),
+    MEMB_NAME5      VARCHAR2(100),
+    MEMB_CODE6      VARCHAR2(30),
+    MEMB_NAME6      VARCHAR2(100),
+    MEMB_CODE7      VARCHAR2(30),
+    MEMB_NAME7      VARCHAR2(100),
+    MEMB_CODE8      VARCHAR2(30),
+    MEMB_NAME8      VARCHAR2(100),
+    VALID_DT_YN     VARCHAR2(1),
+    VALID_DT_FROM   VARCHAR2(8),
+    VALID_DT_TO     VARCHAR2(8),
+    EXCLUDE_YN      VARCHAR2(1),
+    IO_TYPE         VARCHAR2(8),
+    REG_ID          VARCHAR2(12),
+    REG_DT          VARCHAR2(20),
+    UPD_ID          VARCHAR2(12),
+    UPD_DT          VARCHAR2(20)
+)
+TABLESPACE DATA_KFP
+STORAGE
+(
+    INITIAL 64K
+    NEXT 1M
+)
+NOCOMPRESS;
+
+
 CREATE TABLE KFP.FW_ROLE_MST
 (
     SYS_ID      VARCHAR2(12) NOT NULL,
@@ -5764,6 +5842,28 @@ ALTER TABLE KFP.FW_STATE02
 ADD CONSTRAINT FW_STATE02_PK PRIMARY KEY (SITE_ID,LOG_DATETIME);
 
 
+CREATE TABLE KFP.FW_SYS_COLOR_20230325
+(
+    SYS_ID  VARCHAR2(12) NOT NULL,
+    RGB_CD  VARCHAR2(10) NOT NULL,
+    RGB_SEQ VARCHAR2(3) NOT NULL,
+    VARI_NM VARCHAR2(100),
+    RGB_R   NUMBER(3) NOT NULL,
+    RGB_G   NUMBER(3) NOT NULL,
+    RGB_B   NUMBER(3) NOT NULL,
+    RGB_V   NUMBER(12),
+    REG_ID  VARCHAR2(12),
+    REG_DT  VARCHAR2(20),
+    UPD_ID  VARCHAR2(12),
+    UPD_DT  VARCHAR2(20)
+)
+TABLESPACE DATA_KFP
+STORAGE
+(
+    INITIAL 64K
+    NEXT 1M
+)
+NOCOMPRESS;
 
 
 CREATE TABLE KFP.FW_SYS_COLOR_TO
@@ -5991,6 +6091,41 @@ COMMENT ON COLUMN KFP.FW_USER_MST.NAYE4 IS '주요경력';
 COMMENT ON COLUMN KFP.FW_USER_MST.NAYE5 IS '학력 및 자격증';
 COMMENT ON COLUMN KFP.FW_USER_MST.ENC_TEL_NO IS '(암호화)전화번호';
 
+CREATE TABLE KFP.FW_USER_MST_ENC
+(
+    SYS_ID          VARCHAR2(10) NOT NULL,
+    CORP_GR         VARCHAR2(8) NOT NULL,
+    USER_ID         VARCHAR2(10) NOT NULL,
+    USER_NM         VARCHAR2(80),
+    ADMIN_YN        VARCHAR2(1),
+    MANAGER_YN      VARCHAR2(1),
+    WATCHMAN_YN     VARCHAR2(1),
+    ENC_E_MAIL      VARCHAR2(4000),
+    IN_YMD          DATE,
+    OUT_YMD         DATE,
+    DEPT_CD         VARCHAR2(4),
+    DEPT_NM         VARCHAR2(40),
+    REG_NUM         VARCHAR2(30),
+    UN_SYMD         DATE,
+    NAYE1           VARCHAR2(4),
+    NAYE2           VARCHAR2(50),
+    ENC_NAYE3       VARCHAR2(4000),
+    NAYE4           VARCHAR2(2000),
+    NAYE5           VARCHAR2(2000),
+    ENC_TEL_NO      VARCHAR2(4000),
+    ENC_PW          VARCHAR2(4000),
+    PW_CNT          NUMBER(1),
+    PW_CHG          DATE,
+    LAST_CONNECT    DATE,
+    BOOKMARK_START  CHAR(1)
+)
+TABLESPACE DATA_KFP
+STORAGE
+(
+    INITIAL 64K
+    NEXT 1M
+)
+NOCOMPRESS;
 
 
 CREATE TABLE KFP.FW_VERSION
@@ -8148,6 +8283,57 @@ STORAGE
 
 COMMENT ON TABLE KFP.ROWID_IN IS 'ROWID 이용 복수선택 table';
 
+CREATE TABLE KFP.SANGHW_2025
+(
+    CORP_GR     VARCHAR2(8) NOT NULL,
+    SANGHW_YMD  DATE NOT NULL,
+    FUND_CD     VARCHAR2(12) NOT NULL,
+    JM_GR       VARCHAR2(1) NOT NULL,
+    JM_CD       VARCHAR2(12) NOT NULL,
+    BUY_DATE    VARCHAR2(8),
+    AEKM        NUMBER,
+    MISU_IJA    NUMBER,
+    IJA_TAX     NUMBER,
+    WON_RI_GM   NUMBER,
+    TRUSTEE     VARCHAR2(5),
+    CURRENCY    VARCHAR2(3),
+    MOD_USER    VARCHAR2(40),
+    MOD_DT      DATE
+)
+TABLESPACE DATA_KFP
+STORAGE
+(
+    INITIAL 64K
+    NEXT 1M
+)
+NOCOMPRESS;
+
+
+CREATE TABLE KFP.SANGHW_20250122
+(
+    CORP_GR     VARCHAR2(8) NOT NULL,
+    SANGHW_YMD  DATE NOT NULL,
+    FUND_CD     VARCHAR2(12) NOT NULL,
+    JM_GR       VARCHAR2(1) NOT NULL,
+    JM_CD       VARCHAR2(12) NOT NULL,
+    BUY_DATE    VARCHAR2(8),
+    TRUSTEE     VARCHAR2(5),
+    CURRENCY    VARCHAR2(3),
+    AEKM        NUMBER,
+    CHUI_AEK    NUMBER,
+    MISU_IJA    NUMBER,
+    IJA_TAX     NUMBER,
+    SURY_AEK    NUMBER,
+    MOD_USER    VARCHAR2(40),
+    MOD_DT      DATE
+)
+TABLESPACE DATA_KFP
+STORAGE
+(
+    INITIAL 64K
+    NEXT 1M
+)
+NOCOMPRESS;
 
 
 CREATE TABLE KFP.SCJ0IG
@@ -8955,6 +9141,78 @@ COMMENT ON COLUMN KFP.SCM0CM.GYUL_UP_SONIK IS '(익일 취득액처리)결산평
 COMMENT ON COLUMN KFP.SCM0CM.CONS_BFIL_CHUI_AEK IS '(결산연결)이월취득액';
 COMMENT ON COLUMN KFP.SCM0CM.CONS_MEDO_AEK IS '(결산연결)당일감소취득액';
 
+CREATE TABLE KFP.SCM0CM_20241017
+(
+    CORP_GR             VARCHAR2(8) NOT NULL,
+    YMD                 DATE NOT NULL,
+    FUND_CD             VARCHAR2(12) NOT NULL,
+    JM_CD               VARCHAR2(12) NOT NULL,
+    BUY_DATE            VARCHAR2(8) NOT NULL,
+    BFIL_AEKM           NUMBER(17),
+    MEIB_AEKM           NUMBER(17),
+    MEDO_AEKM           NUMBER(17),
+    JILG_AEKM           NUMBER(17),
+    JILG_UP_AEKM        NUMBER(17),
+    JILG_DW_AEKM        NUMBER(17),
+    BFIL_CHUI_AEK       NUMBER(17),
+    MEIB_AEK            NUMBER(17),
+    MEDO_AEK            NUMBER(17),
+    BFIL_ANBUN_AEK      NUMBER(17),
+    ANBUN_AEK           NUMBER(17),
+    BFIL_MISU_IJA       NUMBER(17),
+    MISU_IJA            NUMBER(17),
+    BFIL_PR_MISU_IJA    NUMBER(17),
+    PR_MISU_IJA         NUMBER(17),
+    BFIL_SUNG_COST      NUMBER(17),
+    SUNG_COST           NUMBER(17),
+    BFIL_PR_SUNG_COST   NUMBER(17),
+    PR_SUNG_COST        NUMBER(17),
+    BFIL_SUNG_TAX       NUMBER(17,4),
+    SUNG_TAX            NUMBER(17,4),
+    BFIL_PR_SUNG_TAX    NUMBER(17,4),
+    PR_SUNG_TAX         NUMBER(17,4),
+    BFIL_YESU_TAX       NUMBER(17,4),
+    YESU_TAX            NUMBER(17,4),
+    BFIL_PR_YESU_TAX    NUMBER(17,4),
+    PR_YESU_TAX         NUMBER(17,4),
+    BFIL_PYUNGA_AEK     NUMBER(17),
+    PYUNGA_AEK          NUMBER(17),
+    BFIL_SIGA_AEK       NUMBER(17),
+    SIGA_AEK            NUMBER(17),
+    DAY_ANBUN_AEK       NUMBER(17),
+    DAY_IJA             NUMBER(17),
+    PR_DAY_IJA          NUMBER(17),
+    SC_DAY_IJA          NUMBER(17),
+    BANY_SUIK_RT        NUMBER,
+    LST_MEIB_YMD        DATE,
+    MSD_MEIB_AEKM       NUMBER(17),
+    MSD_MEIB_AEK        NUMBER(17),
+    MSD_MEDO_AEKM       NUMBER(17),
+    MSD_MEDO_AEK        NUMBER(17),
+    BFIL_YUHYO_RT       NUMBER,
+    YUHYO_RT            NUMBER,
+    BFIL_SUIB_IJA       NUMBER,
+    SUIB_IJA            NUMBER,
+    DAY_SUIB_IJA        NUMBER,
+    BFIL_CBMG_MISU_IJA  NUMBER,
+    CBMG_MISU_IJA       NUMBER,
+    BFIL_CBMG_SUNG_COST NUMBER,
+    CBMG_SUNG_COST      NUMBER,
+    CBMG_DAY_IJA        NUMBER,
+    GYUL_UP_SONIK       NUMBER,
+    CONS_BFIL_CHUI_AEK  NUMBER,
+    CONS_MEDO_AEK       NUMBER,
+    VENTURE_TYPE        VARCHAR2(1),
+    IP_USER             VARCHAR2(8)
+)
+TABLESPACE DATA_KFP
+STORAGE
+(
+    INITIAL 64K
+    NEXT 1M
+)
+NOCOMPRESS;
+
 
 CREATE TABLE KFP.SCM0CM_CHUI
 (
@@ -9119,6 +9377,27 @@ COMMENT ON COLUMN KFP.SCM0CM_SIGA.CHUI_AEK IS '잔고취득액';
 COMMENT ON COLUMN KFP.SCM0CM_SIGA.SIGA_AEK IS '시가평가액';
 COMMENT ON COLUMN KFP.SCM0CM_SIGA.IP_USER IS 'SIGA';
 
+CREATE TABLE KFP.SCM0CM_SIGA_20250604
+(
+    CORP_GR     VARCHAR2(8) NOT NULL,
+    YMD         DATE NOT NULL,
+    FUND_CD     VARCHAR2(12) NOT NULL,
+    JM_CD       VARCHAR2(30) NOT NULL,
+    BUY_DATE    VARCHAR2(8) NOT NULL,
+    AEKM        NUMBER,
+    CHUI_AEK    NUMBER,
+    SIGA_AEK    NUMBER,
+    IP_USER     VARCHAR2(8),
+    IP_DT       DATE
+)
+TABLESPACE DATA_KFP
+STORAGE
+(
+    INITIAL 64K
+    NEXT 1M
+)
+NOCOMPRESS;
+
 
 CREATE TABLE KFP.SCM0DF
 (
@@ -9221,6 +9500,49 @@ COMMENT ON COLUMN KFP.SCM0DF.FUND_CD IS '펀드코드';
 COMMENT ON COLUMN KFP.SCM0DF.PRIORITY IS '우선순위';
 COMMENT ON COLUMN KFP.SCM0DF.PRE_PER IS '선취수수료(%)';
 COMMENT ON COLUMN KFP.SCM0DF.BALH_GYUMO IS '발행규모';
+
+CREATE TABLE KFP.SCM0DF_ENC
+(
+    CORP_GR         VARCHAR2(8) NOT NULL,
+    YMD             DATE NOT NULL,
+    JM_GU           VARCHAR2(1) NOT NULL,
+    JM_NM           VARCHAR2(80) NOT NULL,
+    GB              VARCHAR2(1) NOT NULL,
+    SEQ             NUMBER(5) NOT NULL,
+    JM_CD           VARCHAR2(30),
+    MG_CD           VARCHAR2(5),
+    MG_JJ_NM        VARCHAR2(80),
+    PB_NM           VARCHAR2(80),
+    ENC_PB_TEL      VARCHAR2(4000),
+    ACCT_NM         VARCHAR2(80),
+    ENC_ACCT_NO     VARCHAR2(4000),
+    AEKM            NUMBER,
+    BILL            NUMBER(2),
+    CON_YN          VARCHAR2(1),
+    DEP_YN          VARCHAR2(1),
+    ROLLOVER_AEKM   NUMBER,
+    TR_CO_CD        VARCHAR2(5),
+    PYOM_IYUL       NUMBER,
+    MEIB_IYUL       NUMBER,
+    BALH_YMD        DATE,
+    MEIB_YMD        DATE,
+    SANGHW_YMD      DATE,
+    BIGO            VARCHAR2(200),
+    DEC_YN          VARCHAR2(1),
+    FUND_CD         VARCHAR2(12),
+    PRIORITY        NUMBER(3),
+    PRE_PER         NUMBER,
+    BALH_GYUMO      NUMBER,
+    UNYONG_SABUN    VARCHAR2(8),
+    SUYO_YMD        DATE
+)
+TABLESPACE DATA_KFP
+STORAGE
+(
+    INITIAL 64K
+    NEXT 1M
+)
+NOCOMPRESS;
 
 
 CREATE TABLE KFP.SCM0IG
@@ -9390,7 +9712,54 @@ COMMENT ON COLUMN KFP.SCM1J.AF_IJA_YMD IS '후이자일';
 COMMENT ON COLUMN KFP.SCM1J.GUGAN_IJA IS '구간이자';
 COMMENT ON COLUMN KFP.SCM1J.PASS_IJA IS '선급비용(경과이자)';
 
+CREATE TABLE KFP.SCM1J_20241017
+(
+    CORP_GR     VARCHAR2(8) NOT NULL,
+    FUND_CD     VARCHAR2(12) NOT NULL,
+    JM_CD       VARCHAR2(12) NOT NULL,
+    BUY_DATE    VARCHAR2(8) NOT NULL,
+    AEKM        NUMBER,
+    AEK         NUMBER,
+    CHUI_AEK    NUMBER,
+    GUGAN_NO    NUMBER(3),
+    BF_IJA_YMD  DATE,
+    AF_IJA_YMD  DATE,
+    GUGAN_IJA   NUMBER,
+    PASS_IJA    NUMBER,
+    PG_CD       VARCHAR2(4)
+)
+TABLESPACE DATA_KFP
+STORAGE
+(
+    INITIAL 64K
+    NEXT 1M
+)
+NOCOMPRESS;
 
+
+CREATE TABLE KFP.SCM1J_2025
+(
+    CORP_GR     VARCHAR2(8) NOT NULL,
+    FUND_CD     VARCHAR2(12) NOT NULL,
+    JM_CD       VARCHAR2(12) NOT NULL,
+    BUY_DATE    VARCHAR2(8) NOT NULL,
+    AEKM        NUMBER,
+    AEK         NUMBER,
+    CHUI_AEK    NUMBER,
+    GUGAN_NO    NUMBER(3),
+    BF_IJA_YMD  DATE,
+    AF_IJA_YMD  DATE,
+    GUGAN_IJA   NUMBER,
+    PASS_IJA    NUMBER,
+    PG_CD       VARCHAR2(4)
+)
+TABLESPACE DATA_KFP
+STORAGE
+(
+    INITIAL 64K
+    NEXT 1M
+)
+NOCOMPRESS;
 
 
 CREATE TABLE KFP.SCM1K
@@ -9697,6 +10066,22 @@ ON KFP.SCT0CG
     TR_CD,
     FUND_CD,
     SUDO_YMD
+) 
+TABLESPACE INDEX_KFP
+STORAGE
+(
+    INITIAL 64K
+    NEXT 1M
+);
+
+CREATE INDEX KFP.SCT0CG_IDX1
+ON KFP.SCT0CG
+(
+    CORP_GR,
+    IJA_SUDO_YMD,
+    TR_CD,
+    FUND_CD,
+    JM_CD
 ) 
 TABLESPACE INDEX_KFP
 STORAGE
@@ -11384,6 +11769,31 @@ COMMENT ON COLUMN KFP.SHJ0IG.FIX_IJA_AEK IS '구간이자(GUGAN_IJA)를 구하�
 COMMENT ON COLUMN KFP.SHJ0IG.OTHER_COST IS '대출채권선급비용(선지급비용)';
 COMMENT ON COLUMN KFP.SHJ0IG.OTHER_COST_END_YMD IS '선지급비용 안분종료일(미지정시 이자구간안분처리)';
 
+CREATE TABLE KFP.SHJ0IG_20250424
+(
+    CORP_GR             VARCHAR2(8) NOT NULL,
+    JM_CD               VARCHAR2(12) NOT NULL,
+    GUGAN_NO            NUMBER NOT NULL,
+    GUGAN_ILSU          NUMBER,
+    GUGAN_IJA           NUMBER,
+    BF_IJA_YMD          DATE,
+    AF_IJA_YMD          DATE,
+    IP_USER             VARCHAR2(40),
+    IP_YMD              DATE,
+    PLATFORM_FEE        NUMBER,
+    PLATFORM_YMD        DATE,
+    FIX_IJA_AEK         NUMBER,
+    OTHER_COST          NUMBER,
+    OTHER_COST_END_YMD  DATE
+)
+TABLESPACE DATA_KFP
+STORAGE
+(
+    INITIAL 64K
+    NEXT 1M
+)
+NOCOMPRESS;
+
 
 CREATE TABLE KFP.SHM0HJ
 (
@@ -11518,6 +11928,64 @@ COMMENT ON COLUMN KFP.SHM0HJ.KSD_JM_CD IS '예탁원종목코드';
 COMMENT ON COLUMN KFP.SHM0HJ.SEQ_NO IS '일련번호';
 COMMENT ON COLUMN KFP.SHM0HJ.TAX_GB IS '적용세율[TA]';
 COMMENT ON COLUMN KFP.SHM0HJ.SUSU_09900 IS '예탁수수료';
+
+CREATE TABLE KFP.SHM0HJ_20241003
+(
+    CORP_GR         VARCHAR2(8) NOT NULL,
+    JM_CD           VARCHAR2(12) NOT NULL,
+    HJ_NM           VARCHAR2(80),
+    CASH_CD         VARCHAR2(2),
+    AEKM            NUMBER(17),
+    CHUI_AEK        NUMBER(17),
+    TR_AEK          NUMBER(17),
+    SANGHW_AEK      NUMBER(17),
+    BALH_YMD        DATE,
+    MEIB_YMD        DATE,
+    SANGHW_YMD      DATE,
+    BOJNG_GB        VARCHAR2(1),
+    SUNHU_GB        VARCHAR2(1),
+    SUNHU_TAX_GB    VARCHAR2(1),
+    GIUP_GYUMO      VARCHAR2(1),
+    YY_IJA_HOICHA   NUMBER,
+    IJA_YY_SU       NUMBER,
+    TOT_IJA_GUGAN   NUMBER,
+    JACH_CD         VARCHAR2(3),
+    JAESAN_GB       VARCHAR2(1),
+    MEIB_MK_GB      VARCHAR2(1),
+    MEIB_SUIK_RT    NUMBER,
+    PYOM_IYUL       NUMBER,
+    NOW_IJA_HOICHA  NUMBER(2),
+    BF_IJA_YMD      DATE,
+    AF_IJA_YMD      DATE,
+    TR_CO_CD        VARCHAR2(5),
+    OFFER_CO_CD     VARCHAR2(5),
+    BUDO_YMD        DATE,
+    CD_JIGUB_GB     VARCHAR2(1),
+    TAX_OFFER_GB    VARCHAR2(1),
+    DAEYEO_GB       VARCHAR2(2),
+    BROKER_CD       VARCHAR2(5),
+    SUSU_GA         NUMBER(17),
+    SUNG_COST       NUMBER(17),
+    BOJNG_CO        VARCHAR2(5),
+    OP_YMD          DATE,
+    KSD_JM_CD       VARCHAR2(12),
+    SEQ_NO          NUMBER(5),
+    TAX_GB          VARCHAR2(1),
+    SUSU_09900      NUMBER,
+    KSD_JM5         VARCHAR2(3),
+    KSD_JM8         VARCHAR2(2),
+    YGB             VARCHAR2(2),
+    REPO_JM_CD      VARCHAR2(12),
+    FUND_CD         VARCHAR2(12),
+    PG_CD           VARCHAR2(4)
+)
+TABLESPACE DATA_KFP
+STORAGE
+(
+    INITIAL 64K
+    NEXT 1M
+)
+NOCOMPRESS;
 
 
 CREATE TABLE KFP.SHM0HJ_LOAD
@@ -11790,6 +12258,26 @@ COMMENT ON COLUMN KFP.SHM0HM_SIGA.CHUI_AEK IS '잔고취득액(T 예금)';
 COMMENT ON COLUMN KFP.SHM0HM_SIGA.SIGA_AEK IS '시가평가액(T + 2 예금)';
 COMMENT ON COLUMN KFP.SHM0HM_SIGA.IP_USER IS 'SIGA';
 
+CREATE TABLE KFP.SHM0HM_SIGA_20250604
+(
+    CORP_GR     VARCHAR2(8) NOT NULL,
+    YMD         DATE NOT NULL,
+    FUND_CD     VARCHAR2(12) NOT NULL,
+    JM_CD       VARCHAR2(30) NOT NULL,
+    AEKM        NUMBER,
+    CHUI_AEK    NUMBER,
+    SIGA_AEK    NUMBER,
+    IP_USER     VARCHAR2(8),
+    TRUST_AEK   NUMBER,
+    IP_DT       DATE
+)
+TABLESPACE DATA_KFP
+STORAGE
+(
+    INITIAL 64K
+    NEXT 1M
+)
+NOCOMPRESS;
 
 
 CREATE TABLE KFP.SHM1J
@@ -11853,6 +12341,76 @@ COMMENT ON COLUMN KFP.SHM1J.AF_IJA_YMD IS '후이자일';
 COMMENT ON COLUMN KFP.SHM1J.GUGAN_IJA IS '구간이자';
 COMMENT ON COLUMN KFP.SHM1J.PASS_IJA IS '선급비용(경과이자)';
 
+CREATE TABLE KFP.SHM1J_20241003
+(
+    CORP_GR     VARCHAR2(8) NOT NULL,
+    FUND_CD     VARCHAR2(12) NOT NULL,
+    JM_CD       VARCHAR2(12) NOT NULL,
+    BUY_DATE    VARCHAR2(8) NOT NULL,
+    AEKM        NUMBER,
+    AEK         NUMBER,
+    CHUI_AEK    NUMBER,
+    GUGAN_NO    NUMBER(3),
+    BF_IJA_YMD  DATE,
+    AF_IJA_YMD  DATE,
+    GUGAN_IJA   NUMBER,
+    PASS_IJA    NUMBER
+)
+TABLESPACE DATA_KFP
+STORAGE
+(
+    INITIAL 64K
+    NEXT 1M
+)
+NOCOMPRESS;
+
+
+CREATE TABLE KFP.SHM1J_20241017
+(
+    CORP_GR     VARCHAR2(8) NOT NULL,
+    FUND_CD     VARCHAR2(12) NOT NULL,
+    JM_CD       VARCHAR2(12) NOT NULL,
+    BUY_DATE    VARCHAR2(8) NOT NULL,
+    AEKM        NUMBER,
+    AEK         NUMBER,
+    CHUI_AEK    NUMBER,
+    GUGAN_NO    NUMBER(3),
+    BF_IJA_YMD  DATE,
+    AF_IJA_YMD  DATE,
+    GUGAN_IJA   NUMBER,
+    PASS_IJA    NUMBER
+)
+TABLESPACE DATA_KFP
+STORAGE
+(
+    INITIAL 64K
+    NEXT 1M
+)
+NOCOMPRESS;
+
+
+CREATE TABLE KFP.SHM1J_2025
+(
+    CORP_GR     VARCHAR2(8) NOT NULL,
+    FUND_CD     VARCHAR2(12) NOT NULL,
+    JM_CD       VARCHAR2(12) NOT NULL,
+    BUY_DATE    VARCHAR2(8) NOT NULL,
+    AEKM        NUMBER,
+    AEK         NUMBER,
+    CHUI_AEK    NUMBER,
+    GUGAN_NO    NUMBER(3),
+    BF_IJA_YMD  DATE,
+    AF_IJA_YMD  DATE,
+    GUGAN_IJA   NUMBER,
+    PASS_IJA    NUMBER
+)
+TABLESPACE DATA_KFP
+STORAGE
+(
+    INITIAL 64K
+    NEXT 1M
+)
+NOCOMPRESS;
 
 
 CREATE TABLE KFP.SHM1K
@@ -12282,7 +12840,62 @@ COMMENT ON COLUMN KFP.SHT0YE.TOT_AEK IS '순자산액';
 COMMENT ON COLUMN KFP.SHT0YE.BIGO IS '점검내용';
 COMMENT ON COLUMN KFP.SHT0YE.CONF_YMD IS '확인시간';
 
+CREATE TABLE KFP.SHT0YE_20241203
+(
+    CORP_GR     VARCHAR2(8) NOT NULL,
+    TR_YMD      DATE NOT NULL,
+    FUND_CD     VARCHAR2(12) NOT NULL,
+    TR_CO_CD    VARCHAR2(5) NOT NULL,
+    ENC_ACCT_NO VARCHAR2(40),
+    T0_AEK      NUMBER,
+    T1_AEK      NUMBER,
+    T2_AEK      NUMBER,
+    STOCK_AEK   NUMBER,
+    BOND_AEK    NUMBER,
+    RP_AEK      NUMBER,
+    CASH_AEK    NUMBER,
+    TOT_AEK     NUMBER,
+    BIGO        VARCHAR2(1024),
+    CONF_YMD    DATE,
+    LOAD_DT     DATE,
+    FUND_AEK    NUMBER
+)
+TABLESPACE DATA_KFP
+STORAGE
+(
+    INITIAL 64K
+    NEXT 1M
+)
+NOCOMPRESS;
 
+
+CREATE TABLE KFP.SHT0YE_ENC
+(
+    CORP_GR     VARCHAR2(8) NOT NULL,
+    TR_YMD      DATE NOT NULL,
+    FUND_CD     VARCHAR2(12) NOT NULL,
+    TR_CO_CD    VARCHAR2(5) NOT NULL,
+    ENC_ACCT_NO VARCHAR2(4000),
+    T0_AEK      NUMBER,
+    T1_AEK      NUMBER,
+    T2_AEK      NUMBER,
+    STOCK_AEK   NUMBER,
+    BOND_AEK    NUMBER,
+    RP_AEK      NUMBER,
+    CASH_AEK    NUMBER,
+    TOT_AEK     NUMBER,
+    BIGO        VARCHAR2(1024),
+    CONF_YMD    DATE,
+    LOAD_DT     DATE,
+    FUND_AEK    NUMBER
+)
+TABLESPACE DATA_KFP
+STORAGE
+(
+    INITIAL 64K
+    NEXT 1M
+)
+NOCOMPRESS;
 
 
 CREATE TABLE KFP.SHT1HG
@@ -12624,6 +13237,115 @@ COMMENT ON COLUMN KFP.SICS_FUND.AVG_JASAN IS '일 평잔액';
 COMMENT ON COLUMN KFP.SICS_FUND.BUNGI_GONGMO_NAPIP IS '분기 공모 납입액';
 COMMENT ON COLUMN KFP.SICS_FUND.GONGMO_NAPIP IS '누적 공모 납입액';
 
+CREATE TABLE KFP.SICS_FUND_ENC
+(
+    CORP_GR                 VARCHAR2(8) NOT NULL,
+    FUND_CD                 VARCHAR2(12) NOT NULL,
+    YMD                     DATE NOT NULL,
+    WONBON_AEK              NUMBER,
+    SUN_JASAN_AEK           NUMBER,
+    B_1M                    DATE,
+    B_3M                    DATE,
+    B_6M                    DATE,
+    B_9M                    DATE,
+    B_1Y                    DATE,
+    SUIK_RT                 NUMBER,
+    SUIK_1RT                NUMBER,
+    SUIK_3RT                NUMBER,
+    SUIK_6RT                NUMBER,
+    SUIK_9RT                NUMBER,
+    SUIK_12RT               NUMBER,
+    SUIK_RE                 NUMBER,
+    BM_RT                   NUMBER,
+    BM_1RT                  NUMBER,
+    BM_3RT                  NUMBER,
+    BM_6RT                  NUMBER,
+    BM_9RT                  NUMBER,
+    BM_12RT                 NUMBER,
+    BM_RE                   NUMBER,
+    BUNGI_STOCK_MAESU       NUMBER,
+    BUNGI_STOCK_MAEDO       NUMBER,
+    BUNGI_STOCK_TURNOVER_RT NUMBER,
+    STOCK_TURNOVER_RT       NUMBER,
+    BUNGI_STOCK_SUSU        NUMBER,
+    BUNGI_STOCK_TAX         NUMBER,
+    BUNGI_STOCK_FEE         NUMBER,
+    BUNGI_BOND_MAESU        NUMBER,
+    BUNGI_BOND_MAEDO        NUMBER,
+    BUNGI_BOND_SUSU         NUMBER,
+    BUNGI_BOND_TAX          NUMBER,
+    BUNGI_BOND_FEE          NUMBER,
+    BUNGI_TSUSU             NUMBER,
+    BUNGI_SBOSU             NUMBER,
+    STOCK_MM_AEK            NUMBER,
+    BOND_MM_AEK             NUMBER,
+    TSUSU                   NUMBER,
+    SBOSU                   NUMBER,
+    SUSU                    NUMBER,
+    TAX                     NUMBER,
+    FEE                     NUMBER,
+    RE_SEOLJ_YMD            DATE,
+    AF_GYUL_YMD             DATE,
+    SABUN                   VARCHAR2(10),
+    GYMD                    DATE,
+    BYMD                    DATE,
+    SEND_TYPE               VARCHAR2(1),
+    ENC_E_MAIL              VARCHAR2(4000),
+    JASAN_GIJUN_YMD         DATE,
+    T1                      VARCHAR2(1),
+    T2                      VARCHAR2(1),
+    T3                      VARCHAR2(1),
+    T4                      VARCHAR2(1),
+    T5                      VARCHAR2(20),
+    T6                      VARCHAR2(1),
+    T7                      VARCHAR2(1),
+    TR                      VARCHAR2(12),
+    ANALYSIS_YMD            DATE,
+    CREATE_DT               DATE,
+    CREATE_USER             VARCHAR2(40),
+    RE_CREATE_DT            DATE,
+    RE_CREATE_USER          VARCHAR2(40),
+    RE_CREATE_BIGO          VARCHAR2(400),
+    GIJUN_GA                NUMBER,
+    GGIJUN_GA               NUMBER,
+    MOD_GIJUN_GA            NUMBER,
+    G91112                  NUMBER,
+    BF_GYUL_YMD             DATE,
+    FYMD                    DATE,
+    TYMD                    DATE,
+    RISK_LEVEL              VARCHAR2(2),
+    G51101                  NUMBER,
+    G51102                  NUMBER,
+    G51103                  NUMBER,
+    G51107                  NUMBER,
+    REP_GB                  VARCHAR2(1) NOT NULL,
+    G51000                  NUMBER,
+    G51111                  NUMBER,
+    MEME_SUSU               NUMBER,
+    SCS0SU_SUSU             NUMBER,
+    ETC_COST                NUMBER,
+    B0101                   NUMBER,
+    MAIL_Q                  VARCHAR2(512),
+    MAIL_CC                 VARCHAR2(400),
+    BUNGI_F47_SUIK          NUMBER,
+    F47_SUIK                NUMBER,
+    BIGO_BUNGI              VARCHAR2(800),
+    BIGO_GI                 VARCHAR2(800),
+    SINTAK_GIGAN            NUMBER,
+    BOSU_GIGAN              NUMBER,
+    BASIC_PER               NUMBER,
+    BM_PER                  NUMBER,
+    SUCCESS_PER             NUMBER,
+    TARGET_JASAN            CHAR(2),
+    PRE_BASIC               NUMBER
+)
+TABLESPACE DATA_KFP
+STORAGE
+(
+    INITIAL 64K
+    NEXT 1M
+)
+NOCOMPRESS;
 
 
 CREATE TABLE KFP.SJG1FC
@@ -12781,6 +13503,36 @@ COMMENT ON COLUMN KFP.SJG1JC.BALH_CO IS '발행기관';
 COMMENT ON COLUMN KFP.SJG1JC.CY_JM_CD IS '공모청약종목';
 COMMENT ON COLUMN KFP.SJG1JC.SJ_JM_CD IS '상장종목';
 
+CREATE TABLE KFP.SJG1JC_2024
+(
+    JC_JOIN     VARCHAR2(10) NOT NULL,
+    YMD         DATE NOT NULL,
+    JM_NM       VARCHAR2(120),
+    CY_GB       VARCHAR2(1),
+    JG_TR_CO_NM VARCHAR2(120),
+    START_YMD   DATE,
+    END_YMD     DATE,
+    SJ_YMD      DATE,
+    TOT_B_JUSU  NUMBER,
+    TOT_G_JUSU  NUMBER,
+    TOT_G_DANGA NUMBER,
+    TOT_G_AEK   NUMBER,
+    SUSU_PER    NUMBER,
+    JKM_PER     NUMBER,
+    BIGO        VARCHAR2(400),
+    UPD_USER    VARCHAR2(40),
+    NABIB_YMD   DATE,
+    BALH_CO     VARCHAR2(5),
+    CY_JM_CD    VARCHAR2(12),
+    SJ_JM_CD    VARCHAR2(12)
+)
+TABLESPACE DATA_KFP
+STORAGE
+(
+    INITIAL 64K
+    NEXT 1M
+)
+NOCOMPRESS;
 
 
 CREATE TABLE KFP.SJG1JC_LOAD
@@ -13046,6 +13798,48 @@ COMMENT ON COLUMN KFP.SJM0JJ.A0231 IS '상장종목 과표(Y)대상여부';
 COMMENT ON COLUMN KFP.SJM0JJ.DEPOSIT IS '비상장종목예탹여부(Y:종목코드 KR7)';
 COMMENT ON COLUMN KFP.SJM0JJ.ABOL_DT IS '상장폐지일';
 
+CREATE TABLE KFP.SJM0JJ_20251118
+(
+    JM_CD                   VARCHAR2(30) NOT NULL,
+    KOSCOM_CD               VARCHAR2(12),
+    JJ_FNM                  VARCHAR2(160),
+    JJ_NM                   VARCHAR2(120),
+    JJ_ENM                  VARCHAR2(120),
+    BALH_CO                 VARCHAR2(5),
+    WOOS_ILBAN_GB           VARCHAR2(1),
+    CHG_GB                  VARCHAR2(1),
+    NEW_OLD_GB              VARCHAR2(1),
+    DANC_GB                 VARCHAR2(1),
+    BALH_GA                 NUMBER(7),
+    KWEONRI_YMD             DATE,
+    WOOS_VOTE_YMD           DATE,
+    SANGJ_YMD               DATE,
+    SANGJ_JUSU              NUMBER(15),
+    UPJ_CD                  VARCHAR2(3),
+    CREATED_YMD             DATE,
+    DEL_YN                  VARCHAR2(1),
+    CAPSIZE                 VARCHAR2(1),
+    KOSPIGUBUN              VARCHAR2(1),
+    UNDER                   VARCHAR2(1),
+    ORG_JM_CD               VARCHAR2(12),
+    CHG_RT                  NUMBER,
+    BAED_GISAN_YMD          DATE,
+    ISIN_CD                 VARCHAR2(20),
+    A0231                   VARCHAR2(1),
+    DEPOSIT                 VARCHAR2(1),
+    STD_IDST_CLSF_CD        VARCHAR2(6),
+    STD_IDST_CLSF_CD_NAME   VARCHAR2(130),
+    STCK_KIND_CD            VARCHAR2(3),
+    ABOL_DT                 DATE,
+    USPM                    VARCHAR2(1)
+)
+TABLESPACE DATA_KFP
+STORAGE
+(
+    INITIAL 64K
+    NEXT 1M
+)
+NOCOMPRESS;
 
 
 CREATE TABLE KFP.SJM0JJ_HISTORY
@@ -13268,6 +14062,64 @@ COMMENT ON COLUMN KFP.SJM0JM.COLL_START IS '주식담보 신용대출 시작일�
 COMMENT ON COLUMN KFP.SJM0JM.COLL_END IS '주식담보 신용대출 종료일자';
 COMMENT ON COLUMN KFP.SJM0JM.COLL_JUSU IS '주식담보 신용대출 담보주수';
 
+CREATE TABLE KFP.SJM0JM_20241103
+(
+    CORP_GR             VARCHAR2(8) NOT NULL,
+    YMD                 DATE NOT NULL,
+    FUND_CD             VARCHAR2(12) NOT NULL,
+    JM_CD               VARCHAR2(12) NOT NULL,
+    BFIL_BOYU_JUSU      NUMBER(9),
+    UP_JUSU             NUMBER(9),
+    DW_JUSU             NUMBER(9),
+    BFIL_CHUI_AEK       NUMBER(13),
+    UP_CHUI_AEK         NUMBER(13),
+    DW_CHUI_AEK         NUMBER(13),
+    GONGS_UP_JUSU       NUMBER(9),
+    GONGS_DW_JUSU       NUMBER(9),
+    GONGS_UP_CHUI_AEK   NUMBER(13),
+    GONGS_DW_CHUI_AEK   NUMBER(13),
+    SONIK               NUMBER(13),
+    MISU_BAED_AEK       NUMBER(13),
+    MIJUNAB_AEK         NUMBER(13),
+    KOSCOM_CD           VARCHAR2(12),
+    BALH_CO             VARCHAR2(5),
+    MESU_HALD_JUSU      NUMBER(9),
+    BFIL_JILG_JUSU      NUMBER(9),
+    JILG_UP_JUSU        NUMBER(9),
+    JILG_DW_JUSU        NUMBER(9),
+    WOOS_ILBAN_GB       VARCHAR2(1),
+    CHG_GB              VARCHAR2(1),
+    NEW_OLD_GB          VARCHAR2(1),
+    DANC_GB             VARCHAR2(1),
+    DEL_YN              VARCHAR2(1),
+    LOCK_JUSU           NUMBER(9),
+    GBFIL_AEK           NUMBER(13),
+    GUP_AEK             NUMBER(13),
+    GDW_AEK             NUMBER(13),
+    GSONIK              NUMBER(13),
+    TYPE_TRENCH         VARCHAR2(20) NOT NULL,
+    BS_TYPE             NUMBER(1) NOT NULL,
+    GYUL_UP_SONIK       NUMBER,
+    GYUL_UP_GSONIK      NUMBER,
+    CONS_BFIL_CHUI_AEK  NUMBER,
+    CONS_DW_CHUI_AEK    NUMBER,
+    CONS_BFIL_GCHUI_AEK NUMBER,
+    CONS_DW_GCHUI_AEK   NUMBER,
+    VENTURE_TYPE        VARCHAR2(1),
+    COLL_PASS           NUMBER,
+    COLL_UP             NUMBER,
+    COLL_DW             NUMBER,
+    COLL_START          DATE,
+    COLL_END            DATE,
+    COLL_JUSU           NUMBER
+)
+TABLESPACE DATA_KFP
+STORAGE
+(
+    INITIAL 64K
+    NEXT 1M
+)
+NOCOMPRESS;
 
 
 CREATE TABLE KFP.SJM0JM_CHUI
@@ -13490,6 +14342,25 @@ COMMENT ON COLUMN KFP.SJM0JM_SIGA.CHUI_AEK IS '잔고취득액';
 COMMENT ON COLUMN KFP.SJM0JM_SIGA.SIGA_AEK IS '시가평가액';
 COMMENT ON COLUMN KFP.SJM0JM_SIGA.IP_USER IS 'SIGA';
 
+CREATE TABLE KFP.SJM0JM_SIGA_20250604
+(
+    CORP_GR     VARCHAR2(8) NOT NULL,
+    YMD         DATE NOT NULL,
+    FUND_CD     VARCHAR2(12) NOT NULL,
+    JM_CD       VARCHAR2(30) NOT NULL,
+    JUSU        NUMBER,
+    CHUI_AEK    NUMBER,
+    SIGA_AEK    NUMBER,
+    IP_USER     VARCHAR2(8),
+    IP_DT       DATE
+)
+TABLESPACE DATA_KFP
+STORAGE
+(
+    INITIAL 64K
+    NEXT 1M
+)
+NOCOMPRESS;
 
 
 CREATE TABLE KFP.SJM0SC
@@ -13720,6 +14591,39 @@ COMMENT ON COLUMN KFP.SJM5SM.GYUL_UP_SONIK IS '(익일 취득액처리)결산평
 COMMENT ON COLUMN KFP.SJM5SM.CONS_BFIL_CHUI_AEK IS '(결산연결)이월취득액';
 COMMENT ON COLUMN KFP.SJM5SM.CONS_DW_CHUI_AEK IS '(결산연결)당일감소취득액';
 
+CREATE TABLE KFP.SJM5SM_20260116
+(
+    CORP_GR             VARCHAR2(8) NOT NULL,
+    YMD                 DATE NOT NULL,
+    FUND_CD             VARCHAR2(12) NOT NULL,
+    TASA_JM_CD          VARCHAR2(12) NOT NULL,
+    BFIL_JWA            NUMBER,
+    UP_JWA              NUMBER,
+    DW_JWA              NUMBER,
+    BFIL_AEK            NUMBER,
+    UP_AEK              NUMBER,
+    DW_AEK              NUMBER,
+    SONIK               NUMBER,
+    GBFIL_JWA           NUMBER,
+    GUP_JWA             NUMBER,
+    GDW_JWA             NUMBER,
+    GSONIK              NUMBER,
+    BI_GBFIL_JWA        NUMBER,
+    BI_GUP_JWA          NUMBER,
+    BI_GDW_JWA          NUMBER,
+    BI_GSONIK           NUMBER,
+    PRE_SUSU            NUMBER,
+    GYUL_UP_SONIK       NUMBER,
+    CONS_BFIL_CHUI_AEK  NUMBER,
+    CONS_DW_CHUI_AEK    NUMBER
+)
+TABLESPACE DATA_KFP
+STORAGE
+(
+    INITIAL 64K
+    NEXT 1M
+)
+NOCOMPRESS;
 
 
 CREATE TABLE KFP.SJM5SM_SIGA
@@ -13915,6 +14819,31 @@ STORAGE
 NOCOMPRESS;
 
 
+CREATE TABLE KFP.SJT0BK_20240326
+(
+    CORP_GR         VARCHAR2(8) NOT NULL,
+    TR_YMD          DATE NOT NULL,
+    TR_CD           VARCHAR2(3) NOT NULL,
+    BALH_CO         VARCHAR2(5) NOT NULL,
+    BAED_MTH        VARCHAR2(1),
+    BAEJ_MTH        VARCHAR2(2),
+    CASH_ILBAN_RT   NUMBER,
+    CASH_WOOS_RT    NUMBER,
+    STOCK_ILBAN_RT  NUMBER,
+    STOCK_WOOS_RT   NUMBER,
+    BROK_YMD        DATE,
+    BAED_GISAN_YMD  DATE,
+    JUCHONG_YMD     DATE,
+    ILBAN_AEK       NUMBER,
+    WOOS_AEK        NUMBER
+)
+TABLESPACE DATA_KFP
+STORAGE
+(
+    INITIAL 64K
+    NEXT 1M
+)
+NOCOMPRESS;
 
 
 CREATE TABLE KFP.SJT0BM
@@ -14090,7 +15019,96 @@ STORAGE
 NOCOMPRESS;
 
 
+CREATE TABLE KFP.SJT0BM_20240326
+(
+    CORP_GR         VARCHAR2(8) NOT NULL,
+    YMD             DATE NOT NULL,
+    BALH_CO         VARCHAR2(5) NOT NULL,
+    FUND_CD         VARCHAR2(12) NOT NULL,
+    OLD_JM_CD       VARCHAR2(12) NOT NULL,
+    NEW_JM_CD       VARCHAR2(12) NOT NULL,
+    BOYU_JUSU       NUMBER(13),
+    BOYU_CHUI_AEK   NUMBER(13),
+    BAED_BU_ILSU    NUMBER(5),
+    BROK_JUSU       NUMBER(13,5),
+    YESA_JUSU       NUMBER(13),
+    DANGA           NUMBER(13),
+    YESA_AEK        NUMBER(13),
+    HWAKJ_YMD       DATE,
+    HWAKJ_JUSU      NUMBER(13),
+    HWAKJ_AEK       NUMBER(13),
+    JUCHONG_YMD     DATE,
+    JUCHONG_JUSU    NUMBER(13),
+    JUCHONG_AEK     NUMBER(13),
+    SURY_YMD        DATE,
+    SURY_JU_AEK     NUMBER(13),
+    DEL_YN          VARCHAR2(1),
+    DEL_YMD         DATE,
+    OLD_JM_CD_553   VARCHAR2(12),
+    NEW_JM_CD_553   VARCHAR2(12),
+    SURY_SET        VARCHAR2(1),
+    HAEJI_FUND      VARCHAR2(12),
+    HAEJI_YMD       DATE,
+    TYPE_TRENCH     VARCHAR2(20) NOT NULL,
+    BS_TYPE         NUMBER(1) NOT NULL,
+    YESA_TAX        NUMBER,
+    HWAKJ_TAX       NUMBER,
+    JUCHONG_TAX     NUMBER,
+    SURY_JU_TAX     NUMBER
+)
+TABLESPACE DATA_KFP
+STORAGE
+(
+    INITIAL 64K
+    NEXT 1M
+)
+NOCOMPRESS;
 
+
+CREATE TABLE KFP.SJT0BM_20260406
+(
+    CORP_GR         VARCHAR2(8) NOT NULL,
+    YMD             DATE NOT NULL,
+    BALH_CO         VARCHAR2(5) NOT NULL,
+    FUND_CD         VARCHAR2(12) NOT NULL,
+    OLD_JM_CD       VARCHAR2(12) NOT NULL,
+    NEW_JM_CD       VARCHAR2(12) NOT NULL,
+    BOYU_JUSU       NUMBER(13),
+    BOYU_CHUI_AEK   NUMBER(13),
+    BAED_BU_ILSU    NUMBER(5),
+    BROK_JUSU       NUMBER(13,5),
+    YESA_JUSU       NUMBER(13),
+    DANGA           NUMBER(13),
+    YESA_AEK        NUMBER(13),
+    HWAKJ_YMD       DATE,
+    HWAKJ_JUSU      NUMBER(13),
+    HWAKJ_AEK       NUMBER(13),
+    JUCHONG_YMD     DATE,
+    JUCHONG_JUSU    NUMBER(13),
+    JUCHONG_AEK     NUMBER(13),
+    SURY_YMD        DATE,
+    SURY_JU_AEK     NUMBER(13),
+    DEL_YN          VARCHAR2(1),
+    DEL_YMD         DATE,
+    OLD_JM_CD_553   VARCHAR2(12),
+    NEW_JM_CD_553   VARCHAR2(12),
+    SURY_SET        VARCHAR2(1),
+    HAEJI_FUND      VARCHAR2(12),
+    HAEJI_YMD       DATE,
+    TYPE_TRENCH     VARCHAR2(20) NOT NULL,
+    BS_TYPE         NUMBER(1) NOT NULL,
+    YESA_TAX        NUMBER,
+    HWAKJ_TAX       NUMBER,
+    JUCHONG_TAX     NUMBER,
+    SURY_JU_TAX     NUMBER
+)
+TABLESPACE DATA_KFP
+STORAGE
+(
+    INITIAL 64K
+    NEXT 1M
+)
+NOCOMPRESS;
 
 
 CREATE TABLE KFP.SJT0CY
@@ -14781,6 +15799,56 @@ COMMENT ON COLUMN KFP.SJT0JG.BROK_JUSU IS '권리락주수';
 COMMENT ON COLUMN KFP.SJT0JG.MISU_BAED_AEK IS '보통주배당금';
 COMMENT ON COLUMN KFP.SJT0JG.COVER_BIGO IS '배당금 우선충당 상세정보';
 
+CREATE TABLE KFP.SJT0JG_ENC
+(
+    CORP_GR         VARCHAR2(8) NOT NULL,
+    TR_YMD          DATE NOT NULL,
+    TR_CD           VARCHAR2(3) NOT NULL,
+    FUND_CD         VARCHAR2(12) NOT NULL,
+    JM_CD           VARCHAR2(30) NOT NULL,
+    SEQ_NO          NUMBER NOT NULL,
+    OFFER_NO        NUMBER NOT NULL,
+    TR_JUSU         NUMBER(11),
+    TR_AEK          NUMBER(13),
+    SUSU            NUMBER(9),
+    TAX             NUMBER(9),
+    GYUL_AEK        NUMBER(13),
+    SUDO_YMD        DATE,
+    TR_CO_CD        VARCHAR2(5),
+    SUSU_TR_CO_CD   VARCHAR2(5),
+    MEIB_CHUI_AEK   NUMBER(13),
+    DANC_GB         VARCHAR2(1),
+    KOSCOM_CD       VARCHAR2(12),
+    OPTION_GB       VARCHAR2(1),
+    UNYONG_SABUN    VARCHAR2(10),
+    GYEJ_GB         VARCHAR2(2),
+    MM_GB           VARCHAR2(2),
+    GGYUL_AEK       NUMBER(13),
+    GMEIB_CHUI_AEK  NUMBER(13),
+    UPD_USER        VARCHAR2(40),
+    ENC_ACCT_NO     VARCHAR2(4000),
+    TYPE_TRENCH     VARCHAR2(20) NOT NULL,
+    BS_TYPE         NUMBER(1) NOT NULL,
+    DX_JM_CD        VARCHAR2(12),
+    ETF_JM_CD       VARCHAR2(12),
+    ETF_CASH_AEK    NUMBER,
+    ETF_HWAKJ_YMD   DATE,
+    ETF_CASH_HWAKJ  NUMBER,
+    CUTOFF_GB       VARCHAR2(1),
+    BROK_YMD        DATE,
+    BROK_JUSU       NUMBER,
+    MISU_BAED_AEK   NUMBER,
+    COVER_BIGO      VARCHAR2(200),
+    SJT1JG_DT       DATE
+)
+TABLESPACE DATA_KFP
+STORAGE
+(
+    INITIAL 64K
+    NEXT 1M
+)
+NOCOMPRESS;
+
 
 CREATE TABLE KFP.SJT0JK
 (
@@ -15238,6 +16306,34 @@ COMMENT ON COLUMN KFP.SJT1JG.SUDO_YMD IS '수도결제일';
 COMMENT ON COLUMN KFP.SJT1JG.LOAD_TIME IS 'LOAD일시';
 COMMENT ON COLUMN KFP.SJT1JG.LOAD_USER IS '작업자분류';
 
+CREATE TABLE KFP.SJT1JG_ENC
+(
+    CORP_GR     VARCHAR2(5) NOT NULL,
+    TR_YMD      DATE NOT NULL,
+    TR_CD       VARCHAR2(1) NOT NULL,
+    FUND_CD     VARCHAR2(12) NOT NULL,
+    TR_CO_CD    VARCHAR2(5) NOT NULL,
+    JM_CD       VARCHAR2(30) NOT NULL,
+    OFFER_NO    NUMBER(9) NOT NULL,
+    TR_JUSU     NUMBER(11),
+    TR_AEK      NUMBER(13),
+    ENC_ACCT_NO VARCHAR2(4000),
+    KOSCOM_CD   VARCHAR2(6),
+    DANC_GB     VARCHAR2(1),
+    SUSU        NUMBER(9),
+    TAX         NUMBER(9),
+    SUDO_YMD    DATE,
+    LOAD_TIME   DATE,
+    LOAD_USER   VARCHAR2(40),
+    STATUS      VARCHAR2(200)
+)
+TABLESPACE DATA_KFP
+STORAGE
+(
+    INITIAL 64K
+    NEXT 1M
+)
+NOCOMPRESS;
 
 
 CREATE TABLE KFP.SJT1TG
@@ -15294,6 +16390,33 @@ COMMENT ON COLUMN KFP.SJT1TG.SANGJ_JUSU IS '상장주수';
 COMMENT ON COLUMN KFP.SJT1TG.GYUL_MM IS '결산월';
 COMMENT ON COLUMN KFP.SJT1TG.CYBOS_DT IS 'cybos Load 일시';
 
+CREATE TABLE KFP.SJT1TG_20241018
+(
+    YMD         DATE NOT NULL,
+    KOSCOM_CD   VARCHAR2(12) NOT NULL,
+    OPEN        NUMBER(15,4),
+    HIGH        NUMBER(15,4),
+    LOW         NUMBER(15,4),
+    CLOSE       NUMBER(15,4),
+    VOLUME      NUMBER(15),
+    VALUE       NUMBER(15),
+    PRECLOSE    NUMBER(15,4),
+    CHANGE      NUMBER(15,4),
+    UNDER       VARCHAR2(1),
+    AEKM        NUMBER(9),
+    SANGJ_JUSU  NUMBER(15),
+    GYUL_MM     VARCHAR2(2),
+    CYBOS_DT    DATE,
+    SPOT_PRICE  NUMBER,
+    CALC_PRICE  NUMBER
+)
+TABLESPACE DATA_KFP
+STORAGE
+(
+    INITIAL 64K
+    NEXT 1M
+)
+NOCOMPRESS;
 
 
 CREATE TABLE KFP.SJT5J1
@@ -15534,8 +16657,62 @@ COMMENT ON COLUMN KFP.SJX0JB.VENTURE_START IS '벤쳐시작일';
 COMMENT ON COLUMN KFP.SJX0JB.VENTURE_END IS '벤져종료일';
 COMMENT ON COLUMN KFP.SJX0JB.VENTURE_GB IS '벤쳐기업구분명';
 
+CREATE TABLE KFP.SJX0JB_20230811
+(
+    BALH_CO         VARCHAR2(5) NOT NULL,
+    BALH_NM         VARCHAR2(240),
+    TR_STOP_GB      VARCHAR2(1),
+    SOSOK_GB        VARCHAR2(1),
+    AEKM            NUMBER(7),
+    GR_BALH_GB      VARCHAR2(2),
+    BUDO_YMD        DATE,
+    COMP_CD         VARCHAR2(5),
+    GYUL_MM         VARCHAR2(2),
+    ISIN_CD         VARCHAR2(5),
+    COMP_BU         VARCHAR2(3),
+    BALH_NATION     VARCHAR2(2),
+    ENC_BUBIN_NO    VARCHAR2(28),
+    DEL_YN          VARCHAR2(1),
+    VENTURE_START   DATE,
+    VENTURE_END     DATE,
+    VENTURE_GB      VARCHAR2(80)
+)
+TABLESPACE DATA_KFP
+STORAGE
+(
+    INITIAL 64K
+    NEXT 1M
+)
+NOCOMPRESS;
 
 
+CREATE TABLE KFP.SJX0JB_ENC
+(
+    BALH_CO         VARCHAR2(5) NOT NULL,
+    BALH_NM         VARCHAR2(240),
+    TR_STOP_GB      VARCHAR2(1),
+    SOSOK_GB        VARCHAR2(1),
+    AEKM            NUMBER(7),
+    GR_BALH_GB      VARCHAR2(2),
+    BUDO_YMD        DATE,
+    COMP_CD         VARCHAR2(5),
+    GYUL_MM         VARCHAR2(2),
+    ISIN_CD         VARCHAR2(5),
+    COMP_BU         VARCHAR2(3),
+    BALH_NATION     VARCHAR2(2),
+    ENC_BUBIN_NO    VARCHAR2(4000),
+    DEL_YN          VARCHAR2(1),
+    VENTURE_START   DATE,
+    VENTURE_END     DATE,
+    VENTURE_GB      VARCHAR2(80)
+)
+TABLESPACE DATA_KFP
+STORAGE
+(
+    INITIAL 64K
+    NEXT 1M
+)
+NOCOMPRESS;
 
 
 CREATE TABLE KFP.SJX0JB_HISTORY
@@ -15603,6 +16780,33 @@ STORAGE
 NOCOMPRESS;
 
 
+CREATE TABLE KFP.SJX0JB_LOAD_ENC
+(
+    BALH_CO         VARCHAR2(5) NOT NULL,
+    BALH_NM         VARCHAR2(240),
+    TR_STOP_GB      VARCHAR2(1),
+    SOSOK_GB        VARCHAR2(1),
+    AEKM            NUMBER(7),
+    GR_BALH_GB      VARCHAR2(2),
+    BUDO_YMD        DATE,
+    COMP_CD         VARCHAR2(5),
+    GYUL_MM         VARCHAR2(2),
+    ISIN_CD         VARCHAR2(5),
+    COMP_BU         VARCHAR2(3),
+    BALH_NATION     VARCHAR2(3),
+    ENC_BUBIN_NO    VARCHAR2(4000),
+    DEL_YN          VARCHAR2(1),
+    VENTURE_START   DATE,
+    VENTURE_END     DATE,
+    VENTURE_GB      VARCHAR2(80)
+)
+TABLESPACE DATA_KFP
+STORAGE
+(
+    INITIAL 64K
+    NEXT 1M
+)
+NOCOMPRESS;
 
 
 CREATE TABLE KFP.SKM0AG
@@ -15669,6 +16873,29 @@ COMMENT ON COLUMN KFP.SKM0AG.JUNJ IS '전일잔액';
 COMMENT ON COLUMN KFP.SKM0AG.DR_AEK IS '차변금액';
 COMMENT ON COLUMN KFP.SKM0AG.CR_AEK IS '대변금액';
 COMMENT ON COLUMN KFP.SKM0AG.FUND_CURRENCY IS '계좌 기준통화';
+
+CREATE TABLE KFP.SKM0AG_20241017
+(
+    CORP_GR         VARCHAR2(8) NOT NULL,
+    YMD             DATE NOT NULL,
+    WORK_GB         VARCHAR2(1) NOT NULL,
+    FUND_CD         VARCHAR2(12) NOT NULL,
+    GWAMOK          VARCHAR2(5) NOT NULL,
+    CHADAE_GB       VARCHAR2(1),
+    JUNJ            NUMBER,
+    DR_AEK          NUMBER,
+    CR_AEK          NUMBER,
+    FUND_CURRENCY   VARCHAR2(3) NOT NULL
+)
+TABLESPACE DATA_KFP
+STORAGE
+(
+    INITIAL 64K
+    NEXT 1M
+)
+NOCOMPRESS;
+
+COMMENT ON COLUMN KFP.SKM0AG_20241017.FUND_CURRENCY IS '계좌 기준통화';
 
 CREATE TABLE KFP.SKT0BM
 (
@@ -15920,7 +17147,35 @@ COMMENT ON COLUMN KFP.SKT0BU.PROC_STEP IS '처리단계(9:입력전표)';
 COMMENT ON COLUMN KFP.SKT0BU.BIGO IS '전표생성 procedure와 수기전표입력 사유';
 COMMENT ON COLUMN KFP.SKT0BU.FUND_CURRENCY IS '계좌 기준통화';
 
+CREATE TABLE KFP.SKT0BU_20250315
+(
+    CORP_GR         VARCHAR2(8) NOT NULL,
+    TR_YMD          DATE NOT NULL,
+    WORK_GB         VARCHAR2(1) NOT NULL,
+    FUND_CD         VARCHAR2(12) NOT NULL,
+    UPMU_GB         VARCHAR2(1) NOT NULL,
+    TR_CD           VARCHAR2(3) NOT NULL,
+    JM_CD           VARCHAR2(12),
+    SEQ_NO          NUMBER NOT NULL,
+    CHASU           NUMBER(6),
+    ROW_NO          NUMBER(2) NOT NULL,
+    CHADAE_GB       VARCHAR2(1),
+    GWAMOK          VARCHAR2(5),
+    AEK             NUMBER,
+    JEOKYO_CD       VARCHAR2(3),
+    PROC_STEP       NUMBER(2),
+    BIGO            VARCHAR2(240),
+    FUND_CURRENCY   VARCHAR2(3) NOT NULL
+)
+TABLESPACE DATA_KFP
+STORAGE
+(
+    INITIAL 64K
+    NEXT 1M
+)
+NOCOMPRESS;
 
+COMMENT ON COLUMN KFP.SKT0BU_20250315.FUND_CURRENCY IS '계좌 기준통화';
 
 CREATE GLOBAL TEMPORARY TABLE KFP.SKT0BU_9
 (
@@ -16155,6 +17410,85 @@ COMMENT ON COLUMN KFP.SKT0GS.INCHUL_SBOSU IS '인출성과보수';
 COMMENT ON COLUMN KFP.SKT0GS.WM_SEOLJ_AEK IS '워터마크대상투자일임금액';
 COMMENT ON COLUMN KFP.SKT0GS.WM_AEK IS '워터마크대상금액';
 
+CREATE TABLE KFP.SKT0GS_05150
+(
+    CORP_GR             VARCHAR2(8) NOT NULL,
+    GYUL_YMD            DATE NOT NULL,
+    INCHUL_YMD          DATE,
+    FUND_CD             VARCHAR2(12) NOT NULL,
+    BF_GYUL_YMD         DATE,
+    GYUL_GI             NUMBER(5),
+    GYULBF_GIJUN_GA     NUMBER,
+    GYULBF_GGIJUN_GA    NUMBER,
+    WONBON_JWA          NUMBER,
+    IIK_BUNBAE_AEK      NUMBER,
+    IIK_RT              NUMBER,
+    TUJA_SUIK_RT        NUMBER,
+    GYULAF_GIJUN_GA     NUMBER,
+    GYULAF_GGIJUN_GA    NUMBER,
+    KOSPI               NUMBER,
+    STOCK_RT            NUMBER,
+    BOND_RT             NUMBER,
+    CASH_RT             NUMBER,
+    STOCK_AVG_RT        NUMBER,
+    SUN_JASAN_AEK       NUMBER,
+    FUND_CURRENCY       VARCHAR2(3),
+    WONBON_AEK          NUMBER,
+    RE_WONBON_AEK       NUMBER,
+    INCHUL_TSUSU        NUMBER,
+    INCHUL_SBOSU        NUMBER,
+    WM_SEOLJ_AEK        NUMBER,
+    WM_AEK              NUMBER
+)
+TABLESPACE DATA_KFP
+STORAGE
+(
+    INITIAL 64K
+    NEXT 1M
+)
+NOCOMPRESS;
+
+COMMENT ON COLUMN KFP.SKT0GS_05150.FUND_CURRENCY IS '계좌 기준통화';
+
+CREATE TABLE KFP.SKT0GS_20250228
+(
+    CORP_GR             VARCHAR2(8) NOT NULL,
+    GYUL_YMD            DATE NOT NULL,
+    INCHUL_YMD          DATE,
+    FUND_CD             VARCHAR2(12) NOT NULL,
+    BF_GYUL_YMD         DATE,
+    GYUL_GI             NUMBER(5),
+    GYULBF_GIJUN_GA     NUMBER,
+    GYULBF_GGIJUN_GA    NUMBER,
+    WONBON_JWA          NUMBER,
+    IIK_BUNBAE_AEK      NUMBER,
+    IIK_RT              NUMBER,
+    TUJA_SUIK_RT        NUMBER,
+    GYULAF_GIJUN_GA     NUMBER,
+    GYULAF_GGIJUN_GA    NUMBER,
+    KOSPI               NUMBER,
+    STOCK_RT            NUMBER,
+    BOND_RT             NUMBER,
+    CASH_RT             NUMBER,
+    STOCK_AVG_RT        NUMBER,
+    SUN_JASAN_AEK       NUMBER,
+    FUND_CURRENCY       VARCHAR2(3),
+    WONBON_AEK          NUMBER,
+    RE_WONBON_AEK       NUMBER,
+    INCHUL_TSUSU        NUMBER,
+    INCHUL_SBOSU        NUMBER,
+    WM_SEOLJ_AEK        NUMBER,
+    WM_AEK              NUMBER
+)
+TABLESPACE DATA_KFP
+STORAGE
+(
+    INITIAL 64K
+    NEXT 1M
+)
+NOCOMPRESS;
+
+COMMENT ON COLUMN KFP.SKT0GS_20250228.FUND_CURRENCY IS '계좌 기준통화';
 
 CREATE TABLE KFP.SKT0HS
 (
@@ -16640,7 +17974,6 @@ ALTER TABLE KFP.SPRING_SESSION
 ADD CONSTRAINT SPRING_SESSION_PK PRIMARY KEY (PRIMARY_ID);
 
 
-
 CREATE TABLE KFP.SPT1TX
 (
     CORP_GR             VARCHAR2(8) NOT NULL,
@@ -16719,6 +18052,50 @@ COMMENT ON COLUMN KFP.SPT1TX.YMD IS '입력일자';
 COMMENT ON COLUMN KFP.SPT1TX.TEXT_GB IS '상세내용구분[TX]';
 COMMENT ON COLUMN KFP.SPT1TX.TEXT IS '상세내용 또는 주식관련내용';
 
+CREATE TABLE KFP.SPT1TX_20250101
+(
+    CORP_GR             VARCHAR2(8) NOT NULL,
+    FS_GB               VARCHAR2(2) NOT NULL,
+    FS_CD               VARCHAR2(12) NOT NULL,
+    YMD                 DATE NOT NULL,
+    TEXT_GB             VARCHAR2(2) NOT NULL,
+    TEXT                CLOB,
+    TEXT_GR             DATE,
+    LOAD_EXP            VARCHAR2(4),
+    LOAD_FILE           BLOB,
+    POSITION_TEL        VARCHAR2(200),
+    START_YMD           DATE,
+    MANAGEMENT_AMT      NUMBER,
+    MANAGEMENT_COUNT    NUMBER,
+    END_YMD             DATE
+)
+TABLESPACE DATA_KFP
+STORAGE
+(
+    INITIAL 64K
+    NEXT 1M
+)
+NOCOMPRESS
+LOB (LOAD_FILE) STORE AS BASICFILE 
+(
+    STORAGE
+    (
+        INITIAL 64K
+        NEXT 1M
+    )
+    CHUNK 8192
+    RETENTION
+)
+LOB (TEXT) STORE AS BASICFILE 
+(
+    STORAGE
+    (
+        INITIAL 64K
+        NEXT 1M
+    )
+    CHUNK 8192
+    RETENTION
+);
 
 
 CREATE TABLE KFP.SQLRUN
@@ -16784,7 +18161,8 @@ CREATE TABLE KFP.SRS_CD
     JM_NM           VARCHAR2(200),
     SJ_GB           CHAR(1),
     TRD_FR_DATE     VARCHAR2(8),
-    TRD_TO_DATE     VARCHAR2(8)
+    TRD_TO_DATE     VARCHAR2(8),
+    CTRT_SIZE       NUMBER
 )
 TABLESPACE DATA_KFP
 STORAGE
@@ -16810,25 +18188,8 @@ CREATE OR REPLACE TRIGGER KFP.DT_SRS_CD_U
 -- 해외 파생정보 갱신 trigger --
 --------------------------------
 DECLARE
-BEGIN
---    WHEN MATCHED THEN
---         UPDATE
---            SET BALH_NATION     = mm.BALH_NATION
---              , CURRENCY        = mm.CURRENCY
---              , SANGJ_YMD       = TO_DATE (:old.TRD_FR_DATE,'yyyymmdd')
---              , ISIN_CD         = :old.SRS_CD
---              , LSY_YMD         = TO_DATE (:old.EXPR_DATE,'yyyymmdd')
---              , HANGSA_GA       = :old.STKPRC
---              , STOCK_GB        = mm.STOCK_GB
---              , SJ_GB           = :old.sj_gb
---              , JASAN           = :old.ISIN_CD
---              , JASAN_ATTR      = 'A13'
---              , CHANGE_CURRENCY = mm.CURRENCY
---              , CHANGE_JM_CD    = :old.ISIN_CD
---              , EXCD            = :old.EXCH_CD
---              , UNIT_AEK        = 100
---              , IU_DT           = SYSDATE
 
+BEGIN
     MERGE INTO SYM0YA t1  /* 해외 자산종목 */
        USING ( SELECT ta.CORP_GR
                     , ta.CURRENCY
@@ -16841,7 +18202,21 @@ BEGIN
           ON ( t1.JM_CD = :old.SRS_CD )
     WHEN MATCHED THEN
          UPDATE
-            SET IU_DT = SYSDATE
+            SET BALH_NATION     = mm.BALH_NATION
+              , CURRENCY        = mm.CURRENCY
+              , SANGJ_YMD       = TO_DATE (:new.TRD_FR_DATE,'yyyymmdd')
+              , ISIN_CD         = :old.SRS_CD
+              , LSY_YMD         = TO_DATE (:new.EXPR_DATE,'yyyymmdd')
+              , HANGSA_GA       = :old.STKPRC
+              , STOCK_GB        = mm.STOCK_GB
+              , SJ_GB           = :old.sj_gb
+              , JASAN           = :old.ISIN_CD
+              , JASAN_ATTR      = 'A13'
+              , CHANGE_CURRENCY = mm.CURRENCY
+              , CHANGE_JM_CD    = :old.ISIN_CD
+              , EXCD            = :new.EXCH_CD
+--              , UNIT_AEK        = :new.CTRT_SIZE
+              , IU_DT           = SYSDATE
     WHEN NOT MATCHED THEN
          INSERT ( CORP_GR          /* _1- */
                 , JM_CD            /* _2- */
@@ -16872,9 +18247,9 @@ BEGIN
                 , 1                                     /* _5- */
                 , mm.BALH_NATION                        /* _6- */
                 , mm.CURRENCY                           /* _7- */
-                , TO_DATE(:old.TRD_FR_DATE,'yyyymmdd')  /* _8- */
+                , TO_DATE(:new.TRD_FR_DATE,'yyyymmdd')  /* _8- */
                 , :old.SRS_CD                           /* _9- */
-                , TO_DATE(:old.EXPR_DATE,'yyyymmdd')    /* _10- */
+                , TO_DATE(:new.EXPR_DATE,'yyyymmdd')    /* _10- */
                 , 100                                   /* _11- */
                 , :old.STKPRC                           /* _12- */
                 , mm.STOCK_GB                           /* _13- */
@@ -16883,7 +18258,7 @@ BEGIN
                 , 'A13'                                 /* _16- */
                 , mm.CURRENCY                           /* _17- */
                 , :old.ISIN_CD                          /* _18- */
-                , :old.EXCH_CD                          /* _19- */
+                , :new.EXCH_CD                          /* _19- */
                 , 'DT_SRS_CD_U'                         /* _20- */
                 , SYSDATE                               /* _21- */
                 );
@@ -16903,6 +18278,26 @@ COMMENT ON COLUMN KFP.SRS_CD.JM_NM IS '종목명';
 COMMENT ON COLUMN KFP.SRS_CD.SJ_GB IS '2-CALL, 3-PUT';
 COMMENT ON COLUMN KFP.SRS_CD.TRD_FR_DATE IS '상장일자';
 COMMENT ON COLUMN KFP.SRS_CD.TRD_TO_DATE IS '최종거래일';
+
+CREATE TABLE KFP.SRS_CD_202602
+(
+    SRS_CD      VARCHAR2(30),
+    STKPRC      NUMBER,
+    BLBG_TCKR   VARCHAR2(20),
+    ISIN_CD     VARCHAR2(24),
+    EXCH_CD     VARCHAR2(4),
+    CRC_CD      VARCHAR2(3),
+    EXPR_DATE   VARCHAR2(8),
+    TRD_TO_DATE VARCHAR2(8),
+    CRE_DT      DATE
+)
+TABLESPACE DATA_KFP
+STORAGE
+(
+    INITIAL 64K
+    NEXT 1M
+)
+NOCOMPRESS;
 
 
 CREATE TABLE KFP.SSM0KM
@@ -17502,6 +18897,21 @@ NOCOMPRESS;
 
 CREATE UNIQUE INDEX KFP.SYM0YA_IDX
 ON KFP.SYM0YA (CORP_GR,JASAN_GB,JM_CD) 
+TABLESPACE INDEX_KFP
+STORAGE
+(
+    INITIAL 64K
+    NEXT 1M
+);
+
+CREATE UNIQUE INDEX KFP.SYM0YA_IDX1
+ON KFP.SYM0YA
+(
+    CORP_GR,
+    SEDOL,
+    JM_CD,
+    JASAN_GB
+) 
 TABLESPACE INDEX_KFP
 STORAGE
 (
@@ -18444,6 +19854,55 @@ COMMENT ON COLUMN KFP.SYT0LD.WON_JONGA IS '원화 종가';
 COMMENT ON COLUMN KFP.SYT0LD.CHASU IS '입력차수';
 COMMENT ON COLUMN KFP.SYT0LD.DUP_DT IS '중복점검용 일시';
 
+CREATE TABLE KFP.SYT0LD_ENC
+(
+    CORP_GR         VARCHAR2(8) NOT NULL,
+    TR_YMD          DATE NOT NULL,
+    FUND_CD         VARCHAR2(12) NOT NULL,
+    TR_SEQ          NUMBER NOT NULL,
+    TR_CD           VARCHAR2(3) NOT NULL,
+    TR_CO_CD        VARCHAR2(5),
+    TRUSTEE         VARCHAR2(5),
+    JM_CD           VARCHAR2(30),
+    JM_NM           VARCHAR2(120),
+    CURRENCY        VARCHAR2(3),
+    TR_JUSU         NUMBER,
+    TR_DANGA        NUMBER,
+    TR_AEK          NUMBER,
+    TR_COST         NUMBER,
+    TR_TAX          NUMBER,
+    GYULJE_AEK      NUMBER,
+    TRANS_RT        NUMBER,
+    WON_GYULJE_AEK  NUMBER,
+    GYULJE_YMD      DATE,
+    ISIN_CD         VARCHAR2(12),
+    TR_NM           VARCHAR2(120),
+    ENC_ACCT_NO     VARCHAR2(4000),
+    ACCT_NM         VARCHAR2(120),
+    WON_JAN         NUMBER,
+    TR_JAN          NUMBER,
+    LOAD_USER_ID    VARCHAR2(10),
+    LOAD_TIME       DATE,
+    BIGO            VARCHAR2(500),
+    BIGO_PASS       VARCHAR2(100),
+    MI_MESU         NUMBER,
+    MI_MEDO         NUMBER,
+    MM_JUSU         NUMBER,
+    TR_SONIK        NUMBER,
+    WON_SONIK       NUMBER,
+    WON_DANGA       NUMBER,
+    TR_JONGA        NUMBER,
+    WON_JONGA       NUMBER,
+    CHASU           NUMBER,
+    DUP_DT          VARCHAR2(20)
+)
+TABLESPACE DATA_KFP
+STORAGE
+(
+    INITIAL 64K
+    NEXT 1M
+)
+NOCOMPRESS;
 
 
 CREATE TABLE KFP.SYT0LP
@@ -18483,6 +19942,15 @@ STORAGE
 )
 NOCOMPRESS;
 
+CREATE UNIQUE INDEX KFP.SYT0LP_IDX
+ON KFP.SYT0LP (CORP_GR,JM_CD,YMD) 
+TABLESPACE INDEX_KFP
+STORAGE
+(
+    INITIAL 64K
+    NEXT 1M
+);
+
 CREATE UNIQUE INDEX KFP.SYT0LP_PK
 ON KFP.SYT0LP (CORP_GR,YMD,JM_CD) 
 TABLESPACE INDEX_KFP
@@ -18520,6 +19988,36 @@ COMMENT ON COLUMN KFP.SYT0LP.TRD_TO_DATE IS '최종거래일';
 COMMENT ON COLUMN KFP.SYT0LP.TOT_ASK_QNTT IS '총매도잔량';
 COMMENT ON COLUMN KFP.SYT0LP.TOT_BID_QNTT IS '총매수잔량';
 
+CREATE TABLE KFP.SYT0LP_20250422
+(
+    CORP_GR                     VARCHAR2(8) NOT NULL,
+    YMD                         DATE NOT NULL,
+    JM_CD                       VARCHAR2(20) NOT NULL,
+    JONGA                       NUMBER,
+    DANGA                       NUMBER,
+    LOAD_TIME                   DATE,
+    PX_CLOSE_DT                 DATE,
+    PX_LAST                     NUMBER,
+    PX_DT_1D                    DATE,
+    PX_CLOSE_1D                 NUMBER,
+    PX_YEST_CLOSE_EXCH_UNADJ    NUMBER,
+    BBIC                        VARCHAR2(20),
+    ISIN_CD                     VARCHAR2(24),
+    CURRENCY                    VARCHAR2(3),
+    HANGSA_GA                   NUMBER,
+    BID                         NUMBER,
+    ASK                         NUMBER,
+    TIME_GA                     NUMBER,
+    TIME_VOLUME                 NUMBER,
+    OPEN_INTERST                NUMBER
+)
+TABLESPACE DATA_KFP
+STORAGE
+(
+    INITIAL 64K
+    NEXT 1M
+)
+NOCOMPRESS;
 
 
 CREATE TABLE KFP.SYT0MA
@@ -18734,6 +20232,26 @@ STORAGE
     NEXT 1M
 )
 NOCOMPRESS;
+
+CREATE INDEX KFP.SYT0MG_IDX
+ON KFP.SYT0MG
+(
+    CORP_GR,
+    GYULJE_YMD,
+    TR_CD,
+    FUND_CD,
+    TR_CO_CD,
+    TRUSTEE,
+    JM_CD,
+    BS_TYPE,
+    TR_SEQ
+) 
+TABLESPACE INDEX_KFP
+STORAGE
+(
+    INITIAL 64K
+    NEXT 1M
+);
 
 CREATE UNIQUE INDEX KFP.SYT0MG_PK
 ON KFP.SYT0MG
@@ -20338,6 +21856,31 @@ COMMENT ON COLUMN KFP.SZM0GI.AF_GIJUN IS '(결산일 계산시 전영업일 결�
 COMMENT ON COLUMN KFP.SZM0GI.WM_SEOLJ_AEK IS '워터마크대상금액';
 COMMENT ON COLUMN KFP.SZM0GI.WM_DT IS '워터마크대상액 수정일시';
 
+CREATE TABLE KFP.SZM0GI_20250228
+(
+    CORP_GR         VARCHAR2(8) NOT NULL,
+    FUND_CD         VARCHAR2(12) NOT NULL,
+    GYUL_GI         NUMBER(3),
+    BF_GYUL_YMD     DATE,
+    AF_GYUL_YMD     DATE,
+    ILSU            NUMBER,
+    GI_SONIK_AEK    NUMBER,
+    HAEJI_YMD       DATE,
+    DIST_CALC       VARCHAR2(1),
+    INCHUL_YMD      DATE,
+    IN_AEK          NUMBER,
+    AF_GIJUN        VARCHAR2(1),
+    WM_SEOLJ_AEK    NUMBER,
+    WM_DT           DATE
+)
+TABLESPACE DATA_KFP
+STORAGE
+(
+    INITIAL 64K
+    NEXT 1M
+)
+NOCOMPRESS;
+
 
 CREATE TABLE KFP.SZM0IA
 (
@@ -20494,6 +22037,87 @@ COMMENT ON COLUMN KFP.SZM0IA.SPECIAL_NOTE IS '기타사항';
 COMMENT ON COLUMN KFP.SZM0IA.PRE_BASIC IS '선취기본보수율(%)';
 COMMENT ON COLUMN KFP.SZM0IA.EXPENSE_YN IS '수수료비용분개(Y/N)';
 
+CREATE TABLE KFP.SZM0IA_20250622
+(
+    CORP_GR             VARCHAR2(8) NOT NULL,
+    MG_CD               VARCHAR2(5) NOT NULL,
+    ENC_ACCT_NO         VARCHAR2(40) NOT NULL,
+    FST_SEOLJ_YMD       DATE NOT NULL,
+    RE_SEOLJ_YEAR       NUMBER,
+    UNYONG_SABUN        VARCHAR2(40),
+    FUND_NM             VARCHAR2(80),
+    SINTAK_GIGAN        NUMBER(5),
+    BOSU_GB             VARCHAR2(2),
+    BOSU_GIGAN          NUMBER(3),
+    RE_SEOLJ_AEK        NUMBER,
+    SERIES_GB           VARCHAR2(4),
+    BASIC_PER           NUMBER,
+    BM_PER              NUMBER,
+    SUCCESS_PER         NUMBER,
+    TAX_GB              VARCHAR2(1),
+    MG_UY_YN            VARCHAR2(1),
+    FD_CS_GB            VARCHAR2(1),
+    UPD_USER            VARCHAR2(40),
+    UPD_DATE            DATE,
+    FUND_CD             VARCHAR2(12),
+    FUND_CRE_DATE       DATE,
+    HAEJI_YMD           DATE,
+    HAEJI_UPD_DATE      DATE,
+    PRE_PER             NUMBER,
+    DAEPYO_YMD          DATE,
+    MG_DIV_PRE_PER      NUMBER,
+    MG_DIV_BASIC_PER    NUMBER,
+    MG_DIV_SUCCESS_PER  NUMBER,
+    IM_CODE             VARCHAR2(20) NOT NULL,
+    MP_TYPE             VARCHAR2(2),
+    MP_JAMUN            VARCHAR2(80),
+    JA_DIV_PRE_PER      NUMBER,
+    JA_DIV_BASIC_PER    NUMBER,
+    JA_DIV_SUCCESS_PER  NUMBER,
+    OP_REP_GI           VARCHAR2(2),
+    MAGAM_YMD           DATE,
+    SZM0FD_PB           VARCHAR2(10),
+    MAP_SEOLJ_YMD       DATE,
+    MAP_HAEJI_YMD       DATE,
+    FUND_CURRENCY       VARCHAR2(3) NOT NULL,
+    DATA_GB             VARCHAR2(1),
+    GONGMO_LAST_YMD     DATE,
+    D45_HAEJI_YMD       DATE,
+    HAEJI_ABLE_YMD      DATE,
+    TYPE_GB             VARCHAR2(1),
+    BF_GYUL_YMD         DATE,
+    AF_GYUL_YMD         DATE,
+    GYUL_GI             NUMBER,
+    HAEJI_GB            VARCHAR2(1),
+    JIJUM               VARCHAR2(40),
+    MNG_SAWON           VARCHAR2(40),
+    JUSO1               VARCHAR2(300),
+    JUSO2               VARCHAR2(100),
+    TEL1                VARCHAR2(80),
+    TEL2                VARCHAR2(80),
+    TEL3                VARCHAR2(80),
+    TEL4                VARCHAR2(80),
+    EMAIL1              VARCHAR2(180),
+    EMAIL2              VARCHAR2(90),
+    RE_SEOLJ_YMD        DATE,
+    ENC_JNO             VARCHAR2(30),
+    ENC_PW              VARCHAR2(30),
+    SUSU_GUGAN          VARCHAR2(1),
+    SUSU_RT             NUMBER,
+    ORDER_SEND          VARCHAR2(1),
+    ALIAS_CODE          VARCHAR2(40),
+    TARGET_JASAN        CHAR(2),
+    SPECIAL_NOTE        VARCHAR2(800)
+)
+TABLESPACE DATA_KFP
+STORAGE
+(
+    INITIAL 64K
+    NEXT 1M
+)
+NOCOMPRESS;
+
+COMMENT ON COLUMN KFP.SZM0IA_20250622.FUND_CURRENCY IS '계좌 기준통화';
 
 CREATE TABLE KFP.SZM0IA_BACK
 (
@@ -20574,6 +22198,81 @@ NOCOMPRESS;
 
 COMMENT ON COLUMN KFP.SZM0IA_BACK.FUND_CURRENCY IS '계좌 기준통화';
 
+CREATE TABLE KFP.SZM0IA_ENC
+(
+    CORP_GR             VARCHAR2(8) NOT NULL,
+    MG_CD               VARCHAR2(5) NOT NULL,
+    ENC_ACCT_NO         VARCHAR2(4000),
+    FST_SEOLJ_YMD       DATE NOT NULL,
+    RE_SEOLJ_YEAR       NUMBER,
+    UNYONG_SABUN        VARCHAR2(40),
+    FUND_NM             VARCHAR2(80),
+    SINTAK_GIGAN        NUMBER(5),
+    BOSU_GIGAN          NUMBER(3),
+    RE_SEOLJ_AEK        NUMBER,
+    SERIES_GB           VARCHAR2(4),
+    BASIC_PER           NUMBER,
+    BM_PER              NUMBER,
+    SUCCESS_PER         NUMBER,
+    TAX_GB              VARCHAR2(1),
+    MG_UY_YN            VARCHAR2(1),
+    FD_CS_GB            VARCHAR2(1),
+    UPD_USER            VARCHAR2(40),
+    UPD_DATE            DATE,
+    FUND_CD             VARCHAR2(12),
+    FUND_CRE_DATE       DATE,
+    HAEJI_YMD           DATE,
+    HAEJI_UPD_DATE      DATE,
+    MG_DIV_PRE_PER      NUMBER,
+    MG_DIV_BASIC_PER    NUMBER,
+    MG_DIV_SUCCESS_PER  NUMBER,
+    IM_CODE             VARCHAR2(20) NOT NULL,
+    MP_TYPE             VARCHAR2(2),
+    MP_JAMUN            VARCHAR2(80),
+    JA_DIV_PRE_PER      NUMBER,
+    JA_DIV_BASIC_PER    NUMBER,
+    JA_DIV_SUCCESS_PER  NUMBER,
+    OP_REP_GI           VARCHAR2(2),
+    MAGAM_YMD           DATE,
+    SZM0FD_PB           VARCHAR2(10),
+    MAP_SEOLJ_YMD       DATE,
+    MAP_HAEJI_YMD       DATE,
+    FUND_CURRENCY       VARCHAR2(3) NOT NULL,
+    GONGMO_LAST_YMD     DATE,
+    HAEJI_ABLE_YMD      DATE,
+    TYPE_GB             VARCHAR2(1),
+    BF_GYUL_YMD         DATE,
+    AF_GYUL_YMD         DATE,
+    GYUL_GI             NUMBER,
+    HAEJI_GB            VARCHAR2(1),
+    JIJUM               VARCHAR2(40),
+    MNG_SAWON           VARCHAR2(40),
+    JUSO1               VARCHAR2(300),
+    JUSO2               VARCHAR2(100),
+    TEL1                VARCHAR2(80),
+    TEL2                VARCHAR2(80),
+    TEL3                VARCHAR2(80),
+    TEL4                VARCHAR2(80),
+    EMAIL1              VARCHAR2(180),
+    EMAIL2              VARCHAR2(90),
+    RE_SEOLJ_YMD        DATE,
+    ENC_JNO             VARCHAR2(4000),
+    ENC_PW              VARCHAR2(4000),
+    SUSU_GUGAN          VARCHAR2(1),
+    SUSU_RT             NUMBER,
+    ORDER_SEND          VARCHAR2(1),
+    ALIAS_CODE          VARCHAR2(40),
+    TARGET_JASAN        CHAR(2),
+    SPECIAL_NOTE        VARCHAR2(800),
+    PRE_BASIC           NUMBER
+)
+TABLESPACE DATA_KFP
+STORAGE
+(
+    INITIAL 64K
+    NEXT 1M
+)
+NOCOMPRESS;
 
 
 CREATE TABLE KFP.SZT0CK
@@ -20742,6 +22441,57 @@ STORAGE
 )
 NOCOMPRESS;
 
+
+CREATE TABLE KFP.SZT0IA_V_202603
+(
+    CORP_GR         VARCHAR2(8) NOT NULL,
+    FUND_CD         VARCHAR2(12) NOT NULL,
+    TR_YMD          DATE NOT NULL,
+    WONBON_AEK      NUMBER,
+    JM_PER          NUMBER,
+    USD_WONBON_AEK  NUMBER,
+    RISK_VALUE      NUMBER,
+    YEAR_BETA       NUMBER,
+    MON_BETA        NUMBER,
+    DEL             VARCHAR2(1),
+    FX_SU           NUMBER,
+    FX_AMT          NUMBER,
+    OPT_PREMIUM     NUMBER,
+    OPT_NOMINAL_AMT NUMBER
+)
+TABLESPACE DATA_KFP
+STORAGE
+(
+    INITIAL 64K
+    NEXT 1M
+)
+NOCOMPRESS;
+
+
+CREATE TABLE KFP.SZT0IA_V_20260507
+(
+    CORP_GR         VARCHAR2(8) NOT NULL,
+    FUND_CD         VARCHAR2(12) NOT NULL,
+    TR_YMD          DATE NOT NULL,
+    WONBON_AEK      NUMBER,
+    JM_PER          NUMBER,
+    USD_WONBON_AEK  NUMBER,
+    RISK_VALUE      NUMBER,
+    YEAR_BETA       NUMBER,
+    MON_BETA        NUMBER,
+    DEL             VARCHAR2(1),
+    FX_SU           NUMBER,
+    FX_AMT          NUMBER,
+    OPT_PREMIUM     NUMBER,
+    OPT_NOMINAL_AMT NUMBER
+)
+TABLESPACE DATA_KFP
+STORAGE
+(
+    INITIAL 64K
+    NEXT 1M
+)
+NOCOMPRESS;
 
 
 CREATE TABLE KFP.SZT0IO
@@ -21735,6 +23485,20 @@ COMMENT ON COLUMN KFP.SZX1PA.SELL_CO IS '판매사코드';
 COMMENT ON COLUMN KFP.SZX1PA.SUTAK_CD IS '수탁사코드';
 COMMENT ON COLUMN KFP.SZX1PA.ENC_BANK_NO IS 'ENC_입금계좌번호';
 
+CREATE TABLE KFP.SZX1PA_ENC
+(
+    CORP_GR     VARCHAR2(8) NOT NULL,
+    SELL_CO     VARCHAR2(5) NOT NULL,
+    SUTAK_CD    VARCHAR2(5) NOT NULL,
+    ENC_BANK_NO VARCHAR2(4000)
+)
+TABLESPACE DATA_KFP
+STORAGE
+(
+    INITIAL 64K
+    NEXT 1M
+)
+NOCOMPRESS;
 
 
 CREATE TABLE KFP.SZX1PT
@@ -22237,6 +24001,225 @@ COMMENT ON COLUMN KFP.USPM.OVRS_EXCG_CD IS '해외시장구분';
 COMMENT ON COLUMN KFP.USPM.PUT_PRICE IS 'PUT행사가겨';
 COMMENT ON COLUMN KFP.USPM.CALL_PRICE IS 'CALL행사가격';
 
+CREATE TABLE KFP.USPM_20251029
+(
+    CORP_GR                 VARCHAR2(8) NOT NULL,
+    YMD                     DATE NOT NULL,
+    FUND_CD                 VARCHAR2(12) NOT NULL,
+    PORT_NUM                VARCHAR2(2) NOT NULL,
+    JM_CD                   VARCHAR2(30) NOT NULL,
+    COL                     NUMBER,
+    USD_TUJA                NUMBER,
+    TARGET_RETURN_PER       NUMBER,
+    DAYS                    NUMBER,
+    JONGA                   NUMBER,
+    AVG_VOLUME              NUMBER,
+    MARKET_CAPITALIZATION   NUMBER,
+    COM_DT                  DATE,
+    AM                      NUMBER,
+    PM                      NUMBER,
+    VAR                     NUMBER,
+    AM5                     NUMBER,
+    PM5                     NUMBER,
+    VAR5                    NUMBER,
+    AM10                    NUMBER,
+    PM10                    NUMBER,
+    VAR10                   NUMBER,
+    AM15                    NUMBER,
+    PM15                    NUMBER,
+    VAR15                   NUMBER,
+    AM20                    NUMBER,
+    PM20                    NUMBER,
+    VAR20                   NUMBER,
+    AM60                    NUMBER,
+    PM60                    NUMBER,
+    VAR60                   NUMBER,
+    AM120                   NUMBER,
+    PM120                   NUMBER,
+    VAR120                  NUMBER,
+    D30_VOLATILITY          NUMBER,
+    G30_VOLATILITY          NUMBER,
+    TT_VOLATILITY           NUMBER,
+    TT_PRICE                NUMBER,
+    SHORT_PRICE             NUMBER,
+    GIJUN_PRICE             NUMBER,
+    PRICE_PER               NUMBER
+)
+TABLESPACE DATA_KFP
+STORAGE
+(
+    INITIAL 64K
+    NEXT 1M
+)
+NOCOMPRESS;
+
+
+CREATE TABLE KFP.USPM_202603
+(
+    CORP_GR                 VARCHAR2(8) NOT NULL,
+    YMD                     DATE NOT NULL,
+    FUND_CD                 VARCHAR2(12) NOT NULL,
+    PORT_NUM                VARCHAR2(2) NOT NULL,
+    JM_CD                   VARCHAR2(30) NOT NULL,
+    COL                     NUMBER,
+    USD_TUJA                NUMBER,
+    TARGET_RETURN_PER       NUMBER,
+    DAYS                    NUMBER,
+    JONGA                   NUMBER,
+    AVG_VOLUME              NUMBER,
+    MARKET_CAPITALIZATION   NUMBER,
+    COM_DT                  DATE,
+    AM                      NUMBER,
+    PM                      NUMBER,
+    VAR                     NUMBER,
+    AM5                     NUMBER,
+    PM5                     NUMBER,
+    VAR5                    NUMBER,
+    AM10                    NUMBER,
+    PM10                    NUMBER,
+    VAR10                   NUMBER,
+    AM15                    NUMBER,
+    PM15                    NUMBER,
+    VAR15                   NUMBER,
+    AM20                    NUMBER,
+    PM20                    NUMBER,
+    VAR20                   NUMBER,
+    AM60                    NUMBER,
+    PM60                    NUMBER,
+    VAR60                   NUMBER,
+    AM120                   NUMBER,
+    PM120                   NUMBER,
+    VAR120                  NUMBER,
+    D30_VOLATILITY          NUMBER,
+    G30_VOLATILITY          NUMBER,
+    TT_VOLATILITY           NUMBER,
+    SHORT_PRICE             NUMBER,
+    GIJUN_PRICE             NUMBER,
+    PRICE_PER               NUMBER,
+    OVRS_EXCG_CD            VARCHAR2(4),
+    PUT_PRICE               NUMBER,
+    CALL_PRICE              NUMBER
+)
+TABLESPACE DATA_KFP
+STORAGE
+(
+    INITIAL 64K
+    NEXT 1M
+)
+NOCOMPRESS;
+
+
+CREATE TABLE KFP.USPM_20260507
+(
+    CORP_GR                 VARCHAR2(8) NOT NULL,
+    YMD                     DATE NOT NULL,
+    FUND_CD                 VARCHAR2(12) NOT NULL,
+    PORT_NUM                VARCHAR2(2) NOT NULL,
+    JM_CD                   VARCHAR2(30) NOT NULL,
+    COL                     NUMBER,
+    USD_TUJA                NUMBER,
+    TARGET_RETURN_PER       NUMBER,
+    DAYS                    NUMBER,
+    JONGA                   NUMBER,
+    AVG_VOLUME              NUMBER,
+    MARKET_CAPITALIZATION   NUMBER,
+    COM_DT                  DATE,
+    AM                      NUMBER,
+    PM                      NUMBER,
+    VAR                     NUMBER,
+    AM5                     NUMBER,
+    PM5                     NUMBER,
+    VAR5                    NUMBER,
+    AM10                    NUMBER,
+    PM10                    NUMBER,
+    VAR10                   NUMBER,
+    AM15                    NUMBER,
+    PM15                    NUMBER,
+    VAR15                   NUMBER,
+    AM20                    NUMBER,
+    PM20                    NUMBER,
+    VAR20                   NUMBER,
+    AM60                    NUMBER,
+    PM60                    NUMBER,
+    VAR60                   NUMBER,
+    AM120                   NUMBER,
+    PM120                   NUMBER,
+    VAR120                  NUMBER,
+    D30_VOLATILITY          NUMBER,
+    G30_VOLATILITY          NUMBER,
+    TT_VOLATILITY           NUMBER,
+    SHORT_PRICE             NUMBER,
+    GIJUN_PRICE             NUMBER,
+    PRICE_PER               NUMBER,
+    OVRS_EXCG_CD            VARCHAR2(4),
+    PUT_PRICE               NUMBER,
+    CALL_PRICE              NUMBER
+)
+TABLESPACE DATA_KFP
+STORAGE
+(
+    INITIAL 64K
+    NEXT 1M
+)
+NOCOMPRESS;
+
+
+CREATE TABLE KFP.USPM_20260804
+(
+    CORP_GR                 VARCHAR2(8) NOT NULL,
+    YMD                     DATE NOT NULL,
+    FUND_CD                 VARCHAR2(12) NOT NULL,
+    PORT_NUM                VARCHAR2(2) NOT NULL,
+    JM_CD                   VARCHAR2(30) NOT NULL,
+    COL                     NUMBER,
+    USD_TUJA                NUMBER,
+    TARGET_RETURN_PER       NUMBER,
+    DAYS                    NUMBER,
+    JONGA                   NUMBER,
+    AVG_VOLUME              NUMBER,
+    MARKET_CAPITALIZATION   NUMBER,
+    COM_DT                  DATE,
+    AM                      NUMBER,
+    PM                      NUMBER,
+    VAR                     NUMBER,
+    AM5                     NUMBER,
+    PM5                     NUMBER,
+    VAR5                    NUMBER,
+    AM10                    NUMBER,
+    PM10                    NUMBER,
+    VAR10                   NUMBER,
+    AM15                    NUMBER,
+    PM15                    NUMBER,
+    VAR15                   NUMBER,
+    AM20                    NUMBER,
+    PM20                    NUMBER,
+    VAR20                   NUMBER,
+    AM60                    NUMBER,
+    PM60                    NUMBER,
+    VAR60                   NUMBER,
+    AM120                   NUMBER,
+    PM120                   NUMBER,
+    VAR120                  NUMBER,
+    D30_VOLATILITY          NUMBER,
+    G30_VOLATILITY          NUMBER,
+    TT_VOLATILITY           NUMBER,
+    SHORT_PRICE             NUMBER,
+    GIJUN_PRICE             NUMBER,
+    PRICE_PER               NUMBER,
+    OVRS_EXCG_CD            VARCHAR2(4),
+    PUT_PRICE               NUMBER,
+    CALL_PRICE              NUMBER,
+    TARGER_FPER             NUMBER,
+    TARGET_TPER             NUMBER
+)
+TABLESPACE DATA_KFP
+STORAGE
+(
+    INITIAL 64K
+    NEXT 1M
+)
+NOCOMPRESS;
+
 
 CREATE TABLE KFP.USPM_DD
 (
@@ -22280,6 +24263,29 @@ COMMENT ON COLUMN KFP.USPM_DD.G30_VOLATILITY IS '30일기준 변동성 = (sqrt (
 COMMENT ON COLUMN KFP.USPM_DD.SHORT_PRICE IS '단기평균가격 = (2주평균 * 0.6) + (1개월평균 * 0.4)';
 COMMENT ON COLUMN KFP.USPM_DD.GIJUN_PRICE IS '기준평균가격 = (2주평균 * 0.4) + (3개얼평균 * 0.3) + (6개월평균 * 0.2) + (1년평균 * 0.1)';
 COMMENT ON COLUMN KFP.USPM_DD.COM_DT IS '계산일시';
+
+CREATE TABLE KFP.USPM_DD_202603
+(
+    CORP_GR         VARCHAR2(8) NOT NULL,
+    YMD             DATE NOT NULL,
+    JM_CD           VARCHAR2(30) NOT NULL,
+    JONGA           NUMBER,
+    D30_VOLATILITY  NUMBER,
+    G30_VOLATILITY  NUMBER,
+    SHORT_PRICE     NUMBER,
+    GIJUN_PRICE     NUMBER,
+    COM_DT          DATE,
+    OVRS_EXCG_CD    VARCHAR2(4),
+    MA50            NUMBER,
+    MA200           NUMBER
+)
+TABLESPACE DATA_KFP
+STORAGE
+(
+    INITIAL 64K
+    NEXT 1M
+)
+NOCOMPRESS;
 
 
 CREATE TABLE KFP.USPM_OPT
@@ -22335,6 +24341,30 @@ COMMENT ON COLUMN KFP.USPM_OPT.STOCK_SIGA IS '주식시가액';
 COMMENT ON COLUMN KFP.USPM_OPT.OPT_QTY IS ' 풋매도수량';
 COMMENT ON COLUMN KFP.USPM_OPT.OPT_SIGA IS '풋매도시가액';
 COMMENT ON COLUMN KFP.USPM_OPT.OPT_PREMIUM IS '옵션프리미엄';
+
+CREATE TABLE KFP.USPM_OPT_202603
+(
+    CORP_GR         VARCHAR2(8) NOT NULL,
+    YMD             DATE NOT NULL,
+    FUND_CD         VARCHAR2(12) NOT NULL,
+    JM_CD           VARCHAR2(30) NOT NULL,
+    PORT            VARCHAR2(4) NOT NULL,
+    JONGA           NUMBER,
+    STOCK_JUSU      NUMBER,
+    STOCK_CHUI      NUMBER,
+    STOCK_SIGA      NUMBER,
+    OPT_QTY         NUMBER,
+    OPT_SIGA        NUMBER,
+    OPT_PREMIUM     NUMBER,
+    OPT_NOMINAL_AMT NUMBER
+)
+TABLESPACE DATA_KFP
+STORAGE
+(
+    INITIAL 64K
+    NEXT 1M
+)
+NOCOMPRESS;
 
 
 CREATE TABLE KFP.USPM_PORT
@@ -22396,6 +24426,88 @@ COMMENT ON COLUMN KFP.USPM_PORT.MON_BETA IS '월베타';
 COMMENT ON COLUMN KFP.USPM_PORT.PRICE_PER IS '금액행사비율(%)';
 COMMENT ON COLUMN KFP.USPM_PORT.PUT_Z IS 'PUT 변동성 조절비율';
 COMMENT ON COLUMN KFP.USPM_PORT.CALL_Z IS 'CALL 변동성 조절비율';
+
+CREATE TABLE KFP.USPM_PORT_20251029
+(
+    CORP_GR     VARCHAR2(8) NOT NULL,
+    FYMD        DATE,
+    TYMD        DATE NOT NULL,
+    FUND_CD     VARCHAR2(12) NOT NULL,
+    PORT_NUM    VARCHAR2(2),
+    TT          CHAR(1),
+    INST_DAYS   NUMBER,
+    DT          NUMBER,
+    Z           NUMBER,
+    JM_PER      NUMBER,
+    USD_TUJA    NUMBER,
+    MANGI       DATE,
+    YEAR_BETA   NUMBER,
+    MON_BETA    NUMBER,
+    PRICE_PER   NUMBER
+)
+TABLESPACE DATA_KFP
+STORAGE
+(
+    INITIAL 64K
+    NEXT 1M
+)
+NOCOMPRESS;
+
+
+CREATE TABLE KFP.USPM_PORT_202603
+(
+    CORP_GR     VARCHAR2(8) NOT NULL,
+    FYMD        DATE,
+    TYMD        DATE NOT NULL,
+    FUND_CD     VARCHAR2(12) NOT NULL,
+    PORT_NUM    VARCHAR2(2),
+    TT          CHAR(1),
+    INST_DAYS   NUMBER,
+    DT          NUMBER,
+    JM_PER      NUMBER,
+    USD_TUJA    NUMBER,
+    MANGI       DATE,
+    YEAR_BETA   NUMBER,
+    MON_BETA    NUMBER,
+    PRICE_PER   NUMBER,
+    PUT_Z       NUMBER,
+    CALL_Z      NUMBER
+)
+TABLESPACE DATA_KFP
+STORAGE
+(
+    INITIAL 64K
+    NEXT 1M
+)
+NOCOMPRESS;
+
+
+CREATE TABLE KFP.USPM_PORT_20260507
+(
+    CORP_GR     VARCHAR2(8) NOT NULL,
+    FYMD        DATE,
+    TYMD        DATE NOT NULL,
+    FUND_CD     VARCHAR2(12) NOT NULL,
+    PORT_NUM    VARCHAR2(2),
+    TT          CHAR(1),
+    INST_DAYS   NUMBER,
+    DT          NUMBER,
+    JM_PER      NUMBER,
+    USD_TUJA    NUMBER,
+    MANGI       DATE,
+    YEAR_BETA   NUMBER,
+    MON_BETA    NUMBER,
+    PRICE_PER   NUMBER,
+    PUT_Z       NUMBER,
+    CALL_Z      NUMBER
+)
+TABLESPACE DATA_KFP
+STORAGE
+(
+    INITIAL 64K
+    NEXT 1M
+)
+NOCOMPRESS;
 
 
 CREATE TABLE KFP.USPM_SONIK
@@ -22652,6 +24764,92 @@ COMMENT ON COLUMN KFP.UZM0HY.EX_SJ_AEK IS '비율산정제외 수익증권 시�
 COMMENT ON COLUMN KFP.UZM0HY.HM_AEK IS '현금자산 시가총액';
 COMMENT ON COLUMN KFP.UZM0HY.EX_HM_AEK IS '비율산정제외 현금자산 시가총액';
 
+CREATE TABLE KFP.UZM0HY_20250708
+(
+    CORP_GR             VARCHAR2(8) NOT NULL,
+    YMD                 DATE NOT NULL,
+    FUND_CD             VARCHAR2(12) NOT NULL,
+    INVEST_AMT          NUMBER,
+    TOTAL_ASSET         NUMBER,
+    NAV                 NUMBER,
+    EX_SIGA_AEK         NUMBER,
+    STOCK_TOT           NUMBER,
+    STOCK_PER           NUMBER,
+    STOCK_A             NUMBER,
+    STOCK_C             NUMBER,
+    STOCK_D             NUMBER,
+    STOCK_D_PER         NUMBER,
+    BOND_B              NUMBER,
+    BOND_S              NUMBER,
+    BOND_UNDER          NUMBER,
+    BOND_UNDER_PER      NUMBER,
+    BOND_S_UNDER        NUMBER,
+    BOND_S_UNDER_PER    NUMBER,
+    BOND_S_B            NUMBER,
+    BOND_S_B_PER        NUMBER,
+    DEPOSIT_TDAY        NUMBER,
+    PASS_DAY            NUMBER,
+    EX_STOCK            NUMBER,
+    EX_BOND             NUMBER,
+    EX_CASH             NUMBER,
+    STOCK_VENTURE       NUMBER,
+    STOCK_VENTURE_B     NUMBER,
+    IP_USER             VARCHAR2(8),
+    BOND_A              NUMBER,
+    BOND_S_A2           NUMBER,
+    SJ_AEK              NUMBER,
+    EX_SJ_AEK           NUMBER,
+    HM_AEK              NUMBER,
+    EX_HM_AEK           NUMBER
+)
+TABLESPACE DATA_KFP
+STORAGE
+(
+    INITIAL 64K
+    NEXT 1M
+)
+NOCOMPRESS;
+
+
+CREATE TABLE KFP.UZM0HY_2402
+(
+    CORP_GR         VARCHAR2(8) NOT NULL,
+    YMD             DATE NOT NULL,
+    FUND_CD         VARCHAR2(12) NOT NULL,
+    PJ_AEK          NUMBER,
+    TOTAL_ASSET     NUMBER,
+    NAV             NUMBER,
+    EX_SIGA_AEK     NUMBER,
+    EX_NAV          NUMBER,
+    STOCK_TOT       NUMBER,
+    STOCK_PER       NUMBER,
+    STOCK_A         NUMBER,
+    STOCK_C         NUMBER,
+    STOCK_D         NUMBER,
+    STOCK_D_PER     NUMBER,
+    BOND_B          NUMBER,
+    BOND_S          NUMBER,
+    BOND_S_UNDER    NUMBER,
+    BOND_UNDER      NUMBER,
+    BOND_UNDER_PER  NUMBER,
+    BOND_TOT        NUMBER,
+    BOND_PER        NUMBER,
+    DEPOSIT_TDAY    NUMBER,
+    PASS_DAY        NUMBER,
+    EX_STOCK        NUMBER,
+    EX_BOND         NUMBER,
+    EX_CASH         NUMBER,
+    STOCK_VENTURE   NUMBER,
+    STOCK_VENTURE_B NUMBER
+)
+TABLESPACE DATA_KFP
+STORAGE
+(
+    INITIAL 64K
+    NEXT 1M
+)
+NOCOMPRESS;
+
 
 CREATE TABLE KFP.UZM0SH
 (
@@ -22845,6 +25043,62 @@ COMMENT ON COLUMN KFP.UZM0UH.BOSU_AEK IS 'TER 발생보수';
 COMMENT ON COLUMN KFP.UZM0UH.COST_AEK IS 'TER 기타비용';
 COMMENT ON COLUMN KFP.UZM0UH.SUSU_AEK IS 'TER 수수료';
 COMMENT ON COLUMN KFP.UZM0UH.COLLATERAL IS '신용대출 담보주식액';
+
+CREATE TABLE KFP.UZM0UH_20250623
+(
+    CORP_GR             VARCHAR2(8) NOT NULL,
+    YMD                 DATE NOT NULL,
+    FUND_CD             VARCHAR2(12) NOT NULL,
+    TYPE_GB             VARCHAR2(1),
+    WONBON_AEK          NUMBER,
+    AF_GYUL_YMD         DATE,
+    STOCK_AEK           NUMBER,
+    SJ_AEK              NUMBER,
+    SS_AEK              NUMBER,
+    BOND_AEK            NUMBER,
+    TONG_AEK            NUMBER,
+    CASH_AEK            NUMBER,
+    JUNGM_AEK           NUMBER,
+    BALHUM_AEK          NUMBER,
+    RP_MEIB_AEK         NUMBER,
+    CD_AEK              NUMBER,
+    CALL_AEK            NUMBER,
+    BOJNGUM_AEK         NUMBER,
+    YEGM_AEK            NUMBER,
+    FM_YECHI_AEK        NUMBER,
+    MISU_IJA            NUMBER,
+    SUNN_SUNG_AEK       NUMBER,
+    MIBAE_AEK           NUMBER,
+    JASAN_TOT_AEK       NUMBER,
+    SUN_JASAN_AEK       NUMBER,
+    SILHYN_SUIK_RT      NUMBER,
+    GIJUN_GA            NUMBER,
+    GIJUN_GA_DR         NUMBER,
+    GGIJUN_GA           NUMBER,
+    BOND_BANY_SUIK_RT   NUMBER,
+    CASH_BANY_SUIK_RT   NUMBER,
+    REAL_JASAN_AEK      NUMBER,
+    OTS_AEK             NUMBER,
+    BOSU_AEK            NUMBER,
+    COST_AEK            NUMBER,
+    SUSU_AEK            NUMBER,
+    D2_YEGM_AEK         NUMBER,
+    SEOLJ_AEK           NUMBER,
+    SEOLJ_JWA           NUMBER,
+    FUND_CURRENCY       VARCHAR2(3),
+    COLLATERAL          NUMBER,
+    STOCK_GONGMO        NUMBER,
+    BF_GYUL_YMD         DATE
+)
+TABLESPACE DATA_KFP
+STORAGE
+(
+    INITIAL 64K
+    NEXT 1M
+)
+NOCOMPRESS;
+
+COMMENT ON COLUMN KFP.UZM0UH_20250623.FUND_CURRENCY IS '계좌 기준통화';
 
 CREATE TABLE KFP.UZM0UI
 (
@@ -23046,6 +25300,75 @@ COMMENT ON COLUMN KFP.UZM0UI.JY_PG_NM IS '신용등급';
 COMMENT ON COLUMN KFP.UZM0UI.SUN_JASAN_SIGA_AEK IS '순자산용 시가평가액';
 COMMENT ON COLUMN KFP.UZM0UI.CRE_PROC IS '생성프로그램';
 
+CREATE TABLE KFP.UZM0UI_20241214
+(
+    CORP_GR             VARCHAR2(8) NOT NULL,
+    YMD                 DATE NOT NULL,
+    TYPE_GB             VARCHAR2(1) NOT NULL,
+    FUND_CD             VARCHAR2(12) NOT NULL,
+    JM_CD               VARCHAR2(12) NOT NULL,
+    BUY_DATE            VARCHAR2(8),
+    CHASU               NUMBER NOT NULL,
+    JM_NM               VARCHAR2(120),
+    AEKM                NUMBER,
+    SISE                NUMBER,
+    MAEMAE_RT           NUMBER,
+    SIGA_AEK            NUMBER,
+    WON_HWANS_SONIK     NUMBER,
+    SUNG_COST           NUMBER,
+    MISU_AEK            NUMBER,
+    MISU_IJA            NUMBER,
+    MISU_BAED_AEK       NUMBER,
+    CHUI_AEK            NUMBER,
+    ANBUN_AEK           NUMBER,
+    PYUNGA_SONIK        NUMBER,
+    DANG_MISU_IJA       NUMBER,
+    YESU_TAX            NUMBER,
+    SUNN_TAX            NUMBER,
+    SANGHW_YMD          DATE,
+    AVG_EX_RT           NUMBER,
+    JOKYONG_RT          NUMBER,
+    HALIN_RT            NUMBER,
+    ILSU                NUMBER(6),
+    TRUSTEE             VARCHAR2(5),
+    CURRENCY            VARCHAR2(3),
+    JY_SUIK_RT          NUMBER,
+    PYOM_IYUL           NUMBER,
+    NAV_TARGET_YN       VARCHAR2(1),
+    TR_DANGA            NUMBER,
+    TYPE_TRENCH         VARCHAR2(20) NOT NULL,
+    BS_TYPE             NUMBER(1) NOT NULL,
+    DANC_GB             VARCHAR2(1),
+    JM_GR               VARCHAR2(2),
+    CONS_CHUI_AEK       NUMBER,
+    JASAN_GR1           VARCHAR2(1),
+    JASAN_GR2           VARCHAR2(1),
+    LOCK_JUSU           NUMBER,
+    LST_MEIB_YMD        DATE,
+    BALH_YMD            DATE,
+    MD                  NUMBER,
+    JY_PG_NM            VARCHAR2(4),
+    SUN_JASAN_SIGA_AEK  NUMBER,
+    CRE_PROC            VARCHAR2(20),
+    VC_OLD              NUMBER,
+    BOGO_GR             VARCHAR2(20),
+    VC_OLD_DT           DATE,
+    HEDGE_AEK           NUMBER,
+    VENTURE_TYPE        VARCHAR2(1),
+    BALH_CO             VARCHAR2(5),
+    COLLATERAL          NUMBER,
+    COLL_END            DATE,
+    COLL_JUSU           NUMBER,
+    BF_IJA_YMD          DATE,
+    AF_IJA_YMD          DATE
+)
+TABLESPACE DATA_KFP
+STORAGE
+(
+    INITIAL 64K
+    NEXT 1M
+)
+NOCOMPRESS;
 
 
 CREATE TABLE KFP.VOLATILITY
@@ -23809,6 +26132,20 @@ STORAGE
 );
 
 
+CREATE TABLE KFP.XFW_USER_MENU_20231201
+(
+    USER_MENU_ID    NUMBER NOT NULL,
+    CORP_GR         VARCHAR2(10) NOT NULL,
+    USER_ID         VARCHAR2(10) NOT NULL,
+    MENU_ID         NUMBER
+)
+TABLESPACE DATA_KFP
+STORAGE
+(
+    INITIAL 64K
+    NEXT 1M
+)
+NOCOMPRESS;
 
 
 CREATE TABLE KFP.ZZEXCEL
