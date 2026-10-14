@@ -1,0 +1,151 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.kfp.aams.domain.usportfoliomodel.mapper.Ja032oMapper">
+
+    <!-- 1. 펀드/포트 만기별 목록 조회 (d_ja032o1) -->
+    <select id="selectFundList" resultType="com.kfp.aams.domain.usportfoliomodel.dto.Ja032oFundDto">
+        SELECT t1.CORP_GR                       AS corp_gr
+             , t1.FUND_CD                       AS fund_cd
+             , ia.FUND_NM                       AS xx_fund_cd
+             , ia.FUND_NM                       AS fund_nm
+             , TO_CHAR(t1.TR_YMD, 'YYYY-MM-DD') AS tr_ymd
+             , t1.WONBON_AEK                    AS wonbon_aek
+             , t1.USD_WONBON_AEK                AS usd_wonbon_aek
+             , t1.JM_PER                        AS jm_per
+             , t1.YEAR_BETA                     AS year_beta
+             , t1.MON_BETA                      AS mon_beta
+             , t1.RISK_VALUE                    AS risk_value
+             , t1.OPT_PREMIUM                   AS opt_premium
+             , t1.OPT_NOMINAL_AMT               AS opt_nominal_amt
+             , TO_CHAR(port.FYMD, 'YYYY-MM-DD') AS fymd
+             , TO_CHAR(port.TYMD, 'YYYY-MM-DD') AS tymd
+             , port.PORT_NUM                    AS port_num
+             , port.TT                          AS tt
+             , port.INST_DAYS                   AS inst_days
+             , TO_CHAR(port.MANGI, 'YYYY-MM-DD') AS mangi
+             , port.DT                          AS dt
+             , port.USD_TUJA                    AS uspm_port_usd_tuja
+             , port.YEAR_BETA                   AS uspm_port_year_beta
+             , port.MON_BETA                    AS uspm_port_mon_beta
+             , ROUND(t1.USD_WONBON_AEK * t1.JM_PER / 100, 2) AS usd_tuja
+          FROM SZT0IA_V  t1
+             , SZM0IA    ia
+             , USPM_PORT port
+         WHERE t1.CORP_GR       = #{corpGr}
+           AND t1.TR_YMD        = #{ymd}
+           AND NVL(t1.DEL,'N')  = 'N'
+           AND ia.CORP_GR       = t1.CORP_GR
+           AND ia.FUND_CD       = t1.FUND_CD
+           AND port.CORP_GR     = t1.CORP_GR
+           AND port.FUND_CD     = t1.FUND_CD
+           AND port.MANGI       &gt; #{ymd}
+           AND port.TYMD        = t1.TR_YMD
+         ORDER BY t1.FUND_CD ASC, port.PORT_NUM ASC
+    </select>
+
+    <!-- 2. 파생상품 보유 내역 및 환매수 주문 생성 목록 조회 (d_ja032o2) -->
+    <select id="selectDetailList" resultType="com.kfp.aams.domain.usportfoliomodel.dto.Ja032oDetailDto">
+        SELECT t1.CORP_GR                       AS corp_gr
+             , TO_CHAR(t1.YMD, 'YYYY-MM-DD')    AS ymd
+             , t1.FUND_CD                       AS fund_cd
+             , t1.JM_CD                         AS yj_cd
+             , ya.JM_NM                         AS xx_yj_cd
+             , t1.USD_TUJA                      AS usd_tuja
+             , t1.TARGET_RETURN_PER             AS target_return_per
+             , opt.STOCK_CHUI                   AS stock_chui
+             , opt.OPT_NOMINAL_AMT              AS opt_nominal_amt
+             , yz.JM_CD                         AS jm_cd
+             , opt_jm.JM_NM                     AS jm_nm
+             , opt_jm.HANGSA_GA                 AS hangsa_ga
+             , TO_CHAR(opt_jm.LSY_YMD, 'YYYY-MM-DD') AS lsy_ymd
+             , NVL(yz.TR_BFIL_JUSU, 0) + NVL(yz.TR_UP_JUSU, 0)
+                                       - NVL(yz.TR_DW_JUSU, 0)
+                                       + NVL(yz.RIGHT_JUSU, 0)     AS tr_jusu
+             , NVL(yz.TR_BFIL_CHUI_AEK, 0) + NVL(yz.TR_UP_CHUI_AEK, 0)
+                                           - NVL(yz.TR_DW_CHUI_AEK, 0)
+                                           + NVL(yz.RIGHT_AEK, 0)  AS tr_aek
+             , yz.OPT_NOMINAL_AMT               AS sym0yz_opt_nominal_amt
+             , CASE yz.SM_TR_GB When '3' THEN 'S71'
+                                When '4' THEN 'S81'
+                                When '5' THEN 'S91'
+                                When '6' THEN 'SA1'
+                                         ELSE '' END               AS tr_cd
+             , 0                                AS order_su
+             , 0                                AS order_aek
+             , (NVL(t1.USD_TUJA, 0) - NVL(opt.STOCK_CHUI, 0) - NVL(opt.OPT_NOMINAL_AMT, 0)) AS settable_amount
+             , ya.CURRENCY                      AS currency
+          FROM USPM     t1
+             , USPM_OPT opt
+             , SYM0YA   ya
+             , SYM0YZ   yz
+             , SYM0YA   opt_jm
+         WHERE t1.CORP_GR          = #{corpGr}
+           AND t1.FUND_CD          = #{fundCd}
+           AND t1.YMD              = #{ymd}
+           AND t1.PORT_NUM         = #{portNum}
+           AND opt.PORT            = '(' || t1.PORT_NUM || ')'
+           AND opt.CORP_GR         = t1.CORP_GR
+           AND opt.FUND_CD         = t1.FUND_CD
+           AND opt.YMD             = t1.YMD
+           AND opt.JM_CD           = t1.JM_CD
+           AND ya.CORP_GR          = t1.CORP_GR
+           AND ya.JM_CD            = t1.JM_CD
+           AND yz.CORP_GR          = t1.CORP_GR
+           AND yz.FUND_CD          = t1.FUND_CD
+           AND yz.YMD              = t1.YMD
+           AND opt_jm.CORP_GR      = yz.CORP_GR
+           AND opt_jm.JM_CD        = yz.JM_CD
+           AND opt_jm.CHANGE_JM_CD = t1.JM_CD
+         ORDER BY opt_jm.LSY_YMD ASC, t1.JM_CD ASC
+    </select>
+
+    <!-- 다음 TR_SEQ 채번 -->
+    <select id="selectNextTrSeq" resultType="java.lang.Long">
+        SELECT NVL(MAX(tr_seq), 0) + 1
+          FROM SYT1MG
+         WHERE CORP_GR = #{corpGr}
+           AND TR_YMD  = #{trYmd}
+           AND FUND_CD = #{fundCd}
+           AND JM_CD   = #{jmCd}
+           AND TR_CD   = #{trCd}
+    </select>
+
+    <!-- SYT1MG 환매수 거래 등록 -->
+    <insert id="insertSyt1mg">
+        INSERT INTO SYT1MG
+            ( CORP_GR
+            , TR_YMD
+            , TR_CD
+            , FUND_CD
+            , TR_CO_CD
+            , TRUSTEE
+            , JM_CD
+            , CURRENCY
+            , TR_SEQ
+            , TR_JUSU
+            , TR_DANGA
+            , TR_AEK
+            , TR_COST
+            , GYULJE_YMD
+            )
+        VALUES
+            ( #{corpGr}
+            , #{trYmd}
+            , #{trCd}
+            , #{fundCd}
+            , #{trCoCd}
+            , #{trustee}
+            , #{jmCd}
+            , #{currency}
+            , #{trSeq}
+            , #{trJusu}
+            , #{trDanga}
+            , #{trAek}
+            , 4
+            , #{trYmd}
+            )
+    </insert>
+
+</mapper>

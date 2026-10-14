@@ -410,7 +410,7 @@
                         return;
                     }
 
-                    // 최신 gridMaster 데이터에서 고객사별 작업일자(2402: junyongYmd 우선, 기타: hyunYmd) 추출
+                    // 최신 gridMaster 데이터에서 고객사별 작업일자(작업 기준일 hyunYmd 최우선) 추출
                     const workDateMap = {};
                     if (gridMaster) {
                         const rows = gridMaster.getData();
@@ -419,7 +419,7 @@
                             const cGr = String(r.corpGr).trim();
                             const hyun = (r.hyunYmd || "").trim();
                             const junyong = (r.junyongYmd || "").trim();
-                            let targetYmd = (cGr === "2402") ? (junyong || hyun) : hyun;
+                            let targetYmd = hyun || junyong;
                             if (targetYmd) {
                                 if (targetYmd.length === 8 && !targetYmd.includes("-")) {
                                     targetYmd = targetYmd.substring(0, 4) + "-" + targetYmd.substring(4, 6) + "-" + targetYmd.substring(6, 8);
@@ -449,8 +449,11 @@
                                 if (cudManagerDetail) cudManagerDetail.reset();
                                 if (typeof showToast === "function") showToast(resData.message || "정상적으로 저장되었습니다.", "success");
 
-                                // 열린 다른 탭 동기화 또는 알림 표시 처리
+                                // 최신 작업일자 전역 영속화 및 다른 탭 동기화 처리
                                 if (window.WorkDateSyncManager) {
+                                    if (typeof window.WorkDateSyncManager.saveWorkDateMap === 'function') {
+                                        window.WorkDateSyncManager.saveWorkDateMap(workDateMap);
+                                    }
                                     if (syncOpts && syncOpts.syncTabs) {
                                         window.WorkDateSyncManager.syncAllTabs(syncOpts.workDateMap, syncOpts.otherTabs);
                                     } else if (syncOpts && syncOpts.otherTabs && syncOpts.otherTabs.length > 0) {

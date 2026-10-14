@@ -40,4 +40,25 @@ public class WorkDateService {
         }
         return workDate;
     }
+
+    /**
+     * 회사그룹별 전영업일 조회 (YYYY-MM-DD)
+     */
+    public String getJunyongDate(String corpGr) {
+        if (corpGr == null || corpGr.isBlank()) {
+            return null;
+        }
+        return workDateMapper.selectJunyongDate(corpGr.trim());
+    }
+
+    /**
+     * 전영업일 조회 시 null/blank인 경우 오늘 날짜(YYYY-MM-DD)로 대체 반환
+     */
+    public String getJunyongDateOrDefault(String corpGr) {
+        String jDate = getJunyongDate(corpGr);
+        if (jDate == null || jDate.isBlank()) {
+            return LocalDate.now().toString();
+        }
+        return jDate;
+    }
 }

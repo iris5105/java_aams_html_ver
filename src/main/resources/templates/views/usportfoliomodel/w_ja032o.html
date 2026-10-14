@@ -1,0 +1,747 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<!--
+    W_JA032O: 파생 환매수 운용지시 (사무관리 > US Portfolio Model > USPM)
+    DataWindows:
+      - dw_c: dc_ymd_dddw (기준일자 @ 매매처)
+      - dw_list: d_ja032o1 (펀드/포트 만기별 목록)
+      - dw_detail: d_ja032o2 (파생상품 보유 내역 및 환매수 주문 생성)
+-->
+<div class="view-container layout-split ja032o-container layout-mobile-stack-container" th:fragment="ja032oView">
+
+    <!-- 1. Top Action Control Bar -->
+    <div class="view-toolbar">
+        <div class="toolbar-left">
+            <div th:replace="~{fragments/tab_header :: toolbarButtons}"></div>
+        </div>
+        <div th:replace="~{fragments/tab_header :: toolbarBreadcrumb}"></div>
+    </div>
+
+    <!-- 2. Sub Filter Bar: 기준일자@매매처 -->
+    <div class="filter-bar">
+        <div class="filter-left">
+            <div th:replace="~{fragments/filter/dc_ymd_dddw :: filter(labelYmd='기준일자', labelDddw='매매처')}"></div>
+        </div>
+    </div>
+
+    <!-- 3. 파워빌더 wt_listdetail 원본 100% 반영: 상하 수직 분할 (상단: 펀드 목록 / 하단: 파생상품 보유 및 환매수 주문) -->
+    <div class="layout-split-v split-body layout-mobile-stack" data-split-key="W_JA032O_V" data-default-ratio="45:55" style="height: 100%; width: 100%; display: flex; flex-direction: column; min-height: 0;">
+
+        <!-- 3-1. Upper Panel (dw_list): 펀드/포트 만기별 목록 (d_ja032o1) -->
+        <div class="pane-top master-section" style="display: flex; flex-direction: column; overflow: hidden;">
+            <div class="sub-grid-header">
+                <span class="sub-title"><i class="fa-solid fa-list-check"></i> 펀드별 포트폴리오 만기 목록</span>
+            </div>
+            <div class="pane-body" style="flex: 1; min-height: 0; overflow: hidden;">
+                <div id="gridJa032oFund" class="tabulator-aams-grid" style="height: 100%; width: 100%;"></div>
+            </div>
+        </div>
+
+        <!-- 상하 스플리터 구분선 핸들 -->
+        <div class="split-gutter-v" title="드래그하여 상하 비율 조절 (더블클릭 시 기본 비율로 복원)"></div>
+
+        <!-- 3-2. Lower Panel (dw_detail): 파생상품 보유 내역 및 환매수 주문 생성 (d_ja032o2) -->
+        <div class="pane-bottom detail-section" style="display: flex; flex-direction: column; overflow: hidden;">
+            <div class="sub-grid-header">
+                <span class="sub-title"><i class="fa-solid fa-layer-group"></i> 파생상품 보유 내역 및 환매수 주문 생성</span>
+                <div class="sub-grid-actions">
+                    <button type="button" class="t-btn btn-action btn-primary" id="btnJa032oCreateOrders" title="환매수 주문생성 실행" style="padding: 2px 10px; font-size: 12px;">
+                        <i class="fa-solid fa-cart-shopping"></i> 환매수 주문생성
+                    </button>
+                </div>
+            </div>
+            <div class="pane-body" style="flex: 1; min-height: 0; overflow: hidden;">
+                <div id="gridJa032oDetail" class="tabulator-aams-grid" style="height: 100%; width: 100%;"></div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- 스크립트 격리 블록 -->
+    <script th:inline="javascript">
+    (function () {
+        'use strict';
+
+        var currentScript = document.currentScript;
+        var pane = currentScript ? (currentScript.closest('.tab-pane') || currentScript.closest('.view-container')) : null;
+        if (!pane) {
+            pane = document.querySelector('.tab-pane.active') || document.querySelector('.ja032o-container') || document;
+        }
+        var currentPane = pane;
+        if (!currentPane) return;
+
+        var isInitialized = false;
+
+        // 그리드 인스턴스
+        var gridFund = null;
+        var gridDetail = null;
+
+        // 마스터-디테일 중복 fetch 방지 키
+        var lastLoadedFundKey = null;
+
+        // 선택된 마스터 행 데이터 캐시
+        var currentFundRowData = null;
+
+        // 1. 매매처 DDDW 초기화 (f_dddwctl 2칸 분할 드롭다운)
+        function initTrCoDddw() {
+            var corpGr = resolveCorpGr(currentPane);
+            if (typeof window.initFilterDddw === 'function') {
+                return window.initFilterDddw(currentPane, {
+                    selectId: 'filterDddw',
+                    dddwId: 'tr_co_cd',
+                    corpGr: corpGr,
+                    seq: 1,
+                    codeTitle: '코드',
+                    nameTitle: '매매처명',
+                    onSelect: function (code, name) {
+                        // 웹 표준 UX 정책: 필터 조건 변경 시 자동 조회는 절대 실행하지 않음
+                    }
+                });
+            } else if (typeof window.f_dddwctl === 'function') {
+                var selectEl = currentPane.querySelector('#filterDddw, select[name="dddw"]');
+                if (!selectEl) return Promise.resolve();
+                return window.f_dddwctl('tr_co_cd', corpGr, '', 1, '').then(function (options) {
+                    if (options && options.length > 0) {
+                        selectEl.innerHTML = '';
+                        options.forEach(function (opt) {
+                            var code = (opt.code != null ? opt.code : (opt.cd || '')).toString().trim();
+                            var name = (opt.name != null ? opt.name : (opt.dscr || code)).toString().trim();
+                            var optionEl = document.createElement("option");
+                            optionEl.value = code;
+                            optionEl.textContent = name ? (code + ': ' + name) : code;
+                            selectEl.appendChild(optionEl);
+                        });
+                        if (typeof window.f_dddwctl.get2ColItemFormatter === 'function') {
+                            window.f_dddwctl.get2ColItemFormatter(selectEl, options, {
+                                codeTitle: "코드",
+                                nameTitle: "매매처명",
+                                defaultVal: options[0].code,
+                                onSelect: function (val) {
+                                    selectEl.value = val;
+                                }
+                            });
+                        }
+                    }
+                }).catch(function (err) {
+                    console.warn('[Ja032o] tr_co_cd DDDW load warning:', err);
+                });
+            }
+            return Promise.resolve();
+        }
+
+        function markRowUpdated(cell) {
+            var row = cell.getRow();
+            var data = row.getData();
+            if (!data.isNew) {
+                data.isUpdated = true;
+            }
+        }
+
+        // 안전한 그리드 초기화
+        function safeClearGrid(grid) {
+            if (!grid) return;
+            try {
+                if (grid.element && grid.modules && grid.modules.data && typeof grid.clearData === 'function') {
+                    grid.clearData();
+                } else if (typeof grid.setData === 'function') {
+                    grid.setData([]);
+                }
+            } catch (e) {
+                try {
+                    grid.setData([]);
+                } catch (e2) {}
+            }
+        }
+
+        // 2. 상단 펀드/포트 목록 그리드 초기화 (dw_list / d_ja032o1)
+        function initFundGrid() {
+            var container = currentPane.querySelector('#gridJa032oFund');
+            if (!container) return;
+
+            gridFund = new Tabulator(container, {
+                height: "100%",
+                layout: "fitDataFill",
+                selectableRows: 1,
+                editTriggerEvent: "click",
+                placeholder: "조회된 펀드/포트 데이터가 없습니다.",
+                columns: [
+                    {
+                        title: "No.",
+                        formatter: "rownum",
+                        width: 45,
+                        hozAlign: "center",
+                        headerHozAlign: "center",
+                        headerSort: false
+                    },
+                    {
+                        title: "관리번호",
+                        field: "fundCd",
+                        width: 95,
+                        hozAlign: "center",
+                        headerHozAlign: "center"
+                    },
+                    {
+                        title: "펀드명",
+                        field: "fundNm",
+                        width: 170,
+                        minWidth: 140,
+                        hozAlign: "left",
+                        headerHozAlign: "center"
+                    },
+                    {
+                        title: "투자원본<br>(USD)",
+                        field: "usdWonbonAek",
+                        width: 105,
+                        hozAlign: "right",
+                        headerHozAlign: "center",
+                        formatter: function (cell) {
+                            var val = cell.getValue();
+                            return val != null ? (window.formatNumber ? window.formatNumber(val, 0) : Number(val).toLocaleString()) : "";
+                        }
+                    },
+                    {
+                        title: "투자목표액<br>(USD)",
+                        field: "usdTuja",
+                        width: 110,
+                        hozAlign: "right",
+                        headerHozAlign: "center",
+                        headerCssClass: "col-hdr-blue",
+                        formatter: function (cell) {
+                            var val = cell.getValue();
+                            var s = val != null ? (window.formatNumber ? window.formatNumber(val, 0) : Number(val).toLocaleString()) : "";
+                            return '<span class="cell-text-blue font-bold">' + s + '</span>';
+                        }
+                    },
+                    {
+                        title: "전략베타<br>(1년)",
+                        field: "yearBeta",
+                        width: 85,
+                        hozAlign: "center",
+                        headerHozAlign: "center",
+                        headerCssClass: "col-hdr-green",
+                        formatter: function (cell) {
+                            var val = cell.getValue();
+                            var s = val != null ? (window.formatNumber ? window.formatNumber(val, 4) : Number(val).toFixed(4)) : "";
+                            return '<span class="cell-text-green">' + s + '</span>';
+                        }
+                    },
+                    {
+                        title: "전략베타<br>(1개월)",
+                        field: "monBeta",
+                        width: 85,
+                        hozAlign: "center",
+                        headerHozAlign: "center",
+                        headerCssClass: "col-hdr-green",
+                        formatter: function (cell) {
+                            var val = cell.getValue();
+                            var s = val != null ? (window.formatNumber ? window.formatNumber(val, 4) : Number(val).toFixed(4)) : "";
+                            return '<span class="cell-text-green">' + s + '</span>';
+                        }
+                    },
+                    {
+                        title: "펀드<br>위험값",
+                        field: "riskValue",
+                        width: 95,
+                        hozAlign: "right",
+                        headerHozAlign: "center",
+                        headerCssClass: "col-hdr-red",
+                        formatter: function (cell) {
+                            var val = cell.getValue();
+                            var s = val != null ? (window.formatNumber ? window.formatNumber(val, 0) : Number(val).toLocaleString()) : "";
+                            return '<span class="cell-text-red">' + s + '</span>';
+                        }
+                    },
+                    {
+                        title: "옵션<br>명목금액",
+                        field: "optNominalAmt",
+                        width: 105,
+                        hozAlign: "right",
+                        headerHozAlign: "center",
+                        formatter: function (cell) {
+                            var val = cell.getValue();
+                            return val != null ? (window.formatNumber ? window.formatNumber(val, 0) : Number(val).toLocaleString()) : "";
+                        }
+                    },
+                    {
+                        title: "옵션<br>프리미엄",
+                        field: "optPremium",
+                        width: 100,
+                        hozAlign: "right",
+                        headerHozAlign: "center",
+                        formatter: function (cell) {
+                            var val = cell.getValue();
+                            return val != null ? (window.formatNumber ? window.formatNumber(val, 0) : Number(val).toLocaleString()) : "";
+                        }
+                    },
+                    {
+                        title: "포트",
+                        field: "portNum",
+                        width: 60,
+                        hozAlign: "center",
+                        headerHozAlign: "center"
+                    },
+                    {
+                        title: "변동성<br>계산기준",
+                        field: "tt",
+                        width: 85,
+                        hozAlign: "center",
+                        headerHozAlign: "center"
+                    },
+                    {
+                        title: "만기일",
+                        field: "mangi",
+                        width: 105,
+                        hozAlign: "center",
+                        headerHozAlign: "center"
+                    },
+                    {
+                        title: "잔존<br>일수",
+                        field: "dt",
+                        width: 65,
+                        hozAlign: "center",
+                        headerHozAlign: "center",
+                        formatter: function (cell) {
+                            var v = cell.getValue();
+                            return v != null ? v : "";
+                        }
+                    },
+                    {
+                        title: "포트목표액<br>(USD)",
+                        field: "uspmPortUsdTuja",
+                        width: 110,
+                        hozAlign: "right",
+                        headerHozAlign: "center",
+                        formatter: function (cell) {
+                            var val = cell.getValue();
+                            return val != null ? (window.formatNumber ? window.formatNumber(val, 0) : Number(val).toLocaleString()) : "";
+                        }
+                    }
+                ]
+            });
+
+            // 마스터-디테일 삼중 안전망 연결
+            setupTabulatorRowSelection(gridFund, function (row, data) {
+                syncFundToDetail(row, data);
+            });
+            gridFund.on("rowClick", function (e, row) {
+                syncFundToDetail(row, row ? row.getData() : null);
+            });
+            gridFund.on("rowSelectionChanged", function (data, rows) {
+                if (rows && rows.length > 0) {
+                    syncFundToDetail(rows[0], rows[0].getData());
+                }
+            });
+        }
+
+        // 3. 하단 파생상품 보유 내역 및 환매수 주문 그리드 초기화 (dw_detail / d_ja032o2)
+        function initDetailGrid() {
+            var container = currentPane.querySelector('#gridJa032oDetail');
+            if (!container) return;
+
+            gridDetail = new Tabulator(container, {
+                height: "100%",
+                layout: "fitDataFill",
+                selectableRows: 1,
+                editTriggerEvent: "click",
+                placeholder: "상단에서 펀드/포트를 선택하세요.",
+                columns: [
+                    {
+                        title: "No.",
+                        formatter: "rownum",
+                        width: 45,
+                        hozAlign: "center",
+                        headerHozAlign: "center",
+                        headerSort: false
+                    },
+                    {
+                        title: "종목명",
+                        field: "xxYjCd",
+                        width: 150,
+                        hozAlign: "left",
+                        headerHozAlign: "center"
+                    },
+                    {
+                        title: "투자목표액<br>(USD)",
+                        field: "usdTuja",
+                        width: 110,
+                        hozAlign: "right",
+                        headerHozAlign: "center",
+                        headerCssClass: "col-hdr-blue",
+                        formatter: function (cell) {
+                            var val = cell.getValue();
+                            var s = val != null ? (window.formatNumber ? window.formatNumber(val, 0) : Number(val).toLocaleString()) : "";
+                            return '<span class="cell-text-blue font-bold">' + s + '</span>';
+                        }
+                    },
+                    {
+                        title: "세팅<br>가능금액",
+                        field: "settableAmount",
+                        width: 110,
+                        hozAlign: "right",
+                        headerHozAlign: "center",
+                        headerCssClass: "col-hdr-green",
+                        formatter: function (cell) {
+                            var val = cell.getValue();
+                            var s = val != null ? (window.formatNumber ? window.formatNumber(val, 0) : Number(val).toLocaleString()) : "";
+                            return '<span class="cell-text-green">' + s + '</span>';
+                        }
+                    },
+                    {
+                        title: "보유종목",
+                        field: "jmCd",
+                        width: 160,
+                        hozAlign: "left",
+                        headerHozAlign: "center"
+                    },
+                    {
+                        title: "보유종목명",
+                        field: "jmNm",
+                        width: 180,
+                        hozAlign: "left",
+                        headerHozAlign: "center"
+                    },
+                    {
+                        title: "행사가격",
+                        field: "hangsaGa",
+                        width: 90,
+                        hozAlign: "right",
+                        headerHozAlign: "center",
+                        formatter: function (cell) {
+                            var val = cell.getValue();
+                            return val != null ? (window.formatNumber ? window.formatNumber(val, 1) : Number(val).toFixed(1)) : "";
+                        }
+                    },
+                    {
+                        title: "만기일",
+                        field: "lsyYmd",
+                        width: 100,
+                        hozAlign: "center",
+                        headerHozAlign: "center"
+                    },
+                    {
+                        title: "보유수량",
+                        field: "trJusu",
+                        width: 90,
+                        hozAlign: "right",
+                        headerHozAlign: "center",
+                        formatter: function (cell) {
+                            var val = cell.getValue();
+                            return val != null ? (window.formatNumber ? window.formatNumber(val, 0) : Number(val).toLocaleString()) : "";
+                        }
+                    },
+                    {
+                        title: "취득액",
+                        field: "trAek",
+                        width: 105,
+                        hozAlign: "right",
+                        headerHozAlign: "center",
+                        formatter: function (cell) {
+                            var val = cell.getValue();
+                            return val != null ? (window.formatNumber ? window.formatNumber(val, 0) : Number(val).toLocaleString()) : "";
+                        }
+                    },
+                    {
+                        title: "주문수량",
+                        field: "orderSu",
+                        width: 95,
+                        hozAlign: "right",
+                        headerHozAlign: "center",
+                        editor: "input",
+                        headerCssClass: "col-hdr-blue",
+                        cellClick: function (e, cell) {
+                            aamsCellEdit(e, cell);
+                            var row = cell.getRow();
+                            var curVal = parseFloat(cell.getValue()) || 0;
+                            // 파워빌더 dw_detail::clicked 원본: order_su 클릭 시 tr_jusu(보유수량) 자동 바인딩
+                            if (curVal <= 0) {
+                                var d = row.getData();
+                                var jusu = parseFloat(d.trJusu) || 0;
+                                if (jusu > 0) {
+                                    row.update({ orderSu: jusu, isUpdated: true });
+                                }
+                            }
+                        },
+                        cellEdited: function (cell) {
+                            markRowUpdated(cell);
+                        }
+                    },
+                    {
+                        title: "주문단가",
+                        field: "orderAek",
+                        width: 95,
+                        hozAlign: "right",
+                        headerHozAlign: "center",
+                        editor: "input",
+                        headerCssClass: "col-hdr-blue",
+                        cellClick: aamsCellEdit,
+                        cellEdited: function (cell) {
+                            markRowUpdated(cell);
+                        }
+                    }
+                ]
+            });
+        }
+
+        // 4. 마스터-디테일 연동: 펀드 선택 -> 파생상품 보유 및 주문 목록 조회
+        function syncFundToDetail(row, fundRowData) {
+            if (!row) return;
+            if (!row.isSelected || !row.isSelected()) row.select();
+            var data = fundRowData || (row.getData ? row.getData() : null);
+            if (!data) return;
+
+            var currentKey = (data.corpGr || "") + "_" + (data.fundCd || "") + "_" + (data.portNum || "");
+            if (lastLoadedFundKey === currentKey) return;
+            lastLoadedFundKey = currentKey;
+
+            currentFundRowData = data;
+            loadDetailList(data);
+        }
+
+        // 5. API 데이터 로드 함수들
+        function loadFundList() {
+            var corpGr = resolveCorpGr(currentPane);
+            var ymd = getFilterYmd(currentPane, 'YYYY-MM-DD');
+
+            if (!corpGr) {
+                if (window.showToast) window.showToast("회사그룹을 선택해주세요.", "warning");
+                return;
+            }
+            if (!ymd) {
+                if (window.showToast) window.showToast("기준일자를 선택해주세요.", "warning");
+                return;
+            }
+
+            var url = '/api/usportfoliomodel/ja032o/funds?corpGr=' + encodeURIComponent(corpGr) + '&ymd=' + encodeURIComponent(ymd);
+            fetch(url)
+                .then(function (res) { return res.json(); })
+                .then(function (data) {
+                    lastLoadedFundKey = null;
+                    currentFundRowData = null;
+
+                    var list = Array.isArray(data) ? data : [];
+                    if (list.length === 0) {
+                        safeClearGrid(gridDetail);
+                    }
+
+                    if (gridFund) {
+                        gridFund.setData(list).then(function () {
+                            if (list.length > 0) {
+                                var rows = gridFund.getRows();
+                                if (rows.length > 0) {
+                                    rows[0].select();
+                                    syncFundToDetail(rows[0], rows[0].getData());
+                                }
+                            }
+                        });
+                    }
+                })
+                .catch(function (err) {
+                    console.error("펀드 목록 조회 실패:", err);
+                    if (typeof showToast === 'function') showToast("펀드 목록 조회 중 오류가 발생했습니다.", "error");
+                });
+        }
+
+        function loadDetailList(fundData) {
+            var corpGr = fundData.corpGr || resolveCorpGr(currentPane);
+            var ymd = fundData.trYmd || getFilterYmd(currentPane, 'YYYY-MM-DD');
+            var fundCd = fundData.fundCd;
+            var portNum = fundData.portNum;
+
+            if (!fundCd || !portNum) {
+                safeClearGrid(gridDetail);
+                return;
+            }
+
+            var url = '/api/usportfoliomodel/ja032o/details?corpGr=' + encodeURIComponent(corpGr) +
+                '&ymd=' + encodeURIComponent(ymd) +
+                '&fundCd=' + encodeURIComponent(fundCd) +
+                '&portNum=' + encodeURIComponent(portNum);
+
+            fetch(url)
+                .then(function (res) { return res.json(); })
+                .then(function (data) {
+                    var list = Array.isArray(data) ? data : [];
+                    if (gridDetail) {
+                        gridDetail.setData(list);
+                    }
+                })
+                .catch(function (err) {
+                    console.error("파생 보유 내역 조회 실패:", err);
+                    if (typeof showToast === 'function') showToast("파생 보유 내역 조회 중 오류가 발생했습니다.", "error");
+                });
+        }
+
+        // 6. 환매수 주문생성 실행 (cb_syt0mg)
+        function executeCreateRepurchaseOrders() {
+            if (!gridDetail || !currentFundRowData) {
+                if (typeof showToast === 'function') showToast("상단에서 펀드/포트를 먼저 선택하세요.", "warning");
+                return;
+            }
+
+            var orderItems = [];
+            gridDetail.getData().forEach(function (d) {
+                var su = parseFloat(d.orderSu) || 0;
+                var aek = parseFloat(d.orderAek) || 0;
+                if (su > 0 && aek > 0) {
+                    orderItems.push({
+                        jmCd: d.jmCd,
+                        yjCd: d.yjCd,
+                        currency: d.currency || "USD",
+                        trCd: d.trCd || "S71",
+                        orderSu: su,
+                        orderAek: aek
+                    });
+                }
+            });
+
+            if (orderItems.length === 0) {
+                if (typeof showToast === 'function') showToast("주문수량과 주문단가가 입력된 행이 없습니다.", "warning");
+                return;
+            }
+
+            var trCoSelect = currentPane.querySelector('#filterDddw, select[name="dddw"]');
+            var trCoCd = trCoSelect ? (trCoSelect.value || '').trim() : '';
+            if (!trCoCd) {
+                if (typeof showToast === 'function') showToast("상단 필터에서 매매처를 선택해주세요.", "warning");
+                return;
+            }
+
+            if (!confirm("선택된 " + orderItems.length + "건에 대해 환매수 주문생성을 실행하시겠습니까?")) {
+                return;
+            }
+
+            var payload = {
+                corpGr: resolveCorpGr(currentPane),
+                ymd: getFilterYmd(currentPane, 'YYYY-MM-DD'),
+                trCoCd: trCoCd,
+                fundCd: currentFundRowData.fundCd,
+                portNum: currentFundRowData.portNum,
+                items: orderItems
+            };
+
+            fetch('/api/usportfoliomodel/ja032o/create-orders', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            })
+            .then(function (res) { return res.json(); })
+            .then(function (resData) {
+                if (resData && resData.success) {
+                    if (typeof showToast === 'function') showToast(resData.message || "환매수 생성을 완료 했습니다.", "success");
+                    gridDetail.getRows().forEach(function (r) {
+                        var d = r.getData();
+                        if (parseFloat(d.orderSu) > 0) {
+                            r.update({ orderSu: 0, orderAek: 0, isUpdated: false });
+                        }
+                    });
+                } else {
+                    var msg = (resData && resData.message) ? resData.message : "환매수 생성에 실패했습니다.";
+                    if (typeof showToast === 'function') showToast(msg, "error");
+                }
+            })
+            .catch(function (err) {
+                console.error("환매수 주문생성 통신 오류:", err);
+                if (typeof showToast === 'function') showToast("주문생성 중 오류가 발생했습니다.", "error");
+            });
+        }
+
+        // 7. 상단 공통 툴바 표준 계약 이벤트 바인딩
+        function initEvents() {
+            var targets = [currentPane];
+            var vc = currentPane.querySelector ? currentPane.querySelector('.view-container') : null;
+            if (vc && vc !== currentPane) targets.push(vc);
+
+            targets.forEach(function (t) {
+                // [조회]
+                t.onSearch = t.onRetrieve = function () {
+                    loadFundList();
+                };
+
+                // [새로고침]
+                t.onClear = t.onRefresh = function () {
+                    safeClearGrid(gridFund);
+                    safeClearGrid(gridDetail);
+
+                    currentFundRowData = null;
+                    lastLoadedFundKey = null;
+
+                    if (typeof showToast === 'function') showToast("화면이 초기화되었습니다.", "info");
+                };
+
+                // [회사그룹 변경]
+                t.onCorpGrChange = function () {
+                    initTrCoDddw();
+                };
+
+                // [엑셀]
+                t.onExcel = function () {
+                    var ymdStr = getFilterYmd(currentPane, 'YYYYMMDD') || '';
+                    if (gridDetail && gridDetail.getData().length > 0) {
+                        gridDetail.download("xlsx", "USPM_환매수주문목록_" + ymdStr + ".xlsx", { sheetName: "환매수주문" });
+                    } else if (gridFund) {
+                        gridFund.download("xlsx", "USPM_펀드목록_" + ymdStr + ".xlsx", { sheetName: "펀드목록" });
+                    }
+                };
+            });
+
+            // 화면 전용 버튼 바인딩
+            var btnCreate = currentPane.querySelector('#btnJa032oCreateOrders');
+            if (btnCreate) {
+                btnCreate.addEventListener('click', executeCreateRepurchaseOrders);
+            }
+        }
+
+        // 8. MDI 단일 진입점 초기화
+        function startInit() {
+            if (isInitialized || currentPane.dataset.initialized === "true") return;
+            isInitialized = true;
+            currentPane.dataset.initialized = "true";
+
+            initEvents();
+            if (typeof window.initFilterCalendar === 'function') {
+                window.initFilterCalendar(currentPane);
+            }
+            initTrCoDddw();
+
+            initFundGrid();
+            initDetailGrid();
+
+            // 스플리터 초기화 (AamsSplitter 표준)
+            if (window.AamsSplitter && window.AamsSplitter.init) {
+                window.AamsSplitter.init(currentPane);
+            }
+
+            // 테이블 초기화 완료(tableBuilt) 대기 후 초기 자동 조회 (Rule: eb_direct_retrieve = true)
+            var builtPromises = [];
+            [gridFund, gridDetail].forEach(function (g) {
+                if (g) {
+                    builtPromises.push(new Promise(function (resolve) {
+                        if (g.element && g.modules && g.modules.data) {
+                            resolve();
+                        } else {
+                            g.on("tableBuilt", function () {
+                                resolve();
+                            });
+                        }
+                    }));
+                }
+            });
+
+            var fallbackTimer = new Promise(function (resolve) {
+                setTimeout(resolve, 300);
+            });
+
+            Promise.race([Promise.all(builtPromises), fallbackTimer]).then(function () {
+                loadFundList();
+            });
+        }
+
+        if (document.readyState === "loading") {
+            document.addEventListener("DOMContentLoaded", startInit);
+        } else {
+            startInit();
+        }
+    })();
+    </script>
+</div>
+</html>

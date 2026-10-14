@@ -334,8 +334,13 @@ function initFilterCalendar(pane, options) {
                || root.querySelector('.aams-calendar-input');
     if (!input) return;
 
-    const initialYmd = options.initialYmd || input.value || (input.getAttribute ? input.getAttribute('value') : '') || '';
-    if (initialYmd && !input.value) {
+    var detectedCorpGr = (typeof resolveCorpGr === 'function') ? resolveCorpGr(pane) : '';
+    var syncYmd = (window.WorkDateSyncManager && typeof window.WorkDateSyncManager.getWorkDate === 'function')
+        ? window.WorkDateSyncManager.getWorkDate(detectedCorpGr)
+        : '';
+
+    const initialYmd = syncYmd || options.initialYmd || input.value || (input.getAttribute ? input.getAttribute('value') : '') || '';
+    if (initialYmd) {
         input.value = initialYmd;
     }
 
@@ -3334,6 +3339,65 @@ window.sanitizeGridData = function(grid, dataList, extraAllowedFields) {
         },
 
         /**
+         * 작업일자 맵을 메모리 및 localStorage에 영속화
+         */
+        saveWorkDateMap: function(workDateMap) {
+            if (!workDateMap || typeof workDateMap !== 'object') return;
+            window.g_workDateMap = Object.assign({}, window.g_workDateMap || {}, workDateMap);
+            try {
+                var existing = {};
+                try { existing = JSON.parse(localStorage.getItem('aams_work_dates') || '{}'); } catch(e) {}
+                var merged = Object.assign({}, existing, workDateMap);
+                localStorage.setItem('aams_work_dates', JSON.stringify(merged));
+            } catch (err) {
+                console.warn("[WorkDateSyncManager] Failed to persist workDateMap to localStorage:", err);
+            }
+        },
+
+        /**
+         * 회사그룹별 최신 작업일자 조회 (메모리 -> localStorage 우선순위)
+         */
+        getWorkDate: function(corpGr) {
+            corpGr = (corpGr || "").trim();
+            if (window.g_workDateMap && corpGr && window.g_workDateMap[corpGr]) {
+                return window.g_workDateMap[corpGr];
+            }
+            try {
+                var stored = JSON.parse(localStorage.getItem('aams_work_dates') || '{}');
+                if (stored && corpGr && stored[corpGr]) {
+                    if (!window.g_workDateMap) window.g_workDateMap = {};
+                    window.g_workDateMap[corpGr] = stored[corpGr];
+                    return stored[corpGr];
+                }
+                if (!corpGr && stored) {
+                    var keys = Object.keys(stored);
+                    if (keys.length > 0) return stored[keys[0]];
+                }
+            } catch (e) {}
+            return (window.g_workDateMap && window.g_workDateMap['2402']) ? window.g_workDateMap['2402'] : '';
+        },
+
+        /**
+         * 특정 탭 컨테이너의 기준일자 인풋을 최신 작업일자로 동기화
+         */
+        syncPane: function(pane, corpGr) {
+            if (!pane) return;
+            var targetCorp = corpGr || this.detectCorpGr(pane);
+            var targetYmd = this.getWorkDate(targetCorp);
+            if (!targetYmd) return;
+
+            var dateInputs = this.findDateInputs(pane);
+            dateInputs.forEach(function(input) {
+                if (input) {
+                    input.value = targetYmd;
+                    if (input._flatpickr && typeof input._flatpickr.setDate === 'function') {
+                        input._flatpickr.setDate(targetYmd, false);
+                    }
+                }
+            });
+        },
+
+        /**
          * 열려 있는 다른 모든 탭의 날짜를 동기화
          */
         syncAllTabs: function(workDateMap, otherTabs) {
@@ -3342,6 +3406,7 @@ window.sanitizeGridData = function(grid, dataList, extraAllowedFields) {
                 otherTabs = self.getOtherOpenTabs();
             }
             workDateMap = workDateMap || {};
+            self.saveWorkDateMap(workDateMap);
 
             var syncedCount = 0;
             otherTabs.forEach(function(tab) {

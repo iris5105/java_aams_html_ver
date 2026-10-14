@@ -253,6 +253,12 @@ class TabManager {
                         window.ButtonRole.apply(pane, tabObj.pgmNo);
                     }
 
+                    // Sync latest work date into newly opened tab if registered in WorkDateSyncManager
+                    if (window.WorkDateSyncManager && typeof window.WorkDateSyncManager.syncPane === 'function') {
+                        const currentCorpGr = (typeof resolveCorpGr === 'function' ? resolveCorpGr(pane) : '') || window.g_currentCorpGr || '';
+                        window.WorkDateSyncManager.syncPane(pane, currentCorpGr);
+                    }
+
                     // Execute scripts if present inside loaded HTML
                     const scripts = pane.querySelectorAll("script");
                     scripts.forEach(oldScript => {
@@ -547,6 +553,20 @@ class TabManager {
             let queryParams = [];
             if (pgmNo) queryParams.push(`pgmNo=${encodeURIComponent(pgmNo)}`);
             if (pgmGo) queryParams.push(`pgmGo=${encodeURIComponent(pgmGo)}`);
+
+            // 현재 활성 회사코드 추출
+            const currentCorpGr = (typeof resolveCorpGr === 'function' ? resolveCorpGr() : '') || window.g_currentCorpGr || '';
+            if (currentCorpGr) {
+                queryParams.push(`corpGr=${encodeURIComponent(currentCorpGr)}`);
+            }
+            // 최신 작업일자 추출 (WorkDateSyncManager)
+            if (window.WorkDateSyncManager && typeof window.WorkDateSyncManager.getWorkDate === 'function') {
+                const targetYmd = window.WorkDateSyncManager.getWorkDate(currentCorpGr);
+                if (targetYmd) {
+                    queryParams.push(`ymd=${encodeURIComponent(targetYmd)}`);
+                }
+            }
+
             const queryString = queryParams.length > 0 ? `?${queryParams.join('&')}` : '';
             return "/views/" + cleanId + queryString;
         }

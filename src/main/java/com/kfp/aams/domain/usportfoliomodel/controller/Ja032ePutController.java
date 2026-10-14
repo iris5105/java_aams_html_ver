@@ -28,6 +28,7 @@ public class Ja032ePutController {
 
     private final Ja032ePutService ja032ePutService;
     private final MenuService menuService;
+    private final com.kfp.aams.common.service.WorkDateService workDateService;
 
     /**
      * 뷰 렌더링
@@ -51,7 +52,7 @@ public class Ja032ePutController {
                 ? menuDto.getFullpgm2()
                 : "사무관리 > US Portfolio Model > USPM > USPM 운용지시 PUT배분작업";
 
-        String workDate = (paramYmd != null && !paramYmd.isBlank()) ? paramYmd : LocalDate.now().toString();
+        String workDate = (paramYmd != null && !paramYmd.isBlank()) ? paramYmd : workDateService.getWorkDateOrDefault(corpGr);
 
         model.addAttribute("fullpgm2", fullpgm2);
         model.addAttribute("corpGr", corpGr);
