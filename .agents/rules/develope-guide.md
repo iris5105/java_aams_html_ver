@@ -49,8 +49,9 @@ description: "AAMS 차세대 웹 시스템 개발 표준 종합 헌장 및 세�
    - **필터 조건(날짜, DDDW, 코드검색, 회사그룹) 변경 시 자동 조회를 절대 실행하지 않습니다.**
    - 필터 조건이 변경되어도 테이블의 **기존 데이터는 그대로 유지하여 표출**하며, 오직 상단 [조회] 버튼(`pane.onSearch`) 클릭 시에만 단독 실행합니다.
    - **필터 관련 액션 버튼 인접 배치 (UX 일체화 원칙)**: 화면 전용 보조 버튼(변동성재계산, 평잔재계산 등)은 오른쪽 끝(`.filter-actions`)으로 분리하지 않고, 필터 컴포넌트와 함께 **동일한 `<div class="filter-left">` 내부에 하나의 div로 묶어** 필터 바로 우측에 나란히 배치합니다.
-8. **그리드 인라인 스타일 작성 절대 금지 (Zero-Inline-Style):**
-   - `style="color:..."` 등의 인라인 스타일을 금지하고, `tabulator-custom.css`의 표준 클래스(`headerCssClass: "col-hdr-blue"`, `.cell-text-*`, `.cell-price-*`)를 사용합니다. 행 아웃라인 돌출도 엄격히 금지합니다 (Zero-Row-Outline).
+8. **그리드 인라인 스타일 작성 절대 금지 및 호가/시세 색상 동기화 (Zero-Inline-Style & Zero-Color-Omission):**
+   - `style="color:..."` 등의 인라인 스타일을 금지하고, `tabulator-custom.css`의 표준 클래스(`headerCssClass`, `.cell-text-*`, `.cell-price-*`)를 사용합니다. 행 아웃라인 돌출도 엄격히 금지합니다 (Zero-Row-Outline).
+   - 기본 식별자 컬럼(펀드코드, 펀드명, 종목명, 옵션종목)은 시스템 기본 검은색 텍스트를 유지하며, 호가/시세(BID/ASK) 컬럼처럼 헤더에 색상이 들어간 경우 데이터 셀 포매터(`cell-text-red`, `cell-text-blue`)에서도 동일 색상을 반드시 동기화 적용합니다.
 9. **그리드 날짜 수기 입력 3단계 유효성 검증 체계:**
    - 1) 에디터 지정 (`aamsDateEditor`)
    - 2) 셀 편집 완료 시 검증 (`aamsValidateDateCell`)

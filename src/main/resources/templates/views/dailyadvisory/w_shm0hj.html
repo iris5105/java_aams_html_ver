@@ -28,7 +28,6 @@
         <div class="pane-top master-section">
             <div class="pane-header">
                 <span><i class="fa-solid fa-coins"></i> ■ 현금 매입(종목) 목록</span>
-                <span id="master-count" style="font-size: 11px; color: #64748b; font-weight: normal;">[0건]</span>
             </div>
             <div class="pane-body">
                 <div id="master-grid" class="tabulator-aams-grid" style="height: 100%;"></div>
@@ -39,7 +38,6 @@
         <div class="pane-bottom detail-section">
             <div class="pane-header">
                 <span><i class="fa-solid fa-list-ol"></i> ■ <span id="detail-title">종목별 이자구간 상세</span></span>
-                <span id="detail-count" style="font-size: 11px; color: #64748b; font-weight: normal;">[0건]</span>
             </div>
             <div class="pane-body">
                 <div id="detail-grid" class="tabulator-aams-grid" style="height: 100%;"></div>
@@ -896,9 +894,6 @@
                 fetch(url)
                     .then(res => res.json())
                     .then(data => {
-                        const countEl = pane ? pane.querySelector("#master-count") : document.getElementById("master-count");
-                        if (countEl) countEl.textContent = `[${(data || []).length}건]`;
-
                         if (gridMaster) {
                             const formatted = cudManagerMaster ? cudManagerMaster.formatData(data || []) : (data || []);
                             gridMaster.setData(formatted).then(() => {
@@ -915,8 +910,6 @@
                                     if (gridDetail) gridDetail.setData([]);
                                     const detailTitle = pane ? pane.querySelector("#detail-title") : document.getElementById("detail-title");
                                     if (detailTitle) detailTitle.innerHTML = `<i class="fa-solid fa-list-ol"></i> ■ 종목별 이자구간 상세`;
-                                    const detailCount = pane ? pane.querySelector("#detail-count") : document.getElementById("detail-count");
-                                    if (detailCount) detailCount.textContent = `[0건]`;
                                 }
                             });
                         }
@@ -943,8 +936,6 @@
 
                 if (!jmCd) {
                     if (gridDetail) gridDetail.setData([]);
-                    const countEl = pane ? pane.querySelector("#detail-count") : document.getElementById("detail-count");
-                    if (countEl) countEl.textContent = "[0건]";
                     return;
                 }
 
@@ -959,9 +950,6 @@
                 fetch(url)
                     .then(res => res.json())
                     .then(data => {
-                        const countEl = pane ? pane.querySelector("#detail-count") : document.getElementById("detail-count");
-                        if (countEl) countEl.textContent = `[${(data || []).length}건]`;
-
                         if (gridDetail) {
                             gridDetail.setData(data || []).then(() => {
                                 if (data && data.length > 0) {
@@ -1072,8 +1060,6 @@
                             newRow.scrollTo();
                             selectedMasterData = newRow.getData();
                             if (gridDetail) gridDetail.setData([]);
-                            const countEl = pane ? pane.querySelector("#master-count") : document.getElementById("master-count");
-                            if (countEl) countEl.textContent = `[${gridMaster.getRows().length}건]`;
                             if (typeof showToast === 'function') showToast("신규 행이 추가되었습니다.", "info");
                         });
                     });
@@ -1102,8 +1088,6 @@
                 if (gridDetail) gridDetail.setData([]);
                 selectedMasterData = null;
                 lastLoadedMasterKey = null;
-                const countEl = pane ? pane.querySelector("#master-count") : document.getElementById("master-count");
-                if (countEl) countEl.textContent = `[${gridMaster.getRows().length}건]`;
             }
 
             // Save Master List

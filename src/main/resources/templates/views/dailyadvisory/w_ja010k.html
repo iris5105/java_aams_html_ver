@@ -32,7 +32,6 @@
         <div class="pane-left master-section">
             <div class="pane-header">
                 <span><i class="fa-solid fa-list" style="margin-right: 6px;"></i> 펀드 목록</span>
-                <span id="master-count" style="font-size: 11px; color: #64748b; font-weight: normal;">0건</span>
             </div>
             <div class="pane-body">
                 <div id="ja010k-master-grid" class="tabulator-aams-grid" style="height: 100%;"></div>
@@ -44,7 +43,6 @@
             <div class="pane-header">
                 <span><i class="fa-solid fa-table-list" style="margin-right: 6px;"></i> 수요예측 참여 상세 (<span id="selected-fund-name" style="color: #2563eb;">선택된 펀드 없음</span>)</span>
                 <div style="display: flex; align-items: center; gap: 6px;">
-                    <span id="detail-count" style="font-size: 11px; color: #64748b; font-weight: normal; margin-right: 4px;">0건</span>
                     <!-- Detail Sub Action Buttons matching PowerBuilder UI -->
                     <div class="btn-group-sub" style="display: inline-flex; gap: 3px;">
                         <button type="button" id="btnDetailRefresh" class="btn-action btn-sub" title="상세 새로고침" style="padding: 2px 7px; font-size: 11px; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 3px; cursor: pointer;">
@@ -334,7 +332,6 @@
             // Detail Grid Data Loader
             function loadDetailGrid(corpGr, fYmd, tYmd, fundCd) {
                 if (!gridDetail) return;
-                const countEl = pane ? pane.querySelector("#detail-count") : document.getElementById("detail-count");
 
                 const url = `/api/daily/ja010k/detail?corpGr=${encodeURIComponent(corpGr)}&fymd=${encodeURIComponent(fYmd)}&tymd=${encodeURIComponent(tYmd)}&fundCd=${encodeURIComponent(fundCd)}`;
 
@@ -351,7 +348,6 @@
                         console.error("Failed to load detail data:", err);
                         gridDetail.clearData();
                         detailAllData = [];
-                        if (countEl) countEl.textContent = "0건";
                     });
             }
 
@@ -373,11 +369,8 @@
                 if (gridDetail) gridDetail.clearData();
                 detailAllData = [];
 
-                const masterCountEl = pane ? pane.querySelector("#master-count") : document.getElementById("master-count");
-                const detailCountEl = pane ? pane.querySelector("#detail-count") : document.getElementById("detail-count");
-                const nameEl = pane ? pane.querySelector("#selected-fund-name") : document.getElementById("selected-fund-name");
+                const nameEl = pane ? pane.querySelector("#selected-fund-name") : document.getElementById("#selected-fund-name");
                 if (nameEl) nameEl.textContent = "선택된 펀드 없음";
-                if (detailCountEl) detailCountEl.textContent = "0건";
 
                 const url = `/api/daily/ja010k/master?corpGr=${encodeURIComponent(corpGr)}&tymd=${encodeURIComponent(dates.tYmd)}`;
 
@@ -386,9 +379,6 @@
                     .then(data => {
                         masterAllData = data || [];
                         gridMaster.setData(masterAllData).then(() => {
-                            if (masterCountEl) {
-                                masterCountEl.textContent = masterAllData.length + "건";
-                            }
                             if (masterAllData && masterAllData.length > 0) {
                                 const rows = gridMaster.getRows();
                                 if (rows && rows.length > 0) {
@@ -402,7 +392,6 @@
                         console.error("Failed to load master data:", err);
                         gridMaster.clearData();
                         masterAllData = [];
-                        if (masterCountEl) masterCountEl.textContent = "0건";
                     });
             }
 
@@ -411,7 +400,6 @@
                 if (!gridDetail) return;
                 const kwInput = pane ? pane.querySelector("#filterFundKeyword") : document.getElementById("filterFundKeyword");
                 const kw = kwInput ? kwInput.value.trim().toLowerCase() : "";
-                const countEl = pane ? pane.querySelector("#detail-count") : document.getElementById("detail-count");
 
                 if (!kw) {
                     gridDetail.clearFilter();
@@ -426,13 +414,6 @@
                     });
                 }
 
-                const totalCount = (typeof gridDetail.getDataCount === "function")
-                    ? gridDetail.getDataCount("active")
-                    : (gridDetail.getRows("active") ? gridDetail.getRows("active").length : (detailAllData ? detailAllData.length : 0));
-
-                if (countEl) {
-                    countEl.textContent = totalCount + "건";
-                }
             }
 
             // Initialization Function
@@ -629,10 +610,6 @@
                     lastLoadedMasterKey = null;
                     const kwInput = pane ? pane.querySelector("#filterFundKeyword") : document.getElementById("filterFundKeyword");
                     if (kwInput) kwInput.value = "";
-                    const detailCountEl = pane ? pane.querySelector("#detail-count") : document.getElementById("detail-count");
-                    if (detailCountEl) detailCountEl.textContent = "0건";
-                    const masterCountEl = pane ? pane.querySelector("#master-count") : document.getElementById("master-count");
-                    if (masterCountEl) masterCountEl.textContent = "0건";
                     const nameEl = pane ? pane.querySelector("#selected-fund-name") : document.getElementById("selected-fund-name");
                     if (nameEl) nameEl.textContent = "선택된 펀드 없음";
                     if (typeof showToast === "function") {

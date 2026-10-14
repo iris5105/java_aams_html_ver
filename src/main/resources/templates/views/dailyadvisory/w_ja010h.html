@@ -28,7 +28,6 @@
         <div class="pane-left left-pane">
             <div class="pane-header">
                 <span class="fw-bold small text-secondary"><i class="fa-solid fa-list me-1"></i> 계좌(펀드) 목록</span>
-                <span id="fund-count-badge" class="badge bg-primary rounded-pill">0건</span>
             </div>
             <div class="pane-body">
                 <div id="ja010h-grid" class="tabulator-aams-grid" style="height: 100%; width: 100%;"></div>
@@ -251,8 +250,6 @@
                     .then(function (res) { return res.json(); })
                     .then(function (data) {
                         var list = data || [];
-                        var badge = currentPane.querySelector('#fund-count-badge');
-                        if (badge) badge.innerText = list.length + "건";
 
                         if (grid) {
                             grid.setData(list).then(function () {
@@ -372,8 +369,6 @@
                     if (filterYmdInput && initialYmd) {
                         filterYmdInput.value = initialYmd;
                     }
-                    var badge = currentPane.querySelector('#fund-count-badge');
-                    if (badge) badge.innerText = "0건";
 
                     if (typeof showToast === "function") {
                         showToast("화면이 초기화되었습니다.", "info");

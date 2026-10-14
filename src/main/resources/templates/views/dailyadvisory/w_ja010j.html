@@ -26,7 +26,6 @@
         <div class="pane-left left-pane">
             <div class="pane-header">
                 <span class="fw-bold small text-secondary"><i class="fa-solid fa-list me-1"></i> 참여그룹 목록</span>
-                <span id="group-count-badge" class="badge bg-primary rounded-pill">0건</span>
             </div>
             <div class="pane-body">
                 <div id="ja010j-grid" class="tabulator-aams-grid" style="height: 100%; width: 100%;"></div>
@@ -153,8 +152,6 @@
                     .then(function (res) { return res.json(); })
                     .then(function (data) {
                         var list = data || [];
-                        var badge = currentPane.querySelector('#group-count-badge');
-                        if (badge) badge.innerText = list.length + "건";
 
                         lastLoadedMasterKey = null;
                         if (grid) {
@@ -283,8 +280,6 @@
                     if (tEl && initialTymd) tEl.value = initialTymd;
 
                     if (reportViewer) reportViewer.clear();
-                    var badge = currentPane.querySelector('#group-count-badge');
-                    if (badge) badge.innerText = '0건';
 
                     if (typeof showToast === "function") {
                         showToast("화면이 초기화되었습니다.", "info");

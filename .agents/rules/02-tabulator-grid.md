@@ -29,6 +29,9 @@ trigger: always_on
          return !!rowData.isNew;
      }
      ```
+5. **테이블 조회 건수(Row Count) 배지 표시 절대 금지 (Zero-Count-Badge 원칙)**:
+   - 파워빌더 DataWindow 원본 환경과 동일하게, 테이블 패널 헤더(`sub-grid-header`, `pane-header` 등)나 그리드 상단/주변에 임의의 조회 건수 표시 배지(`<span class="badge ...">0건</span>`, `<span id="*-count">...</span>` 등)를 절대 작성하지 않는다.
+   - 테이블 패널 헤더에는 순수한 패널 제목(`sub-title`, `panel-title`)과 실제 기능 동작에 필요한 서브 액션 버튼(`btn-sub-grid`, 행 추가/삭제/복사 등)만을 배치하여 시각적 군더더기를 배제한다.
 
 ---
 

@@ -45,7 +45,6 @@
                 <span class="fw-bold small text-secondary">
                     <i class="fa-solid fa-list" style="color: #000000; margin-right: 6px;"></i> 계좌 목록
                 </span>
-                <span id="master-count-badge" class="badge-count" style="font-size: 11px; padding: 2px 8px; border-radius: 10px; background: #e2e8f0; color: #475569; font-weight: 600;">0건</span>
             </div>
             <div class="pane-body">
                 <div id="ja020r-master-grid" class="tabulator-aams-grid" style="height: 100%; width: 100%;"></div>
@@ -63,9 +62,6 @@
                     <span id="detail-title">취득액 상세내역</span>
                     <span id="selected-fund-info" style="color: #2563eb; font-weight: normal; margin-left: 6px;"></span>
                 </span>
-                <div style="display: flex; align-items: center; gap: 6px;">
-                    <span id="detail-count-badge" class="badge-count" style="font-size: 11px; padding: 2px 8px; border-radius: 10px; background: #e2e8f0; color: #475569; font-weight: 600;">0건</span>
-                </div>
             </div>
             <div class="pane-body">
                 <div id="ja020r-detail-grid" class="tabulator-aams-grid" style="height: 100%; width: 100%;"></div>
@@ -427,8 +423,6 @@
         if (gridDetail) gridDetail.clearData();
         lastLoadedMasterKey = null;
         currentSelectedMasterRow = null;
-        var dBadge = currentPane.querySelector('#detail-count-badge');
-        if (dBadge) dBadge.innerText = "0건";
         var fundInfoEl = currentPane.querySelector('#selected-fund-info');
         if (fundInfoEl) fundInfoEl.textContent = "";
     }
@@ -480,8 +474,6 @@
             .then(function (res) { return res.json(); })
             .then(function (data) {
                 var list = data || [];
-                var badge = currentPane.querySelector('#detail-count-badge');
-                if (badge) badge.innerText = list.length + "건";
 
                 if (gridDetail) {
                     gridDetail.setData(list);
@@ -521,8 +513,6 @@
             .then(function (res) { return res.json(); })
             .then(function (data) {
                 var list = data || [];
-                var badge = currentPane.querySelector('#master-count-badge');
-                if (badge) badge.innerText = list.length + "건";
 
                 lastLoadedMasterKey = null;
                 currentSelectedMasterRow = null;
@@ -619,8 +609,6 @@
         currentPane.onClear = currentPane.onRefresh = function () {
             if (gridMaster) gridMaster.clearData();
             clearDetail();
-            var mBadge = currentPane.querySelector('#master-count-badge');
-            if (mBadge) mBadge.innerText = "0건";
             currentRetrievedDw = getFilterDwType();
             currentRetrievedYmd = getFilterYmd(currentPane);
             currentRetrievedCorpGr = resolveCorpGr(currentPane);

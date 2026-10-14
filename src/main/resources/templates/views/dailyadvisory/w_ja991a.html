@@ -22,7 +22,6 @@
         <div class="pane-left master-section">
             <div class="pane-header">
                 <span><i class="fa-solid fa-list-ul" style="margin-right: 6px;"></i> 주식 종목 목록</span>
-                <span id="master-count" style="font-size: 11px; color: #64748b; font-weight: normal;">0건</span>
             </div>
             <div class="pane-body">
                 <div id="ja991a-master-grid" class="tabulator-aams-grid" style="height: 100%;"></div>
@@ -33,7 +32,6 @@
         <div class="pane-right detail-section">
             <div class="pane-header">
                 <span><i class="fa-solid fa-chart-line" style="margin-right: 6px;"></i> 종목별 종가 이력 (<span id="selected-jm-desc" style="color: #2563eb;">종목을 선택하세요</span>)</span>
-                <span id="detail-count" style="font-size: 11px; color: #64748b; font-weight: normal;">0건</span>
             </div>
             <div class="pane-body">
                 <div id="ja991a-detail-grid" class="tabulator-aams-grid" style="height: 100%;"></div>
@@ -91,16 +89,9 @@
             // formatDateVal은 common.js 전역 함수 사용
 
 
-            // Update Master Count badge
-            function updateMasterCount(count) {
-                const el = pane ? pane.querySelector("#master-count") : document.getElementById("master-count");
-                if (el) el.innerText = (count || 0) + "건";
-            }
-
-            // Update Detail Count badge & Title
-            function updateDetailHeader(masterData, count) {
+            // Update Detail Title
+            function updateDetailHeader(masterData) {
                 const descEl = pane ? pane.querySelector("#selected-jm-desc") : document.getElementById("selected-jm-desc");
-                const countEl = pane ? pane.querySelector("#detail-count") : document.getElementById("detail-count");
 
                 if (descEl) {
                     if (masterData) {
@@ -110,9 +101,6 @@
                     } else {
                         descEl.innerText = "종목을 선택하세요";
                     }
-                }
-                if (countEl) {
-                    countEl.innerText = (count || 0) + "건";
                 }
             }
 
@@ -188,7 +176,6 @@
                 .then(data => {
                     masterDataList = Array.isArray(data) ? data : [];
                     gridMaster.setData(masterDataList).then(() => {
-                        updateMasterCount(masterDataList.length);
                         const rows = gridMaster.getRows();
                         if (rows && rows.length > 0) {
                             if (typeof gridMaster.deselectRow === 'function') {
@@ -207,9 +194,8 @@
                     console.error("Failed to load master list:", err);
                     gridMaster.clearData();
                     masterDataList = [];
-                    updateMasterCount(0);
                     if (gridDetail) gridDetail.clearData();
-                    updateDetailHeader(null, 0);
+                    updateDetailHeader(null);
                     lastLoadedMasterKey = null;
                 });
             }

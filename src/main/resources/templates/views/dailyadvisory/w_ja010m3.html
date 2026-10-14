@@ -27,7 +27,6 @@
                     <span style="font-weight: 600; font-size: 13px; color: #1e293b;">
                         <i class="fa-solid fa-file-invoice-dollar" style="margin-right: 4px;"></i> 결산현황 목록
                     </span>
-                    <span id="grid-count" style="font-size: 11px; color: #64748b;">0건</span>
                 </div>
             </div>
             <div class="pane-body">
@@ -762,7 +761,6 @@
                 lastLoadedMasterKey = null;
                 currentSelectedRowData = null;
 
-                const countEl = pane ? pane.querySelector("#grid-count") : document.getElementById("grid-count");
                 const memoEl = pane ? pane.querySelector("#ja010m3-memo") : document.getElementById("ja010m3-memo");
                 const nameEl = pane ? pane.querySelector("#memo-fund-name") : document.getElementById("memo-fund-name");
                 if (nameEl) nameEl.textContent = "선택된 펀드 없음";
@@ -783,9 +781,6 @@
                             setTimeout(() => {
                                 if (grid) grid.redraw(true);
                             }, 60);
-                            if (countEl) {
-                                countEl.textContent = (data ? data.length : 0) + "건";
-                            }
                             // Rule 8, 15: 데스크톱만 첫 행 자동 선택, 모바일 환경에서는 첫행 autofocus/select 완전 차단
                             if (data && data.length > 0) {
                                 if (!isMobileView()) {
@@ -831,7 +826,6 @@
                     .catch(err => {
                         console.error("Failed to load ja010m3 data:", err);
                         grid.clearData();
-                        if (countEl) countEl.textContent = "0건";
                     });
             }
 
@@ -1082,8 +1076,6 @@
                     if (nameEl) nameEl.textContent = "선택된 펀드 없음";
                     const statusEl = pane ? pane.querySelector("#preview-status") : document.getElementById("preview-status");
                     if (statusEl) statusEl.textContent = "선택된 건 없음";
-                    const countEl = pane ? pane.querySelector("#grid-count") : document.getElementById("grid-count");
-                    if (countEl) countEl.textContent = "0건";
 
                     const frame = pane ? pane.querySelector("#report-frame") : document.getElementById("report-frame");
                     if (frame) {

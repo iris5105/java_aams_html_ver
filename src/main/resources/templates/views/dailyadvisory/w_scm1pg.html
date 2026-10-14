@@ -32,7 +32,6 @@
         <div class="pane-left master-section">
             <div class="pane-header">
                 <span><i class="fa-solid fa-list" style="margin-right: 6px;"></i> 채권 종목 목록</span>
-                <span id="master-count" style="font-size: 11px; color: #64748b; font-weight: normal;">0건</span>
             </div>
             <div class="pane-body">
                 <div id="scm1pg-master-grid" class="tabulator-aams-grid" style="height: 100%;"></div>
@@ -44,7 +43,6 @@
             <div class="pane-header">
                 <span><i class="fa-solid fa-award" style="margin-right: 6px;"></i> 채권 등급 및 매수계좌 (<span id="selected-jm-name" style="color: #2563eb;">선택된 종목 없음</span>)</span>
                 <div style="display: flex; align-items: center; gap: 6px;">
-                    <span id="detail-count" style="font-size: 11px; color: #64748b; font-weight: normal; margin-right: 4px;">0건</span>
                     <!-- Detail Sub Action Buttons matching PowerBuilder UI -->
                     <div class="btn-group-sub" style="display: inline-flex; gap: 3px;">
                         <button type="button" id="btnDetailRefresh" class="btn-action btn-sub" title="상세 새로고침" style="padding: 2px 7px; font-size: 11px; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 3px; cursor: pointer;">
@@ -297,21 +295,12 @@
                 // Rule 15: Select first row on data loaded
                 gridMaster.on("dataLoaded", function() {
                     const rows = gridMaster.getRows();
-                    const countEl = pane ? pane.querySelector("#master-count") : document.getElementById("master-count");
-                    if (countEl) countEl.innerText = `${rows.length}건`;
-
                     if (rows && rows.length > 0) {
                         rows[0].select();
                         syncDetail(rows[0], rows[0].getData());
                     } else {
                         clearDetail();
                     }
-                });
-
-                gridDetail.on("dataLoaded", function() {
-                    const rows = gridDetail.getRows();
-                    const countEl = pane ? pane.querySelector("#detail-count") : document.getElementById("detail-count");
-                    if (countEl) countEl.innerText = `${rows.length}건`;
                 });
 
                 // Filter search keyword event
@@ -406,8 +395,6 @@
                 }
                 const labelEl = pane ? pane.querySelector("#selected-jm-name") : document.getElementById("selected-jm-name");
                 if (labelEl) labelEl.innerText = "선택된 종목 없음";
-                const countEl = pane ? pane.querySelector("#detail-count") : document.getElementById("detail-count");
-                if (countEl) countEl.innerText = "0건";
             }
 
             function loadMaster() {

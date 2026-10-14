@@ -5,15 +5,6 @@
      style="display: flex; flex-direction: column; height: 100%; width: 100%; overflow: hidden;">
 
     <style>
-        /* 화면 전용 펀드 건수 뱃지 */
-        .ja010h1-container .badge-count {
-            background-color: #3b82f6;
-            color: #ffffff;
-            font-size: 11px;
-            font-weight: 600;
-            padding: 2px 8px;
-            border-radius: 12px;
-        }
 
         .ja010h1-container .cell-work-gb {
             color: #dc2626;
@@ -54,7 +45,6 @@
         <div class="pane-left left-pane">
             <div class="pane-header">
                 <span><i class="fa-solid fa-list" style="margin-right: 6px;"></i> 계좌(펀드) 목록</span>
-                <span id="fund-count-badge" class="badge-count">0건</span>
             </div>
             <div class="pane-body">
                 <div id="fund-grid" class="tabulator-aams-grid" style="height: 100%; width: 100%;"></div>
@@ -339,8 +329,6 @@
                     .then(function (res) { return res.json(); })
                     .then(function (data) {
                         var list = data || [];
-                        var badge = pane.querySelector('#fund-count-badge');
-                        if (badge) badge.innerText = list.length + "건";
 
                         lastLoadedMasterKey = null;
                         currentSelectedRowData = null;
@@ -520,9 +508,6 @@
 
                     var titleEl = pane.querySelector('#preview-header-title');
                     if (titleEl) titleEl.innerHTML = '<i class="fa-solid fa-file-invoice" style="margin-right: 4px;"></i> 자산명세표1 리포트';
-
-                    var badge = pane.querySelector('#fund-count-badge');
-                    if (badge) badge.innerText = "0건";
 
                     if (typeof showToast === "function") showToast("화면이 초기화되었습니다.", "info");
                 };
