@@ -273,15 +273,23 @@
 }
 
 .layout-split-v .panel-left .grid-table-wrapper,
+.layout-split-v .panel-right .grid-table-wrapper,
 .layout-split-v .io-grid-box .grid-table-wrapper {
     flex: 1 1 auto;
     height: calc(100% - 32px);
     overflow: hidden;
 }
 
+.layout-split-v .split-panel.panel-right:not(:has(.special-note-box, .io-grid-box)) {
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    background: #ffffff;
+    gap: 0;
+}
+
 /* 6. Tablet-S / Mobile Responsive Layout (<= 876px) */
 @media (max-width: 876px) {
-    /* 6-0. 최상위 모바일 스택 컨테이너 규격: 화면 바닥과의 적정 여백(22px) 및 스크롤 끝 여백 보장 */
+    /* 6-0. 최상위 모바일 스택 컨테이너 규격: 화면 바닥과의 적정 여백(24px) 및 스크롤 끝 여백 보장 */
     .layout-mobile-stack-container {
         display: flex !important;
         flex-direction: column !important;
@@ -290,15 +298,15 @@
         overflow-y: auto !important;
         overflow-x: hidden !important;
         -webkit-overflow-scrolling: touch !important;
-        padding-bottom: 22px !important;
+        padding-bottom: 24px !important;
         box-sizing: border-box !important;
     }
 
     .layout-mobile-stack-container::after {
         content: "";
         display: block;
-        height: 22px;
-        min-height: 22px;
+        height: 24px;
+        min-height: 24px;
         flex-shrink: 0;
         width: 100%;
     }
@@ -343,10 +351,10 @@
     .layout-split-v:has(.split-lr-container) > .pane-top,
     .layout-split-v:has(.special-note-box) > .pane-top,
     .layout-split-v:has(.io-grid-box) > .pane-top {
-        flex: 0 0 250px !important;
-        height: 250px !important;
-        min-height: 250px !important;
-        max-height: 250px !important;
+        flex: 0 0 290px !important;
+        height: 290px !important;
+        min-height: 290px !important;
+        max-height: 290px !important;
         border: 1px solid #cbd5e1 !important;
         border-radius: 6px !important;
         overflow: hidden !important;
@@ -371,15 +379,15 @@
         box-sizing: border-box !important;
     }
 
-    /* 하위 2분할(좌: 이력 / 우: 특이사항+입출금) 세로 순차 전개 */
+    /* 하위 2분할(좌: 이력 / 우: 종목 상세 또는 특이사항+입출금) 세로 순차 전개 - 최소 290px 높이 확보 */
     .layout-split-v .split-panel.panel-left {
         display: flex !important;
         flex-direction: column !important;
-        flex: 0 0 230px !important;
+        flex: 0 0 290px !important;
         width: 100% !important;
-        height: 230px !important;
-        min-height: 230px !important;
-        max-height: 230px !important;
+        height: 290px !important;
+        min-height: 290px !important;
+        max-height: 290px !important;
         border: 1px solid #cbd5e1 !important;
         border-radius: 6px !important;
         overflow: hidden !important;
@@ -394,7 +402,34 @@
         overflow: hidden !important;
     }
 
-    .layout-split-v .split-panel.panel-right {
+    /* 우측 패널이 단일 그리드인 경우 (w_ja032a 포트 내 종목 상세 등) 최소 290px 보장 */
+    .layout-split-v .split-panel.panel-right:not(:has(.special-note-box, .io-grid-box)),
+    .layout-split-v .split-panel.panel-right:has(.grid-table-wrapper),
+    .layout-split-v .split-right-section.split-panel {
+        display: flex !important;
+        flex-direction: column !important;
+        flex: 0 0 290px !important;
+        width: 100% !important;
+        height: 290px !important;
+        min-height: 290px !important;
+        max-height: 290px !important;
+        border: 1px solid #cbd5e1 !important;
+        border-radius: 6px !important;
+        overflow: hidden !important;
+        background: #ffffff !important;
+        box-sizing: border-box !important;
+    }
+
+    .layout-split-v .split-panel.panel-right .grid-table-wrapper,
+    .layout-split-v .split-right-section.split-panel .grid-table-wrapper {
+        flex: 1 1 auto !important;
+        height: auto !important;
+        min-height: 0 !important;
+        overflow: hidden !important;
+    }
+
+    /* 우측 패널이 특이사항 메모+입출금 그리드 복합인 경우 (w_ja010b 등) */
+    .layout-split-v .split-panel.panel-right:has(.special-note-box, .io-grid-box) {
         display: flex !important;
         flex-direction: column !important;
         flex: 0 0 auto !important;
@@ -405,6 +440,14 @@
         overflow: visible !important;
         gap: 12px !important;
         box-sizing: border-box !important;
+    }
+
+    .layout-split-v.layout-mobile-stack .pane-body,
+    .layout-split-v.layout-mobile-stack .grid-table-wrapper,
+    .layout-split-v.layout-mobile-stack .tabulator-aams-grid,
+    .layout-split-v.layout-mobile-stack .tabulator {
+        height: 100% !important;
+        min-height: 0 !important;
     }
 
     .layout-split-v .special-note-box {

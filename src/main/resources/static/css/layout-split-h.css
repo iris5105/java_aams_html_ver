@@ -172,15 +172,15 @@
         overflow-y: auto !important;
         overflow-x: hidden !important;
         -webkit-overflow-scrolling: touch !important;
-        padding-bottom: 12px !important;
+        padding-bottom: 24px !important;
         box-sizing: border-box !important;
     }
 
     .layout-mobile-stack-container::after {
         content: "";
         display: block;
-        height: 12px;
-        min-height: 12px;
+        height: 24px;
+        min-height: 24px;
         flex-shrink: 0;
         width: 100%;
     }
@@ -296,11 +296,11 @@
     .layout-split-h:has(.multi-stack-pane) > .master-section {
         display: flex !important;
         flex-direction: column !important;
-        flex: 0 0 250px !important;
+        flex: 0 0 290px !important;
         width: 100% !important;
-        height: 250px !important;
-        min-height: 250px !important;
-        max-height: 250px !important;
+        height: 290px !important;
+        min-height: 290px !important;
+        max-height: 290px !important;
         border: 1px solid #cbd5e1 !important;
         border-radius: 6px !important;
         overflow: hidden !important;
@@ -336,6 +336,62 @@
         gap: 12px !important;
         padding: 0 !important;
         box-sizing: border-box !important;
+    }
+
+    /* 6-C-3. 중첩 분할: .pane-right 또는 .detail-section 내부에 .layout-split-v가 존재하는 경우 세로 순차 전개 (w_ja032e_put 등) */
+    .layout-split-h.layout-mobile-stack > .pane-right > .layout-split-v,
+    .layout-split-h.layout-mobile-stack > .detail-section > .layout-split-v {
+        display: flex !important;
+        flex-direction: column !important;
+        width: 100% !important;
+        height: auto !important;
+        min-height: 0 !important;
+        max-height: none !important;
+        overflow: visible !important;
+        gap: 12px !important;
+        padding: 0 !important;
+        box-sizing: border-box !important;
+    }
+
+    .layout-split-h.layout-mobile-stack > .pane-right > .layout-split-v > .split-gutter-v,
+    .layout-split-h.layout-mobile-stack > .detail-section > .layout-split-v > .split-gutter-v {
+        display: none !important;
+    }
+
+    .layout-split-h.layout-mobile-stack > .pane-right > .layout-split-v > .pane-top,
+    .layout-split-h.layout-mobile-stack > .pane-right > .layout-split-v > .pane-bottom,
+    .layout-split-h.layout-mobile-stack > .detail-section > .layout-split-v > .pane-top,
+    .layout-split-h.layout-mobile-stack > .detail-section > .layout-split-v > .pane-bottom {
+        display: flex !important;
+        flex-direction: column !important;
+        flex: 0 0 290px !important;
+        width: 100% !important;
+        height: 290px !important;
+        min-height: 290px !important;
+        max-height: 290px !important;
+        border: 1px solid #cbd5e1 !important;
+        border-radius: 6px !important;
+        overflow: hidden !important;
+        background: #ffffff !important;
+        box-sizing: border-box !important;
+    }
+
+    .layout-split-h.layout-mobile-stack > .pane-right > .layout-split-v > .pane-top .pane-body,
+    .layout-split-h.layout-mobile-stack > .pane-right > .layout-split-v > .pane-bottom .pane-body,
+    .layout-split-h.layout-mobile-stack > .detail-section > .layout-split-v > .pane-top .pane-body,
+    .layout-split-h.layout-mobile-stack > .detail-section > .layout-split-v > .pane-bottom .pane-body {
+        flex: 1 1 auto !important;
+        height: auto !important;
+        min-height: 0 !important;
+        overflow: hidden !important;
+    }
+
+    .layout-split-h.layout-mobile-stack .pane-body,
+    .layout-split-h.layout-mobile-stack .grid-table-wrapper,
+    .layout-split-h.layout-mobile-stack .tabulator-aams-grid,
+    .layout-split-h.layout-mobile-stack .tabulator {
+        height: 100% !important;
+        min-height: 0 !important;
     }
 
     /* 6-C-1. 모바일 메모 스택 카드 */

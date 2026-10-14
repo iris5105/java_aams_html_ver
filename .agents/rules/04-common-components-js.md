@@ -72,7 +72,8 @@ MDI 프레임워크의 상단 공통 툴바(`button.js`)는 버튼 클릭 시 `g
   1. 모든 연동 그리드 데이터 클리어 (`gridMaster.clearData()`, `gridDetail.clearData()` 등)
   2. 마스터/서브 중복 조회 가드 키 초기화 (`lastLoadedMasterKey = null; lastLoadedSubKey = null;`)
   3. 선택된 행 데이터 캐시 초기화 (`currentMasterRowData = null; currentSelectedRow = null;`)
-  4. 안내 토스트 표출 (`showToast("화면이 초기화되었습니다.", "info");`)
+  4. **자동 조회(재조회) 절대 호출 금지**: 새로고침은 화면 상태를 초기화(Reset)하는 기능이므로, 핸들러 내부에서 `loadMasterData()`, `loadFundList()` 등의 조회 API를 호출해서는 안 됩니다. 실제 조회가 필요하면 사용자가 상단 [조회] 버튼(`pane.onSearch`)을 클릭해야 합니다.
+  5. 표준 안내 토스트 표출 (`showToast("화면이 초기화되었습니다.", "info");`)
 
 ```javascript
 pane.onClear = pane.onRefresh = function () {
@@ -83,6 +84,8 @@ pane.onClear = pane.onRefresh = function () {
     lastLoadedMasterKey = null;
     lastLoadedSubKey = null;
     currentMasterRowData = null;
+
+    // 주의: 여기서 loadData() 등의 조회를 절대 자동 호출하지 않는다!
 
     if (typeof showToast === 'function') {
         showToast("화면이 초기화되었습니다.", "info");
@@ -139,18 +142,21 @@ pane.onClear = pane.onRefresh = function () {
    setFilterLabel('filterYmd', 'LOAD기일');
    ```
 
-### 3.3 전폭 배경색 단절 방지 래퍼 구조
-필터 영역과 화면 전용 서브 버튼(예: 체결등록, NEW체결, 평잔재계산 등)이 공존할 때 배경색 단절이 발생하지 않도록 전체 영역을 `<div class="filter-bar">`로 감싸고 분할 배치합니다:
+### 3.3 필터 및 관련 액션 버튼 동일 컨테이너 인접 배치 표준 (UX 일체화 원칙)
+
+> [!IMPORTANT]
+> **필터와 동일한 공간에 있는 액션 버튼은 `.filter-left` 내에 하나의 div로 묶어서 나란히 배치**  
+> 와이드 모니터나 고해상도 환경에서 화면 전용 액션 버튼(예: 변동성재계산, 평잔재계산, 엑셀종가IMPORT 등)이 오른쪽 끝(`.filter-actions`)으로 멀리 떨어져 있으면 사용자의 시선 이동과 마우스 동선이 길어져 극심한 UX 불편을 초래합니다.  
+> 따라서 필터와 관련된 버튼은 오른쪽 끝으로 분리하지 않고, 반드시 필터 프래그먼트와 함께 **동일한 `<div class="filter-left">` 내부에 하나의 그룹으로 묶어서** 필터 조건 바로 우측에 나란히 표출합니다.
+
 ```html
 <div class="filter-bar">
-    <!-- 좌측 공통 필터 컴포넌트 -->
+    <!-- 필터 컴포넌트와 관련 액션 버튼을 하나의 filter-left 그룹으로 일체화 -->
     <div class="filter-left">
         <div th:replace="~{fragments/filter/dc_ymd :: filter(label='기준일자')}"></div>
-    </div>
-    <!-- 우측 화면 전용 액션 버튼 -->
-    <div class="filter-actions">
-        <button type="button" class="btn btn-secondary btn-sm" id="btnRecalc">평잔재계산</button>
-        <button type="button" class="btn btn-primary btn-sm" id="btnRegister">체결등록</button>
+        <button type="button" class="t-btn btn-action" id="btnJa032aRecalculate" title="변동성 재계산 실행">
+            <i class="fa-solid fa-calculator"></i> 변동성재계산
+        </button>
     </div>
 </div>
 ```
@@ -191,6 +197,45 @@ pane.onClear = pane.onRefresh = function () {
     }
 }
 ```
+
+### 4.3 상단 필터바 DDDW 드롭다운 (`dc_ymd_dddw`) 초기화 및 Zero-Hardcoding 표준
+상단 필터 컴포넌트 [dc_ymd_dddw.html](file:///d:/work/java_aams_html_ver/src/main/resources/templates/fragments/filter/dc_ymd_dddw.html)를 연동할 때 사용하는 표준 규칙입니다:
+
+1. **정확한 요소 셀렉터 (`#filterDddw`) 사용**:
+   - 프래그먼트에 정의된 `<select>`의 고유 ID는 **`filterDddw`**입니다.
+   - 임의의 비표준 ID(`#dddwSelect` 등)를 탐색하거나 하드코딩해서는 안 됩니다.
+2. **공통 헬퍼 `initFilterDddw` 필수 사용**:
+   - 임의의 미정의 함수(`fDddwctl.loadSelect` 등)를 호출하지 않고, [common.js](file:///d:/work/java_aams_html_ver/src/main/resources/static/js/common.js)의 표준 유틸리티인 **`initFilterDddw(currentPane, config)`**를 호출합니다:
+     ```javascript
+     function initFilterBrokerDddw() {
+         var corpGr = resolveCorpGr(currentPane);
+         return initFilterDddw(currentPane, {
+             selectId: 'filterDddw',
+             dddwId: 'tr_co_cd',
+             corpGr: corpGr,
+             seq: 1,
+             codeTitle: '코드',
+             nameTitle: '매매처명',
+             onSelect: function (code, name) {
+                 // 규칙 준수: 필터 조건 변경 시 자동 조회는 절대 실행하지 않음
+             }
+         });
+     }
+     ```
+   - `initFilterDddw`는 서버 API(`/api/common/dddw`) 조회 및 `f_dddwctl.get2ColItemFormatter`와 연동되어 **[코드 | 명칭] 2칸 분할 드롭다운**으로 자동 포맷팅되며, 화면 셀렉트박스에는 명칭이 표출됩니다.
+3. **선택값 추출 시 Zero-Hardcoding 원칙 및 유효성 검증**:
+   - 주문 생성이나 파라미터 전달 시 선택된 코드값을 읽을 때 삼항 연산자로 임의의 코드(예: `'00003'`)를 fallback 하드코딩하지 않습니다.
+   - 값이 없는 경우 반드시 사용자에게 선택 유도 토스트를 띄우고 작업을 차단합니다:
+     ```javascript
+     var dddwSelect = currentPane.querySelector('#filterDddw, select[name="dddw"]');
+     var trCoCd = dddwSelect ? (dddwSelect.value || '').trim() : '';
+     if (!trCoCd) {
+         if (typeof showToast === 'function') showToast("상단 필터에서 매매처를 선택해주세요.", "warning");
+         return;
+     }
+     ```
+4. **회사그룹 변경(`pane.onCorpGrChange`) 연동**:
+   - 상단 회사그룹 변경 시 드롭다운 초기화 함수를 다시 호출하여 해당 회사그룹의 DDDW 목록으로 즉시 갱신합니다.
 
 ---
 
