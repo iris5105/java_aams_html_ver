@@ -1000,6 +1000,67 @@ body.header-compact-mode.sidebar-backdrop-open::after {
     flex-shrink: 0;
 }
 
+/* ==========================================================================
+   Tab Navigation Buttons (이전/다음 탭 이동 컨트롤)
+   ========================================================================== */
+.tab-nav-btn-group {
+    display: inline-flex;
+    align-items: center;
+    background-color: #2a333d;
+    border: 1px solid #3d4956;
+    border-radius: 4px;
+    padding: 1px;
+    margin-right: 6px;
+    gap: 2px;
+}
+
+.btn-tab-nav {
+    background: transparent;
+    border: none;
+    color: #94a3b8;
+    width: 24px;
+    height: 22px;
+    border-radius: 3px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 11px;
+    transition: all 0.15s ease;
+    padding: 0;
+}
+
+.btn-tab-nav:hover:not(:disabled) {
+    background-color: #3b82f6;
+    color: #ffffff;
+}
+
+.btn-tab-nav:active:not(:disabled) {
+    background-color: #2563eb;
+    transform: scale(0.95);
+}
+
+.btn-tab-nav:disabled,
+.btn-tab-nav.disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+}
+
+.tab-nav-counter {
+    font-size: 11px;
+    font-weight: 700;
+    color: #cbd5e1;
+    padding: 0 5px;
+    min-width: 26px;
+    text-align: center;
+    user-select: none;
+    letter-spacing: -0.5px;
+}
+
+.tab-icon-badge {
+    display: none;
+}
+
 .btn-close-all {
     background-color: #dc2626;
     color: #ffffff;
@@ -2350,15 +2411,16 @@ body.header-compact-mode.sidebar-backdrop-open::after {
     }
 
     .tab-item {
-        width: 36px !important;
-        min-width: 36px !important;
-        max-width: 36px !important;
+        width: 44px !important;
+        min-width: 44px !important;
+        max-width: 44px !important;
         height: 28px !important;
-        padding: 0 !important;
+        padding: 0 4px !important;
         display: inline-flex !important;
         align-items: center !important;
         justify-content: center !important;
-        flex: 0 0 36px !important;
+        position: relative !important;
+        flex: 0 0 44px !important;
         border-radius: 4px 4px 0 0 !important;
         box-sizing: border-box !important;
         text-align: center !important;
@@ -2370,31 +2432,79 @@ body.header-compact-mode.sidebar-backdrop-open::after {
         display: none !important;
     }
 
-    /* x 표시 버튼 탭 박스 정중앙 단독 배치 */
-    .tab-item .tab-close-btn {
-        display: flex !important;
+    /* 탭 번호 뱃지 (모바일에서 몇 번째 탭인지 명확히 표시 & 탭 전환 안전 터치 영역) */
+    .tab-item .tab-icon-badge {
+        display: inline-flex !important;
         align-items: center !important;
         justify-content: center !important;
-        width: 100% !important;
-        height: 100% !important;
+        font-size: 11.5px !important;
+        font-weight: 700 !important;
+        color: #94a3b8 !important;
+        pointer-events: none !important;
+    }
+
+    .tab-item.active .tab-icon-badge {
+        color: #0284c7 !important;
+        font-weight: 800 !important;
+    }
+
+    /* x 표시 닫기 버튼: 박스 전체(100%)를 덮지 않고 우측 상단에 분리하여 의도치 않은 닫힘 원천 차단 */
+    .tab-item .tab-close-btn {
+        position: absolute !important;
+        right: 1px !important;
+        top: 1px !important;
+        width: 13px !important;
+        height: 13px !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        font-size: 10px !important;
+        line-height: 1 !important;
+        color: #64748b !important;
+        border-radius: 50% !important;
         margin: 0 !important;
         padding: 0 !important;
-        font-size: 16px !important;
-        line-height: 1 !important;
-        color: #94a3b8 !important;
-        border-radius: 4px 4px 0 0 !important;
         cursor: pointer !important;
         text-align: center !important;
         transition: color 0.15s ease, background-color 0.15s ease !important;
+        z-index: 2 !important;
     }
 
     .tab-item.active .tab-close-btn {
-        color: #0f172a !important;
+        color: #ef4444 !important;
         font-weight: 700 !important;
     }
 
     .tab-item .tab-close-btn:hover {
-        color: #ef4444 !important;
+        background-color: #fee2e2 !important;
+        color: #dc2626 !important;
+    }
+
+    /* 모바일 환경 탭 네비게이션 버튼 그룹 (이전/다음 탭 이동) */
+    .tab-nav-btn-group {
+        display: inline-flex !important;
+        margin-right: 4px !important;
+        background-color: #242e39 !important;
+        border-color: #3b4754 !important;
+    }
+
+    .btn-tab-nav {
+        width: 28px !important;
+        height: 26px !important;
+        font-size: 11px !important;
+    }
+
+    .tab-nav-counter {
+        font-size: 11px !important;
+        padding: 0 4px !important;
+        min-width: 28px !important;
+    }
+
+    .btn-close-all {
+        padding: 4px 8px !important;
+        font-size: 11px !important;
+        height: 26px !important;
+        box-sizing: border-box !important;
     }
 
     .top-header-left {

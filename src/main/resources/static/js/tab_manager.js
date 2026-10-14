@@ -193,7 +193,9 @@ class TabManager {
                 }
             };
 
+            const tabIndex = this.openTabs.length;
             tabItem.innerHTML = `
+                <span class="tab-icon-badge">${tabIndex}</span>
                 <span class="tab-title" title="${tabTitle}">${tabTitle}</span>
                 <span class="tab-close-btn" onclick="tabManager.closeTab('${tabKey}', event)">&times;</span>
             `;
@@ -370,6 +372,7 @@ class TabManager {
             }
         }
 
+        this.updateTabNavControls();
         this.saveStateToStorage();
     }
 
@@ -409,6 +412,8 @@ class TabManager {
         } else {
             this.saveStateToStorage();
         }
+
+        this.updateTabNavControls();
     }
 
     closeCurrentTab() {
@@ -430,6 +435,7 @@ class TabManager {
 
         this.updateHomeVisibility();
         this.highlightSidebarMenu(null);
+        this.updateTabNavControls();
         this.saveStateToStorage();
     }
 
@@ -452,6 +458,83 @@ class TabManager {
             if (contentContainer) contentContainer.style.display = "block";
             if (btnCloseAll) btnCloseAll.style.display = "inline-flex";
         }
+        this.updateTabNavControls();
+    }
+
+    /**
+     * 이전 탭으로 이동 (첫 번째면 마지막 탭으로 순환)
+     */
+    switchToPrevTab() {
+        if (this.openTabs.length <= 1) return;
+        const currentIdx = this.openTabs.findIndex(t => t.tabKey === this.activeTabKey || t.pgmNo === this.activeTabKey);
+        if (currentIdx === -1) return;
+        const prevIdx = (currentIdx - 1 + this.openTabs.length) % this.openTabs.length;
+        const targetTab = this.openTabs[prevIdx];
+        if (targetTab) {
+            this.switchTab(targetTab.tabKey);
+        }
+    }
+
+    /**
+     * 다음 탭으로 이동 (마지막이면 첫 번째 탭으로 순환)
+     */
+    switchToNextTab() {
+        if (this.openTabs.length <= 1) return;
+        const currentIdx = this.openTabs.findIndex(t => t.tabKey === this.activeTabKey || t.pgmNo === this.activeTabKey);
+        if (currentIdx === -1) return;
+        const nextIdx = (currentIdx + 1) % this.openTabs.length;
+        const targetTab = this.openTabs[nextIdx];
+        if (targetTab) {
+            this.switchTab(targetTab.tabKey);
+        }
+    }
+
+    /**
+     * 탭 네비게이션 버튼(이전/다음 탭 이동) 및 카운터 상태 동기화
+     */
+    updateTabNavControls() {
+        const navGroup = document.getElementById("tabNavBtnGroup");
+        const btnPrev = document.getElementById("btnTabPrev");
+        const btnNext = document.getElementById("btnTabNext");
+        const counter = document.getElementById("tabNavCounter");
+
+        if (!navGroup) return;
+
+        const total = this.openTabs.length;
+        if (total === 0) {
+            navGroup.style.display = "none";
+            return;
+        }
+
+        navGroup.style.display = "inline-flex";
+
+        const currentIdx = this.openTabs.findIndex(t => t.tabKey === this.activeTabKey || t.pgmNo === this.activeTabKey);
+        const currentNum = currentIdx >= 0 ? currentIdx + 1 : 1;
+
+        if (counter) {
+            counter.textContent = `${currentNum}/${total}`;
+            const activeTab = this.openTabs[currentIdx];
+            if (activeTab) {
+                counter.title = `현재 탭: ${activeTab.title} (${currentNum}/${total})`;
+            }
+        }
+
+        if (btnPrev) {
+            btnPrev.disabled = (total <= 1);
+            btnPrev.classList.toggle("disabled", total <= 1);
+        }
+        if (btnNext) {
+            btnNext.disabled = (total <= 1);
+            btnNext.classList.toggle("disabled", total <= 1);
+        }
+
+        // 탭 아이템 번호 뱃지(모바일용 1, 2, 3...) 동기화
+        document.querySelectorAll("#tabBar .tab-item").forEach((item, idx) => {
+            const badge = item.querySelector(".tab-icon-badge");
+            if (badge) {
+                badge.textContent = String(idx + 1);
+            }
+        });
     }
 
     resolveMenuUrl(pgmId, pgmNo, pgmGo) {
