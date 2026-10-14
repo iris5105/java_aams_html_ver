@@ -199,6 +199,11 @@ function onToolbarRefresh(btn) {
     const pane = getActiveTabPane(btn);
     if (!pane) return;
 
+    // 작업일자 미동기화 알림 해제 (수단 C)
+    if (window.WorkDateSyncManager && typeof window.WorkDateSyncManager.clearTabNoticeForPane === 'function') {
+        window.WorkDateSyncManager.clearTabNoticeForPane(pane);
+    }
+
     const container = pane.closest ? (pane.closest('.tab-pane') || pane) : pane;
 
     // 화면 내에 실제로 노출되는 [조회] 버튼이 존재하는지 여부 확인
@@ -334,6 +339,11 @@ function onToolbarSearch(btn) {
     if (btn && (btn.disabled || btn.classList.contains('disabled'))) return;
     const pane = getActiveTabPane(btn);
     if (!pane) return;
+
+    // 작업일자 미동기화 알림 해제 (수단 C)
+    if (window.WorkDateSyncManager && typeof window.WorkDateSyncManager.clearTabNoticeForPane === 'function') {
+        window.WorkDateSyncManager.clearTabNoticeForPane(pane);
+    }
 
     // 조회 실행 완료 상태 전환 (조회 버튼 비활성화, 나머지 권한 버튼 활성화)
     if (window.ButtonRole && typeof window.ButtonRole.setSearchState === 'function') {

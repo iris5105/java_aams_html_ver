@@ -3214,3 +3214,311 @@ window.sanitizeGridData = function(grid, dataList, extraAllowedFields) {
     window.AamsReport = AamsReport;
 
 })(window);
+
+/**
+ * ============================================================================
+ * AAMS WorkDate Synchronization & Stale Notice Manager
+ * ----------------------------------------------------------------------------
+ * W_JA010A 화면에서 회사 작업일자(Hyun_ymd / JunYong_ymd) 저장 시,
+ * 열려 있는 다른 업무 탭들의 날짜 동기화 질의 및 알림 표시/해제를 총괄 관리합니다.
+ * ============================================================================
+ */
+(function(window) {
+    'use strict';
+
+    var WorkDateSyncManager = {
+        /**
+         * W_JA010A를 제외한 현재 열려 있는 탭 목록 반환
+         */
+        getOtherOpenTabs: function() {
+            if (!window.tabManager || !Array.isArray(window.tabManager.openTabs)) return [];
+            return window.tabManager.openTabs.filter(function(t) {
+                var id = (t.pgmId || t.tabKey || t.pgmGo || "").toUpperCase();
+                return id !== "W_JA010A" && id !== "JA010A";
+            });
+        },
+
+        /**
+         * W_JA010A 저장 시 열려 있는 다른 탭 확인 및 질의 모달 표출
+         * @param {Object} opts
+         *   - workDateMap: { corpGr: targetYmd }
+         *   - onSave: function(resultOpts) { ... }
+         *   - onCancel: function() { ... }
+         */
+        promptAndSave: function(opts) {
+            opts = opts || {};
+            var onSave = opts.onSave || function() {};
+            var onCancel = opts.onCancel || function() {};
+            var workDateMap = opts.workDateMap || {};
+
+            var otherTabs = this.getOtherOpenTabs();
+            // 1. 열려 있는 다른 탭이 없으면 즉시 저장
+            if (otherTabs.length === 0) {
+                onSave({ syncTabs: false, otherTabs: [], workDateMap: workDateMap });
+                return;
+            }
+
+            // 2. 다른 탭이 있으면 사용자 질의 모달 팝업
+            this.openConfirmModal({
+                otherCount: otherTabs.length,
+                onSyncAndSave: function() {
+                    onSave({ syncTabs: true, otherTabs: otherTabs, workDateMap: workDateMap });
+                },
+                onSaveOnly: function() {
+                    onSave({ syncTabs: false, otherTabs: otherTabs, workDateMap: workDateMap });
+                },
+                onCancel: onCancel
+            });
+        },
+
+        /**
+         * 작업일자 동기화 확인 모달 렌더링
+         */
+        openConfirmModal: function(config) {
+            var self = this;
+            self.closeModal();
+
+            var backdrop = document.createElement('div');
+            backdrop.className = 'aams-sync-modal-backdrop';
+            backdrop.id = 'aamsSyncConfirmModal';
+
+            var otherCount = config.otherCount || 0;
+
+            backdrop.innerHTML = 
+                '<div class="aams-sync-modal-box">' +
+                    '<div class="aams-sync-modal-header">' +
+                        '<h4><i class="fa-solid fa-calendar-days" style="color: #2563eb;"></i> 작업일자 동기화 확인</h4>' +
+                        '<button type="button" class="btn-close-sync" id="btnSyncModalClose">&times;</button>' +
+                    '</div>' +
+                    '<div class="aams-sync-modal-body">' +
+                        '<p style="margin-bottom: 12px; font-size: 14px; font-weight: 600; color: #0f172a; line-height: 1.5;">' +
+                            '<strong style="color: #2563eb; font-size: 15px; text-decoration: underline;">전체</strong> 탭들에 각 고객사가 사용하는 작업일자를 동기화하시겠습니까?' +
+                        '</p>' +
+                        '<div style="font-size: 12px; color: #475569; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 10px 12px; line-height: 1.6;">' +
+                            '<div style="margin-bottom: 4px; font-weight: 600; color: #334155;">' +
+                                '<i class="fa-solid fa-circle-info" style="color: #3b82f6; margin-right: 4px;"></i>' +
+                                '현재 <span style="color: #2563eb; font-weight: 700;">' + otherCount + '개</span>의 다른 업무 화면 탭이 열려 있습니다.' +
+                            '</div>' +
+                            '• <strong>[동기화 및 저장]</strong>: 열려 있는 모든 화면의 기준일자가 새 작업일자로 즉시 변경되며 저장되지 않은 화면의 내용은 저장되지 않습니다.<br/>' +
+                            '• <strong>[동기화 없이 저장]</strong>: 작업일자는 저장되지만 기존 화면의 기준일자는 유지되며, 탭 및 날짜 필터에 알림 표시(🟠)가 부착됩니다.' +
+                        '</div>' +
+                    '</div>' +
+                    '<div class="aams-sync-modal-footer">' +
+                        '<button type="button" class="btn btn-secondary btn-sm" id="btnSyncCancel" style="padding: 6px 12px; font-size: 12px;">취소</button>' +
+                        '<button type="button" class="btn btn-warning btn-sm" id="btnSyncSaveOnly" style="padding: 6px 12px; font-size: 12px; background: #f59e0b; border-color: #f59e0b; color: #fff;">동기화 없이 저장</button>' +
+                        '<button type="button" class="btn btn-primary btn-sm" id="btnSyncAndSave" style="padding: 6px 14px; font-size: 12px; font-weight: 600; background: #2563eb; border-color: #2563eb; color: #fff;">동기화 및 저장</button>' +
+                    '</div>' +
+                '</div>';
+
+            document.body.appendChild(backdrop);
+
+            function dismiss(callback) {
+                self.closeModal();
+                if (typeof callback === 'function') callback();
+            }
+
+            var btnClose = backdrop.querySelector('#btnSyncModalClose');
+            var btnCancel = backdrop.querySelector('#btnSyncCancel');
+            var btnSaveOnly = backdrop.querySelector('#btnSyncSaveOnly');
+            var btnAndSave = backdrop.querySelector('#btnSyncAndSave');
+
+            if (btnClose) btnClose.onclick = function() { dismiss(config.onCancel); };
+            if (btnCancel) btnCancel.onclick = function() { dismiss(config.onCancel); };
+            if (btnSaveOnly) btnSaveOnly.onclick = function() { dismiss(config.onSaveOnly); };
+            if (btnAndSave) btnAndSave.onclick = function() { dismiss(config.onSyncAndSave); };
+        },
+
+        closeModal: function() {
+            var el = document.getElementById('aamsSyncConfirmModal');
+            if (el) el.remove();
+        },
+
+        /**
+         * 열려 있는 다른 모든 탭의 날짜를 동기화
+         */
+        syncAllTabs: function(workDateMap, otherTabs) {
+            var self = this;
+            if (!otherTabs || !Array.isArray(otherTabs)) {
+                otherTabs = self.getOtherOpenTabs();
+            }
+            workDateMap = workDateMap || {};
+
+            var syncedCount = 0;
+            otherTabs.forEach(function(tab) {
+                var tabKey = tab.tabKey || tab.pgmNo;
+                var pane = document.getElementById('tab-pane-' + tabKey);
+                if (!pane) return;
+
+                var corpGr = self.detectCorpGr(pane);
+                var targetYmd = workDateMap[corpGr] || workDateMap['2402'];
+                if (!targetYmd) {
+                    var keys = Object.keys(workDateMap);
+                    if (keys.length > 0) targetYmd = workDateMap[keys[0]];
+                }
+                if (!targetYmd) return;
+
+                var dateInputs = self.findDateInputs(pane);
+                dateInputs.forEach(function(input) {
+                    input.value = targetYmd;
+                    if (input._flatpickr && typeof input._flatpickr.setDate === 'function') {
+                        input._flatpickr.setDate(targetYmd, false);
+                    }
+                });
+
+                self.clearTabNotice(tabKey);
+                syncedCount++;
+            });
+
+            if (typeof showToast === 'function') {
+                showToast("열려 있는 전체 탭(" + syncedCount + "개)의 기준일자가 새 작업일자로 동기화되었습니다.", "success");
+            }
+        },
+
+        /**
+         * 열려 있는 다른 탭에 미동기화 알림 배지 및 인풋 칩 부착
+         */
+        markTabsNotice: function(workDateMap, otherTabs) {
+            var self = this;
+            if (!otherTabs || !Array.isArray(otherTabs)) {
+                otherTabs = self.getOtherOpenTabs();
+            }
+            workDateMap = workDateMap || {};
+
+            var markedCount = 0;
+            otherTabs.forEach(function(tab) {
+                var tabKey = tab.tabKey || tab.pgmNo;
+                var pane = document.getElementById('tab-pane-' + tabKey);
+                var headerItem = document.getElementById('tab-header-' + tabKey);
+
+                var corpGr = pane ? self.detectCorpGr(pane) : '2402';
+                var targetYmd = workDateMap[corpGr] || workDateMap['2402'] || '';
+                if (!targetYmd) {
+                    var keys = Object.keys(workDateMap);
+                    if (keys.length > 0) targetYmd = workDateMap[keys[0]];
+                }
+
+                // 1) 탭 헤더 배지 부착
+                if (headerItem && !headerItem.querySelector('.tab-notice-badge')) {
+                    var badge = document.createElement('span');
+                    badge.className = 'tab-notice-badge';
+                    badge.title = '기준일자가 변경되었습니다. (' + targetYmd + ') 클릭하여 알림을 끕니다.';
+                    badge.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i>';
+                    badge.onclick = function(e) {
+                        e.stopPropagation();
+                        self.clearTabNotice(tabKey);
+                    };
+                    var closeBtn = headerItem.querySelector('.tab-close-btn');
+                    if (closeBtn) {
+                        headerItem.insertBefore(badge, closeBtn);
+                    } else {
+                        headerItem.appendChild(badge);
+                    }
+                }
+
+                // 2) 화면 내부 기준일자 인풋에 알림 표시
+                if (pane) {
+                    var dateInputs = self.findDateInputs(pane);
+                    dateInputs.forEach(function(input) {
+                        input.classList.add('input-date-stale-notice');
+
+                        var parent = input.parentElement;
+                        if (parent && !parent.querySelector('.badge-date-stale-chip')) {
+                            var chip = document.createElement('span');
+                            chip.className = 'badge-date-stale-chip';
+                            chip.title = '최신 작업일자(' + targetYmd + ')와 다릅니다. 클릭하여 알림 닫기';
+                            chip.innerHTML = '<i class="fa-solid fa-circle-exclamation"></i> 일자 변경됨 <i class="fa-solid fa-xmark chip-close"></i>';
+                            chip.onclick = function(e) {
+                                e.stopPropagation();
+                                self.clearTabNotice(tabKey);
+                            };
+                            if (input.nextSibling) {
+                                parent.insertBefore(chip, input.nextSibling);
+                            } else {
+                                parent.appendChild(chip);
+                            }
+                        }
+
+                        if (!input._hasStaleNoticeListener) {
+                            input._hasStaleNoticeListener = true;
+                            input.addEventListener('focus', function() { self.clearTabNotice(tabKey); }, { once: true });
+                            input.addEventListener('input', function() { self.clearTabNotice(tabKey); }, { once: true });
+                            input.addEventListener('change', function() { self.clearTabNotice(tabKey); }, { once: true });
+                        }
+                    });
+                }
+                markedCount++;
+            });
+
+            if (typeof showToast === 'function') {
+                showToast("저장 완료. 다른 화면들의 탭 및 기준일자에 알림 표시(🟠)가 설정되었습니다.", "info");
+            }
+        },
+
+        /**
+         * 특정 탭의 알림 표시 제거 (알림을 없애는 수단)
+         */
+        clearTabNotice: function(tabKey) {
+            if (!tabKey) return;
+
+            // 1. 탭 헤더 배지 제거
+            var headerItem = document.getElementById('tab-header-' + tabKey);
+            if (headerItem) {
+                var badge = headerItem.querySelector('.tab-notice-badge');
+                if (badge) badge.remove();
+            }
+
+            // 2. 화면 내부 인풋 하이라이트 및 칩 제거
+            var pane = document.getElementById('tab-pane-' + tabKey);
+            if (pane) {
+                pane.querySelectorAll('.input-date-stale-notice').forEach(function(el) {
+                    el.classList.remove('input-date-stale-notice');
+                });
+                pane.querySelectorAll('.badge-date-stale-chip').forEach(function(el) {
+                    el.remove();
+                });
+            }
+        },
+
+        /**
+         * pane 엘리먼트를 통해 알림 제거 (조회, 새로고침 시 연동용)
+         */
+        clearTabNoticeForPane: function(pane) {
+            if (!pane) return;
+            var tabKey = pane.getAttribute('data-tab-key') || pane.getAttribute('data-pgm-no');
+            if (tabKey) {
+                this.clearTabNotice(tabKey);
+            } else {
+                pane.querySelectorAll('.input-date-stale-notice').forEach(function(el) {
+                    el.classList.remove('input-date-stale-notice');
+                });
+                pane.querySelectorAll('.badge-date-stale-chip').forEach(function(el) {
+                    el.remove();
+                });
+            }
+        },
+
+        detectCorpGr: function(pane) {
+            if (!pane) return '2402';
+            if (typeof resolveCorpGr === 'function') {
+                var c = resolveCorpGr(pane);
+                if (c) return c;
+            }
+            var el = pane.querySelector('#filterCorpGr, select[name="corpGr"], input[name="corpGr"]');
+            if (el && el.value) return el.value.trim();
+            var attr = pane.getAttribute('data-corp-gr');
+            if (attr) return attr.trim();
+            return '2402';
+        },
+
+        findDateInputs: function(pane) {
+            if (!pane) return [];
+            return Array.from(pane.querySelectorAll(
+                '#filterYmd, #ymd, #trYmd, #workDate, #tymd, ' +
+                'input[name="filterYmd"], input[name="ymd"], input[name="trYmd"], input[name="workDate"], input[name="tymd"]'
+            ));
+        }
+    };
+
+    window.WorkDateSyncManager = WorkDateSyncManager;
+
+})(window);

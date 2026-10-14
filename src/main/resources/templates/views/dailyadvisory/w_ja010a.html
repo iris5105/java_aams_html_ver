@@ -400,7 +400,7 @@
                     if (typeof showToast === "function") showToast("삭제할 행을 선택하세요.", "warning");
                 };
 
-                // [저장] 버튼: CUD 큐 4대 원칙 반영 일괄 저장
+                // [저장] 버튼: CUD 큐 4대 원칙 반영 일괄 저장 + 열린 다른 탭 작업일자 동기화 질의
                 pane.onSave = function() {
                     const masterChanges = cudManagerMaster ? cudManagerMaster.getChanges() : { itemList: [], deletedList: [] };
                     const detailChanges = cudManagerDetail ? cudManagerDetail.getChanges() : { itemList: [], deletedList: [] };
@@ -410,36 +410,80 @@
                         return;
                     }
 
-                    const payload = {
-                        masterList: masterChanges.itemList,
-                        detailList: detailChanges.itemList,
-                        deletedMasterList: masterChanges.deletedList,
-                        deletedDetailList: detailChanges.deletedList
+                    // 최신 gridMaster 데이터에서 고객사별 작업일자(2402: junyongYmd 우선, 기타: hyunYmd) 추출
+                    const workDateMap = {};
+                    if (gridMaster) {
+                        const rows = gridMaster.getData();
+                        rows.forEach(function(r) {
+                            if (!r || !r.corpGr) return;
+                            const cGr = String(r.corpGr).trim();
+                            const hyun = (r.hyunYmd || "").trim();
+                            const junyong = (r.junyongYmd || "").trim();
+                            let targetYmd = (cGr === "2402") ? (junyong || hyun) : hyun;
+                            if (targetYmd) {
+                                if (targetYmd.length === 8 && !targetYmd.includes("-")) {
+                                    targetYmd = targetYmd.substring(0, 4) + "-" + targetYmd.substring(4, 6) + "-" + targetYmd.substring(6, 8);
+                                }
+                                workDateMap[cGr] = targetYmd;
+                            }
+                        });
+                    }
+
+                    const executeSave = function(syncOpts) {
+                        const payload = {
+                            masterList: masterChanges.itemList,
+                            detailList: detailChanges.itemList,
+                            deletedMasterList: masterChanges.deletedList,
+                            deletedDetailList: detailChanges.deletedList
+                        };
+
+                        fetch('/api/company/ja010a/save', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(payload)
+                        })
+                        .then(res => res.json())
+                        .then(resData => {
+                            if (resData && resData.success) {
+                                if (cudManagerMaster) cudManagerMaster.reset();
+                                if (cudManagerDetail) cudManagerDetail.reset();
+                                if (typeof showToast === "function") showToast(resData.message || "정상적으로 저장되었습니다.", "success");
+
+                                // 열린 다른 탭 동기화 또는 알림 표시 처리
+                                if (window.WorkDateSyncManager) {
+                                    if (syncOpts && syncOpts.syncTabs) {
+                                        window.WorkDateSyncManager.syncAllTabs(syncOpts.workDateMap, syncOpts.otherTabs);
+                                    } else if (syncOpts && syncOpts.otherTabs && syncOpts.otherTabs.length > 0) {
+                                        window.WorkDateSyncManager.markTabsNotice(syncOpts.workDateMap, syncOpts.otherTabs);
+                                    }
+                                }
+
+                                const selectedRows = gridMaster ? gridMaster.getSelectedRows() : [];
+                                const curCorpGr = selectedRows.length > 0 ? selectedRows[0].getData().corpGr : "";
+                                window.loadJa010aMaster(curCorpGr);
+                            } else {
+                                const msg = (resData && resData.message) ? resData.message : "저장에 실패했습니다.";
+                                if (typeof showToast === "function") showToast(msg, "error");
+                            }
+                        })
+                        .catch(err => {
+                            console.error("저장 오류:", err);
+                            if (typeof showToast === "function") showToast("저장 중 통신 오류가 발생했습니다.", "error");
+                        });
                     };
 
-                    fetch('/api/company/ja010a/save', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(payload)
-                    })
-                    .then(res => res.json())
-                    .then(resData => {
-                        if (resData && resData.success) {
-                            if (cudManagerMaster) cudManagerMaster.reset();
-                            if (cudManagerDetail) cudManagerDetail.reset();
-                            if (typeof showToast === "function") showToast(resData.message || "정상적으로 저장되었습니다.", "success");
-                            const selectedRows = gridMaster ? gridMaster.getSelectedRows() : [];
-                            const curCorpGr = selectedRows.length > 0 ? selectedRows[0].getData().corpGr : "";
-                            window.loadJa010aMaster(curCorpGr);
-                        } else {
-                            const msg = (resData && resData.message) ? resData.message : "저장에 실패했습니다.";
-                            if (typeof showToast === "function") showToast(msg, "error");
-                        }
-                    })
-                    .catch(err => {
-                        console.error("저장 오류:", err);
-                        if (typeof showToast === "function") showToast("저장 중 통신 오류가 발생했습니다.", "error");
-                    });
+                    // WorkDateSyncManager를 통한 다른 탭 존재 확인 및 질의
+                    if (window.WorkDateSyncManager && typeof window.WorkDateSyncManager.promptAndSave === 'function') {
+                        window.WorkDateSyncManager.promptAndSave({
+                            workDateMap: workDateMap,
+                            onSave: executeSave,
+                            onCancel: function() {
+                                if (typeof showToast === "function") showToast("저장이 취소되었습니다.", "info");
+                            }
+                        });
+                    } else {
+                        executeSave({ syncTabs: false, otherTabs: [] });
+                    }
                 };
 
                 // 조회 버튼이 없고 새로고침만 있는 화면 규격: 새로고침 시 화면 데이터를 재조회
