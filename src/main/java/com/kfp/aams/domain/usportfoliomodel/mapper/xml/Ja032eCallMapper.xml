@@ -1,0 +1,289 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.kfp.aams.domain.usportfoliomodel.mapper.Ja032eCallMapper">
+
+    <!-- 1. 펀드/포트 목록 조회 (d_ja032e1_call.srd) -->
+    <select id="selectFundList" resultType="com.kfp.aams.domain.usportfoliomodel.dto.Ja032eCallFundDto">
+        SELECT DISTINCT t1.CORP_GR                       AS corp_gr
+             , TO_CHAR(t1.FYMD, 'YYYY-MM-DD')           AS fymd
+             , TO_CHAR(t1.TYMD, 'YYYY-MM-DD')           AS tymd
+             , t1.FUND_CD                               AS fund_cd
+             , ia.FUND_NM                               AS fund_nm
+             , t1.PORT_NUM                              AS port_num
+             , t1.TT                                    AS tt
+             , t1.INST_DAYS                             AS inst_days
+             , TO_CHAR(t1.MANGI, 'YYYY-MM-DD')          AS mangi_ymd
+             , t1.DT                                    AS dt
+             , t1.CALL_Z                                AS z
+             , t1.USD_TUJA                              AS usd_tuja
+          FROM USPM_PORT t1
+             , SZM0IA    ia
+         WHERE t1.CORP_GR  = #{corpGr}
+           AND t1.TYMD     = #{ymd}
+           AND t1.MANGI    > #{ymd}
+           AND LENGTH(t1.PORT_NUM) = 1
+           AND REGEXP_LIKE (t1.TT,'^[1-9]')
+           AND ia.CORP_GR  = t1.CORP_GR
+           AND ia.FUND_CD  = t1.FUND_CD
+         ORDER BY t1.FUND_CD, t1.PORT_NUM
+    </select>
+
+    <!-- 2. 포트 내 종목 설정 목록 조회 (d_ja032e2_call.srd) -->
+    <select id="selectPortList" resultType="com.kfp.aams.domain.usportfoliomodel.dto.Ja032eCallPortDto">
+        SELECT t1.CORP_GR                                                                AS corp_gr
+             , TO_CHAR(t1.YMD, 'YYYY-MM-DD')                                             AS ymd
+             , t1.FUND_CD                                                                AS fund_cd
+             , t1.PORT_NUM                                                               AS port_num
+             , t1.JM_CD                                                                  AS yj_cd
+             , NVL(ya.SRS_CD, ya.BLBG_TCKR)                                              AS srs_cd
+             , ya.JM_NM                                                                  AS xx_yj_cd
+             , ya.JM_NM                                                                  AS jm_nm
+             , t1.COL                                                                    AS col
+             , t1.JONGA                                                                  AS jonga
+             , t1.CALL_PRICE                                                             AS call_price
+             , t1.TARGET_RETURN_PER                                                      AS target_return_per
+             , t1.USD_TUJA                                                               AS usd_tuja
+             , (t1.USD_TUJA - NVL(pp.STOCK_CHUI,0) - NVL(pp.opt_nominal_amt,0)) / NULLIF(t2.INST_DAYS, 0) AS mo_amt
+             , t2.INST_DAYS                                                              AS inst_days
+             , CASE WHEN NVL(t1.call_price,0)=0
+                    THEN 0
+                    ELSE CASE WHEN t1.USD_TUJA > (NVL(pp.STOCK_CHUI,0) + NVL(pp.opt_nominal_amt,0))
+                              THEN TRUNC((t1.USD_TUJA - NVL(pp.STOCK_CHUI,0) - NVL(pp.opt_nominal_amt,0)) / NULLIF(t2.INST_DAYS, 0) / NULLIF(t1.call_price, 0) / 100, 0)
+                              ELSE 0 END END                                             AS min_jusu
+             , TO_CHAR(t2.FYMD, 'YYYY-MM-DD')                                            AS fymd
+             , ya.CURRENCY                                                               AS currency
+             , pp.OPT_QTY                                                                AS opt_qty
+             , pp.OPT_NOMINAL_AMT                                                        AS opt_nominal_amt
+             , pp.OPT_PREMIUM                                                            AS opt_premium
+             , tt.risk_value                                                             AS risk_value
+             , NVL(yz.TR_BFIL_JUSU, 0) + NVL(yz.TR_UP_JUSU, 0)
+                                       - NVL(yz.TR_DW_JUSU, 0) + NVL(yz.RIGHT_JUSU, 0)    AS stock_jusu
+             , NVL(yz.TR_BFIL_CHUI_AEK, 0) + NVL(yz.TR_UP_CHUI_AEK, 0)
+                                           - NVL(yz.TR_DW_JUSU, 0) + NVL(yz.RIGHT_AEK, 0) AS stock_chui
+             , 0                                                                         AS rt
+             , F_OPT_COLOR (t1.CORP_GR, t1.YMD, t1.FUND_CD, t1.JM_CD, t1.JONGA)          AS line_color
+          FROM USPM      t1
+             , USPM_PORT t2
+             , (SELECT t1.PORT
+                     , t1.JM_CD
+                     , t1.STOCK_JUSU
+                     , t1.STOCK_CHUI
+                     , t1.OPT_NOMINAL_AMT
+                     , t1.OPT_QTY
+                     , t1.OPT_PREMIUM
+                  FROM USPM_OPT t1
+                 WHERE t1.CORP_GR = #{corpGr}
+                   AND t1.FUND_CD = #{fundCd}
+                   AND t1.YMD     = #{ymd}) pp
+             , SYM0YA    ya
+             , (SELECT yz.TRUSTEE
+                     , ya.CHANGE_JM_CD
+                     , SUM(NVL(yz.DELTA_RISK_VALUE,0) + NVL (yz.GAMMA_RISK_VALUE,0) + NVL (yz.VEGA_RISK_VALUE,0))  AS risk_value
+                  FROM SYM0YZ yz
+                     , SYM0YA    ya
+                 WHERE yz.CORP_GR = #{corpGr}
+                   AND yz.FUND_CD = #{fundCd}
+                   AND yz.YMD     = #{ymd}
+                   AND ya.CORP_GR = yz.CORP_GR
+                   AND ya.JM_CD   = yz.JM_CD
+                 GROUP BY yz.FUND_CD, yz.TRUSTEE, ya.CHANGE_JM_CD) tt
+             , SYM0YZ    yz
+         WHERE t1.CORP_GR         = #{corpGr}
+           AND t1.FUND_CD         = #{fundCd}
+           AND t1.YMD             = #{ymd}
+           AND t1.PORT_NUM        = #{portNum}
+           AND t2.CORP_GR         = t1.CORP_GR
+           AND t2.FUND_CD         = t1.FUND_CD
+           AND t2.TYMD            = t1.YMD
+           AND t2.PORT_NUM        = t1.PORT_NUM
+           AND pp.PORT(+)         = '(' || #{portNum} || ')'
+           AND pp.JM_CD(+)        = t1.JM_CD
+           AND ya.CORP_GR         = t1.CORP_GR
+           AND ya.JM_CD           = t1.JM_CD
+           AND tt.TRUSTEE(+)      = '(' || #{portNum} || ')'
+           AND tt.CHANGE_JM_CD(+) = t1.JM_CD
+           AND yz.TRUSTEE(+)      = '(' || #{portNum} || ')'
+           AND yz.CORP_GR(+)      = t1.CORP_GR
+           AND yz.YMD(+)          = t1.YMD
+           AND yz.FUND_CD(+)      = t1.FUND_CD
+           AND yz.JM_CD(+)        = t1.JM_CD
+         ORDER BY t1.PORT_NUM ASC, t1.COL ASC, t1.JM_CD ASC
+    </select>
+
+    <!-- 3. 해외옵션 상세 시세 및 주문 목록 조회 (d_ja032e3_call.srd) -->
+    <select id="selectDetailList" resultType="com.kfp.aams.domain.usportfoliomodel.dto.Ja032eCallDetailDto">
+        SELECT t1.JM_CD                                                        AS opt_jm_cd
+             , TO_NUMBER(SUBSTR(t1.JM_CD, LENGTH(#{jmCd})))                     AS hangsa_ga
+             , t1.BID                                                          AS bid
+             , t1.ASK                                                          AS ask
+             , t1.TIME_GA                                                      AS time_ga
+             , t1.TVOL                                                         AS tvol
+             , t1.TAMT                                                         AS tamt
+             , t1.TOT_ASK_QNTT                                                 AS tot_ask_qntt
+             , SUBSTR(t1.TRD_TO_DATE, 1, 6)                                    AS mm
+             , ROUND((TO_NUMBER(SUBSTR(t1.JM_CD, LENGTH(#{jmCd}))) / NULLIF(#{jonga}, 0) - 1) * 100, 2) AS per
+             , '매도'                                                          AS order_gb
+             , 0                                                               AS tr_su
+             , t1.BID                                                          AS bid_ask
+             , CASE WHEN TO_NUMBER(SUBSTR(t1.JM_CD, LENGTH(#{jmCd}))) > 0
+                    THEN ROUND(t1.ASK / TO_NUMBER(SUBSTR(t1.JM_CD, LENGTH(#{jmCd}))) * 100, 2)
+                    ELSE 0 END                                                 AS compute1
+          FROM SYT0LP t1
+         WHERE t1.CORP_GR     = #{corpGr}
+           AND t1.YMD         = #{ymd}
+           AND t1.JM_CD       LIKE #{jmCd}
+           AND t1.TRD_TO_DATE = #{mangi}
+           AND TRUNC(t1.BID / NULLIF(TO_NUMBER(SUBSTR(t1.JM_CD, LENGTH(#{jmCd}))), 0), 4) * 100 BETWEEN #{targetReturnPer} AND 5.99
+         ORDER BY TO_NUMBER(SUBSTR(t1.JM_CD, LENGTH(#{jmCd}))) ASC
+    </select>
+
+    <!-- 4. 옵션 종목 조립 접두사 조회 (SZX0YM 기반) -->
+    <select id="selectOptionJmCdPrefix" resultType="string">
+        SELECT CASE WHEN TO_CHAR(#{mangiYmd}, 'w') = '3' THEN ''
+                    ELSE TO_CHAR(#{mangiYmd}, 'w')
+               END || #{srsCd} || t1.SRS_MM || TO_CHAR(#{mangiYmd}, 'yy')
+          FROM SZX0YM t1
+         WHERE t1.YMD_GB = 'M'
+           AND t1.YMD_ID = TO_CHAR(#{mangiYmd}, 'mm')
+           AND ROWNUM = 1
+    </select>
+
+    <!-- 5. TT 세부코드명 조회 (SZX0GR 기반) -->
+    <select id="selectTtTitle" resultType="string">
+        SELECT sebu_cd_efnm
+          FROM SZX0GR t1
+         WHERE t1.gr_cd   = 'TT'
+           AND t1.sebu_cd = #{tt}
+           AND ROWNUM = 1
+    </select>
+
+    <!-- 6. USPM_PORT 갱신 -->
+    <update id="updateUspmPort">
+        UPDATE USPM_PORT
+           SET TT        = #{tt}
+             , INST_DAYS = #{instDays}
+             , MANGI     = TO_DATE(#{mangiYmd}, 'YYYY-MM-DD')
+             , DT        = #{dt}
+             , CALL_Z    = #{z}
+         WHERE CORP_GR   = #{corpGr}
+           AND TYMD      = TO_DATE(#{tymd}, 'YYYY-MM-DD')
+           AND FUND_CD   = #{fundCd}
+           AND PORT_NUM  = #{portNum}
+    </update>
+
+    <!-- 7. USPM 갱신 -->
+    <update id="updateUspm">
+        UPDATE USPM
+           SET TARGET_RETURN_PER = #{targetReturnPer}
+         WHERE CORP_GR           = #{corpGr}
+           AND YMD               = TO_DATE(#{ymd}, 'YYYY-MM-DD')
+           AND FUND_CD           = #{fundCd}
+           AND PORT_NUM          = #{portNum}
+           AND JM_CD             = #{yjCd}
+    </update>
+
+    <!-- 8. SYT1MG TR_SEQ 채번 -->
+    <select id="selectNextTrSeq" resultType="java.math.BigDecimal">
+        SELECT NVL(MAX(TR_SEQ), 0) + 1
+          FROM SYT1MG t1
+         WHERE t1.CORP_GR = #{corpGr}
+           AND t1.TR_YMD  = #{ymd}
+           AND t1.FUND_CD = #{fundCd}
+           AND t1.JM_CD   = #{jmCd}
+           AND t1.TR_CD   = #{trCd}
+    </select>
+
+    <!-- 9. SYT1MG 매매 주문 생성 -->
+    <insert id="insertSyt1mg">
+        INSERT INTO SYT1MG
+            ( CORP_GR
+            , TR_YMD
+            , TR_CD
+            , FUND_CD
+            , TR_CO_CD
+            , TRUSTEE
+            , JM_CD
+            , CURRENCY
+            , TR_SEQ
+            , TR_JUSU
+            , TR_DANGA
+            , TR_AEK
+            , TR_COST
+            , GYULJE_YMD
+            )
+        VALUES
+            ( #{corpGr}
+            , #{trYmd}
+            , #{trCd}
+            , #{fundCd}
+            , #{trCoCd}
+            , #{trustee}
+            , #{jmCd}
+            , #{currency}
+            , #{trSeq}
+            , #{trJusu}
+            , #{trDanga}
+            , #{trAek}
+            , 4
+            , #{trYmd}
+            )
+    </insert>
+
+    <!-- 10. API_Q 파생종목 큐 생성 (CALL) -->
+    <insert id="insertApiQ">
+        INSERT INTO API_Q
+            ( COMPANY
+            , URL
+            , HEADERS
+            , QUERYPARAMS
+            , TABLENAME
+            , SUBTABLE
+            , REQUEST
+            , API_KEY
+            , KEY_VALUE
+            , SUB_KEY_VALUE
+            , CORP_GR
+            , TR_YMD
+            , KEY1
+            , KEY2
+            , KEY3
+            , KEY4
+            , NUM1
+            )
+        SELECT COMPANY
+             , URL
+             , HEADERS
+             , '{ QRY_CNT: "1", SRS_CD_01: "' || #{jmCd} || '" }'
+             , TABLENAME
+             , SUBTABLE
+             , '0'
+             , TO_CHAR(SYSDATE, 'YYYYMMDD') || '-' || RAWTOHEX(SYS_GUID())
+             , KEY_VALUE
+             , SUB_KEY_VALUE
+             , #{corpGr}
+             , SYSDATE
+             , #{jmCd}
+             , #{jmNm}
+             , #{yjCd}
+             , 'CALL'
+             , #{hangsaGa}
+          FROM API_PARAMS t1
+         WHERE t1.GR_CD    = '17'
+           AND t1.SCD      = '20'
+           AND t1.TR_CO_CD = '00003'
+           AND t1.COMPANY  = 'KB_REAL'
+           AND ROWNUM      = 1
+    </insert>
+
+    <!-- 11. 변동성재계산 오라클 프로시저 호출 (SR_JA032A) -->
+    <select id="callSrJa032a" statementType="CALLABLE">
+        { call SR_JA032A(
+            #{corpGr, mode=IN, jdbcType=VARCHAR},
+            #{ymd, mode=IN, jdbcType=VARCHAR},
+            #{mode, mode=IN, jdbcType=VARCHAR},
+            #{outMsg, mode=OUT, jdbcType=VARCHAR}
+        ) }
+    </select>
+
+</mapper>
