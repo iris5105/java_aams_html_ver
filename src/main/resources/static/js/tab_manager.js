@@ -502,11 +502,14 @@ class TabManager {
 
         const total = this.openTabs.length;
         if (total === 0) {
+            navGroup.classList.remove("active");
             navGroup.style.display = "none";
             return;
         }
 
-        navGroup.style.display = "inline-flex";
+        // 모바일 환경(@media max-width: 876px)에서만 표출되도록 active 클래스를 부여하고 인라인 display는 제거
+        navGroup.classList.add("active");
+        navGroup.style.removeProperty("display");
 
         const currentIdx = this.openTabs.findIndex(t => t.tabKey === this.activeTabKey || t.pgmNo === this.activeTabKey);
         const currentNum = currentIdx >= 0 ? currentIdx + 1 : 1;
