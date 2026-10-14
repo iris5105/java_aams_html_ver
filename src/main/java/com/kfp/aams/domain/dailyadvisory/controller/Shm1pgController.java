@@ -1,5 +1,6 @@
 package com.kfp.aams.domain.dailyadvisory.controller;
 
+import com.kfp.aams.common.service.WorkDateService;
 import com.kfp.aams.domain.dailyadvisory.dto.Shm1pgDto;
 import com.kfp.aams.domain.dailyadvisory.dto.Shm1pgFilterDto;
 import com.kfp.aams.domain.dailyadvisory.dto.Shm1pgSaveDto;
@@ -27,6 +28,7 @@ public class Shm1pgController {
 
     private final Shm1pgService shm1pgService;
     private final MenuService menuService;
+    private final WorkDateService workDateService;
 
     @GetMapping({"/views/w_shm1pg", "/views/dailyadvisory/w_shm1pg"})
     public String viewShm1pg(@AuthenticationPrincipal Object principalObj,
@@ -48,7 +50,7 @@ public class Shm1pgController {
                 : "사무관리 > 자문일일 > 일일작업";
 
         String ymd = (paramYmd != null && !paramYmd.isBlank()) ? paramYmd
-                : LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+                : workDateService.getWorkDateOrDefault(corpGr);
 
         model.addAttribute("fullpgm2", fullpgm2);
         model.addAttribute("corpGr", corpGr);

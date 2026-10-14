@@ -1,5 +1,6 @@
 package com.kfp.aams.domain.dailyadvisory.controller;
 
+import com.kfp.aams.common.service.WorkDateService;
 import com.kfp.aams.domain.dailyadvisory.dto.Ja010eDto;
 import com.kfp.aams.domain.dailyadvisory.service.Ja010eService;
 import com.kfp.aams.menu.service.MenuService;
@@ -29,6 +30,7 @@ public class Ja010eController {
 
     private final Ja010eService ja010eService;
     private final MenuService menuService;
+    private final WorkDateService workDateService;
 
     @GetMapping({"/views/w_ja010e", "/views/dailyadvisory/w_ja010e"})
     public String viewJa010e(@AuthenticationPrincipal Object principalObj,
@@ -54,7 +56,7 @@ public class Ja010eController {
                 : Collections.emptyList();
         String initialYmd = (paramYmd != null && !paramYmd.isBlank())
                 ? paramYmd
-                : (!trDates.isEmpty() ? trDates.get(0) : java.time.LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd")));
+                : workDateService.getWorkDateOrDefault(corpGr);
 
         model.addAttribute("corpGr", corpGr);
         model.addAttribute("ymd", initialYmd);

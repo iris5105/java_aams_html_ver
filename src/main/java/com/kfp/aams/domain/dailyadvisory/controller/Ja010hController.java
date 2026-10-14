@@ -1,5 +1,6 @@
 package com.kfp.aams.domain.dailyadvisory.controller;
 
+import com.kfp.aams.common.service.WorkDateService;
 import com.kfp.aams.domain.dailyadvisory.dto.Ja010hMasterDto;
 import com.kfp.aams.domain.dailyadvisory.service.Ja010hService;
 import com.kfp.aams.common.service.RdReportService;
@@ -34,6 +35,7 @@ public class Ja010hController {
 
     private final Ja010hService ja010hService;
     private final MenuService menuService;
+    private final WorkDateService workDateService;
 
     /**
      * 뷰 템플릿 렌더링
@@ -58,7 +60,7 @@ public class Ja010hController {
         List<LocalDate> trDates = (corpGr != null && !corpGr.isBlank()) ? ja010hService.getDates(corpGr) : Collections.emptyList();
         LocalDate paramYmd = parseLocalDate(paramYmdStr);
         LocalDate ymd = (paramYmd != null) ? paramYmd
-                : (!trDates.isEmpty() ? trDates.get(0) : LocalDate.now());
+                : LocalDate.parse(workDateService.getWorkDateOrDefault(corpGr));
 
         model.addAttribute("fullpgm2", fullpgm2);
         model.addAttribute("corpGr", corpGr);
@@ -83,7 +85,8 @@ public class Ja010hController {
         String corpGr = resolveCorpGr(paramCorpGr, cookieCorpGr, principal);
         LocalDate ymd = parseLocalDate(ymdStr);
 
-        return ja010hService.getFundList(corpGr, ymd != null ? ymd : LocalDate.now());
+        LocalDate fallbackDate = LocalDate.parse(workDateService.getWorkDateOrDefault(corpGr));
+        return ja010hService.getFundList(corpGr, ymd != null ? ymd : fallbackDate);
     }
 
     /**
@@ -124,7 +127,8 @@ public class Ja010hController {
         String effectiveFormat = isMobile ? "html" : "pdf";
 
         try {
-            RdReportService.ExportResult res = ja010hService.exportReport(corpGr, ymd != null ? ymd : LocalDate.now(), fundCd, effectiveFormat);
+            LocalDate fallbackDate = LocalDate.parse(workDateService.getWorkDateOrDefault(corpGr));
+            RdReportService.ExportResult res = ja010hService.exportReport(corpGr, ymd != null ? ymd : fallbackDate, fundCd, effectiveFormat);
             if (isMobile) {
                 return ResponseEntity.ok()
                         .contentType(MediaType.valueOf("text/html; charset=UTF-8"))
@@ -162,7 +166,8 @@ public class Ja010hController {
         LocalDate ymd = parseLocalDate(ymdStr);
 
         try {
-            RdReportService.ExportResult res = ja010hService.exportReport(corpGr, ymd != null ? ymd : LocalDate.now(), fundCd, format);
+            LocalDate fallbackDate = LocalDate.parse(workDateService.getWorkDateOrDefault(corpGr));
+            RdReportService.ExportResult res = ja010hService.exportReport(corpGr, ymd != null ? ymd : fallbackDate, fundCd, format);
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.parseMediaType(res.getContentType()));
             headers.setContentDisposition(ContentDisposition.attachment()

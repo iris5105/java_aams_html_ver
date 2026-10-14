@@ -22,6 +22,7 @@ public class Ja010dController {
     private final Ja010dService ja010dService;
     private final com.kfp.aams.menu.service.MenuService menuService;
     private final com.kfp.aams.common.service.DddwService dddwService;
+    private final com.kfp.aams.common.service.WorkDateService workDateService;
 
     @GetMapping({ "/views/w_ja010d", "/views/dailyadvisory/w_ja010d" })
     public String viewJa010d(@AuthenticationPrincipal Object principalObj,
@@ -36,12 +37,18 @@ public class Ja010dController {
         String corpGr = resolveCorpGr(paramCorpGr, cookieCorpGr, principal);
         String adminYn = (principal != null && principal.getAdminYn() != null) ? principal.getAdminYn() : "N";
 
-        LocalDate trYmd = LocalDate.now();
+        // 파워빌더 w_ja010d.srw (wue_lastopen) 명세: dw_c.object.ymd [1] = idt_workdate (SZX0AA.HYUN_YMD 기준일자)
+        LocalDate trYmd;
         if (paramTrYmd != null && !paramTrYmd.isBlank()) {
             try {
                 trYmd = LocalDate.parse(paramTrYmd.trim());
             } catch (Exception ignored) {
+                String defaultYmd = workDateService.getWorkDateOrDefault(corpGr);
+                trYmd = (defaultYmd != null) ? LocalDate.parse(defaultYmd) : LocalDate.now();
             }
+        } else {
+            String defaultYmd = workDateService.getWorkDateOrDefault(corpGr);
+            trYmd = (defaultYmd != null) ? LocalDate.parse(defaultYmd) : LocalDate.now();
         }
 
         String addWhere = null;
@@ -75,7 +82,8 @@ public class Ja010dController {
         String cookieCorpGr = (cookieCorpGr1 != null && !cookieCorpGr1.isBlank()) ? cookieCorpGr1 : cookieCorpGr2;
         String corpGr = resolveCorpGr(paramCorpGr, cookieCorpGr, principal);
         if (trYmd == null) {
-            trYmd = LocalDate.now();
+            String defaultYmd = workDateService.getWorkDateOrDefault(corpGr);
+            trYmd = (defaultYmd != null) ? LocalDate.parse(defaultYmd) : LocalDate.now();
         }
         return ja010dService.getJa010dList(corpGr, trYmd);
     }

@@ -1,5 +1,6 @@
 package com.kfp.aams.domain.dailyadvisory.controller;
 
+import com.kfp.aams.common.service.WorkDateService;
 import com.kfp.aams.domain.dailyadvisory.dto.Ja010kDetailDto;
 import com.kfp.aams.domain.dailyadvisory.dto.Ja010kMasterDto;
 import com.kfp.aams.domain.dailyadvisory.dto.Ja010kSaveDto;
@@ -26,6 +27,7 @@ public class Ja010kController {
 
     private final Ja010kService ja010kService;
     private final MenuService menuService;
+    private final WorkDateService workDateService;
 
     @GetMapping({ "/views/w_ja010k", "/views/dailyadvisory/w_ja010k" })
     public String viewJa010k(@AuthenticationPrincipal Object principalObj,
@@ -47,9 +49,9 @@ public class Ja010kController {
                 ? menuDto.getFullpgm2()
                 : "사무관리 > 자문일일 > 일일작업";
 
-        LocalDate today = LocalDate.now();
-        LocalDate tymd = (paramTymd != null) ? paramTymd : today;
-        LocalDate fymd = (paramFymd != null) ? paramFymd : today.minusMonths(3).plusDays(1);
+        LocalDate baseDate = LocalDate.parse(workDateService.getWorkDateOrDefault(corpGr));
+        LocalDate tymd = (paramTymd != null) ? paramTymd : baseDate;
+        LocalDate fymd = (paramFymd != null) ? paramFymd : baseDate.minusMonths(3).plusDays(1);
 
         model.addAttribute("fullpgm2", fullpgm2);
         model.addAttribute("corpGr", corpGr);
@@ -72,7 +74,8 @@ public class Ja010kController {
         String cookieCorpGr = (cookieCorpGr1 != null && !cookieCorpGr1.isBlank()) ? cookieCorpGr1 : cookieCorpGr2;
         String corpGr = resolveCorpGr(paramCorpGr, cookieCorpGr, principal);
 
-        LocalDate finalTymd = (tymd != null) ? tymd : LocalDate.now();
+        LocalDate baseDate = LocalDate.parse(workDateService.getWorkDateOrDefault(corpGr));
+        LocalDate finalTymd = (tymd != null) ? tymd : baseDate;
 
         if (corpGr == null || corpGr.isBlank()) {
             return ResponseEntity.ok(Collections.emptyList());
@@ -101,8 +104,9 @@ public class Ja010kController {
             return ResponseEntity.ok(Collections.emptyList());
         }
 
-        LocalDate finalTymd = (tymd != null) ? tymd : LocalDate.now();
-        LocalDate finalFymd = (fymd != null) ? fymd : LocalDate.now().minusMonths(3).plusDays(1);
+        LocalDate baseDate = LocalDate.parse(workDateService.getWorkDateOrDefault(corpGr));
+        LocalDate finalTymd = (tymd != null) ? tymd : baseDate;
+        LocalDate finalFymd = (fymd != null) ? fymd : baseDate.minusMonths(3).plusDays(1);
 
         List<Ja010kDetailDto> list = ja010kService.getDetailList(corpGr, finalFymd, finalTymd, fundCd);
         return ResponseEntity.ok(list);

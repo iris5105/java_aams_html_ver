@@ -1,5 +1,6 @@
 package com.kfp.aams.domain.dailyadvisory.controller;
 
+import com.kfp.aams.common.service.WorkDateService;
 import com.kfp.aams.domain.dailyadvisory.dto.Scm1smDto;
 import com.kfp.aams.domain.dailyadvisory.dto.Scm1smFilterDto;
 import com.kfp.aams.domain.dailyadvisory.dto.Scm1smSaveDto;
@@ -31,6 +32,7 @@ public class Scm1smController {
 
     private final Scm1smService scm1smService;
     private final MenuService menuService;
+    private final WorkDateService workDateService;
 
     /**
      * 뷰 템플릿 렌더링
@@ -56,7 +58,7 @@ public class Scm1smController {
                 : "사무관리 > 자문일일 > 일일작업";
 
         String ymd = (paramYmd != null && !paramYmd.isBlank()) ? paramYmd
-                : LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+                : workDateService.getWorkDateOrDefault(corpGr);
 
         model.addAttribute("fullpgm2", fullpgm2);
         model.addAttribute("corpGr", corpGr);

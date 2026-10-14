@@ -1,5 +1,6 @@
 package com.kfp.aams.domain.dailyadvisory.controller;
 
+import com.kfp.aams.common.service.WorkDateService;
 import com.kfp.aams.domain.dailyadvisory.dto.Ja010oFilterDto;
 import com.kfp.aams.domain.dailyadvisory.dto.Ja010oMasterDto;
 import com.kfp.aams.domain.dailyadvisory.dto.Ja010oSaveDto;
@@ -31,6 +32,7 @@ public class Ja010oController {
 
     private final Ja010oService ja010oService;
     private final MenuService menuService;
+    private final WorkDateService workDateService;
 
     /**
      * 뷰 템플릿 렌더링
@@ -54,7 +56,7 @@ public class Ja010oController {
         }
         String fullpgm2 = (menuDto != null) ? menuDto.getFullpgm2() : "사무관리 > 자문일일 > 일일작업";
         String ymd = (paramYmd != null && !paramYmd.isBlank()) ? paramYmd
-                : LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+                : workDateService.getWorkDateOrDefault(corpGr);
 
         model.addAttribute("fullpgm2", fullpgm2);
         model.addAttribute("corpGr", corpGr);

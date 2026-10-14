@@ -1,5 +1,6 @@
 package com.kfp.aams.domain.dailyadvisory.controller;
 
+import com.kfp.aams.common.service.WorkDateService;
 import com.kfp.aams.domain.dailyadvisory.dto.Ja991aDetailDto;
 import com.kfp.aams.domain.dailyadvisory.dto.Ja991aMasterDto;
 import com.kfp.aams.domain.dailyadvisory.service.Ja991aService;
@@ -28,6 +29,7 @@ public class Ja991aController {
 
     private final Ja991aService ja991aService;
     private final MenuService menuService;
+    private final WorkDateService workDateService;
 
     @GetMapping({"/views/w_ja991a", "/views/dailyadvisory/w_ja991a"})
     public String viewJa991a(@AuthenticationPrincipal Object principalObj,
@@ -50,7 +52,7 @@ public class Ja991aController {
 
         String effectiveWorkDate = (cookieWorkDate != null && !cookieWorkDate.isBlank())
                 ? cookieWorkDate
-                : LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+                : workDateService.getWorkDateOrDefault(corpGr);
 
         model.addAttribute("fullpgm2", fullpgm2);
         model.addAttribute("corpGr", corpGr);
