@@ -20,7 +20,10 @@
     <!-- 2. Sub Filter Bar: 기준일자@매매처 -->
     <div class="filter-bar">
         <div class="filter-left">
-            <div th:replace="~{fragments/filter/dc_ymd_dddw :: filter(labelYmd='기준일자', labelDddw='매매처')}"></div>
+            <div th:replace="~{fragments/filter/dc_ymd:: filter(labelYmd='기준일자')}"></div>
+            <button type="button" class="t-btn btn-action btn-primary" id="btnJa032oCreateOrders" title="환매수 주문생성 실행" style="padding: 2px 10px; font-size: 12px;">
+                <i class="fa-solid fa-cart-shopping"></i> 주문생성
+            </button>
         </div>
     </div>
 
@@ -44,11 +47,6 @@
         <div class="pane-bottom detail-section" style="display: flex; flex-direction: column; overflow: hidden;">
             <div class="sub-grid-header">
                 <span class="sub-title"><i class="fa-solid fa-layer-group"></i> 파생상품 보유 내역 및 환매수 주문 생성</span>
-                <div class="sub-grid-actions">
-                    <button type="button" class="t-btn btn-action btn-primary" id="btnJa032oCreateOrders" title="환매수 주문생성 실행" style="padding: 2px 10px; font-size: 12px;">
-                        <i class="fa-solid fa-cart-shopping"></i> 환매수 주문생성
-                    </button>
-                </div>
             </div>
             <div class="pane-body" style="flex: 1; min-height: 0; overflow: hidden;">
                 <div id="gridJa032oDetail" class="tabulator-aams-grid" style="height: 100%; width: 100%;"></div>
@@ -599,12 +597,9 @@
                 return;
             }
 
+            // 파워빌더 cb_syt0mg 원본: dw_c는 dc_ymd(기준일자만 존재)이며 매매처 선택 없이 주문 생성 실행
             var trCoSelect = currentPane.querySelector('#filterDddw, select[name="dddw"]');
             var trCoCd = trCoSelect ? (trCoSelect.value || '').trim() : '';
-            if (!trCoCd) {
-                if (typeof showToast === 'function') showToast("상단 필터에서 매매처를 선택해주세요.", "warning");
-                return;
-            }
 
             if (!confirm("선택된 " + orderItems.length + "건에 대해 환매수 주문생성을 실행하시겠습니까?")) {
                 return;

@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.kfp.aams.domain.usportfoliomodel.mapper.Ja032bFundMapper">
+
+    <!-- 펀드별 일별현황 상세 목록 조회 (d_ja032b_fund2.srd) -->
+    <select id="selectDetailList" resultType="com.kfp.aams.domain.usportfoliomodel.dto.Ja032bFundDetailDto">
+        SELECT TO_CHAR(t1.TR_YMD, 'YYYY-MM-DD')                        AS tr_ymd_str
+             , t1.TR_YMD                                                AS tr_ymd
+             , t1.WONBON_AEK                                            AS wonbon_aek
+             , t1.JM_PER                                                AS jm_per
+             , t1.USD_WONBON_AEK                                        AS usd_wonbon_aek
+             , ROUND(t1.USD_WONBON_AEK * NVL(t1.JM_PER, 0) / 100, 2)   AS usd_tuja
+             , t1.YEAR_BETA                                             AS year_beta
+             , t1.MON_BETA                                              AS mon_beta
+             , t1.RISK_VALUE                                            AS risk_value
+             , t1.FX_SU                                                 AS fx_su
+             , t1.FX_AMT                                                AS fx_amt
+             , t1.OPT_PREMIUM                                           AS opt_premium
+             , t1.OPT_NOMINAL_AMT                                       AS opt_nominal_amt
+             , t1.DEL                                                   AS del
+             , 0                                                        AS p_visible
+             , TO_CHAR(t1.TR_YMD, 'iw')                                AS week
+          FROM SZT0IA_V t1
+         WHERE t1.CORP_GR       = #{corpGr}
+           AND t1.FUND_CD       = #{fundCd}
+           AND t1.TR_YMD        BETWEEN ADD_MONTHS(#{ymd}, -12) AND #{ymd}
+           AND t1.TR_YMD        NOT IN (SELECT HOLI_YMD
+                                          FROM SZX0HL ta
+                                         WHERE ta.NATION_CD = 'US'
+                                           AND ta.HOLI_YMD  >= ADD_MONTHS(#{ymd}, -12))
+           AND NVL(t1.DEL, 'N') = 'N'
+         ORDER BY t1.TR_YMD DESC
+    </select>
+
+</mapper>

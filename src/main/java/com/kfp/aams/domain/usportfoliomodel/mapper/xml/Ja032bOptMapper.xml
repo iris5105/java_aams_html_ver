@@ -1,0 +1,177 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.kfp.aams.domain.usportfoliomodel.mapper.Ja032bOptMapper">
+
+    <!-- 포트 시작일(fymd) 조회 -->
+    <select id="selectFymd" resultType="java.lang.String">
+        SELECT TO_CHAR(fymd, 'YYYY-MM-DD')
+          FROM USPM_PORT t1
+         WHERE t1.CORP_GR = #{corpGr}
+           AND t1.TYMD    = TO_DATE(#{ymd}, 'YYYY-MM-DD')
+           AND ROWNUM = 1
+    </select>
+
+    <!-- 1. 펀드 목록 조회 (d_ja032n1.srd) -->
+    <select id="selectFundList" resultType="com.kfp.aams.domain.usportfoliomodel.dto.Ja032bOptFundDto">
+        SELECT t1.FUND_CD                                                   AS fund_cd
+             , ia.FUND_NM                                                   AS fund_nm
+             , ia.FUND_NM                                                   AS xx_fund_cd
+             , t1.WONBON_AEK                                                AS wonbon_aek
+             , t1.JM_PER                                                    AS jm_per
+             , t1.USD_WONBON_AEK                                            AS usd_wonbon_aek
+             , ROUND(t1.USD_WONBON_AEK * NVL(t1.JM_PER, 0) / 100, 2)       AS usd_tuja
+             , sonik.jm_sonik                                               AS jm_sonik
+             , sonik.pg_sonik                                               AS pg_sonik
+             , sonik.pg_premium                                             AS pg_premium
+             , sonik.put_premium                                            AS premium
+             , sonik.un_sonik                                               AS un_sonik
+          FROM SZT0IA_V t1
+             , SZM0IA   ia
+             , (SELECT ta.FUND_CD
+                     , SUM(NVL(ta.JM_BF_SONIK,0) + NVL(ta.JM_UP_SONIK,0))     AS jm_sonik
+                     , SUM(ta.JM_PG_SONIK)                                    AS pg_sonik
+                     , SUM(ta.PUT_PG_PREMIUM)                                 AS pg_premium
+                     , SUM(NVL(ta.PUT_BF_PREMIUM,0) + NVL(ta.SA3_PREMIUM,0))  AS put_premium
+                     , SUM(NVL(ta.PUT_BF_PREMIUM,0) + NVL(ta.SA3_PREMIUM,0)
+                                                    + NVL(ta.JM_BF_SONIK,0) + NVL(ta.JM_UP_SONIK,0)
+                                                    + NVL(ta.JM_PG_SONIK,0))  AS un_sonik
+                  FROM USPM_SONIK ta
+                 WHERE ta.CORP_GR = #{corpGr}
+                   AND ta.YMD     = TO_DATE(#{ymd}, 'YYYY-MM-DD')
+                 GROUP BY ta.FUND_CD) sonik
+         WHERE t1.CORP_GR       = #{corpGr}
+           AND t1.TR_YMD        = TO_DATE(#{ymd}, 'YYYY-MM-DD')
+           AND NVL(t1.DEL,'N')  = 'N'
+           AND ia.CORP_GR       = t1.CORP_GR
+           AND ia.FUND_CD       = t1.FUND_CD
+           AND sonik.fund_cd(+) = t1.FUND_CD
+         ORDER BY t1.FUND_CD ASC
+    </select>
+
+    <!-- 2. 종목 목록 조회 (d_ja032b.srd) -->
+    <select id="selectStockList" resultType="com.kfp.aams.domain.usportfoliomodel.dto.Ja032bOptStockDto">
+        SELECT DISTINCT t1.CORP_GR                         AS corp_gr
+             , TO_CHAR(t1.YMD, 'YYYY-MM-DD')               AS ymd
+             , t1.FUND_CD                                  AS fund_cd
+             , t1.JM_CD                                    AS yj_cd
+             , NVL(ya.JM_NM, jj.JJ_NM)                     AS jm_nm
+             , NVL(ya.JM_NM, jj.JJ_NM)                     AS xx_yj_cd
+             , ya.BLBG_TCKR                                AS srs_cd
+             , t1.JONGA                                    AS syt0lp_jonga
+             , t1.MARKET_CAPITALIZATION                    AS market_capitalization
+             , t1.DAYS                                     AS days
+             , t1.SHORT_PRICE                              AS short_price
+             , t1.GIJUN_PRICE                              AS gijun_price
+             , t1.D30_VOLATILITY                           AS d30_volatility
+             , t1.G30_VOLATILITY                           AS g30_volatility
+             , hl.HIGH_VALUE                               AS high_value
+             , TO_CHAR(hl.HIGH_YMD, 'YYYY-MM-DD')          AS high_ymd
+             , hl.LOW_VALUE                                AS low_value
+             , TO_CHAR(hl.LOW_YMD, 'YYYY-MM-DD')           AS low_ymd
+             , CASE WHEN t1.OVRS_EXCG_CD='KRX' THEN '2' ELSE '1' END AS ovrs_excg_cd
+          FROM USPM t1
+          LEFT JOIN SYM0YA ya  ON ya.CORP_GR = t1.CORP_GR
+                              AND ya.JM_CD   = t1.JM_CD
+          LEFT JOIN SJM0JJ jj  ON jj.KOSCOM_CD = t1.JM_CD
+                              AND jj.DANC_GB   IN ('A','C')
+             , TABLE(F_HIGH_LOW(#{corpGr}, TO_DATE(#{fymd}, 'YYYY-MM-DD'), TO_DATE(#{tymd}, 'YYYY-MM-DD'))) hl
+         WHERE t1.CORP_GR = #{corpGr}
+           AND t1.FUND_CD = #{fundCd}
+           AND t1.YMD     = TO_DATE(#{tymd}, 'YYYY-MM-DD')
+           AND (ya.JM_CD IS NOT NULL OR jj.KOSCOM_CD IS NOT NULL)
+           AND hl.JM_CD   = t1.JM_CD
+         ORDER BY CASE WHEN t1.OVRS_EXCG_CD='KRX' THEN '2' ELSE '1' END, NVL(ya.JM_NM, jj.JJ_NM)
+    </select>
+
+    <!-- 3-1. 해외 옵션위험값 일별현황 상세 조회 (d_ja032b_opt.srd) -->
+    <select id="selectDetailList" resultType="com.kfp.aams.domain.usportfoliomodel.dto.Ja032bOptDetailDto">
+        SELECT t1.CORP_GR                                      AS corp_gr
+             , TO_CHAR(t1.YMD, 'YYYY-MM-DD')                   AS ymd
+             , t1.FUND_CD                                      AS fund_cd
+             , t1.JM_CD                                        AS jm_cd
+             , t1.JM_CD                                        AS yj_cd
+             , t1.PORT                                         AS port
+             , t1.JONGA                                        AS jonga
+             , lp.TVOL                                         AS tvol
+             , lp.TOMV                                         AS tomv
+             , t1.STOCK_JUSU                                   AS stock_jusu
+             , t1.STOCK_CHUI                                   AS stock_chui
+             , t1.OPT_QTY                                      AS opt_qty
+             , t1.OPT_NOMINAL_AMT                              AS opt_nominal_amt
+             , t1.OPT_PREMIUM                                  AS opt_premium
+             , tt.risk_value                                   AS risk_value
+             , 'N'                                             AS is_krx
+          FROM USPM_OPT t1
+             , SYT0LP   lp
+             , (SELECT yz.YMD
+                     , yz.FUND_CD
+                     , yz.TRUSTEE
+                     , ya.CHANGE_JM_CD
+                     , SUM(NVL(yz.DELTA_RISK_VALUE,0) + NVL(yz.GAMMA_RISK_VALUE,0) + NVL(yz.VEGA_RISK_VALUE,0)) AS risk_value
+                  FROM SYM0YZ yz
+                     , SYM0YA ya
+                 WHERE yz.CORP_GR = #{corpGr}
+                   AND yz.YMD     BETWEEN TO_DATE(#{fymd}, 'YYYY-MM-DD') AND TO_DATE(#{tymd}, 'YYYY-MM-DD')
+                   AND ya.CORP_GR = yz.CORP_GR
+                   AND ya.JM_CD   = yz.JM_CD
+                 GROUP BY yz.YMD, yz.FUND_CD, yz.TRUSTEE, ya.CHANGE_JM_CD) tt
+         WHERE t1.CORP_GR         = #{corpGr}
+           AND t1.YMD             BETWEEN TO_DATE(#{fymd}, 'YYYY-MM-DD') AND TO_DATE(#{tymd}, 'YYYY-MM-DD')
+           AND t1.YMD             NOT IN (SELECT HOLI_YMD
+                                            FROM SZX0HL ta
+                                           WHERE ta.NATION_CD = 'US'
+                                             AND ta.HOLI_YMD  >= TO_DATE(#{fymd}, 'YYYY-MM-DD'))
+           AND t1.FUND_CD         = #{fundCd}
+           AND t1.JM_CD           = #{jmCd}
+           AND lp.CORP_GR(+)      = t1.CORP_GR
+           AND lp.YMD(+)          = t1.YMD
+           AND lp.JM_CD(+)        = t1.JM_CD
+           AND tt.YMD(+)          = t1.YMD
+           AND tt.FUND_CD(+)      = t1.FUND_CD
+           AND tt.TRUSTEE(+)      = t1.PORT
+           AND tt.CHANGE_JM_CD(+) = t1.JM_CD
+         ORDER BY t1.YMD DESC, t1.PORT ASC
+    </select>
+
+    <!-- 3-2. 국내(KRX) 옵션위험값 일별현황 상세 조회 (d_ja032b_opt_krx.srd) -->
+    <select id="selectDetailKrxList" resultType="com.kfp.aams.domain.usportfoliomodel.dto.Ja032bOptDetailDto">
+        SELECT t1.CORP_GR                                      AS corp_gr
+             , TO_CHAR(t1.YMD, 'YYYY-MM-DD')                   AS ymd
+             , t1.FUND_CD                                      AS fund_cd
+             , t1.JM_CD                                        AS jm_cd
+             , t1.JM_CD                                        AS yj_cd
+             , t1.PORT                                         AS port
+             , t1.JONGA                                        AS jonga
+             , tg.VOLUME                                       AS volume
+             , tg.VALUE                                        AS value
+             , t1.STOCK_JUSU                                   AS stock_jusu
+             , t1.STOCK_CHUI                                   AS stock_chui
+             , t1.OPT_QTY                                      AS opt_qty
+             , t1.OPT_NOMINAL_AMT                              AS opt_nominal_amt
+             , t1.OPT_PREMIUM                                  AS opt_premium
+             , NULL                                            AS risk_value
+             , 'Y'                                             AS is_krx
+          FROM USPM_OPT t1
+             , SJT1TG   tg
+         WHERE t1.CORP_GR      = #{corpGr}
+           AND t1.FUND_CD      = #{fundCd}
+           AND t1.YMD          BETWEEN TO_DATE(#{fymd}, 'YYYY-MM-DD') AND TO_DATE(#{tymd}, 'YYYY-MM-DD')
+           AND t1.YMD          NOT IN (SELECT HOLI_YMD
+                                         FROM SZX0HL ta
+                                        WHERE ta.NATION_CD = 'KR'
+                                          AND ta.HOLI_YMD  >= TO_DATE(#{fymd}, 'YYYY-MM-DD'))
+           AND t1.JM_CD        = #{jmCd}
+           AND tg.YMD(+)       = t1.YMD
+           AND tg.KOSCOM_CD(+) = t1.JM_CD
+         ORDER BY t1.YMD DESC, t1.PORT ASC
+    </select>
+
+    <!-- 작업기준일 조회 -->
+    <select id="selectWorkDate" resultType="java.lang.String">
+        SELECT TO_CHAR(MAX(t1.TYMD), 'YYYY-MM-DD')
+          FROM USPM_PORT t1
+         WHERE t1.CORP_GR = #{corpGr}
+    </select>
+
+</mapper>
