@@ -1,11 +1,10 @@
 ---
 trigger: always_on
-description: "Crownix Report(MRD) 연동 아키텍처, 백엔드 공통 API, AamsReport.bindViewer 일체형 뷰어 엔진 및 5종 포맷 내보내기 표준 가이드"
 ---
 
-# 06. MRD 리포트 뷰어 표준 가이드 (Crownix Report Viewer Guide)
+# 12. MRD 리포트 뷰어 개발 표준 가이드 (Crownix Report Viewer)
 
-본 가이드는 AAMS 시스템의 Crownix Reporting Server(MRD) 기반 서식 리포트 미리보기, PDF/Excel/Word/PPT/HWP 5종 포맷 내보내기, 공통 리포트 프래그먼트 연동, 그리고 일체형 제어 엔진인 `AamsReport.bindViewer`의 표준 사용 규격을 정의합니다.
+본 문서는 Crownix Reporting Server(MRD) 기반 서식 리포트 미리보기, PDF/Excel/Word/PPT/HWP 5종 포맷 내보내기, 공통 리포트 프래그먼트 연동, 그리고 일체형 제어 엔진인 `AamsReport.bindViewer`의 표준 사용 규격을 정의합니다.
 
 ---
 
@@ -124,7 +123,7 @@ var reportViewer = (window.AamsReport && typeof window.AamsReport.bindViewer ===
 
 ## 5. 마스터 그리드와 리포트 연동 표준 (`syncDetail`)
 
-마스터 그리드의 행 선택 시 [02-tabulator-grid.md](file:///d:/work/java_aams_html_ver/.agents/rules/02-tabulator-grid.md) 및 [05-layout-responsive.md](file:///d:/work/java_aams_html_ver/.agents/rules/05-layout-responsive.md)의 규격에 따라 PC 환경과 모바일 환경을 분기 처리합니다.
+마스터 그리드의 행 선택 시 PC 환경과 모바일 환경을 분기 처리합니다.
 
 ```javascript
 function syncDetail(row, masterRowData) {

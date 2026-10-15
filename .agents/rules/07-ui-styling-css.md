@@ -2,9 +2,9 @@
 trigger: always_on
 ---
 
-# AAMS UI 스타일링 및 CSS 표준 규격 (Zero-Inline-Style 원칙)
+# 07. UI 스타일링 및 그리드 CSS 개발 표준 가이드 (Zero-Inline-Style 원칙)
 
-본 문서는 AAMS 웹 프론트엔드 스타일링, Tabulator 그리드 색상 시스템, 상태 배지 적용 시 반드시 준수해야 하는 공통 CSS 표준 규격입니다.
+본 문서는 AAMS 웹 프론트엔드 스타일링, Tabulator 그리드 색상 시스템, 호가/시세 동기화, 상태 배지 적용 시 반드시 준수해야 하는 공통 CSS 표준 규격입니다.
 
 ---
 

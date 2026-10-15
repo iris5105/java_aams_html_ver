@@ -2,9 +2,9 @@
 trigger: always_on
 ---
 
-# AAMS 백엔드 및 데이터 계층 개발 표준 가이드
+# 01. 백엔드 아키텍처 및 영속성 계층 개발 표준 가이드
 
-본 문서는 Spring Boot, MyBatis, QueryDSL, JPA 기반 백엔드 아키텍처 및 데이터베이스 연동 개발 시 반드시 준수해야 하는 표준 규격입니다.
+본 문서는 Spring Boot, Spring Data JPA, QueryDSL, MyBatis 기반 백엔드 아키텍처 및 데이터베이스 영속성 계층 개발 시 반드시 준수해야 하는 표준 규격입니다.
 
 ---
 
@@ -18,50 +18,7 @@ trigger: always_on
 
 ---
 
-## 2. DTO 및 데이터 모델링 규격
-
-1. **srd 파일 기반 1:1 DTO 생성**:
-   - 파워빌더 `.srd` 파일의 DataWindow SQL 쿼리문 및 컬럼 정의(`table(column=...)`)를 기준으로 DTO를 구성한다.
-   - 컬럼 데이터형 매핑:
-     - `char(N)`, `varchar(N)` -> `String`
-     - `number`, `decimal` -> `BigDecimal` (정수형 명확한 경우 `Long` 또는 `Integer`)
-     - `datetime`, `date` -> `String` (`YYYY-MM-DD` 문자열) 또는 `LocalDate`
-   - **`xx_` 컬럼(코드명 컬럼) 명명 규칙**:
-     - `.srd`의 `xx_fund_cd` -> DTO 필드명 `xxFundCd`
-     - `.srd`의 `xx_yj_cd` -> DTO 필드명 `xxYjCd`
-     - `.srd`의 `xx_koscom_cd` -> DTO 필드명 `xxKoscomCd`
-     - 기존 명칭 프로퍼티(`fundNm`, `jmNm` 등)와의 호환성이 필요한 경우 양방향 getter/setter를 구성하여 직렬화/역직렬화 누락을 원천 방지한다:
-       ```java
-       private String xxFundCd;
-       private String fundNm;
-
-       public String getXxFundCd() {
-           return xxFundCd != null ? xxFundCd : fundNm;
-       }
-       public void setXxFundCd(String xxFundCd) {
-           this.xxFundCd = xxFundCd;
-           if (this.fundNm == null) this.fundNm = xxFundCd;
-       }
-       public String getFundNm() {
-           return fundNm != null ? fundNm : xxFundCd;
-       }
-       public void setFundNm(String fundNm) {
-           this.fundNm = fundNm;
-           if (this.xxFundCd == null) this.xxFundCd = fundNm;
-       }
-       ```
-2. **CUD 상태 관리 필드 포함**:
-   - 그리드 일괄 저장을 위한 CUD 플래그를 DTO에 포함한다:
-     ```java
-     private Boolean isNew;
-     private Boolean isUpdated;
-     private Boolean isDeleted;
-     private String rowStatus; // C: 등록, U: 수정, D: 삭제
-     ```
-
----
-
-## 3. 영속성 계층 구현 표준 (JPA / QueryDSL vs MyBatis 분기)
+## 2. 영속성 계층 구현 표준 (단일 테이블 JPA vs 복합 테이블 MyBatis 분기)
 
 1. **단일 테이블 단순 조회 및 CUD(등록/수정/삭제) -> Spring Data JPA / EntityManager**:
    - **엔티티 구성**: 단일 테이블은 `@Entity` 클래스로 정의하며, 복합 기본키 테이블은 `@IdClass` 또는 `@EmbeddedId`를 적용한다.
@@ -104,43 +61,33 @@ trigger: always_on
      }
      ```
 2. **2개 이상의 테이블 조인, 복합 함수, 프로시저 -> MyBatis**:
-   - srd 원본 SQL과 같이 2개 이상의 테이블 JOIN(`SZT0IA_V`, `SZM0IA`, `USPM_OPT` 등), 집계 서브쿼리, 오라클 특화 함수(`NVL`, `DECODE`, `TO_CHAR` 등)가 사용되는 경우 반드시 MyBatis XML 매퍼로 작성한다.
-   - srd 파일의 쿼리문을 그대로 가져와서 변수 바인딩 부분만 `#{corpGr}`, `#{ymd}` 등으로 치환하여 원본 쿼리 로직을 100% 보존한다.
-   - `SELECT` 절에서 `xx_` 컬럼 별칭을 명시적으로 매핑한다:
-     ```xml
-     SELECT t1.CORP_GR                       AS corp_gr
-          , t1.FUND_CD                       AS fund_cd
-          , ia.FUND_NM                       AS xx_fund_cd
-          , ia.FUND_NM                       AS fund_nm
-          , TO_CHAR(t1.TR_YMD, 'YYYY-MM-DD') AS tr_ymd
-       FROM SZT0IA_V t1
-          , SZM0IA   ia
-      WHERE t1.CORP_GR = #{corpGr}
-        AND t1.TR_YMD  = #{ymd}
+   - 2개 이상의 테이블 JOIN(`SZT0IA_V`, `SZM0IA`, `USPM_OPT` 등), 집계 서브쿼리, 오라클 특화 함수가 사용되는 경우 반드시 MyBatis XML 매퍼로 작성한다. (상세는 [03-oracle-mybatis-sql.md](file:///d:/work/java_aams_html_ver/.agents/rules/03-oracle-mybatis-sql.md) 참조)
+
+---
+
+## 3. 동일 테이블 다화면 CUD 재사용 및 점진적 엔티티 확장 표준 (Single-Entity & Multi-Screen DTO)
+
+1. **엔티티 및 리포지토리 단일화 원칙 (Single Entity & Single Repository)**:
+   - 동일한 단일 테이블 `B`에 대해 A화면에서 먼저 Entity/Repository를 생성하고, 이후 C화면에서 B테이블의 일부 또는 추가 컬럼을 CRUD해야 하는 경우, **B 테이블에 대한 Entity와 Repository는 중복 생성하지 않고 단 하나만 공통으로 재사용**한다.
+   - C화면에서 새롭게 필요로 하는 컬럼은 기존 `B` 엔티티 클래스에 누적하여 추가 정의한다.
+2. **화면별 DTO 분리 원칙 (Screen-Scoped DTOs)**:
+   - 엔티티는 모든 컬럼을 수용하는 단일 테이블 완전체 모델로 유지하되, 클라이언트와의 입출력은 각 화면별 전용 DTO(`AScreenDto`, `CScreenDto` 등)로 철저히 분리한다. (상세는 [02-dto-and-models.md](file:///d:/work/java_aams_html_ver/.agents/rules/02-dto-and-models.md) 참조)
+3. **더티 체킹(Dirty Checking) 기반 부분 수정 필수 (Zero-Null-Overwrite)**:
+   - C화면에서 수정(Update) 시 엔티티를 임의로 새로 생성하여 `em.merge()`나 `save()`를 호출하면 C화면에서 다루지 않는 A화면 전용 컬럼들이 `null`로 덮어씌워지는 치명적 데이터 왜곡이 발생할 수 있다.
+   - 따라서 반드시 `@Transactional` 컨텍스트 내에서 `em.find(Entity.class, id)` 또는 `repository.findById(id)`로 영속성 컨텍스트에 엔티티를 로드한 후, **해당 화면에서 수정한 필드만 setter(또는 비즈니스 변경 메서드)로 변경하여 더티 체킹에 의해 변경 필드만 안전하게 자동 UPDATE**되도록 구현한다:
+     ```java
+     @Transactional
+     public int updateFromScreenC(CScreenDto dto) {
+         B entity = em.find(B.class, dto.getId());
+         if (entity != null) {
+             // C 화면에서 다루는 컬럼만 선택적으로 변경 (기존 A화면 컬럼값 온전 보존)
+             entity.setColForC1(dto.getColForC1());
+             entity.setColForC2(dto.getColForC2());
+             return 1;
+         }
+         return 0;
+     }
      ```
-3. **동일 테이블 다화면 CUD 재사용 및 점진적 엔티티 확장 표준 (Single-Entity & Multi-Screen DTO)**:
-   - **엔티티 및 리포지토리 단일화 원칙 (Single Entity & Single Repository)**:
-     - 동일한 단일 테이블 `B`에 대해 A화면에서 먼저 Entity/Repository를 생성하고, 이후 C화면에서 B테이블의 일부 또는 추가 컬럼을 CRUD해야 하는 경우, **B 테이블에 대한 Entity와 Repository는 중복 생성하지 않고 단 하나만 공통으로 재사용**한다.
-     - C화면에서 새롭게 필요로 하는 컬럼은 기존 `B` 엔티티 클래스에 누적하여 추가 정의한다.
-   - **화면별 DTO 분리 원칙 (Screen-Scoped DTOs)**:
-     - 엔티티는 모든 컬럼을 수용하는 단일 테이블 완전체 모델로 유지하되, 클라이언트와의 입출력은 각 화면별 전용 DTO(`AScreenDto`, `CScreenDto` 또는 `.srd` 1:1 매핑 DTO)로 철저히 분리한다.
-     - A화면과 C화면은 각자 필요한 컬럼만 DTO로 입출력하여 상호 의존성을 원천 차단한다.
-   - **더티 체킹(Dirty Checking) 기반 부분 수정 필수 (Zero-Null-Overwrite)**:
-     - C화면에서 수정(Update) 시 엔티티를 임의로 새로 생성하여 `em.merge()`나 `save()`를 호출하면 C화면에서 다루지 않는 A화면 전용 컬럼들이 `null`로 덮어씌워지는 치명적 데이터 왜곡이 발생할 수 있다.
-     - 따라서 반드시 `@Transactional` 컨텍스트 내에서 `em.find(Entity.class, id)` 또는 `repository.findById(id)`로 영속성 컨텍스트에 엔티티를 로드한 후, **해당 화면에서 수정한 필드만 setter(또는 비즈니스 변경 메서드)로 변경하여 더티 체킹에 의해 변경 필드만 안전하게 자동 UPDATE**되도록 구현한다:
-       ```java
-       @Transactional
-       public int updateFromScreenC(CScreenDto dto) {
-           B entity = em.find(B.class, dto.getId());
-           if (entity != null) {
-               // C 화면에서 다루는 컬럼만 선택적으로 변경 (기존 A화면 컬럼값 온전 보존)
-               entity.setColForC1(dto.getColForC1());
-               entity.setColForC2(dto.getColForC2());
-               return 1;
-           }
-           return 0;
-       }
-       ```
 
 ---
 
@@ -159,28 +106,3 @@ trigger: always_on
      result.put("message", "정상적으로 저장되었습니다.");
      return ResponseEntity.ok(result);
      ```
-3. **오라클 프로시저(SP) 호출 규격**:
-   - MyBatis `statementType="CALLABLE"` 매핑 또는 JDBC CallableStatement를 사용하여 프로시저의 IN/OUT 파라미터를 정확히 바인딩한다.
-
----
-
-## 5. MyBatis SQL 작성 시 오라클 데이터 타입 일치 표준 (Zero-Type-Mismatch & ORA-00932 방어)
-
-1. **`NULLIF(expr1, expr2)` 두 인자의 데이터 타입 일치 보장 (ORA-00932 원천 방지)**:
-   - 오라클의 `NULLIF(a, b)` 함수는 **두 인자의 데이터형이 완전히 동일**해야 한다.
-   - `SUBSTR(...)` 등 문자열 연산 결과와 숫자 리터럴 `0`을 비교할 때 `NULLIF(SUBSTR(...), 0)` 형태로 작성하면 `ORA-00932: 일관성 없는 데이터 유형: CHAR이(가) 필요하지만 NUMBER임` 오류가 발생한다.
-   - 분모 0 방어나 조건문에서 문자열 연산 결과를 비교할 때는 반드시 `TO_NUMBER()`로 형변환을 일치시킨다:
-     ```xml
-     <!-- 금지 (ORA-00932 발생): CHAR와 NUMBER 불일치 -->
-     TRUNC(t1.BID / NULLIF(SUBSTR(t1.JM_CD, LENGTH(#{jmCd})), 0), 4) * 100
-
-     <!-- 올바른 표준: TO_NUMBER로 둘 다 NUMBER 타입으로 일치 -->
-     TRUNC(t1.BID / NULLIF(TO_NUMBER(SUBSTR(t1.JM_CD, LENGTH(#{jmCd}))), 0), 4) * 100
-     ```
-2. **나눗셈 연산 시 제수(Divisor) 0 방어 표준 패턴**:
-   - 나눗셈 연산(`/`)의 분모 변수가 `0`일 가능성이 있는 경우 반드시 `NULLIF(#{divisor}, 0)`를 사용하여 `ORA-01476: 제수가 0입니다`를 사전에 차단한다:
-     ```xml
-     <!-- 안전한 나눗셈 및 퍼센트 계산 표준 -->
-     ROUND((TO_NUMBER(SUBSTR(t1.JM_CD, LENGTH(#{jmCd}))) / NULLIF(#{jonga}, 0) - 1) * 100, 2) AS per
-     ```
-

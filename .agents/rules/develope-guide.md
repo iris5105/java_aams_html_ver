@@ -15,12 +15,18 @@ description: "AAMS 차세대 웹 시스템 개발 표준 종합 헌장 및 세�
 
 | 파트 번호 및 문서명 | 주요 다룸 내용 | 바로가기 |
 | :--- | :--- | :--- |
-| **01. 백엔드 표준 가이드** | `corp_gr` 규격, srd 기반 DTO 매핑, `xx_` 컬럼 양방향 프로퍼티, JPA/QueryDSL(단일 테이블 조회/CUD) vs MyBatis(복합 조인) 기준, REST API 및 프로시저 호출 | [01-backend-standard.md](file:///d:/work/java_aams_html_ver/.agents/rules/01-backend-standard.md) |
-| **02. Tabulator 그리드 표준** | srd 기반 컬럼 정의, 원클릭 인라인 편집, `p_xx_` 돋보기/`p_dd_` 달력 버튼(36px), 3단계 날짜 검증, 행 선택 삼중 안전망, **Rowfocus 2대 정책**, **srd Summary 밴드 합계 행(Summary Row) 표준** | [02-tabulator-grid.md](file:///d:/work/java_aams_html_ver/.agents/rules/02-tabulator-grid.md) |
-| **03. UI 스타일링 및 CSS 표준** | **Zero-Inline-Style 원칙**, 헤더 색상 클래스(`headerCssClass`), 데이터 셀 텍스트 색상, 가격/등락률 표준 클래스, 거래구분 및 상태 배지, **Summary 행 스타일** | [03-ui-styling-css.md](file:///d:/work/java_aams_html_ver/.agents/rules/03-ui-styling-css.md) |
-| **04. 공통 컴포넌트 & JS 유틸리티** | 상단 공통 툴바 표준 계약, dw_c 기반 필터 프래그먼트, **상시 활성화 & 수동 조회 단일 정책 (자동조회 금지/기존데이터 유지)**, DDDW 2칸 분할, 캘린더, 코드 검색, 재사용 JS 함수 | [04-common-components-js.md](file:///d:/work/java_aams_html_ver/.agents/rules/04-common-components-js.md) |
-| **05. 레이아웃 & 반응형 표준** | MDI 단일 진입점 초기화(`startInit`), Zero-Garbage Code, `AamsSplitter` 드래그 리사이징, 권한별 폼 잠금 동기화, 반응형 브레이크포인트 (1415px, 876px), 모바일 세로 스택 | [05-layout-responsive.md](file:///d:/work/java_aams_html_ver/.agents/rules/05-layout-responsive.md) |
-| **06. MRD 리포트 뷰어 표준** | Crownix Report 아키텍처, 백엔드 공통 RD API, 공통 리포트 프래그먼트, `AamsReport.bindViewer` 일체형 엔진 바인딩, 5종 포맷 내보내기, 상단 공통 [엑셀] 버튼 연동 | [06-report-viewer.md](file:///d:/work/java_aams_html_ver/.agents/rules/06-report-viewer.md) |
+| **01. 백엔드 아키텍처 및 영속성 표준** | Zero-Hardcoding, 단일 테이블(JPA/QueryDSL) vs 복합 조인(MyBatis), 동일 테이블 다화면 CUD 재사용(단일 Entity & 더티 체킹), REST API 규격 | [01-backend-standard.md](file:///d:/work/java_aams_html_ver/.agents/rules/01-backend-standard.md) |
+| **02. DTO 및 데이터 모델링 규격** | srd 기반 1:1 DTO 매핑, `xx_` 명칭 컬럼 양방향 프로퍼티, CUD 상태 플래그(`isNew`, `isUpdated`, `isDeleted`), 화면별 전용 DTO 분리 | [02-dto-and-models.md](file:///d:/work/java_aams_html_ver/.agents/rules/02-dto-and-models.md) |
+| **03. 오라클 SQL 및 MyBatis 매핑 표준** | srd 원본 SQL 조인 보존, `NULLIF` 타입 일치(ORA-00932 방어), 나눗셈 제수 0 방어(`NULLIF`), 오라클 프로시저(CallableStatement) 호출 규격 | [03-oracle-mybatis-sql.md](file:///d:/work/java_aams_html_ver/.agents/rules/03-oracle-mybatis-sql.md) |
+| **04. Tabulator 그리드 기초 및 컬럼 구성** | srd 컬럼 매핑, 원클릭 인라인 편집(`editTriggerEvent: click`, `aamsCellEdit`), 신규 행 편집 예외, DDDW 드롭다운 값 유지, Zero-Count-Badge, Zero-Row-Outline | [04-tabulator-grid-basic.md](file:///d:/work/java_aams_html_ver/.agents/rules/04-tabulator-grid-basic.md) |
+| **05. Tabulator 그리드 이벤트 및 인터랙션** | 특수 컨트롤 컬럼(`p_xx_` 돋보기 36px, `p_dd_` 달력 36px, `xx_` 수기입력), 3단계 날짜 검증, 행 선택 삼중 안전망, 서브그리드 포커스 탈취 방어, Row Focus 2대 정책 | [05-tabulator-grid-events.md](file:///d:/work/java_aams_html_ver/.agents/rules/05-tabulator-grid-events.md) |
+| **06. Tabulator 그리드 Summary 합계 행** | Data Summary Row 패턴(연노랑 `#fbf2c4`, 클릭 차단), srd 집계식 매핑, 라이프사이클 4대 시점 동적 재계산(`recalcSummaryRow`), DB 저장 방어(Zero-Summary-Leakage) | [06-tabulator-grid-summary.md](file:///d:/work/java_aams_html_ver/.agents/rules/06-tabulator-grid-summary.md) |
+| **07. UI 스타일링 및 그리드 CSS 표준** | Zero-Inline-Style 원칙, 컬럼 헤더 색상 클래스(`headerCssClass`), 호가/시세 색상 동기화(헤더-셀 일치: Zero-Color-Omission), 가격/등락률 및 거래구분 배지 | [07-ui-styling-css.md](file:///d:/work/java_aams_html_ver/.agents/rules/07-ui-styling-css.md) |
+| **08. 상단 공통 툴바 및 웹 표준 수동 조회 정책** | 상단 공통 툴바 표준 계약, 최상위 MDI pane 획득, 새로고침 시 완전 리셋(Zero-Stale-Key), Always Enabled & 수동 조회 단일 정책, 필터 액션 버튼 인접 배치 | [08-toolbar-and-query-policy.md](file:///d:/work/java_aams_html_ver/.agents/rules/08-toolbar-and-query-policy.md) |
+| **09. 공통 컴포넌트 & 프론트엔드 JS 표준** | dw_c 기반 상단 필터바 프래그먼트, DDDW 드롭다운 2칸 분할(`f_dddwctl.js`, `initFilterDddw`), 달력(`aams_calendar.js`), 코드 검색(`dynamic_code_search.js`), 재사용 JS 유틸 | [09-common-components-js.md](file:///d:/work/java_aams_html_ver/.agents/rules/09-common-components-js.md) |
+| **10. MDI 탭 및 스플리터 분할 레이아웃** | MDI 단일 진입점 초기화(`startInit`), `AamsSplitter` 드래그 리사이징, srw 상속 및 중첩 분할(Nested Split) 2대 패턴 A/B, 컨테이너 높이, 폼 잠금 동기화 | [10-layout-and-splitter.md](file:///d:/work/java_aams_html_ver/.agents/rules/10-layout-and-splitter.md) |
+| **11. 반응형 레이아웃 및 모바일 UX 표준** | 2대 브레이크포인트(1415px, 876px), 모바일 세로 순차 스택(`layout-mobile-stack`), 복합 그리드 최소 높이 290px(Zero-Squished-Grid), 모바일 탭 네비게이션 | [11-responsive-mobile.md](file:///d:/work/java_aams_html_ver/.agents/rules/11-responsive-mobile.md) |
+| **12. MRD 리포트 뷰어 표준 가이드** | Crownix Report 아키텍처, 백엔드 공통 RD API, 공통 리포트 프래그먼트, `AamsReport.bindViewer` 일체형 엔진 바인딩, 5종 포맷 내보내기, 상단 공통 [엑셀] 연동 | [12-report-viewer.md](file:///d:/work/java_aams_html_ver/.agents/rules/12-report-viewer.md) |
 | **📖 전체 화면 카탈로그 색인** | **대메뉴 > 소분류 > 화면번호(`PGM_NO`), 화면이름(`PGM_NM`), 파일명(`PGM_ID`), 파워빌더 소스(.srw) 및 웹 도메인/뷰 253개 전수 매핑** | [AAMS_SCREEN_CATALOG.md](file:///d:/work/java_aams_html_ver/AAMS_SCREEN_CATALOG.md) |
 
 ---
