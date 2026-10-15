@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
-<div class="view-container layout-split ja990c-container" th:fragment="ja990cView">
+<div class="view-container layout-split ja990c-container layout-mobile-stack-container" th:fragment="ja990cView">
 
     <!-- Top Action Control Bar (Row 1) -->
     <div class="view-toolbar">
@@ -480,7 +480,8 @@
                 gridMaster = new Tabulator(masterEl, {
                     data: [],
                     layout: "fitData",
-                    selectable: 1,
+                    selectableRows: 1,
+                    editTriggerEvent: "click",
                     columns: masterColumns,
                     height: "100%",
                     initialSort: [
@@ -567,7 +568,8 @@
                 gridDetail = new Tabulator(detailEl, {
                     data: [],
                     layout: "fitDataFill",
-                    selectable: 1,
+                    selectableRows: 1,
+                    editTriggerEvent: "click",
                     columns: detailColumns,
                     height: "100%",
                     placeholder: "조회된 변경이력이 없습니다."

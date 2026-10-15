@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
-<div class="view-container layout-split scm1pg-container" th:fragment="scm1pgView">
+<div class="view-container layout-split scm1pg-container layout-mobile-stack-container" th:fragment="scm1pgView">
 
     <!-- Top Action Control Bar (Row 1) -->
     <div class="view-toolbar">
@@ -235,7 +235,7 @@
                         return getDddwLabel('pg_cd', cell.getValue());
                     },
                     editable: true,
-                    cellClick: typeof aamsCellEdit !== 'undefined' ? aamsCellEdit : undefined,
+                    cellClick: aamsCellEdit,
                     cellEdited: function(cell) {
                         const row = cell.getRow();
                         const data = row.getData();
@@ -271,7 +271,8 @@
                     columns: detailColumns,
                     height: "100%",
                     placeholder: "선택된 채권의 등급 내역이 없습니다.",
-                    selectableRows: 1
+                    selectableRows: 1,
+                    editTriggerEvent: "click"
                 });
 
                 // Rule 8: Triple Fallback & Master-Detail Standard Contract

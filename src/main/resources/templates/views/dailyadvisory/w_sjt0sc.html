@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
-<div class="view-container layout-single sjt0sc-container" th:fragment="sjt0scView">
+<div class="view-container layout-single sjt0sc-container layout-mobile-stack-container" th:fragment="sjt0scView">
 
     <!-- Top Action Control Bar (Row 1) -->
     <div class="view-toolbar">
@@ -68,7 +68,7 @@
                     headerHozAlign: "center",
                     editor: "input",
                     editable: isCellEditable,
-                    cellClick: typeof aamsCellEdit !== 'undefined' ? aamsCellEdit : undefined
+                    cellClick: aamsCellEdit
                 },
                 {
                     title: "KSD종목코드",
@@ -100,7 +100,7 @@
                     headerHozAlign: "center",
                     editor: "number",
                     formatter: aamsNumberFormatter,
-                    cellClick: typeof aamsCellEdit !== 'undefined' ? aamsCellEdit : undefined,
+                    cellClick: aamsCellEdit,
                     cellEdited: function(cell) {
                         const row = cell.getRow();
                         const data = row.getData();
@@ -192,7 +192,8 @@
                     columns: columns,
                     height: "100%",
                     placeholder: "조회된 펀드 기준가 데이터가 없습니다.",
-                    selectableRows: 1
+                    selectableRows: 1,
+                    editTriggerEvent: "click"
                 });
 
                 // Rule 8: Global Tabulator Row Selection Setup

@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
-<div class="view-container ja990d-container" th:fragment="ja990dView">
+<div class="view-container ja990d-container layout-mobile-stack-container" th:fragment="ja990dView">
 
     <style>
         .ja990d-container {
@@ -8,6 +8,7 @@
             flex-direction: column;
             height: 100%;
             overflow: hidden;
+        }
         .form-row {
             display: flex;
             align-items: center;
@@ -1323,6 +1324,7 @@
                         data: [],
                         layout: "fitDataFill",
                         selectable: 1,
+                        editTriggerEvent: "click",
                         columns: rightColumns,
                         height: "100%",
                         placeholder: "조회된 신주인수권 종목이 없습니다.",
@@ -1556,9 +1558,11 @@
                     closeStockModal();
                     if (gridStock) {
                         gridStock.clearFilter();
+                        gridStock.clearData();
                     }
                     if (gridRight) {
                         gridRight.clearFilter();
+                        gridRight.clearData();
                     }
                     selectedStockRow = null;
                     lastLoadedMasterKey = null;
@@ -1567,9 +1571,8 @@
                     deletedRightList = [];
                     const searchInput = pane ? pane.querySelector("#ja990d-search") : document.getElementById("ja990d-search");
                     if (searchInput) searchInput.value = "";
-                    loadData();
                     if (typeof showToast === "function") {
-                        showToast("새로고침되었습니다.", "info");
+                        showToast("화면이 초기화되었습니다.", "info");
                     }
                 };
             }

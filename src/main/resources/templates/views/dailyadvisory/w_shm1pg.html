@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
-<div class="view-container layout-single shm1pg-container" th:fragment="shm1pgView">
+<div class="view-container layout-single shm1pg-container layout-mobile-stack-container" th:fragment="shm1pgView">
 
     <!-- Top Action Control Bar (Row 1) -->
     <div class="view-toolbar">
@@ -116,7 +116,7 @@
                     formatter: function(cell) {
                         return getDddwLabel('pg_cd', cell.getValue());
                     },
-                    cellClick: typeof aamsCellEdit !== 'undefined' ? aamsCellEdit : undefined,
+                    cellClick: aamsCellEdit,
                     cellEdited: function(cell) {
                         const row = cell.getRow();
                         row.update({ rowStatus: "U" });
@@ -148,7 +148,8 @@
                     columns: columns,
                     height: "100%",
                     placeholder: "조회된 현금신용등급 데이터가 없습니다.",
-                    selectableRows: 1
+                    selectableRows: 1,
+                    editTriggerEvent: "click"
                 });
 
                 // Rule 8: Global Tabulator Row Selection Setup

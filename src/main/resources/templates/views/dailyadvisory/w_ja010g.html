@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
-<div class="view-container layout-single ja010g-container" th:fragment="ja010gView" style="display: flex; flex-direction: column; height: 100%; width: 100%; overflow: hidden;">
+<div class="view-container layout-single ja010g-container layout-mobile-stack-container" th:fragment="ja010gView" style="display: flex; flex-direction: column; height: 100%; width: 100%; overflow: hidden;">
 
     <!-- 1. Top Action Control Bar (Row 1: 공통 툴바 표준 계약) -->
     <div class="view-toolbar">
@@ -131,7 +131,8 @@
                 grid = new Tabulator(gridEl, {
                     height: "100%",
                     layout: "fitDataFill",
-                    selectable: 1,
+                    selectableRows: 1,
+                    editTriggerEvent: "click",
                     data: [],
                     columns: [
                         { title: "No.", formatter: "rownum", width: 50, hozAlign: "center", headerHozAlign: "center" },

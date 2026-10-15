@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
-<div class="view-container szx0se-container" th:fragment="szx0seView">
+<div class="view-container szx0se-container layout-mobile-stack-container" th:fragment="szx0seView">
 
     <!-- Top Action Control Bar (Row 1) -->
     <div class="view-toolbar">
@@ -94,6 +94,7 @@
                     layout: "fitColumns",
                     height: "100%",
                     selectableRows: 1,
+                    editTriggerEvent: "click",
                     placeholder: "<span>조회된 계좌관리그룹/상품그룹 데이터가 없습니다.</span>",
                     columnDefaults: { vertAlign: "middle", headerSortTristate: true },
                     columns: [
@@ -437,10 +438,9 @@
                     if (typeof showToast === "function") showToast("화면이 초기화되었습니다.", "info");
                 };
                 pane.onCorpGrChange = function(val) {
-                    loadSzx0seData();
+                    if (gridSzx0se) gridSzx0se.clearData();
                 };
                 pane.addEventListener("corpGrChanged", function(e) {
-                    loadSzx0seData();
                 });
             }
 

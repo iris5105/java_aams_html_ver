@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
-<div class="view-container layout-single run-container" th:fragment="runView" style="display: flex; flex-direction: column; height: 100%; width: 100%; overflow: hidden; background-color: #ffffff; position: relative;">
+<div class="view-container layout-single run-container layout-mobile-stack-container" th:fragment="runView" style="display: flex; flex-direction: column; height: 100%; width: 100%; overflow: hidden; background-color: #ffffff; position: relative;">
 
     <!-- 원장생성 전체화면 로딩 마스킹 오버레이 (작업 중 화면 조작 완전 차단) -->
     <div id="runProgressAlert" class="view-loading-overlay d-none">
@@ -175,7 +175,7 @@
                                 var val = cell.getValue() || '';
                                 var rowData = cell.getRow().getData();
                                 if (rowData && rowData.flag === 'N') {
-                                    return '<span style="color: #dc2626; font-weight: 600;">' + val + '</span>';
+                                    return '<span class="cell-text-red font-bold">' + val + '</span>';
                                 }
                                 return val;
                             }

@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
-<div class="view-container layout-split ja010a-container" th:fragment="ja010aView">
+<div class="view-container layout-split ja010a-container layout-mobile-stack-container" th:fragment="ja010aView">
 
     <!-- Top Action Control Bar (Row 1) -->
     <div class="view-toolbar">
@@ -74,6 +74,7 @@
                     layout: "fitDataFill",
                     height: "100%",
                     selectableRows: 1,
+                    editTriggerEvent: "click",
                     placeholder: "<span>조회된 회사 기본 정보가 없습니다.</span>",
                     columnDefaults: { vertAlign: "middle", headerSortTristate: true },
                     columns: [
@@ -220,6 +221,8 @@
                 gridDetail = new Tabulator(container, {
                     layout: "fitColumns",
                     height: "100%",
+                    selectableRows: 1,
+                    editTriggerEvent: "click",
                     placeholder: "<span>상단 목록에서 항목을 선택하세요.</span>",
                     columnDefaults: { vertAlign: "middle", headerSortTristate: true },
                     columns: [
@@ -489,15 +492,17 @@
                     }
                 };
 
-                // 조회 버튼이 없고 새로고침만 있는 화면 규격: 새로고침 시 화면 데이터를 재조회
+                pane.onSearch = function() {
+                    window.loadJa010aMaster();
+                };
+
                 pane.onRefresh = function() {
                     if (cudManagerMaster) cudManagerMaster.reset();
                     if (cudManagerDetail) cudManagerDetail.reset();
+                    if (gridMaster) gridMaster.clearData();
+                    if (gridDetail) gridDetail.clearData();
                     lastLoadedMasterKey = null;
-                    const selectedRows = gridMaster ? gridMaster.getSelectedRows() : [];
-                    const curCorpGr = selectedRows.length > 0 ? selectedRows[0].getData().corpGr : "";
-                    window.loadJa010aMaster(curCorpGr);
-                    if (typeof showToast === "function") showToast("화면 데이터를 새로고침했습니다.", "info");
+                    if (typeof showToast === "function") showToast("화면이 초기화되었습니다.", "info");
                 };
                 pane.onCorpGrChange = function(val) {
                     lastLoadedMasterKey = null;

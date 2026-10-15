@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
-<div class="view-container layout-split ja020r-container" th:fragment="ja020rView"
+<div class="view-container layout-split ja020r-container layout-mobile-stack-container" th:fragment="ja020rView"
      th:data-corp-gr="${corpGr}"
      style="display: flex; flex-direction: column; height: 100%; width: 100%; overflow: hidden;">
 
@@ -353,7 +353,7 @@
             headerHozAlign: "center",
             headerCssClass: "col-hdr-blue",
             editor: "number",
-            cellClick: (typeof aamsCellEdit === "function") ? aamsCellEdit : undefined,
+            cellClick: aamsCellEdit,
             formatter: "money",
             formatterParams: { precision: 0 },
             cellEdited: function (cell) {
@@ -405,7 +405,8 @@
         gridDetail = new Tabulator(gridEl, {
             height: "100%",
             layout: "fitColumns",
-            selectable: 1,
+            selectableRows: 1,
+            editTriggerEvent: "click",
             data: [],
             placeholder: "선택된 계좌의 취득액 내역이 없습니다.",
             columnDefaults: {

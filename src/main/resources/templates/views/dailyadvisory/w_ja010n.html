@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
-<div class="view-container layout-single ja010n-container" th:fragment="ja010nView">
+<div class="view-container layout-single ja010n-container layout-mobile-stack-container" th:fragment="ja010nView">
 
     <!-- Top Action Control Bar (Row 1) -->
     <div class="view-toolbar">
@@ -80,7 +80,7 @@
                     headerHozAlign: "center",
                     editor: "number",
                     formatter: decimalFormatter,
-                    cellClick: typeof aamsCellEdit !== 'undefined' ? aamsCellEdit : undefined,
+                    cellClick: aamsCellEdit,
                     cellEdited: function(cell) {
                         const row = cell.getRow();
                         const data = row.getData();
@@ -96,6 +96,8 @@
                 gridJa010n = new Tabulator(gridEl, {
                     data: [],
                     layout: "fitColumns",
+                    selectableRows: 1,
+                    editTriggerEvent: "click",
                     columns: columns,
                     height: "100%",
                     placeholder: "조회된 주가지수 데이터가 없습니다.",

@@ -390,7 +390,8 @@
                             hozAlign: "left", 
                             minWidth: 200, 
                             editor: "input",
-                            editable: isProposalEditable
+                            editable: isProposalEditable,
+                            cellClick: aamsCellEdit
                         },
                         { 
                             title: "의뢰자", 
@@ -486,6 +487,7 @@
                             minWidth: 200, 
                             editor: "input",
                             editable: isCommentEditable,
+                            cellClick: aamsCellEdit,
                             formatter: cell => {
                                 const row = cell.getRow().getData();
                                 if (row && row.color === 16711680) {
@@ -819,12 +821,9 @@
                 };
                 pane.onCorpGrChange = function(val) {
                     lastLoadedProposalKey = null;
-                    window.loadProposalMaster(val);
                 };
                 pane.addEventListener("corpGrChanged", function(e) {
                     lastLoadedProposalKey = null;
-                    const cGr = (e.detail && e.detail.corpGr) ? e.detail.corpGr : "";
-                    window.loadProposalMaster(cGr);
                 });
 
                 // [입력] 버튼 핸들러

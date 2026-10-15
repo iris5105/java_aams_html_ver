@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
-<div class="view-container layout-split ja010m3-container" th:fragment="ja010m3View" style="display: flex; flex-direction: column; height: 100%; width: 100%; overflow: hidden; padding-bottom: 0 !important;">
+<div class="view-container layout-split ja010m3-container layout-mobile-stack-container" th:fragment="ja010m3View" style="display: flex; flex-direction: column; height: 100%; width: 100%; overflow: hidden; padding-bottom: 0 !important;">
 
     <!-- 1. 상단 공통 툴바 (Row 1: 공통 액션 버튼 + 네비게이션 브레드크럼) -->
     <div class="view-toolbar">
@@ -839,7 +839,8 @@
                 grid = new Tabulator(gridEl, {
                     data: [],
                     layout: "fitDataFill",
-                    selectable: 1,
+                    selectableRows: 1,
+                    editTriggerEvent: "click",
                     columns: columns,
                     height: "100%",
                     placeholder: "조회된 결산현황 데이터가 없습니다.",
