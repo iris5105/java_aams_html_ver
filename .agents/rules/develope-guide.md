@@ -32,8 +32,9 @@ description: "AAMS 차세대 웹 시스템 개발 표준 종합 헌장 및 세�
 2. **하드코딩 배제 및 srd 기반 1:1 DTO 매핑:**
    - `.srd` 파일의 쿼리문과 데이터 타입을 온전히 존중하여 DTO 필드를 구성하며, 파라미터 바인딩 부분만 변수화합니다.
    - 명칭 컬럼(`xx_` 또는 별칭)이 srd에 존재하는 경우 DTO에 반드시 양방향 getter/setter를 구성합니다.
-3. **단일 테이블(JPA / QueryDSL) vs 복합 테이블(MyBatis) 기술 분기:**
+3. **단일 테이블(JPA / QueryDSL) vs 복합 테이블(MyBatis) 기술 분기 및 단일 엔티티 재사용 원칙:**
    - 단일 테이블에 대한 기본 조회 및 CUD(등록/수정/삭제)는 **Spring Data JPA / EntityManager**(동적 검색 조건은 QueryDSL)를 사용하고, 2개 이상의 테이블 조인이나 복합 서브쿼리는 **MyBatis XML** 형식으로 작성합니다.
+   - **동일 테이블 다화면 CUD 재사용 표준 (Single-Entity & Multi-Screen DTO)**: 여러 화면에서 동일한 단일 테이블을 조작할 때 Entity와 Repository는 중복 생성 없이 단 하나만 공통으로 재사용하며, 추가 컬럼은 기존 Entity에 누적 확장합니다. 화면 입출력은 화면별 DTO로 철저히 분리하고, 수정 시에는 `em.merge()` 대신 영속성 조회 후 **더티 체킹(Dirty Checking)**을 적용하여 타 화면 컬럼의 null 덮어쓰기를 원천 방지합니다.
 4. **인라인 편집 그리드 원클릭 편집 진입 필수 옵션 (`editTriggerEvent: "click"`):**
    - 편집 가능한 셀이 포함된 그리드는 단일 행 선택(`selectableRows: 1`) 환경에서도 비선택 행의 셀 클릭 즉시 에디터가 열리도록 `editTriggerEvent: "click"`을 필수 지정하고 컬럼에 `cellClick: aamsCellEdit`를 부여합니다.
 5. **마스터-디테일 행 선택 삼중 안전망 및 새로고침 시 완전 리셋 (Zero-Stale-Key 원칙):**

@@ -118,6 +118,29 @@ trigger: always_on
       WHERE t1.CORP_GR = #{corpGr}
         AND t1.TR_YMD  = #{ymd}
      ```
+3. **동일 테이블 다화면 CUD 재사용 및 점진적 엔티티 확장 표준 (Single-Entity & Multi-Screen DTO)**:
+   - **엔티티 및 리포지토리 단일화 원칙 (Single Entity & Single Repository)**:
+     - 동일한 단일 테이블 `B`에 대해 A화면에서 먼저 Entity/Repository를 생성하고, 이후 C화면에서 B테이블의 일부 또는 추가 컬럼을 CRUD해야 하는 경우, **B 테이블에 대한 Entity와 Repository는 중복 생성하지 않고 단 하나만 공통으로 재사용**한다.
+     - C화면에서 새롭게 필요로 하는 컬럼은 기존 `B` 엔티티 클래스에 누적하여 추가 정의한다.
+   - **화면별 DTO 분리 원칙 (Screen-Scoped DTOs)**:
+     - 엔티티는 모든 컬럼을 수용하는 단일 테이블 완전체 모델로 유지하되, 클라이언트와의 입출력은 각 화면별 전용 DTO(`AScreenDto`, `CScreenDto` 또는 `.srd` 1:1 매핑 DTO)로 철저히 분리한다.
+     - A화면과 C화면은 각자 필요한 컬럼만 DTO로 입출력하여 상호 의존성을 원천 차단한다.
+   - **더티 체킹(Dirty Checking) 기반 부분 수정 필수 (Zero-Null-Overwrite)**:
+     - C화면에서 수정(Update) 시 엔티티를 임의로 새로 생성하여 `em.merge()`나 `save()`를 호출하면 C화면에서 다루지 않는 A화면 전용 컬럼들이 `null`로 덮어씌워지는 치명적 데이터 왜곡이 발생할 수 있다.
+     - 따라서 반드시 `@Transactional` 컨텍스트 내에서 `em.find(Entity.class, id)` 또는 `repository.findById(id)`로 영속성 컨텍스트에 엔티티를 로드한 후, **해당 화면에서 수정한 필드만 setter(또는 비즈니스 변경 메서드)로 변경하여 더티 체킹에 의해 변경 필드만 안전하게 자동 UPDATE**되도록 구현한다:
+       ```java
+       @Transactional
+       public int updateFromScreenC(CScreenDto dto) {
+           B entity = em.find(B.class, dto.getId());
+           if (entity != null) {
+               // C 화면에서 다루는 컬럼만 선택적으로 변경 (기존 A화면 컬럼값 온전 보존)
+               entity.setColForC1(dto.getColForC1());
+               entity.setColForC2(dto.getColForC2());
+               return 1;
+           }
+           return 0;
+       }
+       ```
 
 ---
 
