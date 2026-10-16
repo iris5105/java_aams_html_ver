@@ -188,12 +188,29 @@ public class AuthController {
             response.addCookie(userNameCookie);
         }
 
-        // Set workDate Cookie for client scripts (30 days)
+        // Set workDate & junyongDate Cookie for client scripts (30 days)
         String workDate = workDateService.getWorkDateOrDefault(userDto.getCorpGr());
+        String junyongDate = workDateService.getJunyongDateOrDefault(userDto.getCorpGr());
+
         Cookie workDateCookie = new Cookie("workDate", workDate);
         workDateCookie.setPath("/");
         workDateCookie.setMaxAge(30 * 24 * 60 * 60);
         response.addCookie(workDateCookie);
+
+        Cookie workYmdCookie = new Cookie("workYmd", workDate);
+        workYmdCookie.setPath("/");
+        workYmdCookie.setMaxAge(30 * 24 * 60 * 60);
+        response.addCookie(workYmdCookie);
+
+        Cookie junyongDateCookie = new Cookie("junyongDate", junyongDate);
+        junyongDateCookie.setPath("/");
+        junyongDateCookie.setMaxAge(30 * 24 * 60 * 60);
+        response.addCookie(junyongDateCookie);
+
+        Cookie junyongYmdCookie = new Cookie("junyongYmd", junyongDate);
+        junyongYmdCookie.setPath("/");
+        junyongYmdCookie.setMaxAge(30 * 24 * 60 * 60);
+        response.addCookie(junyongYmdCookie);
 
         // Set adminYn Cookie for client scripts (30 days)
         Cookie adminYnCookie = new Cookie("adminYn", userDto.getAdminYn() != null ? userDto.getAdminYn() : "N");
@@ -207,8 +224,8 @@ public class AuthController {
         clearAdminCookie.setMaxAge(0);
         response.addCookie(clearAdminCookie);
 
-        log.info("User {} logged in successfully (adminYn: {}). Assigned corpGr: {}, workDate: {}.", userDto.getUserId(),
-                userDto.getAdminYn(), userDto.getCorpGr(), workDate);
+        log.info("User {} logged in successfully (adminYn: {}). Assigned corpGr: {}, workDate: {}, junyongDate: {}.", userDto.getUserId(),
+                userDto.getAdminYn(), userDto.getCorpGr(), workDate, junyongDate);
 
         return ResponseEntity.ok(LoginResponseDto.builder()
                 .success(true)
@@ -222,6 +239,9 @@ public class AuthController {
                 .companyName(userDto.getCompanyName())
                 .hyunYmd(userDto.getHyunYmd())
                 .workDate(workDate)
+                .workYmd(workDate)
+                .junyongDate(junyongDate)
+                .junyongYmd(junyongDate)
                 .customerGr(userDto.getCustomerGr())
                 .build());
     }
@@ -301,10 +321,27 @@ public class AuthController {
         response.addCookie(clearCorpGrCookie);
 
         String switchedWorkDate = workDateService.getWorkDateOrDefault(newCorpGr);
+        String switchedJunyongDate = workDateService.getJunyongDateOrDefault(newCorpGr);
+
         Cookie workDateCookie = new Cookie("workDate", switchedWorkDate);
         workDateCookie.setPath("/");
         workDateCookie.setMaxAge(30 * 24 * 60 * 60);
         response.addCookie(workDateCookie);
+
+        Cookie workYmdCookie = new Cookie("workYmd", switchedWorkDate);
+        workYmdCookie.setPath("/");
+        workYmdCookie.setMaxAge(30 * 24 * 60 * 60);
+        response.addCookie(workYmdCookie);
+
+        Cookie junyongDateCookie = new Cookie("junyongDate", switchedJunyongDate);
+        junyongDateCookie.setPath("/");
+        junyongDateCookie.setMaxAge(30 * 24 * 60 * 60);
+        response.addCookie(junyongDateCookie);
+
+        Cookie junyongYmdCookie = new Cookie("junyongYmd", switchedJunyongDate);
+        junyongYmdCookie.setPath("/");
+        junyongYmdCookie.setMaxAge(30 * 24 * 60 * 60);
+        response.addCookie(junyongYmdCookie);
 
         if (principal.getUserId() != null && !principal.getUserId().isBlank()) {
             Cookie userIdCookie = new Cookie("userId", CookieCryptoUtil.encrypt(principal.getUserId()));
@@ -318,9 +355,16 @@ public class AuthController {
         clearUserIdCookie.setMaxAge(0);
         response.addCookie(clearUserIdCookie);
 
-        log.info("User {} switched company corpGr to {}, workDate: {}", principal.getUserId(), newCorpGr, switchedWorkDate);
+        log.info("User {} switched company corpGr to {}, workDate: {}, junyongDate: {}", principal.getUserId(), newCorpGr, switchedWorkDate, switchedJunyongDate);
 
-        return ResponseEntity.ok(Map.of("success", true, "corpGr", newCorpGr, "workDate", switchedWorkDate));
+        return ResponseEntity.ok(Map.of(
+                "success", true,
+                "corpGr", newCorpGr,
+                "workDate", switchedWorkDate,
+                "junyongDate", switchedJunyongDate,
+                "workYmd", switchedWorkDate,
+                "junyongYmd", switchedJunyongDate
+        ));
     }
 
     @PostMapping("/api/auth/logout")
@@ -344,6 +388,21 @@ public class AuthController {
         workDateCookie.setPath("/");
         workDateCookie.setMaxAge(0);
         response.addCookie(workDateCookie);
+
+        Cookie workYmdCookie = new Cookie("workYmd", null);
+        workYmdCookie.setPath("/");
+        workYmdCookie.setMaxAge(0);
+        response.addCookie(workYmdCookie);
+
+        Cookie junyongDateCookie = new Cookie("junyongDate", null);
+        junyongDateCookie.setPath("/");
+        junyongDateCookie.setMaxAge(0);
+        response.addCookie(junyongDateCookie);
+
+        Cookie junyongYmdCookie = new Cookie("junyongYmd", null);
+        junyongYmdCookie.setPath("/");
+        junyongYmdCookie.setMaxAge(0);
+        response.addCookie(junyongYmdCookie);
 
         Cookie userIdCookie = new Cookie("userId", null);
         userIdCookie.setPath("/");

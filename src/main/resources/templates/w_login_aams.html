@@ -291,6 +291,16 @@
                     localStorage.setItem('userId', data.userId);
                     localStorage.setItem('userNm', data.userNm || '');
                     localStorage.setItem('corpGr', data.corpGr);
+                    if (data.workDate) {
+                        localStorage.setItem('workDate', data.workDate);
+                        localStorage.setItem('workYmd', data.workDate);
+                        sessionStorage.setItem('workDate', data.workDate);
+                    }
+                    if (data.junyongDate) {
+                        localStorage.setItem('junyongDate', data.junyongDate);
+                        localStorage.setItem('junyongYmd', data.junyongDate);
+                        sessionStorage.setItem('junyongDate', data.junyongDate);
+                    }
 
                     // Expire legacy redundant cookies
                     document.cookie = "admin=; path=/; max-age=0";

@@ -47,9 +47,4 @@ public interface Ja032bDdMapper {
                                                @Param("jmCd") String jmCd,
                                                @Param("fymd") String fymd,
                                                @Param("tymd") String tymd);
-
-    /**
-     * 영업일(기본 작업일자) 조회
-     */
-    String selectWorkDate(@Param("corpGr") String corpGr);
 }

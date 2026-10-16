@@ -1,0 +1,138 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.kfp.aams.domain.usportfoliomodel.mapper.Ja032pMapper">
+
+    <!-- 1. 펀드 목록 조회 (d_ja032m1.srd) -->
+    <select id="selectFundList" resultType="com.kfp.aams.domain.usportfoliomodel.dto.Ja032pFundDto">
+        SELECT t1.FUND_CD                                                   AS fund_cd
+             , ia.FUND_NM                                                   AS fund_nm
+             , ia.FUND_NM                                                   AS xx_fund_cd
+             , t1.WONBON_AEK                                                AS wonbon_aek
+             , t1.JM_PER                                                    AS jm_per
+             , t1.USD_WONBON_AEK                                            AS usd_wonbon_aek
+             , ROUND(t1.USD_WONBON_AEK * NVL(t1.JM_PER, 0) / 100, 2)       AS usd_tuja
+             , sonik.jm_sonik                                               AS jm_sonik
+             , sonik.pg_sonik                                               AS pg_sonik
+             , sonik.pg_premium                                             AS pg_premium
+             , sonik.put_premium                                            AS put_premium
+             , sonik.un_sonik                                               AS un_sonik
+          FROM SZT0IA_V t1
+             , SZM0IA   ia
+             , (SELECT ta.FUND_CD
+                     , SUM(NVL(ta.JM_BF_SONIK,0) + NVL(ta.JM_UP_SONIK,0))     AS jm_sonik
+                     , SUM(ta.JM_PG_SONIK)                                    AS pg_sonik
+                     , SUM(ta.PUT_PG_PREMIUM)                                 AS pg_premium
+                     , SUM(NVL(ta.PUT_BF_PREMIUM,0) + NVL(ta.SA3_PREMIUM,0))  AS put_premium
+                     , SUM(NVL(ta.JM_BF_SONIK,0) + NVL(ta.JM_UP_SONIK,0) + NVL(ta.JM_PG_SONIK,0)
+                                                 + NVL(ta.PUT_PG_PREMIUM,0)
+                                                 + NVL(ta.SA3_PREMIUM,0))     AS un_sonik
+                  FROM USPM_SONIK ta
+                 WHERE ta.CORP_GR = #{corpGr}
+                   AND ta.YMD     = TO_DATE(#{ymd}, 'YYYY-MM-DD')
+                 GROUP BY ta.FUND_CD) sonik
+         WHERE t1.CORP_GR       = #{corpGr}
+           AND t1.TR_YMD        = TO_DATE(#{ymd}, 'YYYY-MM-DD')
+           AND NVL(t1.DEL,'N')  = 'N'
+           AND ia.CORP_GR       = t1.CORP_GR
+           AND ia.FUND_CD       = t1.FUND_CD
+           AND sonik.fund_cd(+) = t1.FUND_CD
+         ORDER BY t1.FUND_CD ASC
+    </select>
+
+    <!-- 2. 옵션종목 보유현황 조회 (d_ja032p2.srd) -->
+    <select id="selectDetailList" resultType="com.kfp.aams.domain.usportfoliomodel.dto.Ja032pDetailDto">
+        SELECT t1.CORP_GR                                               AS corp_gr
+             , TO_CHAR(t1.YMD, 'YYYY-MM-DD')                            AS ymd
+             , t1.FUND_CD                                               AS fund_cd
+             , ia.FUND_NM                                               AS fund_nm
+             , ia.FUND_NM                                               AS xx_fund_nm
+             , t1.TRUSTEE                                               AS trustee
+             , t1.JM_CD                                                 AS sym0yz_jm_cd
+             , t1.JM_CD                                                 AS jm_cd
+             , ya.JM_NM                                                 AS sym0ya_jm_nm
+             , ya.JM_NM                                                 AS jm_nm
+             , ya.HANGSA_GA                                             AS sym0ya_hangsa_ga
+             , ya.HANGSA_GA                                             AS hangsa_ga
+             , TO_CHAR(ya.LSY_YMD, 'YYYY-MM-DD')                        AS lsy_ymd
+             , t1.CURRENCY                                              AS currency
+             , NVL(t1.TR_BFIL_JUSU, 0) + NVL(t1.TR_UP_JUSU, 0)
+                                       - NVL(t1.TR_DW_JUSU, 0)
+                                       + NVL(t1.RIGHT_JUSU, 0)          AS jusu
+             , NVL(t1.TR_BFIL_CHUI_AEK, 0) + NVL(t1.TR_UP_CHUI_AEK, 0)
+                                           - NVL(t1.TR_DW_CHUI_AEK, 0)
+                                           + NVL(t1.RIGHT_AEK, 0)       AS aek
+             , t1.TR_PYUNGA_AEK                                         AS tr_pyunga_aek
+             , t1.OPT_NOMINAL_AMT                                       AS opt_nominal_amt
+             , t1.IMP_JONGA                                             AS imp_jonga
+             , t1.IMP_VOLATILITY                                        AS imp_volatility
+             , t1.DELTA                                                 AS delta
+             , t1.GAMMA                                                 AS gamma
+             , t1.VEGA                                                  AS vega
+             , t1.DELTA_RISK_VALUE                                      AS delta_risk_value
+             , t1.GAMMA_RISK_VALUE                                      AS gamma_risk_value
+             , t1.VEGA_RISK_VALUE                                       AS vega_risk_value
+             , NVL(t1.DELTA_RISK_VALUE, 0) + NVL(t1.GAMMA_RISK_VALUE, 0)
+                                           + NVL(t1.VEGA_RISK_VALUE, 0) AS risk_value
+          FROM SYM0YZ t1
+             , SZM0IA ia
+             , SYM0YA ya
+         WHERE t1.CORP_GR  = #{corpGr}
+           AND t1.FUND_CD  = #{fundCd}
+           AND t1.YMD      = TO_DATE(#{ymd}, 'YYYY-MM-DD')
+           AND ia.CORP_GR  = t1.CORP_GR
+           AND ia.FUND_CD  = t1.FUND_CD
+           AND ya.JASAN_GB = 'A'
+           AND ya.CORP_GR  = t1.CORP_GR
+           AND ya.JM_CD    = t1.JM_CD
+         ORDER BY t1.FUND_CD ASC, t1.TRUSTEE ASC, ya.LSY_YMD ASC, t1.JM_CD ASC
+    </select>
+
+    <!-- 3. 옵션종목 일별추이 조회 (d_ja032p3.srd) -->
+    <select id="selectDayList" resultType="com.kfp.aams.domain.usportfoliomodel.dto.Ja032pDayDto">
+        SELECT TO_CHAR(t1.YMD, 'YYYY-MM-DD')                            AS ymd
+             , t1.CURRENCY                                              AS currency
+             , NVL(t1.TR_BFIL_JUSU, 0) + NVL(t1.TR_UP_JUSU, 0)
+                                       - NVL(t1.TR_DW_JUSU, 0)
+                                       + NVL(t1.RIGHT_JUSU, 0)          AS jusu
+             , NVL(t1.TR_BFIL_CHUI_AEK, 0) + NVL(t1.TR_UP_CHUI_AEK, 0)
+                                           - NVL(t1.TR_DW_CHUI_AEK, 0)
+                                           + NVL(t1.RIGHT_AEK, 0)       AS aek
+             , t1.TR_PYUNGA_AEK                                         AS tr_pyunga_aek
+             , NVL(t1.TR_BFIL_CHUI_AEK, 0) + NVL(t1.TR_UP_CHUI_AEK, 0)
+                                           - NVL(t1.TR_DW_CHUI_AEK, 0)
+                                           + NVL(t1.RIGHT_AEK, 0)
+                                           - t1.TR_PYUNGA_AEK           AS sonik
+             , t1.OPT_NOMINAL_AMT                                       AS opt_nominal_amt
+             , t1.IMP_JONGA                                             AS imp_jonga
+             , t1.IMP_VOLATILITY                                        AS imp_volatility
+             , t1.DELTA                                                 AS delta
+             , t1.GAMMA                                                 AS gamma
+             , t1.VEGA                                                  AS vega
+             , t1.DELTA_RISK_VALUE                                      AS delta_risk_value
+             , t1.GAMMA_RISK_VALUE                                      AS gamma_risk_value
+             , t1.VEGA_RISK_VALUE                                       AS vega_risk_value
+             , NVL(t1.DELTA_RISK_VALUE, 0) + NVL(t1.GAMMA_RISK_VALUE, 0)
+                                           + NVL(t1.VEGA_RISK_VALUE, 0) AS risk_value
+             , TO_CHAR(t1.YMD, 'iw')                                    AS week
+             , lp.JONGA                                                 AS stock_jonga
+          FROM SYM0YZ t1
+             , SYM0YA ya
+             , SYT0LP lp
+         WHERE t1.CORP_GR    = #{corpGr}
+           AND t1.FUND_CD    = #{fundCd}
+           AND t1.YMD        NOT IN (SELECT HOLI_YMD
+                                       FROM SZX0HL ta
+                                      WHERE ta.NATION_CD = 'US')
+           AND t1.YMD        &lt;= TO_DATE(#{ymd}, 'YYYY-MM-DD')
+           AND t1.JM_CD      = #{jmCd}
+           AND t1.TRUSTEE    = #{trustee}
+           AND ya.CORP_GR    = t1.CORP_GR
+           AND ya.JM_CD      = t1.JM_CD
+           AND lp.CORP_GR(+) = t1.CORP_GR
+           AND lp.YMD(+)     = t1.YMD
+           AND lp.JM_CD(+)   = ya.CHANGE_JM_CD
+         ORDER BY t1.YMD DESC
+    </select>
+
+</mapper>

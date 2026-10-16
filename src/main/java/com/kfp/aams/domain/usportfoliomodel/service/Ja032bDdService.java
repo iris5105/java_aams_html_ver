@@ -1,5 +1,6 @@
 package com.kfp.aams.domain.usportfoliomodel.service;
 
+import com.kfp.aams.common.service.WorkDateService;
 import com.kfp.aams.domain.usportfoliomodel.dto.Ja032bDdDetailDto;
 import com.kfp.aams.domain.usportfoliomodel.dto.Ja032bDdFundDto;
 import com.kfp.aams.domain.usportfoliomodel.dto.Ja032bDdStockDto;
@@ -23,6 +24,7 @@ import java.util.List;
 public class Ja032bDdService {
 
     private final Ja032bDdMapper ja032bDdMapper;
+    private final WorkDateService workDateService;
 
     /**
      * 조회기준일에 해당하는 포트 시작일(fymd) 조회
@@ -75,13 +77,9 @@ public class Ja032bDdService {
     }
 
     /**
-     * 작업기준일 조회
+     * 작업기준일 조회 (SZX0AA.HYUN_YMD 기준)
      */
     public String getWorkDate(String corpGr) {
-        if (corpGr == null || corpGr.isBlank()) {
-            return LocalDate.now().toString();
-        }
-        String workDate = ja032bDdMapper.selectWorkDate(corpGr);
-        return (workDate != null && !workDate.isBlank()) ? workDate : LocalDate.now().toString();
+        return workDateService.getWorkDateOrDefault(corpGr);
     }
 }

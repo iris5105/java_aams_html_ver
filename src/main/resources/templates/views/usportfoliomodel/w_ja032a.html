@@ -1865,15 +1865,17 @@
             // 작업일자만 갱신
             var corpGr = resolveCorpGr(currentPane);
             if (!corpGr) return;
-            fetch("/api/usportfoliomodel/ja032a/workdate?corpGr=" + encodeURIComponent(corpGr))
-                .then(function (res) { return res.json(); })
-                .then(function (data) {
-                    if (data && data.workDate) {
+            if (typeof fetchCommonWorkDate === 'function') {
+                fetchCommonWorkDate(corpGr, function (workDate) {
+                    if (workDate) {
                         var dateInput = currentPane.querySelector('#filterYmd');
-                        if (dateInput) dateInput.value = data.workDate;
+                        if (dateInput) dateInput.value = workDate;
                     }
                     loadTtDddw();
                 });
+            } else {
+                loadTtDddw();
+            }
         };
 
         currentPane.onExcel = function () {
@@ -2167,21 +2169,19 @@
                     var cg = newCorpGr || resolveCorpGr(currentPane);
                     if (!cg) return;
 
-                    fetch("/api/usportfoliomodel/ja032a/workdate?corpGr=" + encodeURIComponent(cg))
-                        .then(function (res) { return res.json(); })
-                        .then(function (data) {
-                            if (data && data.workDate) {
+                    if (typeof fetchCommonWorkDate === 'function') {
+                        fetchCommonWorkDate(cg, function (workDate) {
+                            if (workDate) {
                                 var ymdInput = currentPane.querySelector('#filterYmd');
                                 if (ymdInput) {
-                                    ymdInput.value = data.workDate;
+                                    ymdInput.value = workDate;
                                 }
                             }
                             loadTtDddw();
-                        })
-                        .catch(function (err) {
-                            console.warn("[Ja032a] workDate 동기화 실패:", err);
-                            loadTtDddw();
                         });
+                    } else {
+                        loadTtDddw();
+                    }
                 };
 
                 // [엑셀]

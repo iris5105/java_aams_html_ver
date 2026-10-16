@@ -796,8 +796,16 @@
                 }
             };
 
-            currentPane.onCorpGrChange = function () {
-                // 규정 08: 회사그룹 변경 시 자동 조회하지 않음
+            currentPane.onCorpGrChange = function (newCorpGr) {
+                // 규정 08: 회사그룹 변경 시 자동 조회하지 않음, 기준일자만 최신화
+                if (newCorpGr && typeof fetchCommonWorkDate === 'function') {
+                    fetchCommonWorkDate(newCorpGr, function (workDate) {
+                        var ymdInput = currentPane.querySelector('#filterYmd') || currentPane.querySelector('input[name="ymd"]');
+                        if (ymdInput && workDate) {
+                            ymdInput.value = workDate;
+                        }
+                    });
+                }
             };
 
             currentPane.onExcel = function () {
@@ -822,10 +830,21 @@
                 initDetailGrid();
                 initSplitters();
 
-                // 파워빌더 eb_direct_retrieve = true 규정 반영: 화면 진입 시 초기 1회 자동 조회
-                setTimeout(function () {
-                    loadFundGrid();
-                }, 100);
+                // 파워빌더 eb_direct_retrieve = true 규정 반영: 최신 작업일자 동기화 후 초기 1회 자동 조회
+                var corpGr = (typeof resolveCorpGr === 'function') ? resolveCorpGr(currentPane) : '';
+                var ymdInput = currentPane.querySelector('#filterYmd') || currentPane.querySelector('input[name="ymd"]');
+                if (typeof fetchCommonWorkDate === 'function' && corpGr) {
+                    fetchCommonWorkDate(corpGr, function (workDate) {
+                        if (ymdInput && workDate) {
+                            ymdInput.value = workDate;
+                        }
+                        loadFundGrid();
+                    });
+                } else {
+                    setTimeout(function () {
+                        loadFundGrid();
+                    }, 100);
+                }
             }
 
             if (document.readyState === "loading") {

@@ -16,12 +16,18 @@ public class WorkDateController {
     private final WorkDateService workDateService;
 
     /**
-     * 회사그룹별 기준 작업일자 공통 조회 API
+     * 회사그룹별 기준 작업일자 및 전영업일 공통 조회 API
      * GET /api/common/workdate?corpGr=2402
      */
     @GetMapping("/api/common/workdate")
     public ResponseEntity<Map<String, String>> getWorkDate(@RequestParam(name = "corpGr", required = false) String corpGr) {
         String workDate = workDateService.getWorkDateOrDefault(corpGr);
-        return ResponseEntity.ok(Map.of("workDate", workDate));
+        String junyongDate = workDateService.getJunyongDateOrDefault(corpGr);
+        return ResponseEntity.ok(Map.of(
+                "workDate", workDate,
+                "junyongDate", junyongDate,
+                "workYmd", workDate,
+                "junyongYmd", junyongDate
+        ));
     }
 }

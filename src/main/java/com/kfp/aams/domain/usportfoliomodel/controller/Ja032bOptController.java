@@ -63,6 +63,8 @@ public class Ja032bOptController {
 
         model.addAttribute("fullpgm2", fullpgm2);
         model.addAttribute("workDate", workDate);
+        model.addAttribute("ymd", workDate);
+        model.addAttribute("initialYmd", workDate);
         model.addAttribute("corpGr", corpGr);
 
         return "views/usportfoliomodel/w_ja032b_opt";

@@ -23,5 +23,8 @@ public class LoginResponseDto {
     private String companyName;
     private String hyunYmd;
     private String workDate;
+    private String junyongDate;
+    private String workYmd;
+    private String junyongYmd;
     private String customerGr;
 }

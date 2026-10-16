@@ -1,0 +1,1207 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<!--
+    W_JA032C: USPM 포트폴리오 모델 변동성분석 (일별자문 > US포트폴리오모델 > 변동성분석)
+    DataWindows:
+      - dw_c: dc_ymd_dddw (기준일자 @ 조회구분: 변동수준, 괴리율, 베타, 델타/감마/세타/베가/로, 상승/하락일수)
+      - dw_list: d_ja032c1 (펀드/포트 목록)
+      - dw_detail: d_ja032c2 (해외) / d_ja032c2_krx (국내) (포트 내 종목 설정 및 현황)
+      - dw_right:
+          * 변동수준/괴리율: d_ja032c3
+          * 베타: d_ja032c3_beta / d_ja032c3_beta_krx
+          * 상승/하락일수: d_ja032c3_ud / d_ja032c3_ud_krx
+          * 델타/감마/세타/베가/로: d_ja032c3_dgtvr
+-->
+<div class="view-container layout-split ja032c-container layout-mobile-stack-container" th:fragment="ja032cView">
+
+    <!-- 1. Top Action Control Bar -->
+    <div class="view-toolbar">
+        <div class="toolbar-left">
+            <div th:replace="~{fragments/tab_header :: toolbarButtons}"></div>
+        </div>
+        <div th:replace="~{fragments/tab_header :: toolbarBreadcrumb}"></div>
+    </div>
+
+    <!-- 2. Sub Filter Bar: 기준일자 @ 조회구분 -->
+    <div class="filter-bar">
+        <div class="filter-left">
+            <div th:replace="~{fragments/filter/dc_ymd_dddw :: filter(labelYmd='기준일자', labelDddw='조회구분')}"></div>
+        </div>
+    </div>
+
+    <!-- 3. 파워빌더 wt_vertdetail 원본 100% 반영: 좌우 분할 (좌측: 펀드/포트 목록 / 우측: 포트 종목 현황 및 분석 상하 2분할) -->
+    <div class="layout-split-h split-body layout-mobile-stack" data-split-key="W_JA032C_H" data-default-ratio="36:64">
+
+        <!-- 3-1. Left Panel (dw_list): 펀드/포트 목록 (d_ja032c1) -->
+        <div class="pane-left master-section" style="display: flex; flex-direction: column; height: 100%; min-width: 0; overflow: hidden;">
+            <div class="sub-grid-header">
+                <span class="sub-title"><i class="fa-solid fa-list-check"></i> 펀드별 포트폴리오 목록</span>
+            </div>
+            <div class="pane-body" style="flex: 1; min-height: 0; overflow: hidden;">
+                <div id="gridJa032cPort" class="tabulator-aams-grid" style="height: 100%; width: 100%;"></div>
+            </div>
+        </div>
+
+        <!-- 좌우 스플리터 구분선 핸들 -->
+        <div class="split-gutter-h" title="드래그하여 좌우 비율 조절 (더블클릭 시 기본 비율로 복원)"></div>
+
+        <!-- 3-2. Right Panel (dw_detail + dw_right): 우측 상하 2분할 영역 -->
+        <div class="pane-right detail-section" style="display: flex; flex-direction: column; height: 100%; min-width: 0; overflow: hidden;">
+            <div class="layout-split-v" data-split-key="W_JA032C_V" data-default-ratio="48:52" style="height: 100%; width: 100%; display: flex; flex-direction: column; min-height: 0;">
+
+                <!-- Upper Section of Right: 포트 내 종목 설정 및 현황 (d_ja032c2 / d_ja032c2_krx) -->
+                <div class="pane-top" style="display: flex; flex-direction: column; overflow: hidden;">
+                    <div class="sub-grid-header">
+                        <span class="sub-title" id="titleDetailSection"><i class="fa-solid fa-layer-group"></i> 포트 내 종목 설정 및 현황</span>
+                    </div>
+                    <div class="pane-body" style="flex: 1; min-height: 0; overflow: hidden;">
+                        <div id="gridJa032cDetail" class="tabulator-aams-grid" style="height: 100%; width: 100%;"></div>
+                    </div>
+                </div>
+
+                <!-- 우측 상하 스플리터 구분선 핸들 -->
+                <div class="split-gutter-v" title="드래그하여 상하 비율 조절 (더블클릭 시 기본 비율로 복원)"></div>
+
+                <!-- Lower Section of Right: 우측 하단 분석 영역 (dw_right) -->
+                <div class="pane-bottom" style="display: flex; flex-direction: column; overflow: hidden;">
+                    <div class="sub-grid-header">
+                        <span class="sub-title" id="titleAnalysisSection"><i class="fa-solid fa-chart-line"></i> 변동성 및 리스크 분석</span>
+                    </div>
+                    <div class="pane-body" style="flex: 1; min-height: 0; overflow: hidden; position: relative;">
+
+                        <!-- Case 1: 변동수준 / 괴리율 그리드 (d_ja032c3) -->
+                        <div id="wrapperVolatilityGrid" style="height: 100%; width: 100%;">
+                            <div id="gridJa032cVolatility" class="tabulator-aams-grid" style="height: 100%; width: 100%;"></div>
+                        </div>
+
+                        <!-- Case 2: 상승/하락일수 그리드 (d_ja032c3_ud) -->
+                        <div id="wrapperUpDownGrid" style="height: 100%; width: 100%; display: none;">
+                            <div id="gridJa032cUpDown" class="tabulator-aams-grid" style="height: 100%; width: 100%;"></div>
+                        </div>
+
+                        <!-- Case 3: 베타 그리드 (d_ja032c3_beta) -->
+                        <div id="wrapperBetaGrid" style="height: 100%; width: 100%; display: none;">
+                            <div id="gridJa032cBeta" class="tabulator-aams-grid" style="height: 100%; width: 100%;"></div>
+                        </div>
+
+                        <!-- Case 4: 델타/감마/세타/베가/로 대시보드 (d_ja032c3_dgtvr) -->
+                        <div id="wrapperGreeksDashboard" style="height: 100%; width: 100%; display: none; overflow-y: auto; padding: 12px;">
+                            <div class="greeks-dashboard-container" style="display: flex; flex-direction: column; gap: 12px; max-width: 900px; margin: 0 auto;">
+
+                                <!-- 기초 파라미터 그룹 -->
+                                <div class="aams-card" style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; padding: 12px;">
+                                    <div style="font-weight: 600; margin-bottom: 8px; color: #1e293b; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px;">
+                                        <i class="fa-solid fa-sliders"></i> 기초 데이터 및 옵션 파라미터
+                                    </div>
+                                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px;">
+                                        <div>
+                                            <label style="font-size: 12px; color: #64748b; display: block; margin-bottom: 2px;">종가 (S)</label>
+                                            <input type="text" id="gk_s" class="form-control" readonly style="background: #f1f5f9; text-align: right;" />
+                                        </div>
+                                        <div>
+                                            <label style="font-size: 12px; color: #64748b; display: block; margin-bottom: 2px;">잔존일수 (T)</label>
+                                            <input type="text" id="gk_t" class="form-control" readonly style="background: #f1f5f9; text-align: right;" />
+                                        </div>
+                                        <div>
+                                            <label style="font-size: 12px; color: #64748b; display: block; margin-bottom: 2px;">변동성 (Sigma)</label>
+                                            <input type="text" id="gk_sigma" class="form-control" readonly style="background: #f1f5f9; text-align: right;" />
+                                        </div>
+                                        <div>
+                                            <label style="font-size: 12px; color: #64748b; display: block; margin-bottom: 2px;">무위험이자율 (r)</label>
+                                            <input type="number" step="0.0001" id="gk_r" class="form-control" style="text-align: right;" />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- 옵션 시세 및 내재변동성 그룹 -->
+                                <div class="aams-card" style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; padding: 12px;">
+                                    <div style="font-weight: 600; margin-bottom: 8px; color: #1e293b; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px;">
+                                        <i class="fa-solid fa-tags"></i> PUT 옵션 시세 및 내재변동성
+                                    </div>
+                                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px;">
+                                        <div>
+                                            <label style="font-size: 12px; color: #64748b; display: block; margin-bottom: 2px;">PUT 옵션 종목코드</label>
+                                            <input type="text" id="gk_put_jm_cd" class="form-control" readonly style="background: #f1f5f9; text-align: center; font-weight: 600;" />
+                                        </div>
+                                        <div>
+                                            <label style="font-size: 12px; color: #64748b; display: block; margin-bottom: 2px;">행사가격 (K)</label>
+                                            <input type="number" step="0.01" id="gk_k" class="form-control" style="text-align: right;" />
+                                        </div>
+                                        <div>
+                                            <label style="font-size: 12px; color: #64748b; display: block; margin-bottom: 2px;">시장가격 (Market Price)</label>
+                                            <input type="number" step="0.01" id="gk_market_price" class="form-control" style="text-align: right;" />
+                                        </div>
+                                        <div>
+                                            <label style="font-size: 12px; color: #64748b; display: block; margin-bottom: 2px;">내재변동성 (IV)</label>
+                                            <input type="number" step="0.0001" id="gk_imp_volatility" class="form-control" style="text-align: right;" />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- 그릭스(Greeks) 지표 카드 그룹 -->
+                                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px;">
+
+                                    <!-- Delta -->
+                                    <div class="aams-card" style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; padding: 12px;">
+                                        <div style="font-weight: 600; color: #1e293b; margin-bottom: 6px;">Delta (1차 변동 민감도)</div>
+                                        <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                                            <span style="font-size: 12px; color: #64748b;">Call Delta:</span>
+                                            <span id="gk_call_delta" style="font-weight: 600; color: #0284c7;">-</span>
+                                        </div>
+                                        <div style="display: flex; justify-content: space-between;">
+                                            <span style="font-size: 12px; color: #64748b;">Put Delta:</span>
+                                            <span id="gk_put_delta" style="font-weight: 600; color: #dc2626;">-</span>
+                                        </div>
+                                    </div>
+
+                                    <!-- Gamma & Vega -->
+                                    <div class="aams-card" style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; padding: 12px;">
+                                        <div style="font-weight: 600; color: #1e293b; margin-bottom: 6px;">Gamma &amp; Vega (민감율)</div>
+                                        <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                                            <span style="font-size: 12px; color: #64748b;">Gamma (델타변화율):</span>
+                                            <span id="gk_gamma" style="font-weight: 600; color: #1e293b;">-</span>
+                                        </div>
+                                        <div style="display: flex; justify-content: space-between;">
+                                            <span style="font-size: 12px; color: #64748b;">Vega (변동성민감율):</span>
+                                            <span id="gk_vega" style="font-weight: 600; color: #1e293b;">-</span>
+                                        </div>
+                                    </div>
+
+                                    <!-- Theta -->
+                                    <div class="aams-card" style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; padding: 12px;">
+                                        <div style="font-weight: 600; color: #1e293b; margin-bottom: 6px;">일 Theta (시간가치 감소)</div>
+                                        <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                                            <span style="font-size: 12px; color: #64748b;">Call Theta:</span>
+                                            <span id="gk_call_theta" style="font-weight: 600; color: #0284c7;">-</span>
+                                        </div>
+                                        <div style="display: flex; justify-content: space-between;">
+                                            <span style="font-size: 12px; color: #64748b;">Put Theta:</span>
+                                            <span id="gk_put_theta" style="font-weight: 600; color: #dc2626;">-</span>
+                                        </div>
+                                    </div>
+
+                                    <!-- Rho -->
+                                    <div class="aams-card" style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; padding: 12px;">
+                                        <div style="font-weight: 600; color: #1e293b; margin-bottom: 6px;">Rho (1% 금리변화 민감도)</div>
+                                        <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                                            <span style="font-size: 12px; color: #64748b;">Call Rho:</span>
+                                            <span id="gk_call_rho" style="font-weight: 600; color: #0284c7;">-</span>
+                                        </div>
+                                        <div style="display: flex; justify-content: space-between;">
+                                            <span style="font-size: 12px; color: #64748b;">Put Rho:</span>
+                                            <span id="gk_put_rho" style="font-weight: 600; color: #dc2626;">-</span>
+                                        </div>
+                                    </div>
+
+                                </div>
+
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+    </div>
+
+    <!-- 4. 스크립트 격리 블록 -->
+    <script th:inline="javascript">
+    (function () {
+        'use strict';
+
+        var currentScript = document.currentScript;
+        var pane = currentScript ? (currentScript.closest('.tab-pane') || currentScript.closest('.view-container')) : null;
+        if (!pane) {
+            pane = document.querySelector('.tab-pane.active') || document.querySelector('.ja032c-container') || document;
+        }
+        var currentPane = pane;
+        if (!currentPane) return;
+
+        var isInitialized = false;
+
+        // 그리드 인스턴스
+        var gridPort = null;
+        var gridDetail = null;
+        var gridVolatility = null;
+        var gridUpDown = null;
+        var gridBeta = null;
+
+        // 선택 상태 캐시 및 중복 가드 키
+        var lastLoadedPortKey = null;
+        var lastLoadedDetailKey = null;
+        var currentPortRowData = null;
+        var currentDetailRowData = null;
+
+        // DDDW 옵션 캐시 (PowerBuilder dw_list::ue_dddw_retrieve 연동)
+        var dddwOptionsMap = {
+            tt: []
+        };
+
+        // -------------------------------------------------------------
+        // 1. 단일 진입점 초기화 (Single Entry-Point)
+        // -------------------------------------------------------------
+        function startInit() {
+            if (isInitialized) return;
+            isInitialized = true;
+
+            initDddwFilter();
+            initDddwOptions();
+            initGrids();
+            initToolbar();
+            initSplitters();
+            initGreeksEventHandlers();
+
+            // 파워빌더 eb_direct_retrieve = true 규정: 최초 1회 자동 조회
+            loadPortList();
+        }
+
+        // 파워빌더 dw_list::ue_dddw_retrieve 표준 연동: f_dddwctl (THIS, 'tt', '', '', 1, '')
+        function initDddwOptions() {
+            if (typeof window.f_dddwctl === 'function') {
+                window.f_dddwctl('tt', 1, '', '', '').then(function (options) {
+                    if (Array.isArray(options)) {
+                        dddwOptionsMap.tt = options;
+                        if (gridPort) gridPort.redraw(true);
+                    }
+                }).catch(function (err) {
+                    console.warn("f_dddwctl tt retrieve error:", err);
+                });
+            } else {
+                fetch('/api/common/dddw?dddwId=tt&seq=1')
+                    .then(function (res) { return res.json(); })
+                    .then(function (data) {
+                        if (Array.isArray(data)) {
+                            dddwOptionsMap.tt = data;
+                            if (gridPort) gridPort.redraw(true);
+                        }
+                    })
+                    .catch(function (err) {
+                        console.warn("api/common/dddw tt fetch error:", err);
+                    });
+            }
+        }
+
+        // -------------------------------------------------------------
+        // 2. 상단 필터바 드롭다운 초기화
+        // -------------------------------------------------------------
+        function initDddwFilter() {
+            var dddwSelect = currentPane.querySelector('#filterDddw, select[name="dddw"]');
+            if (dddwSelect) {
+                dddwSelect.innerHTML = '';
+                var options = [
+                    { value: '변동수준', text: '변동수준' },
+                    { value: '괴리율', text: '괴리율' },
+                    { value: '베타', text: '베타' },
+                    { value: '델타/감마/세타/베가/로', text: '델타/감마/세타/베가/로' },
+                    { value: '상승/하락일수', text: '상승/하락일수' }
+                ];
+                options.forEach(function (opt) {
+                    var el = document.createElement('option');
+                    el.value = opt.value;
+                    el.textContent = opt.text;
+                    if (opt.value === '변동수준') el.selected = true;
+                    dddwSelect.appendChild(el);
+                });
+
+                // 주의 (규정 08-2): 필터 변경 시 자동 조회를 실행하지 않음
+            }
+        }
+
+        // -------------------------------------------------------------
+        // 3. Tabulator 그리드 초기화
+        // -------------------------------------------------------------
+        function initGrids() {
+            // 3-1. 펀드/포트 목록 (gridPort: d_ja032c1)
+            var portContainer = currentPane.querySelector('#gridJa032cPort');
+            if (portContainer) {
+                gridPort = new Tabulator(portContainer, {
+                    layout: "fitDataFill",
+                    height: "100%",
+                    selectableRows: 1,
+                    placeholder: "조회된 펀드/포트폴리오 목록이 없습니다.",
+                    columns: [
+                        {
+                            title: "No.",
+                            field: "rowNum",
+                            width: 50,
+                            hozAlign: "center",
+                            headerSort: false,
+                            formatter: "rownum"
+                        },
+                        {
+                            title: "펀드코드",
+                            field: "fundCd",
+                            width: 100,
+                            hozAlign: "center",
+                            headerSort: true
+                        },
+                        {
+                            title: "펀드명",
+                            field: "fundNm",
+                            width: 190,
+                            hozAlign: "left",
+                            headerSort: true
+                        },
+                        {
+                            title: "포트",
+                            field: "portNum",
+                            width: 60,
+                            hozAlign: "center",
+                            headerSort: true
+                        },
+                        {
+                            title: "변동성<br>계산기준",
+                            field: "sebuCdNm",
+                            width: 100,
+                            hozAlign: "center",
+                            headerSort: true,
+                            formatter: function (cell) {
+                                var row = cell.getRow().getData();
+                                // 1순위: dddw에서 나온 결과의 sebu_cd_nm
+                                if (row.sebuCdNm) return row.sebuCdNm;
+                                if (row.ttNm) return row.ttNm;
+
+                                // 2순위: dddw(WDDDWCTL id=tt) 조회 결과 맵에서 sebu_cd_nm (name) 찾기
+                                var ttCode = (row.tt || "").trim();
+                                if (ttCode && dddwOptionsMap && dddwOptionsMap.tt && dddwOptionsMap.tt.length > 0) {
+                                    var found = dddwOptionsMap.tt.find(function (it) {
+                                        var c = it.code != null ? it.code : (it.SEBU_CD != null ? it.SEBU_CD : it.cd);
+                                        return String(c).trim() === ttCode;
+                                    });
+                                    if (found) {
+                                        return found.name || found.sebuCdNm || found.SEBU_CD_NM || found.dscr || '';
+                                    }
+                                }
+
+                                return row.sebuCdNm || row.ttNm || (ttCode === 'A' ? 'KRX월변동성' : ttCode);
+                            }
+                        },
+                        {
+                            title: "분할<br>일수",
+                            field: "instDays",
+                            width: 65,
+                            hozAlign: "right",
+                            headerSort: true,
+                            formatter: function (cell) {
+                                var val = cell.getValue();
+                                return val != null ? (window.formatNumber ? window.formatNumber(val, 0) : val) : '';
+                            }
+                        },
+                        {
+                            title: "만기일",
+                            field: "mangi",
+                            width: 100,
+                            hozAlign: "center",
+                            headerSort: true
+                        },
+                        {
+                            title: "잔존<br>일수",
+                            field: "dt",
+                            width: 65,
+                            hozAlign: "right",
+                            headerSort: true,
+                            formatter: function (cell) {
+                                var val = cell.getValue();
+                                return val != null ? (window.formatNumber ? window.formatNumber(val, 0) : val) : '';
+                            }
+                        },
+                        {
+                            title: "PUT(z)<br>변동성",
+                            field: "z",
+                            width: 80,
+                            hozAlign: "right",
+                            headerSort: true,
+                            formatter: function (cell) {
+                                var val = cell.getValue();
+                                return val != null ? (window.formatNumber ? window.formatNumber(val, 4) : Number(val).toFixed(4)) : '';
+                            }
+                        }
+                    ]
+                });
+
+                // 마스터-디테일 삼중 안전망 (규정 05-3)
+                if (window.setupTabulatorRowSelection) {
+                    window.setupTabulatorRowSelection(gridPort, function (row, data) {
+                        syncPortDetail(row, data);
+                    });
+                }
+                gridPort.on("rowClick", function (e, row) {
+                    syncPortDetail(row, row ? row.getData() : null);
+                });
+                gridPort.on("rowSelectionChanged", function (data, rows) {
+                    if (rows && rows.length > 0) {
+                        syncPortDetail(rows[0], rows[0].getData());
+                    }
+                });
+            }
+
+            // 3-2. 포트 내 종목 설정 및 현황 (gridDetail: d_ja032c2 / d_ja032c2_krx)
+            var detailContainer = currentPane.querySelector('#gridJa032cDetail');
+            if (detailContainer) {
+                gridDetail = new Tabulator(detailContainer, {
+                    layout: "fitDataFill",
+                    height: "100%",
+                    selectableRows: 1,
+                    placeholder: "포트폴리오를 선택하면 종목 현황이 표시됩니다.",
+                    columns: [
+                        {
+                            title: "No.",
+                            field: "rowNum",
+                            width: 50,
+                            hozAlign: "center",
+                            headerSort: false,
+                            formatter: "rownum"
+                        },
+                        {
+                            title: "종목명",
+                            field: "xxYjCd",
+                            width: 170,
+                            hozAlign: "left",
+                            headerSort: true,
+                            formatter: function (cell) {
+                                var val = cell.getValue() || cell.getRow().getData().jmNm || '';
+                                return '<span class="cell-bold">' + val + '</span>';
+                            }
+                        },
+                        {
+                            title: "기준일<br>종가",
+                            field: "jonga",
+                            width: 100,
+                            hozAlign: "right",
+                            headerSort: true,
+                            formatter: function (cell) {
+                                var val = cell.getValue();
+                                if (val == null || val === '') return '';
+                                return window.formatNumber ? window.formatNumber(val, 2) : Number(val).toLocaleString();
+                            }
+                        },
+                        {
+                            title: "기준PUT<br>행사가격",
+                            field: "putPrice",
+                            width: 105,
+                            hozAlign: "right",
+                            headerSort: true,
+                            headerCssClass: "col-hdr-red",
+                            formatter: function (cell) {
+                                var val = cell.getValue();
+                                if (val == null || val === '') return '';
+                                var str = window.formatNumber ? window.formatNumber(val, 0) : Number(val).toLocaleString();
+                                return '<span class="cell-text-red">' + str + '</span>';
+                            }
+                        },
+                        {
+                            title: "기준<br>변동성",
+                            field: "ttVolatility",
+                            width: 95,
+                            hozAlign: "right",
+                            headerSort: true,
+                            headerCssClass: "col-hdr-red",
+                            formatter: function (cell) {
+                                var val = cell.getValue();
+                                if (val == null || val === '') return '';
+                                var str = window.formatNumber ? window.formatNumber(val, 4) : Number(val).toFixed(4);
+                                return '<span class="cell-text-red">' + str + '</span>';
+                            }
+                        },
+                        {
+                            title: "단기(30)<br>변동성",
+                            field: "d30Volatility",
+                            width: 95,
+                            hozAlign: "right",
+                            headerSort: true,
+                            headerCssClass: "col-hdr-green",
+                            formatter: function (cell) {
+                                var val = cell.getValue();
+                                if (val == null || val === '') return '';
+                                var str = window.formatNumber ? window.formatNumber(val, 4) : Number(val).toFixed(4);
+                                return '<span class="cell-text-green">' + str + '</span>';
+                            }
+                        },
+                        {
+                            title: "기준(30)<br>변동성",
+                            field: "g30Volatility",
+                            width: 95,
+                            hozAlign: "right",
+                            headerSort: true,
+                            headerCssClass: "col-hdr-green",
+                            formatter: function (cell) {
+                                var val = cell.getValue();
+                                if (val == null || val === '') return '';
+                                var str = window.formatNumber ? window.formatNumber(val, 4) : Number(val).toFixed(4);
+                                return '<span class="cell-text-green">' + str + '</span>';
+                            }
+                        },
+                        {
+                            title: "최대<br>수량",
+                            field: "maxJusu",
+                            width: 80,
+                            hozAlign: "right",
+                            headerSort: true,
+                            formatter: function (cell) {
+                                var val = cell.getValue();
+                                return val != null ? (window.formatNumber ? window.formatNumber(val, 0) : Number(val).toLocaleString()) : '';
+                            }
+                        },
+                        {
+                            title: "최소<br>수량",
+                            field: "minJusu",
+                            width: 80,
+                            hozAlign: "right",
+                            headerSort: true,
+                            formatter: function (cell) {
+                                var val = cell.getValue();
+                                return val != null ? (window.formatNumber ? window.formatNumber(val, 0) : Number(val).toLocaleString()) : '';
+                            }
+                        },
+                        {
+                            title: "보유<br>주수",
+                            field: "stockJusu",
+                            width: 90,
+                            hozAlign: "right",
+                            headerSort: true,
+                            formatter: function (cell) {
+                                var val = cell.getValue();
+                                return val != null ? (window.formatNumber ? window.formatNumber(val, 0) : Number(val).toLocaleString()) : '';
+                            }
+                        },
+                        {
+                            title: "주식취득액",
+                            field: "stockChui",
+                            width: 120,
+                            hozAlign: "right",
+                            headerSort: true,
+                            formatter: function (cell) {
+                                var val = cell.getValue();
+                                return val != null ? (window.formatNumber ? window.formatNumber(val, 0) : Number(val).toLocaleString()) : '';
+                            }
+                        },
+                        {
+                            title: "옵션<br>보유수량",
+                            field: "optQty",
+                            width: 90,
+                            hozAlign: "right",
+                            headerSort: true,
+                            formatter: function (cell) {
+                                var val = cell.getValue();
+                                return val != null ? (window.formatNumber ? window.formatNumber(val, 0) : Number(val).toLocaleString()) : '';
+                            }
+                        }
+                    ]
+                });
+
+                // 삼중 안전망
+                if (window.setupTabulatorRowSelection) {
+                    window.setupTabulatorRowSelection(gridDetail, function (row, data) {
+                        syncItemAnalysis(row, data);
+                    });
+                }
+                gridDetail.on("rowClick", function (e, row) {
+                    syncItemAnalysis(row, row ? row.getData() : null);
+                });
+                gridDetail.on("rowSelectionChanged", function (data, rows) {
+                    if (rows && rows.length > 0) {
+                        syncItemAnalysis(rows[0], rows[0].getData());
+                    }
+                });
+
+                // 더블클릭 시 티커/종목코드 클립보드 복사 (파워빌더 doubleclicked)
+                gridDetail.on("rowDblClick", function (e, row) {
+                    var data = row.getData();
+                    var textToCopy = data.srsCd || data.yjCd || data.jmCd || '';
+                    if (textToCopy && navigator.clipboard) {
+                        navigator.clipboard.writeText(textToCopy).then(function () {
+                            if (window.showToast) window.showToast("티커/코드 [" + textToCopy + "] 가 클립보드에 복사되었습니다.", "info");
+                        });
+                    }
+                });
+            }
+
+            // 3-3. 변동수준 / 괴리율 그리드 (d_ja032c3)
+            var volContainer = currentPane.querySelector('#gridJa032cVolatility');
+            if (volContainer) {
+                gridVolatility = new Tabulator(volContainer, {
+                    layout: "fitDataFill",
+                    height: "100%",
+                    selectableRows: 1,
+                    placeholder: "종목을 선택하면 변동수준/괴리율 분석 데이터가 표시됩니다.",
+                    columns: [
+                        { title: "No.", field: "rowNum", width: 50, hozAlign: "center", headerSort: false, formatter: "rownum" },
+                        {
+                            title: "변동수준 (%)",
+                            field: "volatility",
+                            width: 120,
+                            hozAlign: "right",
+                            headerSort: true,
+                            formatter: function (cell) {
+                                var val = cell.getValue();
+                                return val != null ? (window.formatNumber ? window.formatNumber(val, 2) : Number(val).toFixed(2)) : '';
+                            }
+                        },
+                        { title: "기준일자", field: "guganDt", width: 110, hozAlign: "center", headerSort: true },
+                        { title: "구분", field: "bigo", width: 180, hozAlign: "left", headerSort: true },
+                        {
+                            title: "당일지표 (%)",
+                            field: "dayVolatility",
+                            width: 120,
+                            hozAlign: "right",
+                            headerSort: true,
+                            formatter: function (cell) {
+                                var val = cell.getValue();
+                                return val != null ? (window.formatNumber ? window.formatNumber(val, 2) : Number(val).toFixed(2)) : '';
+                            }
+                        },
+                        { title: "위치", field: "pos", width: 220, hozAlign: "left", headerSort: true }
+                    ]
+                });
+            }
+
+            // 3-4. 상승/하락일수 그리드 (d_ja032c3_ud)
+            var upDownContainer = currentPane.querySelector('#gridJa032cUpDown');
+            if (upDownContainer) {
+                gridUpDown = new Tabulator(upDownContainer, {
+                    layout: "fitDataFill",
+                    height: "100%",
+                    selectableRows: 1,
+                    placeholder: "상승/하락일수 분석 데이터가 표시됩니다.",
+                    columns: [
+                        { title: "No.", field: "rowNum", width: 50, hozAlign: "center", headerSort: false, formatter: "rownum" },
+                        { title: "구분", field: "upDown", width: 120, hozAlign: "center", headerSort: true },
+                        { title: "5일", field: "c5", width: 80, hozAlign: "right", headerSort: true },
+                        { title: "8일", field: "c8", width: 80, hozAlign: "right", headerSort: true },
+                        { title: "13일", field: "c13", width: 80, hozAlign: "right", headerSort: true },
+                        { title: "21일", field: "c21", width: 80, hozAlign: "right", headerSort: true },
+                        { title: "34일", field: "c34", width: 80, hozAlign: "right", headerSort: true },
+                        { title: "55일", field: "c55", width: 80, hozAlign: "right", headerSort: true }
+                    ]
+                });
+            }
+
+            // 3-5. 베타 그리드 (d_ja032c3_beta)
+            var betaContainer = currentPane.querySelector('#gridJa032cBeta');
+            if (betaContainer) {
+                gridBeta = new Tabulator(betaContainer, {
+                    layout: "fitDataFill",
+                    height: "100%",
+                    selectableRows: 1,
+                    placeholder: "베타 분석 데이터가 표시됩니다.",
+                    columns: [
+                        {
+                            title: "년간 Beta",
+                            field: "beta",
+                            width: 140,
+                            hozAlign: "right",
+                            formatter: function (cell) {
+                                var val = cell.getValue();
+                                return val != null ? Number(val).toFixed(4) : '';
+                            }
+                        },
+                        {
+                            title: "1개월 Beta (20일)",
+                            field: "beta20",
+                            width: 160,
+                            hozAlign: "right",
+                            formatter: function (cell) {
+                                var val = cell.getValue();
+                                return val != null ? Number(val).toFixed(4) : '';
+                            }
+                        },
+                        {
+                            title: "3개월 Beta (60일)",
+                            field: "beta60",
+                            width: 160,
+                            hozAlign: "right",
+                            formatter: function (cell) {
+                                var val = cell.getValue();
+                                return val != null ? Number(val).toFixed(4) : '';
+                            }
+                        },
+                        {
+                            title: "6개월 Beta (120일)",
+                            field: "beta120",
+                            width: 160,
+                            hozAlign: "right",
+                            formatter: function (cell) {
+                                var val = cell.getValue();
+                                return val != null ? Number(val).toFixed(4) : '';
+                            }
+                        }
+                    ]
+                });
+            }
+        }
+
+        // -------------------------------------------------------------
+        // 4. 상단 공통 툴바 표준 계약 (규정 08-1)
+        // -------------------------------------------------------------
+        function initToolbar() {
+            // 상단 [조회]
+            currentPane.onSearch = function () {
+                loadPortList();
+            };
+
+            // 상단 [새로고침] (규정 08-1-4: 데이터 초기화 및 상태 키 완전 리셋, 자동 조회 절대 금지)
+            currentPane.onRefresh = function () {
+                if (gridPort) gridPort.clearData();
+                if (gridDetail) gridDetail.clearData();
+                if (gridVolatility) gridVolatility.clearData();
+                if (gridUpDown) gridUpDown.clearData();
+                if (gridBeta) gridBeta.clearData();
+                clearGreeksDashboard();
+
+                lastLoadedPortKey = null;
+                lastLoadedDetailKey = null;
+                currentPortRowData = null;
+                currentDetailRowData = null;
+
+                if (window.showToast) window.showToast("화면이 초기화되었습니다.", "info");
+            };
+
+            // 상단 회사그룹 변경
+            currentPane.onCorpGrChange = function (newCorpGr) {
+                // 규정 08-2: 자동 조회 금지
+            };
+
+            // 상단 [엑셀]
+            currentPane.onExcel = function () {
+                var ymd = getFilterYmd(currentPane, 'YYYYMMDD');
+                if (gridDetail && gridDetail.getData().length > 0) {
+                    gridDetail.download("xlsx", "USPM_종목설정현황_" + ymd + ".xlsx", { sheetName: "종목현황" });
+                } else if (gridPort && gridPort.getData().length > 0) {
+                    gridPort.download("xlsx", "USPM_포트폴리오목록_" + ymd + ".xlsx", { sheetName: "포트목록" });
+                } else if (window.showToast) {
+                    window.showToast("내보낼 그리드 데이터가 없습니다.", "warning");
+                }
+            };
+        }
+
+        // -------------------------------------------------------------
+        // 5. 스플리터 초기화 (규정 10-2)
+        // -------------------------------------------------------------
+        function initSplitters() {
+            if (window.AamsSplitter && typeof window.AamsSplitter.init === 'function') {
+                window.AamsSplitter.init(currentPane);
+            }
+        }
+
+        // -------------------------------------------------------------
+        // 6. 데이터 로드 및 연동 함수들
+        // -------------------------------------------------------------
+
+        // 6-1. 펀드/포트 목록 조회
+        function loadPortList() {
+            var corpGr = resolveCorpGr(currentPane);
+            var ymd = getFilterYmd(currentPane);
+
+            if (!corpGr) {
+                if (window.showToast) window.showToast("회사그룹 정보가 누락되었습니다.", "warning");
+                return;
+            }
+            if (!ymd) {
+                if (window.showToast) window.showToast("기준일자를 선택해주세요.", "warning");
+                return;
+            }
+
+            var url = '/api/usportfoliomodel/ja032c/port-list?corpGr=' + encodeURIComponent(corpGr) + '&ymd=' + encodeURIComponent(ymd);
+
+            fetch(url)
+                .then(function (res) { return res.json(); })
+                .then(function (data) {
+                    if (gridPort) {
+                        gridPort.setData(data || []);
+                        if (data && data.length > 0) {
+                            setTimeout(function () {
+                                var rows = gridPort.getRows();
+                                if (rows && rows.length > 0) {
+                                    rows[0].select();
+                                }
+                            }, 50);
+                        } else {
+                            if (gridDetail) gridDetail.clearData();
+                            clearAnalysisArea();
+                        }
+                    }
+                })
+                .catch(function (err) {
+                    console.error("loadPortList error:", err);
+                    if (window.showToast) window.showToast("포트폴리오 목록 조회 중 오류가 발생했습니다.", "error");
+                });
+        }
+
+        // 6-2. 포트 행 선택 -> 종목 상세 현황 동기화
+        function syncPortDetail(row, rowData) {
+            if (!row) return;
+            if (!row.isSelected || !row.isSelected()) row.select();
+
+            var data = rowData || (row.getData ? row.getData() : null);
+            if (!data) return;
+
+            var currentKey = (data.corpGr || '') + '_' + (data.tymd || '') + '_' + (data.fundCd || '') + '_' + (data.portNum || '');
+            if (lastLoadedPortKey === currentKey) return;
+            lastLoadedPortKey = currentKey;
+
+            currentPortRowData = data;
+            loadDetailList(data);
+        }
+
+        // 6-3. 종목 상세 현황 조회 (d_ja032c2 / d_ja032c2_krx)
+        function loadDetailList(portData) {
+            var corpGr = resolveCorpGr(currentPane);
+            var ymd = portData.tymd || getFilterYmd(currentPane);
+            var fundCd = portData.fundCd || '';
+            var portNum = portData.portNum || '';
+            var tt = portData.tt || '';
+
+            // 헤더 동적 타이틀 반영
+            updateDetailHeaderTitles(portData);
+
+            var url = '/api/usportfoliomodel/ja032c/detail-list'
+                    + '?corpGr=' + encodeURIComponent(corpGr)
+                    + '&ymd=' + encodeURIComponent(ymd)
+                    + '&fundCd=' + encodeURIComponent(fundCd)
+                    + '&portNum=' + encodeURIComponent(portNum)
+                    + '&tt=' + encodeURIComponent(tt);
+
+            fetch(url)
+                .then(function (res) { return res.json(); })
+                .then(function (data) {
+                    if (gridDetail) {
+                        gridDetail.setData(data || []);
+                        if (data && data.length > 0) {
+                            setTimeout(function () {
+                                var rows = gridDetail.getRows();
+                                if (rows && rows.length > 0) {
+                                    rows[0].select();
+                                }
+                            }, 50);
+                        } else {
+                            clearAnalysisArea();
+                        }
+                    }
+                })
+                .catch(function (err) {
+                    console.error("loadDetailList error:", err);
+                    if (window.showToast) window.showToast("종목 상세 현황 조회 중 오류가 발생했습니다.", "error");
+                });
+        }
+
+        // 상세 그리드 헤더 동적 타이틀 반영
+        function updateDetailHeaderTitles(portData) {
+            var ttTitle = portData.sebuCdNm || portData.ttNm || '';
+            if (!ttTitle) {
+                var ttCode = (portData.tt || '').trim();
+                if (ttCode && dddwOptionsMap && dddwOptionsMap.tt) {
+                    var found = dddwOptionsMap.tt.find(function (it) {
+                        var c = it.code != null ? it.code : (it.SEBU_CD != null ? it.SEBU_CD : it.cd);
+                        return String(c).trim() === ttCode;
+                    });
+                    if (found) ttTitle = found.name || found.sebuCdNm || found.SEBU_CD_NM || '';
+                }
+            }
+            if (!ttTitle) {
+                ttTitle = (portData.tt === 'A') ? 'KRX월변동성' : (portData.tt || '기준');
+            }
+            var colPutPrice = gridDetail ? gridDetail.getColumn("putPrice") : null;
+            var colTtVol = gridDetail ? gridDetail.getColumn("ttVolatility") : null;
+
+            if (colPutPrice) {
+                colPutPrice.updateDefinition({ title: ttTitle + " PUT<br>행사가격" });
+            }
+            if (colTtVol) {
+                colTtVol.updateDefinition({ title: ttTitle + "<br>변동성" });
+            }
+        }
+
+        // 6-4. 종목 행 선택 -> 우측 하단 분석 영역 동기화
+        function syncItemAnalysis(row, rowData) {
+            if (!row) return;
+            if (!row.isSelected || !row.isSelected()) row.select();
+
+            var data = rowData || (row.getData ? row.getData() : null);
+            if (!data) return;
+
+            var currentKey = (data.corpGr || '') + '_' + (data.ymd || '') + '_' + (data.fundCd || '') + '_' + (data.portNum || '') + '_' + (data.yjCd || data.jmCd || '');
+            if (lastLoadedDetailKey === currentKey) return;
+            lastLoadedDetailKey = currentKey;
+
+            currentDetailRowData = data;
+            loadAnalysisArea(data);
+        }
+
+        // 6-5. 우측 하단 분석 영역 로드 (상단 조회구분 dddw에 따른 분기)
+        function loadAnalysisArea(detailData) {
+            var dddwSelect = currentPane.querySelector('#filterDddw, select[name="dddw"]');
+            var searchType = dddwSelect ? (dddwSelect.value || '변동수준').trim() : '변동수준';
+
+            var corpGr = resolveCorpGr(currentPane);
+            var jmCd = detailData.yjCd || detailData.jmCd || '';
+            var fymd = detailData.fymd || (currentPortRowData ? currentPortRowData.fymd : '') || getFilterYmd(currentPane);
+            var tymd = detailData.ymd || (currentPortRowData ? currentPortRowData.tymd : '') || getFilterYmd(currentPane);
+            var tt = currentPortRowData ? (currentPortRowData.tt || '') : '';
+
+            // 영역 표출 스위칭
+            switchAnalysisView(searchType);
+
+            if (searchType === '베타') {
+                loadBeta(corpGr, tt, jmCd, fymd, tymd);
+            } else if (searchType === '상승/하락일수') {
+                loadUpDown(corpGr, tt, jmCd, fymd, tymd);
+            } else if (searchType === '델타/감마/세타/베가/로') {
+                loadGreeks(corpGr, tymd, detailData.fundCd, detailData.portNum, jmCd, detailData.srsCd, currentPortRowData ? currentPortRowData.mangi : '', tt);
+            } else {
+                // 변동수준 / 괴리율
+                loadVolatility(corpGr, jmCd, fymd, tymd, searchType);
+            }
+        }
+
+        // 분석 영역 화면 뷰 스위칭
+        function switchAnalysisView(searchType) {
+            var wVol = currentPane.querySelector('#wrapperVolatilityGrid');
+            var wUp = currentPane.querySelector('#wrapperUpDownGrid');
+            var wBeta = currentPane.querySelector('#wrapperBetaGrid');
+            var wGreeks = currentPane.querySelector('#wrapperGreeksDashboard');
+            var titleEl = currentPane.querySelector('#titleAnalysisSection');
+
+            if (wVol) wVol.style.display = 'none';
+            if (wUp) wUp.style.display = 'none';
+            if (wBeta) wBeta.style.display = 'none';
+            if (wGreeks) wGreeks.style.display = 'none';
+
+            if (searchType === '베타') {
+                if (wBeta) wBeta.style.display = 'block';
+                if (titleEl) titleEl.innerHTML = '<i class="fa-solid fa-chart-line"></i> 베타(Beta) 분석 현황';
+                if (gridBeta) gridBeta.redraw(true);
+            } else if (searchType === '상승/하락일수') {
+                if (wUp) wUp.style.display = 'block';
+                if (titleEl) titleEl.innerHTML = '<i class="fa-solid fa-arrow-up-down"></i> 상승/하락일수 분석 현황';
+                if (gridUpDown) gridUpDown.redraw(true);
+            } else if (searchType === '델타/감마/세타/베가/로') {
+                if (wGreeks) wGreeks.style.display = 'block';
+                if (titleEl) titleEl.innerHTML = '<i class="fa-solid fa-calculator"></i> 옵션 그릭스(Greeks) 분석 대시보드';
+            } else {
+                if (wVol) wVol.style.display = 'block';
+                if (titleEl) titleEl.innerHTML = '<i class="fa-solid fa-wave-square"></i> ' + searchType + ' 분석 현황';
+                if (gridVolatility) gridVolatility.redraw(true);
+            }
+        }
+
+        // 6-6. 변동수준 / 괴리율 조회
+        function loadVolatility(corpGr, jmCd, fymd, tymd, searchType) {
+            var url = '/api/usportfoliomodel/ja032c/volatility-list'
+                    + '?corpGr=' + encodeURIComponent(corpGr)
+                    + '&jmCd=' + encodeURIComponent(jmCd)
+                    + '&fymd=' + encodeURIComponent(fymd)
+                    + '&tymd=' + encodeURIComponent(tymd)
+                    + '&type=' + encodeURIComponent(searchType);
+
+            fetch(url)
+                .then(function (res) { return res.json(); })
+                .then(function (data) {
+                    if (gridVolatility) gridVolatility.setData(data || []);
+                })
+                .catch(function (err) {
+                    console.error("loadVolatility error:", err);
+                });
+        }
+
+        // 6-7. 베타 분석 조회
+        function loadBeta(corpGr, tt, jmCd, fymd, tymd) {
+            var url = '/api/usportfoliomodel/ja032c/beta-list'
+                    + '?corpGr=' + encodeURIComponent(corpGr)
+                    + '&tt=' + encodeURIComponent(tt)
+                    + '&jmCd=' + encodeURIComponent(jmCd)
+                    + '&fymd=' + encodeURIComponent(fymd)
+                    + '&tymd=' + encodeURIComponent(tymd);
+
+            fetch(url)
+                .then(function (res) { return res.json(); })
+                .then(function (data) {
+                    if (gridBeta) gridBeta.setData(data || []);
+                })
+                .catch(function (err) {
+                    console.error("loadBeta error:", err);
+                });
+        }
+
+        // 6-8. 상승/하락일수 조회
+        function loadUpDown(corpGr, tt, jmCd, fymd, tymd) {
+            var url = '/api/usportfoliomodel/ja032c/updown-list'
+                    + '?corpGr=' + encodeURIComponent(corpGr)
+                    + '&tt=' + encodeURIComponent(tt)
+                    + '&jmCd=' + encodeURIComponent(jmCd)
+                    + '&fymd=' + encodeURIComponent(fymd)
+                    + '&tymd=' + encodeURIComponent(tymd);
+
+            fetch(url)
+                .then(function (res) { return res.json(); })
+                .then(function (data) {
+                    if (gridUpDown) gridUpDown.setData(data || []);
+                })
+                .catch(function (err) {
+                    console.error("loadUpDown error:", err);
+                });
+        }
+
+        // 6-9. 델타/감마/세타/베가/로 조회
+        function loadGreeks(corpGr, ymd, fundCd, portNum, jmCd, srsCd, mangi, tt) {
+            clearGreeksDashboard();
+
+            if (tt === 'A') {
+                if (window.showToast) window.showToast("현재 한국 시장 주식은 옵션이 없습니다.", "info");
+                return;
+            }
+
+            var url = '/api/usportfoliomodel/ja032c/greeks'
+                    + '?corpGr=' + encodeURIComponent(corpGr)
+                    + '&ymd=' + encodeURIComponent(ymd)
+                    + '&fundCd=' + encodeURIComponent(fundCd)
+                    + '&portNum=' + encodeURIComponent(portNum)
+                    + '&jmCd=' + encodeURIComponent(jmCd)
+                    + '&srsCd=' + encodeURIComponent(srsCd || '')
+                    + '&mangi=' + encodeURIComponent(mangi || '');
+
+            fetch(url)
+                .then(function (res) { return res.json(); })
+                .then(function (dto) {
+                    if (dto) {
+                        bindGreeksData(dto);
+                    }
+                })
+                .catch(function (err) {
+                    console.error("loadGreeks error:", err);
+                });
+        }
+
+        // 6-10. 그릭스 데이터 폼 바인딩
+        function bindGreeksData(dto) {
+            setInputValue('#gk_s', dto.s != null ? formatNumber(dto.s, 2) : '');
+            setInputValue('#gk_t', dto.t != null ? dto.t : '');
+            setInputValue('#gk_sigma', dto.sigma != null ? formatNumber(dto.sigma, 4) : '');
+            setInputValue('#gk_r', dto.r != null ? dto.r : '0.05');
+
+            setInputValue('#gk_put_jm_cd', dto.putJmCd || '');
+            setInputValue('#gk_k', dto.k != null ? dto.k : '');
+            setInputValue('#gk_market_price', dto.marketPrice != null ? dto.marketPrice : '');
+            setInputValue('#gk_imp_volatility', dto.impVolatility != null ? dto.impVolatility : '');
+
+            setTextContent('#gk_call_delta', dto.callDelta != null ? formatNumber(dto.callDelta, 4) : '-');
+            setTextContent('#gk_put_delta', dto.putDelta != null ? formatNumber(dto.putDelta, 4) : '-');
+            setTextContent('#gk_gamma', dto.gamma != null ? formatNumber(dto.gamma, 4) : '-');
+            setTextContent('#gk_vega', dto.vega != null ? formatNumber(dto.vega, 4) : '-');
+            setTextContent('#gk_call_theta', dto.callTheta != null ? formatNumber(dto.callTheta, 4) : '-');
+            setTextContent('#gk_put_theta', dto.putTheta != null ? formatNumber(dto.putTheta, 4) : '-');
+            setTextContent('#gk_call_rho', dto.callRho != null ? formatNumber(dto.callRho, 4) : '-');
+            setTextContent('#gk_put_rho', dto.putRho != null ? formatNumber(dto.putRho, 4) : '-');
+        }
+
+        function setInputValue(selector, val) {
+            var el = currentPane.querySelector(selector);
+            if (el) el.value = val;
+        }
+
+        function setTextContent(selector, val) {
+            var el = currentPane.querySelector(selector);
+            if (el) el.textContent = val;
+        }
+
+        function clearGreeksDashboard() {
+            setInputValue('#gk_s', '');
+            setInputValue('#gk_t', '');
+            setInputValue('#gk_sigma', '');
+            setInputValue('#gk_r', '');
+            setInputValue('#gk_put_jm_cd', '');
+            setInputValue('#gk_k', '');
+            setInputValue('#gk_market_price', '');
+            setInputValue('#gk_imp_volatility', '');
+
+            setTextContent('#gk_call_delta', '-');
+            setTextContent('#gk_put_delta', '-');
+            setTextContent('#gk_gamma', '-');
+            setTextContent('#gk_vega', '-');
+            setTextContent('#gk_call_theta', '-');
+            setTextContent('#gk_put_theta', '-');
+            setTextContent('#gk_call_rho', '-');
+            setTextContent('#gk_put_rho', '-');
+        }
+
+        function clearAnalysisArea() {
+            if (gridVolatility) gridVolatility.clearData();
+            if (gridUpDown) gridUpDown.clearData();
+            if (gridBeta) gridBeta.clearData();
+            clearGreeksDashboard();
+            lastLoadedDetailKey = null;
+        }
+
+        // -------------------------------------------------------------
+        // 7. 그릭스 입력 변경 시 실시간 재계산 이벤트 핸들러
+        // -------------------------------------------------------------
+        function initGreeksEventHandlers() {
+            var kInput = currentPane.querySelector('#gk_k');
+            var marketInput = currentPane.querySelector('#gk_market_price');
+            var rInput = currentPane.querySelector('#gk_r');
+            var ivInput = currentPane.querySelector('#gk_imp_volatility');
+
+            function triggerRecalc(isPriceChanged) {
+                var sVal = parseFloat((currentPane.querySelector('#gk_s').value || '').replace(/,/g, '')) || 0;
+                var tVal = parseFloat(currentPane.querySelector('#gk_t').value) || 0;
+                var kVal = parseFloat(kInput.value) || 0;
+                var rVal = parseFloat(rInput.value) || 0;
+                var marketVal = parseFloat(marketInput.value) || 0;
+                var ivVal = parseFloat(ivInput.value) || 0;
+
+                if (sVal <= 0 || kVal <= 0 || tVal <= 0) return;
+
+                var payload = {
+                    s: sVal,
+                    t: tVal,
+                    k: kVal,
+                    r: rVal,
+                    marketPrice: marketVal,
+                    impVolatility: ivVal,
+                    priceChanged: isPriceChanged
+                };
+
+                fetch('/api/usportfoliomodel/ja032c/recalc-greeks', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                })
+                .then(function (res) { return res.json(); })
+                .then(function (dto) {
+                    if (dto) {
+                        if (dto.impVolatility != null && isPriceChanged) {
+                            setInputValue('#gk_imp_volatility', dto.impVolatility);
+                        }
+                        setTextContent('#gk_call_delta', dto.callDelta != null ? formatNumber(dto.callDelta, 4) : '-');
+                        setTextContent('#gk_put_delta', dto.putDelta != null ? formatNumber(dto.putDelta, 4) : '-');
+                        setTextContent('#gk_gamma', dto.gamma != null ? formatNumber(dto.gamma, 4) : '-');
+                        setTextContent('#gk_vega', dto.vega != null ? formatNumber(dto.vega, 4) : '-');
+                        setTextContent('#gk_call_theta', dto.callTheta != null ? formatNumber(dto.callTheta, 4) : '-');
+                        setTextContent('#gk_put_theta', dto.putTheta != null ? formatNumber(dto.putTheta, 4) : '-');
+                        setTextContent('#gk_call_rho', dto.callRho != null ? formatNumber(dto.callRho, 4) : '-');
+                        setTextContent('#gk_put_rho', dto.putRho != null ? formatNumber(dto.putRho, 4) : '-');
+                    }
+                })
+                .catch(function (err) {
+                    console.error("recalcGreeks error:", err);
+                });
+            }
+
+            if (kInput) kInput.addEventListener('change', function () { triggerRecalc(true); });
+            if (marketInput) marketInput.addEventListener('change', function () { triggerRecalc(true); });
+            if (rInput) rInput.addEventListener('change', function () { triggerRecalc(false); });
+            if (ivInput) ivInput.addEventListener('change', function () { triggerRecalc(false); });
+        }
+
+        // 시작 실행
+        if (document.readyState === "loading") {
+            document.addEventListener("DOMContentLoaded", startInit);
+        } else {
+            startInit();
+        }
+
+    })();
+    </script>
+</div>
+</html>

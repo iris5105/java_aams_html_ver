@@ -1449,15 +1449,18 @@ window.getCookieVal = getCookie;
  * Global Cookie WorkDate Helper
  */
 function getCookieWorkDate() {
-    return getCookie('workYmd') || getCookie('hyunYmd') || '';
+    return getCookie('workDate') || getCookie('workYmd') || getCookie('hyunYmd') || window.currentWorkDate || '';
+}
+function getCookieJunyongDate() {
+    return getCookie('junyongDate') || getCookie('junyongYmd') || window.currentJunyongDate || '';
 }
 window.getCookieWorkDate = getCookieWorkDate;
+window.getCookieJunyongDate = getCookieJunyongDate;
 window.getCookieCorpGr = function() { return resolveCorpGr(); };
 
 /**
- * Global Common WorkDate Helper (공통 기준 작업일자 조회)
- * - 쿠키의 workDate가 존재하고 대상 회사가 기본 회사와 일치하면 즉시 캐시값 활용 가능
- * - 회사그룹이 변경되었거나 최신 일자가 필요하면 /api/common/workdate API 호출
+ * Global Common WorkDate Helper (공통 기준 작업일자 및 전영업일 조회)
+ * - /api/common/workdate API 호출을 통해 최신 작업일자 및 전영업일자 동기화
  */
 function fetchCommonWorkDate(corpGr, callback) {
     var url = '/api/common/workdate' + (corpGr ? ('?corpGr=' + encodeURIComponent(corpGr)) : '');
@@ -1465,15 +1468,48 @@ function fetchCommonWorkDate(corpGr, callback) {
         .then(function(res) { return res.json(); })
         .then(function(data) {
             var date = (data && data.workDate) ? data.workDate : null;
-            if (typeof callback === 'function') callback(date);
+            if (data && data.workDate) {
+                window.currentWorkDate = data.workDate;
+            }
+            if (data && data.junyongDate) {
+                window.currentJunyongDate = data.junyongDate;
+            }
+            if (typeof callback === 'function') callback(date, data);
             return date;
         })
         .catch(function(err) {
             console.warn('[common] fetchCommonWorkDate error:', err);
-            if (typeof callback === 'function') callback(null);
+            if (typeof callback === 'function') callback(null, null);
             return null;
         });
 }
+window.fetchCommonWorkDate = fetchCommonWorkDate;
+
+/**
+ * AAMS WorkDate Synchronization Manager
+ * 새로 열리는 탭이나 회사그룹 변경 시 해당 화면의 날짜 인풋(#filterYmd)에 최신 작업일자를 안전하게 동기화
+ */
+window.WorkDateSyncManager = {
+    syncPane: function(pane, corpGr) {
+        if (!pane) return;
+        var ymdInput = pane.querySelector('#filterYmd') || pane.querySelector('input[name="ymd"]');
+        if (!ymdInput) return;
+
+        var cachedDate = getCookieWorkDate();
+        if (cachedDate && (!ymdInput.value || ymdInput.value.trim() === '')) {
+            ymdInput.value = cachedDate;
+        }
+
+        var targetCorp = corpGr || (typeof resolveCorpGr === 'function' ? resolveCorpGr(pane) : '');
+        if (targetCorp && typeof fetchCommonWorkDate === 'function') {
+            fetchCommonWorkDate(targetCorp, function(workDate) {
+                if (workDate && ymdInput) {
+                    ymdInput.value = workDate;
+                }
+            });
+        }
+    }
+};
 
 /**
  * Global Common Breadcrumb Builder Helper

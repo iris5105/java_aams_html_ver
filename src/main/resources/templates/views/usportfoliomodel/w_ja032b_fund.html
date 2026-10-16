@@ -489,19 +489,10 @@
                 }
             }
 
-            // 4. 스플리터 초기화
+            // 4. 스플리터 초기화 (규정 10: AamsSplitter 표준 연동)
             function initSplitter() {
-                if (window.AamsSplitter && typeof window.AamsSplitter.create === 'function') {
-                    window.AamsSplitter.create({
-                        container: currentPane.querySelector("#splitJa032bFundContainer"),
-                        gutter: ".split-gutter-v",
-                        direction: "vertical",
-                        minSize: [180, 220],
-                        onResize: function () {
-                            if (gridMaster) gridMaster.redraw(true);
-                            if (gridDetail) gridDetail.redraw(true);
-                        }
-                    });
+                if (window.AamsSplitter && typeof window.AamsSplitter.init === 'function') {
+                    window.AamsSplitter.init(currentPane);
                 }
             }
 
@@ -634,19 +625,16 @@
                 var cg = newCorpGr || resolveCorpGr(currentPane);
                 if (!cg) return;
 
-                fetch("/api/usportfoliomodel/ja032b_fund/workdate?corpGr=" + encodeURIComponent(cg))
-                    .then(function (res) { return res.json(); })
-                    .then(function (data) {
-                        if (data && data.workDate) {
+                if (typeof fetchCommonWorkDate === 'function') {
+                    fetchCommonWorkDate(cg, function (workDate) {
+                        if (workDate) {
                             var ymdInput = currentPane.querySelector('#filterYmd');
                             if (ymdInput) {
-                                ymdInput.value = data.workDate;
+                                ymdInput.value = workDate;
                             }
                         }
-                    })
-                    .catch(function (err) {
-                        console.warn("[Ja032bFund] 작업일자 조회 실패:", err);
                     });
+                }
             };
 
             // 9. 단일 초기화 진입점
