@@ -68,7 +68,7 @@ public class MybatisSqlLogInterceptor implements Interceptor {
                 Object paramObj = boundSql.getParameterObject();
 
                 StringBuilder sb = new StringBuilder();
-                sb.append("\n").append(ANSI_YELLOW).append("---------------- [MyBatis SQL Execution (").append(elapsedTime).append(")ms] ----------------").append(ANSI_RESET).append("\n");
+                sb.append(ANSI_YELLOW).append("---------------- [MyBatis SQL Execution (").append(elapsedTime).append(")ms] ----------------").append(ANSI_RESET).append("\n");
                 if (serviceInfo != null && !serviceInfo.equals("-")) {
                     sb.append("Service   : ").append(serviceInfo).append("\n");
                 }
@@ -102,7 +102,7 @@ public class MybatisSqlLogInterceptor implements Interceptor {
             Object paramObj = boundSql != null ? boundSql.getParameterObject() : null;
 
             StringBuilder sb = new StringBuilder();
-            sb.append("\n").append(ANSI_RED).append("---------------- [MyBatis SQL Execution FAILED (").append(elapsedTime).append(")ms] ----------------").append(ANSI_RESET).append("\n");
+            sb.append(ANSI_RED).append("---------------- [MyBatis SQL Execution FAILED (").append(elapsedTime).append(")ms] ----------------").append(ANSI_RESET).append("\n");
             if (serviceInfo != null && !serviceInfo.equals("-")) {
                 sb.append("Service   : ").append(serviceInfo).append("\n");
             }
@@ -263,17 +263,80 @@ public class MybatisSqlLogInterceptor implements Interceptor {
     private String formatSql(String sql) {
         if (sql == null || sql.isBlank()) return sql;
 
-        // Preserve already formatted SQL lines if newline exists
+        // 줄바꿈이 포함된 SQL인 경우 (MyBatis XML 템플릿)
         if (sql.contains("\n")) {
-            return sql.trim();
+            // 1. 공통 태그 들여쓰기 제거
+            String stripped = sql.stripIndent();
+            String[] lines = stripped.split("\r?\n");
+
+            int start = 0;
+            while (start < lines.length && lines[start].isBlank()) {
+                start++;
+            }
+            int end = lines.length - 1;
+            while (end >= start && lines[end].isBlank()) {
+                end--;
+            }
+
+            if (start > end) return "";
+
+            // 첫 줄이 0칸인데 둘째 줄 이후가 여전히 XML 인덴트로 붕 떠있는 경우 보정
+            int firstIndent = countLeadingSpaces(lines[start]);
+            int minSubsequentIndent = Integer.MAX_VALUE;
+            boolean hasSubsequent = false;
+            for (int i = start + 1; i <= end; i++) {
+                if (!lines[i].isBlank()) {
+                    hasSubsequent = true;
+                    minSubsequentIndent = Math.min(minSubsequentIndent, countLeadingSpaces(lines[i]));
+                }
+            }
+
+            int excessIndent = 0;
+            if (hasSubsequent && firstIndent == 0 && minSubsequentIndent >= 6) {
+                // 오라클 정렬에서 WHERE는 1칸, FROM은 2칸, ','는 5칸이므로 6칸 이상 잔여 인덴트 보정
+                excessIndent = minSubsequentIndent - 1;
+            }
+
+            StringBuilder result = new StringBuilder();
+            for (int i = start; i <= end; i++) {
+                String line = lines[i];
+                if (line.isBlank()) {
+                    result.append("\n");
+                    continue;
+                }
+
+                if (i > start && excessIndent > 0) {
+                    int curIndent = countLeadingSpaces(line);
+                    int cut = Math.min(curIndent, excessIndent);
+                    line = line.substring(cut);
+                }
+
+                // 1) 과도하게 깊은 서브쿼리 들여쓰기 압축 (터미널 폭 초과 줄 꺾임 방지)
+                line = compressIndent(line);
+                // 2) 줄 내부 4칸 이상 연속 공백 압축 (작은따옴표 내부 리터럴 안전 보존)
+                line = collapseInnerWhitespace(line);
+
+                if (result.length() > 0) {
+                    result.append("\n");
+                }
+                result.append(line);
+            }
+
+            return result.toString();
         }
 
+        return formatSingleLineSql(sql);
+    }
+
+    private String formatSingleLineSql(String sql) {
         return sql.trim()
                 .replaceAll("(?i)\\s+SELECT\\s+", "\nSELECT ")
                 .replaceAll("(?i)\\s+FROM\\s+", "\n  FROM ")
                 .replaceAll("(?i)\\s+JOIN\\s+", "\n  JOIN ")
                 .replaceAll("(?i)\\s+LEFT OUTER JOIN\\s+", "\n  LEFT OUTER JOIN ")
                 .replaceAll("(?i)\\s+LEFT JOIN\\s+", "\n  LEFT JOIN ")
+                .replaceAll("(?i)\\s+RIGHT JOIN\\s+", "\n  RIGHT JOIN ")
+                .replaceAll("(?i)\\s+INNER JOIN\\s+", "\n  INNER JOIN ")
                 .replaceAll("(?i)\\s+WHERE\\s+", "\n WHERE ")
                 .replaceAll("(?i)\\s+AND\\s+", "\n   AND ")
                 .replaceAll("(?i)\\s+OR\\s+", "\n    OR ")
@@ -281,6 +344,65 @@ public class MybatisSqlLogInterceptor implements Interceptor {
                 .replaceAll("(?i)\\s+UNION\\s+", "\nUNION\n")
                 .replaceAll("(?i)\\s+ORDER BY\\s+", "\n ORDER BY ")
                 .replaceAll("(?i)\\s+GROUP BY\\s+", "\n GROUP BY ");
+    }
+
+    private int countLeadingSpaces(String line) {
+        int count = 0;
+        while (count < line.length() && line.charAt(count) == ' ') {
+            count++;
+        }
+        return count;
+    }
+
+    private String compressIndent(String line) {
+        int leading = countLeadingSpaces(line);
+        if (leading <= 12) return line;
+
+        // 12칸 초과 들여쓰기는 터미널 너비(80~120) 초과로 인한 줄바꿈 꺾임 방지를 위해 3:1 비율로 압축
+        int extra = leading - 12;
+        int compressedExtra = Math.min(8, extra / 3);
+        int finalIndent = 12 + compressedExtra;
+
+        return " ".repeat(finalIndent) + line.substring(leading);
+    }
+
+    private String collapseInnerWhitespace(String line) {
+        if (line == null || line.length() < 4) return line;
+
+        int nonSpaceIdx = countLeadingSpaces(line);
+        if (nonSpaceIdx == line.length()) return "";
+
+        String leadingSpaces = line.substring(0, nonSpaceIdx);
+        String content = line.substring(nonSpaceIdx);
+
+        StringBuilder sb = new StringBuilder();
+        boolean inQuote = false;
+        int spaceCount = 0;
+
+        for (int i = 0; i < content.length(); i++) {
+            char c = content.charAt(i);
+
+            if (c == '\'') {
+                if (spaceCount > 0) {
+                    sb.append(spaceCount >= 4 ? "  " : " ".repeat(spaceCount));
+                    spaceCount = 0;
+                }
+                inQuote = !inQuote;
+                sb.append(c);
+            } else if (inQuote) {
+                sb.append(c);
+            } else if (c == ' ') {
+                spaceCount++;
+            } else {
+                if (spaceCount > 0) {
+                    sb.append(spaceCount >= 4 ? "  " : " ".repeat(spaceCount));
+                    spaceCount = 0;
+                }
+                sb.append(c);
+            }
+        }
+
+        return leadingSpaces + sb.toString();
     }
 
     @Override

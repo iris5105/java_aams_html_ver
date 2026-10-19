@@ -95,23 +95,22 @@ AAMS는 MDI 탭 구조로 동작하므로, 개별 업무 화면 HTML은 완전�
 </div>
 ```
 
-### 2.3 자바스크립트 스플리터 바인딩 및 그리드 리사이징 동기화
-스플리터 드래그로 패널의 크기가 변경되면 Tabulator 그리드의 가상 렌더링 뷰포트를 재계산해야 하므로 반드시 `onResize` 콜백에서 `grid.redraw(true)`를 호출합니다.
+### 2.3 자바스크립트 스플리터 초기화 표준 (`AamsSplitter.init(rootEl)`)
+
+> [!CAUTION]
+> **존재하지 않는 `AamsSplitter.create(...)` 임의 호출 엄격 금지 (TypeError 방어)**  
+> `aams_splitter.js` 모듈에는 `create(...)` 함수가 존재하지 않으며, 단일 표준 진입점인 **`AamsSplitter.init(rootEl)`**만을 지원합니다.  
+> 임의의 `AamsSplitter.create({ container, direction, ... })`를 호출하면 `Uncaught TypeError: window.AamsSplitter.create is not a function` 런타임 오류가 발생합니다.
+
+스플리터 드래그 종료 시 `aams_splitter.js` 내부 엔진(`onMouseUp`)에서 자동으로 `AamsSplitter.redrawGrids(container)`를 호출하여 패널 내 모든 Tabulator 그리드의 가상 렌더링 뷰포트를 자동 재계산합니다.  
+따라서 개별 화면 스크립트에서는 다음과 같이 최상위 `pane`을 전달하여 1줄로 초기화합니다:
 
 ```javascript
+// 스플리터 초기화 표준 (AamsSplitter.init 단일 진입점 호출)
 function initSplitter() {
-    if (!window.AamsSplitter) return;
-
-    AamsSplitter.create({
-        container: "#splitHorizontalContainer",
-        gutter: ".gutter-h",
-        direction: "horizontal", // "horizontal" 또는 "vertical"
-        minSize: [300, 300],     // 각 패널의 최소 크기 (px)
-        onResize: function() {
-            if (gridMaster) gridMaster.redraw(true);
-            if (gridDetail) gridDetail.redraw(true);
-        }
-    });
+    if (window.AamsSplitter && typeof window.AamsSplitter.init === 'function') {
+        window.AamsSplitter.init(currentPane);
+    }
 }
 ```
 

@@ -1,0 +1,158 @@
+package com.kfp.aams.domain.usportfoliomodel.controller;
+
+import com.kfp.aams.domain.usportfoliomodel.dto.Ja032bDdDetailDto;
+import com.kfp.aams.domain.usportfoliomodel.dto.Ja032bDdFundDto;
+import com.kfp.aams.domain.usportfoliomodel.dto.Ja032bYaBulkRegisterRequest;
+import com.kfp.aams.domain.usportfoliomodel.dto.Ja032bYaStockDto;
+import com.kfp.aams.domain.usportfoliomodel.service.Ja032bYaService;
+import com.kfp.aams.menu.service.MenuService;
+import com.kfp.aams.security.UserPrincipal;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
+import org.springframework.web.bind.annotation.CookieValue;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseBody;
+
+import java.time.LocalDate;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+
+/**
+ * 관심종목 변동성 추이 (W_JA032B_YA) 컨트롤러
+ */
+@Slf4j
+@Controller
+@RequiredArgsConstructor
+public class Ja032bYaController {
+
+    private final Ja032bYaService ja032bYaService;
+    private final MenuService menuService;
+
+    /**
+     * 화면 뷰 렌더링
+     */
+    @GetMapping({"/views/w_ja032b_ya", "/views/usportfoliomodel/w_ja032b_ya"})
+    public String viewJa032bYa(@AuthenticationPrincipal Object principalObj,
+                               @RequestParam(name = "corpGr", required = false) String paramCorpGr,
+                               @RequestParam(name = "ymd", required = false) String paramYmd,
+                               @CookieValue(name = "savedCorpGr", required = false) String cookieCorpGr1,
+                               @CookieValue(name = "corpGr", required = false) String cookieCorpGr2,
+                               Model model) {
+        UserPrincipal principal = (principalObj instanceof UserPrincipal p) ? p : null;
+        String cookieCorpGr = (cookieCorpGr1 != null && !cookieCorpGr1.isBlank()) ? cookieCorpGr1 : cookieCorpGr2;
+        String corpGr = resolveCorpGr(paramCorpGr, cookieCorpGr, principal);
+
+        var menuDto = menuService.getMenuByPgmId("W_JA032B_YA");
+        if (menuDto == null) {
+            menuDto = menuService.getMenuByPgmId("w_ja032b_ya");
+        }
+        String fullpgm2 = (menuDto != null && menuDto.getFullpgm2() != null)
+                ? menuDto.getFullpgm2()
+                : "사무관리 > US Portfolio Model > USPM > 관심종목 변동성 추이";
+
+        String workDate = (paramYmd != null && !paramYmd.isBlank()) ? paramYmd : ja032bYaService.getWorkDate(corpGr);
+        if (workDate == null || workDate.isBlank()) {
+            workDate = LocalDate.now().toString();
+        }
+
+        model.addAttribute("fullpgm2", fullpgm2);
+        model.addAttribute("workDate", workDate);
+        model.addAttribute("ymd", workDate);
+        model.addAttribute("initialYmd", workDate);
+        model.addAttribute("corpGr", corpGr);
+
+        return "views/usportfoliomodel/w_ja032b_ya";
+    }
+
+    /**
+     * 1. 펀드 목록 조회 API (dw_c dddw)
+     */
+    @GetMapping("/api/usportfoliomodel/ja032b-ya/fund-list")
+    @ResponseBody
+    public ResponseEntity<List<Ja032bDdFundDto>> getFundList(@RequestParam("corpGr") String corpGr,
+                                                             @RequestParam("ymd") String ymd) {
+        List<Ja032bDdFundDto> list = ja032bYaService.getFundList(corpGr, ymd);
+        return ResponseEntity.ok(list != null ? list : Collections.emptyList());
+    }
+
+    /**
+     * 2. 포트 목록 조회 API (dw_c dddw2)
+     */
+    @GetMapping("/api/usportfoliomodel/ja032b-ya/port-list")
+    @ResponseBody
+    public ResponseEntity<List<String>> getPortList(@RequestParam("corpGr") String corpGr,
+                                                    @RequestParam("fundCd") String fundCd,
+                                                    @RequestParam("ymd") String ymd) {
+        List<String> list = ja032bYaService.getPortList(corpGr, fundCd, ymd);
+        return ResponseEntity.ok(list != null ? list : Collections.emptyList());
+    }
+
+    /**
+     * 3. 포트 상세 정보(FYMD, TT) 조회 API
+     */
+    @GetMapping("/api/usportfoliomodel/ja032b-ya/port-info")
+    @ResponseBody
+    public ResponseEntity<Map<String, Object>> getPortInfo(@RequestParam("corpGr") String corpGr,
+                                                          @RequestParam("fundCd") String fundCd,
+                                                          @RequestParam("portNum") String portNum,
+                                                          @RequestParam("ymd") String ymd) {
+        Map<String, Object> info = ja032bYaService.getPortInfo(corpGr, fundCd, portNum, ymd);
+        return ResponseEntity.ok(info);
+    }
+
+    /**
+     * 4. 관심종목 변동성 추이 목록 조회 API (d_ja032b_ya.srd)
+     */
+    @GetMapping("/api/usportfoliomodel/ja032b-ya/stock-list")
+    @ResponseBody
+    public ResponseEntity<List<Ja032bYaStockDto>> getStockList(@RequestParam("corpGr") String corpGr,
+                                                               @RequestParam("ymd") String ymd,
+                                                               @RequestParam(name = "fundCd", required = false) String fundCd,
+                                                               @RequestParam(name = "portNum", required = false) String portNum) {
+        List<Ja032bYaStockDto> list = ja032bYaService.getStockList(corpGr, ymd, fundCd, portNum);
+        return ResponseEntity.ok(list != null ? list : Collections.emptyList());
+    }
+
+    /**
+     * 5. 종목 일별현황 상세 조회 API (d_ja032b_dd.srd / d_ja032b_dd_krx.srd)
+     */
+    @GetMapping("/api/usportfoliomodel/ja032b-ya/detail-list")
+    @ResponseBody
+    public ResponseEntity<List<Ja032bDdDetailDto>> getDetailList(@RequestParam("corpGr") String corpGr,
+                                                                 @RequestParam("jmCd") String jmCd,
+                                                                 @RequestParam(name = "fymd", required = false) String fymd,
+                                                                 @RequestParam("tymd") String tymd) {
+        List<Ja032bDdDetailDto> list = ja032bYaService.getDetailList(corpGr, jmCd, fymd, tymd);
+        return ResponseEntity.ok(list != null ? list : Collections.emptyList());
+    }
+
+    /**
+     * 6. 선택종목 일괄등록 처리 API (cb_1 로직)
+     */
+    @PostMapping("/api/usportfoliomodel/ja032b-ya/bulk-register")
+    @ResponseBody
+    public ResponseEntity<Map<String, Object>> bulkRegister(@RequestBody Ja032bYaBulkRegisterRequest request) {
+        Map<String, Object> result = ja032bYaService.bulkRegister(request);
+        return ResponseEntity.ok(result);
+    }
+
+    /**
+     * Zero-Hardcoding: corpGr 추출 헬퍼
+     */
+    private String resolveCorpGr(String paramCorpGr, String cookieCorpGr, UserPrincipal principal) {
+        if (paramCorpGr != null && !paramCorpGr.isBlank()) return paramCorpGr.trim();
+        if (cookieCorpGr != null && !cookieCorpGr.isBlank()) return cookieCorpGr.trim();
+        if (principal != null && principal.getCorpGr() != null && !principal.getCorpGr().isBlank()) {
+            return principal.getCorpGr().trim();
+        }
+        return "";
+    }
+}

@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.kfp.aams.domain.usportfoliomodel.mapper.Ja032nMapper">
+
+    <!-- 1. 좌측 마스터 펀드 운용손익 현황 목록 조회 (d_ja032n1.srd) -->
+    <select id="selectMasterList" resultType="com.kfp.aams.domain.usportfoliomodel.dto.Ja032nMasterDto">
+        SELECT t1.FUND_CD                       AS fund_cd
+             , ia.FUND_NM                       AS xx_fund_cd
+             , ia.FUND_NM                       AS fund_nm
+             , t1.WONBON_AEK                    AS wonbon_aek
+             , t1.JM_PER                        AS jm_per
+             , t1.USD_WONBON_AEK                AS usd_wonbon_aek
+             , sonik.jm_sonik                   AS jm_sonik
+             , sonik.pg_sonik                   AS pg_sonik
+             , sonik.pg_premium                 AS pg_premium
+             , sonik.put_premium                AS premium
+             , sonik.un_sonik                   AS un_sonik
+          FROM SZT0IA_V t1
+             , SZM0IA   ia
+             , (SELECT ta.FUND_CD
+                     , SUM(NVL(ta.JM_BF_SONIK, 0) + NVL(ta.JM_UP_SONIK, 0))    AS jm_sonik
+                     , SUM(ta.JM_PG_SONIK)                                     AS pg_sonik
+                     , SUM(ta.PUT_PG_PREMIUM)                                  AS pg_premium
+                     , SUM(NVL(ta.PUT_BF_PREMIUM, 0) + NVL(ta.SA3_PREMIUM, 0)) AS put_premium
+                     , SUM(NVL(ta.PUT_BF_PREMIUM, 0) + NVL(ta.SA3_PREMIUM, 0)
+                                                    + NVL(ta.JM_BF_SONIK, 0) + NVL(ta.JM_UP_SONIK, 0)
+                                                    + NVL(ta.JM_PG_SONIK, 0))  AS un_sonik
+                  FROM USPM_SONIK ta
+                 WHERE ta.CORP_GR = #{corpGr}
+                   AND ta.YMD     = #{ymd}
+                 GROUP BY ta.FUND_CD) sonik
+         WHERE t1.CORP_GR       = #{corpGr}
+           AND t1.TR_YMD        = #{ymd}
+           AND NVL(t1.DEL, 'N') = 'N'
+           AND ia.CORP_GR       = t1.CORP_GR
+           AND ia.FUND_CD       = t1.FUND_CD
+           AND sonik.fund_cd(+) = t1.FUND_CD
+         ORDER BY t1.FUND_CD ASC
+    </select>
+
+    <!-- 2. 우측 상단 지수 및 펀드 수익률 요약 조회 (d_ja032n3.srd - F_JA032N 오라클 함수 호출) -->
+    <select id="selectJisuSummary" resultType="com.kfp.aams.domain.usportfoliomodel.dto.Ja032nJisuDto">
+        SELECT TO_CHAR(t1.JISU_YMD, 'YYYY.MM.DD') AS jisu_ymd
+             , TO_CHAR(#{ymd}, 'YYYY.MM.DD')       AS today
+             , t1.SPX_START                        AS spx_start
+             , t1.SPX_TODAY                        AS spx_today
+             , t1.NDX_START                        AS ndx_start
+             , t1.NDX_TODAY                        AS ndx_today
+             , t1.FUND_START                       AS fund_start
+             , t1.FUND_TODAY                       AS fund_today
+             , CASE WHEN t1.SPX_START &gt; 0
+                    THEN (t1.SPX_TODAY / NULLIF(t1.SPX_START, 0)) - 1
+                    ELSE NULL END                  AS spx_rt
+             , CASE WHEN t1.NDX_START &gt; 0
+                    THEN (t1.NDX_TODAY / NULLIF(t1.NDX_START, 0)) - 1
+                    ELSE NULL END                  AS ndx_rt
+             , CASE WHEN t1.FUND_START &gt; 0
+                    THEN (t1.FUND_TODAY / NULLIF(t1.FUND_START, 0)) - 1
+                    ELSE NULL END                  AS fund_rt
+          FROM TABLE(F_JA032N (#{corpGr}, #{ymd}, #{fundCd})) t1
+    </select>
+
+    <!-- 3. 우측 하단 포트별 옵션수익실현 상세 목록 조회 (d_ja032n2.srd) -->
+    <select id="selectDetailList" resultType="com.kfp.aams.domain.usportfoliomodel.dto.Ja032nDetailDto">
+        SELECT t1.CORP_GR                                               AS corp_gr
+             , TO_CHAR(t1.YMD, 'YYYY.MM.DD')                            AS ymd
+             , t1.FUND_CD                                               AS fund_cd
+             , t1.PORT                                                  AS port
+             , SUM(t1.PUT_PG_PREMIUM)                                  AS pg_premium
+             , SUM(t1.PUT_BF_PREMIUM)                                  AS bf_premium
+             , SUM(t1.PUT_UP_PREMIUM)                                  AS up_premium
+             , SUM(t1.PUT_DW_PREMIUM)                                  AS dw_premium
+             , SUM(NVL(t1.PUT_BF_PREMIUM, 0) + NVL(t1.SA3_PREMIUM, 0)) AS premium
+             , SUM(NVL(t1.JM_BF_SONIK, 0) - NVL(t1.JM_UP_SONIK, 0))   AS jm_sonik
+             , SUM(t1.JM_PG_SONIK)                                     AS pg_sonik
+          FROM USPM_SONIK t1
+         WHERE t1.CORP_GR = #{corpGr}
+           AND t1.YMD     BETWEEN ADD_MONTHS(#{ymd}, -1) AND #{ymd}
+           AND t1.FUND_CD = #{fundCd}
+         GROUP BY t1.CORP_GR, t1.YMD, t1.FUND_CD, t1.PORT
+         ORDER BY t1.YMD DESC, t1.PORT ASC
+    </select>
+
+</mapper>

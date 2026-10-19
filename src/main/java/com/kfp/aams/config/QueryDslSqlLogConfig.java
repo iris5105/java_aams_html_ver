@@ -161,7 +161,7 @@ public class QueryDslSqlLogConfig implements BeanPostProcessor {
             String formattedSql = formatSql(executableSql);
 
             StringBuilder sb = new StringBuilder();
-            sb.append("\n").append(ANSI_RED).append("---------------- [QueryDSL / JPA SQL Execution FAILED (").append(elapsedTime).append(")ms] ----------------").append(ANSI_RESET).append("\n");
+            sb.append(ANSI_RED).append("---------------- [QueryDSL / JPA SQL Execution FAILED (").append(elapsedTime).append(")ms] ----------------").append(ANSI_RESET).append("\n");
             if (caller != null) {
                 if (caller.service != null) {
                     sb.append("Service    : ").append(caller.service).append("\n");
@@ -204,7 +204,7 @@ public class QueryDslSqlLogConfig implements BeanPostProcessor {
             String formattedSql = formatSql(executableSql);
 
             StringBuilder sb = new StringBuilder();
-            sb.append("\n").append(ANSI_BLUE).append("---------------- [QueryDSL / JPA SQL Execution (").append(elapsedTime).append(")ms] ----------------").append(ANSI_RESET).append("\n");
+            sb.append(ANSI_BLUE).append("---------------- [QueryDSL / JPA SQL Execution (").append(elapsedTime).append(")ms] ----------------").append(ANSI_RESET).append("\n");
             if (caller.service != null) {
                 sb.append("Service    : ").append(caller.service).append("\n");
             }

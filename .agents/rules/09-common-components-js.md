@@ -111,30 +111,105 @@ trigger: always_on
 4. **회사그룹 변경(`pane.onCorpGrChange`) 연동**:
    - 상단 회사그룹 변경 시 드롭다운 초기화 함수를 다시 호출하여 해당 회사그룹의 DDDW 목록으로 즉시 갱신합니다.
 
+### 2.4 모든 DDDW 드롭다운의 2열 커스텀 컴포넌트 필수 적용 표준 (Zero-Native-Select 원칙)
+
+> [!IMPORTANT]
+> **브라우저 기본 `<select>` 방치 절대 금지 및 2열 커스텀 컴포넌트(`f_dddwctl.get2ColItemFormatter`) 필수 적용**  
+> 상단 필터바의 모든 DDDW(단일 DDDW, 복수 DDDW1/2/3) 및 화면 내의 모든 드롭다운(펀드, 포트, 매매처, 거래구분 등)은 브라우저 기본 `<select>`에 `<option>`만 추가하여 밋밋한 네이티브 드롭다운으로 방치하는 것을 엄격히 금지합니다.  
+> 반드시 `window.initFilterDddw` 또는 `window.f_dddwctl.get2ColItemFormatter(selectEl, options, config)`를 호출하여 파워빌더 DataWindow와 동일한 **[코드 | 명칭] 2열 테이블형 커스텀 드롭다운(`.dddw-select-custom`)으로 일관되게 변환**해야 합니다.
+
+1. **동적 API 데이터(펀드목록, 포트목록 등) 로드 시 변환 표준 패턴**:
+   ```javascript
+   fetch('/api/.../fund-list?...')
+       .then(res => res.json())
+       .then(list => {
+           var options = [];
+           if (Array.isArray(list) && list.length > 0) {
+               options = list.map(function (f) {
+                   return {
+                       code: f.fundCd,
+                       name: (f.fundNm || f.xxFundCd || f.fundCd || '').toString().trim()
+                   };
+               });
+           }
+
+           // 반드시 f_dddwctl.get2ColItemFormatter를 호출하여 2열 커스텀 위젯으로 변환!
+           if (window.f_dddwctl && typeof window.f_dddwctl.get2ColItemFormatter === 'function') {
+               window.f_dddwctl.get2ColItemFormatter(fundSelect, options, {
+                   codeTitle: "코드",
+                   nameTitle: "펀드명",
+                   defaultVal: options.length > 0 ? options[0].code : "",
+                   onSelect: function (code, name) {
+                       fundSelect.value = code;
+                       loadPortList(code); // 하위 연동 실행
+                   }
+               });
+           }
+       });
+   ```
+2. **2열 드롭다운의 혜택 및 일관성**:
+   - 버튼에 선택된 명칭과 드롭다운 화살표(`▼`)가 일체형으로 렌더링됩니다.
+   - 드롭다운 오픈 시 상단에 고정된 `[코드 | 명칭]` 헤더 행과 함께 정렬된 2열 테이블 팝업이 표출됩니다.
+   - 클릭 즉시 값이 반영되고 `change` 이벤트가 버블링되어 하위 필터나 그리드 연동이 매끄럽게 동작합니다.
+
 ---
 
-## 3. 달력 컴포넌트 (`aams_calendar.js`)
+## 3. 달력 컴포넌트 표준 규격 (`aams_calendar.js` & `dc_ymd`)
 
-기준일자 및 기간 선택 시 [aams_calendar.js](file:///d:/work/java_aams_html_ver/src/main/resources/static/js/aams_calendar.js)의 `AamsCalendar` 컴포넌트를 사용합니다.
+> [!CAUTION]
+> **날짜 입력창 수기 마크업 및 비표준 AamsCalendar 호출 엄격 금지 (Zero-Manual-Date-Markup 원칙)**  
+> 1. 부트스트랩 `.input-group` 클래스나 임의의 `<input>` + `<button>` 태그를 화면에 직접 작성하면 `aams_calendar.js`의 필수 래퍼(`.aams-calendar-wrapper`)가 누락되어 달력 팝오버가 전혀 동작하지 않습니다.  
+> 2. `AamsCalendar.init({ inputSelector: ..., btnSelector: ... })`와 같이 존재하지 않는 비표준 객체 단일 인자로 호출하면 인스턴스 등록이 실패합니다.
 
-### 3.1 하이라이트 모드 분기 규격
-파워빌더 원본 소스(`.srw`)의 `dw_c` 이벤트 구현 여부에 따라 달력 모드를 분기합니다:
-- **하이라이트 모드:** `srw` 파일에 `dw_c.ue_getdate` 이벤트가 존재하는 경우, 영업일/거래일 목록을 서버에서 조회하여 특정 일자가 강조되는 하이라이트 모드로 전달합니다.
-- **순정 모드:** `dw_c.ue_getdate` 이벤트가 없는 경우 순정 상태의 표준 달력으로 표출합니다.
+### 3.1 상단 필터바 날짜 마크업 표준 (공통 프래그먼트 연동)
+상단 필터바의 기준일자는 화면마다 임의로 HTML을 작성하지 않고, 반드시 시스템 공통 타임리프 프래그먼트를 사용합니다:
+```html
+<!-- 단일 기준일자 필터 (dc_ymd) -->
+<div th:replace="~{fragments/filter/dc_ymd :: filter(label='조회기준일')}"></div>
+```
+- 프래그먼트 내부에 `id="filterYmd"`, `.aams-calendar-wrapper`, `onclick="AamsCalendar.toggle('filterYmd', event)"`가 완전하게 구성되어 있습니다.
 
-### 3.2 달력 연동 예시
+### 3.2 자바스크립트 달력 초기화 표준 (`initFilterCalendar`)
+개별 화면 스크립트에서는 `common.js`에 내장된 표준 헬퍼인 **`initFilterCalendar(currentPane, options)`**를 필수로 호출합니다:
 ```javascript
-// 하이라이트 모드 달력 초기화
-AamsCalendar.init({
-    inputSelector: '#filterYmd',
-    btnSelector: '#btnCalendar',
-    highlightMode: true, // dw_c.ue_getdate 이벤트 존재 시 true
-    getCorpGr: function() { return resolveCorpGr(currentPane); },
-    onSelect: function(selectedDate) {
-        // 주의: 날짜 선택 시 자동으로 조회를 호출하지 않음 (값 바인딩만 수행)
-        document.getElementById('filterYmd').value = selectedDate;
+// 달력 컴포넌트 초기화 표준 (common.js initFilterCalendar 공통 연동)
+function initCalendar() {
+    if (typeof window.initFilterCalendar === 'function') {
+        window.initFilterCalendar(currentPane, {
+            onSelect: function (selectedDate) {
+                // 규칙 08 준수: 날짜 변경 시 자동 조회를 절대 실행하지 않고, 종속 필터(예: 펀드/포트) 목록만 갱신
+                loadFundList();
+            }
+        });
     }
+}
+```
+
+### 3.3 AamsCalendar 엔진 직접 호출 시 표준 시그니처 (2인자 엄수)
+`AamsCalendar` 엔진을 직접 호출해야 하는 경우, 반드시 **첫 번째 인자는 `inputId`(문자열 또는 input 요소)**, **두 번째 인자는 `options`(객체)**를 전달해야 합니다:
+```javascript
+// 1) 순정 모드 (데이터 하이라이트 없이 표준 달력 팝오버)
+AamsCalendar.initSimple('filterYmd', {
+    pane: currentPane,
+    initialYmd: '2026-10-19',
+    onSelect: function(dateStr) { loadFundList(); }
 });
+
+// 2) 하이라이트 모드 (dw_c.ue_getdate 이벤트 존재 시 거래일/데이터 존재일 강조)
+AamsCalendar.init('filterYmd', {
+    pane: currentPane,
+    initialYmd: '2026-10-19',
+    datesApiUrl: '/api/common/calendar/dates',
+    corpGr: resolveCorpGr(currentPane),
+    onSelect: function(dateStr) { loadFundList(); }
+});
+```
+
+### 3.4 조회 날짜 값 추출 표준 (`getFilterYmd`)
+날짜 값을 읽을 때 개별 ID(`document.getElementById('filterYmd')`)를 직접 조회하지 말고, 공통 유틸리티 **`getFilterYmd(currentPane)`**를 사용합니다:
+```javascript
+var ymdDefault = getFilterYmd(currentPane);             // "2026-10-19" (YYYY-MM-DD)
+var ymdRaw     = getFilterYmd(currentPane, 'YYYYMMDD');  // "20261019"
 ```
 
 ---

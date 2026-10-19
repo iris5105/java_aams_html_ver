@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
 <body>
-    <!-- From-To Date + DDDW + Extra Filter (dc_ftymd_dddw_xx) -->
+    <!-- From-To Date + DDDW + Extra Filter (dc_ftymd_dddw_xx: AamsCalendar 규격) -->
     <div th:fragment="filter" class="filter-bar filter-dc-ftymd-dddw-xx">
-        <div class="filter-item">
-            <label for="filterFYmd" th:text="${label != null ? label : (labelFYmd != null ? labelFYmd : '조회기간')}">조회기간</label>
+        <div class="filter-item" style="position: relative; display: flex; align-items: center; gap: 6px;">
+            <label for="filterFYmd" th:text="${labelFYmd != null ? labelFYmd : (labelYmd != null ? labelYmd : (label != null ? label : '조회기간'))}">조회기간</label>
             <div class="range-calendar-wrapper">
                 <input type="text" id="filterFYmd" name="fYmd" class="filter-input range-calendar-input" th:value="${fYmd != null ? fYmd : ''}" readonly autocomplete="off" />
                 <span class="range-calendar-separator">~</span>

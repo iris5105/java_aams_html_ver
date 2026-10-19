@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.kfp.aams.domain.usportfoliomodel.mapper.Ja033eMapper">
+
+    <!-- 포트/종목별 종가대비 행사가격 상세 목록 조회 (d_ja033e2.srd) -->
+    <select id="selectDetailList" resultType="com.kfp.aams.domain.usportfoliomodel.dto.Ja033eDetailDto">
+        SELECT port.TT                                           AS tt
+             , port.INST_DAYS                                    AS inst_days
+             , TO_CHAR(port.MANGI, 'yyyy"년" mm"월" dd"일만기"') AS mangi
+             , port.DT                                           AS dt
+             , port.YEAR_BETA                                    AS year_beta
+             , port.MON_BETA                                     AS mon_beta
+             , t1.PORT_NUM                                       AS port_num
+             , t1.JM_CD                                          AS jm_cd
+             , t1.JM_CD                                          AS yj_cd
+             , NVL(ya.SRS_CD, ya.BLBG_TCKR)                      AS srs_cd
+             , ya.JM_NM                                          AS xx_yj_cd
+             , ya.JM_NM                                          AS jm_nm
+             , t1.JONGA                                          AS jonga
+             , CASE WHEN tt.hangsa_ga IS NULL THEN NULL
+                    ELSE (t1.JONGA / NULLIF(tt.hangsa_ga, 0) - 1) * 100
+               END                                               AS clearance
+             , CASE WHEN NVL(t1.PRICE_PER, 0) = 0 THEN port.PRICE_PER
+                    ELSE t1.PRICE_PER
+               END                                               AS price_per
+             , CASE WHEN tt.hangsa_ga IS NULL THEN NULL
+                    WHEN (t1.JONGA / NULLIF(tt.hangsa_ga, 0) - 1) &gt;= CASE WHEN NVL(t1.PRICE_PER, 0) = 0 THEN port.PRICE_PER / 100
+                                                                           ELSE t1.PRICE_PER / 100
+                                                                      END THEN 'LOW'
+                    WHEN (t1.JONGA / NULLIF(tt.hangsa_ga, 0) - 1) &lt;= CASE WHEN NVL(t1.PRICE_PER, 0) = 0 THEN port.PRICE_PER / 100
+                                                                           ELSE t1.PRICE_PER / 100
+                                                                      END * -1 THEN 'HIGH'
+                    ELSE 'UNDECIDED'
+               END                                               AS price_status
+             , ya.CURRENCY                                       AS currency
+             , tt.jm_cd                                          AS opt_jm_cd
+             , tt.jm_nm                                          AS opt_jm_nm
+             , tt.qty                                            AS qty
+             , tt.hangsa_ga                                      AS hangsa_ga
+             , tt.risk_value                                     AS risk_value
+          FROM USPM_PORT port
+             , USPM      t1
+             , SYM0YA    ya
+             , ( SELECT yz.TRUSTEE
+                      , ya.CHANGE_JM_CD
+                      , ya.JM_CD
+                      , ya.JM_NM
+                      , ya.HANGSA_GA
+                      , SUM(NVL(yz.TR_BFIL_JUSU, 0) + NVL(yz.TR_UP_JUSU, 0)
+                                                    - NVL(yz.TR_DW_JUSU, 0)
+                                                    + NVL(yz.RIGHT_JUSU, 0))           AS qty
+                      , SUM(NVL(yz.DELTA_RISK_VALUE, 0) + NVL(yz.GAMMA_RISK_VALUE, 0)
+                                                       + NVL(yz.VEGA_RISK_VALUE, 0))   AS risk_value
+                   FROM SYM0YZ yz
+                      , SYM0YA ya
+                  WHERE yz.CORP_GR   = #{corpGr}
+                    AND yz.FUND_CD   = #{fundCd}
+                    AND yz.YMD       = #{ymd}
+                    AND ya.HANGSA_GA IS NOT NULL
+                    AND ya.CORP_GR   = yz.CORP_GR
+                    AND ya.JM_CD     = yz.JM_CD
+                  GROUP BY yz.TRUSTEE, ya.CHANGE_JM_CD, ya.JM_CD, ya.JM_NM, ya.HANGSA_GA
+                 HAVING SUM(NVL(yz.TR_BFIL_JUSU, 0) + NVL(yz.TR_UP_JUSU, 0)
+                          - NVL(yz.TR_DW_JUSU, 0) + NVL(yz.RIGHT_JUSU, 0)) &gt; 0 ) tt
+         WHERE port.CORP_GR       = #{corpGr}
+           AND port.FUND_CD       = #{fundCd}
+           AND port.TYMD          = #{ymd}
+           AND t1.CORP_GR         = port.CORP_GR
+           AND t1.FUND_CD         = port.FUND_CD
+           AND t1.YMD             = port.TYMD
+           AND t1.PORT_NUM        = port.PORT_NUM
+           AND ya.CORP_GR         = t1.CORP_GR
+           AND ya.JM_CD           = t1.JM_CD
+           AND tt.TRUSTEE(+)      = '(' || port.PORT_NUM || ')'
+           AND tt.CHANGE_JM_CD(+) = t1.JM_CD
+         ORDER BY t1.PORT_NUM, t1.JM_CD, tt.HANGSA_GA
+    </select>
+
+</mapper>
