@@ -60,12 +60,26 @@ window.DynamicCodeSearch = (function() {
 
         let lastValidatedCode = input.value ? input.value.trim() : null;
 
+        function resolveAddWhere() {
+            if (typeof options.addWhere === "function") {
+                try {
+                    return options.addWhere() || "";
+                } catch (e) {
+                    console.warn("DynamicCodeSearch addWhere function error:", e);
+                    return "";
+                }
+            }
+            return options.addWhere || "";
+        }
+
         function openModalForCurrent() {
             const corpGr = getCorpGr();
+            const addWhere = resolveAddWhere();
             openModal({
                 columnNm: columnNm,
                 seq: seq,
                 corpGr: corpGr,
+                addWhere: addWhere,
                 initialKeyword: input.value ? input.value.trim() : "",
                 onSelect: function(selectedCode, selectedName, rowData) {
                     input.value = selectedCode;
@@ -83,6 +97,7 @@ window.DynamicCodeSearch = (function() {
         function validateAndApply(codeVal, triggerCallback) {
             const corpGr = getCorpGr();
             const trimmed = (codeVal || "").trim();
+            const addWhere = resolveAddWhere();
 
             if (!trimmed) {
                 if (textLabel) textLabel.textContent = "";
@@ -93,7 +108,12 @@ window.DynamicCodeSearch = (function() {
                 return;
             }
 
-            fetch(`/api/common/code-search/get?columnNm=${encodeURIComponent(columnNm)}&seq=${seq}&corpGr=${encodeURIComponent(corpGr)}&code=${encodeURIComponent(trimmed)}`)
+            let url = `/api/common/code-search/get?columnNm=${encodeURIComponent(columnNm)}&seq=${seq}&corpGr=${encodeURIComponent(corpGr)}&code=${encodeURIComponent(trimmed)}`;
+            if (addWhere) {
+                url += `&addWhere=${encodeURIComponent(addWhere)}`;
+            }
+
+            fetch(url)
                 .then(res => res.json())
                 .then(data => {
                     if (data && data.code) {
@@ -178,15 +198,21 @@ window.DynamicCodeSearch = (function() {
         const seq = modalOptions.seq || 2;
         const corpGr = modalOptions.corpGr || resolveCorpGr();
         const initialKeyword = modalOptions.initialKeyword || "";
+        const addWhere = typeof modalOptions.addWhere === "function" ? modalOptions.addWhere() : (modalOptions.addWhere || "");
         const onSelect = modalOptions.onSelect;
 
         // Remove existing modal if any
         closeModal();
 
         // 1. Fetch Config and initial List in parallel
+        let listUrl = `/api/common/code-search/list?columnNm=${encodeURIComponent(columnNm)}&seq=${seq}&corpGr=${encodeURIComponent(corpGr)}`;
+        if (addWhere) {
+            listUrl += `&addWhere=${encodeURIComponent(addWhere)}`;
+        }
+
         Promise.all([
             fetch(`/api/common/code-search/config?columnNm=${encodeURIComponent(columnNm)}&seq=${seq}`).then(res => res.json()),
-            fetch(`/api/common/code-search/list?columnNm=${encodeURIComponent(columnNm)}&seq=${seq}&corpGr=${encodeURIComponent(corpGr)}`).then(res => res.json())
+            fetch(listUrl).then(res => res.json())
         ]).then(([config, allData]) => {
             renderModalDOM(config, allData, initialKeyword, onSelect);
         }).catch(err => {

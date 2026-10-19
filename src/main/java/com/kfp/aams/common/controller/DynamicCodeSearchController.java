@@ -14,10 +14,13 @@ import java.util.Map;
 @Slf4j
 @RestController
 @RequestMapping("/api/common/code-search")
-@RequiredArgsConstructor
 public class DynamicCodeSearchController {
 
     private final DynamicCodeSearchService dynamicCodeSearchService;
+
+    public DynamicCodeSearchController(DynamicCodeSearchService dynamicCodeSearchService) {
+        this.dynamicCodeSearchService = dynamicCodeSearchService;
+    }
 
     /**
      * 메타데이터 설정 조회 (모달 창 타이틀, 컬럼 헤더 등)
@@ -38,9 +41,10 @@ public class DynamicCodeSearchController {
                                              @CookieValue(name = "savedCorpGr", required = false) String cookieCorpGr1,
                                              @CookieValue(name = "corpGr", required = false) String cookieCorpGr2,
                                              @RequestParam(name = "keyword", required = false) String keyword,
+                                             @RequestParam(name = "addWhere", required = false) String addWhere,
                                              @AuthenticationPrincipal UserPrincipal principal) {
         String corpGr = resolveCorpGr(paramCorpGr, cookieCorpGr1, cookieCorpGr2, principal);
-        return dynamicCodeSearchService.getCodeList(columnNm, seq, corpGr, keyword);
+        return dynamicCodeSearchService.getCodeList(columnNm, seq, corpGr, keyword, addWhere);
     }
 
     /**
@@ -53,9 +57,10 @@ public class DynamicCodeSearchController {
                                        @CookieValue(name = "savedCorpGr", required = false) String cookieCorpGr1,
                                        @CookieValue(name = "corpGr", required = false) String cookieCorpGr2,
                                        @RequestParam(name = "code") String code,
+                                       @RequestParam(name = "addWhere", required = false) String addWhere,
                                        @AuthenticationPrincipal UserPrincipal principal) {
         String corpGr = resolveCorpGr(paramCorpGr, cookieCorpGr1, cookieCorpGr2, principal);
-        Map<String, Object> item = dynamicCodeSearchService.getCodeItem(columnNm, seq, corpGr, code);
+        Map<String, Object> item = dynamicCodeSearchService.getCodeItem(columnNm, seq, corpGr, code, addWhere);
         return item != null ? item : Collections.emptyMap();
     }
 

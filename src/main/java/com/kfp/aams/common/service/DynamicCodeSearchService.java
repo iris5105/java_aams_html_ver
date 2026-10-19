@@ -13,12 +13,16 @@ import java.util.*;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class DynamicCodeSearchService {
 
     private final DynamicCodeSearchMapper dynamicCodeSearchMapper;
     private final JdbcTemplate jdbcTemplate;
+
+    public DynamicCodeSearchService(DynamicCodeSearchMapper dynamicCodeSearchMapper, JdbcTemplate jdbcTemplate) {
+        this.dynamicCodeSearchMapper = dynamicCodeSearchMapper;
+        this.jdbcTemplate = jdbcTemplate;
+    }
 
     /**
      * 코드검색 메타데이터 설정 조회 (타이틀, 헤더 컬럼 구조)
@@ -62,6 +66,13 @@ public class DynamicCodeSearchService {
      * 모달 팝업 목록 조회 (CODE_SELECT 기반)
      */
     public List<Map<String, Object>> getCodeList(String columnNm, Integer columnSeq, String corpGr, String keyword) {
+        return getCodeList(columnNm, columnSeq, corpGr, keyword, null);
+    }
+
+    /**
+     * 모달 팝업 목록 조회 (CODE_SELECT 기반, addWhere 추가 조건 지원)
+     */
+    public List<Map<String, Object>> getCodeList(String columnNm, Integer columnSeq, String corpGr, String keyword, String addWhere) {
         DynamicCodeSearchDto master = dynamicCodeSearchMapper.selectCodeSearchMaster(columnNm, columnSeq);
         if (master == null || master.getCodeSelect() == null) {
             return Collections.emptyList();
@@ -70,6 +81,7 @@ public class DynamicCodeSearchService {
         String sql = master.getCodeSelect();
         sql = sql.replace("':corp_gr'", "'" + (corpGr != null ? corpGr.trim() : "") + "'");
         sql = sql.replace(":corp_gr", "'" + (corpGr != null ? corpGr.trim() : "") + "'");
+        sql = applyAddWhere(sql, addWhere);
 
         log.debug("DynamicCodeSearch SQL for {} ({}): {}", columnNm, columnSeq, sql);
 
@@ -132,6 +144,13 @@ public class DynamicCodeSearchService {
      * 단일 코드값 검증 및 명칭 조회 (EDIT_SELECT 기반 - ue_setcode)
      */
     public Map<String, Object> getCodeItem(String columnNm, Integer columnSeq, String corpGr, String code) {
+        return getCodeItem(columnNm, columnSeq, corpGr, code, null);
+    }
+
+    /**
+     * 단일 코드값 검증 및 명칭 조회 (EDIT_SELECT 기반 - ue_setcode, addWhere 추가 조건 지원)
+     */
+    public Map<String, Object> getCodeItem(String columnNm, Integer columnSeq, String corpGr, String code, String addWhere) {
         if (code == null || code.isBlank()) {
             return null;
         }
@@ -146,6 +165,7 @@ public class DynamicCodeSearchService {
         sql = sql.replace(":corp_gr", "'" + (corpGr != null ? corpGr.trim() : "") + "'");
         sql = sql.replace("':arg_code'", "'" + code.trim() + "'");
         sql = sql.replace(":arg_code", "'" + code.trim() + "'");
+        sql = applyAddWhere(sql, addWhere);
 
         log.debug("DynamicCodeSearch EDIT_SELECT SQL: {}", sql);
 
@@ -179,5 +199,35 @@ public class DynamicCodeSearchService {
         result.put("display", "(" + code.trim() + ") " + codeName);
 
         return result;
+    }
+
+    /**
+     * 파워빌더 ue_setcodesearch rs_Where 절을 동적 SQL에 병합
+     */
+    private String applyAddWhere(String sql, String addWhere) {
+        if (addWhere == null || addWhere.trim().isEmpty()) {
+            return sql;
+        }
+        String trimmedWhere = addWhere.trim();
+        if (trimmedWhere.endsWith(";")) {
+            trimmedWhere = trimmedWhere.substring(0, trimmedWhere.length() - 1).trim();
+        }
+
+        int orderByIdx = sql.toUpperCase().lastIndexOf("ORDER BY");
+        if (orderByIdx > 0) {
+            String mainSql = sql.substring(0, orderByIdx);
+            String orderSql = sql.substring(orderByIdx);
+            if (mainSql.toUpperCase().contains("WHERE")) {
+                return mainSql + " AND (" + trimmedWhere + ") " + orderSql;
+            } else {
+                return mainSql + " WHERE (" + trimmedWhere + ") " + orderSql;
+            }
+        } else {
+            if (sql.toUpperCase().contains("WHERE")) {
+                return sql + " AND (" + trimmedWhere + ")";
+            } else {
+                return sql + " WHERE (" + trimmedWhere + ")";
+            }
+        }
     }
 }

@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
 <body>
-    <!-- Single Date + DDDW + Extra Filter (dc_ymd_dddw_xx: AamsCalendar 규격) -->
+    <!-- Single Date + DDDW + Extra Dynamic Code Search Filter (dc_ymd_dddw_xx: AamsCalendar & DynamicCodeSearch 규격) -->
     <div th:fragment="filter" class="filter-bar filter-dc-ymd-dddw-xx">
         <div class="filter-item" style="position: relative; display: flex; align-items: center; gap: 6px;">
             <label for="filterYmd" th:text="${labelYmd != null ? labelYmd : (label != null ? label : '조회일자')}">조회일자</label>
@@ -18,9 +18,17 @@
                 <option value="">전체</option>
             </select>
         </div>
-        <div class="filter-item">
-            <label for="filterXx" th:text="${labelXx != null ? labelXx : '상세조건'}">상세조건</label>
-            <input type="text" id="filterXx" name="xx" class="filter-input" placeholder="검색어 입력"/>
+        <div class="filter-item filter-code-search-item">
+            <label for="filterXx" th:text="${labelXx != null ? labelXx : '조회조건'}">조회조건</label>
+            <div class="code-search-input-wrapper">
+                <input type="text" id="filterXx" name="xx" class="filter-input code-search-input" autocomplete="off"
+                       th:attr="data-column-nm=${columnNm != null ? columnNm : 'rcd'}, data-seq=${seq != null ? seq : 4}" />
+                <button type="button" class="btn-code-search" id="btnCodeSearchXx" title="코드 검색"
+                        th:attr="data-column-nm=${columnNm != null ? columnNm : 'rcd'}, data-seq=${seq != null ? seq : 4}">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                </button>
+            </div>
+            <span class="code-search-name" id="textXxName"></span>
         </div>
     </div>
 </body>
