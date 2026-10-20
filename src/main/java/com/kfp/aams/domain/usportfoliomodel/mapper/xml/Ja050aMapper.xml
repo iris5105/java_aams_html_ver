@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.kfp.aams.domain.usportfoliomodel.mapper.Ja050aMapper">
+
+    <!-- w_ja050a 고객(펀드) 목록 조회 (d_ja050a1.srd 매핑) -->
+    <select id="selectFundList" resultType="com.kfp.aams.domain.usportfoliomodel.dto.Ja050aFundDto">
+        SELECT t1.mg_cd                                                   AS mgCd
+             , t1.fund_cd                                                 AS fundCd
+             , t1.fund_nm                                                 AS fundNm
+             , t1.fund_nm                                                 AS xxFundCd
+             , NVL(t2.work_gb, 'A')                                       AS workGb
+             , TO_CHAR(t1.fst_seolj_ymd, 'YYYY-MM-DD')                     AS fstSeoljYmd
+             , t2.gijun_ga                                                AS gijunGa
+             , t2.ggijun_ga                                               AS ggijunGa
+             , t1.type_gb                                                 AS typeGb
+             , F_FUND_COLOR(#{corpGr}, t1.fund_cd, TO_DATE(REPLACE(REPLACE(#{ymd}, '-', ''), '.', ''), 'YYYYMMDD')) AS fundColor
+          FROM SZM0IA t1
+          LEFT OUTER JOIN SKT0GI t2 ON t2.corp_gr = t1.corp_gr
+                                    AND t2.ymd     = TO_DATE(REPLACE(REPLACE(#{ymd}, '-', ''), '.', ''), 'YYYYMMDD')
+                                    AND t2.fund_cd = t1.fund_cd
+         WHERE t1.corp_gr               = #{corpGr}
+           AND t1.fst_seolj_ymd         &lt;= TO_DATE(REPLACE(REPLACE(#{ymd}, '-', ''), '.', ''), 'YYYYMMDD')
+           AND NVL(t1.haeji_ymd, TO_DATE(REPLACE(REPLACE(#{ymd}, '-', ''), '.', ''), 'YYYYMMDD')) &gt;= TO_DATE(REPLACE(REPLACE(#{ymd}, '-', ''), '.', ''), 'YYYYMMDD')
+         <choose>
+             <when test="mgCd != null and mgCd != ''">
+           AND t1.mg_cd LIKE #{mgCd}
+             </when>
+             <otherwise>
+           AND t1.mg_cd LIKE '%'
+             </otherwise>
+         </choose>
+         ORDER BY t1.mg_cd, t1.fund_nm, NVL(t2.work_gb, 'A'), t1.fund_currency DESC
+    </select>
+
+</mapper>
