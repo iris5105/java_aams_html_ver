@@ -424,8 +424,10 @@ function initFilterDddw(pane, config) {
         return list;
     }
 
+    const addData = config.addData || '';
+
     if (dddwId && typeof window.f_dddwctl === 'function') {
-        return window.f_dddwctl(dddwId, corpGr, '', seq, addWhere).then(function (options) {
+        return window.f_dddwctl(dddwId, corpGr, addData, seq, addWhere).then(function (options) {
             return populate(options);
         }).catch(function (e) {
             console.warn('[common.initFilterDddw] f_dddwctl load error, using default options:', e);

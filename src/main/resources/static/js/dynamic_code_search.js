@@ -204,21 +204,30 @@ window.DynamicCodeSearch = (function() {
         // Remove existing modal if any
         closeModal();
 
-        // 1. Fetch Config and initial List in parallel
-        let listUrl = `/api/common/code-search/list?columnNm=${encodeURIComponent(columnNm)}&seq=${seq}&corpGr=${encodeURIComponent(corpGr)}`;
+        // 1. 단일 통합 API(/modal-data)를 통해 모달 틀(config)과 데이터 목록(list)을 1회 호출로 수신
+        let modalUrl = `/api/common/code-search/modal-data?columnNm=${encodeURIComponent(columnNm)}&seq=${seq}&corpGr=${encodeURIComponent(corpGr)}`;
         if (addWhere) {
-            listUrl += `&addWhere=${encodeURIComponent(addWhere)}`;
+            modalUrl += `&addWhere=${encodeURIComponent(addWhere)}`;
         }
 
-        Promise.all([
-            fetch(`/api/common/code-search/config?columnNm=${encodeURIComponent(columnNm)}&seq=${seq}`).then(res => res.json()),
-            fetch(listUrl).then(res => res.json())
-        ]).then(([config, allData]) => {
-            renderModalDOM(config, allData, initialKeyword, onSelect);
-        }).catch(err => {
-            console.error("Failed to load code search modal data:", err);
-            alert("코드 목록을 불러오는데 실패했습니다: " + err.message);
-        });
+        fetch(modalUrl)
+            .then(res => {
+                if (!res.ok) throw new Error("HTTP " + res.status);
+                return res.json();
+            })
+            .then(resData => {
+                const config = resData ? (resData.config || {}) : {};
+                const allData = resData ? (resData.list || []) : [];
+                renderModalDOM(config, allData, initialKeyword, onSelect);
+            })
+            .catch(err => {
+                console.error("Failed to load code search modal data:", err);
+                if (typeof showToast === "function") {
+                    showToast("코드 목록을 불러오는데 실패했습니다.", "error");
+                } else {
+                    alert("코드 목록을 불러오는데 실패했습니다: " + err.message);
+                }
+            });
     }
 
     function closeModal() {

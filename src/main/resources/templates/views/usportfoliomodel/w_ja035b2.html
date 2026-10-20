@@ -175,7 +175,7 @@
                     },
                     {
                         title: "",
-                        field: "p_xx_fund_cd",
+                        field: "xx_btn_fundCd",
                         width: 36,
                         minWidth: 36,
                         maxWidth: 36,
@@ -183,14 +183,46 @@
                         headerSort: false,
                         resizable: false,
                         formatter: function (cell) {
-                            var d = cell.getRow().getData();
-                            if (d && d.isSummaryRow) return "";
-                            return '<button type="button" class="btn-grid-addon btn-search" title="펀드코드 검색"><i class="fa-solid fa-magnifying-glass"></i></button>';
+                            var data = cell.getRow().getData();
+                            if (data && data.isSummaryRow) return "";
+                            var isEnabled = (data.pVisible !== 0 && !data.isDeleted);
+                            var disClass = isEnabled ? "" : "disabled";
+                            return '<button type="button" class="btn-grid-addon btn-search ' + disClass + '" title="펀드코드 검색"><i class="fa-solid fa-magnifying-glass"></i></button>';
                         },
                         cellClick: function (e, cell) {
                             e.stopPropagation();
-                            if (cell.getRow().getData().isSummaryRow) return;
-                            openFundSearchModal(cell.getRow());
+                            var row = cell.getRow();
+                            var data = row.getData();
+                            if (data && data.isSummaryRow) return;
+                            if (data.pVisible === 0 || data.isDeleted) {
+                                if (gridList) { gridList.deselectRow(); row.select(); }
+                                return;
+                            }
+                            var curVal = data.fundCd || "";
+                            var corpGr = window.resolveCorpGr ? window.resolveCorpGr(currentPane) : "";
+                            var ymd = window.getFilterYmd ? window.getFilterYmd(currentPane, 'YYYY.MM.DD') : "";
+                            var addWhere = "nvl(HAEJI_YMD, '" + ymd + "') >= '" + ymd + "'";
+
+                            if (window.DynamicCodeSearch && typeof window.DynamicCodeSearch.openModal === 'function') {
+                                window.DynamicCodeSearch.openModal({
+                                    title: "펀드코드 검색",
+                                    columnNm: "rcd",
+                                    seq: 4,
+                                    corpGr: corpGr,
+                                    initialKeyword: curVal,
+                                    addWhere: addWhere,
+                                    onSelect: function (code, name) {
+                                        row.update({
+                                            fundCd: code,
+                                            xxFundCd: name,
+                                            fundNm: name,
+                                            isUpdated: true
+                                        });
+                                        propagateFundCd(row, code, name);
+                                        markRowUpdated(cell);
+                                    }
+                                });
+                            }
                         }
                     },
                     {
@@ -283,7 +315,7 @@
                     },
                     {
                         title: "",
-                        field: "p_xx_yj_cd",
+                        field: "xx_btn_yjCd",
                         width: 36,
                         minWidth: 36,
                         maxWidth: 36,
@@ -291,14 +323,59 @@
                         headerSort: false,
                         resizable: false,
                         formatter: function (cell) {
-                            var d = cell.getRow().getData();
-                            if (d && d.isSummaryRow) return "";
-                            return '<button type="button" class="btn-grid-addon btn-search" title="종목 검색"><i class="fa-solid fa-magnifying-glass"></i></button>';
+                            var data = cell.getRow().getData();
+                            if (data && data.isSummaryRow) return "";
+                            var isEnabled = (data.pVisible !== 0 && !data.isDeleted);
+                            var disClass = isEnabled ? "" : "disabled";
+                            return '<button type="button" class="btn-grid-addon btn-search ' + disClass + '" title="종목 검색"><i class="fa-solid fa-magnifying-glass"></i></button>';
                         },
                         cellClick: function (e, cell) {
                             e.stopPropagation();
-                            if (cell.getRow().getData().isSummaryRow) return;
-                            openItemSearchModal(cell.getRow());
+                            var row = cell.getRow();
+                            var data = row.getData();
+                            if (data && data.isSummaryRow) return;
+                            if (data.pVisible === 0 || data.isDeleted) {
+                                if (gridList) { gridList.deselectRow(); row.select(); }
+                                return;
+                            }
+                            var curVal = data.yjCd || "";
+                            var corpGr = window.resolveCorpGr ? window.resolveCorpGr(currentPane) : "";
+
+                            if (window.DynamicCodeSearch && typeof window.DynamicCodeSearch.openModal === 'function') {
+                                window.DynamicCodeSearch.openModal({
+                                    title: "해외파생종목 검색",
+                                    columnNm: "yj_cd",
+                                    corpGr: corpGr,
+                                    seq: 1,
+                                    initialKeyword: curVal,
+                                    onSelect: function (code, name, rowData) {
+                                        row.update({
+                                            yjCd: code,
+                                            xxYjCd: name,
+                                            jmNm: name,
+                                            isUpdated: true
+                                        });
+                                        markRowUpdated(cell);
+
+                                        // 종목 상세 정보 조회 후 단위/행사가격 세팅
+                                        fetch('/api/usportfoliomodel/ja035b2/item-info?corpGr=' + encodeURIComponent(corpGr) + '&jmCd=' + encodeURIComponent(code))
+                                            .then(function (res) { return res.json(); })
+                                            .then(function (info) {
+                                                if (info) {
+                                                    row.update({
+                                                        sym0yaHangsaGa: info.sym0ya_hangsa_ga != null ? info.sym0ya_hangsa_ga : row.getData().sym0yaHangsaGa,
+                                                        unitAek: info.unit_aek != null ? info.unit_aek : (row.getData().unitAek || 1),
+                                                        currency: info.currency || row.getData().currency || 'USD'
+                                                    });
+                                                    recalcRow(row);
+                                                }
+                                            })
+                                            .catch(function (err) {
+                                                console.warn("item-info 조회 오류:", err);
+                                            });
+                                    }
+                                });
+                            }
                         }
                     },
                     {
@@ -717,27 +794,50 @@
             var row = cell.getRow();
             var val = (cell.getValue() || "").trim();
             var corpGr = window.resolveCorpGr ? window.resolveCorpGr(currentPane) : "";
+            var ymd = window.getFilterYmd ? window.getFilterYmd(currentPane, 'YYYY.MM.DD') : "";
+            var addWhere = "nvl(HAEJI_YMD, '" + ymd + "') >= '" + ymd + "'";
+
             if (!val) {
                 row.update({ xxFundCd: "", fundNm: "" });
                 return;
             }
 
-            fetch('/api/common/code-search/get?columnNm=fund_cd&seq=1&corpGr=' + encodeURIComponent(corpGr) + '&code=' + encodeURIComponent(val))
+            fetch('/api/common/code-search/get?columnNm=rcd&seq=4&corpGr=' + encodeURIComponent(corpGr) + '&code=' + encodeURIComponent(val) + '&addWhere=' + encodeURIComponent(addWhere))
                 .then(function (res) { return res.json(); })
                 .then(function (data) {
                     if (data && data.code) {
                         row.update({
                             fundCd: data.code,
                             xxFundCd: data.codeName || data.name || '',
-                            fundNm: data.codeName || data.name || ''
+                            fundNm: data.codeName || data.name || '',
+                            isUpdated: true
                         });
+                        propagateFundCd(row, data.code, data.codeName || data.name || '');
+                        markRowUpdated(cell);
                     } else {
-                        openFundSearchModal(row);
+                        openFundSearchModal(row, val);
                     }
                 })
                 .catch(function () {
-                    openFundSearchModal(row);
+                    openFundSearchModal(row, val);
                 });
+        }
+
+        function propagateFundCd(currentRow, newFundCd, newFundNm) {
+            if (!gridList) return;
+            var rows = gridList.getRows();
+            var startIdx = currentRow.getIndex();
+            for (var i = startIdx + 1; i < rows.length; i++) {
+                var r = rows[i];
+                var d = r.getData();
+                if (d && !d.isSummaryRow) {
+                    if (!d.fundCd || d.fundCd === '') {
+                        r.update({ fundCd: newFundCd, xxFundCd: newFundNm, fundNm: newFundNm, isUpdated: true });
+                        var cell = r.getCell ? r.getCell("fundCd") : null;
+                        if (cell) markRowUpdated(cell);
+                    }
+                }
+            }
         }
 
         function onYjCdEdited(cell) {
@@ -759,64 +859,78 @@
                             jmNm: info.xx_yj_cd || '',
                             sym0yaHangsaGa: info.sym0ya_hangsa_ga != null ? info.sym0ya_hangsa_ga : row.getData().sym0yaHangsaGa,
                             unitAek: info.unit_aek != null ? info.unit_aek : (row.getData().unitAek || 1),
-                            currency: info.currency || row.getData().currency || 'USD'
+                            currency: info.currency || row.getData().currency || 'USD',
+                            isUpdated: true
                         });
+                        markRowUpdated(cell);
                         recalcRow(row);
                     } else {
-                        openItemSearchModal(row);
+                        openItemSearchModal(row, val);
                     }
                 })
                 .catch(function () {
-                    openItemSearchModal(row);
+                    openItemSearchModal(row, val);
                 });
         }
 
-        function openFundSearchModal(row) {
-            if (!window.DynamicCodeSearch || typeof window.DynamicCodeSearch.openModal !== 'function') {
-                if (typeof window.showToast === 'function') window.showToast("코드 검색 모듈을 사용할 수 없습니다.", "warning");
-                return;
-            }
+        function openFundSearchModal(rowOrCell, keyword) {
+            var row = (rowOrCell && rowOrCell.getRow) ? rowOrCell.getRow() : rowOrCell;
+            if (!row || (row.getData && row.getData().isSummaryRow)) return;
+            var curVal = (keyword !== undefined && keyword !== null) ? keyword : ((row.getData && row.getData().fundCd) || "");
             var corpGr = window.resolveCorpGr ? window.resolveCorpGr(currentPane) : "";
-            window.DynamicCodeSearch.openModal({
-                title: "펀드코드 검색",
-                columnNm: "fund_cd",
-                corpGr: corpGr,
-                seq: 1,
-                onSelect: function (item) {
-                    if (item && row) {
+            var ymd = window.getFilterYmd ? window.getFilterYmd(currentPane, 'YYYY.MM.DD') : "";
+            var addWhere = "nvl(HAEJI_YMD, '" + ymd + "') >= '" + ymd + "'";
+
+            if (window.DynamicCodeSearch && typeof window.DynamicCodeSearch.openModal === 'function') {
+                window.DynamicCodeSearch.openModal({
+                    title: "펀드코드 검색",
+                    columnNm: "rcd",
+                    corpGr: corpGr,
+                    seq: 4,
+                    initialKeyword: curVal,
+                    addWhere: addWhere,
+                    onSelect: function (code, name, rowData) {
+                        if (!row) return;
                         row.update({
-                            fundCd: item.code || item.fundCd,
-                            xxFundCd: item.codeName || item.fundNm || '',
-                            fundNm: item.codeName || item.fundNm || ''
+                            fundCd: code,
+                            xxFundCd: name,
+                            fundNm: name,
+                            isUpdated: true
                         });
-                        markRowUpdated(row.getCell("fundCd"));
+                        propagateFundCd(row, code, name);
+                        var cell = row.getCell ? row.getCell("fundCd") : null;
+                        if (cell) markRowUpdated(cell);
                     }
-                }
-            });
+                });
+            }
         }
 
-        function openItemSearchModal(row) {
-            if (!window.DynamicCodeSearch || typeof window.DynamicCodeSearch.openModal !== 'function') {
-                if (typeof window.showToast === 'function') window.showToast("코드 검색 모듈을 사용할 수 없습니다.", "warning");
-                return;
-            }
+        function openItemSearchModal(rowOrCell, keyword) {
+            var row = (rowOrCell && rowOrCell.getRow) ? rowOrCell.getRow() : rowOrCell;
+            if (!row || (row.getData && row.getData().isSummaryRow)) return;
+            var curVal = (keyword !== undefined && keyword !== null) ? keyword : ((row.getData && row.getData().yjCd) || "");
             var corpGr = window.resolveCorpGr ? window.resolveCorpGr(currentPane) : "";
-            window.DynamicCodeSearch.openModal({
-                title: "해외파생종목 검색",
-                columnNm: "yj_cd",
-                corpGr: corpGr,
-                seq: 1,
-                onSelect: function (item) {
-                    if (item && row) {
-                        var jmCd = item.code || item.jmCd || item.yjCd;
+
+            if (window.DynamicCodeSearch && typeof window.DynamicCodeSearch.openModal === 'function') {
+                window.DynamicCodeSearch.openModal({
+                    title: "해외파생종목 검색",
+                    columnNm: "yj_cd",
+                    corpGr: corpGr,
+                    seq: 1,
+                    initialKeyword: curVal,
+                    onSelect: function (code, name, rowData) {
+                        if (!row) return;
                         row.update({
-                            yjCd: jmCd,
-                            xxYjCd: item.codeName || item.jmNm || ''
+                            yjCd: code,
+                            xxYjCd: name,
+                            jmNm: name,
+                            isUpdated: true
                         });
-                        markRowUpdated(row.getCell("yjCd"));
+                        var cell = row.getCell ? row.getCell("yjCd") : null;
+                        if (cell) markRowUpdated(cell);
 
                         // 종목 상세 정보 조회 후 단위/행사가격 세팅
-                        fetch('/api/usportfoliomodel/ja035b2/item-info?corpGr=' + encodeURIComponent(corpGr) + '&jmCd=' + encodeURIComponent(jmCd))
+                        fetch('/api/usportfoliomodel/ja035b2/item-info?corpGr=' + encodeURIComponent(corpGr) + '&jmCd=' + encodeURIComponent(code))
                             .then(function (res) { return res.json(); })
                             .then(function (info) {
                                 if (info) {
@@ -827,10 +941,13 @@
                                     });
                                     recalcRow(row);
                                 }
+                            })
+                            .catch(function (err) {
+                                console.warn("item-info 조회 오류:", err);
                             });
                     }
-                }
-            });
+                });
+            }
         }
 
         // ==========================================
@@ -883,19 +1000,23 @@
         // ==========================================
         function addNewRow() {
             if (!gridList) return;
+            var corpGr = window.resolveCorpGr ? window.resolveCorpGr(currentPane) : "";
             var ymd = window.getFilterYmd ? window.getFilterYmd(currentPane) : "";
             curMaxTrSeq++;
 
             var newRowData = {
                 isNew: true,
                 rowStatus: "C",
+                corpGr: corpGr,
                 trYmd: ymd,
                 trSeq: curMaxTrSeq,
                 trCd: "S10",
                 fundCd: "",
                 xxFundCd: "",
+                fundNm: "",
                 yjCd: "",
                 xxYjCd: "",
+                jmNm: "",
                 currency: "USD",
                 trustee: "",
                 sym0yaHangsaGa: 0,
@@ -907,7 +1028,8 @@
                 transRt: 0,
                 gyuljeYmd: ymd,
                 gyuljeJmCd: "",
-                unitAek: 1
+                unitAek: 1,
+                pVisible: 1
             };
 
             var rows = gridList.getRows();
@@ -916,17 +1038,19 @@
                 return d && d.isSummaryRow;
             });
 
+            var addPromise;
             if (summaryRow) {
-                gridList.addRow(newRowData, true, summaryRow).then(function (row) {
-                    row.select();
-                    recalcSummaryRow();
-                });
+                addPromise = gridList.addRow(newRowData, true, summaryRow);
             } else {
-                gridList.addRow(newRowData, false).then(function (row) {
-                    row.select();
-                    recalcSummaryRow();
-                });
+                addPromise = gridList.addRow(newRowData, false);
             }
+
+            addPromise.then(function (row) {
+                row.select();
+                recalcSummaryRow();
+                var cell = row.getCell("fundCd");
+                if (cell) cell.edit();
+            });
         }
 
         function deleteSelectedRow() {

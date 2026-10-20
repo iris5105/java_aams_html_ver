@@ -24,23 +24,68 @@ import java.util.*;
 @Slf4j
 @RestController
 @RequestMapping("/api/common/rd")
-@RequiredArgsConstructor
 public class RdReportController {
 
     private final RdReportService rdReportService;
     private final ObjectMapper objectMapper;
 
+    public RdReportController(RdReportService rdReportService, ObjectMapper objectMapper) {
+        this.rdReportService = rdReportService;
+        this.objectMapper = objectMapper;
+    }
+
     // 예약어 키 목록 (RD 파라미터가 아닌 컨트롤러 제어용 파라미터)
     private static final Set<String> RESERVED_KEYS = new HashSet<>(Arrays.asList(
             "mrdname", "corpgr", "format", "downloadname", "params", "t", "_"));
 
-    @Data
     public static class RdReportRequest {
         private String mrdName;
         private String corpGr;
         private String format = "pdf";
         private String downloadName;
         private Map<String, Object> params = new LinkedHashMap<>();
+
+        public RdReportRequest() {}
+
+        public String getMrdName() {
+            return mrdName;
+        }
+
+        public void setMrdName(String mrdName) {
+            this.mrdName = mrdName;
+        }
+
+        public String getCorpGr() {
+            return corpGr;
+        }
+
+        public void setCorpGr(String corpGr) {
+            this.corpGr = corpGr;
+        }
+
+        public String getFormat() {
+            return format;
+        }
+
+        public void setFormat(String format) {
+            this.format = format;
+        }
+
+        public String getDownloadName() {
+            return downloadName;
+        }
+
+        public void setDownloadName(String downloadName) {
+            this.downloadName = downloadName;
+        }
+
+        public Map<String, Object> getParams() {
+            return params;
+        }
+
+        public void setParams(Map<String, Object> params) {
+            this.params = params;
+        }
     }
 
     /**

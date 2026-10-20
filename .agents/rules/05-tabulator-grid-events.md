@@ -10,25 +10,81 @@ trigger: always_on
 
 ## 1. 그리드 내부 특수 컨트롤 규격 (돋보기 & 달력 & 명칭)
 
-1. **다이나믹 서치 버튼 컬럼 (`p_xx_컬럼명`)**:
-   - `.srd` 파일에 `p_xx_컬럼명` 비트맵 컨트롤이 존재하는 경우, 대상 코드 컬럼 바로 우측에 타이틀이 없는 빈칸(`title: ""`, `field: "p_xx_컬럼명"`, `width: 36`, `resizable: false`, `headerSort: false`)을 생성한다.
-   - 셀 내부에는 돋보기 버튼(`.btn-grid-addon.btn-search`)을 렌더링하고, 클릭 시 `DynamicCodeSearch.openModal`을 호출한다:
+1. **다이나믹 서치 버튼 컬럼 (`xx_btn_컬럼명`) 표준 기본 틀**:
+   - `.srd` 파일에 `p_xx_컬럼명` 비트맵 컨트롤이 존재하는 경우, 대상 코드 컬럼 바로 우측에 타이틀이 없는 빈칸(`title: ""`, `field: "xx_btn_컬럼명"`, `width: 36`, `resizable: false`, `headerSort: false`)을 생성한다.
+   - **펀드코드 검색 (`xx_btn_fundCd`) DynamicCodeSearch 기본 틀**:
      ```javascript
      {
          title: "",
-         field: "p_xx_fund_cd",
+         field: "xx_btn_fundCd",
          width: 36,
          minWidth: 36,
          maxWidth: 36,
          hozAlign: "center",
          headerSort: false,
          resizable: false,
-         formatter: function () {
-             return '<button type="button" class="btn-grid-addon btn-search" title="검색"><i class="fa-solid fa-magnifying-glass"></i></button>';
+         formatter: function(cell) {
+             const isNew = cell.getRow().getData().isNew;
+             const disClass = isNew ? "" : "disabled";
+             return `<button type="button" class="btn-grid-addon btn-search ${disClass}" title="펀드 검색"><i class="fa-solid fa-magnifying-glass"></i></button>`;
          },
-         cellClick: function (e, cell) {
+         cellClick: function(e, cell) {
              e.stopPropagation();
-             openFundSearchModal(cell.getRow());
+             const row = cell.getRow();
+             const data = row.getData();
+             if (!data.isNew && !data._isNew) {
+                 if (gridMaster) { gridMaster.deselectRow(); row.select(); }
+                 return;
+             }
+             const curVal = data.fundCd || "";
+             if (window.DynamicCodeSearch && typeof window.DynamicCodeSearch.openModal === 'function') {
+                 window.DynamicCodeSearch.openModal({
+                     columnNm: "fund_cd", // 상황에 따라 fund_cd 또는 rcd
+                     seq: 1,              // 파워빌더 ue_setcodesearch return 값 일치
+                     initialKeyword: curVal,
+                     onSelect: function(code, name) {
+                         row.update({ fundCd: code, fundNm: name });
+                     }
+                 });
+             }
+         }
+     }
+     ```
+   - **종목 검색 (`xx_btn_jmCd`) ItemSearch 기본 틀**:
+     ```javascript
+     {
+         title: "",
+         field: "xx_btn_jmCd",
+         width: 36,
+         minWidth: 36,
+         maxWidth: 36,
+         hozAlign: "center",
+         headerSort: false,
+         resizable: false,
+         formatter: function(cell) {
+             const isNew = cell.getRow().getData().isNew;
+             const disClass = isNew ? "" : "disabled";
+             return `<button type="button" class="btn-grid-addon btn-search ${disClass}" title="종목 검색"><i class="fa-solid fa-magnifying-glass"></i></button>`;
+         },
+         cellClick: function(e, cell) {
+             e.stopPropagation();
+             const row = cell.getRow();
+             const data = row.getData();
+             if (!data.isNew && !data._isNew) {
+                 if (gridMaster) { gridMaster.deselectRow(); row.select(); }
+                 return;
+             }
+             const curVal = data.jmCd || data.yjCd || "";
+             if (window.DynamicCodeSearch && typeof window.DynamicCodeSearch.openModal === 'function') {
+                 window.DynamicCodeSearch.openModal({
+                     columnNm: "koscom_cd", // 도메인에 따라 koscom_cd, jm_cd, yj_cd, cj_cd
+                     seq: 1,
+                     initialKeyword: curVal,
+                     onSelect: function(code, name) {
+                         row.update({ jmCd: code, jjNm: name });
+                     }
+                 });
+             }
          }
      }
      ```

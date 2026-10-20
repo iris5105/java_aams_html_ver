@@ -162,20 +162,38 @@
                     // p_xx_fund_cd (Grid Internal Rule 1, 2: Empty column with dynamic search button)
                     {
                         title: "",
-                        field: "p_xx_fund_cd",
+                        field: "xx_btn_fundCd",
                         width: 36,
                         minWidth: 36,
                         maxWidth: 36,
                         hozAlign: "center",
                         headerSort: false,
                         resizable: false,
-                        formatter: function () {
-                            return '<button type="button" class="btn-grid-addon btn-search" title="펀드 검색"><i class="fa-solid fa-magnifying-glass"></i></button>';
+                        formatter: function(cell) {
+                            const isNew = cell.getRow().getData().isNew;
+                            const disClass = isNew ? "" : "disabled";
+                            return `<button type="button" class="btn-grid-addon btn-search ${disClass}" title="펀드 검색"><i class="fa-solid fa-magnifying-glass"></i></button>`;
                         },
-                        cellClick: function (e, cell) {
+                        cellClick: function(e, cell) {
                             e.stopPropagation();
-                            var row = cell.getRow();
-                            openFundSearchModal(row);
+                            const row = cell.getRow();
+                            const data = row.getData();
+                            if (!data.isNew && !data._isNew) {
+                                if (gridMaster) { gridMaster.deselectRow(); row.select(); }
+                                return;
+                            }
+                            const curVal = data.fundCd || "";
+                            if (window.DynamicCodeSearch && typeof window.DynamicCodeSearch.openModal === 'function') {
+                                window.DynamicCodeSearch.openModal({
+                                    columnNm: "fund_cd",
+                                    seq: 1,
+                                    corpGr: resolveCorpGr(currentPane),
+                                    initialKeyword: curVal,
+                                    onSelect: function(code, name) {
+                                        row.update({ fundCd: code, xxFundCd: name, fundNm: name, isUpdated: true });
+                                    }
+                                });
+                            }
                         }
                     },
                     {

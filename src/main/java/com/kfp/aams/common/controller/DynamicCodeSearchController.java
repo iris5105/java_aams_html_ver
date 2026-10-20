@@ -48,6 +48,22 @@ public class DynamicCodeSearchController {
     }
 
     /**
+     * 모달 팝업 메타데이터(config)와 데이터 목록(list)을 1회의 요청으로 통합 조회
+     */
+    @GetMapping("/modal-data")
+    public Map<String, Object> getModalData(@RequestParam(name = "columnNm") String columnNm,
+                                            @RequestParam(name = "seq", defaultValue = "1") Integer seq,
+                                            @RequestParam(name = "corpGr", required = false) String paramCorpGr,
+                                            @CookieValue(name = "savedCorpGr", required = false) String cookieCorpGr1,
+                                            @CookieValue(name = "corpGr", required = false) String cookieCorpGr2,
+                                            @RequestParam(name = "keyword", required = false) String keyword,
+                                            @RequestParam(name = "addWhere", required = false) String addWhere,
+                                            @AuthenticationPrincipal UserPrincipal principal) {
+        String corpGr = resolveCorpGr(paramCorpGr, cookieCorpGr1, cookieCorpGr2, principal);
+        return dynamicCodeSearchService.getModalData(columnNm, seq, corpGr, keyword, addWhere);
+    }
+
+    /**
      * 단일 코드 검증 및 코드명 조회 (EDIT_SELECT)
      */
     @GetMapping("/get")
@@ -62,6 +78,15 @@ public class DynamicCodeSearchController {
         String corpGr = resolveCorpGr(paramCorpGr, cookieCorpGr1, cookieCorpGr2, principal);
         Map<String, Object> item = dynamicCodeSearchService.getCodeItem(columnNm, seq, corpGr, code, addWhere);
         return item != null ? item : Collections.emptyMap();
+    }
+
+    /**
+     * 메타데이터 캐시 수동 초기화 (WDCS01M DB 설정 변경 시 반영용)
+     */
+    @RequestMapping(value = "/clear-cache", method = {RequestMethod.GET, RequestMethod.POST})
+    public Map<String, Object> clearCache() {
+        dynamicCodeSearchService.clearCache();
+        return Map.of("success", true, "message", "코드검색 메타데이터 캐시가 초기화되었습니다.");
     }
 
     private String resolveCorpGr(String paramCorpGr, String cookie1, String cookie2, UserPrincipal principal) {

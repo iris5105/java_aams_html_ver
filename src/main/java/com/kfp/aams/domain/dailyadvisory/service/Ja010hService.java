@@ -17,13 +17,20 @@ import java.util.List;
  */
 @Slf4j
 @Service
-@RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class Ja010hService {
 
     private final Ja010hMapper ja010hMapper;
     private final RdReportService rdReportService;
     private final com.kfp.aams.common.service.WorkDateService workDateService;
+
+    public Ja010hService(Ja010hMapper ja010hMapper,
+                          RdReportService rdReportService,
+                          com.kfp.aams.common.service.WorkDateService workDateService) {
+        this.ja010hMapper = ja010hMapper;
+        this.rdReportService = rdReportService;
+        this.workDateService = workDateService;
+    }
 
     /**
      * 펀드 목록 조회 (d_szm0ia.srd)

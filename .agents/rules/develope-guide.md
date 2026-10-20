@@ -23,8 +23,7 @@ description: "AAMS 차세대 웹 시스템 화면 개발 프레임워크 표준 
 3. **상단 필터바(`dw_c`) dataobject 확인**:
    - `dc_ymd` (단일일자), `dc_ymd_dddw` (일자+구분), `dc_xx_ymd` (시작~종료), `dc_fund_ymd` (펀드+일자), `dc_ftymd_dddw` (기간+구분) 매핑
 4. **그리드 DataWindow(`.srd`) 메타데이터 확인**:
-   - 컬럼명, 너비, hozAlign(0:좌, 1:우, 2:중), format, editor(tabsequence > 0 편집 가능)
-   - 특수 컨트롤: `p_xx_` (돋보기 36px), `p_dd_` (달력 36px), `xx_` (명칭)
+   - 특수 컨트롤: `xx_btn_컬럼명` (돋보기 36px: 펀드검색 `xx_btn_fundCd`, 종목검색 `xx_btn_jmCd` ItemSearch 표준 기본 틀), `p_dd_` (달력 36px), `xx_` (명칭)
    - Summary 밴드: 집계식(`sum(...)`) 및 라벨 위치 확인
 
 ---

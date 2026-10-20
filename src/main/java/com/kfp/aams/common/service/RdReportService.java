@@ -41,19 +41,69 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class RdReportService {
 
     private final ObjectMapper objectMapper;
+    private final org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
     private static final Map<String, Path> TEMPLATE_CACHE = new ConcurrentHashMap<>();
     private static volatile URLClassLoader rdClassLoader = null;
 
-    @Getter
-    @Builder
+    public RdReportService(ObjectMapper objectMapper, org.springframework.jdbc.core.JdbcTemplate jdbcTemplate) {
+        this.objectMapper = objectMapper;
+        this.jdbcTemplate = jdbcTemplate;
+    }
+
     public static class ExportResult {
-        private byte[] data;
-        private String filename;
-        private String contentType;
+        private final byte[] data;
+        private final String filename;
+        private final String contentType;
+
+        public ExportResult(byte[] data, String filename, String contentType) {
+            this.data = data;
+            this.filename = filename;
+            this.contentType = contentType;
+        }
+
+        public byte[] getData() {
+            return data;
+        }
+
+        public String getFilename() {
+            return filename;
+        }
+
+        public String getContentType() {
+            return contentType;
+        }
+
+        public static ExportResultBuilder builder() {
+            return new ExportResultBuilder();
+        }
+
+        public static class ExportResultBuilder {
+            private byte[] data;
+            private String filename;
+            private String contentType;
+
+            public ExportResultBuilder data(byte[] data) {
+                this.data = data;
+                return this;
+            }
+
+            public ExportResultBuilder filename(String filename) {
+                this.filename = filename;
+                return this;
+            }
+
+            public ExportResultBuilder contentType(String contentType) {
+                this.contentType = contentType;
+                return this;
+            }
+
+            public ExportResult build() {
+                return new ExportResult(data, filename, contentType);
+            }
+        }
     }
 
     /**
@@ -101,6 +151,67 @@ public class RdReportService {
         }
 
         return "";
+    }
+
+    /**
+     * 현재 로그인 사용자 ID 추출 (SecurityContextHolder -> Cookie 순서)
+     */
+    public String resolveUserId() {
+        // 1. Spring SecurityContextHolder의 UserPrincipal에서 조회
+        try {
+            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+            if (auth != null && auth.getPrincipal() instanceof UserPrincipal p) {
+                if (p.getUserId() != null && !p.getUserId().isBlank()) {
+                    return p.getUserId().trim();
+                }
+            }
+        } catch (Exception e) {
+            log.debug("SecurityContext에서 userId 추출 중 예외: {}", e.getMessage());
+        }
+
+        // 2. 현재 HTTP 요청의 쿠키에서 조회
+        try {
+            ServletRequestAttributes attrs = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+            if (attrs != null) {
+                HttpServletRequest request = attrs.getRequest();
+                if (request != null && request.getCookies() != null) {
+                    for (Cookie c : request.getCookies()) {
+                        if ("userId".equalsIgnoreCase(c.getName()) && c.getValue() != null && !c.getValue().isBlank()) {
+                            return URLDecoder.decode(c.getValue(), StandardCharsets.UTF_8).trim();
+                        }
+                    }
+                }
+            }
+        } catch (Exception ignored) {}
+
+        return "";
+    }
+
+    /**
+     * 오라클 f_systimestamp 함수 호출하여 현재 시스템 타임스탬프 문자열 조회
+     * (파워빌더 u_rd.sru 표준: SELECT f_systimestamp INTO :is_rt_key FROM DUAL)
+     */
+    public String getSystimestamp() {
+        if (jdbcTemplate != null) {
+            try {
+                String ts = jdbcTemplate.queryForObject("SELECT f_systimestamp FROM DUAL", String.class);
+                if (ts != null && !ts.isBlank()) {
+                    return ts.trim();
+                }
+            } catch (Exception e) {
+                log.warn("SELECT f_systimestamp FROM DUAL 실행 실패, fallback 시도: {}", e.getMessage());
+                try {
+                    String ts = jdbcTemplate.queryForObject("SELECT TO_CHAR(SYSTIMESTAMP, 'hh24:mi:ss.ff6') FROM DUAL", String.class);
+                    if (ts != null && !ts.isBlank()) {
+                        return ts.trim();
+                    }
+                } catch (Exception ex) {
+                    log.warn("TO_CHAR(SYSTIMESTAMP) 실행 실패: {}", ex.getMessage());
+                }
+            }
+        }
+        // 최종 fallback: Java 로컬 타임스탬프 (HH:mm:ss.SSSSSS)
+        return java.time.LocalTime.now().format(java.time.format.DateTimeFormatter.ofPattern("HH:mm:ss.SSSSSS"));
     }
 
     static {
@@ -380,6 +491,7 @@ public class RdReportService {
         sb.append("/rcontype [Data Server] /rf [http://app.aams.kr:8080/DataServer/rdagent.jsp] /rsn [KFP] /rv ");
 
         boolean hasCorpGr = false;
+        boolean hasRtKey = false;
         boolean hasZoom = false;
         boolean hasMessageBoxShow = false;
 
@@ -397,6 +509,11 @@ public class RdReportService {
                     hasCorpGr = true;
                     String targetCorp = (corpGr != null && !corpGr.isBlank()) ? corpGr : v;
                     sb.append("corp_gr[").append(targetCorp).append("] ");
+                    continue;
+                }
+                if ("rt_key".equalsIgnoreCase(k)) {
+                    hasRtKey = true;
+                    sb.append("rt_key[").append(v).append("] ");
                     continue;
                 }
                 if ("/rzoom".equalsIgnoreCase(k) || "rzoom".equalsIgnoreCase(k)) {
@@ -418,6 +535,15 @@ public class RdReportService {
         if (!hasCorpGr && corpGr != null && !corpGr.isBlank()) {
             sb.append("corp_gr[").append(corpGr).append("] ");
         }
+
+        // 파워빌더 u_rd.sru 표준: rt_key[CORP_GR + user_id + f_systimestamp]
+        if (!hasRtKey) {
+            String targetCorp = (corpGr != null) ? corpGr.trim() : "";
+            String userId = resolveUserId();
+            String timestamp = getSystimestamp();
+            sb.append("rt_key[").append(targetCorp).append(userId).append(timestamp).append("] ");
+        }
+
         if (!hasZoom) {
             sb.append("/rzoom [120] ");
         }

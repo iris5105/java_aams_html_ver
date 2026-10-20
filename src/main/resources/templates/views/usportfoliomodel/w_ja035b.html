@@ -157,7 +157,7 @@
             if (!cell) return;
             var row = cell.getRow();
             var data = row.getData();
-            if (data && !data.isSummaryRow) {
+            if (data) {
                 if (!data.isNew) {
                     data.isUpdated = true;
                     data.rowStatus = "U";
@@ -179,12 +179,6 @@
                 editTriggerEvent: "click",
                 headerSort: false,
                 placeholder: "조회된 내역이 없습니다.",
-                rowFormatter: function (row) {
-                    var data = row.getData();
-                    if (data && data.isSummaryRow) {
-                        row.getElement().classList.add("aams-summary-row");
-                    }
-                },
                 columns: [
                     {
                         title: "No.",
@@ -195,8 +189,6 @@
                         resizable: false,
                         formatter: function (cell) {
                             var row = cell.getRow();
-                            var data = row.getData();
-                            if (data && data.isSummaryRow) return "";
                             return row.getPosition(true) || (row.getIndex() + 1);
                         }
                     },
@@ -207,25 +199,20 @@
                         hozAlign: "center",
                         headerCssClass: "col-hdr-green",
                         editor: "input",
-                        editable: function (cell) {
-                            return !cell.getRow().getData().isSummaryRow;
-                        },
                         cellClick: window.aamsCellEdit,
                         cellEdited: function (cell) {
                             markRowUpdated(cell);
                             onFundCdEdited(cell);
                         },
                         formatter: function (cell) {
-                            var d = cell.getRow().getData();
                             var val = cell.getValue();
-                            if (d && d.isSummaryRow) return val || "";
                             if (val == null || val === '') return '';
                             return '<span class="cell-text-green font-bold">' + val + '</span>';
                         }
                     },
                     {
                         title: "",
-                        field: "p_xx_fund_cd",
+                        field: "xx_btn_fundCd",
                         width: 36,
                         minWidth: 36,
                         maxWidth: 36,
@@ -233,14 +220,39 @@
                         headerSort: false,
                         resizable: false,
                         formatter: function (cell) {
-                            var d = cell.getRow().getData();
-                            if (d && d.isSummaryRow) return "";
-                            return '<button type="button" class="btn-grid-addon btn-search" title="펀드코드 검색"><i class="fa-solid fa-magnifying-glass"></i></button>';
+                            var data = cell.getRow().getData();
+                            var isEnabled = (data.pVisible !== 0 && !data.isDeleted);
+                            var disClass = isEnabled ? "" : "disabled";
+                            return '<button type="button" class="btn-grid-addon btn-search ' + disClass + '" title="펀드코드 검색"><i class="fa-solid fa-magnifying-glass"></i></button>';
                         },
                         cellClick: function (e, cell) {
                             e.stopPropagation();
-                            if (cell.getRow().getData().isSummaryRow) return;
-                            openFundSearchModal(cell.getRow());
+                            var row = cell.getRow();
+                            var data = row.getData();
+                            if (data.pVisible === 0 || data.isDeleted) {
+                                if (gridList) { gridList.deselectRow(); row.select(); }
+                                return;
+                            }
+                            var curVal = data.fundCd || "";
+                            var corpGr = window.resolveCorpGr ? window.resolveCorpGr(currentPane) : "";
+                            var ymd = window.getFilterYmd ? window.getFilterYmd(currentPane, 'YYYY.MM.DD') : "";
+                            var addWhere = "nvl(HAEJI_YMD, '" + ymd + "') >= '" + ymd + "'";
+
+                            if (window.DynamicCodeSearch && typeof window.DynamicCodeSearch.openModal === 'function') {
+                                window.DynamicCodeSearch.openModal({
+                                    title: "펀드코드 검색",
+                                    columnNm: "rcd",
+                                    seq: 4,
+                                    corpGr: corpGr,
+                                    initialKeyword: curVal,
+                                    addWhere: addWhere,
+                                    onSelect: function (code, name) {
+                                        row.update({ fundCd: code, xxFundCd: name, fundNm: name });
+                                        propagateFundCd(row, code, name);
+                                        markRowUpdated(cell);
+                                    }
+                                });
+                            }
                         }
                     },
                     {
@@ -248,19 +260,12 @@
                         field: "xxFundCd",
                         width: 140,
                         hozAlign: "left",
-                        headerSort: false,
-                        formatter: function (cell) {
-                            var d = cell.getRow().getData();
-                            if (d && d.isSummaryRow) return "";
-                            return cell.getValue() || "";
-                        }
                     },
                     {
                         title: "해외보관처",
                         field: "trustee",
                         width: 110,
                         hozAlign: "center",
-                        headerSort: false,
                         editor: "list",
                         editorParams: function () {
                             return {
@@ -276,17 +281,12 @@
                                     : null
                             };
                         },
-                        editable: function (cell) {
-                            return !cell.getRow().getData().isSummaryRow;
-                        },
                         cellClick: window.aamsCellEdit,
                         cellEdited: function (cell) {
                             markRowUpdated(cell);
                             onTrusteeEdited(cell);
                         },
                         formatter: function (cell) {
-                            var row = cell.getRow().getData();
-                            if (row && row.isSummaryRow) return "";
                             var val = (cell.getValue() || "").toString().trim();
                             if (!val) return "";
 
@@ -314,25 +314,20 @@
                         hozAlign: "center",
                         headerCssClass: "col-hdr-blue",
                         editor: "input",
-                        editable: function (cell) {
-                            return !cell.getRow().getData().isSummaryRow;
-                        },
                         cellClick: window.aamsCellEdit,
                         cellEdited: function (cell) {
                             markRowUpdated(cell);
                             onYjCdEdited(cell);
                         },
                         formatter: function (cell) {
-                            var d = cell.getRow().getData();
                             var val = cell.getValue();
-                            if (d && d.isSummaryRow) return val || "";
                             if (val == null || val === '') return '';
                             return '<span class="cell-text-blue font-bold">' + val + '</span>';
                         }
                     },
                     {
                         title: "",
-                        field: "p_xx_yj_cd",
+                        field: "xx_btn_yjCd",
                         width: 36,
                         minWidth: 36,
                         maxWidth: 36,
@@ -340,14 +335,44 @@
                         headerSort: false,
                         resizable: false,
                         formatter: function (cell) {
-                            var d = cell.getRow().getData();
-                            if (d && d.isSummaryRow) return "";
-                            return '<button type="button" class="btn-grid-addon btn-search" title="종목 검색"><i class="fa-solid fa-magnifying-glass"></i></button>';
+                            var data = cell.getRow().getData();
+                            var isEnabled = (data.pVisible !== 0 && !data.isDeleted);
+                            var disClass = isEnabled ? "" : "disabled";
+                            return '<button type="button" class="btn-grid-addon btn-search ' + disClass + '" title="종목 검색"><i class="fa-solid fa-magnifying-glass"></i></button>';
                         },
                         cellClick: function (e, cell) {
                             e.stopPropagation();
-                            if (cell.getRow().getData().isSummaryRow) return;
-                            openItemSearchModal(cell.getRow());
+                            var row = cell.getRow();
+                            var data = row.getData();
+                            if (data.pVisible === 0 || data.isDeleted) {
+                                if (gridList) { gridList.deselectRow(); row.select(); }
+                                return;
+                            }
+                            var curVal = data.yjCd || "";
+                            var corpGr = window.resolveCorpGr ? window.resolveCorpGr(currentPane) : "";
+                            var ymd = window.getFilterYmd ? window.getFilterYmd(currentPane) : "";
+
+                            if (window.DynamicCodeSearch && typeof window.DynamicCodeSearch.openModal === 'function') {
+                                window.DynamicCodeSearch.openModal({
+                                    title: "해외주식 종목 검색",
+                                    columnNm: "yj_cd",
+                                    seq: 1,
+                                    corpGr: corpGr,
+                                    initialKeyword: curVal,
+                                    onSelect: function (code, name, rowData) {
+                                        var cur = (rowData && rowData.currency) ? rowData.currency : (data.currency || 'USD');
+                                        row.update({
+                                            yjCd: code,
+                                            xxYjCd: name,
+                                            jmNm: name,
+                                            currency: cur
+                                        });
+                                        loadCurrencyRate(row, cur, ymd, corpGr);
+                                        markRowUpdated(cell);
+                                        recalcRow(row);
+                                    }
+                                });
+                            }
                         }
                     },
                     {
@@ -355,14 +380,7 @@
                         field: "xxYjCd",
                         width: 160,
                         hozAlign: "left",
-                        headerSort: false,
-                        formatter: function (cell) {
-                            var d = cell.getRow().getData();
-                            if (d && d.isSummaryRow) {
-                                return '<div style="text-align: center; font-weight: bold; width: 100%;">합  계</div>';
-                            }
-                            return cell.getValue() || "";
-                        }
+                        headerSort: false
                     },
                     {
                         title: "통화",
@@ -388,9 +406,6 @@
                                     : null
                             };
                         },
-                        editable: function (cell) {
-                            return !cell.getRow().getData().isSummaryRow;
-                        },
                         cellClick: window.aamsCellEdit,
                         cellEdited: function (cell) {
                             markRowUpdated(cell);
@@ -404,9 +419,6 @@
                         hozAlign: "right",
                         headerSort: false,
                         editor: "input",
-                        editable: function (cell) {
-                            return !cell.getRow().getData().isSummaryRow;
-                        },
                         cellClick: window.aamsCellEdit,
                         cellEdited: function (cell) {
                             markRowUpdated(cell);
@@ -425,9 +437,6 @@
                         hozAlign: "right",
                         headerSort: false,
                         editor: "input",
-                        editable: function (cell) {
-                            return !cell.getRow().getData().isSummaryRow;
-                        },
                         cellClick: window.aamsCellEdit,
                         cellEdited: function (cell) {
                             markRowUpdated(cell);
@@ -446,9 +455,6 @@
                         hozAlign: "right",
                         headerSort: false,
                         editor: "input",
-                        editable: function (cell) {
-                            return !cell.getRow().getData().isSummaryRow;
-                        },
                         cellClick: window.aamsCellEdit,
                         cellEdited: function (cell) {
                             markRowUpdated(cell);
@@ -456,8 +462,7 @@
                         },
                         formatter: function (cell) {
                             var val = cell.getValue();
-                            if (val == null || val === '') return '0.00';
-                            return window.formatNumber ? window.formatNumber(val, 2) : Number(val).toFixed(2);
+                            return (val == null || val === '') ? '0.00' : (window.formatNumber ? window.formatNumber(val, 2) : Number(val).toFixed(2));
                         }
                     },
                     {
@@ -467,9 +472,6 @@
                         hozAlign: "right",
                         headerSort: false,
                         editor: "input",
-                        editable: function (cell) {
-                            return !cell.getRow().getData().isSummaryRow;
-                        },
                         cellClick: window.aamsCellEdit,
                         cellEdited: function (cell) {
                             markRowUpdated(cell);
@@ -477,8 +479,7 @@
                         },
                         formatter: function (cell) {
                             var val = cell.getValue();
-                            if (val == null || val === '') return '0.00';
-                            return window.formatNumber ? window.formatNumber(val, 2) : Number(val).toFixed(2);
+                            return (val == null || val === '') ? '0.00' : (window.formatNumber ? window.formatNumber(val, 2) : Number(val).toFixed(2));
                         }
                     },
                     {
@@ -489,8 +490,7 @@
                         headerSort: false,
                         formatter: function (cell) {
                             var val = cell.getValue();
-                            if (val == null || val === '') return '0.00';
-                            return window.formatNumber ? window.formatNumber(val, 2) : Number(val).toFixed(2);
+                            return (val == null || val === '') ? '0.00' : (window.formatNumber ? window.formatNumber(val, 2) : Number(val).toFixed(2));
                         }
                     },
                     {
@@ -501,9 +501,6 @@
                         headerSort: false,
                         editor: window.aamsDateEditor || "input",
                         editorParams: { separator: "-" },
-                        editable: function (cell) {
-                            return !cell.getRow().getData().isSummaryRow;
-                        },
                         cellClick: window.aamsCellEdit,
                         cellEdited: function (cell) {
                             if (typeof window.aamsValidateDateCell === 'function') {
@@ -524,15 +521,12 @@
                         hozAlign: "center",
                         headerSort: false,
                         resizable: false,
-                        formatter: function (cell) {
-                            var d = cell.getRow().getData();
-                            if (d && d.isSummaryRow) return "";
+                        formatter: function () {
                             return '<button type="button" class="btn-grid-addon btn-cal" title="결제일자 선택"><i class="fa-regular fa-calendar-days"></i></button>';
                         },
                         cellClick: function (e, cell) {
                             e.stopPropagation();
                             var row = cell.getRow();
-                            if (row.getData().isSummaryRow) return;
                             var curVal = row.getData().gyuljeYmd || "";
                             if (window.AamsCalendar && typeof window.AamsCalendar.openDatePicker === 'function') {
                                 window.AamsCalendar.openDatePicker({
@@ -555,8 +549,7 @@
                         headerSort: false,
                         formatter: function (cell) {
                             var val = cell.getValue();
-                            if (val == null || val === '') return '0.00';
-                            return window.formatNumber ? window.formatNumber(val, 2) : Number(val).toFixed(2);
+                            return (val == null || val === '') ? '0.00' : (window.formatNumber ? window.formatNumber(val, 2) : Number(val).toFixed(2));
                         }
                     },
                     {
@@ -566,9 +559,6 @@
                         hozAlign: "right",
                         headerSort: false,
                         editor: "input",
-                        editable: function (cell) {
-                            return !cell.getRow().getData().isSummaryRow;
-                        },
                         cellClick: window.aamsCellEdit,
                         cellEdited: function (cell) {
                             markRowUpdated(cell);
@@ -603,7 +593,6 @@
                         },
                         editable: function (cell) {
                             var d = cell.getRow().getData();
-                            if (d.isSummaryRow) return false;
                             var trCd = d.trCd || getSelectedTrCd();
                             return trCd === 'F46'; // 파워빌더 protect="0~tif(tr_cd='F46',0,1)"
                         },
@@ -612,8 +601,6 @@
                             markRowUpdated(cell);
                         },
                         formatter: function (cell) {
-                            var row = cell.getRow().getData();
-                            if (row && row.isSummaryRow) return "";
                             var val = (cell.getValue() || "").toString().trim();
                             if (!val) return "";
 
@@ -635,94 +622,6 @@
         function getSelectedTrCd() {
             var sel = currentPane.querySelector('#filterDddw');
             return sel ? (sel.value || "J20").trim() : "J20";
-        }
-
-        // ==========================================
-        // 5. 단가 / 수량 / 세금 / 비용 변경 시 실시간 자동 계산
-        // ==========================================
-        function recalcRow(row) {
-            if (!row) return;
-            var data = row.getData();
-            if (data.isSummaryRow) return;
-
-            var jusu = parseFloat(data.trJusu) || 0;
-            var danga = parseFloat(data.trDanga) || 0;
-            var cost = parseFloat(data.trCost) || 0;
-            var tax = parseFloat(data.trTax) || 0;
-            var trCd = (data.trCd || getSelectedTrCd() || "").trim();
-
-            var trAek = Math.round((jusu * danga) * 100) / 100;
-            var gyuljeAek = 0;
-            if (trCd === 'K20') {
-                gyuljeAek = Math.round((trAek - (tax + cost)) * 100) / 100;
-            } else {
-                gyuljeAek = Math.round((trAek + (tax + cost)) * 100) / 100;
-            }
-
-            var transRt = parseFloat(data.transRt) || 0;
-            var wonGyuljeAek = transRt > 0 ? Math.floor(gyuljeAek * transRt) : 0;
-
-            row.update({
-                trAek: trAek,
-                gyuljeAek: gyuljeAek,
-                wonGyuljeAek: wonGyuljeAek
-            });
-
-            recalcSummaryRow();
-        }
-
-        // ==========================================
-        // 6. Summary 합계 행 동적 재계산
-        // ==========================================
-        function recalcSummaryRow() {
-            if (!gridList) return;
-            var rows = gridList.getRows();
-            var normalRows = rows.filter(function (r) {
-                var d = r.getData();
-                return d && !d.isSummaryRow && !d.isDeleted;
-            });
-            var summaryRow = rows.find(function (r) {
-                var d = r.getData();
-                return d && d.isSummaryRow;
-            });
-
-            if (normalRows.length === 0) {
-                if (summaryRow) summaryRow.delete();
-                return;
-            }
-
-            var sumJusu = 0;
-            var sumCost = 0;
-            var sumTax = 0;
-            var sumAek = 0;
-            var sumGyuljeAek = 0;
-
-            normalRows.forEach(function (r) {
-                var d = r.getData();
-                sumJusu += parseFloat(d.trJusu) || 0;
-                sumCost += parseFloat(d.trCost) || 0;
-                sumTax += parseFloat(d.trTax) || 0;
-                sumAek += parseFloat(d.trAek) || 0;
-                sumGyuljeAek += parseFloat(d.gyuljeAek) || 0;
-            });
-
-            var summaryData = {
-                isSummaryRow: true,
-                fseq: "",
-                fundCd: "",
-                xxYjCd: "합  계",
-                trJusu: sumJusu,
-                trCost: sumCost,
-                trTax: sumTax,
-                trAek: sumAek,
-                gyuljeAek: sumGyuljeAek
-            };
-
-            if (summaryRow) {
-                summaryRow.update(summaryData);
-            } else {
-                gridList.addRow(summaryData, false);
-            }
         }
 
         // ==========================================
@@ -766,7 +665,7 @@
             for (var i = startIdx + 1; i < rows.length; i++) {
                 var r = rows[i];
                 var d = r.getData();
-                if (d && !d.isSummaryRow) {
+                if (d) {
                     if (!d.fundCd || d.fundCd === '') {
                         r.update({ fundCd: newFundCd, xxFundCd: newFundNm, fundNm: newFundNm });
                         markRowUpdated(r.getCell("fundCd"));
@@ -819,6 +718,33 @@
                 });
         }
 
+        // ==========================================
+        // 행 자동 계산
+        // ==========================================
+        function recalcRow(row) {
+            if (!row) return;
+            var d = row.getData();
+            if (!d) return;
+
+            var jusu = parseFloat(d.trJusu) || 0;
+            var danga = parseFloat(d.trDanga) || 0;
+            var tax = parseFloat(d.trTax) || 0;
+            var cost = parseFloat(d.trCost) || 0;
+            var transRt = parseFloat(d.transRt) || 0;
+            var trCd = d.trCd || getSelectedTrCd();
+
+            var trAek = Math.round((jusu * danga) * 100) / 100;
+            var gyuljeAek = (trCd === 'K20') ? (trAek - (tax + cost)) : (trAek + (tax + cost));
+            gyuljeAek = Math.round(gyuljeAek * 100) / 100;
+            var wonGyuljeAek = Math.floor(gyuljeAek * transRt);
+
+            row.update({
+                trAek: trAek,
+                gyuljeAek: gyuljeAek,
+                wonGyuljeAek: wonGyuljeAek
+            });
+        }
+
         function onYjCdEdited(cell) {
             var row = cell.getRow();
             var val = (cell.getValue() || "").trim();
@@ -832,77 +758,88 @@
                 .then(function (res) { return res.json(); })
                 .then(function (info) {
                     if (info && info.yj_cd) {
+                        var cur = info.currency || row.getData().currency || 'USD';
                         row.update({
                             yjCd: info.yj_cd,
                             xxYjCd: info.xx_yj_cd || '',
                             jmNm: info.xx_yj_cd || '',
-                            currency: info.currency || row.getData().currency || 'USD'
+                            currency: cur
                         });
+                        var ymd = window.getFilterYmd ? window.getFilterYmd(currentPane) : "";
+                        loadCurrencyRate(row, cur, ymd, corpGr);
                         recalcRow(row);
                     } else {
-                        openItemSearchModal(row);
+                        openItemSearchModal(row, val);
                     }
                 })
                 .catch(function () {
-                    openItemSearchModal(row);
+                    openItemSearchModal(row, val);
                 });
         }
 
-        function openFundSearchModal(row) {
-            if (!window.DynamicCodeSearch || typeof window.DynamicCodeSearch.openModal !== 'function') {
-                if (typeof window.showToast === 'function') window.showToast("코드 검색 모듈을 사용할 수 없습니다.", "warning");
-                return;
-            }
+        function openFundSearchModal(rowOrCell, keyword) {
+            var row = (rowOrCell && rowOrCell.getRow) ? rowOrCell.getRow() : rowOrCell;
+            if (!row) return;
+            var curVal = (keyword !== undefined && keyword !== null) ? keyword : ((row.getData && row.getData().fundCd) || "");
             var corpGr = window.resolveCorpGr ? window.resolveCorpGr(currentPane) : "";
             var ymd = window.getFilterYmd ? window.getFilterYmd(currentPane, 'YYYY.MM.DD') : "";
             var addWhere = "nvl(HAEJI_YMD, '" + ymd + "') >= '" + ymd + "'";
 
-            window.DynamicCodeSearch.openModal({
-                title: "펀드코드 검색",
-                columnNm: "rcd",
-                corpGr: corpGr,
-                seq: 4,
-                addWhere: addWhere,
-                onSelect: function (item) {
-                    if (item && row) {
-                        var cd = item.code || item.fundCd;
-                        var nm = item.codeName || item.fundNm || '';
+            if (window.DynamicCodeSearch && typeof window.DynamicCodeSearch.openModal === 'function') {
+                window.DynamicCodeSearch.openModal({
+                    title: "펀드코드 검색",
+                    columnNm: "rcd",
+                    seq: 4,
+                    corpGr: corpGr,
+                    initialKeyword: curVal,
+                    addWhere: addWhere,
+                    onSelect: function (code, name, rowData) {
+                        if (!row) return;
                         row.update({
-                            fundCd: cd,
-                            xxFundCd: nm,
-                            fundNm: nm
+                            fundCd: code,
+                            xxFundCd: name,
+                            fundNm: name,
+                            isUpdated: true
                         });
-                        markRowUpdated(row.getCell("fundCd"));
-                        propagateFundCd(row, cd, nm);
+                        propagateFundCd(row, code, name);
+                        var cell = row.getCell ? row.getCell("fundCd") : null;
+                        if (cell) markRowUpdated(cell);
                     }
-                }
-            });
+                });
+            }
         }
 
-        function openItemSearchModal(row) {
-            if (!window.DynamicCodeSearch || typeof window.DynamicCodeSearch.openModal !== 'function') {
-                if (typeof window.showToast === 'function') window.showToast("코드 검색 모듈을 사용할 수 없습니다.", "warning");
-                return;
-            }
+        function openItemSearchModal(rowOrCell, keyword) {
+            var row = (rowOrCell && rowOrCell.getRow) ? rowOrCell.getRow() : rowOrCell;
+            if (!row) return;
+            var curVal = (keyword !== undefined && keyword !== null) ? keyword : ((row.getData && row.getData().yjCd) || "");
             var corpGr = window.resolveCorpGr ? window.resolveCorpGr(currentPane) : "";
-            window.DynamicCodeSearch.openModal({
-                title: "해외주식 종목 검색",
-                columnNm: "jm_cd",
-                corpGr: corpGr,
-                seq: 1,
-                onSelect: function (item) {
-                    if (item && row) {
+            var ymd = window.getFilterYmd ? window.getFilterYmd(currentPane) : "";
+
+            if (window.DynamicCodeSearch && typeof window.DynamicCodeSearch.openModal === 'function') {
+                window.DynamicCodeSearch.openModal({
+                    title: "해외주식 종목 검색",
+                    columnNm: "yj_cd",
+                    seq: 1,
+                    corpGr: corpGr,
+                    initialKeyword: curVal,
+                    onSelect: function (code, name, rowData) {
+                        if (!row) return;
+                        var cur = (rowData && rowData.currency) ? rowData.currency : (row.getData().currency || 'USD');
                         row.update({
-                            yjCd: item.code || item.jmCd,
-                            xxYjCd: item.codeName || item.jmNm || '',
-                            jmNm: item.codeName || item.jmNm || '',
-                            currency: item.currency || row.getData().currency || 'USD'
+                            yjCd: code,
+                            xxYjCd: name,
+                            jmNm: name,
+                            currency: cur,
+                            isUpdated: true
                         });
-                        markRowUpdated(row.getCell("yjCd"));
+                        loadCurrencyRate(row, cur, ymd, corpGr);
+                        var cell = row.getCell ? row.getCell("yjCd") : null;
+                        if (cell) markRowUpdated(cell);
                         recalcRow(row);
                     }
-                }
-            });
+                });
+            }
         }
 
         // ==========================================
@@ -945,10 +882,7 @@
 
                     if (gridList) {
                         gridList.setData(list).then(function () {
-                            recalcSummaryRow();
-                            var rows = gridList.getRows().filter(function (r) {
-                                return !r.getData().isSummaryRow;
-                            });
+                            var rows = gridList.getRows();
                             if (rows.length > 0) {
                                 rows[0].select();
                             }
@@ -1003,10 +937,7 @@
 
                         if (gridList) {
                             gridList.setData(newList).then(function () {
-                                recalcSummaryRow();
-                                var rows = gridList.getRows().filter(function (r) {
-                                    return !r.getData().isSummaryRow;
-                                });
+                                var rows = gridList.getRows();
                                 if (rows.length > 0) {
                                     rows[0].select();
                                 }
@@ -1017,9 +948,7 @@
                         }
                     } else {
                         if (gridList) {
-                            gridList.setData([]).then(function () {
-                                recalcSummaryRow();
-                            });
+                            gridList.setData([]);
                         }
                     }
                 })
@@ -1052,6 +981,7 @@
                 fundCd: fundCd,
                 xxFundCd: fundNm,
                 fundNm: fundNm,
+                trCoCd: "",
                 trustee: "",
                 yjCd: "",
                 xxYjCd: "",
@@ -1067,23 +997,13 @@
                 gyuljeYmd: ymd,
                 gyuljeAek: 0,
                 transRt: 0,
-                gyuljeJmCd: ""
+                wonGyuljeAek: 0,
+                gyuljeJmCd: "",
+                pVisible: 1
             };
 
-            var summaryRow = gridList.getRows().find(function (r) {
-                return r.getData().isSummaryRow;
-            });
-
-            var addPromise;
-            if (summaryRow) {
-                addPromise = gridList.addRow(newRowData, false, summaryRow);
-            } else {
-                addPromise = gridList.addRow(newRowData, false);
-            }
-
-            addPromise.then(function (row) {
+            gridList.addRow(newRowData, false).then(function (row) {
                 row.select();
-                recalcSummaryRow();
                 var cell = row.getCell("fundCd");
                 if (cell) cell.edit();
             });
@@ -1099,17 +1019,14 @@
 
             var row = selRows[0];
             var data = row.getData();
-            if (data.isSummaryRow) return;
 
             if (confirm("선택한 내역을 삭제하시겠습니까?")) {
                 if (data.isNew) {
                     row.delete();
-                    recalcSummaryRow();
                 } else {
                     data.isDeleted = true;
                     data.rowStatus = "D";
                     row.getElement().style.display = "none";
-                    recalcSummaryRow();
                 }
             }
         }
@@ -1130,7 +1047,6 @@
 
             for (var i = 0; i < allData.length; i++) {
                 var d = allData[i];
-                if (d.isSummaryRow) continue;
 
                 if (d.isNew || d.isUpdated || d.isDeleted || d.rowStatus) {
                     if (!d.isDeleted && "D" !== d.rowStatus) {
@@ -1282,10 +1198,9 @@
             }
 
             if (newItems.length > 0 && gridList) {
-                var currentData = gridList.getData().filter(function (d) { return !d.isSummaryRow; });
+                var currentData = gridList.getData();
                 var combined = currentData.concat(newItems);
                 gridList.setData(combined).then(function () {
-                    recalcSummaryRow();
                     if (typeof window.showToast === 'function') {
                         window.showToast("엑셀 파일에서 " + newItems.length + "건을 성공적으로 추가했습니다.", "success");
                     }

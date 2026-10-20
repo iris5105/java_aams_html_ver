@@ -89,9 +89,12 @@ public class GlobalExceptionHandler {
         }
 
         String uri = request.getRequestURI();
-        boolean isApiRequest = uri.startsWith("/api/") ||
-                               "XMLHttpRequest".equalsIgnoreCase(request.getHeader("X-Requested-With")) ||
-                               (request.getHeader("Accept") != null && request.getHeader("Accept").contains("application/json"));
+        boolean isViewRequest = uri.startsWith("/views/") || uri.endsWith(".html");
+        boolean isApiRequest = !isViewRequest && (
+                uri.startsWith("/api/") ||
+                "XMLHttpRequest".equalsIgnoreCase(request.getHeader("X-Requested-With")) ||
+                (request.getHeader("Accept") != null && request.getHeader("Accept").contains("application/json"))
+        );
 
         if (isApiRequest) {
             Map<String, Object> body = new HashMap<>();

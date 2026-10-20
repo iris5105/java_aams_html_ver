@@ -16,7 +16,8 @@
     <!-- 2. 상단 필터바 (Row 2: dc_ymd_dddw - 기준일자 + 구분) -->
     <div class="filter-bar">
         <div class="filter-left">
-            <div th:replace="~{fragments/filter/dc_ymd_dddw :: filter}" th:with="labelYmd='기준일자', labelDddw='구분'"></div>
+            <!-- dw_c: dc_ymd_dddw (title="기준일자@구분", f_dddwctl: 'dddw | dual', '1,일반,,9,수기,') -->
+            <div th:replace="~{fragments/filter/dc_ymd_dddw :: filter(labelYmd='기준일자', labelDddw='구분')}"></div>
         </div>
         <div class="filter-actions d-flex align-items-center gap-1">
             <span class="small text-muted"><i class="fa-solid fa-circle-info text-primary me-1"></i> 고객을 선택하면 우측에 분개장 리포트가 표출됩니다.</span>
@@ -87,32 +88,56 @@
                 }
             }
 
-            // [초기화 2] 상단 필터바 구분 DDDW 드롭다운 (일반 '1', 수기 '9')
-            function initProcStepDddw() {
-                var dddwSelect = currentPane.querySelector('#filterDddw, select[name="dddw"]');
-                if (!dddwSelect) return;
+            // [초기화 2] 상단 필터바 구분 DDDW 드롭다운 (파워빌더 w_ja050c.srw 원본 1:1 매핑)
+            // 파워빌더 소스: dw_c::ue_dddw_retrieve => f_dddwctl (THIS, 'dddw | dual', '', '1,일반,,9,수기,', 1, '')
+            // 파워빌더 소스: wue_lastopen => dw_c.object.dddw [1] = '1'
+            function initFilterDddw() {
+                var selectEl = currentPane.querySelector('#filterDddw, select[name="dddw"]');
+                if (!selectEl) return Promise.resolve();
 
-                var options = [
-                    { code: '1', name: '일반' },
-                    { code: '9', name: '수기' }
-                ];
+                var corpGr = (typeof resolveCorpGr === 'function') ? resolveCorpGr(currentPane) : '';
 
-                if (window.f_dddwctl && typeof window.f_dddwctl.get2ColItemFormatter === 'function') {
-                    window.f_dddwctl.get2ColItemFormatter(dddwSelect, options, {
-                        codeTitle: "코드",
-                        nameTitle: "구분",
-                        defaultVal: "1",
+                // 공통 initFilterDddw 연동
+                if (typeof window.initFilterDddw === 'function') {
+                    return window.initFilterDddw(currentPane, {
+                        selectId: 'filterDddw',
+                        dddwId: 'dddw | dual',
+                        addData: '1,일반,,9,수기,',
+                        corpGr: corpGr,
+                        seq: 1,
+                        codeTitle: '코드',
+                        nameTitle: '구분',
+                        defaultVal: '1',
                         onSelect: function (code, name) {
-                            dddwSelect.value = code;
                             // 규칙 08 준수: 필터 변경 시 자동 조회를 절대 실행하지 않음
                         }
                     });
-                } else {
-                    dddwSelect.innerHTML = '<option value="1" selected>일반</option><option value="9">수기</option>';
+                } else if (typeof window.f_dddwctl === 'function') {
+                    return window.f_dddwctl('dddw | dual', corpGr, '1,일반,,9,수기,', 1, '').then(function (list) {
+                        if (typeof window.f_dddwctl.get2ColItemFormatter === 'function') {
+                            window.f_dddwctl.get2ColItemFormatter(selectEl, list, {
+                                codeTitle: "코드",
+                                nameTitle: "구분",
+                                defaultVal: "1",
+                                onSelect: function (code, name) {
+                                    selectEl.value = code;
+                                }
+                            });
+                        } else {
+                            selectEl.innerHTML = (list || []).map(function (item) {
+                                return '<option value="' + item.code + '"' + (item.code === '1' ? ' selected' : '') + '>' + item.code + ' : ' + item.name + '</option>';
+                            }).join("");
+                            selectEl.value = '1';
+                        }
+                        return list;
+                    }).catch(function (err) {
+                        console.error("[initFilterDddw] f_dddwctl load error:", err);
+                    });
                 }
+                return Promise.resolve();
             }
 
-            // 구분 값 추출 함수
+            // 구분 값 추출 함수 (1: 일반, 9: 수기)
             function getFilterProcStep() {
                 var dddwSelect = currentPane.querySelector('#filterDddw, select[name="dddw"]');
                 return dddwSelect ? (dddwSelect.value || '1').trim() : '1';
@@ -369,7 +394,7 @@
                     },
                     getDownloadName: function (data) {
                         var ymdRaw = (typeof getFilterYmd === 'function') ? getFilterYmd(currentPane, 'YYYYMMDD') : '';
-                        var fundNm = (data && data.fundNm) ? data.fundNm.replace(/[\\/:*?"<>|]/g, "_") : '분개장';
+                        var fundNm = (data && data.fundNm) ? data.fundNm.replace(new RegExp('[\\\\/:*?"<>|]', 'g'), "_") : '분개장';
                         var fundCd = (data && data.fundCd) ? data.fundCd : '';
                         return ymdRaw + "_" + fundNm + (fundCd ? ("(" + fundCd + ")") : "");
                     }
@@ -418,7 +443,7 @@
                 isInitialized = true;
 
                 initCalendar();
-                initProcStepDddw();
+                initFilterDddw();
                 initGrid();
                 initSplitter();
                 initReportViewer();

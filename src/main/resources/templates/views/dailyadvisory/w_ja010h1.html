@@ -91,7 +91,7 @@
                         return "조회일자: " + getFilterYmd(pane);
                     },
                     getDownloadName: function (data, params) {
-                        var safeFundNm = (data.fundNm || '').trim().replace(/[\\/:*?"<>|]/g, "_") || "자산명세표";
+                        var safeFundNm = (data.fundNm || '').trim().replace(new RegExp('[\\\\/:*?"<>|]', 'g'), "_") || "자산명세표";
                         return getFilterYmd(pane, 'YYYYMMDD') + "_" + safeFundNm + "(" + (data.fundCd || '') + ")";
                     },
                     onBeforePreview: function (data) {

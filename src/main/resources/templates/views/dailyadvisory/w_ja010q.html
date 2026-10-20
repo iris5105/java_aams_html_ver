@@ -173,7 +173,7 @@
                         return "기준일: " + formatDateDot(params.ymd);
                     },
                     getDownloadName: function (data, params) {
-                        var safeFundNm = (data.fundNm || '').trim().replace(/[\\/:*?"<>|]/g, "_") || "성과보수상세";
+                        var safeFundNm = (data.fundNm || '').trim().replace(new RegExp('[\\\\/:*?"<>|]', 'g'), "_") || "성과보수상세";
                         return params.ymd + "_" + safeFundNm + "(" + (data.fundCd || '') + ")";
                     }
                 })

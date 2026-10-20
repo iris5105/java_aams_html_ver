@@ -30,12 +30,19 @@ import java.util.List;
  */
 @Slf4j
 @Controller
-@RequiredArgsConstructor
 public class Ja010hController {
 
     private final Ja010hService ja010hService;
     private final MenuService menuService;
     private final WorkDateService workDateService;
+
+    public Ja010hController(Ja010hService ja010hService,
+                            MenuService menuService,
+                            WorkDateService workDateService) {
+        this.ja010hService = ja010hService;
+        this.menuService = menuService;
+        this.workDateService = workDateService;
+    }
 
     /**
      * 뷰 템플릿 렌더링

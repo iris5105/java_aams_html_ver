@@ -24,12 +24,17 @@ import java.util.Map;
 
 @Slf4j
 @Controller
-@RequiredArgsConstructor
 public class Ja010h1Controller {
 
     private final Ja010hService ja010hService;
     private final RdReportService rdReportService;
     private final MenuService menuService;
+
+    public Ja010h1Controller(Ja010hService ja010hService, RdReportService rdReportService, MenuService menuService) {
+        this.ja010hService = ja010hService;
+        this.rdReportService = rdReportService;
+        this.menuService = menuService;
+    }
 
     @GetMapping({ "/views/w_ja010h1", "/views/dailyadvisory/w_ja010h1" })
     public String ja010h1View(@AuthenticationPrincipal Object principalObj,

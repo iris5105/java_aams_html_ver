@@ -60,26 +60,34 @@
                         // p_xx_fund_cd (Grid Internal Rule 1, 2: Empty column with dynamic search button)
                         {
                             title: "",
-                            field: "_btn_fundCd",
+                            field: "xx_btn_fundCd",
                             width: 36,
                             minWidth: 36,
                             maxWidth: 36,
                             hozAlign: "center",
                             headerSort: false,
                             resizable: false,
-                            formatter: () => `<button type="button" class="btn-grid-addon btn-search" title="펀드 검색"><i class="fa-solid fa-magnifying-glass"></i></button>`,
+                            formatter: function(cell) {
+                                const isNew = cell.getRow().getData().isNew;
+                                const disClass = isNew ? "" : "disabled";
+                                return `<button type="button" class="btn-grid-addon btn-search ${disClass}" title="펀드 검색"><i class="fa-solid fa-magnifying-glass"></i></button>`;
+                            },
                             cellClick: function(e, cell) {
                                 e.stopPropagation();
                                 const row = cell.getRow();
-                                const curVal = row.getData().fundCd || "";
+                                const data = row.getData();
+                                if (!data.isNew && !data._isNew) {
+                                    if (gridJa010d) { gridJa010d.deselectRow(); row.select(); }
+                                    return;
+                                }
+                                const curVal = data.fundCd || "";
                                 if (window.DynamicCodeSearch && typeof window.DynamicCodeSearch.openModal === 'function') {
                                     window.DynamicCodeSearch.openModal({
                                         columnNm: "fund_cd",
                                         seq: 1,
                                         initialKeyword: curVal,
                                         onSelect: function(code, name) {
-                                            const isNew = row.getData().isNew;
-                                            row.update({ fundCd: code, fundNm: name, isUpdated: !isNew });
+                                            row.update({ fundCd: code, fundNm: name });
                                             if (cudManager) cudManager.trackChange(row);
                                         }
                                     });

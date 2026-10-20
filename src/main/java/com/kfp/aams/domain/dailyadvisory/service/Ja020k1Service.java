@@ -18,13 +18,20 @@ import java.util.List;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class Ja020k1Service {
 
     private final Uzm0hyMapper uzm0hyMapper;
     private final RdReportService rdReportService;
     private final com.kfp.aams.common.service.WorkDateService workDateService;
+
+    public Ja020k1Service(Uzm0hyMapper uzm0hyMapper,
+                          RdReportService rdReportService,
+                          com.kfp.aams.common.service.WorkDateService workDateService) {
+        this.uzm0hyMapper = uzm0hyMapper;
+        this.rdReportService = rdReportService;
+        this.workDateService = workDateService;
+    }
 
     /**
      * 회사그룹별 기준일자 조회
@@ -40,13 +47,52 @@ public class Ja020k1Service {
         return uzm0hyMapper.selectUzm0hyList(corpGr, ymd);
     }
 
-    @Data
-    @Builder
     public static class GuganReportParam {
         private String mrdName;
         private String guganText;
         private String fymd;
         private String tymd;
+
+        public GuganReportParam() {}
+
+        public GuganReportParam(String mrdName, String guganText, String fymd, String tymd) {
+            this.mrdName = mrdName;
+            this.guganText = guganText;
+            this.fymd = fymd;
+            this.tymd = tymd;
+        }
+
+        public String getMrdName() { return mrdName; }
+        public void setMrdName(String mrdName) { this.mrdName = mrdName; }
+
+        public String getGuganText() { return guganText; }
+        public void setGuganText(String guganText) { this.guganText = guganText; }
+
+        public String getFymd() { return fymd; }
+        public void setFymd(String fymd) { this.fymd = fymd; }
+
+        public String getTymd() { return tymd; }
+        public void setTymd(String tymd) { this.tymd = tymd; }
+
+        public static GuganReportParamBuilder builder() {
+            return new GuganReportParamBuilder();
+        }
+
+        public static class GuganReportParamBuilder {
+            private String mrdName;
+            private String guganText;
+            private String fymd;
+            private String tymd;
+
+            public GuganReportParamBuilder mrdName(String mrdName) { this.mrdName = mrdName; return this; }
+            public GuganReportParamBuilder guganText(String guganText) { this.guganText = guganText; return this; }
+            public GuganReportParamBuilder fymd(String fymd) { this.fymd = fymd; return this; }
+            public GuganReportParamBuilder tymd(String tymd) { this.tymd = tymd; return this; }
+
+            public GuganReportParam build() {
+                return new GuganReportParam(mrdName, guganText, fymd, tymd);
+            }
+        }
     }
 
     public GuganReportParam calculateGuganParam(String corpGr, String fundCd, LocalDate ymd, String gugan) {
