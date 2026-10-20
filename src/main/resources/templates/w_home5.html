@@ -204,6 +204,29 @@
     <!-- Page Initialization Script -->
     <script th:inline="javascript">
         window.currentCorpGr = /*[[${corpGr}]]*/ '';
+        window.currentWorkDate = /*[[${workDate}]]*/ '';
+        window.currentJunyongDate = /*[[${junyongDate}]]*/ '';
+
+        // 세션 스토리지에 최신 영업일자 동기화 & 로컬 스토리지의 오래된 날짜 캐시 제거
+        try {
+            if (window.currentCorpGr) sessionStorage.setItem('corpGr', window.currentCorpGr);
+            if (window.currentWorkDate) {
+                sessionStorage.setItem('workDate', window.currentWorkDate);
+                sessionStorage.setItem('workYmd', window.currentWorkDate);
+            }
+            if (window.currentJunyongDate) {
+                sessionStorage.setItem('junyongDate', window.currentJunyongDate);
+                sessionStorage.setItem('junyongYmd', window.currentJunyongDate);
+            }
+            // localStorage stale 캐시 제거 (날짜는 회사/일자별로 바뀌므로 sessionStorage에서만 관리)
+            localStorage.removeItem('workDate');
+            localStorage.removeItem('workYmd');
+            localStorage.removeItem('junyongDate');
+            localStorage.removeItem('junyongYmd');
+            if (window.currentCorpGr) localStorage.setItem('corpGr', window.currentCorpGr);
+        } catch(e) {
+            console.warn('[w_home5] storage sync warning:', e);
+        }
 
         // Unified Home Dashboard Loader (Only executes when Home Workspace Pane is visible)
         window.g_homeDashboardLoaded = false;

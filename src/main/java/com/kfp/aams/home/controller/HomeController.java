@@ -5,7 +5,7 @@ import com.kfp.aams.menu.dto.*;
 import com.kfp.aams.security.UserPrincipal;
 import com.kfp.aams.home.service.HomeService;
 import com.kfp.aams.menu.service.MenuService;
-import lombok.RequiredArgsConstructor;
+import com.kfp.aams.common.service.WorkDateService;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -14,11 +14,17 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @Controller
-@RequiredArgsConstructor
 public class HomeController {
 
     private final HomeService homeService;
     private final MenuService menuService;
+    private final WorkDateService workDateService;
+
+    public HomeController(HomeService homeService, MenuService menuService, WorkDateService workDateService) {
+        this.homeService = homeService;
+        this.menuService = menuService;
+        this.workDateService = workDateService;
+    }
 
     @GetMapping("/")
     public String homePage(@AuthenticationPrincipal UserPrincipal principal,
@@ -41,6 +47,10 @@ public class HomeController {
         String activePgmNo = (topMenuList != null && !topMenuList.isEmpty()) ? topMenuList.get(0).getPgmNo() : "00804";
         List<MenuDto> sideMenuList = menuService.getSideMenuList(activePgmNo, userId, userNm);
 
+        // 파워빌더 SZX0AA.HYUN_YMD 기준 작업일자 연동 (Zero-LocalDate-Now 원칙)
+        String workDate = workDateService.getWorkDateOrDefault(corpGr);
+        String junyongDate = workDateService.getJunyongDateOrDefault(corpGr);
+
         String tokenCorpGr = (principal != null && principal.getCorpGr() != null) ? principal.getCorpGr().trim() : "";
         model.addAttribute("tokenCorpGr", tokenCorpGr);
         model.addAttribute("corpGr", corpGr);
@@ -50,6 +60,8 @@ public class HomeController {
         model.addAttribute("adminYn", principal.getAdminYn() != null ? principal.getAdminYn() : "N");
         model.addAttribute("lastConnect", lastConnect);
         model.addAttribute("today", today);
+        model.addAttribute("workDate", workDate);
+        model.addAttribute("junyongDate", junyongDate);
         model.addAttribute("topMenuList", topMenuList);
         model.addAttribute("sideMenuList", sideMenuList);
         model.addAttribute("activePgmNo", activePgmNo);

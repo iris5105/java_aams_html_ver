@@ -1043,6 +1043,38 @@ function selectCompany(corpGr) {
     .then(res => res.json())
     .then(data => {
         if (data.success) {
+            // 1. 세션 스토리지에 변경된 회사의 회사코드 및 최신 영업일자/전영업일자 즉시 반영
+            try {
+                if (data.corpGr) sessionStorage.setItem('corpGr', data.corpGr);
+                if (data.workDate) {
+                    sessionStorage.setItem('workDate', data.workDate);
+                    sessionStorage.setItem('workYmd', data.workDate);
+                }
+                if (data.junyongDate) {
+                    sessionStorage.setItem('junyongDate', data.junyongDate);
+                    sessionStorage.setItem('junyongYmd', data.junyongDate);
+                }
+                // 2. localStorage의 stale 날짜 캐시 완전 제거 및 corpGr 갱신
+                localStorage.removeItem('workDate');
+                localStorage.removeItem('workYmd');
+                localStorage.removeItem('junyongDate');
+                localStorage.removeItem('junyongYmd');
+                if (data.corpGr) localStorage.setItem('corpGr', data.corpGr);
+            } catch(e) {
+                console.warn('[selectCompany] storage sync warning:', e);
+            }
+
+            // 3. 전역 변수 및 WorkDateSyncManager 동기화
+            if (data.corpGr) window.currentCorpGr = data.corpGr;
+            if (data.workDate) window.currentWorkDate = data.workDate;
+            if (data.junyongDate) window.currentJunyongDate = data.junyongDate;
+            if (window.WorkDateSyncManager && typeof window.WorkDateSyncManager.saveWorkDateMap === 'function' && data.corpGr && data.workDate) {
+                var map = {};
+                map[data.corpGr] = data.workDate;
+                window.WorkDateSyncManager.saveWorkDateMap(map);
+            }
+
+            // 4. 페이지 새로고침으로 변경된 회사 및 영업일자 즉시 반영
             window.location.reload();
         } else {
             alert(data.message || '회사 변경에 실패했습니다.');
@@ -1446,21 +1478,35 @@ window.getCookie = getCookie;
 window.getCookieVal = getCookie;
 
 /**
- * Global Cookie WorkDate Helper
+ * Global Session/Cookie WorkDate Helper
+ * 1순위: sessionStorage (현재 세션의 최신 영업일자)
+ * 2순위: window.currentWorkDate (런타임 메모리)
+ * 3순위: Cookie (서버 발급 쿠키)
  */
 function getCookieWorkDate() {
-    return getCookie('workDate') || getCookie('workYmd') || getCookie('hyunYmd') || window.currentWorkDate || '';
+    try {
+        var s = sessionStorage.getItem('workDate') || sessionStorage.getItem('workYmd');
+        if (s) return s;
+    } catch(e) {}
+    return window.currentWorkDate || getCookie('workDate') || getCookie('workYmd') || getCookie('hyunYmd') || '';
 }
 function getCookieJunyongDate() {
-    return getCookie('junyongDate') || getCookie('junyongYmd') || window.currentJunyongDate || '';
+    try {
+        var s = sessionStorage.getItem('junyongDate') || sessionStorage.getItem('junyongYmd');
+        if (s) return s;
+    } catch(e) {}
+    return window.currentJunyongDate || getCookie('junyongDate') || getCookie('junyongYmd') || '';
 }
 window.getCookieWorkDate = getCookieWorkDate;
 window.getCookieJunyongDate = getCookieJunyongDate;
+window.getSessionWorkDate = getCookieWorkDate;
+window.getSessionJunyongDate = getCookieJunyongDate;
 window.getCookieCorpGr = function() { return resolveCorpGr(); };
 
 /**
  * Global Common WorkDate Helper (공통 기준 작업일자 및 전영업일 조회)
  * - /api/common/workdate API 호출을 통해 최신 작업일자 및 전영업일자 동기화
+ * - sessionStorage에 최신화하고 localStorage의 stale 날짜 캐시 제거
  */
 function fetchCommonWorkDate(corpGr, callback) {
     var url = '/api/common/workdate' + (corpGr ? ('?corpGr=' + encodeURIComponent(corpGr)) : '');
@@ -1470,9 +1516,21 @@ function fetchCommonWorkDate(corpGr, callback) {
             var date = (data && data.workDate) ? data.workDate : null;
             if (data && data.workDate) {
                 window.currentWorkDate = data.workDate;
+                try {
+                    sessionStorage.setItem('workDate', data.workDate);
+                    sessionStorage.setItem('workYmd', data.workDate);
+                    localStorage.removeItem('workDate');
+                    localStorage.removeItem('workYmd');
+                } catch(e) {}
             }
             if (data && data.junyongDate) {
                 window.currentJunyongDate = data.junyongDate;
+                try {
+                    sessionStorage.setItem('junyongDate', data.junyongDate);
+                    sessionStorage.setItem('junyongYmd', data.junyongDate);
+                    localStorage.removeItem('junyongDate');
+                    localStorage.removeItem('junyongYmd');
+                } catch(e) {}
             }
             if (typeof callback === 'function') callback(date, data);
             return date;
@@ -1493,18 +1551,26 @@ window.WorkDateSyncManager = {
     syncPane: function(pane, corpGr) {
         if (!pane) return;
         var ymdInput = pane.querySelector('#filterYmd') || pane.querySelector('input[name="ymd"]');
-        if (!ymdInput) return;
+        var fymdInput = pane.querySelector('#filterFYmd, #filterFymd, input[name="fYmd"], input[name="fymd"]');
+        var tymdInput = pane.querySelector('#filterTYmd, #filterTymd, input[name="tYmd"], input[name="tymd"]');
+        if (!ymdInput && !fymdInput && !tymdInput) return;
 
         var cachedDate = getCookieWorkDate();
-        if (cachedDate && (!ymdInput.value || ymdInput.value.trim() === '')) {
-            ymdInput.value = cachedDate;
+        if (cachedDate) {
+            if (ymdInput && (!ymdInput.value || ymdInput.value.trim() === '')) ymdInput.value = cachedDate;
+            var cachedDot = cachedDate.replace(/-/g, '.');
+            if (fymdInput && (!fymdInput.value || fymdInput.value.trim() === '')) fymdInput.value = cachedDot;
+            if (tymdInput && (!tymdInput.value || tymdInput.value.trim() === '')) tymdInput.value = cachedDot;
         }
 
         var targetCorp = corpGr || (typeof resolveCorpGr === 'function' ? resolveCorpGr(pane) : '');
         if (targetCorp && typeof fetchCommonWorkDate === 'function') {
             fetchCommonWorkDate(targetCorp, function(workDate) {
-                if (workDate && ymdInput) {
-                    ymdInput.value = workDate;
+                if (workDate) {
+                    if (ymdInput) ymdInput.value = workDate;
+                    var dateDot = workDate.replace(/-/g, '.');
+                    if (fymdInput) fymdInput.value = dateDot;
+                    if (tymdInput) tymdInput.value = dateDot;
                 }
             });
         }
@@ -3375,23 +3441,25 @@ window.sanitizeGridData = function(grid, dataList, extraAllowedFields) {
         },
 
         /**
-         * 작업일자 맵을 메모리 및 localStorage에 영속화
+         * 작업일자 맵을 메모리 및 sessionStorage에 보관
          */
         saveWorkDateMap: function(workDateMap) {
             if (!workDateMap || typeof workDateMap !== 'object') return;
             window.g_workDateMap = Object.assign({}, window.g_workDateMap || {}, workDateMap);
             try {
                 var existing = {};
-                try { existing = JSON.parse(localStorage.getItem('aams_work_dates') || '{}'); } catch(e) {}
+                try { existing = JSON.parse(sessionStorage.getItem('aams_work_dates') || '{}'); } catch(e) {}
                 var merged = Object.assign({}, existing, workDateMap);
-                localStorage.setItem('aams_work_dates', JSON.stringify(merged));
+                sessionStorage.setItem('aams_work_dates', JSON.stringify(merged));
+                // localStorage stale 캐시 제거
+                localStorage.removeItem('aams_work_dates');
             } catch (err) {
-                console.warn("[WorkDateSyncManager] Failed to persist workDateMap to localStorage:", err);
+                console.warn("[WorkDateSyncManager] Failed to persist workDateMap to sessionStorage:", err);
             }
         },
 
         /**
-         * 회사그룹별 최신 작업일자 조회 (메모리 -> localStorage 우선순위)
+         * 회사그룹별 최신 작업일자 조회 (메모리 -> sessionStorage -> 현재세션 workDate)
          */
         getWorkDate: function(corpGr) {
             corpGr = (corpGr || "").trim();
@@ -3399,18 +3467,19 @@ window.sanitizeGridData = function(grid, dataList, extraAllowedFields) {
                 return window.g_workDateMap[corpGr];
             }
             try {
-                var stored = JSON.parse(localStorage.getItem('aams_work_dates') || '{}');
+                var stored = JSON.parse(sessionStorage.getItem('aams_work_dates') || '{}');
                 if (stored && corpGr && stored[corpGr]) {
                     if (!window.g_workDateMap) window.g_workDateMap = {};
                     window.g_workDateMap[corpGr] = stored[corpGr];
                     return stored[corpGr];
                 }
-                if (!corpGr && stored) {
-                    var keys = Object.keys(stored);
-                    if (keys.length > 0) return stored[keys[0]];
+                var sessionWorkDate = sessionStorage.getItem('workDate');
+                var sessionCorpGr = sessionStorage.getItem('corpGr');
+                if (sessionWorkDate && (!corpGr || corpGr === sessionCorpGr)) {
+                    return sessionWorkDate;
                 }
             } catch (e) {}
-            return (window.g_workDateMap && window.g_workDateMap['2402']) ? window.g_workDateMap['2402'] : '';
+            return window.currentWorkDate || '';
         },
 
         /**
@@ -3614,8 +3683,8 @@ window.sanitizeGridData = function(grid, dataList, extraAllowedFields) {
         findDateInputs: function(pane) {
             if (!pane) return [];
             return Array.from(pane.querySelectorAll(
-                '#filterYmd, #ymd, #trYmd, #workDate, #tymd, ' +
-                'input[name="filterYmd"], input[name="ymd"], input[name="trYmd"], input[name="workDate"], input[name="tymd"]'
+                '#filterYmd, #ymd, #trYmd, #workDate, #tymd, #filterFYmd, #filterTYmd, #filterFymd, #filterTymd, ' +
+                'input[name="filterYmd"], input[name="ymd"], input[name="trYmd"], input[name="workDate"], input[name="tymd"], input[name="fYmd"], input[name="tYmd"], input[name="fymd"]'
             ));
         }
     };

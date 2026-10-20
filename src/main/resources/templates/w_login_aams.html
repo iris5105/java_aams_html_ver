@@ -291,15 +291,21 @@
                     localStorage.setItem('userId', data.userId);
                     localStorage.setItem('userNm', data.userNm || '');
                     localStorage.setItem('corpGr', data.corpGr);
+
+                    // 날짜(workDate, junyongDate)는 매일/회사별로 바뀌므로 localStorage에서 제거하고 sessionStorage에만 보관
+                    localStorage.removeItem('workDate');
+                    localStorage.removeItem('workYmd');
+                    localStorage.removeItem('junyongDate');
+                    localStorage.removeItem('junyongYmd');
+
+                    sessionStorage.setItem('corpGr', data.corpGr);
                     if (data.workDate) {
-                        localStorage.setItem('workDate', data.workDate);
-                        localStorage.setItem('workYmd', data.workDate);
                         sessionStorage.setItem('workDate', data.workDate);
+                        sessionStorage.setItem('workYmd', data.workDate);
                     }
                     if (data.junyongDate) {
-                        localStorage.setItem('junyongDate', data.junyongDate);
-                        localStorage.setItem('junyongYmd', data.junyongDate);
                         sessionStorage.setItem('junyongDate', data.junyongDate);
+                        sessionStorage.setItem('junyongYmd', data.junyongDate);
                     }
 
                     // Expire legacy redundant cookies

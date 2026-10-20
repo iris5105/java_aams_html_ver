@@ -1,10 +1,10 @@
 package com.kfp.aams.domain.usportfoliomodel.controller;
 
+import com.kfp.aams.common.service.WorkDateService;
 import com.kfp.aams.domain.usportfoliomodel.dto.Ja035bDto;
 import com.kfp.aams.domain.usportfoliomodel.service.Ja035bService;
 import com.kfp.aams.menu.service.MenuService;
 import com.kfp.aams.security.UserPrincipal;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -13,8 +13,6 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
-import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -24,11 +22,17 @@ import java.util.Map;
  */
 @Slf4j
 @Controller
-@RequiredArgsConstructor
 public class Ja035bController {
 
     private final Ja035bService ja035bService;
     private final MenuService menuService;
+    private final WorkDateService workDateService;
+
+    public Ja035bController(Ja035bService ja035bService, MenuService menuService, WorkDateService workDateService) {
+        this.ja035bService = ja035bService;
+        this.menuService = menuService;
+        this.workDateService = workDateService;
+    }
 
     /**
      * 뷰 렌더링
@@ -37,8 +41,11 @@ public class Ja035bController {
     public String viewJa035b(@AuthenticationPrincipal Object principalObj,
                              @RequestParam(name = "corpGr", required = false) String paramCorpGr,
                              @RequestParam(name = "ymd", required = false) String paramYmd,
+                             @CookieValue(name = "savedCorpGr", required = false) String cookieCorpGr1,
+                             @CookieValue(name = "corpGr", required = false) String cookieCorpGr2,
                              Model model) {
-        String corpGr = resolveCorpGr(paramCorpGr, principalObj);
+        String cookieCorpGr = (cookieCorpGr1 != null && !cookieCorpGr1.isBlank()) ? cookieCorpGr1 : cookieCorpGr2;
+        String corpGr = resolveCorpGr(paramCorpGr, cookieCorpGr, principalObj);
 
         var menuDto = menuService.getMenuByPgmId("W_JA035B");
         if (menuDto == null) {
@@ -50,7 +57,7 @@ public class Ja035bController {
 
         String workDate = (paramYmd != null && !paramYmd.isBlank())
                 ? paramYmd
-                : LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+                : workDateService.getWorkDateOrDefault(corpGr);
 
         model.addAttribute("fullpgm2", fullpgm2);
         model.addAttribute("corpGr", corpGr);
@@ -166,11 +173,18 @@ public class Ja035bController {
     }
 
     private String resolveCorpGr(String paramCorpGr, Object principalObj) {
+        return resolveCorpGr(paramCorpGr, null, principalObj);
+    }
+
+    private String resolveCorpGr(String paramCorpGr, String cookieCorpGr, Object principalObj) {
         if (paramCorpGr != null && !paramCorpGr.isBlank()) {
-            return paramCorpGr;
+            return paramCorpGr.trim();
         }
-        if (principalObj instanceof UserPrincipal userPrincipal) {
-            return userPrincipal.getCorpGr();
+        if (cookieCorpGr != null && !cookieCorpGr.isBlank()) {
+            return cookieCorpGr.trim();
+        }
+        if (principalObj instanceof UserPrincipal userPrincipal && userPrincipal.getCorpGr() != null && !userPrincipal.getCorpGr().isBlank()) {
+            return userPrincipal.getCorpGr().trim();
         }
         return null;
     }

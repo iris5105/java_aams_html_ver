@@ -4,10 +4,12 @@ import com.kfp.aams.common.dto.RunCheckResultDto;
 import com.kfp.aams.common.dto.RunExecuteRequestDto;
 import com.kfp.aams.common.dto.RunItemDto;
 import com.kfp.aams.common.service.RunService;
+import com.kfp.aams.common.service.WorkDateService;
+import com.kfp.aams.security.UserPrincipal;
 import jakarta.servlet.http.HttpSession;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
@@ -18,14 +20,67 @@ import java.util.Map;
 
 @Slf4j
 @Controller
-@RequiredArgsConstructor
 public class RunController {
 
     private final RunService runService;
+    private final WorkDateService workDateService;
 
-    @GetMapping({"/views/w_run", "/views/common/w_run", "/views/dailyadvisory/w_run"})
-    public String runView(Model model) {
+    public RunController(RunService runService, WorkDateService workDateService) {
+        this.runService = runService;
+        this.workDateService = workDateService;
+    }
+
+    @GetMapping({
+        "/views/w_run",
+        "/views/common/w_run",
+        "/views/dailyadvisory/w_run",
+        "/views/usportfoliomodel/w_run",
+        "/views/foreignassetmanagement/w_run"
+    })
+    public String runView(@AuthenticationPrincipal Object principalObj,
+                          @RequestParam(name = "corpGr", required = false) String paramCorpGr,
+                          @RequestParam(name = "ymd", required = false) String paramYmd,
+                          @RequestParam(name = "fYmd", required = false) String paramFYmd,
+                          @RequestParam(name = "tYmd", required = false) String paramTYmd,
+                          @CookieValue(name = "savedCorpGr", required = false) String cookieCorpGr1,
+                          @CookieValue(name = "corpGr", required = false) String cookieCorpGr2,
+                          Model model) {
+        String cookieCorpGr = (cookieCorpGr1 != null && !cookieCorpGr1.isBlank()) ? cookieCorpGr1 : cookieCorpGr2;
+        String corpGr = resolveCorpGr(paramCorpGr, cookieCorpGr, principalObj);
+
+        // 파워빌더 w_run.srw 및 w_winpage.srw idt_workdate (SZX0AA.HYUN_YMD) 기준 주입
+        String workDate = (paramYmd != null && !paramYmd.isBlank())
+                ? paramYmd
+                : workDateService.getWorkDateOrDefault(corpGr);
+
+        String initialFrom = (paramFYmd != null && !paramFYmd.isBlank()) ? paramFYmd : workDate;
+        String initialTo = (paramTYmd != null && !paramTYmd.isBlank()) ? paramTYmd : workDate;
+
+        String fYmdDot = (initialFrom != null) ? initialFrom.replace("-", ".") : "";
+        String tYmdDot = (initialTo != null) ? initialTo.replace("-", ".") : "";
+
+        model.addAttribute("corpGr", corpGr);
+        model.addAttribute("initialYmd", workDate);
+        model.addAttribute("workDate", workDate);
+        model.addAttribute("fYmd", fYmdDot);
+        model.addAttribute("tYmd", tYmdDot);
+        model.addAttribute("fymd", fYmdDot);
+        model.addAttribute("tymd", tYmdDot);
+
         return "views/common/w_run";
+    }
+
+    private String resolveCorpGr(String paramCorpGr, String cookieCorpGr, Object principalObj) {
+        if (paramCorpGr != null && !paramCorpGr.isBlank()) {
+            return paramCorpGr.trim();
+        }
+        if (cookieCorpGr != null && !cookieCorpGr.isBlank()) {
+            return cookieCorpGr.trim();
+        }
+        if (principalObj instanceof UserPrincipal userPrincipal && userPrincipal.getCorpGr() != null && !userPrincipal.getCorpGr().isBlank()) {
+            return userPrincipal.getCorpGr().trim();
+        }
+        return null;
     }
 
     @GetMapping({"/api/common/run/programs", "/api/daily/run/programs"})

@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.kfp.aams.domain.usportfoliomodel.mapper.Ja050cMapper">
+
+    <!-- w_ja050c 고객(펀드) 목록 조회 (d_fund_select.srd 매핑) -->
+    <select id="selectFundList" resultType="com.kfp.aams.domain.usportfoliomodel.dto.Ja050cFundDto">
+        SELECT t1.CORP_GR                       AS corp_gr
+             , t1.FUND_CD                       AS fund_cd
+             , t1.FUND_NM                       AS fund_nm
+             , t1.FUND_NM                       AS xx_fund_cd
+             , t1.TYPE_GB                       AS type_gb
+             , t1.FUND_CURRENCY                 AS fund_currency
+             , '0'                              AS fund_select
+             , TO_CHAR(t1.HAEJI_YMD, 'YYYY-MM-DD') AS haeji_ymd
+          FROM SZM0IA t1
+         WHERE t1.CORP_GR = #{corpGr}
+           AND t1.FUND_CD IN (
+               SELECT ta.FUND_CD
+                 FROM SKT0BU ta
+                WHERE ta.CORP_GR = #{corpGr}
+                  AND ta.TR_YMD = TO_DATE(REPLACE(REPLACE(#{ymd}, '-', ''), '.', ''), 'YYYYMMDD')
+               <if test="procStep != null and procStep == '9'">
+                  AND ta.PROC_STEP = '9'
+               </if>
+           )
+         ORDER BY t1.FUND_CD
+    </select>
+
+</mapper>

@@ -223,21 +223,35 @@ var ymdRaw     = getFilterYmd(currentPane, 'YYYYMMDD');  // "20261019"
 2. **수기 입력 후 포커스 아웃 연동:** 코드 input에 사용자가 직접 6~12자리 코드를 수기 입력한 경우 `DynamicCodeSearch.searchByCode`를 통해 서버에서 명칭을 즉시 조회하여 명칭 input/셀에 자동 채번합니다.
 3. **필터 변경 시 자동 조회 금지 준수:** 코드 검색으로 특정 종목이나 계좌가 선택되었더라도 전체 그리드 데이터 조회는 자동으로 실행하지 않고 상단 [조회] 버튼 클릭 시에 실행합니다.
 
-### 4.2 다이나믹 코드 검색 연동 예시
-```javascript
-// 종목 검색 팝업 바인딩
-DynamicCodeSearch.bind({
-    btnSelector: "#btnSearchItem",
-    codeSelector: "#itemCd",
-    nameSelector: "#itemNm",
-    searchType: "ITEM", // 종목 검색
-    getCorpGr: function() { return resolveCorpGr(currentPane); },
-    onSelect: function(selectedItem) {
-        document.getElementById("itemCd").value = selectedItem.itemCd || "";
-        document.getElementById("itemNm").value = selectedItem.itemNm || "";
-    }
-});
-```
+### 4.3 파워빌더 `ue_setcodesearch` 동적 WHERE 절(`addWhere`) 연동 표준
+
+파워빌더 화면(`.srw`)의 `dw_c::ue_setcodesearch` 또는 `dw_list::ue_setcodesearch` 이벤트에 정의된 동적 `rs_Where` 및 return `seq` 값을 100% 반영합니다.
+
+1. **상단 필터바 바인딩 시 `addWhere` 함수 지정**:
+   - `DynamicCodeSearch.bind()` 호출 시 `addWhere` 옵션(함수 또는 문자열)을 지정하여 기준일자(`filterYmd`) 및 작업일자(`idt_workdate`) 기준으로 해지일자(`HAEJI_YMD`) 검증 등 동적 조건을 실시간 생성하여 서버로 전달합니다:
+     ```javascript
+     codeSearchInstance = window.DynamicCodeSearch.bind({
+         inputEl: "#filterXx",
+         btnEl: "#btnCodeSearchXx",
+         textEl: "#textXxName",
+         columnNm: "rcd",
+         seq: 4, // 파워빌더 ue_setcodesearch의 RETURN seq 값 일치
+         pane: currentPane,
+         getCorpGr: function () {
+             return window.resolveCorpGr ? window.resolveCorpGr(currentPane) : "";
+         },
+         addWhere: function () {
+             // w_ja035b.srw dw_c::ue_setcodesearch:
+             // rs_Where = "nvl(HAEJI_YMD, '" + string (dw_c.object.ymd [1],'yyyy.mm.dd') + "') >= '" + string (idt_workdate,'yyyy.mm.dd') + "'"
+             var ymd = window.getFilterYmd ? window.getFilterYmd(currentPane, 'YYYY.MM.DD') : "";
+             return "nvl(HAEJI_YMD, '" + ymd + "') >= '" + ymd + "'";
+         },
+         onSelect: function (code, name, rowData) { ... }
+     });
+     ```
+2. **그리드 내부 돋보기 팝업(`openModal`) 및 수기 코드 검증(`cellEdited`) 시 `addWhere` 전달**:
+   - 그리드 셀 돋보기 클릭 시 `DynamicCodeSearch.openModal({ columnNm: 'rcd', seq: 4, addWhere: addWhere, ... })`로 전달합니다.
+   - 그리드 셀 수기 입력 시 `/api/common/code-search/get?columnNm=rcd&seq=4&corpGr=...&code=...&addWhere=...` 파라미터를 누락 없이 바인딩하여 유효성 검증에서도 동일한 조건이 적용되도록 보장합니다.
 
 ---
 
@@ -288,3 +302,21 @@ var integerNum   = formatNumber(1234567, 0);    // "1,234,567"
 // 2) 백분율 포맷팅
 var formattedPct = formatPercent(12.3456, 2);   // "12.35%"
 ```
+
+---
+
+## 6. 클라이언트 스토리지 및 세션 기반 작업일자 관리 표준 (Zero-Stale-LocalStorage-Date 원칙)
+
+> [!IMPORTANT]
+> **영업일자(workDate) 및 전영업일자(junyongDate)의 localStorage 저장 절대 금지**  
+> 1. `localStorage`는 브라우저를 닫아도 영구 유지되는 영속 스토리지입니다.  
+> 2. `workDate`(영업일자)와 `junyongDate`(전영업일자)는 DB 마감 처리, 날짜 경과, 그리고 **회사그룹(`corpGr`) 변경 시마다 달라지는 동적 업무 기준일자**입니다.  
+> 3. 이를 `localStorage`에 저장하면 날짜가 변경되거나 다른 회사로 전환해도 오래된 날짜(Stale Cache)가 영구 보존되어 화면의 일자가 왜곡되는 치명적 결함이 발생합니다.  
+> 4. 따라서 **날짜 관련 정보는 반드시 브라우저 세션 생명주기를 따르는 `sessionStorage`에서만 관리**하며, 회사 변경 시 백엔드 API(`/api/auth/switch-company`, `/api/common/workdate`)의 최신 `SZX0AA.HYUN_YMD`를 수신하여 `sessionStorage`와 런타임 메모리에 즉시 갱신합니다.
+
+1. **스토리지 역할 분리 규격**:
+   - `localStorage`: 장기 인증 토큰(`accessToken`, `refreshToken`), 사용자 고유 식별자(`userId`, `userNm`, `corpGr`) 등 영속 데이터만 저장.
+   - `sessionStorage`: 현재 탭 세션의 MDI 탭 상태(`AAMS_MDI_TABS_STATE`), 현재 작업회사의 최신 영업일자(`workDate`, `workYmd`), 전영업일자(`junyongDate`, `junyongYmd`), 화면 캐시(`aams_work_dates`) 보관.
+2. **로고 클릭 및 회사 변경 시 실시간 동기화 (`selectCompany`)**:
+   - 상단 헤더 로고 또는 사이드바 로고 클릭 후 회사 변경 모달에서 새 회사를 선택했을 때, 백엔드 `/api/auth/switch-company` 응답으로 반환되는 새 회사의 `corpGr`, `workDate`, `junyongDate`를 `sessionStorage`에 즉시 반영하고, `localStorage`에 남아있던 오래된 날짜 키는 완전 삭제(`removeItem`)한다.
+   - 전역 런타임 변수(`window.currentCorpGr`, `window.currentWorkDate`, `window.currentJunyongDate`) 및 `WorkDateSyncManager`에 즉시 반영 후 화면을 갱신한다.

@@ -106,3 +106,24 @@ trigger: always_on
      result.put("message", "정상적으로 저장되었습니다.");
      return ResponseEntity.ok(result);
      ```
+3. **뷰 컨트롤러 기준 작업일자(영업일자) 주입 표준 (Zero-LocalDate-Now 원칙 & WorkDateService 필수 연동)**:
+   - 파워빌더 조상 창(`w_winpage.srw`)의 `open` 이벤트에서 정의된 `idt_workdate = SZX0AA.HYUN_YMD` 명세를 웹에서도 100% 보존해야 한다.
+   - 뷰 컨트롤러(`GET /views/...`)에서 화면 초기 날짜(`initialYmd`, `ymd`)를 결정할 때 **`LocalDate.now()`(시스템 현재일자)를 임의로 반환하는 것을 엄격히 금지**한다.
+   - 배치나 마감 전 DB의 영업일자(`SZX0AA.HYUN_YMD`)와 실제 달력 날짜는 불일치(휴일, 전일 마감 전 등)하는 경우가 대부분이므로, `LocalDate.now()`를 주입하면 화면에 실제 기준 영업일자가 아닌 왜곡된 날짜가 표출된다.
+   - 반드시 공통 **`WorkDateService.getWorkDateOrDefault(corpGr)`**를 호출하여 해당 회사그룹의 DB 기준 영업일자(`SZX0AA.HYUN_YMD`)를 주입한다:
+     ```java
+     String cookieCorpGr = (cookieCorpGr1 != null && !cookieCorpGr1.isBlank()) ? cookieCorpGr1 : cookieCorpGr2;
+     String corpGr = resolveCorpGr(paramCorpGr, cookieCorpGr, principal);
+
+     // SZX0AA.HYUN_YMD 기준 작업일자 연동 필수 (LocalDate.now() 절대 금지)
+     String workDate = (paramYmd != null && !paramYmd.isBlank())
+             ? paramYmd
+             : workDateService.getWorkDateOrDefault(corpGr);
+
+     model.addAttribute("fullpgm2", fullpgm2);
+     model.addAttribute("corpGr", corpGr);
+     model.addAttribute("initialYmd", workDate);
+     model.addAttribute("ymd", workDate);
+     ```
+4. **서비스/컨트롤러 생성자 주입 표준 (Zero-Lombok-ECJ-Conflict 원칙)**:
+   - IDE 백그라운드 컴파일러(ECJ)와 Lombok의 `@RequiredArgsConstructor` 충돌로 인한 바이트코드 오류(`The Java feature 'Flexible Constructor Bodies' is only available with source level 25 and above`, `BeanInstantiationException`)를 방지하기 위해, 스프링 빈 클래스에는 명시적인 표준 Java 생성자(Constructor Injection) 작성을 강력 권장한다.
