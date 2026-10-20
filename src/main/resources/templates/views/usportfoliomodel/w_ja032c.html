@@ -95,19 +95,23 @@
                                     </div>
                                     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px;">
                                         <div>
-                                            <label style="font-size: 12px; color: #64748b; display: block; margin-bottom: 2px;">종가 (S)</label>
+                                            <label style="font-size: 12px; color: #64748b; display: block; margin-bottom: 2px;">종가</label>
                                             <input type="text" id="gk_s" class="form-control" readonly style="background: #f1f5f9; text-align: right;" />
                                         </div>
                                         <div>
-                                            <label style="font-size: 12px; color: #64748b; display: block; margin-bottom: 2px;">잔존일수 (T)</label>
-                                            <input type="text" id="gk_t" class="form-control" readonly style="background: #f1f5f9; text-align: right;" />
-                                        </div>
-                                        <div>
-                                            <label style="font-size: 12px; color: #64748b; display: block; margin-bottom: 2px;">변동성 (Sigma)</label>
+                                            <label style="font-size: 12px; color: #64748b; display: block; margin-bottom: 2px;">변동성</label>
                                             <input type="text" id="gk_sigma" class="form-control" readonly style="background: #f1f5f9; text-align: right;" />
                                         </div>
                                         <div>
-                                            <label style="font-size: 12px; color: #64748b; display: block; margin-bottom: 2px;">무위험이자율 (r)</label>
+                                            <label style="font-size: 12px; color: #64748b; display: block; margin-bottom: 2px;">(년)변동성</label>
+                                            <input type="text" id="gk_year_sigma" class="form-control" readonly style="background: #f1f5f9; text-align: right;" />
+                                        </div>
+                                        <div>
+                                            <label style="font-size: 12px; color: #64748b; display: block; margin-bottom: 2px;">만기일</label>
+                                            <input type="text" id="gk_t" class="form-control" readonly style="background: #f1f5f9; text-align: right;" />
+                                        </div>
+                                        <div>
+                                            <label style="font-size: 12px; color: #64748b; display: block; margin-bottom: 2px;">무위험이자율</label>
                                             <input type="number" step="0.0001" id="gk_r" class="form-control" style="text-align: right;" />
                                         </div>
                                     </div>
@@ -124,16 +128,16 @@
                                             <input type="text" id="gk_put_jm_cd" class="form-control" readonly style="background: #f1f5f9; text-align: center; font-weight: 600;" />
                                         </div>
                                         <div>
-                                            <label style="font-size: 12px; color: #64748b; display: block; margin-bottom: 2px;">행사가격 (K)</label>
-                                            <input type="number" step="0.01" id="gk_k" class="form-control" style="text-align: right;" />
+                                            <label style="font-size: 12px; color: blue; display: block; margin-bottom: 2px;">행사가격 (K)</label>
+                                            <input type="number" step="0.01" id="gk_k" class="form-control" style="text-align: right; color:blue;" />
                                         </div>
                                         <div>
-                                            <label style="font-size: 12px; color: #64748b; display: block; margin-bottom: 2px;">시장가격 (Market Price)</label>
-                                            <input type="number" step="0.01" id="gk_market_price" class="form-control" style="text-align: right;" />
+                                            <label style="font-size: 12px; color:blue; display: block; margin-bottom: 2px;">시장가격 (Market Price)</label>
+                                            <input type="number" step="0.01" id="gk_market_price" class="form-control" style="text-align: right; color:blue;" />
                                         </div>
                                         <div>
-                                            <label style="font-size: 12px; color: #64748b; display: block; margin-bottom: 2px;">내재변동성 (IV)</label>
-                                            <input type="number" step="0.0001" id="gk_imp_volatility" class="form-control" style="text-align: right;" />
+                                            <label style="font-size: 12px; color:blue; display: block; margin-bottom: 2px;">내재변동성 (IV)</label>
+                                            <input type="number" step="0.0001" id="gk_imp_volatility" class="form-control" style="text-align: right; color:blue;" />
                                         </div>
                                     </div>
                                 </div>
@@ -1078,6 +1082,7 @@
             setInputValue('#gk_s', dto.s != null ? formatNumber(dto.s, 2) : '');
             setInputValue('#gk_t', dto.t != null ? dto.t : '');
             setInputValue('#gk_sigma', dto.sigma != null ? formatNumber(dto.sigma, 4) : '');
+            setInputValue('#gk_year_sigma', dto.yearSigma != null ? formatNumber(dto.yearSigma, 4) : '');
             setInputValue('#gk_r', dto.r != null ? dto.r : '0.05');
 
             setInputValue('#gk_put_jm_cd', dto.putJmCd || '');
