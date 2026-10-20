@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<div class="view-container layout-split w_ja032k-container layout-mobile-stack-container" th:fragment="mainView"
+     style="display: flex; flex-direction: column; height: 100%; width: 100%; overflow: hidden; background-color: #ffffff; position: relative;">
+
+    <!-- 1. 상단 공통 툴바 (Row 1) -->
+    <div class="view-toolbar">
+        <div class="toolbar-left">
+            <!-- 공통 툴바 버튼 프래그먼트 (조회, 엑셀, 새로고침, 닫기 등) -->
+            <div th:replace="~{fragments/tab_header :: toolbarButtons}"></div>
+        </div>
+        <!-- 공통 네비게이션 브레드크럼 프래그먼트 -->
+        <div th:replace="~{fragments/tab_header :: toolbarBreadcrumb}"></div>
+    </div>
+
+    <!-- 2. 상단 필터바 (Row 2: dc_ymd_dddw - 증권사 + 기준일자) -->
+    <div class="filter-bar">
+        <div class="filter-left">
+            <!-- dw_c: dc_ymd_dddw (title="증권사@기준일자") -->
+            <div th:replace="~{fragments/filter/dc_ymd_dddw :: filter(labelDddw='증권사', labelYmd='기준일자')}"></div>
+        </div>
+        <div class="filter-actions d-flex align-items-center gap-1">
+            <span class="small text-muted"><i class="fa-solid fa-circle-info text-primary me-1"></i> 고객을 선택하면 우측에 자산현황 리포트가 표출됩니다.</span>
+        </div>
+    </div>
+
+    <!-- 3. 메인 레이아웃 (좌: 고객(펀드) 목록, 우: 자산현황 리포트 뷰어) -->
+    <div class="layout-split-h split-body layout-mobile-stack" data-split-key="W_JA032K" data-default-ratio="38:62" style="flex: 1; min-height: 0;">
+        <!-- 좌측 고객 목록 패널 -->
+        <div class="pane-left left-pane split-pane" style="width: 38%;">
+            <div class="pane-header">
+                <span class="panel-title fw-bold small text-secondary"><i class="fa-solid fa-list me-1"></i> 고객 목록</span>
+                <!-- 건수 배지 절대 작성 금지 (Zero-Count-Badge) -->
+            </div>
+            <div class="pane-body" style="height: calc(100% - 37px);">
+                <div id="ja032k-grid" class="tabulator-aams-grid" style="height: 100%; width: 100%;"></div>
+            </div>
+        </div>
+
+        <div class="split-gutter-h"></div>
+
+        <!-- 우측 RD 미리보기 뷰어 (공통 프래그먼트) -->
+        <div th:replace="~{fragments/report/report_viewer :: reportViewerPane(reportTitle='자산현황', defaultStatus='고객을 선택하십시오')}"></div>
+    </div>
+
+    <!-- 모바일 전용 리포트 모달 (공통 프래그먼트) -->
+    <div th:replace="~{fragments/report/report_viewer :: reportMobileModal(modalId='ja032kMobileModal', modalTitle='자산현황')}"></div>
+
+    <!-- 4. 화면 전용 스크립트 격리 블록 -->
+    <script th:inline="javascript">
+        (function () {
+            // MDI 최상위 탭 컨테이너 획득 (Zero-Hardcoded-ID & Pane Scoping)
+            var currentScript = document.currentScript;
+            var currentPane = currentScript ? (currentScript.closest('.tab-pane') || currentScript.closest('.view-container')) : null;
+            if (!currentPane) currentPane = document.querySelector('.tab-pane.active') || document;
+
+            var initialYmd = /*[[${ymd}]]*/ '';
+            var serverCorpGr = /*[[${corpGr}]]*/ '';
+
+            var grid = null;
+            var isInitialized = false;
+            var lastLoadedMasterKey = null;
+            var currentSelectedRowData = null;
+            var reportViewer = null;
+
+            // DDDW 옵션 캐시
+            var dddwOptionsMap = {
+                mg_cd: []
+            };
+
+            // 모바일 환경 감지
+            function isMobileView() {
+                if (window.AamsReport && typeof window.AamsReport.isMobileView === 'function') {
+                    return window.AamsReport.isMobileView(currentPane);
+                }
+                var right = currentPane.querySelector('.split-right') || currentPane.querySelector('.report-card');
+                if (right && window.getComputedStyle(right).display === 'none') {
+                    return true;
+                }
+                return window.innerWidth <= 876 || (currentPane.clientWidth > 0 && currentPane.clientWidth <= 876);
+            }
+
+            // 상단 필터바 증권사 드롭다운 선택값 추출
+            function getFilterMgCd() {
+                var selectEl = currentPane.querySelector('#filterDddw, select[name="dddw"]');
+                return selectEl ? (selectEl.value || '%') : '%';
+            }
+
+            /**
+             * PowerBuilder dw_list::ue_dddw_retrieve Event Integration
+             * f_dddwctl (THIS, 'mg_cd', gaa.corp_gr, '', 1, '')
+             */
+            function retrieveDddwOptions(corpGr) {
+                var targetCorpGr = corpGr || (typeof resolveCorpGr === 'function' ? resolveCorpGr(currentPane) : '');
+                if (!targetCorpGr) return Promise.resolve();
+
+                if (window.f_dddwctl && typeof window.f_dddwctl.retrieveMultiple === 'function') {
+                    return window.f_dddwctl.retrieveMultiple({
+                        mg_cd: ['mg_cd', targetCorpGr, '', 1, '']
+                    }).then(function (results) {
+                        dddwOptionsMap.mg_cd = results.mg_cd || [];
+
+                        if (grid) {
+                            grid.redraw(true);
+                        }
+                        return dddwOptionsMap;
+                    }).catch(function (err) {
+                        console.warn('[w_ja032k retrieveDddwOptions] Error retrieving DDDW options:', err);
+                        return dddwOptionsMap;
+                    });
+                }
+                return Promise.resolve();
+            }
+
+            function getDddwLabel(dddwKey, codeVal) {
+                if (window.f_dddwctl && typeof window.f_dddwctl.getLabel === 'function') {
+                    return window.f_dddwctl.getLabel(dddwOptionsMap, dddwKey, codeVal);
+                }
+                var list = dddwOptionsMap[dddwKey] || [];
+                for (var i = 0; i < list.length; i++) {
+                    if (list[i].code === codeVal || list[i].value === codeVal) {
+                        return list[i].name || list[i].label || codeVal;
+                    }
+                }
+                return codeVal || '';
+            }
+
+            // [초기화 1] 상단 필터바 증권사 DDDW 드롭다운 (파워빌더 w_ja032k.srw: f_dddwctl dddw %,전체,)
+            function initFilterBrokerDddw() {
+                var selectEl = currentPane.querySelector('#filterDddw, select[name="dddw"]');
+                if (!selectEl) return Promise.resolve();
+
+                var corpGr = (typeof resolveCorpGr === 'function') ? resolveCorpGr(currentPane) : '';
+                if (!corpGr) return Promise.resolve();
+
+                var dddwUrl = '/api/common/dddw?dddwId=mg_cd&seq=1&corpGr=' + encodeURIComponent(corpGr);
+                return fetch(dddwUrl)
+                    .then(function (res) { return res.json(); })
+                    .then(function (list) {
+                        dddwOptionsMap.mg_cd = list || [];
+                        var options = [{ code: '%', name: '전체' }];
+                        if (Array.isArray(list)) {
+                            list.forEach(function (item) {
+                                if (item.code) {
+                                    options.push({
+                                        code: item.code,
+                                        name: item.name || item.code
+                                    });
+                                }
+                            });
+                        }
+
+                        // 2열 커스텀 컴포넌트 변환 (Zero-Native-Select 원칙)
+                        if (window.f_dddwctl && typeof window.f_dddwctl.get2ColItemFormatter === 'function') {
+                            window.f_dddwctl.get2ColItemFormatter(selectEl, options, {
+                                codeTitle: "코드",
+                                nameTitle: "증권사명",
+                                defaultVal: "%",
+                                onSelect: function (code, name) {
+                                    selectEl.value = code;
+                                    // 규칙 08 준수: 필터 변경 시 자동 조회는 실행하지 않음
+                                }
+                            });
+                        } else {
+                            selectEl.innerHTML = '';
+                            options.forEach(function (opt) {
+                                var optEl = document.createElement('option');
+                                optEl.value = opt.code;
+                                optEl.textContent = opt.name;
+                                selectEl.appendChild(optEl);
+                            });
+                        }
+
+                        if (grid) {
+                            grid.redraw(true);
+                        }
+                    })
+                    .catch(function (err) {
+                        console.warn('[w_ja032k initFilterBrokerDddw] Error fetching broker list:', err);
+                    });
+            }
+
+            // [초기화 2] 달력 컴포넌트
+            function initCalendar() {
+                if (typeof window.initFilterCalendar === 'function') {
+                    window.initFilterCalendar(currentPane, {
+                        onSelect: function (selectedDate) {
+                            // 규칙 08 준수: 필터 변경 시 자동 조회 금지
+                        }
+                    });
+                } else if (typeof window.initFilterCalendar === 'function') {
+                    window.initFilterCalendar(currentPane, initialYmd);
+                }
+            }
+
+            // [초기화 3] Tabulator 그리드 생성 (d_ja036e.srd 컬럼 매핑)
+            function initGrid() {
+                var gridEl = currentPane.querySelector('#ja032k-grid');
+                if (!gridEl) return;
+
+                grid = new Tabulator(gridEl, {
+                    layout: "fitColumns",
+                    height: "100%",
+                    placeholder: "조회된 데이터가 없습니다.",
+                    selectableRows: 1,
+                    selectableRowsRollingSelection: false,
+                    columnDefaults: {
+                        vertAlign: "middle"
+                    },
+                    rowFormatter: function (row) {
+                        if (row.isSelected && row.isSelected()) {
+                            var el = row.getElement();
+                            if (el && !el.classList.contains('tabulator-selected')) {
+                                el.classList.add('tabulator-selected');
+                            }
+                        }
+                    },
+                    columns: [
+                        {
+                            title: "No.",
+                            formatter: "rownum",
+                            hozAlign: "center",
+                            headerHozAlign: "center",
+                            width: 45,
+                            resizable: false,
+                            headerSort: false
+                        },
+                        {
+                            title: "증권사",
+                            field: "mgCd",
+                            width: 105,
+                            hozAlign: "center",
+                            headerHozAlign: "center",
+                            headerSort: true,
+                            formatter: function (cell) {
+                                return getDddwLabel('mg_cd', cell.getValue());
+                            }
+                        },
+                        {
+                            title: "관리번호",
+                            field: "fundCd",
+                            width: 85,
+                            hozAlign: "center",
+                            headerHozAlign: "center",
+                            headerCssClass: "col-hdr-green",
+                            headerSort: true,
+                            formatter: function (cell) {
+                                var v = cell.getValue() || '';
+                                return '<span class="cell-text-green font-bold">' + v + '</span>';
+                            }
+                        },
+                        {
+                            title: "계좌명",
+                            field: "fundNm",
+                            minWidth: 150,
+                            hozAlign: "left",
+                            headerHozAlign: "center",
+                            headerSort: true,
+                            formatter: function (cell) {
+                                var rowData = cell.getRow().getData();
+                                var v = cell.getValue() || "";
+                                if (rowData.fundColor && rowData.fundColor > 0) {
+                                    return '<span class="fw-semibold text-primary">' + v + '</span>';
+                                }
+                                return '<span class="fw-semibold text-dark">' + v + '</span>';
+                            }
+                        }
+                    ]
+                });
+
+                // 마스터-디테일 삼중 안전망 (Triple Fallback 표준 계약)
+                if (typeof setupTabulatorRowSelection === 'function') {
+                    setupTabulatorRowSelection(grid, function (row, data) {
+                        syncDetail(row, data, false);
+                    });
+                }
+
+                grid.on("rowClick", function (e, row) {
+                    var isRealClick = e && (e.isTrusted !== false);
+                    syncDetail(row, row ? row.getData() : null, isRealClick);
+                });
+
+                grid.on("rowSelectionChanged", function (data, rows) {
+                    if (rows && rows.length > 0 && !isMobileView()) {
+                        syncDetail(rows[0], rows[0].getData(), false);
+                    }
+                });
+            }
+
+            // [동기화 및 리포트 연동]
+            function syncDetail(row, masterRowData, isUserClick) {
+                if (!row) return;
+                if (!row.isSelected || !row.isSelected()) {
+                    if (grid && typeof grid.deselectRow === 'function') {
+                        grid.deselectRow();
+                    }
+                    row.select();
+                }
+                var el = (typeof row.getElement === 'function') ? row.getElement() : null;
+                if (el && !el.classList.contains('tabulator-selected')) {
+                    el.classList.add('tabulator-selected');
+                }
+                var data = masterRowData || (row.getData ? row.getData() : null);
+                if (!data) return;
+
+                currentSelectedRowData = data;
+
+                if (isMobileView()) {
+                    // 모바일 환경: 사용자가 행을 직접 클릭했을 때만 모달 팝업으로 리포트 표출
+                    if (isUserClick && reportViewer) {
+                        var title = (data.fundNm || '') + ' (' + (data.fundCd || '') + ') 자산현황';
+                        reportViewer.openModal(data, title);
+                    }
+                } else {
+                    var corpGr = (typeof resolveCorpGr === 'function') ? resolveCorpGr(currentPane) : '';
+                    var ymd = (typeof getFilterYmd === 'function') ? getFilterYmd(currentPane) : '';
+                    var fundCd = data.fundCd || '';
+                    var currentKey = corpGr + "_" + ymd + "_" + fundCd;
+
+                    if (lastLoadedMasterKey === currentKey) return;
+                    lastLoadedMasterKey = currentKey;
+
+                    if (reportViewer) {
+                        var statusText = "기준일자: " + ymd;
+                        reportViewer.load(data, statusText);
+                    }
+                }
+            }
+
+            // [데이터 조회 API 호출]
+            function loadData() {
+                var corpGr = (typeof resolveCorpGr === 'function') ? resolveCorpGr(currentPane) : '';
+                var ymd = (typeof getFilterYmd === 'function') ? getFilterYmd(currentPane) : '';
+                var mgCd = getFilterMgCd();
+
+                if (!corpGr) {
+                    if (typeof showToast === "function") showToast("회사그룹을 선택해주세요.", "warning");
+                    return;
+                }
+                if (!ymd) {
+                    if (typeof showToast === "function") showToast("기준일자를 선택해주세요.", "warning");
+                    return;
+                }
+
+                var url = "/api/usportfoliomodel/ja032k/funds?corpGr=" + encodeURIComponent(corpGr) +
+                          "&ymd=" + encodeURIComponent(ymd) +
+                          "&mgCd=" + encodeURIComponent(mgCd);
+
+                fetch(url)
+                    .then(function (res) { return res.json(); })
+                    .then(function (data) {
+                        var list = data || [];
+                        lastLoadedMasterKey = null; // 재조회 시 첫 행 선택 보장
+
+                        if (grid) {
+                            grid.setData(list).then(function () {
+                                if (list.length > 0) {
+                                    if (!isMobileView()) {
+                                        setTimeout(function () {
+                                            var rows = grid.getRows();
+                                            if (rows && rows.length > 0) {
+                                                grid.deselectRow();
+                                                var targetRow = rows[0];
+                                                if (typeof targetRow.select === 'function') {
+                                                    targetRow.select();
+                                                }
+                                                var el = (typeof targetRow.getElement === 'function') ? targetRow.getElement() : null;
+                                                if (el) {
+                                                    el.classList.add('tabulator-selected');
+                                                    if (!el.hasAttribute('tabindex')) {
+                                                        el.setAttribute('tabindex', '-1');
+                                                    }
+                                                    try {
+                                                        el.focus({ preventScroll: true });
+                                                    } catch (e) {}
+                                                }
+                                            }
+                                        }, 60);
+                                    } else {
+                                        grid.deselectRow();
+                                        currentSelectedRowData = null;
+                                        lastLoadedMasterKey = null;
+                                    }
+                                } else {
+                                    if (reportViewer) reportViewer.clear();
+                                    currentSelectedRowData = null;
+                                    lastLoadedMasterKey = null;
+                                }
+                            });
+                        }
+                    })
+                    .catch(function (err) {
+                        console.error("ja032k data fetch error:", err);
+                        if (grid) grid.setData([]);
+                        if (reportViewer) reportViewer.clear();
+                        if (typeof showToast === "function") showToast("조회 중 오류가 발생했습니다.", "error");
+                    });
+            }
+
+            // [초기화 4] AamsSplitter 분할 레이아웃
+            function initSplitter() {
+                if (window.AamsSplitter && typeof window.AamsSplitter.init === 'function') {
+                    window.AamsSplitter.init(currentPane);
+                }
+            }
+
+            // [초기화 5] MRD 리포트 뷰어 일체형 바인딩 (규칙 12)
+            function initReportViewer() {
+                var reportEngine = window.AamsReport;
+                if (!reportEngine || typeof reportEngine.bindViewer !== 'function') return;
+
+                reportViewer = reportEngine.bindViewer(currentPane, {
+                    reportFile: 'rd_ja036e.mrd',
+                    modalId: 'ja032kMobileModal',
+                    zoom: 120,
+                    getCorpGr: function () {
+                        return (typeof resolveCorpGr === 'function') ? resolveCorpGr(currentPane) : '';
+                    },
+                    buildParams: function (data) {
+                        var ymdRaw = (typeof getFilterYmd === 'function') ? getFilterYmd(currentPane, 'YYYYMMDD') : '';
+                        var fundCd = (data && data.fundCd) ? data.fundCd : '';
+                        var fundNm = (data && (data.fundNm || data.xxFundCd)) ? (data.fundNm || data.xxFundCd) : '';
+
+                        return {
+                            ymd: ymdRaw,
+                            fund_cd: fundCd,
+                            fund_nm: fundNm
+                        };
+                    },
+                    getTitle: function (data) {
+                        var fundNm = (data && data.fundNm) ? data.fundNm : '';
+                        var fundCd = (data && data.fundCd) ? data.fundCd : '';
+                        return (fundNm ? (fundNm + ' (' + fundCd + ') ') : '') + '자산현황';
+                    },
+                    getStatus: function (data) {
+                        var ymd = (typeof getFilterYmd === 'function') ? getFilterYmd(currentPane) : '';
+                        return "기준일자: " + ymd;
+                    },
+                    getDownloadName: function (data) {
+                        var ymdRaw = (typeof getFilterYmd === 'function') ? getFilterYmd(currentPane, 'YYYYMMDD') : '';
+                        var fundNm = (data && data.fundNm) ? data.fundNm.replace(new RegExp('[\\\\/:*?"<>|]', 'g'), "_") : '자산현황';
+                        var fundCd = (data && data.fundCd) ? data.fundCd : '';
+                        return ymdRaw + "_" + fundNm + (fundCd ? ("(" + fundCd + ")") : "");
+                    }
+                });
+            }
+
+            // [초기화 6] 상단 공통 툴바 표준 계약 바인딩
+            function initToolbar() {
+                // 상단 [조회] 버튼
+                currentPane.onRetrieve = currentPane.onSearch = function () {
+                    loadData();
+                };
+
+                // 상단 [엑셀] 버튼: 리포트 Excel 내보내기 우선
+                currentPane.onExcel = function () {
+                    if (reportViewer && currentSelectedRowData) {
+                        reportViewer.exportFormat('excel');
+                    } else if (grid) {
+                        grid.download("xlsx", "고객목록_" + ((typeof getFilterYmd === 'function') ? getFilterYmd(currentPane, "YYYYMMDD") : "") + ".xlsx", { sheetName: "고객목록" });
+                    }
+                };
+
+                // 상단 [새로고침] 버튼 (Zero-Stale-Key 원칙)
+                currentPane.onClear = currentPane.onRefresh = function () {
+                    if (grid) grid.clearData();
+                    if (reportViewer) reportViewer.clear();
+
+                    lastLoadedMasterKey = null;
+                    currentSelectedRowData = null;
+
+                    // 자동 재조회 절대 금지 (규칙 08 준수)
+                    if (typeof showToast === 'function') {
+                        showToast("화면이 초기화되었습니다.", "info");
+                    }
+                };
+
+                // 회사그룹 변경 콜백
+                currentPane.onCorpGrChange = function (newCorpGr) {
+                    // 규칙 08 준수: 필터 변경 시 자동 조회를 절대 실행하지 않음
+                    retrieveDddwOptions(newCorpGr);
+                    initFilterBrokerDddw();
+                };
+            }
+
+            // [MDI 단일 진입점 실행]
+            function startInit() {
+                if (isInitialized) return;
+                isInitialized = true;
+
+                initCalendar();
+                initFilterBrokerDddw();
+                retrieveDddwOptions();
+                initGrid();
+                initSplitter();
+                initReportViewer();
+                initToolbar();
+
+                // 파워빌더 원본 eb_direct_retrieve = true 규정에 따른 화면 최초 진입 시 1회 자동 조회
+                loadData();
+            }
+
+            if (document.readyState === "loading") {
+                document.addEventListener("DOMContentLoaded", startInit);
+            } else {
+                startInit();
+            }
+        })();
+    </script>
+</div>
+</html>
