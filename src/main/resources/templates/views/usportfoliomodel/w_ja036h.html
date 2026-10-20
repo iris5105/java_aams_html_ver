@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<div class="view-container layout-single ja036h-container layout-mobile-stack-container" th:fragment="mainView"
+     style="display: flex; flex-direction: column; height: 100%; width: 100%; overflow: hidden; background-color: #ffffff; position: relative;">
+
+    <!-- 1. 상단 공통 툴바 (Row 1: 공통 액션 버튼 + 네비게이션 브레드크럼) -->
+    <div class="view-toolbar">
+        <div class="toolbar-left">
+            <div th:replace="~{fragments/tab_header :: toolbarButtons}"></div>
+        </div>
+        <div th:replace="~{fragments/tab_header :: toolbarBreadcrumb}"></div>
+    </div>
+
+    <!-- 2. 상단 필터바 (Row 2: srw dw_c dataobject인 dc_ftymd 공통 프래그먼트 연동) -->
+    <div class="filter-bar">
+        <div class="filter-left">
+            <!-- dw_c: dc_ftymd (title="기준일자구간") -->
+            <th:block th:replace="~{fragments/filter/dc_ftymd :: filter(label='조회기간')}"></th:block>
+        </div>
+        <div class="filter-actions d-flex align-items-center gap-1">
+            <span class="small text-muted"><i class="fa-solid fa-circle-info text-primary me-1"></i> [조회] 버튼을 클릭하면 외화증권 매매내역 리포트가 표출됩니다.</span>
+        </div>
+    </div>
+
+    <!-- 3. 메인 콘텐츠 섹션 (RD Report Preview Viewer Panel) -->
+    <div class="report-container-panel" style="flex: 1; height: 100%; min-height: 0; padding: 4px; box-sizing: border-box;">
+        <div th:replace="~{fragments/report/report_viewer :: reportViewerPane(reportTitle='외화증권 매매내역', defaultStatus='조회 대기 중')}"></div>
+    </div>
+
+    <!-- 모바일 전용 리포트 모달 (공통 프래그먼트) -->
+    <div th:replace="~{fragments/report/report_viewer :: reportMobileModal(modalId='ja036hMobileModal', modalTitle='외화증권 매매내역')}"></div>
+
+    <!-- 4. 화면 전용 스크립트 격리 블록 -->
+    <script th:inline="javascript">
+        (function () {
+            // MDI 최상위 탭 컨테이너 획득 (Zero-Hardcoded-ID & Pane Scoping)
+            var currentScript = document.currentScript;
+            var currentPane = currentScript ? (currentScript.closest('.tab-pane') || currentScript.closest('.view-container')) : null;
+            if (!currentPane) currentPane = document.querySelector('.tab-pane.active') || document;
+
+            var initialFymd = /*[[${initialFymd}]]*/ '';
+            var initialTymd = /*[[${initialTymd}]]*/ '';
+            var serverCorpGr = /*[[${corpGr}]]*/ '';
+
+            var isInitialized = false;
+            var reportViewer = null;
+
+            // 모바일 환경 감지
+            function isMobileView() {
+                if (window.AamsReport && typeof window.AamsReport.isMobileView === 'function') {
+                    return window.AamsReport.isMobileView(currentPane);
+                }
+                return window.innerWidth <= 876 || (currentPane.clientWidth > 0 && currentPane.clientWidth <= 876);
+            }
+
+            // [초기화 1] 달력 컴포넌트 초기화 (Range 모드 자동 감지)
+            function initCalendar() {
+                if (typeof window.initFilterCalendar === 'function') {
+                    window.initFilterCalendar(currentPane);
+                }
+            }
+
+            // [초기화 2] 리포트 뷰어 일체형 바인딩 (규칙 12)
+            function initReportViewer() {
+                var reportEngine = window.AamsReport;
+                if (!reportEngine || typeof reportEngine.bindViewer !== 'function') return;
+
+                reportViewer = reportEngine.bindViewer(currentPane, {
+                    reportFile: 'rd_ja036h.mrd',
+                    modalId: 'ja036hMobileModal',
+                    zoom: 120,
+                    getCorpGr: function () {
+                        return (typeof resolveCorpGr === 'function') ? resolveCorpGr(currentPane) : '';
+                    },
+                    buildParams: function (data) {
+                        var fymd = (typeof getFilterFymd === 'function') ? getFilterFymd(currentPane, 'YYYYMMDD') : '';
+                        var tymd = (typeof getFilterTymd === 'function') ? getFilterTymd(currentPane, 'YYYYMMDD') : '';
+
+                        return {
+                            fymd: fymd,
+                            tymd: tymd
+                        };
+                    },
+                    getTitle: function (data) {
+                        return '외화증권 매매내역';
+                    },
+                    getStatus: function (data) {
+                        var fymd = (typeof getFilterFymd === 'function') ? getFilterFymd(currentPane) : '';
+                        var tymd = (typeof getFilterTymd === 'function') ? getFilterTymd(currentPane) : '';
+                        return "조회기간: " + fymd + " ~ " + tymd;
+                    },
+                    getDownloadName: function (data) {
+                        var fymd = (typeof getFilterFymd === 'function') ? getFilterFymd(currentPane, 'YYYYMMDD') : '';
+                        var tymd = (typeof getFilterTymd === 'function') ? getFilterTymd(currentPane, 'YYYYMMDD') : '';
+                        return "외화증권매매내역_" + fymd + "_" + tymd;
+                    }
+                });
+            }
+
+            // [리포트 조회 실행]
+            function loadReport() {
+                if (!reportViewer) return;
+
+                var fymd = (typeof getFilterFymd === 'function') ? getFilterFymd(currentPane, 'YYYYMMDD') : '';
+                var tymd = (typeof getFilterTymd === 'function') ? getFilterTymd(currentPane, 'YYYYMMDD') : '';
+
+                if (!fymd || !tymd) {
+                    if (typeof showToast === 'function') {
+                        showToast("조회기간을 선택해주세요.", "warning");
+                    }
+                    return;
+                }
+
+                var paramData = { fymd: fymd, tymd: tymd };
+                var statusText = "조회기간: " + (typeof getFilterFymd === 'function' ? getFilterFymd(currentPane) : fymd) +
+                                 " ~ " + (typeof getFilterTymd === 'function' ? getFilterTymd(currentPane) : tymd);
+
+                if (isMobileView()) {
+                    reportViewer.openModal(paramData, '외화증권 매매내역');
+                } else {
+                    reportViewer.load(paramData, statusText);
+                }
+            }
+
+            // [초기화 3] 상단 공통 툴바 표준 계약 바인딩
+            function initToolbar() {
+                // 상단 [조회] 버튼
+                currentPane.onRetrieve = currentPane.onSearch = function () {
+                    loadReport();
+                };
+
+                // 상단 [엑셀] 버튼: 리포트 Excel 내보내기 연동
+                currentPane.onExcel = function () {
+                    if (reportViewer && typeof reportViewer.exportFormat === 'function') {
+                        reportViewer.exportFormat('excel');
+                    } else if (reportViewer && typeof reportViewer.exportReport === 'function') {
+                        reportViewer.exportReport('excel');
+                    }
+                };
+
+                // 상단 [새로고침] 버튼 (Zero-Stale-Key 원칙)
+                currentPane.onClear = currentPane.onRefresh = function () {
+                    initCalendar();
+                    if (reportViewer && typeof reportViewer.clear === 'function') {
+                        reportViewer.clear();
+                    }
+                    var iframe = currentPane.querySelector('#reportFrame, #report-frame');
+                    if (iframe) iframe.src = 'about:blank';
+
+                    var statusEl = currentPane.querySelector('#reportStatus, #report-status');
+                    if (statusEl) statusEl.innerText = "조회 대기 중";
+
+                    // 자동 재조회 절대 금지 (규칙 08 준수)
+                    if (typeof showToast === 'function') {
+                        showToast("화면이 초기화되었습니다.", "info");
+                    }
+                };
+
+                // 회사그룹 변경 콜백
+                currentPane.onCorpGrChange = function (newCorpGr) {
+                    if (!newCorpGr) return;
+                    fetch('/api/common/workdate?corpGr=' + encodeURIComponent(newCorpGr))
+                        .then(function (res) { return res.json(); })
+                        .then(function (data) {
+                            if (data && data.workDate) {
+                                var fInput = currentPane.querySelector('#filterFYmd');
+                                var tInput = currentPane.querySelector('#filterTYmd');
+                                if (fInput) fInput.value = data.workDate;
+                                if (tInput) tInput.value = data.workDate;
+                            }
+                        })
+                        .catch(function (err) {
+                            console.warn('[w_ja036h] workdate fetch error:', err);
+                        });
+                };
+            }
+
+            // [MDI 단일 진입점 실행]
+            function startInit() {
+                if (isInitialized) return;
+                isInitialized = true;
+
+                initCalendar();
+                initReportViewer();
+                initToolbar();
+
+                // 파워빌더 원본 eb_direct_retrieve = true 규정에 따른 화면 최초 진입 시 1회 자동 조회
+                loadReport();
+            }
+
+            if (document.readyState === "loading") {
+                document.addEventListener("DOMContentLoaded", startInit);
+            } else {
+                startInit();
+            }
+        })();
+    </script>
+</div>
+</html>
