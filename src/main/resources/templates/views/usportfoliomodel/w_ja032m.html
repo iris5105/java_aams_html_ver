@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<!--
+  종목별 위험값 (W_JA032M)
+  - 파워빌더 소스: pb_recource/JA032/w_ja032m.srw (wt_vertdetail 상속)
+  - dw_c: dc_ymd (조회일자)
+  - dw_list: d_ja032m1 (펀드 목록)
+  - dw_detail: d_ja032m2 (종목별 위험값 상세 목록)
+  - 레이아웃: 좌우 수평 분할 (layout-split-h, AamsSplitter)
+-->
+<div class="view-container layout-split layout-mobile-stack-container" th:fragment="mainView"
+     style="display: flex; flex-direction: column; height: 100%; width: 100%; overflow: hidden; background-color: #ffffff; position: relative;">
+
+    <!-- 1. 상단 공통 툴바 (Row 1) -->
+    <div class="view-toolbar">
+        <div class="toolbar-left">
+            <div th:replace="~{fragments/tab_header :: toolbarButtons}"></div>
+        </div>
+        <div th:replace="~{fragments/tab_header :: toolbarBreadcrumb}"></div>
+    </div>
+
+    <!-- 2. 상단 필터바 (Row 2: dc_ymd 조회일자) -->
+    <div class="filter-bar">
+        <div class="filter-left">
+            <div th:replace="~{fragments/filter/dc_ymd :: filter(label='조회일자')}"></div>
+        </div>
+    </div>
+
+    <!-- 3. 메인 콘텐츠 섹션 (좌우 수평 분할 레이아웃: layout-split-h) -->
+    <div class="layout-split-h split-body layout-mobile-stack" id="splitJa032mHorizontalContainer" data-split-key="W_JA032M_H" data-default-ratio="32:68"
+         style="height: 100%; width: 100%; display: flex; flex-direction: row; flex: 1 1 0; min-height: 0;">
+
+        <!-- 좌측 패널: 펀드 목록 (dw_list: d_ja032m1) -->
+        <div class="pane-left master-section" style="width: 32%; min-width: 0; display: flex; flex-direction: column; overflow: hidden;">
+            <div class="sub-grid-header">
+                <span class="sub-title"><i class="fa-solid fa-folder-tree"></i> 펀드 목록</span>
+                <!-- 건수 배지 절대 작성 금지 (Zero-Count-Badge 원칙, 규정 04-3.1) -->
+            </div>
+            <div class="pane-body" style="flex: 1; min-height: 0; overflow: hidden;">
+                <div id="gridFund" class="tabulator-aams-grid" style="height: 100%; width: 100%;"></div>
+            </div>
+        </div>
+
+        <!-- 좌우 수평 스플리터 드래그 바 (규정 10-2) -->
+        <div class="split-gutter-h" title="드래그하여 좌우 비율 조절 (더블클릭 시 기본 비율로 복원)"></div>
+
+        <!-- 우측 패널: 종목별 위험값 (dw_detail: d_ja032m2) -->
+        <div class="pane-right detail-section" style="width: 68%; min-width: 0; display: flex; flex-direction: column; overflow: hidden;">
+            <div class="sub-grid-header">
+                <span class="sub-title" id="detailPanelTitle"><i class="fa-solid fa-layer-group"></i> 종목별 위험값</span>
+            </div>
+            <div class="pane-body" style="flex: 1; min-height: 0; overflow: hidden;">
+                <div id="gridDetail" class="tabulator-aams-grid" style="height: 100%; width: 100%;"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 4. 화면 전용 스크립트 격리 블록 -->
+    <script>
+        (function () {
+            // MDI 최상위 탭 컨테이너 획득 (Zero-Hardcoded-ID 원칙, 규정 08-1.3)
+            const currentScript = document.currentScript;
+            const pane = currentScript ? (currentScript.closest('.tab-pane') || currentScript.closest('.view-container')) : null;
+            if (!pane) return;
+
+            let gridFund = null;
+            let gridDetail = null;
+            let isInitialized = false;
+            let lastLoadedMasterKey = null;
+            let currentMasterRowData = null;
+
+            // 1. 달력 컴포넌트 초기화 (규정 09-3 표준)
+            function initCalendar() {
+                if (typeof window.initFilterCalendar === 'function') {
+                    window.initFilterCalendar(pane, {
+                        onSelect: function (selectedDate) {
+                            // 규정 08-2 준수: 필터 조건 변경 시 자동 조회 절대 금지
+                        }
+                    });
+                }
+            }
+
+            // 2. Tabulator 그리드 빌드 (규정 04, 05, 06, 07 준수)
+            function initGrids() {
+                // 1) 좌측 펀드 목록 그리드 (dw_list: d_ja032m1.srd)
+                const elFund = pane.querySelector('#gridFund');
+                if (elFund) {
+                    gridFund = new Tabulator(elFund, {
+                        height: "100%",
+                        layout: "fitColumns",
+                        selectableRows: 1,
+                        placeholder: "조회된 펀드 데이터가 없습니다.",
+                        columns: [
+                            {
+                                title: "No.",
+                                formatter: "rownum",
+                                width: 45,
+                                minWidth: 45,
+                                hozAlign: "center",
+                                headerHozAlign: "center",
+                                headerSort: false,
+                                resizable: false
+                            },
+                            {
+                                title: "관리번호",
+                                field: "fundCd",
+                                width: 95,
+                                hozAlign: "center",
+                                headerHozAlign: "center",
+                                headerCssClass: "col-hdr-green", // PB color 32768 (초록색)
+                                headerSort: true
+                            },
+                            {
+                                title: "펀드명",
+                                field: "fundNm",
+                                minWidth: 140,
+                                hozAlign: "left",
+                                headerHozAlign: "center",
+                                headerSort: true,
+                                formatter: function (cell) {
+                                    return cell.getValue() || "";
+                                }
+                            },
+                            {
+                                title: "투자목표액<br>(USD)",
+                                field: "usdTuja",
+                                width: 110,
+                                hozAlign: "right",
+                                headerHozAlign: "center",
+                                headerCssClass: "col-hdr-blue", // PB color 16711680 (파란색)
+                                headerSort: true,
+                                formatter: function (cell) {
+                                    const val = cell.getValue();
+                                    if (val == null || val === '') return '';
+                                    const str = window.formatNumber ? window.formatNumber(val, 0) : Number(val).toLocaleString();
+                                    return '<span class="cell-text-blue">' + str + '</span>';
+                                }
+                            }
+                        ]
+                    });
+
+                    // 행 선택 삼중 안전망 (규정 05-3 표준 계약)
+                    if (typeof setupTabulatorRowSelection === 'function') {
+                        setupTabulatorRowSelection(gridFund, function (row, data) {
+                            syncDetail(row, data);
+                        });
+                    }
+                    gridFund.on("rowClick", function (e, row) {
+                        syncDetail(row, row ? row.getData() : null);
+                    });
+                    gridFund.on("rowSelectionChanged", function (data, rows) {
+                        if (rows && rows.length > 0) {
+                            syncDetail(rows[0], rows[0].getData());
+                        }
+                    });
+                }
+
+                // 2) 우측 종목별 위험값 상세 그리드 (dw_detail: d_ja032m2.srd)
+                const elDetail = pane.querySelector('#gridDetail');
+                if (elDetail) {
+                    gridDetail = new Tabulator(elDetail, {
+                        height: "100%",
+                        layout: "fitDataFill",
+                        selectableRows: 1,
+                        placeholder: "좌측에서 펀드를 선택하거나 상단 [조회]를 눌러주세요.",
+                        rowFormatter: function (row) {
+                            const d = row.getData();
+                            // Summary 합계 행 스타일 (규정 06-3 연노랑 배경)
+                            if (d && d.isSummaryRow) {
+                                row.getElement().classList.add("aams-summary-row");
+                            }
+                        },
+                        columns: [
+                            {
+                                title: "No.",
+                                formatter: function (cell) {
+                                    const rowData = cell.getRow().getData();
+                                    if (rowData && rowData.isSummaryRow) return "";
+                                    return cell.getRow().getPosition(true);
+                                },
+                                width: 45,
+                                minWidth: 45,
+                                hozAlign: "center",
+                                headerHozAlign: "center",
+                                headerSort: false,
+                                resizable: false,
+                                frozen: true
+                            },
+                            {
+                                title: "종목코드",
+                                field: "jmCd",
+                                width: 95,
+                                minWidth: 95,
+                                hozAlign: "center",
+                                headerHozAlign: "center",
+                                headerSort: true,
+                                frozen: true,
+                                formatter: function (cell) {
+                                    const rowData = cell.getRow().getData();
+                                    if (rowData && rowData.isSummaryRow) return "";
+                                    return cell.getValue() || "";
+                                }
+                            },
+                            {
+                                title: "종목명",
+                                field: "jmNm",
+                                width: 160,
+                                minWidth: 140,
+                                hozAlign: "left",
+                                headerHozAlign: "center",
+                                headerSort: true,
+                                frozen: true,
+                                formatter: function (cell) {
+                                    const rowData = cell.getRow().getData();
+                                    if (rowData && rowData.isSummaryRow) {
+                                        return '<div style="text-align: center; font-weight: bold; width: 100%;">펀드합계</div>';
+                                    }
+                                    return cell.getValue() || "";
+                                }
+                            },
+                            {
+                                title: "행사<br>가격",
+                                field: "hangsaGa",
+                                width: 75,
+                                hozAlign: "right",
+                                headerHozAlign: "center",
+                                headerSort: true,
+                                formatter: function (cell) {
+                                    const rowData = cell.getRow().getData();
+                                    if (rowData && rowData.isSummaryRow) return "";
+                                    const val = cell.getValue();
+                                    if (val == null || val === '') return '';
+                                    return window.formatNumber ? window.formatNumber(val, 2) : Number(val).toFixed(2);
+                                }
+                            },
+                            {
+                                title: "PORT",
+                                field: "trustee",
+                                width: 60,
+                                hozAlign: "center",
+                                headerHozAlign: "center",
+                                headerSort: true,
+                                formatter: function (cell) {
+                                    const rowData = cell.getRow().getData();
+                                    if (rowData && rowData.isSummaryRow) return "";
+                                    return cell.getValue() || "";
+                                }
+                            },
+                            {
+                                title: "수량",
+                                field: "jusu",
+                                width: 85,
+                                hozAlign: "right",
+                                headerHozAlign: "center",
+                                headerSort: true,
+                                formatter: function (cell) {
+                                    const val = cell.getValue();
+                                    if (val == null || val === '') return '';
+                                    const str = window.formatNumber ? window.formatNumber(val, 0) : Number(val).toLocaleString();
+                                    const isSummary = cell.getRow().getData().isSummaryRow;
+                                    return isSummary ? '<span class="font-bold">' + str + '</span>' : str;
+                                }
+                            },
+                            {
+                                title: "취득액",
+                                field: "aek",
+                                width: 105,
+                                hozAlign: "right",
+                                headerHozAlign: "center",
+                                headerCssClass: "col-hdr-blue", // PB color 16711680 (파란색)
+                                headerSort: true,
+                                formatter: function (cell) {
+                                    const val = cell.getValue();
+                                    if (val == null || val === '') return '';
+                                    const str = window.formatNumber ? window.formatNumber(val, 0) : Number(val).toLocaleString();
+                                    const isSummary = cell.getRow().getData().isSummaryRow;
+                                    return isSummary
+                                        ? '<span class="cell-text-blue font-bold">' + str + '</span>'
+                                        : '<span class="cell-text-blue">' + str + '</span>';
+                                }
+                            },
+                            {
+                                title: "평가금액",
+                                field: "trPyungaAek",
+                                width: 105,
+                                hozAlign: "right",
+                                headerHozAlign: "center",
+                                headerCssClass: "col-hdr-blue", // PB color 16711680 (파란색)
+                                headerSort: true,
+                                formatter: function (cell) {
+                                    const val = cell.getValue();
+                                    if (val == null || val === '') return '';
+                                    const str = window.formatNumber ? window.formatNumber(val, 0) : Number(val).toLocaleString();
+                                    const isSummary = cell.getRow().getData().isSummaryRow;
+                                    return isSummary
+                                        ? '<span class="cell-text-blue font-bold">' + str + '</span>'
+                                        : '<span class="cell-text-blue">' + str + '</span>';
+                                }
+                            },
+                            {
+                                title: "위험값<br>합계",
+                                field: "riskValue",
+                                width: 100,
+                                hozAlign: "right",
+                                headerHozAlign: "center",
+                                headerCssClass: "col-hdr-blue", // PB color 16711680 (파란색)
+                                headerSort: true,
+                                formatter: function (cell) {
+                                    const rowData = cell.getRow().getData();
+                                    if (rowData && rowData.isSummaryRow) return "";
+                                    // srd compute: if(sym0ya_jasan_gb = '1', sonik_ryul, risk_value)
+                                    if (rowData.jasanGb === '1') {
+                                        const r = rowData.sonikRyul;
+                                        if (r == null || r === '') return '';
+                                        const rStr = window.formatNumber ? window.formatNumber(r, 2) : Number(r).toFixed(2);
+                                        return '<span class="cell-text-blue">' + rStr + '%</span>';
+                                    } else {
+                                        const rv = rowData.riskValue;
+                                        if (rv == null || rv === '') return '';
+                                        const str = window.formatNumber ? window.formatNumber(rv, 0) : Number(rv).toLocaleString();
+                                        return '<span class="cell-text-blue">' + str + '</span>';
+                                    }
+                                }
+                            },
+                            {
+                                title: "명목금액",
+                                field: "optNominalAmt",
+                                width: 95,
+                                hozAlign: "right",
+                                headerHozAlign: "center",
+                                headerSort: true,
+                                formatter: function (cell) {
+                                    const val = cell.getValue();
+                                    if (val == null || val === '') return '';
+                                    const str = window.formatNumber ? window.formatNumber(val, 0) : Number(val).toLocaleString();
+                                    const isSummary = cell.getRow().getData().isSummaryRow;
+                                    return isSummary ? '<span class="font-bold">' + str + '</span>' : str;
+                                }
+                            },
+                            {
+                                title: "종가",
+                                field: "impJonga",
+                                width: 75,
+                                hozAlign: "right",
+                                headerHozAlign: "center",
+                                headerSort: true,
+                                formatter: function (cell) {
+                                    const rowData = cell.getRow().getData();
+                                    if (rowData && rowData.isSummaryRow) return "";
+                                    const val = cell.getValue();
+                                    if (val == null || val === '') return '';
+                                    return window.formatNumber ? window.formatNumber(val, 2) : Number(val).toFixed(2);
+                                }
+                            },
+                            {
+                                title: "내재<br>변동성",
+                                field: "impVolatility",
+                                width: 80,
+                                hozAlign: "center", // srd alignment="2" (가운데 정렬)
+                                headerHozAlign: "center",
+                                headerSort: true,
+                                formatter: function (cell) {
+                                    const rowData = cell.getRow().getData();
+                                    if (rowData && rowData.isSummaryRow) return "";
+                                    const val = cell.getValue();
+                                    if (val == null || val === '') return '';
+                                    return Number(val).toFixed(4);
+                                }
+                            },
+                            {
+                                title: "델타",
+                                field: "delta",
+                                width: 70,
+                                hozAlign: "center", // srd alignment="2" (가운데 정렬)
+                                headerHozAlign: "center",
+                                headerSort: true,
+                                formatter: function (cell) {
+                                    const rowData = cell.getRow().getData();
+                                    if (rowData && rowData.isSummaryRow) return "";
+                                    const val = cell.getValue();
+                                    if (val == null || val === '') return '';
+                                    return Number(val).toFixed(4);
+                                }
+                            },
+                            {
+                                title: "감마",
+                                field: "gamma",
+                                width: 70,
+                                hozAlign: "center", // srd alignment="2" (가운데 정렬)
+                                headerHozAlign: "center",
+                                headerSort: true,
+                                formatter: function (cell) {
+                                    const rowData = cell.getRow().getData();
+                                    if (rowData && rowData.isSummaryRow) return "";
+                                    const val = cell.getValue();
+                                    if (val == null || val === '') return '';
+                                    return Number(val).toFixed(4);
+                                }
+                            },
+                            {
+                                title: "베가",
+                                field: "vega",
+                                width: 70,
+                                hozAlign: "center", // srd alignment="2" (가운데 정렬)
+                                headerHozAlign: "center",
+                                headerSort: true,
+                                formatter: function (cell) {
+                                    const rowData = cell.getRow().getData();
+                                    if (rowData && rowData.isSummaryRow) return "";
+                                    const val = cell.getValue();
+                                    if (val == null || val === '') return '';
+                                    return Number(val).toFixed(4);
+                                }
+                            },
+                            {
+                                title: "델타<br>위험값",
+                                field: "deltaRiskValue",
+                                width: 85,
+                                hozAlign: "right",
+                                headerHozAlign: "center",
+                                headerSort: true,
+                                formatter: function (cell) {
+                                    const rowData = cell.getRow().getData();
+                                    if (rowData && rowData.isSummaryRow) return "";
+                                    const val = cell.getValue();
+                                    if (val == null || val === '') return '';
+                                    return window.formatNumber ? window.formatNumber(val, 0) : Number(val).toLocaleString();
+                                }
+                            },
+                            {
+                                title: "감마<br>위험값",
+                                field: "gammaRiskValue",
+                                width: 85,
+                                hozAlign: "right",
+                                headerHozAlign: "center",
+                                headerSort: true,
+                                formatter: function (cell) {
+                                    const rowData = cell.getRow().getData();
+                                    if (rowData && rowData.isSummaryRow) return "";
+                                    const val = cell.getValue();
+                                    if (val == null || val === '') return '';
+                                    return window.formatNumber ? window.formatNumber(val, 0) : Number(val).toLocaleString();
+                                }
+                            },
+                            {
+                                title: "베가<br>위험값",
+                                field: "vegaRiskValue",
+                                width: 85,
+                                hozAlign: "right",
+                                headerHozAlign: "center",
+                                headerSort: true,
+                                formatter: function (cell) {
+                                    const rowData = cell.getRow().getData();
+                                    if (rowData && rowData.isSummaryRow) return "";
+                                    const val = cell.getValue();
+                                    if (val == null || val === '') return '';
+                                    return window.formatNumber ? window.formatNumber(val, 0) : Number(val).toLocaleString();
+                                }
+                            }
+                        ]
+                    });
+                }
+            }
+
+            // 3. 동적 Summary 합계 행 산출 (규정 06-5 표준)
+            function appendSummaryRow(dataList) {
+                if (!Array.isArray(dataList) || dataList.length === 0) {
+                    return [];
+                }
+
+                let sumJusu = 0;
+                let sumAek = 0;
+                let sumTrPyungaAek = 0;
+                let sumOptNominalAmt = 0;
+
+                dataList.forEach(function (item) {
+                    sumJusu += Number(item.jusu) || 0;
+                    sumAek += Number(item.aek) || 0;
+                    sumTrPyungaAek += Number(item.trPyungaAek) || 0;
+                    sumOptNominalAmt += Number(item.optNominalAmt) || 0;
+                });
+
+                const summaryRow = {
+                    isSummaryRow: true,
+                    jmNm: "펀드합계",
+                    jusu: sumJusu,
+                    aek: sumAek,
+                    trPyungaAek: sumTrPyungaAek,
+                    optNominalAmt: sumOptNominalAmt
+                };
+
+                return dataList.concat([summaryRow]);
+            }
+
+            // 4. 마스터-디테일 동기화 (규정 05-3 표준 계약)
+            function syncDetail(row, masterRowData) {
+                if (!row) return;
+                const data = masterRowData || (row.getData ? row.getData() : null);
+                if (!data || data.isSummaryRow) return;
+
+                const currentKey = (data.corpGr || "") + "_" + (data.fundCd || "");
+                if (lastLoadedMasterKey === currentKey) return; // 중복 호출 방지 가드
+                lastLoadedMasterKey = currentKey;
+                currentMasterRowData = data;
+
+                // 우측 패널 제목 갱신
+                const titleEl = pane.querySelector('#detailPanelTitle');
+                if (titleEl) {
+                    titleEl.textContent = "종목별 위험값 - " + (data.fundNm || '') + " (" + (data.fundCd || '') + ")";
+                }
+
+                loadDetailData(data);
+            }
+
+            // 5. 좌측 펀드 목록 로드 (dw_list: d_ja032m1)
+            function loadFundList() {
+                const corpGr = (typeof resolveCorpGr === 'function') ? resolveCorpGr(pane) : '';
+                const ymd = (typeof getFilterYmd === 'function') ? getFilterYmd(pane, 'YYYY-MM-DD') : '';
+
+                if (!corpGr) {
+                    if (typeof showToast === 'function') showToast("회사그룹 정보가 누락되었습니다.", "warning");
+                    return;
+                }
+                if (!ymd) {
+                    if (typeof showToast === 'function') showToast("조회일자를 선택해주세요.", "warning");
+                    return;
+                }
+
+                lastLoadedMasterKey = null; // 재조회 시 가드 리셋 (규칙 05-3.2)
+                currentMasterRowData = null;
+
+                fetch('/api/usportfoliomodel/ja032m/fund-list?corpGr=' + encodeURIComponent(corpGr) + '&ymd=' + encodeURIComponent(ymd))
+                    .then(function (res) { return res.json(); })
+                    .then(function (data) {
+                        const list = Array.isArray(data) ? data : [];
+                        if (gridFund) {
+                            gridFund.setData(list).then(function () {
+                                if (list.length > 0) {
+                                    // Row Focus 2대 정책 (규정 05-4.2): 첫 번째 행 자동 선택
+                                    const rows = gridFund.getRows();
+                                    if (rows && rows.length > 0) {
+                                        rows[0].select();
+                                    }
+                                } else {
+                                    if (gridDetail) gridDetail.clearData();
+                                    const titleEl = pane.querySelector('#detailPanelTitle');
+                                    if (titleEl) titleEl.textContent = "종목별 위험값";
+                                }
+                            });
+                        }
+                    })
+                    .catch(function (err) {
+                        console.error("펀드 목록 조회 오류:", err);
+                        if (typeof showToast === 'function') showToast("펀드 목록 조회 중 오류가 발생했습니다.", "error");
+                    });
+            }
+
+            // 6. 우측 종목별 위험값 상세 목록 로드 (dw_detail: d_ja032m2)
+            function loadDetailData(fundData) {
+                const corpGr = (typeof resolveCorpGr === 'function') ? resolveCorpGr(pane) : '';
+                const ymd = (typeof getFilterYmd === 'function') ? getFilterYmd(pane, 'YYYY-MM-DD') : '';
+                const fundCd = fundData ? (fundData.fundCd || '') : '';
+
+                if (!corpGr || !ymd || !fundCd) {
+                    if (gridDetail) gridDetail.clearData();
+                    return;
+                }
+
+                fetch('/api/usportfoliomodel/ja032m/detail-list?corpGr=' + encodeURIComponent(corpGr) + '&ymd=' + encodeURIComponent(ymd) + '&fundCd=' + encodeURIComponent(fundCd))
+                    .then(function (res) { return res.json(); })
+                    .then(function (data) {
+                        const list = Array.isArray(data) ? data : [];
+                        const dataWithSummary = appendSummaryRow(list);
+
+                        if (gridDetail) {
+                            gridDetail.setData(dataWithSummary).then(function () {
+                                if (list.length > 0) {
+                                    // 서브그리드 첫 행 시각적 선택 유지 (포커스 탈취 없이)
+                                    const detailRows = gridDetail.getRows();
+                                    if (detailRows && detailRows.length > 0 && !detailRows[0].getData().isSummaryRow) {
+                                        detailRows[0].select();
+                                    }
+                                }
+                            });
+                        }
+                    })
+                    .catch(function (err) {
+                        console.error("상세 목록 조회 오류:", err);
+                        if (typeof showToast === 'function') showToast("종목별 위험값 조회 중 오류가 발생했습니다.", "error");
+                    });
+            }
+
+            // 7. 스플리터 초기화 (규정 10-2 표준 단일 진입점 AamsSplitter.init)
+            function initSplitter() {
+                if (window.AamsSplitter && typeof window.AamsSplitter.init === 'function') {
+                    const container = pane.querySelector('#splitJa032mHorizontalContainer');
+                    if (container) {
+                        delete container._aamsSplitterInit;
+                    }
+                    window.AamsSplitter.init(pane);
+                }
+            }
+
+            // 8. 상단 공통 툴바 표준 계약 바인딩 (규정 08-1)
+            function initToolbar() {
+                // 상단 [조회] 버튼 클릭 시
+                pane.onSearch = function () {
+                    loadFundList();
+                };
+
+                // 상단 [새로고침] 버튼 클릭 시 (규정 08-1.4 Zero-Stale-Key 원칙)
+                pane.onRefresh = function () {
+                    if (gridFund) gridFund.clearData();
+                    if (gridDetail) gridDetail.clearData();
+
+                    // 상태 키 및 캐시 완전 초기화
+                    lastLoadedMasterKey = null;
+                    currentMasterRowData = null;
+
+                    const titleEl = pane.querySelector('#detailPanelTitle');
+                    if (titleEl) titleEl.textContent = "종목별 위험값";
+
+                    // 자동 재조회 절대 금지 (규칙 08 준수)
+                    if (typeof showToast === 'function') {
+                        showToast("화면이 초기화되었습니다.", "info");
+                    }
+                };
+
+                // 상단 회사그룹 변경 시 (규정 08-2 필터 변경 시 자동 조회 절대 금지)
+                pane.onCorpGrChange = function (newCorpGr) {
+                    // 필터 변경 시 자동 조회를 실행하지 않음
+                };
+
+                // 상단 [엑셀] 버튼 클릭 시
+                pane.onExcel = function () {
+                    const ymdStr = (typeof getFilterYmd === 'function') ? getFilterYmd(pane, 'YYYYMMDD') : '';
+                    if (gridDetail && gridDetail.getData().length > 0) {
+                        const fundNm = currentMasterRowData ? (currentMasterRowData.fundNm || currentMasterRowData.fundCd || '') : '';
+                        const safeNm = fundNm.replace(/[\\/:*?"<>|]/g, "_");
+                        gridDetail.download("xlsx", "종목별위험값_" + safeNm + "_" + ymdStr + ".xlsx", { sheetName: "종목별위험값" });
+                    } else if (gridFund) {
+                        gridFund.download("xlsx", "펀드목록_" + ymdStr + ".xlsx", { sheetName: "펀드목록" });
+                    }
+                };
+            }
+
+            // 9. MDI 단일 진입점 초기화 (규정 10-1 Single Entry-Point Pattern)
+            function startInit() {
+                if (isInitialized) return;
+                isInitialized = true;
+
+                initCalendar();
+                initGrids();
+                initSplitter();
+                initToolbar();
+
+                // w_ja032m.srw 원본: boolean eb_direct_retrieve = true (화면 최초 진입 시 1회 자동 조회 허용, 규정 08-2.4 예외)
+                setTimeout(function () {
+                    initSplitter(); // DOM 렌더링 안정화 후 스플리터 비율 및 그리드 가상 뷰포트 확정
+                    loadFundList();
+                }, 100);
+            }
+
+            if (document.readyState === "loading") {
+                document.addEventListener("DOMContentLoaded", startInit);
+            } else {
+                startInit();
+            }
+        })();
+    </script>
+</div>
+</html>
