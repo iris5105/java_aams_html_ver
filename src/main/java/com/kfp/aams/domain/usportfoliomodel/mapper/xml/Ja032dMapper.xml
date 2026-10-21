@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.kfp.aams.domain.usportfoliomodel.mapper.Ja032dMapper">
+
+    <!-- 1. API 요청 현황 마스터 목록 (d_ja032d1.srd) -->
+    <select id="selectMasterList" resultType="com.kfp.aams.domain.usportfoliomodel.dto.Ja032dMasterDto">
+        SELECT t1.COMPANY                                    AS company
+             , t1.URL                                        AS url
+             , pa.GR_CD || '_' || pa.SCD || '-' || pa.SNM   AS snm
+             , TO_CHAR(t1.CREATED_AT, 'yyyymmddHH24')        AS dt
+             , t1.TABLENAME                                  AS tablename
+             , t1.SUBTABLE                                   AS subtable
+             , NVL(t1.SUBTABLE, t1.TABLENAME)                AS qtable
+             , COUNT (*)                                     AS req_cnt
+             , COUNT (CASE WHEN t1.REQUEST='0' THEN 1 END)   AS wait_cnt
+             , COUNT (CASE WHEN t1.REQUEST='1' THEN 1 END)   AS ok_cnt
+             , COUNT (CASE WHEN t1.REQUEST='2' THEN 1 END)   AS err_cnt
+          FROM API_Q      t1
+             , API_PARAMS pa
+         WHERE t1.UPDATED_AT >= TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
+           AND pa.URL        = t1.URL
+         GROUP BY t1.COMPANY
+                , t1.URL
+                , pa.GR_CD || '_' || pa.SCD || '-' || pa.SNM
+                , TO_CHAR(t1.CREATED_AT, 'yyyymmddHH24')
+                , t1.TABLENAME
+                , t1.SUBTABLE
+         ORDER BY t1.COMPANY ASC, snm ASC, dt DESC
+    </select>
+
+    <!-- 2. API 요청 상세 건별 목록 (d_ja032d2.srd) -->
+    <select id="selectDetailList" resultType="com.kfp.aams.domain.usportfoliomodel.dto.Ja032dDetailDto">
+        SELECT t1.COMPANY                                                            AS company
+             , SUBSTR (t1.URL, INSTR (t1.URL,'/',-1) + 1)                            AS url
+             , t1.HEADERS                                                            AS headers
+             , t1.QUERYPARAMS                                                        AS queryparams
+             , t1.TABLENAME                                                          AS tablename
+             , t1.SUBTABLE                                                           AS subtable
+             , t1.REQUEST                                                            AS request
+             , t1.STATUS                                                             AS status
+             , t1.STATUSTEXT                                                         AS statustext
+             , t1.MSG_CD                                                             AS msg_cd
+             , t1.MSG1                                                               AS msg1
+             , t1.ERRCODE                                                            AS errcode
+             , t1.API_KEY                                                            AS api_key
+             , t1.KEY_VALUE                                                          AS key_value
+             , t1.SUB_KEY_VALUE                                                      AS sub_key_value
+             , t1.CORP_GR                                                            AS corp_gr
+             , TO_CHAR(t1.TR_YMD, 'YYYY-MM-DD')                                     AS tr_ymd
+             , CASE WHEN t1.TABLENAME = 'API_KSE_INFO' THEN t1.MSG1 ELSE t1.KEY1 END AS key1
+             , t1.KEY2                                                               AS key2
+             , t1.NUM1                                                               AS num1
+          FROM API_Q t1
+         WHERE F_API_KEY(t1.TABLENAME, t1.SUBTABLE, t1.API_KEY) = 'Y'
+           AND t1.COMPANY                                       = #{company}
+           AND t1.URL                                           = #{url}
+           AND TO_CHAR(t1.CREATED_AT, 'yyyymmddHH24')           = #{dt}
+         ORDER BY t1.HEADERS
+                , t1.CREATED_AT DESC
+    </select>
+
+    <!-- 3. API 처리상태 요약 조회 (d_ja032d3.srd) -->
+    <select id="selectStatus" resultType="com.kfp.aams.domain.usportfoliomodel.dto.Ja032dStatusDto">
+        SELECT t1.API_KEY                                  AS api_key
+             , t1.HEADERS                                  AS headers
+             , TO_CHAR(t1.CREATED_AT, 'MM.DD HH24:MI:SS')  AS created_at
+             , t1.MSG_CD                                   AS msg_cd
+             , t1.MSG1                                     AS msg1
+             , 0                                           AS cur_row
+             , 0                                           AS all_row
+          FROM API_Q t1
+         WHERE t1.API_KEY = #{apiKey}
+    </select>
+
+    <!-- 4. 테이블 컬럼 메타정보 조회 (d_ja032d4.srd) -->
+    <select id="selectColumnsByTableName" resultType="com.kfp.aams.domain.usportfoliomodel.dto.Ja032dColumnDataDto">
+        SELECT t1.column_id                         AS column_id
+             , t1.column_name                       AS column_name
+             , t2.comments                          AS comments
+             , ' '                                  AS col_val
+          FROM USER_TAB_COLUMNS  t1
+             , USER_COL_COMMENTS t2
+         WHERE t1.table_name  = UPPER(#{tableName})
+           AND t1.column_name &lt;&gt; 'API_KEY'
+           AND t2.table_name  = t1.table_name
+           AND t2.column_name = t1.column_name
+         ORDER BY t1.column_id ASC
+    </select>
+
+    <!-- 5. 프로시저 호출 매퍼 -->
+    <select id="callSrJa032d" statementType="CALLABLE">
+        { CALL SR_JA032D(
+            #{corpGr, mode=IN, jdbcType=VARCHAR},
+            #{ymd, mode=IN, jdbcType=VARCHAR},
+            #{retMsg, mode=OUT, jdbcType=VARCHAR}
+        ) }
+    </select>
+
+    <select id="callApiKse" statementType="CALLABLE">
+        { CALL API_KSE(
+            #{corpGr, mode=IN, jdbcType=VARCHAR},
+            #{ymd, mode=IN, jdbcType=VARCHAR},
+            #{retMsg, mode=OUT, jdbcType=VARCHAR}
+        ) }
+    </select>
+
+    <select id="callApi1302" statementType="CALLABLE">
+        { CALL API_13_02(
+            #{corpGr, mode=IN, jdbcType=VARCHAR},
+            #{retMsg, mode=OUT, jdbcType=VARCHAR}
+        ) }
+    </select>
+
+    <select id="callApi1716" statementType="CALLABLE">
+        { CALL API_17_16(
+            #{corpGr, mode=IN, jdbcType=VARCHAR},
+            #{ymd, mode=IN, jdbcType=VARCHAR},
+            #{retMsg, mode=OUT, jdbcType=VARCHAR}
+        ) }
+    </select>
+
+    <select id="callNew1302" statementType="CALLABLE">
+        { CALL NEW_13_02(
+            #{corpGr, mode=IN, jdbcType=VARCHAR},
+            #{ymd, mode=IN, jdbcType=VARCHAR},
+            #{retMsg, mode=OUT, jdbcType=VARCHAR}
+        ) }
+    </select>
+
+</mapper>

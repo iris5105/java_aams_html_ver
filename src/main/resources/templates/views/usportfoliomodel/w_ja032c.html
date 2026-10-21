@@ -14,6 +14,53 @@
 -->
 <div class="view-container layout-split ja032c-container layout-mobile-stack-container" th:fragment="ja032cView">
 
+    <!-- 전용 스타일: 옵션 그릭스 대시보드 (Zero-Inline-Style 원칙 준수) -->
+    <style>
+        .ja032c-container .ja032c-greeks-wrapper .greeks-field-readonly {
+            height: 23px;
+            padding: 1px 6px;
+            font-size: 12px;
+            background-color: #e2e8f0;
+            border: 1px solid #94a3b8;
+            border-radius: 2px;
+            color: #0f172a;
+            font-family: inherit;
+            box-sizing: border-box;
+            cursor: default;
+        }
+        .ja032c-container .ja032c-greeks-wrapper .greeks-field-editable {
+            height: 23px;
+            padding: 1px 6px;
+            font-size: 12px;
+            background-color: #ffffff;
+            border: 1px solid #3b82f6;
+            border-radius: 2px;
+            color: #2563eb;
+            font-weight: 600;
+            font-family: inherit;
+            box-sizing: border-box;
+        }
+        .ja032c-container .ja032c-greeks-wrapper .greeks-field-editable:focus {
+            outline: none;
+            border-color: #1d4ed8;
+            box-shadow: 0 0 0 1px #2563eb;
+        }
+        /* 숫자 증감 스핀 버튼(▲▼ 화살표) 완전히 제거 */
+        .ja032c-container input::-webkit-outer-spin-button,
+        .ja032c-container input::-webkit-inner-spin-button {
+            -webkit-appearance: none !important;
+            margin: 0 !important;
+        }
+        .ja032c-container input[type=number] {
+            -moz-appearance: textfield !important;
+        }
+        @media (max-width: 640px) {
+            .ja032c-container .greeks-boxes-layout {
+                flex-direction: column !important;
+            }
+        }
+    </style>
+
     <!-- 1. Top Action Control Bar -->
     <div class="view-toolbar">
         <div class="toolbar-left">
@@ -84,117 +131,138 @@
                             <div id="gridJa032cBeta" class="tabulator-aams-grid" style="height: 100%; width: 100%;"></div>
                         </div>
 
-                        <!-- Case 4: 델타/감마/세타/베가/로 대시보드 (d_ja032c3_dgtvr) -->
-                        <div id="wrapperGreeksDashboard" style="height: 100%; width: 100%; display: none; overflow-y: auto; padding: 12px;">
-                            <div class="greeks-dashboard-container" style="display: flex; flex-direction: column; gap: 12px; max-width: 900px; margin: 0 auto;">
+                        <!-- Case 4: 델타/감마/세타/베가/로 대시보드 (d_ja032c3_dgtvr) - 파워빌더 원본 및 이미지 100% 일치 -->
+                        <div id="wrapperGreeksDashboard" class="ja032c-greeks-wrapper" style="height: 100%; width: 100%; display: none; overflow-y: auto; background-color: #ffffff; padding: 12px 20px;">
+                            <div class="greeks-container" style="max-width: 650px; margin: 0 auto; display: flex; flex-direction: column; gap: 14px;">
 
-                                <!-- 기초 파라미터 그룹 -->
-                                <div class="aams-card" style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; padding: 12px;">
-                                    <div style="font-weight: 600; margin-bottom: 8px; color: #1e293b; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px;">
-                                        <i class="fa-solid fa-sliders"></i> 기초 데이터 및 옵션 파라미터
-                                    </div>
-                                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px;">
-                                        <div>
-                                            <label style="font-size: 12px; color: #64748b; display: block; margin-bottom: 2px;">종가</label>
-                                            <input type="text" id="gk_s" class="form-control" readonly style="background: #f1f5f9; text-align: right;" />
+                                <!-- 1. 상단 파라미터 영역 (종가, 변동성, 만기일, (년)변동성, 무위험이자율, PUT옵션정보) -->
+                                <div class="greeks-params-area" style="display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: #1e293b;">
+                                    
+                                    <!-- Row 1: 종가 / 변동성 / 만기일 -->
+                                    <div style="display: flex; align-items: center; gap: 16px;">
+                                        <div style="display: flex; align-items: center; gap: 6px;">
+                                            <span style="width: 45px; text-align: right; color: #1e293b;">종가 :</span>
+                                            <input type="text" id="gk_s" class="greeks-field-readonly" readonly style="width: 78px; text-align: right;" />
                                         </div>
-                                        <div>
-                                            <label style="font-size: 12px; color: #64748b; display: block; margin-bottom: 2px;">변동성</label>
-                                            <input type="text" id="gk_sigma" class="form-control" readonly style="background: #f1f5f9; text-align: right;" />
+                                        <div style="display: flex; align-items: center; gap: 6px;">
+                                            <span style="width: 70px; text-align: right; color: #1e293b;">변동성 :</span>
+                                            <input type="text" id="gk_sigma" class="greeks-field-readonly" readonly style="width: 65px; text-align: right;" />
                                         </div>
-                                        <div>
-                                            <label style="font-size: 12px; color: #64748b; display: block; margin-bottom: 2px;">(년)변동성</label>
-                                            <input type="text" id="gk_year_sigma" class="form-control" readonly style="background: #f1f5f9; text-align: right;" />
-                                        </div>
-                                        <div>
-                                            <label style="font-size: 12px; color: #64748b; display: block; margin-bottom: 2px;">만기일</label>
-                                            <input type="text" id="gk_t" class="form-control" readonly style="background: #f1f5f9; text-align: right;" />
-                                        </div>
-                                        <div>
-                                            <label style="font-size: 12px; color: #64748b; display: block; margin-bottom: 2px;">무위험이자율</label>
-                                            <input type="number" step="0.0001" id="gk_r" class="form-control" style="text-align: right;" />
+                                        <div style="display: flex; align-items: center; gap: 6px;">
+                                            <span style="width: 80px; text-align: right; color: #1e293b;">만기일 :</span>
+                                            <input type="text" id="gk_t" class="greeks-field-readonly" readonly style="width: 50px; text-align: right;" />
                                         </div>
                                     </div>
+
+                                    <!-- Row 2: (공백) / (년)변동성 / 무위험이자율 -->
+                                    <div style="display: flex; align-items: center; gap: 16px;">
+                                        <div style="display: flex; align-items: center; gap: 6px; visibility: hidden;">
+                                            <span style="width: 45px; text-align: right;">종가 :</span>
+                                            <input type="text" class="greeks-field-readonly" readonly style="width: 78px;" />
+                                        </div>
+                                        <div style="display: flex; align-items: center; gap: 6px;">
+                                            <span style="width: 70px; text-align: right; color: #1e293b;">(년)변동성 :</span>
+                                            <input type="text" id="gk_year_sigma" class="greeks-field-readonly" readonly style="width: 65px; text-align: right;" />
+                                        </div>
+                                        <div style="display: flex; align-items: center; gap: 6px;">
+                                            <span style="width: 80px; text-align: right; color: #1e293b;">무위험이자율 :</span>
+                                            <input type="text" inputmode="decimal" id="gk_r" class="greeks-field-editable" style="width: 70px; text-align: right;" />
+                                        </div>
+                                    </div>
+
+                                    <!-- Row 3: PUT종목코드 / 행사가 / 시장가 / 내재변동성 -->
+                                    <div style="display: flex; align-items: center; gap: 12px; margin-top: 4px;">
+                                        <input type="text" id="gk_put_jm_cd" class="greeks-field-readonly" readonly style="width: 128px; text-align: center;" />
+                                        <div style="display: flex; align-items: center; gap: 6px;">
+                                            <span style="color: #1e293b;">행사가 :</span>
+                                            <input type="text" inputmode="decimal" id="gk_k" class="greeks-field-editable" style="width: 60px; text-align: right;" />
+                                        </div>
+                                        <div style="display: flex; align-items: center; gap: 6px;">
+                                            <span style="color: #2563eb;">시장가 :</span>
+                                            <input type="text" inputmode="decimal" id="gk_market_price" class="greeks-field-editable" style="width: 55px; text-align: right;" />
+                                        </div>
+                                        <div style="display: flex; align-items: center; gap: 6px;">
+                                            <span style="color: #2563eb;">내재변동성 :</span>
+                                            <input type="text" inputmode="decimal" id="gk_imp_volatility" class="greeks-field-editable" style="width: 70px; text-align: right;" />
+                                        </div>
+                                    </div>
+
                                 </div>
 
-                                <!-- 옵션 시세 및 내재변동성 그룹 -->
-                                <div class="aams-card" style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; padding: 12px;">
-                                    <div style="font-weight: 600; margin-bottom: 8px; color: #1e293b; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px;">
-                                        <i class="fa-solid fa-tags"></i> PUT 옵션 시세 및 내재변동성
-                                    </div>
-                                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px;">
-                                        <div>
-                                            <label style="font-size: 12px; color: #64748b; display: block; margin-bottom: 2px;">PUT 옵션 종목코드</label>
-                                            <input type="text" id="gk_put_jm_cd" class="form-control" readonly style="background: #f1f5f9; text-align: center; font-weight: 600;" />
-                                        </div>
-                                        <div>
-                                            <label style="font-size: 12px; color: blue; display: block; margin-bottom: 2px;">행사가격 (K)</label>
-                                            <input type="number" step="0.01" id="gk_k" class="form-control" style="text-align: right; color:blue;" />
-                                        </div>
-                                        <div>
-                                            <label style="font-size: 12px; color:blue; display: block; margin-bottom: 2px;">시장가격 (Market Price)</label>
-                                            <input type="number" step="0.01" id="gk_market_price" class="form-control" style="text-align: right; color:blue;" />
-                                        </div>
-                                        <div>
-                                            <label style="font-size: 12px; color:blue; display: block; margin-bottom: 2px;">내재변동성 (IV)</label>
-                                            <input type="number" step="0.0001" id="gk_imp_volatility" class="form-control" style="text-align: right; color:blue;" />
-                                        </div>
-                                    </div>
-                                </div>
+                                <!-- 2. 하단 그릭스 4대 그룹박스 영역 (좌우 2열 대등 분할) -->
+                                <div class="greeks-boxes-layout" style="display: flex; gap: 16px; width: 100%;">
+                                    
+                                    <!-- 좌측 컬럼: Delta (1차변동) & 일 Theta (시간경과 가치 하락속도) -->
+                                    <div style="flex: 1; display: flex; flex-direction: column; gap: 14px;">
+                                        
+                                        <!-- Delta (1차변동) -->
+                                        <fieldset class="greeks-fieldset" style="border: 1px solid #cbd5e1; border-radius: 4px; padding: 10px 14px 12px; margin: 0; background: #ffffff;">
+                                            <legend style="font-size: 11.5px; font-weight: 500; color: #1e293b; padding: 0 4px; width: auto; margin-bottom: 0;">Delta (1차변동)</legend>
+                                            <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 4px;">
+                                                <div style="display: flex; align-items: center; justify-content: center; gap: 10px;">
+                                                    <span style="font-size: 12px; color: #1e293b; width: 45px; text-align: right;">Call :</span>
+                                                    <input type="text" id="gk_call_delta" class="greeks-field-readonly" readonly style="width: 130px; text-align: right;" />
+                                                </div>
+                                                <div style="display: flex; align-items: center; justify-content: center; gap: 10px;">
+                                                    <span style="font-size: 12px; color: #1e293b; width: 45px; text-align: right;">Put :</span>
+                                                    <input type="text" id="gk_put_delta" class="greeks-field-readonly" readonly style="width: 130px; text-align: right;" />
+                                                </div>
+                                            </div>
+                                        </fieldset>
 
-                                <!-- 그릭스(Greeks) 지표 카드 그룹 -->
-                                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px;">
+                                        <!-- 일 Theta (시간경과 가치 하락속도) -->
+                                        <fieldset class="greeks-fieldset" style="border: 1px solid #cbd5e1; border-radius: 4px; padding: 10px 14px 12px; margin: 0; background: #ffffff;">
+                                            <legend style="font-size: 11.5px; font-weight: 500; color: #1e293b; padding: 0 4px; width: auto; margin-bottom: 0;">일 Theta (시간경과 가치 하락속도)</legend>
+                                            <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 4px;">
+                                                <div style="display: flex; align-items: center; justify-content: center; gap: 10px;">
+                                                    <span style="font-size: 12px; color: #1e293b; width: 45px; text-align: right;">Call :</span>
+                                                    <input type="text" id="gk_call_theta" class="greeks-field-readonly" readonly style="width: 130px; text-align: right;" />
+                                                </div>
+                                                <div style="display: flex; align-items: center; justify-content: center; gap: 10px;">
+                                                    <span style="font-size: 12px; color: #1e293b; width: 45px; text-align: right;">Put :</span>
+                                                    <input type="text" id="gk_put_theta" class="greeks-field-readonly" readonly style="width: 130px; text-align: right;" />
+                                                </div>
+                                            </div>
+                                        </fieldset>
 
-                                    <!-- Delta -->
-                                    <div class="aams-card" style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; padding: 12px;">
-                                        <div style="font-weight: 600; color: #1e293b; margin-bottom: 6px;">Delta (1차 변동 민감도)</div>
-                                        <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
-                                            <span style="font-size: 12px; color: #64748b;">Call Delta:</span>
-                                            <span id="gk_call_delta" style="font-weight: 600; color: #0284c7;">-</span>
-                                        </div>
-                                        <div style="display: flex; justify-content: space-between;">
-                                            <span style="font-size: 12px; color: #64748b;">Put Delta:</span>
-                                            <span id="gk_put_delta" style="font-weight: 600; color: #dc2626;">-</span>
-                                        </div>
                                     </div>
 
-                                    <!-- Gamma & Vega -->
-                                    <div class="aams-card" style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; padding: 12px;">
-                                        <div style="font-weight: 600; color: #1e293b; margin-bottom: 6px;">Gamma &amp; Vega (민감율)</div>
-                                        <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
-                                            <span style="font-size: 12px; color: #64748b;">Gamma (델타변화율):</span>
-                                            <span id="gk_gamma" style="font-weight: 600; color: #1e293b;">-</span>
-                                        </div>
-                                        <div style="display: flex; justify-content: space-between;">
-                                            <span style="font-size: 12px; color: #64748b;">Vega (변동성민감율):</span>
-                                            <span id="gk_vega" style="font-weight: 600; color: #1e293b;">-</span>
-                                        </div>
-                                    </div>
+                                    <!-- 우측 컬럼: (델타변화율), (변동성 민감율), Rho (1% 금리변화) -->
+                                    <div style="flex: 1; display: flex; flex-direction: column; gap: 14px;">
+                                        
+                                        <!-- (델타변화율) -->
+                                        <fieldset class="greeks-fieldset" style="border: 1px solid #cbd5e1; border-radius: 4px; padding: 8px 14px 10px; margin: 0; background: #ffffff;">
+                                            <legend style="font-size: 11.5px; font-weight: 500; color: #1e293b; padding: 0 4px; width: auto; margin-bottom: 0;">(델타변화율)</legend>
+                                            <div style="display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 2px;">
+                                                <span style="font-size: 12px; color: #1e293b; width: 60px; text-align: right;">Gamma :</span>
+                                                <input type="text" id="gk_gamma" class="greeks-field-readonly" readonly style="width: 130px; text-align: right;" />
+                                            </div>
+                                        </fieldset>
 
-                                    <!-- Theta -->
-                                    <div class="aams-card" style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; padding: 12px;">
-                                        <div style="font-weight: 600; color: #1e293b; margin-bottom: 6px;">일 Theta (시간가치 감소)</div>
-                                        <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
-                                            <span style="font-size: 12px; color: #64748b;">Call Theta:</span>
-                                            <span id="gk_call_theta" style="font-weight: 600; color: #0284c7;">-</span>
-                                        </div>
-                                        <div style="display: flex; justify-content: space-between;">
-                                            <span style="font-size: 12px; color: #64748b;">Put Theta:</span>
-                                            <span id="gk_put_theta" style="font-weight: 600; color: #dc2626;">-</span>
-                                        </div>
-                                    </div>
+                                        <!-- (변동성 민감율) -->
+                                        <fieldset class="greeks-fieldset" style="border: 1px solid #cbd5e1; border-radius: 4px; padding: 8px 14px 10px; margin: 0; background: #ffffff;">
+                                            <legend style="font-size: 11.5px; font-weight: 500; color: #1e293b; padding: 0 4px; width: auto; margin-bottom: 0;">(변동성 민감율)</legend>
+                                            <div style="display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 2px;">
+                                                <span style="font-size: 12px; color: #1e293b; width: 60px; text-align: right;">Vega :</span>
+                                                <input type="text" id="gk_vega" class="greeks-field-readonly" readonly style="width: 130px; text-align: right;" />
+                                            </div>
+                                        </fieldset>
 
-                                    <!-- Rho -->
-                                    <div class="aams-card" style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; padding: 12px;">
-                                        <div style="font-weight: 600; color: #1e293b; margin-bottom: 6px;">Rho (1% 금리변화 민감도)</div>
-                                        <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
-                                            <span style="font-size: 12px; color: #64748b;">Call Rho:</span>
-                                            <span id="gk_call_rho" style="font-weight: 600; color: #0284c7;">-</span>
-                                        </div>
-                                        <div style="display: flex; justify-content: space-between;">
-                                            <span style="font-size: 12px; color: #64748b;">Put Rho:</span>
-                                            <span id="gk_put_rho" style="font-weight: 600; color: #dc2626;">-</span>
-                                        </div>
+                                        <!-- Rho (1% 금리변화) -->
+                                        <fieldset class="greeks-fieldset" style="border: 1px solid #cbd5e1; border-radius: 4px; padding: 10px 14px 12px; margin: 0; background: #ffffff;">
+                                            <legend style="font-size: 11.5px; font-weight: 500; color: #1e293b; padding: 0 4px; width: auto; margin-bottom: 0;">Rho (1% 금리변화)</legend>
+                                            <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 4px;">
+                                                <div style="display: flex; align-items: center; justify-content: center; gap: 10px;">
+                                                    <span style="font-size: 12px; color: #1e293b; width: 45px; text-align: right;">Call :</span>
+                                                    <input type="text" id="gk_call_rho" class="greeks-field-readonly" readonly style="width: 130px; text-align: right;" />
+                                                </div>
+                                                <div style="display: flex; align-items: center; justify-content: center; gap: 10px;">
+                                                    <span style="font-size: 12px; color: #1e293b; width: 45px; text-align: right;">Put :</span>
+                                                    <input type="text" id="gk_put_rho" class="greeks-field-readonly" readonly style="width: 130px; text-align: right;" />
+                                                </div>
+                                            </div>
+                                        </fieldset>
+
                                     </div>
 
                                 </div>
@@ -309,7 +377,10 @@
                     dddwSelect.appendChild(el);
                 });
 
-                // 주의 (규정 08-2): 필터 변경 시 자동 조회를 실행하지 않음
+                // 조회구분 변경 즉시 우측 하단 분석 영역만 실시간 갱신 (마스터 펀드 및 종목 그리드 선택 유지)
+                dddwSelect.addEventListener('change', function () {
+                    onSearchTypeChange();
+                });
             }
         }
 
@@ -917,6 +988,38 @@
             }
         }
 
+        // 6-3-sub. 조회구분 변경 시 즉시 반영 핸들러 (MASTERGRID 및 종목 그리드 선택 상태 온전 유지)
+        function onSearchTypeChange() {
+            var dddwSelect = currentPane.querySelector('#filterDddw, select[name="dddw"]');
+            var searchType = dddwSelect ? (dddwSelect.value || '변동수준').trim() : '변동수준';
+
+            // 1. 우측 하단 분석 영역 뷰 전환 (그리드 / 대시보드 표시 및 타이틀 변경)
+            switchAnalysisView(searchType);
+
+            // 2. 현재 선택된 종목 데이터 확보 (MASTERGRID gridPort의 선택 상태는 전혀 건드리지 않음)
+            var targetData = currentDetailRowData;
+            if (!targetData && gridDetail) {
+                var selectedRows = gridDetail.getSelectedRows();
+                if (selectedRows && selectedRows.length > 0) {
+                    targetData = selectedRows[0].getData();
+                    currentDetailRowData = targetData;
+                } else {
+                    var allRows = gridDetail.getRows();
+                    if (allRows && allRows.length > 0) {
+                        targetData = allRows[0].getData();
+                        currentDetailRowData = targetData;
+                        allRows[0].select();
+                    }
+                }
+            }
+
+            // 3. 대상 종목이 있는 경우 즉시 새 분석 영역 데이터 조회
+            if (targetData) {
+                lastLoadedDetailKey = null; // 가드 리셋하여 즉시 새 분석 데이터 로드
+                loadAnalysisArea(targetData);
+            }
+        }
+
         // 6-4. 종목 행 선택 -> 우측 하단 분석 영역 동기화
         function syncItemAnalysis(row, rowData) {
             if (!row) return;
@@ -925,7 +1028,10 @@
             var data = rowData || (row.getData ? row.getData() : null);
             if (!data) return;
 
-            var currentKey = (data.corpGr || '') + '_' + (data.ymd || '') + '_' + (data.fundCd || '') + '_' + (data.portNum || '') + '_' + (data.yjCd || data.jmCd || '');
+            var dddwSelect = currentPane.querySelector('#filterDddw, select[name="dddw"]');
+            var searchType = dddwSelect ? (dddwSelect.value || '변동수준').trim() : '변동수준';
+
+            var currentKey = (data.corpGr || '') + '_' + (data.ymd || '') + '_' + (data.fundCd || '') + '_' + (data.portNum || '') + '_' + (data.yjCd || data.jmCd || '') + '_' + searchType;
             if (lastLoadedDetailKey === currentKey) return;
             lastLoadedDetailKey = currentKey;
 
@@ -1077,27 +1183,34 @@
                 });
         }
 
-        // 6-10. 그릭스 데이터 폼 바인딩
+        // 6-10. 그릭스 데이터 폼 바인딩 (이미지 및 srd 포맷 일치화)
+        function formatGreekNum(val, decimals) {
+            if (val == null || val === '') return '';
+            var n = Number(val);
+            if (isNaN(n)) return String(val);
+            return n.toFixed(decimals != null ? decimals : 4);
+        }
+
         function bindGreeksData(dto) {
-            setInputValue('#gk_s', dto.s != null ? formatNumber(dto.s, 2) : '');
+            setInputValue('#gk_s', dto.s != null ? formatGreekNum(dto.s, 3) : '');
             setInputValue('#gk_t', dto.t != null ? dto.t : '');
-            setInputValue('#gk_sigma', dto.sigma != null ? formatNumber(dto.sigma, 4) : '');
-            setInputValue('#gk_year_sigma', dto.yearSigma != null ? formatNumber(dto.yearSigma, 4) : '');
-            setInputValue('#gk_r', dto.r != null ? dto.r : '0.05');
+            setInputValue('#gk_sigma', dto.sigma != null ? formatGreekNum(dto.sigma, 4) : '');
+            setInputValue('#gk_year_sigma', dto.yearSigma != null ? formatGreekNum(dto.yearSigma, 4) : '');
+            setInputValue('#gk_r', dto.r != null ? dto.r : '0.0425');
 
             setInputValue('#gk_put_jm_cd', dto.putJmCd || '');
             setInputValue('#gk_k', dto.k != null ? dto.k : '');
             setInputValue('#gk_market_price', dto.marketPrice != null ? dto.marketPrice : '');
             setInputValue('#gk_imp_volatility', dto.impVolatility != null ? dto.impVolatility : '');
 
-            setTextContent('#gk_call_delta', dto.callDelta != null ? formatNumber(dto.callDelta, 4) : '-');
-            setTextContent('#gk_put_delta', dto.putDelta != null ? formatNumber(dto.putDelta, 4) : '-');
-            setTextContent('#gk_gamma', dto.gamma != null ? formatNumber(dto.gamma, 4) : '-');
-            setTextContent('#gk_vega', dto.vega != null ? formatNumber(dto.vega, 4) : '-');
-            setTextContent('#gk_call_theta', dto.callTheta != null ? formatNumber(dto.callTheta, 4) : '-');
-            setTextContent('#gk_put_theta', dto.putTheta != null ? formatNumber(dto.putTheta, 4) : '-');
-            setTextContent('#gk_call_rho', dto.callRho != null ? formatNumber(dto.callRho, 4) : '-');
-            setTextContent('#gk_put_rho', dto.putRho != null ? formatNumber(dto.putRho, 4) : '-');
+            setInputValue('#gk_call_delta', dto.callDelta != null ? formatGreekNum(dto.callDelta, 4) : '');
+            setInputValue('#gk_put_delta', dto.putDelta != null ? formatGreekNum(dto.putDelta, 4) : '');
+            setInputValue('#gk_gamma', dto.gamma != null ? formatGreekNum(dto.gamma, 5) : '');
+            setInputValue('#gk_vega', dto.vega != null ? formatGreekNum(dto.vega, 6) : '');
+            setInputValue('#gk_call_theta', dto.callTheta != null ? formatGreekNum(dto.callTheta, 6) : '');
+            setInputValue('#gk_put_theta', dto.putTheta != null ? formatGreekNum(dto.putTheta, 6) : '');
+            setInputValue('#gk_call_rho', dto.callRho != null ? formatGreekNum(dto.callRho, 5) : '');
+            setInputValue('#gk_put_rho', dto.putRho != null ? formatGreekNum(dto.putRho, 6) : '');
         }
 
         function setInputValue(selector, val) {
@@ -1106,28 +1219,28 @@
         }
 
         function setTextContent(selector, val) {
-            var el = currentPane.querySelector(selector);
-            if (el) el.textContent = val;
+            setInputValue(selector, val);
         }
 
         function clearGreeksDashboard() {
             setInputValue('#gk_s', '');
             setInputValue('#gk_t', '');
             setInputValue('#gk_sigma', '');
+            setInputValue('#gk_year_sigma', '');
             setInputValue('#gk_r', '');
             setInputValue('#gk_put_jm_cd', '');
             setInputValue('#gk_k', '');
             setInputValue('#gk_market_price', '');
             setInputValue('#gk_imp_volatility', '');
 
-            setTextContent('#gk_call_delta', '-');
-            setTextContent('#gk_put_delta', '-');
-            setTextContent('#gk_gamma', '-');
-            setTextContent('#gk_vega', '-');
-            setTextContent('#gk_call_theta', '-');
-            setTextContent('#gk_put_theta', '-');
-            setTextContent('#gk_call_rho', '-');
-            setTextContent('#gk_put_rho', '-');
+            setInputValue('#gk_call_delta', '');
+            setInputValue('#gk_put_delta', '');
+            setInputValue('#gk_gamma', '');
+            setInputValue('#gk_vega', '');
+            setInputValue('#gk_call_theta', '');
+            setInputValue('#gk_put_theta', '');
+            setInputValue('#gk_call_rho', '');
+            setInputValue('#gk_put_rho', '');
         }
 
         function clearAnalysisArea() {
@@ -1178,14 +1291,14 @@
                         if (dto.impVolatility != null && isPriceChanged) {
                             setInputValue('#gk_imp_volatility', dto.impVolatility);
                         }
-                        setTextContent('#gk_call_delta', dto.callDelta != null ? formatNumber(dto.callDelta, 4) : '-');
-                        setTextContent('#gk_put_delta', dto.putDelta != null ? formatNumber(dto.putDelta, 4) : '-');
-                        setTextContent('#gk_gamma', dto.gamma != null ? formatNumber(dto.gamma, 4) : '-');
-                        setTextContent('#gk_vega', dto.vega != null ? formatNumber(dto.vega, 4) : '-');
-                        setTextContent('#gk_call_theta', dto.callTheta != null ? formatNumber(dto.callTheta, 4) : '-');
-                        setTextContent('#gk_put_theta', dto.putTheta != null ? formatNumber(dto.putTheta, 4) : '-');
-                        setTextContent('#gk_call_rho', dto.callRho != null ? formatNumber(dto.callRho, 4) : '-');
-                        setTextContent('#gk_put_rho', dto.putRho != null ? formatNumber(dto.putRho, 4) : '-');
+                        setInputValue('#gk_call_delta', dto.callDelta != null ? formatGreekNum(dto.callDelta, 4) : '');
+                        setInputValue('#gk_put_delta', dto.putDelta != null ? formatGreekNum(dto.putDelta, 4) : '');
+                        setInputValue('#gk_gamma', dto.gamma != null ? formatGreekNum(dto.gamma, 5) : '');
+                        setInputValue('#gk_vega', dto.vega != null ? formatGreekNum(dto.vega, 6) : '');
+                        setInputValue('#gk_call_theta', dto.callTheta != null ? formatGreekNum(dto.callTheta, 6) : '');
+                        setInputValue('#gk_put_theta', dto.putTheta != null ? formatGreekNum(dto.putTheta, 6) : '');
+                        setInputValue('#gk_call_rho', dto.callRho != null ? formatGreekNum(dto.callRho, 5) : '');
+                        setInputValue('#gk_put_rho', dto.putRho != null ? formatGreekNum(dto.putRho, 6) : '');
                     }
                 })
                 .catch(function (err) {

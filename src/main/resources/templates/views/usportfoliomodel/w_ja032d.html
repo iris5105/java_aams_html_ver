@@ -1,0 +1,874 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<!--
+  AAMS 화면 표준 템플릿: W_JA032D (API 자료요청 현황)
+  - 파워빌더 소스: pb_recource/JA032/w_ja032d.srw
+  - dw_list: d_ja032d1 (API 요청 현황 마스터)
+  - dw_detail: d_ja032d2 (API 요청 건별 상세 내역)
+  - dw_status: d_ja032d3 (API 처리상태 요약)
+  - dw_data: d_ja032d4 (수신자료 컬럼별 Key-Value 인스펙터)
+-->
+<div class="view-container layout-split layout-mobile-stack-container" th:fragment="mainView"
+     style="display: flex; flex-direction: column; height: 100%; width: 100%; overflow: hidden; background-color: #ffffff; position: relative;">
+
+    <!-- 0. 대용량 데이터 로딩 오버레이 (마스터 선택 시 디테일 로딩 등에 사용) -->
+    <div id="ja032dLoadingOverlay" class="view-loading-overlay d-none">
+        <div class="view-loading-card">
+            <div class="view-loading-spinner">
+                <i class="fa-solid fa-circle-notch fa-spin"></i>
+            </div>
+            <div class="view-loading-title">데이터 로딩 중</div>
+            <div id="ja032dLoadingDesc" class="view-loading-desc">
+                API 요청 건별 상세 데이터를 불러오고 있습니다...
+            </div>
+            <div class="view-loading-sub">
+                데이터 건수가 많을 경우 수 초가 소요될 수 있습니다.
+            </div>
+        </div>
+    </div>
+
+    <!-- 1. 상단 공통 툴바 (Row 1) -->
+    <div class="view-toolbar">
+        <div class="toolbar-left">
+            <div th:replace="~{fragments/tab_header :: toolbarButtons}"></div>
+        </div>
+        <div th:replace="~{fragments/tab_header :: toolbarBreadcrumb}"></div>
+    </div>
+
+    <!-- 2. 상단 필터바 (Row 2: 필터 + 액션버튼 일체화) -->
+    <div class="filter-bar">
+        <div class="filter-left" style="display: flex; align-items: center; gap: 8px;">
+            <!-- dw_c: dc_ymd (title="요청일자") -->
+            <div th:replace="~{fragments/filter/dc_ymd :: filter(label='요청일자')}"></div>
+
+            <!-- 화면 전용 액션 버튼 일체화 배치 (이미지 스타일: 파란색 테두리 버튼) -->
+            <button type="button" class="btn-action-outline text-primary border-primary" id="btnCre" title="한투파생시가 요청 실행 (SR_JA032D)">
+                한투파생시가
+            </button>
+            <button type="button" class="btn-action-outline text-primary border-primary" id="btn1716" title="한투파생종가 요청 실행 (API_17_16)">
+                한투파생종가
+            </button>
+            <button type="button" class="btn-action-outline text-secondary border-secondary" id="btnKse" title="국내주식요청 실행 (API_KSE)">
+                국내주식요청
+            </button>
+            <button type="button" class="btn-action-outline text-primary border-primary" id="btn1302" title="해외주식신규 실행 (API_13_02)">
+                해외주식신규
+            </button>
+            <button type="button" class="btn-action-outline text-primary border-primary" id="btnAll" title="해외일괄재신청 실행 (NEW_13_02)">
+                해외일괄재신청
+            </button>
+        </div>
+    </div>
+
+    <style>
+        /* 이미지 맞춤형 버튼 및 폼 스타일 */
+        .btn-action-outline {
+            height: 28px;
+            padding: 0 10px;
+            font-size: 12px;
+            font-weight: 500;
+            background: #ffffff;
+            border: 1px solid #cbd5e1;
+            border-radius: 3px;
+            cursor: pointer;
+            transition: all 0.15s ease-in-out;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .btn-action-outline:hover {
+            background: #eff6ff;
+        }
+        .btn-mini-sub {
+            width: 22px;
+            height: 20px;
+            padding: 0;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: #ffffff;
+            border: 1px solid #cbd5e1;
+            border-radius: 2px;
+            font-size: 10px;
+            color: #475569;
+            cursor: pointer;
+        }
+        .btn-mini-sub:hover:not(:disabled) {
+            background: #e2e8f0;
+            color: #0f172a;
+        }
+        .btn-mini-sub:disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
+        }
+        .status-box-panel {
+            background-color: #f8fafc;
+            border-bottom: 1px solid #cbd5e1;
+            padding: 6px 10px;
+            font-size: 12px;
+            user-select: none;
+        }
+        .status-label {
+            color: #334155;
+            font-size: 12px;
+            font-weight: 500;
+            text-align: right;
+            flex-shrink: 0;
+        }
+        .status-input-readonly {
+            height: 24px;
+            padding: 2px 6px;
+            font-size: 12px;
+            border: 1px solid #cbd5e1;
+            border-radius: 2px;
+            color: #1e293b;
+            box-sizing: border-box;
+        }
+        .status-input-gray {
+            background-color: #e2e8f0;
+            border-color: #94a3b8;
+        }
+        .status-input-white {
+            background-color: #ffffff;
+        }
+    </style>
+
+    <!-- 3. 메인 콘텐츠 섹션 (외부 좌우 수평 분할 AamsSplitter) -->
+    <div class="layout-split-h split-body layout-mobile-stack" data-split-key="W_JA032D_H" data-default-ratio="58:42" style="flex: 1; min-height: 0;">
+
+        <!-- 좌측 패널 (상하 2분할: 마스터 현황 + 건별 상세) -->
+        <div class="pane-left master-section" style="width: 58%; height: 100%; display: flex; flex-direction: column; min-width: 320px;">
+            <div class="layout-split-v" data-split-key="W_JA032D_LEFT_V" data-default-ratio="60:40" style="flex: 1; height: 100%; min-height: 0;">
+
+                <!-- 좌측 상단: API 요청 현황 (dw_list - 별도 제목바 없이 그리드가 전면 차지) -->
+                <div class="pane-top" style="height: 60%; display: flex; flex-direction: column; min-height: 150px; border-bottom: 1px solid #cbd5e1;">
+                    <div class="panel-body" style="flex: 1; min-height: 0; padding: 0;">
+                        <div id="gridMaster" class="tabulator-aams-grid"></div>
+                    </div>
+                </div>
+
+                <!-- 수평 스플릿바 (좌측 내부) -->
+                <div class="split-gutter-v"></div>
+
+                <!-- 좌측 하단: API 요청 상세 건별 목록 (dw_detail) -->
+                <div class="pane-bottom" style="height: 40%; display: flex; flex-direction: column; min-height: 150px;">
+                    <!-- 서브 컨트롤 바 (우측 끝에 엑셀 및 네비게이션 버튼 배치) -->
+                    <div style="display: flex; justify-content: flex-end; align-items: center; padding: 2px 6px; background-color: #f1f5f9; border-bottom: 1px solid #cbd5e1;">
+                        <div style="display: flex; align-items: center; gap: 3px;">
+                            <button type="button" class="btn-mini-sub" id="btnDetailExcel" title="엑셀 다운로드"><i class="fa-solid fa-file-excel text-success"></i></button>
+                            <button type="button" class="btn-mini-sub" id="btnDetailFirst" title="처음"><i class="fa-solid fa-backward-step"></i></button>
+                            <button type="button" class="btn-mini-sub" id="btnDetailPrior" title="이전"><i class="fa-solid fa-chevron-left"></i></button>
+                            <button type="button" class="btn-mini-sub" id="btnDetailNext" title="다음"><i class="fa-solid fa-chevron-right"></i></button>
+                            <button type="button" class="btn-mini-sub" id="btnDetailLast" title="마지막"><i class="fa-solid fa-forward-step"></i></button>
+                        </div>
+                    </div>
+                    <div class="panel-body" style="flex: 1; min-height: 0; padding: 0;">
+                        <div id="gridDetail" class="tabulator-aams-grid"></div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- 수직 스플릿바 (외부 좌우) -->
+        <div class="split-gutter-h"></div>
+
+        <!-- 우측 패널 (상단 상태 폼 + 하단 컬럼별 데이터 인스펙터) -->
+        <div class="pane-right detail-section" style="width: 42%; height: 100%; display: flex; flex-direction: column; min-width: 300px; border-left: 1px solid #cbd5e1;">
+
+            <!-- 우측 상단: API 처리상태 상세 정보 (dw_status - 이미지 형태 100% 재현) -->
+            <div class="status-box-panel" style="flex: 0 0 auto;">
+                <!-- 1행: 처리시간 + API_KEY + [서브버튼 및 페이징] -->
+                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+                    <span class="status-label" style="width: 52px;">처리시간</span>
+                    <input type="text" id="statusCreatedAt" class="status-input-readonly status-input-gray" style="width: 130px;" readonly />
+                    <input type="text" id="statusApiKey" class="status-input-readonly status-input-white" style="flex: 1; min-width: 180px;" readonly />
+
+                    <!-- 우측 끝: 엑셀 및 페이징 네비게이션 버튼 (dw_status) -->
+                    <div style="display: flex; align-items: center; gap: 3px; margin-left: auto; flex-shrink: 0;">
+                        <button type="button" class="btn-mini-sub" id="btnDataExcel" title="엑셀 다운로드"><i class="fa-solid fa-file-excel text-success"></i></button>
+                        <button type="button" class="btn-mini-sub" id="btnPageFirst" title="처음"><i class="fa-solid fa-backward-step"></i></button>
+                        <button type="button" class="btn-mini-sub" id="btnPagePrior" title="이전"><i class="fa-solid fa-chevron-left"></i></button>
+                        <button type="button" class="btn-mini-sub" id="btnPageNext" title="다음"><i class="fa-solid fa-chevron-right"></i></button>
+                        <button type="button" class="btn-mini-sub" id="btnPageLast" title="마지막"><i class="fa-solid fa-forward-step"></i></button>
+                        <span id="textPageCounter" style="font-size: 12px; color: #1e293b; margin-left: 4px; min-width: 35px; text-align: center;">1 / 1</span>
+                    </div>
+                </div>
+
+                <!-- 2행: 처리결과 + 처리상세내용 -->
+                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+                    <span class="status-label" style="width: 52px;">처리결과</span>
+                    <input type="text" id="statusMsgCd" class="status-input-readonly status-input-gray" style="width: 85px;" readonly />
+                    <span class="status-label" style="margin-left: 6px;">처리상세내용</span>
+                    <input type="text" id="statusMsg1" class="status-input-readonly status-input-white" style="flex: 1;" readonly />
+                </div>
+
+                <!-- 3행: HEADER -->
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span class="status-label" style="width: 52px;">HEADER</span>
+                    <input type="text" id="statusHeaders" class="status-input-readonly status-input-white" style="flex: 1;" readonly />
+                </div>
+            </div>
+
+            <!-- 우측 하단: 수신자료 컬럼별 상세 데이터 그리드 (dw_data - 잔여 공간 전체 차지) -->
+            <div style="flex: 1; min-height: 0; display: flex; flex-direction: column;">
+                <div class="panel-body" style="flex: 1; min-height: 0; padding: 0;">
+                    <div id="gridData" class="tabulator-aams-grid"></div>
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- 4. 화면 전용 스크립트 격리 블록 -->
+    <script>
+        (function () {
+            // MDI 최상위 탭 컨테이너 획득 (Zero-Hardcoded-ID 표준)
+            var currentScript = document.currentScript;
+            var pane = currentScript ? (currentScript.closest('.tab-pane') || currentScript.closest('.view-container')) : null;
+            if (!pane) return;
+
+            var gridMaster = null;
+            var gridDetail = null;
+            var gridData = null;
+
+            var isInitialized = false;
+            var lastLoadedMasterKey = null;
+            var lastLoadedDetailKey = null;
+
+            var currentMasterRow = null;
+            var currentDetailRow = null;
+
+            var curPageIndex = 1;
+            var totalPageCount = 0;
+
+            // [로딩 화면 제어 헬퍼]
+            function showLoading(show, message) {
+                var overlay = pane.querySelector('#ja032dLoadingOverlay');
+                var desc = pane.querySelector('#ja032dLoadingDesc');
+                if (!overlay) return;
+                if (show) {
+                    if (desc && message) desc.textContent = message;
+                    overlay.classList.remove('d-none');
+                } else {
+                    overlay.classList.add('d-none');
+                }
+            }
+
+            // [초기화 1] 달력 컴포넌트 (dc_ymd 연동)
+            function initCalendar() {
+                if (typeof window.initFilterCalendar === 'function') {
+                    window.initFilterCalendar(pane, {
+                        onSelect: function (selectedDate) {
+                            // 필터 변경 시 자동 조회 금지 (규칙 08 준수)
+                        }
+                    });
+                }
+            }
+
+            // [초기화 2] Tabulator 그리드 빌드 (이미지 원본 컬럼 구성 및 크기 100% 매칭)
+            function initGrids() {
+                // (1) 마스터 목록 그리드 (dw_list - d_ja032d1)
+                var elMaster = pane.querySelector('#gridMaster');
+                if (elMaster) {
+                    gridMaster = new Tabulator(elMaster, {
+                        height: "100%",
+                        layout: "fitColumns",
+                        selectableRows: 1,
+                        placeholder: "조회된 API 요청 요약 내역이 없습니다.",
+                        columns: [
+                            { title: "No.", formatter: "rownum", width: 40, hozAlign: "center", headerHozAlign: "center", headerSort: false },
+                            { title: "Company", field: "company", width: 85, hozAlign: "center", headerHozAlign: "center" },
+                            { title: "자료유형", field: "snm", width: 200, hozAlign: "left", headerHozAlign: "center" },
+                            { title: "요청일시", field: "dt", width: 110, hozAlign: "center", headerHozAlign: "center" },
+                            {
+                                title: "요청<br>건수", field: "reqCnt", width: 70, hozAlign: "right", headerHozAlign: "center",
+                                formatter: function (cell) {
+                                    var v = cell.getValue();
+                                    return (v != null) ? (window.formatNumber ? window.formatNumber(v, 0) : Number(v).toLocaleString()) : "0";
+                                }
+                            },
+                            {
+                                title: "대기<br>건수", field: "waitCnt", width: 65, hozAlign: "right", headerHozAlign: "center",
+                                formatter: function (cell) {
+                                    var v = cell.getValue();
+                                    return (v != null) ? (window.formatNumber ? window.formatNumber(v, 0) : Number(v).toLocaleString()) : "0";
+                                }
+                            },
+                            {
+                                title: "응답<br>완료", field: "okCnt", width: 70, hozAlign: "right", headerHozAlign: "center",
+                                formatter: function (cell) {
+                                    var v = cell.getValue();
+                                    return (v != null) ? (window.formatNumber ? window.formatNumber(v, 0) : Number(v).toLocaleString()) : "0";
+                                }
+                            },
+                            {
+                                title: "에러<br>발생", field: "errCnt", width: 65, hozAlign: "right", headerHozAlign: "center",
+                                formatter: function (cell) {
+                                    var v = cell.getValue();
+                                    var str = (v != null) ? (window.formatNumber ? window.formatNumber(v, 0) : Number(v).toLocaleString()) : "0";
+                                    if (v && Number(v) > 0) {
+                                        return '<span class="cell-text-red fw-bold">' + str + '</span>';
+                                    }
+                                    return str;
+                                }
+                            },
+                            { title: "조회테이블", field: "qtable", minWidth: 160, hozAlign: "left", headerHozAlign: "center" }
+                        ]
+                    });
+
+                    // 행 선택 안전망 (규정 05-3)
+                    if (typeof setupTabulatorRowSelection === 'function') {
+                        setupTabulatorRowSelection(gridMaster, function (row, data) {
+                            syncMasterToDetail(row, data);
+                        });
+                    }
+                    gridMaster.on("rowClick", function (e, row) {
+                        syncMasterToDetail(row, row ? row.getData() : null);
+                    });
+                }
+
+                // (2) 상세 건별 목록 그리드 (dw_detail - d_ja032d2)
+                var elDetail = pane.querySelector('#gridDetail');
+                if (elDetail) {
+                    gridDetail = new Tabulator(elDetail, {
+                        height: "100%",
+                        layout: "fitColumns",
+                        selectableRows: 1,
+                        placeholder: "선택된 요청 그룹의 건별 상세 데이터가 없습니다.",
+                        columns: [
+                            { title: "No.", formatter: "rownum", width: 40, hozAlign: "center", headerHozAlign: "center", headerSort: false },
+                            { title: "회사코드", field: "corpGr", width: 70, hozAlign: "center", headerHozAlign: "center" },
+                            { title: "일자", field: "trYmd", width: 90, hozAlign: "center", headerHozAlign: "center" },
+                            { title: "TRIGGER Key1", field: "key1", width: 120, hozAlign: "left", headerHozAlign: "center" },
+                            { title: "TRIGGER Key2", field: "key2", width: 100, hozAlign: "center", headerHozAlign: "center" },
+                            { title: "Num1", field: "num1", width: 60, hozAlign: "right", headerHozAlign: "center" },
+                            { title: "Queryparams", field: "queryparams", minWidth: 220, hozAlign: "left", headerHozAlign: "center" },
+                            {
+                                title: "Req.", field: "request", width: 60, hozAlign: "center", headerHozAlign: "center",
+                                formatter: function (cell) {
+                                    var v = (cell.getValue() || "").toString().trim();
+                                    if (v === "1") return '<span class="badge-status-success">완료</span>';
+                                    if (v === "2") return '<span class="badge-status-error">에러</span>';
+                                    return '<span class="cell-text-muted">대기</span>';
+                                }
+                            },
+                            { title: "Status", field: "status", width: 60, hozAlign: "center", headerHozAlign: "center" },
+                            { title: "Statustext", field: "statustext", width: 90, hozAlign: "left", headerHozAlign: "center" },
+                            {
+                                title: "Err", field: "errcode", width: 60, hozAlign: "center", headerHozAlign: "center",
+                                formatter: function (cell) {
+                                    var v = cell.getValue();
+                                    return v ? ('<span class="cell-text-red">' + v + '</span>') : "";
+                                }
+                            }
+                        ]
+                    });
+
+                    // 행 선택 안전망 (규정 05-3)
+                    if (typeof setupTabulatorRowSelection === 'function') {
+                        setupTabulatorRowSelection(gridDetail, function (row, data) {
+                            syncDetailToStatusAndData(row, data);
+                        });
+                    }
+                    gridDetail.on("rowClick", function (e, row) {
+                        syncDetailToStatusAndData(row, row ? row.getData() : null);
+                    });
+                }
+
+                // (3) 우측 하단 컬럼별 데이터 인스펙터 그리드 (dw_data - d_ja032d4)
+                var elData = pane.querySelector('#gridData');
+                if (elData) {
+                    gridData = new Tabulator(elData, {
+                        height: "100%",
+                        layout: "fitColumns",
+                        selectableRows: 1,
+                        placeholder: "선택된 API 요청 건의 컬럼 상세 데이터가 없습니다.",
+                        columns: [
+                            { title: "No.", formatter: "rownum", width: 40, hozAlign: "center", headerHozAlign: "center", headerSort: false },
+                            {
+                                title: "COLUMN", field: "columnName", width: 180, hozAlign: "left", headerHozAlign: "center",
+                                formatter: function (cell) {
+                                    return '<span class="fw-bold text-dark">' + (cell.getValue() || '') + '</span>';
+                                }
+                            },
+                            { title: "컬럼설명", field: "comments", width: 220, hozAlign: "left", headerHozAlign: "center" },
+                            {
+                                title: "값", field: "colVal", minWidth: 150, hozAlign: "left", headerHozAlign: "center",
+                                formatter: function (cell) {
+                                    var v = cell.getValue();
+                                    if (v == null || v === "") return "";
+                                    return '<span>' + v + '</span>';
+                                }
+                            }
+                        ]
+                    });
+                }
+            }
+
+            // [동기화 1] 마스터 행 선택 -> 상세 건별 목록 로드
+            function syncMasterToDetail(row, masterRowData) {
+                if (!row) return;
+                var data = masterRowData || (row.getData ? row.getData() : null);
+                if (!data) return;
+
+                currentMasterRow = data;
+                var currentKey = (data.company || "") + "_" + (data.url || "") + "_" + (data.dt || "");
+                if (lastLoadedMasterKey === currentKey) return; // 중복 호출 방지 가드
+                lastLoadedMasterKey = currentKey;
+
+                loadDetailList(data);
+            }
+
+            // [동기화 2] 상세 건별 행 선택 -> 상태 요약 및 컬럼별 데이터 로드
+            function syncDetailToStatusAndData(row, detailRowData) {
+                if (!row) return;
+                var data = detailRowData || (row.getData ? row.getData() : null);
+                if (!data) return;
+
+                currentDetailRow = data;
+                var currentKey = (data.apiKey || "") + "_" + (data.tablename || "");
+                if (lastLoadedDetailKey === currentKey) return;
+                lastLoadedDetailKey = currentKey;
+
+                curPageIndex = 1;
+                loadStatus(data.apiKey);
+                loadColumnData(data.apiKey, 1);
+            }
+
+            // [조회 1] 마스터 목록 조회
+            function loadMasterList() {
+                var ymd = (typeof window.getFilterYmd === 'function') ? window.getFilterYmd(pane, 'YYYYMMDD') : '';
+                if (!ymd) {
+                    if (typeof window.showToast === 'function') window.showToast("조회일자를 선택해주세요.", "warning");
+                    return;
+                }
+
+                showLoading(true, "API 요청 요약 현황을 조회하고 있습니다...");
+
+                var url = "/api/usportfoliomodel/ja032d/master-list?ymd=" + encodeURIComponent(ymd);
+                fetch(url)
+                    .then(function (res) { return res.json(); })
+                    .then(function (list) {
+                        lastLoadedMasterKey = null; // 재조회 시 첫 행 선택 보장
+                        lastLoadedDetailKey = null;
+                        currentMasterRow = null;
+                        currentDetailRow = null;
+
+                        if (gridDetail) gridDetail.clearData();
+                        if (gridData) gridData.clearData();
+                        clearStatusForm();
+
+                        if (gridMaster) {
+                            gridMaster.setData(list || []).then(function () {
+                                showLoading(false);
+                                var rows = gridMaster.getRows();
+                                if (rows && rows.length > 0) {
+                                    rows[0].select();
+                                    syncMasterToDetail(rows[0], rows[0].getData());
+                                }
+                            });
+                        } else {
+                            showLoading(false);
+                        }
+                    })
+                    .catch(function (err) {
+                        showLoading(false);
+                        console.error("마스터 목록 조회 실패:", err);
+                        if (typeof window.showToast === 'function') window.showToast("마스터 목록 조회 중 오류가 발생했습니다.", "error");
+                    });
+            }
+
+            // [조회 2] 상세 건별 목록 조회 (로딩 화면 적용!)
+            function loadDetailList(masterData) {
+                if (!masterData) return;
+                var company = masterData.company || "";
+                var targetUrl = masterData.url || "";
+                var dt = masterData.dt || "";
+
+                // 대용량 데이터 로딩 오버레이 띄우기
+                showLoading(true, "API 요청 건별 상세 내역을 조회하고 있습니다...");
+
+                var url = "/api/usportfoliomodel/ja032d/detail-list?company=" + encodeURIComponent(company) +
+                    "&url=" + encodeURIComponent(targetUrl) +
+                    "&dt=" + encodeURIComponent(dt);
+
+                fetch(url)
+                    .then(function (res) { return res.json(); })
+                    .then(function (list) {
+                        lastLoadedDetailKey = null;
+                        currentDetailRow = null;
+                        if (gridData) gridData.clearData();
+                        clearStatusForm();
+
+                        if (gridDetail) {
+                            gridDetail.setData(list || []).then(function () {
+                                showLoading(false); // 로딩 해제
+                                var rows = gridDetail.getRows();
+                                if (rows && rows.length > 0) {
+                                    rows[0].select();
+                                    syncDetailToStatusAndData(rows[0], rows[0].getData());
+                                }
+                            });
+                        } else {
+                            showLoading(false);
+                        }
+                    })
+                    .catch(function (err) {
+                        showLoading(false); // 로딩 해제
+                        console.error("상세 목록 조회 실패:", err);
+                        if (typeof window.showToast === 'function') window.showToast("상세 목록 조회 중 오류가 발생했습니다.", "error");
+                    });
+            }
+
+            // [조회 3] 상태 요약 정보 조회
+            function loadStatus(apiKey) {
+                if (!apiKey) {
+                    clearStatusForm();
+                    return;
+                }
+
+                fetch("/api/usportfoliomodel/ja032d/status?apiKey=" + encodeURIComponent(apiKey))
+                    .then(function (res) { return res.json(); })
+                    .then(function (status) {
+                        if (status) {
+                            var elCreatedAt = pane.querySelector('#statusCreatedAt');
+                            var elApiKey = pane.querySelector('#statusApiKey');
+                            var elMsgCd = pane.querySelector('#statusMsgCd');
+                            var elMsg1 = pane.querySelector('#statusMsg1');
+                            var elHeaders = pane.querySelector('#statusHeaders');
+
+                            if (elCreatedAt) elCreatedAt.value = status.createdAt || "";
+                            if (elApiKey) elApiKey.value = status.apiKey || "";
+                            if (elMsgCd) elMsgCd.value = status.msgCd || "";
+                            if (elMsg1) elMsg1.value = status.msg1 || "";
+                            if (elHeaders) elHeaders.value = status.headers || "";
+                        }
+                    })
+                    .catch(function (err) {
+                        console.error("상태 요약 조회 실패:", err);
+                    });
+            }
+
+            // [조회 4] 컬럼별 데이터 인스펙터 조회
+            function loadColumnData(apiKey, pageIdx) {
+                if (!currentMasterRow || !apiKey) {
+                    if (gridData) gridData.clearData();
+                    updatePagingUI(0, 0);
+                    return;
+                }
+
+                var tableName = currentMasterRow.qtable || currentMasterRow.subtable || currentMasterRow.tablename || "";
+                if (!tableName) {
+                    if (gridData) gridData.clearData();
+                    updatePagingUI(0, 0);
+                    return;
+                }
+
+                var targetPage = pageIdx || 1;
+                var url = "/api/usportfoliomodel/ja032d/column-data?tableName=" + encodeURIComponent(tableName) +
+                    "&apiKey=" + encodeURIComponent(apiKey) +
+                    "&pageIndex=" + targetPage;
+
+                fetch(url)
+                    .then(function (res) { return res.json(); })
+                    .then(function (resMap) {
+                        var list = resMap.list || [];
+                        var curRow = resMap.curRow || 0;
+                        var allRow = resMap.allRow || 0;
+
+                        curPageIndex = curRow;
+                        totalPageCount = allRow;
+                        updatePagingUI(curRow, allRow);
+
+                        if (gridData) gridData.setData(list);
+                    })
+                    .catch(function (err) {
+                        console.error("컬럼 데이터 조회 실패:", err);
+                        if (gridData) gridData.clearData();
+                        updatePagingUI(0, 0);
+                    });
+            }
+
+            function updatePagingUI(cur, total) {
+                var textCounter = pane.querySelector('#textPageCounter');
+                var btnFirst = pane.querySelector('#btnPageFirst');
+                var btnPrior = pane.querySelector('#btnPagePrior');
+                var btnNext = pane.querySelector('#btnPageNext');
+                var btnLast = pane.querySelector('#btnPageLast');
+
+                if (textCounter) textCounter.textContent = (total > 0 ? cur : 0) + " / " + total;
+                if (btnFirst) btnFirst.disabled = (cur <= 1);
+                if (btnPrior) btnPrior.disabled = (cur <= 1);
+                if (btnNext) btnNext.disabled = (cur >= total || total === 0);
+                if (btnLast) btnLast.disabled = (cur >= total || total === 0);
+            }
+
+            function clearStatusForm() {
+                var elCreatedAt = pane.querySelector('#statusCreatedAt');
+                var elApiKey = pane.querySelector('#statusApiKey');
+                var elMsgCd = pane.querySelector('#statusMsgCd');
+                var elMsg1 = pane.querySelector('#statusMsg1');
+                var elHeaders = pane.querySelector('#statusHeaders');
+
+                if (elCreatedAt) elCreatedAt.value = "";
+                if (elApiKey) elApiKey.value = "";
+                if (elMsgCd) elMsgCd.value = "";
+                if (elMsg1) elMsg1.value = "";
+                if (elHeaders) elHeaders.value = "";
+                updatePagingUI(0, 0);
+            }
+
+            // [초기화 3] 서브 버튼 및 액션 버튼 이벤트 바인딩
+            function initActionButtons() {
+                // (1) dw_status 서브 버튼 (엑셀 및 페이징 탐색)
+                var btnDataExcel = pane.querySelector('#btnDataExcel');
+                if (btnDataExcel) {
+                    btnDataExcel.onclick = function () {
+                        if (gridData) gridData.download("xlsx", "수신자료_컬럼데이터.xlsx", { sheetName: "컬럼데이터" });
+                    };
+                }
+                var btnPageFirst = pane.querySelector('#btnPageFirst');
+                if (btnPageFirst) {
+                    btnPageFirst.onclick = function () {
+                        if (curPageIndex > 1 && currentDetailRow && currentDetailRow.apiKey) {
+                            loadColumnData(currentDetailRow.apiKey, 1);
+                        }
+                    };
+                }
+                var btnPagePrior = pane.querySelector('#btnPagePrior');
+                if (btnPagePrior) {
+                    btnPagePrior.onclick = function () {
+                        if (curPageIndex > 1 && currentDetailRow && currentDetailRow.apiKey) {
+                            loadColumnData(currentDetailRow.apiKey, curPageIndex - 1);
+                        }
+                    };
+                }
+                var btnPageNext = pane.querySelector('#btnPageNext');
+                if (btnPageNext) {
+                    btnPageNext.onclick = function () {
+                        if (curPageIndex < totalPageCount && currentDetailRow && currentDetailRow.apiKey) {
+                            loadColumnData(currentDetailRow.apiKey, curPageIndex + 1);
+                        }
+                    };
+                }
+                var btnPageLast = pane.querySelector('#btnPageLast');
+                if (btnPageLast) {
+                    btnPageLast.onclick = function () {
+                        if (curPageIndex < totalPageCount && currentDetailRow && currentDetailRow.apiKey) {
+                            loadColumnData(currentDetailRow.apiKey, totalPageCount);
+                        }
+                    };
+                }
+
+                // (2) dw_detail 서브 버튼 (엑셀 및 행 탐색)
+                var btnDetailExcel = pane.querySelector('#btnDetailExcel');
+                if (btnDetailExcel) {
+                    btnDetailExcel.onclick = function () {
+                        if (gridDetail) gridDetail.download("xlsx", "API요청_상세내역.xlsx", { sheetName: "상세내역" });
+                    };
+                }
+                var btnDetailFirst = pane.querySelector('#btnDetailFirst');
+                if (btnDetailFirst) {
+                    btnDetailFirst.onclick = function () {
+                        if (gridDetail) {
+                            var rows = gridDetail.getRows();
+                            if (rows && rows.length > 0) {
+                                rows[0].select();
+                                gridDetail.scrollToRow(rows[0], "top", false);
+                                syncDetailToStatusAndData(rows[0], rows[0].getData());
+                            }
+                        }
+                    };
+                }
+                var btnDetailPrior = pane.querySelector('#btnDetailPrior');
+                if (btnDetailPrior) {
+                    btnDetailPrior.onclick = function () {
+                        if (gridDetail) {
+                            var sel = gridDetail.getSelectedRows();
+                            if (sel && sel.length > 0) {
+                                var idx = sel[0].getPosition();
+                                var rows = gridDetail.getRows();
+                                if (idx > 0 && rows[idx - 1]) {
+                                    rows[idx - 1].select();
+                                    gridDetail.scrollToRow(rows[idx - 1], "nearest", false);
+                                    syncDetailToStatusAndData(rows[idx - 1], rows[idx - 1].getData());
+                                }
+                            }
+                        }
+                    };
+                }
+                var btnDetailNext = pane.querySelector('#btnDetailNext');
+                if (btnDetailNext) {
+                    btnDetailNext.onclick = function () {
+                        if (gridDetail) {
+                            var sel = gridDetail.getSelectedRows();
+                            if (sel && sel.length > 0) {
+                                var idx = sel[0].getPosition();
+                                var rows = gridDetail.getRows();
+                                if (idx < rows.length - 1 && rows[idx + 1]) {
+                                    rows[idx + 1].select();
+                                    gridDetail.scrollToRow(rows[idx + 1], "nearest", false);
+                                    syncDetailToStatusAndData(rows[idx + 1], rows[idx + 1].getData());
+                                }
+                            }
+                        }
+                    };
+                }
+                var btnDetailLast = pane.querySelector('#btnDetailLast');
+                if (btnDetailLast) {
+                    btnDetailLast.onclick = function () {
+                        if (gridDetail) {
+                            var rows = gridDetail.getRows();
+                            if (rows && rows.length > 0) {
+                                var lastRow = rows[rows.length - 1];
+                                lastRow.select();
+                                gridDetail.scrollToRow(lastRow, "bottom", false);
+                                syncDetailToStatusAndData(lastRow, lastRow.getData());
+                            }
+                        }
+                    };
+                }
+
+                // (3) 프로시저 실행 버튼들
+                var btnCre = pane.querySelector('#btnCre');
+                if (btnCre) {
+                    btnCre.onclick = function () {
+                        executeProcedure("/api/usportfoliomodel/ja032d/execute/cre", "한투파생시가 요청을 실행하시겠습니까?");
+                    };
+                }
+                var btn1716 = pane.querySelector('#btn1716');
+                if (btn1716) {
+                    btn1716.onclick = function () {
+                        executeProcedure("/api/usportfoliomodel/ja032d/execute/1716", "한투파생종가 요청을 실행하시겠습니까?");
+                    };
+                }
+                var btnKse = pane.querySelector('#btnKse');
+                if (btnKse) {
+                    btnKse.onclick = function () {
+                        executeProcedure("/api/usportfoliomodel/ja032d/execute/kse", "국내주식 요청을 실행하시겠습니까?");
+                    };
+                }
+                var btn1302 = pane.querySelector('#btn1302');
+                if (btn1302) {
+                    btn1302.onclick = function () {
+                        executeProcedure("/api/usportfoliomodel/ja032d/execute/1302", "해외주식신규 요청을 실행하시겠습니까?");
+                    };
+                }
+                var btnAll = pane.querySelector('#btnAll');
+                if (btnAll) {
+                    btnAll.onclick = function () {
+                        executeProcedure("/api/usportfoliomodel/ja032d/execute/all", "해외일괄재신청 요청을 실행하시겠습니까?");
+                    };
+                }
+            }
+
+            function executeProcedure(endpoint, confirmMsg) {
+                var corpGr = (typeof window.resolveCorpGr === 'function') ? window.resolveCorpGr(pane) : '';
+                var ymd = (typeof window.getFilterYmd === 'function') ? window.getFilterYmd(pane, 'YYYYMMDD') : '';
+
+                if (!corpGr) {
+                    if (typeof window.showToast === 'function') window.showToast("회사그룹 정보를 확인할 수 없습니다.", "warning");
+                    return;
+                }
+
+                var runAction = function () {
+                    showLoading(true, "요청 프로시저를 실행하고 있습니다...");
+
+                    var params = new URLSearchParams();
+                    params.append("corpGr", corpGr);
+                    params.append("ymd", ymd);
+
+                    fetch(endpoint, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                        body: params.toString()
+                    })
+                        .then(function (res) { return res.json(); })
+                        .then(function (result) {
+                            showLoading(false);
+                            if (result && result.success) {
+                                if (typeof window.showToast === 'function') window.showToast(result.message || "요청이 완료되었습니다.", "success");
+                                loadMasterList(); // 요청 완료 후 마스터 재조회
+                            } else {
+                                if (typeof window.showToast === 'function') window.showToast(result.message || "요청 실행 중 오류가 발생했습니다.", "error");
+                            }
+                        })
+                        .catch(function (err) {
+                            showLoading(false);
+                            console.error("프로시저 실행 오류:", err);
+                            if (typeof window.showToast === 'function') window.showToast("요청 전송 중 통신 오류가 발생했습니다.", "error");
+                        });
+                };
+
+                if (typeof window.showAlert === 'function') {
+                    window.showAlert(confirmMsg, runAction);
+                } else if (confirm(confirmMsg)) {
+                    runAction();
+                }
+            }
+
+            // [초기화 4] 상단 공통 툴바 표준 계약 바인딩
+            function initToolbar() {
+                pane.onSearch = function () {
+                    loadMasterList();
+                };
+
+                pane.onRefresh = function () {
+                    if (gridMaster) gridMaster.clearData();
+                    if (gridDetail) gridDetail.clearData();
+                    if (gridData) gridData.clearData();
+
+                    lastLoadedMasterKey = null;
+                    lastLoadedDetailKey = null;
+                    currentMasterRow = null;
+                    currentDetailRow = null;
+                    clearStatusForm();
+
+                    if (typeof window.showToast === 'function') window.showToast("화면이 초기화되었습니다.", "info");
+                };
+
+                pane.onCorpGrChange = function (newCorpGr) {
+                    // 필터 조건 변경 시 자동 조회 금지 (규칙 08 준수)
+                };
+
+                pane.onExcel = function () {
+                    if (gridMaster) {
+                        var ymd = (typeof window.getFilterYmd === 'function') ? window.getFilterYmd(pane, 'YYYYMMDD') : '';
+                        gridMaster.download("xlsx", "API자료요청현황_" + (ymd || "DATA") + ".xlsx", { sheetName: "요청현황" });
+                    }
+                };
+            }
+
+            // [초기화 5] 스플리터 초기화
+            function initSplitters() {
+                if (window.AamsSplitter && typeof window.AamsSplitter.init === 'function') {
+                    window.AamsSplitter.init(pane);
+                }
+            }
+
+            // [MDI 단일 진입점 실행]
+            function startInit() {
+                if (isInitialized) return;
+                isInitialized = true;
+
+                initCalendar();
+                initGrids();
+                initActionButtons();
+                initToolbar();
+                initSplitters();
+
+                // eb_direct_retrieve = true (파워빌더 원본 명세: 화면 진입 시 초기 1회 자동 조회)
+                loadMasterList();
+            }
+
+            if (document.readyState === "loading") {
+                document.addEventListener("DOMContentLoaded", startInit);
+            } else {
+                startInit();
+            }
+        })();
+    </script>
+</div>
+</html>
