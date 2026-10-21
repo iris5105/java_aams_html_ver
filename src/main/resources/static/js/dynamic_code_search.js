@@ -245,25 +245,66 @@ window.DynamicCodeSearch = (function() {
     /**
      * Render the modal DOM and handle interactions
      */
+    /**
+     * Render the modal DOM and handle interactions
+     */
     function renderModalDOM(config, fullList, initialKeyword, onSelectCallback) {
-        let title = (config && config.cmnt) ? config.cmnt : "모펀드(더블클릭) 선택";
+        let title = (config && config.cmnt) ? config.cmnt : "코드(더블클릭) 선택";
         if (!title.includes("선택") && !title.includes("더블클릭")) {
             title += "(더블클릭) 선택";
         }
 
-        // Headers: e.g. [{title: '펀드'}, {title: '펀드명'}, {title: '기준통화'}]
-        const rawHeaders = (config && config.headers) ? config.headers : [
-            { title: "펀드" },
-            { title: "펀드명" },
-            { title: "기준통화" }
+        // Headers: e.g. [{title: '자산분류(유형)'}, {title: '자산분류(유형)명'}]
+        const rawHeaders = (config && config.headers && config.headers.length > 0) ? config.headers : [
+            { title: "코드" },
+            { title: "명칭" }
         ];
-        const headers = [{ title: "No.", width: "45px" }];
-        rawHeaders.forEach(h => {
-            let w = "80px";
-            if (h.title.includes("명")) w = "170px";
-            else if (h.title.includes("코드") || h.title.includes("펀드")) w = "75px";
-            headers.push({ title: h.title, width: w });
+
+        // Column sizes parsing (if WDCS01M.column_size exists e.g. '10:80')
+        let rawSizes = [];
+        if (config && config.columnSize && typeof config.columnSize === "string") {
+            rawSizes = config.columnSize.split(":").map(s => {
+                const n = parseInt(s.trim(), 10);
+                return isNaN(n) ? 0 : n;
+            });
+        }
+
+        // 각 컬럼 너비 및 전체 그리드 너비 계산 (내부 그리드 너비에 딱 맞추기)
+        let totalGridWidth = 50; // No. 컬럼 너비
+        const headers = [{ title: "No.", width: 50, align: "center" }];
+
+        rawHeaders.forEach((h, idx) => {
+            let colW = 110;
+            const t = (h.title || "").trim();
+
+            if (rawSizes.length > idx && rawSizes[idx] > 0) {
+                // column_size 값이 있으면 (파워빌더 문자수 기준: 약 9~10px per unit)
+                colW = Math.max(80, Math.min(420, rawSizes[idx] * 9));
+            } else if (t.includes("명") || t.includes("내역") || t.includes("내용") || t.includes("설명") || t.includes("한글")) {
+                colW = 260; // 명칭 컬럼은 넉넉하게 260px
+            } else if (t.includes("코드") || t.includes("펀드") || t.includes("종목") || t.includes("유형") || t.includes("분류") || t.includes("구분")) {
+                colW = 120;
+            } else if (t.length <= 3) {
+                colW = 80;
+            } else if (t.length <= 6) {
+                colW = 110;
+            } else {
+                colW = 150;
+            }
+
+            const isAlignLeft = (t.includes("명") || t.includes("내역") || t.includes("내용") || t.includes("설명") || t.includes("한글"));
+            headers.push({
+                title: t,
+                width: colW,
+                align: isAlignLeft ? "left" : "center"
+            });
+            totalGridWidth += colW;
         });
+
+        // 내부 그리드 너비에 맞춰 모달창 전체 너비(WIDTH) 자동 계산
+        // 좌/우 5px 여백(총 10px), 테이블 테두리(2px), 스크롤바(약 16~18px) 및 여유분을 감안하여 모달 윈도우 너비 결정
+        // 최소 420px (상단 검색창 및 타이틀 영역 가독성 보장), 최대 92vw
+        const modalWidth = Math.max(420, Math.min(Math.round(window.innerWidth * 0.92), totalGridWidth + 34));
 
         // Create overlay
         const overlay = document.createElement("div");
@@ -271,7 +312,7 @@ window.DynamicCodeSearch = (function() {
         overlay.className = "dynamic-code-modal-overlay";
 
         overlay.innerHTML = `
-            <div class="dynamic-code-modal-window">
+            <div class="dynamic-code-modal-window" style="width: ${modalWidth}px;">
                 <div class="dynamic-code-modal-header">
                     <div class="dynamic-code-modal-title">
                         <span class="modal-icon-badge"><i class="fa-solid fa-list-check"></i></span>
@@ -288,7 +329,7 @@ window.DynamicCodeSearch = (function() {
                         <table class="dynamic-code-table">
                             <thead>
                                 <tr>
-                                    ${headers.map((h, i) => `<th style="width: ${h.width}; text-align: ${i === 2 ? 'left' : 'center'};">${escapeHtml(h.title)}</th>`).join("")}
+                                    ${headers.map((h, i) => `<th style="width: ${h.width}px; text-align: ${h.align};">${escapeHtml(h.title)}</th>`).join("")}
                                 </tr>
                             </thead>
                             <tbody>
@@ -351,18 +392,25 @@ window.DynamicCodeSearch = (function() {
                 tr.className = "dynamic-code-row" + (index === 0 ? " selected" : "");
                 tr.setAttribute("data-index", index);
 
-                // Column values: No, Code, Name, Currency (or rest)
+                // Column values: No, Code, Name, ... (headers.length와 1:1 일치)
                 const keys = Object.keys(item).filter(k => k !== "fseq" && k !== "codeVal" && k !== "codeName");
-                const colValues = [
-                    index + 1,
-                    item.codeVal != null ? item.codeVal : (keys.length > 0 ? item[keys[0]] : ""),
-                    item.codeName != null ? item.codeName : (keys.length > 1 ? item[keys[1]] : ""),
-                    keys.length > 2 && item[keys[2]] != null ? item[keys[2]] : ""
-                ];
+                const colValues = [ index + 1 ];
+
+                rawHeaders.forEach((h, hIdx) => {
+                    let val = "";
+                    if (hIdx === 0) {
+                        val = item.codeVal != null ? item.codeVal : (keys.length > 0 ? item[keys[0]] : "");
+                    } else if (hIdx === 1) {
+                        val = item.codeName != null ? item.codeName : (keys.length > 1 ? item[keys[1]] : "");
+                    } else {
+                        val = (keys.length > hIdx && item[keys[hIdx]] != null) ? item[keys[hIdx]] : "";
+                    }
+                    colValues.push(val != null ? String(val) : "");
+                });
 
                 tr.innerHTML = colValues.map((val, cIdx) => {
-                    const align = cIdx === 2 ? "left" : "center";
-                    return `<td style="text-align: ${align};">${escapeHtml(String(val))}</td>`;
+                    const headerDef = headers[cIdx] || { align: "center" };
+                    return `<td style="text-align: ${headerDef.align};">${escapeHtml(String(val))}</td>`;
                 }).join("");
 
                 // Click select
@@ -380,6 +428,7 @@ window.DynamicCodeSearch = (function() {
                 tbody.appendChild(tr);
             });
         }
+
 
         function chooseItem(item) {
             if (!item) return;

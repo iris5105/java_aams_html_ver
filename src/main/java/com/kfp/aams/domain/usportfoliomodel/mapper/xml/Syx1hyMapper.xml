@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.kfp.aams.domain.usportfoliomodel.mapper.Syx1hyMapper">
+
+    <!-- 1. 통화별 기준환율 목록 조회 (d_syx1hy_2501.srd 원본 SQL 100% 보존, 최근 1년) -->
+    <select id="selectExchangeRateList" resultType="com.kfp.aams.domain.usportfoliomodel.dto.Syx1hyDto">
+        SELECT TO_CHAR(t1.ymd, 'YYYY-MM-DD')                      AS ymd
+             , hkd.hkd_cur                                         AS hkdCur
+             , hkd.hkd_gijun_rt                                    AS hkdGijunRt
+             , usd.usd_cur                                         AS usdCur
+             , usd.usd_gijun_rt                                    AS usdGijunRt
+             , gbp.gbp_cur                                         AS gbpCur
+             , gbp.gbp_gijun_rt                                    AS gbpGijunRt
+             , vnd.vnd_cur                                         AS vndCur
+             , vnd.vnd_gijun_rt                                    AS vndGijunRt
+             , sgd.sgd_cur                                         AS sgdCur
+             , sgd.sgd_gijun_rt                                    AS sgdGijunRt
+             , CASE WHEN t1.holi_gb IS NULL THEN 0 ELSE 255 END   AS fontColor
+             , TO_CHAR(t1.YMD, 'iw')                               AS week
+          FROM SZX9DT t1
+             , (SELECT ta.currency   AS hkd_cur
+                     , ta.gijun_ymd  AS hkd_ymd
+                     , ta.gijun_rt   AS hkd_gijun_rt
+                  FROM SYX1HY ta
+                 WHERE ta.corp_gr   = #{corpGr}
+                   AND ta.currency  = 'HKD'
+                   AND ta.gijun_ymd BETWEEN ADD_MONTHS(TO_DATE(#{ymd}, 'YYYY-MM-DD'), -12) AND TO_DATE(#{ymd}, 'YYYY-MM-DD')) hkd
+             , (SELECT ta.currency   AS usd_cur
+                     , ta.gijun_ymd  AS usd_ymd
+                     , ta.gijun_rt   AS usd_gijun_rt
+                  FROM SYX1HY ta
+                 WHERE ta.corp_gr   = #{corpGr}
+                   AND ta.currency  = 'USD'
+                   AND ta.gijun_ymd BETWEEN ADD_MONTHS(TO_DATE(#{ymd}, 'YYYY-MM-DD'), -12) AND TO_DATE(#{ymd}, 'YYYY-MM-DD')) usd
+             , (SELECT ta.currency   AS gbp_cur
+                     , ta.gijun_ymd  AS gbp_ymd
+                     , ta.gijun_rt   AS gbp_gijun_rt
+                  FROM SYX1HY ta
+                 WHERE ta.corp_gr   = #{corpGr}
+                   AND ta.currency  = 'GBP'
+                   AND ta.gijun_ymd BETWEEN ADD_MONTHS(TO_DATE(#{ymd}, 'YYYY-MM-DD'), -12) AND TO_DATE(#{ymd}, 'YYYY-MM-DD')) gbp
+             , (SELECT ta.currency   AS vnd_cur
+                     , ta.gijun_ymd  AS vnd_ymd
+                     , ta.gijun_rt   AS vnd_gijun_rt
+                  FROM SYX1HY ta
+                 WHERE ta.corp_gr   = #{corpGr}
+                   AND ta.currency  = 'VND'
+                   AND ta.gijun_ymd BETWEEN ADD_MONTHS(TO_DATE(#{ymd}, 'YYYY-MM-DD'), -12) AND TO_DATE(#{ymd}, 'YYYY-MM-DD')) vnd
+             , (SELECT ta.currency   AS sgd_cur
+                     , ta.gijun_ymd  AS sgd_ymd
+                     , ta.gijun_rt   AS sgd_gijun_rt
+                  FROM SYX1HY ta
+                 WHERE ta.corp_gr   = #{corpGr}
+                   AND ta.currency  = 'SGD'
+                   AND ta.gijun_ymd BETWEEN ADD_MONTHS(TO_DATE(#{ymd}, 'YYYY-MM-DD'), -12) AND TO_DATE(#{ymd}, 'YYYY-MM-DD')) sgd
+         WHERE t1.ymd BETWEEN ADD_MONTHS(TO_DATE(#{ymd}, 'YYYY-MM-DD'), -12) AND TO_DATE(#{ymd}, 'YYYY-MM-DD')
+           AND hkd.hkd_ymd(+) = t1.ymd
+           AND usd.usd_ymd(+) = t1.ymd
+           AND gbp.gbp_ymd(+) = t1.ymd
+           AND vnd.vnd_ymd(+) = t1.ymd
+           AND sgd.sgd_ymd(+) = t1.ymd
+         ORDER BY t1.ymd DESC
+    </select>
+
+    <!-- 2. SYX1HY 환율 등록/수정 UPSERT (w_syx1hy.srw updatestart 로직 반영) -->
+    <update id="mergeExchangeRate">
+        MERGE INTO SYX1HY t
+        USING DUAL
+           ON (t.CORP_GR   = #{corpGr}
+          AND  t.GIJUN_YMD = TO_DATE(#{ymd}, 'YYYY-MM-DD')
+          AND  t.CURRENCY  = #{currency})
+        WHEN MATCHED THEN
+             UPDATE SET t.GIJUN_RT = #{gijunRt}
+                      , t.IP_YMD   = SYSDATE
+        WHEN NOT MATCHED THEN
+             INSERT (CORP_GR, GIJUN_YMD, CURRENCY, GIJUN_RT, IP_YMD, BM_VAL)
+             VALUES (#{corpGr}, TO_DATE(#{ymd}, 'YYYY-MM-DD'), #{currency}, #{gijunRt}, SYSDATE, NULL)
+    </update>
+
+</mapper>

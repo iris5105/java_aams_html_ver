@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.kfp.aams.domain.usportfoliomodel.mapper.Ja032fKrxMapper">
+
+    <!-- 1. KRX 주식 종목정보 목록 조회 (d_ja032f_krx.srd 원본 SQL 100% 보존) -->
+    <select id="selectKrxStockList" resultType="com.kfp.aams.domain.usportfoliomodel.dto.Ja032fKrxDto">
+        SELECT jj.JM_CD                                    AS jmCd
+             , jj.KOSCOM_CD                                AS koscom_cd
+             , jj.JJ_FNM                                   AS jjFnm
+             , jj.JJ_NM                                    AS jjNm
+             , jj.JJ_ENM                                   AS jjEnm
+             , jj.BALH_CO                                  AS balhCo
+             , jj.WOOS_ILBAN_GB                            AS woosIlbanGb
+             , jj.CHG_GB                                   AS chgGb
+             , jj.NEW_OLD_GB                               AS newOldGb
+             , jj.DANC_GB                                  AS dancGb
+             , jj.BALH_GA                                  AS balhGa
+             , TO_CHAR(jj.SANGJ_YMD, 'YYYY-MM-DD')         AS sangjYmd
+             , jj.SANGJ_JUSU                               AS sangjJusu
+             , jj.KOSPIGUBUN                               AS kospigubun
+             , jb.BALH_NATION                              AS xxBalhNation
+             , jj.USPM                                     AS uspm
+          FROM SJM0JJ jj
+          LEFT OUTER JOIN SJX0JB jb ON jb.BALH_CO = jj.BALH_CO
+         WHERE jj.DANC_GB IN ('A', 'C')
+           AND NVL(jj.DEL_YN, 'N') != 'Y'
+         ORDER BY CASE WHEN jj.USPM = '1' THEN 1 ELSE 2 END, jj.KOSCOM_CD ASC
+    </select>
+
+    <!-- 2. 특정 종목의 일별 시세 목록 조회 (d_ja991a2.srd 원본 SQL 100% 보존, 최근 1년) -->
+    <select id="selectDailyPriceList" resultType="com.kfp.aams.domain.usportfoliomodel.dto.Ja991a2Dto">
+        SELECT t1.KOSCOM_CD                                AS koscomCd
+             , TO_CHAR(t1.YMD, 'YYYY-MM-DD')              AS ymd
+             , t1.CLOSE                                    AS close
+             , t1.VOLUME                                   AS volume
+             , t1.VALUE / 100000000                        AS value
+             , t1.PRECLOSE                                 AS preclose
+             , t1.CHANGE                                   AS change
+          FROM SJT1TG t1
+         WHERE t1.YMD >= ADD_MONTHS(TO_DATE(#{ymd}, 'YYYY-MM-DD'), -12)
+           AND t1.KOSCOM_CD = #{koscomCd}
+         ORDER BY t1.YMD DESC
+    </select>
+
+    <!-- 3. SJM0JJ 종목 USPM 여부 업데이트 -->
+    <update id="updateSjm0jjUspm">
+        UPDATE SJM0JJ
+           SET USPM = #{uspm, jdbcType=VARCHAR}
+         WHERE JM_CD = #{jmCd}
+    </update>
+
+    <!-- 4. USPM_DD 종목 등록 (w_ja032f_krx.srw::itemchanged 로직) -->
+    <insert id="insertUspmDd">
+        MERGE INTO USPM_DD t
+        USING DUAL
+           ON (t.CORP_GR      = #{corpGr}
+          AND  t.YMD          = TO_DATE(#{ymd}, 'YYYY-MM-DD')
+          AND  t.JM_CD        = #{jmCd}
+          AND  t.OVRS_EXCG_CD = #{ovrsExcgCd})
+        WHEN NOT MATCHED THEN
+             INSERT (CORP_GR, YMD, JM_CD, OVRS_EXCG_CD)
+             VALUES (#{corpGr}, TO_DATE(#{ymd}, 'YYYY-MM-DD'), #{jmCd}, #{ovrsExcgCd})
+    </insert>
+
+    <!-- 5. USPM_DD 종목 삭제 (해제 시) -->
+    <delete id="deleteUspmDd">
+        DELETE FROM USPM_DD
+         WHERE CORP_GR      = #{corpGr}
+           AND YMD          = TO_DATE(#{ymd}, 'YYYY-MM-DD')
+           AND JM_CD        = #{jmCd}
+           AND OVRS_EXCG_CD = #{ovrsExcgCd}
+    </delete>
+
+    <!-- 6. SJT1TG 일별 시세 업데이트 (d_ja991a2.srd 인라인 편집 저장) -->
+    <update id="updateDailyPrice" parameterType="com.kfp.aams.domain.usportfoliomodel.dto.Ja991a2Dto">
+        UPDATE SJT1TG
+           SET CLOSE    = #{close, jdbcType=NUMERIC}
+             , PRECLOSE = #{preclose, jdbcType=NUMERIC}
+             , CHANGE   = #{change, jdbcType=NUMERIC}
+             , VOLUME   = #{volume, jdbcType=NUMERIC}
+             , VALUE    = #{value, jdbcType=NUMERIC} * 100000000
+         WHERE KOSCOM_CD = #{koscomCd}
+           AND YMD       = TO_DATE(#{ymd}, 'YYYY-MM-DD')
+    </update>
+
+</mapper>

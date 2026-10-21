@@ -1,0 +1,156 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.kfp.aams.domain.usportfoliomodel.mapper.Ja033cMapper">
+
+    <!-- 1. 통화/금리/상품 선물/옵션 종목 목록 조회 (d_ja033c.srd 원본 SQL 100% 보존) -->
+    <select id="selectFoComCodeList" resultType="com.kfp.aams.domain.usportfoliomodel.dto.Ja033cDto">
+        SELECT t1.COM_TYPE                                 AS comType
+             , t1.INFO_TYPE                                AS infoType
+             , t1.SHRN_ISCD                                AS shrnIscd
+             , t1.STND_ISCD                                AS stndIscd
+             , t1.KOR_NAME                                 AS korName
+             , t1.ATM_CLS_CODE                             AS atmClsCode
+             , t1.ACPR                                     AS acpr
+             , t1.MMSC_CLS_CODE                            AS mmscClsCode
+             , t1.PROD_NO                                  AS prodNo
+             , t1.PROD_NAME                                AS prodName
+             , CASE t1.COM_TYPE
+                    WHEN '1' THEN '금리'
+                    WHEN '2' THEN '통화'
+                    WHEN '3' THEN '상품'
+                    ELSE t1.COM_TYPE
+               END                                         AS comTypeName
+             , CASE t1.INFO_TYPE
+                    WHEN '1' THEN '선물'
+                    WHEN '2' THEN 'SP선물'
+                    WHEN '5' THEN '콜옵션'
+                    WHEN '6' THEN '풋옵션'
+                    ELSE t1.INFO_TYPE
+               END                                         AS infoTypeName
+             , CASE t1.ATM_CLS_CODE
+                    WHEN '1' THEN 'ATM'
+                    WHEN '2' THEN 'ITM'
+                    WHEN '3' THEN 'OTM'
+                    ELSE t1.ATM_CLS_CODE
+               END                                         AS atmClsName
+             , CASE t1.MMSC_CLS_CODE
+                    WHEN '0' THEN '연결선물'
+                    WHEN '1' THEN '최근월물'
+                    WHEN '2' THEN '차근월물'
+                    WHEN '3' THEN '차차근월물'
+                    WHEN '4' THEN '차차차근월물'
+                    ELSE t1.MMSC_CLS_CODE
+               END                                         AS mmscClsName
+          FROM FO_COM_CODE t1
+         WHERE 1 = 1
+        <if test="comType != null and comType != ''">
+           AND t1.COM_TYPE = #{comType}
+        </if>
+        <if test="infoType != null and infoType != ''">
+           AND t1.INFO_TYPE = #{infoType}
+        </if>
+         ORDER BY t1.COM_TYPE ASC, t1.INFO_TYPE ASC, t1.STND_ISCD ASC
+    </select>
+
+    <!-- 2. 통화/금리/상품 선물/옵션 종목 존재 여부 확인 -->
+    <select id="existsFoComCode" resultType="int">
+        SELECT COUNT(1)
+          FROM FO_COM_CODE
+         WHERE COM_TYPE  = #{comType}
+           AND INFO_TYPE = #{infoType}
+           AND STND_ISCD = #{stndIscd}
+    </select>
+
+    <!-- 3. 통화/금리/상품 선물/옵션 종목 단건 등록 (INSERT) -->
+    <insert id="insertFoComCode" parameterType="com.kfp.aams.domain.usportfoliomodel.dto.Ja033cDto">
+        INSERT INTO FO_COM_CODE (
+            COM_TYPE,
+            INFO_TYPE,
+            SHRN_ISCD,
+            STND_ISCD,
+            KOR_NAME,
+            ATM_CLS_CODE,
+            ACPR,
+            MMSC_CLS_CODE,
+            PROD_NO,
+            PROD_NAME
+        ) VALUES (
+            #{comType, jdbcType=VARCHAR},
+            #{infoType, jdbcType=VARCHAR},
+            #{shrnIscd, jdbcType=VARCHAR},
+            #{stndIscd, jdbcType=VARCHAR},
+            #{korName, jdbcType=VARCHAR},
+            #{atmClsCode, jdbcType=VARCHAR},
+            #{acpr, jdbcType=NUMERIC},
+            #{mmscClsCode, jdbcType=VARCHAR},
+            #{prodNo, jdbcType=VARCHAR},
+            #{prodName, jdbcType=VARCHAR}
+        )
+    </insert>
+
+    <!-- 4. 통화/금리/상품 선물/옵션 종목 단건 수정 (UPDATE) -->
+    <update id="updateFoComCode" parameterType="com.kfp.aams.domain.usportfoliomodel.dto.Ja033cDto">
+        UPDATE FO_COM_CODE
+           SET SHRN_ISCD     = #{shrnIscd, jdbcType=VARCHAR},
+               KOR_NAME      = #{korName, jdbcType=VARCHAR},
+               ATM_CLS_CODE  = #{atmClsCode, jdbcType=VARCHAR},
+               ACPR          = #{acpr, jdbcType=NUMERIC},
+               MMSC_CLS_CODE = #{mmscClsCode, jdbcType=VARCHAR},
+               PROD_NO       = #{prodNo, jdbcType=VARCHAR},
+               PROD_NAME     = #{prodName, jdbcType=VARCHAR}
+         WHERE COM_TYPE      = #{comType}
+           AND INFO_TYPE     = #{infoType}
+           AND STND_ISCD     = #{stndIscd}
+    </update>
+
+    <!-- 5. 통화/금리/상품 선물/옵션 종목 등록/수정 (MERGE) -->
+    <insert id="mergeFoComCode" parameterType="com.kfp.aams.domain.usportfoliomodel.dto.Ja033cDto">
+        MERGE INTO FO_COM_CODE t
+        USING DUAL
+           ON (t.COM_TYPE = #{comType} AND t.INFO_TYPE = #{infoType} AND t.STND_ISCD = #{stndIscd})
+        WHEN MATCHED THEN
+             UPDATE SET
+                 t.SHRN_ISCD     = #{shrnIscd, jdbcType=VARCHAR},
+                 t.KOR_NAME      = #{korName, jdbcType=VARCHAR},
+                 t.ATM_CLS_CODE  = #{atmClsCode, jdbcType=VARCHAR},
+                 t.ACPR          = #{acpr, jdbcType=NUMERIC},
+                 t.MMSC_CLS_CODE = #{mmscClsCode, jdbcType=VARCHAR},
+                 t.PROD_NO       = #{prodNo, jdbcType=VARCHAR},
+                 t.PROD_NAME     = #{prodName, jdbcType=VARCHAR}
+        WHEN NOT MATCHED THEN
+             INSERT (
+                 COM_TYPE,
+                 INFO_TYPE,
+                 SHRN_ISCD,
+                 STND_ISCD,
+                 KOR_NAME,
+                 ATM_CLS_CODE,
+                 ACPR,
+                 MMSC_CLS_CODE,
+                 PROD_NO,
+                 PROD_NAME
+             ) VALUES (
+                 #{comType, jdbcType=VARCHAR},
+                 #{infoType, jdbcType=VARCHAR},
+                 #{shrnIscd, jdbcType=VARCHAR},
+                 #{stndIscd, jdbcType=VARCHAR},
+                 #{korName, jdbcType=VARCHAR},
+                 #{atmClsCode, jdbcType=VARCHAR},
+                 #{acpr, jdbcType=NUMERIC},
+                 #{mmscClsCode, jdbcType=VARCHAR},
+                 #{prodNo, jdbcType=VARCHAR},
+                 #{prodName, jdbcType=VARCHAR}
+             )
+    </insert>
+
+    <!-- 6. 통화/금리/상품 선물/옵션 종목 삭제 (DELETE) -->
+    <delete id="deleteFoComCode">
+        DELETE FROM FO_COM_CODE
+         WHERE COM_TYPE  = #{comType}
+           AND INFO_TYPE = #{infoType}
+           AND STND_ISCD = #{stndIscd}
+    </delete>
+
+</mapper>

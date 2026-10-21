@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.kfp.aams.domain.usportfoliomodel.mapper.ApiParamsMapper">
+
+    <!-- 1. API 파라미터 목록 조회 (d_api_params.srd 복합 조인 보존, 규정 03-1) -->
+    <select id="selectApiParamsList" resultType="com.kfp.aams.domain.usportfoliomodel.dto.ApiParamsDto">
+        SELECT t1.TR_CO_CD                                                     AS tr_co_cd
+             , t1.GR_CD                                                        AS gr_cd
+             , gr.SEBU_CD_NM                                                   AS xx_gr_cd
+             , t1.SCD                                                          AS scd
+             , t1.SNM                                                          AS snm
+             , t1.COMPANY                                                      AS company
+             , t1.URL                                                          AS url
+             , t1.HEADERS                                                      AS headers
+             , t1.QUERYPARAMS                                                  AS queryparams
+             , t1.TABLENAME                                                    AS tablename
+             , t1.SUBTABLE                                                     AS subtable
+             , t1.KEY_VALUE                                                    AS key_value
+             , t1.SUB_KEY_VALUE                                                AS sub_key_value
+             , t1.COMMENTS                                                     AS comments
+             , t1.Q_VALUE                                                      AS q_value
+          FROM API_PARAMS t1
+             , szx0gr gr
+         WHERE t1.TR_CO_CD = #{trCoCd}
+           AND gr.GR_CD = 'AP'
+           AND gr.SEBU_CD = t1.GR_CD
+         ORDER BY t1.GR_CD ASC, t1.SCD ASC, t1.COMPANY ASC
+    </select>
+
+    <!-- 2. API_Q 요청 레코드 생성 (w_api_params.srw mle_q_value::doubleclicked 연동) -->
+    <insert id="insertApiQRequest">
+        INSERT INTO API_Q
+            ( COMPANY        /* _1- */
+            , URL            /* _2- */
+            , HEADERS        /* _3- */
+            , QUERYPARAMS    /* _4- */
+            , TABLENAME      /* _5- */
+            , SUBTABLE       /* _6- */
+            , REQUEST        /* _7- */
+            , API_KEY        /* _8- */
+            , KEY_VALUE      /* _9- */
+            , SUB_KEY_VALUE  /* _10- */
+            , PG_NM          /* _11- */
+            )
+        VALUES
+            ( #{company, jdbcType=VARCHAR}
+            , #{url, jdbcType=VARCHAR}
+            , #{headers, jdbcType=VARCHAR}
+            , #{qValue, jdbcType=VARCHAR}
+            , #{tablename, jdbcType=VARCHAR}
+            , #{subtable, jdbcType=VARCHAR}
+            , '0'
+            , TO_CHAR(sysdate, 'yyyymmdd') || '-' || RAWTOHEX(SYS_GUID())
+            , #{keyValue, jdbcType=VARCHAR}
+            , #{subKeyValue, jdbcType=VARCHAR}
+            , 'W_API_PARAMS'
+            )
+    </insert>
+
+</mapper>

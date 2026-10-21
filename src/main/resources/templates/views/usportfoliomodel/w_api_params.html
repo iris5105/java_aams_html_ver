@@ -1,0 +1,889 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<!--
+  AAMS 화면 표준 템플릿: W_API_PARAMS (API PARAMETER 관리)
+  - 파워빌더 소스: pb_recource/JA999/w_api_params.srw
+  - 데이터윈도우: d_api_params.srd
+  - 원본 스플릿바 구조: 좌우 분할 (st_1) + 우측 하단 상하 분할 (st_move) 100% 반영
+  - 적용 규정: 01-12 프레임워크 표준 전수 준수
+-->
+<div class="view-container layout-split-h layout-mobile-stack-container" th:fragment="mainView"
+     style="display: flex; flex-direction: column; height: 100%; width: 100%; overflow: hidden; background-color: #ffffff; position: relative;">
+
+    <!-- 1. 상단 공통 툴바 (Row 1) -->
+    <div class="view-toolbar">
+        <div class="toolbar-left">
+            <div th:replace="~{fragments/tab_header :: toolbarButtons}"></div>
+        </div>
+        <div th:replace="~{fragments/tab_header :: toolbarBreadcrumb}"></div>
+    </div>
+
+    <!-- 2. 상단 필터바 (Row 2: dc_ymd_dddw 연동 + 단축키/기능 안내 배지) -->
+    <div class="filter-bar">
+        <div class="filter-left" style="display: flex; align-items: center; flex-wrap: wrap; gap: 8px;">
+            <div th:replace="~{fragments/filter/dc_ymd_dddw :: filter(labelYmd='기준일자', labelDddw='매매처')}"></div>
+            <!-- 파워빌더 dw_c tag 도움말 안내 배지 -->
+            <div class="filter-hint-badge" style="display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; font-size: 12px; color: #0284c7; background-color: #f0f9ff; border: 1px solid #bae6fd; border-radius: 4px;">
+                <i class="fa-solid fa-circle-info text-sky-600"></i>
+                <span><strong>API_Q VALUE</strong> 더블클릭 시 요청자료 자동생성 &nbsp;|&nbsp; <strong>Ctrl+→ / Tab</strong> 2칸 들여쓰기</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. 메인 콘텐츠 섹션 (파워빌더 wt_vertdetail 원본 100% 반영: 좌우 수평 분할) -->
+    <div class="layout-split-h split-body layout-mobile-stack" data-split-key="W_API_PARAMS_H" data-default-ratio="55:45" style="flex: 1; min-height: 0; width: 100%; display: flex; overflow: hidden;">
+
+        <!-- 3-1. 좌측: API 파라미터 목록 그리드 패널 (dw_list) -->
+        <div class="pane-left master-section" style="display: flex; flex-direction: column; height: 100%; min-width: 0; overflow: hidden;">
+            <div class="sub-grid-header" style="display: flex; justify-content: space-between; align-items: center; padding: 6px 12px; background: #f8fafc; border-bottom: 1px solid #e2e8f0;">
+                <span class="sub-title" style="font-weight: 700; font-size: 13px; color: #1e293b; display: inline-flex; align-items: center; gap: 6px;">
+                    <i class="fa-solid fa-list-check text-blue-600"></i> API 파라미터 목록
+                </span>
+            </div>
+            <div class="pane-body" style="flex: 1; height: 100%; min-height: 0; position: relative; overflow: hidden;">
+                <div id="gridApiParams" class="tabulator-aams-grid" style="height: 100%; width: 100%;"></div>
+            </div>
+        </div>
+
+        <!-- 좌우 스플리터 드래그 바 (st_1) -->
+        <div class="split-gutter-h" title="드래그하여 좌우 비율 조절 (더블클릭 시 기본 비율로 복원)"></div>
+
+        <!-- 3-2. 우측: 상세 파라미터 및 요청 설정 패널 (mle_url, mle_q_value, mle_comments, st_move, mle_queryparams) -->
+        <div class="pane-right detail-section" style="display: flex; flex-direction: column; height: 100%; min-width: 0; overflow: hidden; background-color: #f8fafc;">
+            <!-- 패널 상단 바 -->
+            <div class="sub-grid-header" style="display: flex; justify-content: space-between; align-items: center; padding: 6px 12px; background: #f8fafc; border-bottom: 1px solid #e2e8f0; flex-shrink: 0;">
+                <span class="sub-title" style="font-weight: 700; font-size: 13px; color: #1e293b; display: inline-flex; align-items: center; gap: 6px;">
+                    <i class="fa-solid fa-sliders text-indigo-600"></i> 상세 파라미터 및 요청 설정
+                </span>
+                <div class="sub-grid-actions" style="display: flex; gap: 6px; align-items: center;">
+                    <button type="button" class="btn-action-primary" id="btnCreateApiQ" title="선택된 파라미터로 API_Q에 요청자료를 생성합니다. (더블클릭 단축키 지원)"
+                            style="display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; font-size: 12px; font-weight: 600; color: #ffffff; background-color: #0284c7; border: 1px solid #0369a1; border-radius: 4px; cursor: pointer; transition: all 0.2s;">
+                        <i class="fa-solid fa-bolt"></i> API_Q 요청생성
+                    </button>
+                </div>
+            </div>
+
+            <!-- 우측 본문 전체 컨테이너 -->
+            <div style="flex: 1; display: flex; flex-direction: column; min-height: 0; overflow: hidden;">
+
+                <!-- (1) 상단 고정 영역: URL 및 API_Q VALUE -->
+                <div style="display: flex; flex-direction: column; gap: 6px; padding: 8px 10px 6px 10px; background-color: #f8fafc; border-bottom: 1px solid #e2e8f0; flex-shrink: 0;">
+
+                    <!-- 1-1. URL (mle_url) -->
+                    <div style="display: flex; flex-direction: column;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px;">
+                            <span style="font-size: 12px; font-weight: 700; color: #1e293b; display: inline-flex; align-items: center; gap: 5px;">
+                                <i class="fa-solid fa-link text-blue-600"></i> URL (호출 엔드포인트)
+                            </span>
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <button type="button" class="btn-copy-mle" data-target="mleUrl" title="URL 클립보드 복사"
+                                        style="font-size: 11px; padding: 1px 6px; border: 1px solid #cbd5e1; border-radius: 3px; background: #ffffff; cursor: pointer; color: #475569;">
+                                    <i class="fa-regular fa-copy"></i> 복사
+                                </button>
+                            </div>
+                        </div>
+                        <textarea id="mleUrl" class="aams-code-editor" rows="2"
+                                  style="width: 100%; font-family: 'D2Coding', 'Consolas', monospace; font-size: 12px; line-height: 1.4; padding: 5px 8px; border: 1px solid #cbd5e1; border-radius: 4px; resize: vertical; background-color: #f0ffff; color: #0f172a; box-sizing: border-box;"
+                                  placeholder="호출 대상 URL 엔드포인트를 입력하세요."></textarea>
+                    </div>
+
+                    <!-- 1-2. API_Q VALUE (mle_q_value) -->
+                    <div style="display: flex; flex-direction: column;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px;">
+                            <span style="font-size: 12px; font-weight: 700; color: #1e293b; display: inline-flex; align-items: center; gap: 5px;">
+                                <i class="fa-solid fa-terminal text-emerald-600"></i> API_Q VALUE (요청 파라미터 데이터)
+                            </span>
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <span class="editor-badge" style="font-size: 11px; color: #0284c7; background: #e0f2fe; padding: 1px 6px; border-radius: 3px; cursor: pointer;" id="badgeDoubleclickHint" title="더블클릭 또는 상단 버튼 클릭 시 요청 생성">
+                                    <i class="fa-solid fa-circle-info"></i> 더블클릭 시 요청 생성
+                                </span>
+                                <button type="button" class="btn-copy-mle" data-target="mleQValue" title="API_Q VALUE 클립보드 복사"
+                                        style="font-size: 11px; padding: 1px 6px; border: 1px solid #cbd5e1; border-radius: 3px; background: #ffffff; cursor: pointer; color: #475569;">
+                                    <i class="fa-regular fa-copy"></i> 복사
+                                </button>
+                            </div>
+                        </div>
+                        <textarea id="mleQValue" class="aams-code-editor" rows="3"
+                                  style="width: 100%; font-family: 'D2Coding', 'Consolas', monospace; font-size: 12px; line-height: 1.4; padding: 5px 8px; border: 1px solid #cbd5e1; border-radius: 4px; resize: vertical; background-color: #f0ffff; color: #0f172a; box-sizing: border-box;"
+                                  placeholder="API_Q에 요청할 실제 파라미터 데이터를 입력하세요. (더블클릭 시 전송 생성)"></textarea>
+                    </div>
+
+                </div>
+
+                <!-- (2) 하단 가변 스플릿 영역: COMMENTS & QUERYPARAMS (st_move 수평 스플릿바 100% 재현) -->
+                <div class="layout-split-v split-sub-body" data-split-key="W_API_PARAMS_V" data-default-ratio="55:45"
+                     style="flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; padding: 6px 10px 8px 10px;">
+
+                    <!-- 2-1. COMMENTS 패널 (mle_comments) -->
+                    <div class="pane-top split-top" style="display: flex; flex-direction: column; min-height: 80px; overflow: hidden;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px; flex-shrink: 0;">
+                            <span style="font-size: 12px; font-weight: 700; color: #1e293b; display: inline-flex; align-items: center; gap: 5px;">
+                                <i class="fa-regular fa-comment-dots text-amber-600"></i> COMMENTS (설명 및 명세 주석)
+                            </span>
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <span style="font-size: 11px; color: #64748b;">(Ctrl+→ / Tab 들여쓰기)</span>
+                                <button type="button" class="btn-copy-mle" data-target="mleComments" title="COMMENTS 클립보드 복사"
+                                        style="font-size: 11px; padding: 1px 6px; border: 1px solid #cbd5e1; border-radius: 3px; background: #ffffff; cursor: pointer; color: #475569;">
+                                    <i class="fa-regular fa-copy"></i> 복사
+                                </button>
+                            </div>
+                        </div>
+                        <textarea id="mleComments" class="aams-code-editor"
+                                  style="width: 100%; flex: 1; min-height: 60px; font-family: 'D2Coding', 'Consolas', monospace; font-size: 12px; line-height: 1.4; padding: 6px 8px; border: 1px solid #cbd5e1; border-radius: 4px; resize: none; background-color: #f0ffff; color: #0f172a; box-sizing: border-box;"
+                                  placeholder="파라미터 및 API 요청에 대한 상세 설명과 주석을 입력하세요."></textarea>
+                    </div>
+
+                    <!-- 상하 스플릿 드래그 바 (st_move) -->
+                    <div class="split-gutter-v" title="드래그하여 COMMENTS와 QUERYPARAMS 높이 조절 (더블클릭 시 기본 비율로 복원)"></div>
+
+                    <!-- 2-2. QUERYPARAMS 패널 (mle_queryparams) -->
+                    <div class="pane-bottom split-bottom" style="display: flex; flex-direction: column; min-height: 80px; overflow: hidden;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px; flex-shrink: 0;">
+                            <span style="font-size: 12px; font-weight: 700; color: #1e293b; display: inline-flex; align-items: center; gap: 5px;">
+                                <i class="fa-solid fa-code text-purple-600"></i> QUERYPARAMS (기본 쿼리 파라미터 정의)
+                            </span>
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <span style="font-size: 11px; color: #64748b;">(Ctrl+→ / Tab 들여쓰기)</span>
+                                <button type="button" class="btn-copy-mle" data-target="mleQueryParams" title="QUERYPARAMS 클립보드 복사"
+                                        style="font-size: 11px; padding: 1px 6px; border: 1px solid #cbd5e1; border-radius: 3px; background: #ffffff; cursor: pointer; color: #475569;">
+                                    <i class="fa-regular fa-copy"></i> 복사
+                                </button>
+                            </div>
+                        </div>
+                        <textarea id="mleQueryParams" class="aams-code-editor"
+                                  style="width: 100%; flex: 1; min-height: 60px; font-family: 'D2Coding', 'Consolas', monospace; font-size: 12px; line-height: 1.4; padding: 6px 8px; border: 1px solid #cbd5e1; border-radius: 4px; resize: none; background-color: #f0ffff; color: #0f172a; box-sizing: border-box;"
+                                  placeholder="기본 QUERYPARAMS 템플릿을 입력하세요."></textarea>
+                    </div>
+
+                </div>
+
+            </div>
+        </div>
+
+    </div>
+
+    <!-- 4. 화면 전용 스크립트 격리 블록 -->
+    <script th:inline="javascript">
+    (function () {
+        // MDI 최상위 탭 컨테이너 획득 (규정 08-1-3: Zero-Hardcoded-ID & Pane Scoping)
+        var currentScript = document.currentScript;
+        var pane = currentScript ? (currentScript.closest('.tab-pane') || currentScript.closest('.view-container')) : null;
+        if (!pane) return;
+
+        var gridApiParams = null;
+        var isInitialized = false;
+        var lastLoadedTrCoCd = null;
+        var currentActiveRow = null;
+        var currentActiveRowData = null;
+
+        // -------------------------------------------------------------
+        // 1. 단일 진입점 초기화 (Single Entry-Point Pattern, 규정 10-1)
+        // -------------------------------------------------------------
+        function startInit() {
+            if (isInitialized) return;
+            isInitialized = true;
+
+            initCalendar();
+            initBrokerDddw();
+            initGrid();
+            initToolbar();
+            initSplitters();
+            initMleKeyHandlers();
+            initSubButtons();
+            initCopyButtons();
+
+            // 파워빌더 eb_direct_retrieve = true 규정: 최초 1회 자동 조회
+            setTimeout(function () {
+                loadApiParamsList();
+            }, 100);
+        }
+
+        // -------------------------------------------------------------
+        // 2. 상단 필터바 컴포넌트 초기화
+        // -------------------------------------------------------------
+        function initCalendar() {
+            if (typeof window.initFilterCalendar === 'function') {
+                window.initFilterCalendar(pane, {
+                    onSelect: function (selectedDate) {
+                        // 규정 08-2: 필터 변경 시 자동 조회 금지
+                    }
+                });
+            }
+        }
+
+        function initBrokerDddw() {
+            var corpGr = (typeof resolveCorpGr === 'function') ? resolveCorpGr(pane) : '';
+            if (typeof window.initFilterDddw === 'function') {
+                return window.initFilterDddw(pane, {
+                    selectId: 'filterDddw',
+                    dddwId: 'tr_co_cd',
+                    corpGr: corpGr,
+                    seq: 1,
+                    codeTitle: '코드',
+                    nameTitle: '매매처명',
+                    defaultVal: '00003', // 파워빌더 is_init_value = "00003" (키움증권)
+                    onSelect: function (code, name) {
+                        // 규정 08-2: 필터 변경 시 자동 조회를 실행하지 않음
+                    }
+                });
+            }
+        }
+
+        // -------------------------------------------------------------
+        // 3. Tabulator 그리드 초기화 (d_api_params.srd 100% 매핑)
+        // -------------------------------------------------------------
+        function initGrid() {
+            var gridEl = pane.querySelector('#gridApiParams');
+            if (!gridEl) return;
+
+            gridApiParams = new Tabulator(gridEl, {
+                height: "100%",
+                layout: "fitDataFill",
+                selectableRows: 1,
+                editTriggerEvent: "click", // 원클릭 인라인 편집 (규정 04-1-2)
+                placeholder: "조회된 API 파라미터 데이터가 없습니다.",
+                columns: [
+                    {
+                        title: "No.",
+                        formatter: "rownum",
+                        width: 48,
+                        hozAlign: "center",
+                        headerHozAlign: "center",
+                        headerSort: false,
+                        resizable: false
+                    },
+                    {
+                        title: "종류",
+                        field: "grCd",
+                        width: 60,
+                        hozAlign: "center",
+                        headerHozAlign: "center",
+                        editor: "input",
+                        cellClick: window.aamsCellEdit,
+                        cellEdited: function (cell) {
+                            markRowUpdated(cell);
+                            onGrCdEdited(cell);
+                        }
+                    },
+                    {
+                        title: "",
+                        field: "xx_btn_grCd",
+                        width: 36,
+                        minWidth: 36,
+                        maxWidth: 36,
+                        hozAlign: "center",
+                        headerSort: false,
+                        resizable: false,
+                        formatter: function (cell) {
+                            return '<button type="button" class="btn-grid-addon btn-search" title="종류코드 검색"><i class="fa-solid fa-magnifying-glass"></i></button>';
+                        },
+                        cellClick: function (e, cell) {
+                            e.stopPropagation();
+                            var row = cell.getRow();
+                            var curVal = row.getData().grCd || '';
+                            if (window.DynamicCodeSearch && typeof window.DynamicCodeSearch.openModal === 'function') {
+                                window.DynamicCodeSearch.openModal({
+                                    columnNm: "gr_cd",
+                                    seq: 1,
+                                    initialKeyword: curVal,
+                                    onSelect: function (code, name) {
+                                        row.update({ grCd: code, xxGrCd: name, isUpdated: true });
+                                    }
+                                });
+                            }
+                        }
+                    },
+                    {
+                        title: "종류명",
+                        field: "xxGrCd",
+                        width: 140,
+                        hozAlign: "left",
+                        headerHozAlign: "center"
+                    },
+                    {
+                        title: "분류",
+                        field: "scd",
+                        width: 60,
+                        hozAlign: "center",
+                        headerHozAlign: "center",
+                        editor: "input",
+                        cellClick: window.aamsCellEdit,
+                        cellEdited: function (cell) {
+                            markRowUpdated(cell);
+                        }
+                    },
+                    {
+                        title: "분류명",
+                        field: "snm",
+                        width: 190,
+                        hozAlign: "left",
+                        headerHozAlign: "center",
+                        editor: "input",
+                        cellClick: window.aamsCellEdit,
+                        cellEdited: function (cell) {
+                            markRowUpdated(cell);
+                        }
+                    },
+                    {
+                        title: "Company",
+                        field: "company",
+                        width: 100,
+                        hozAlign: "center",
+                        headerHozAlign: "center",
+                        editor: "input",
+                        cellClick: window.aamsCellEdit,
+                        cellEdited: function (cell) {
+                            markRowUpdated(cell);
+                        }
+                    },
+                    {
+                        title: "Headers",
+                        field: "headers",
+                        width: 170,
+                        hozAlign: "left",
+                        headerHozAlign: "center",
+                        editor: "input",
+                        cellClick: window.aamsCellEdit,
+                        cellEdited: function (cell) {
+                            markRowUpdated(cell);
+                        }
+                    },
+                    {
+                        title: "테이블명",
+                        field: "tablename",
+                        width: 150,
+                        hozAlign: "left",
+                        headerHozAlign: "center",
+                        editor: "input",
+                        cellClick: window.aamsCellEdit,
+                        cellEdited: function (cell) {
+                            markRowUpdated(cell);
+                        }
+                    },
+                    {
+                        title: "SUB테이블명",
+                        field: "subtable",
+                        width: 150,
+                        hozAlign: "left",
+                        headerHozAlign: "center",
+                        editor: "input",
+                        cellClick: window.aamsCellEdit,
+                        cellEdited: function (cell) {
+                            markRowUpdated(cell);
+                        }
+                    },
+                    {
+                        title: "Key Value",
+                        field: "keyValue",
+                        width: 90,
+                        hozAlign: "center",
+                        headerHozAlign: "center",
+                        editor: "input",
+                        cellClick: window.aamsCellEdit,
+                        cellEdited: function (cell) {
+                            markRowUpdated(cell);
+                        }
+                    },
+                    {
+                        title: "Sub Key",
+                        field: "subKeyValue",
+                        width: 90,
+                        hozAlign: "center",
+                        headerHozAlign: "center",
+                        editor: "input",
+                        cellClick: window.aamsCellEdit,
+                        cellEdited: function (cell) {
+                            markRowUpdated(cell);
+                        }
+                    }
+                ]
+            });
+
+            // 행 선택 삼중 안전망 (규정 05-3)
+            if (typeof window.setupTabulatorRowSelection === 'function') {
+                window.setupTabulatorRowSelection(gridApiParams, function (row, data) {
+                    syncParamsDetail(row, data);
+                });
+            }
+            gridApiParams.on("rowClick", function (e, row) {
+                syncParamsDetail(row, row ? row.getData() : null);
+            });
+            gridApiParams.on("rowSelectionChanged", function (data, rows) {
+                if (rows && rows.length > 0) {
+                    syncParamsDetail(rows[0], rows[0].getData());
+                }
+            });
+        }
+
+        // 그리드 변경 플래그 마킹 유틸리티
+        function markRowUpdated(cell) {
+            var row = cell.getRow();
+            var d = row.getData();
+            if (!d.isNew) {
+                row.update({ isUpdated: true });
+            }
+        }
+
+        // 종류코드 직접 수기입력 시 명칭 자동 세팅
+        function onGrCdEdited(cell) {
+            var val = (cell.getValue() || '').trim().toUpperCase();
+            var row = cell.getRow();
+            if (!val) {
+                row.update({ xxGrCd: '' });
+                return;
+            }
+            var corpGr = (typeof resolveCorpGr === 'function') ? resolveCorpGr(pane) : '';
+            fetch('/api/common/code-search/get?columnNm=gr_cd&seq=1&corpGr=' + encodeURIComponent(corpGr) + '&code=' + encodeURIComponent(val))
+                .then(function (res) { return res.json(); })
+                .then(function (data) {
+                    if (data && data.code) {
+                        row.update({ grCd: data.code, xxGrCd: data.codeName || data.name || '', isUpdated: true });
+                    }
+                })
+                .catch(function () {});
+        }
+
+        // -------------------------------------------------------------
+        // 4. 행 선택 시 우측 상세 에디터 동기화 (syncParamsDetail)
+        // -------------------------------------------------------------
+        function syncParamsDetail(row, data) {
+            if (!row) return;
+
+            // 이미 동일한 행이 활성 상태라면 중복 처리 방지
+            if (currentActiveRow === row) {
+                return;
+            }
+
+            // 1. 행 전환 직전: 이전에 활성화되어 있던 행이 있다면, 해당 행에만 편집 내용을 안전하게 저장!
+            if (currentActiveRow && currentActiveRow !== row) {
+                syncMleToRow(currentActiveRow);
+            }
+
+            // 2. 신규 행 선택 (단일 선택 모드 보장)
+            if (!row.isSelected || !row.isSelected()) {
+                if (typeof gridApiParams.deselectRow === 'function') {
+                    gridApiParams.deselectRow();
+                }
+                row.select();
+            }
+
+            // 3. 신규 활성 행 등록
+            currentActiveRow = row;
+            var rowData = data || (typeof row.getData === 'function' ? row.getData() : null);
+            if (!rowData) return;
+            currentActiveRowData = rowData;
+
+            // 4. 우측 4개 에디터에 선택된 행의 데이터 주입
+            var mleUrl = pane.querySelector('#mleUrl');
+            var mleQValue = pane.querySelector('#mleQValue');
+            var mleComments = pane.querySelector('#mleComments');
+            var mleQueryParams = pane.querySelector('#mleQueryParams');
+
+            if (mleUrl) mleUrl.value = rowData.url || '';
+            if (mleQValue) mleQValue.value = rowData.qValue || rowData.q_value || '';
+            if (mleComments) mleComments.value = rowData.comments || '';
+            if (mleQueryParams) mleQueryParams.value = rowData.queryparams || rowData.queryParams || '';
+        }
+
+        // 특정 행 객체에 현재 에디터 내용 동기화 (오버라이트 원천 차단)
+        function syncMleToRow(targetRow) {
+            if (!targetRow) return;
+            var rowData = (typeof targetRow.getData === 'function') ? targetRow.getData() : null;
+            if (!rowData) return;
+
+            var mleUrl = pane.querySelector('#mleUrl');
+            var mleQValue = pane.querySelector('#mleQValue');
+            var mleComments = pane.querySelector('#mleComments');
+            var mleQueryParams = pane.querySelector('#mleQueryParams');
+
+            var newUrl = mleUrl ? mleUrl.value : '';
+            var newQValue = mleQValue ? mleQValue.value : '';
+            var newComments = mleComments ? mleComments.value : '';
+            var newQueryParams = mleQueryParams ? mleQueryParams.value : '';
+
+            var curUrl = rowData.url || '';
+            var curQValue = rowData.qValue || rowData.q_value || '';
+            var curComments = rowData.comments || '';
+            var curQueryParams = rowData.queryparams || rowData.queryParams || '';
+
+            if (curUrl !== newUrl || curQValue !== newQValue || curComments !== newComments || curQueryParams !== newQueryParams) {
+                rowData.url = newUrl;
+                rowData.qValue = newQValue;
+                rowData.comments = newComments;
+                rowData.queryparams = newQueryParams;
+                if (!rowData.isNew) {
+                    rowData.isUpdated = true;
+                }
+            }
+        }
+
+        // 현재 활성 행의 데이터 동기화 (에디터 input 이벤트 또는 저장 전 호출)
+        function saveCurrentMleToActiveRow() {
+            if (currentActiveRow) {
+                syncMleToRow(currentActiveRow);
+            }
+        }
+
+        // -------------------------------------------------------------
+        // 5. 우측 에디터 단축키 및 이벤트 핸들러 (파워빌더 f_tab 및 더블클릭 연동)
+        // -------------------------------------------------------------
+        function initMleKeyHandlers() {
+            var mles = pane.querySelectorAll('.aams-code-editor');
+            mles.forEach(function (textarea) {
+                // 실시간 행 데이터 변경 반영
+                textarea.addEventListener('input', function () {
+                    saveCurrentMleToActiveRow();
+                });
+
+                // Tab 키 또는 Ctrl + ArrowRight / ArrowLeft 들여쓰기 지원 (파워빌더 f_tab 연동)
+                textarea.addEventListener('keydown', function (e) {
+                    if (e.key === 'Tab' || (e.ctrlKey && (e.key === 'ArrowRight' || e.key === 'ArrowLeft'))) {
+                        e.preventDefault();
+                        var start = this.selectionStart;
+                        var end = this.selectionEnd;
+                        var val = this.value;
+
+                        if (e.shiftKey || (e.ctrlKey && e.key === 'ArrowLeft')) {
+                            // 내어쓰기 (2칸 삭제)
+                            if (val.substring(start - 2, start) === "  ") {
+                                this.value = val.substring(0, start - 2) + val.substring(end);
+                                this.selectionStart = this.selectionEnd = Math.max(0, start - 2);
+                            }
+                        } else {
+                            // 들여쓰기 (2칸 추가)
+                            this.value = val.substring(0, start) + "  " + val.substring(end);
+                            this.selectionStart = this.selectionEnd = start + 2;
+                        }
+                        saveCurrentMleToActiveRow();
+                    } else if (e.ctrlKey && (e.key === 'y' || e.key === 'Y')) {
+                        // Ctrl + Y: 현재 줄 삭제
+                        e.preventDefault();
+                        var pos = this.selectionStart;
+                        var textVal = this.value;
+                        var lineStart = textVal.lastIndexOf('\n', pos - 1) + 1;
+                        var lineEnd = textVal.indexOf('\n', pos);
+                        if (lineEnd === -1) lineEnd = textVal.length;
+                        else lineEnd += 1; // 줄바꿈 포함
+
+                        this.value = textVal.substring(0, lineStart) + textVal.substring(lineEnd);
+                        this.selectionStart = this.selectionEnd = lineStart;
+                        saveCurrentMleToActiveRow();
+                    } else if (e.ctrlKey && (e.key === 's' || e.key === 'S')) {
+                        // Ctrl + S: 저장
+                        e.preventDefault();
+                        saveParamsData();
+                    }
+                });
+            });
+
+            // API_Q VALUE 더블클릭 이벤트 (파워빌더 mle_q_value::doubleclicked 연동)
+            var mleQ = pane.querySelector('#mleQValue');
+            if (mleQ) {
+                mleQ.addEventListener('dblclick', function () {
+                    handleCreateApiQ();
+                });
+            }
+
+            var hintBadge = pane.querySelector('#badgeDoubleclickHint');
+            if (hintBadge) {
+                hintBadge.addEventListener('click', function () {
+                    handleCreateApiQ();
+                });
+            }
+        }
+
+        // 클립보드 복사 버튼 초기화
+        function initCopyButtons() {
+            var copyBtns = pane.querySelectorAll('.btn-copy-mle');
+            copyBtns.forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    var targetId = this.dataset.target;
+                    var textarea = pane.querySelector('#' + targetId);
+                    if (!textarea) return;
+
+                    var text = textarea.value || '';
+                    if (!text) {
+                        if (window.showToast) window.showToast("복사할 내용이 없습니다.", "warning");
+                        return;
+                    }
+
+                    if (navigator.clipboard && navigator.clipboard.writeText) {
+                        navigator.clipboard.writeText(text).then(function () {
+                            if (window.showToast) window.showToast("클립보드에 복사되었습니다.", "success");
+                        }).catch(function () {
+                            fallbackCopy(textarea);
+                        });
+                    } else {
+                        fallbackCopy(textarea);
+                    }
+                });
+            });
+
+            function fallbackCopy(textarea) {
+                textarea.select();
+                try {
+                    document.execCommand('copy');
+                    if (window.showToast) window.showToast("클립보드에 복사되었습니다.", "success");
+                } catch (err) {
+                    if (window.showToast) window.showToast("복사 실패", "error");
+                }
+            }
+        }
+
+        // -------------------------------------------------------------
+        // 6. 조회 / 저장 / 행추가 / 행삭제 / API_Q 생성 비즈니스 로직
+        // -------------------------------------------------------------
+
+        // 6-1. 목록 조회
+        function loadApiParamsList() {
+            var dddwSelect = pane.querySelector('#filterDddw, select[name="dddw"]');
+            var trCoCd = dddwSelect ? (dddwSelect.value || '').trim() : '';
+
+            if (!trCoCd) {
+                trCoCd = '00003'; // 키움증권 기본 폴백
+            }
+
+            var url = '/api/usportfoliomodel/api-params/list?trCoCd=' + encodeURIComponent(trCoCd);
+
+            fetch(url)
+                .then(function (res) { return res.json(); })
+                .then(function (data) {
+                    currentActiveRow = null;
+                    currentActiveRowData = null;
+                    if (gridApiParams) {
+                        gridApiParams.setData(data || []);
+                        if (data && data.length > 0) {
+                            setTimeout(function () {
+                                var rows = gridApiParams.getRows();
+                                if (rows && rows.length > 0) {
+                                    syncParamsDetail(rows[0], rows[0].getData());
+                                }
+                            }, 50);
+                        } else {
+                            clearMleInputs();
+                        }
+                    }
+                })
+                .catch(function (err) {
+                    console.error("loadApiParamsList error:", err);
+                    if (window.showToast) window.showToast("API 파라미터 조회 중 오류가 발생했습니다.", "error");
+                });
+        }
+
+        // 6-2. 새 행 추가 (p_input::clicked, ue_insertstart 연동)
+        function addNewRow() {
+            if (!gridApiParams) return;
+            var dddwSelect = pane.querySelector('#filterDddw, select[name="dddw"]');
+            var trCoCd = dddwSelect ? (dddwSelect.value || '').trim() : '00003';
+
+            var selectedRows = gridApiParams.getSelectedRows();
+            var prevGrCd = '1';
+            if (selectedRows && selectedRows.length > 0) {
+                prevGrCd = selectedRows[0].getData().grCd || '1';
+            }
+
+            var newRowData = {
+                trCoCd: trCoCd,
+                grCd: prevGrCd,
+                xxGrCd: '',
+                scd: '',
+                snm: '',
+                company: '',
+                url: '',
+                headers: '',
+                queryparams: '',
+                tablename: '',
+                subtable: '',
+                keyValue: '',
+                subKeyValue: '',
+                comments: '',
+                qValue: '',
+                isNew: true,
+                rowStatus: 'C'
+            };
+
+            gridApiParams.addRow(newRowData, false).then(function (row) {
+                if (row) {
+                    currentActiveRow = null;
+                    syncParamsDetail(row, newRowData);
+                }
+            });
+        }
+
+        // 6-3. 선택 행 삭제 (p_delete::clicked, ue_deletestart 연동)
+        function deleteSelectedRow() {
+            if (!gridApiParams) return;
+            var selectedRows = gridApiParams.getSelectedRows();
+            if (!selectedRows || selectedRows.length === 0) {
+                if (window.showToast) window.showToast("삭제할 행을 선택해주세요.", "warning");
+                return;
+            }
+
+            var row = selectedRows[0];
+            var data = row.getData();
+
+            if (data.isNew) {
+                row.delete();
+                clearMleInputs();
+            } else {
+                row.update({ isDeleted: true, rowStatus: 'D' });
+                row.getElement().style.display = 'none'; // 그리드에서 숨김
+                clearMleInputs();
+            }
+
+            if (window.showToast) window.showToast("행이 삭제 대기 상태로 변경되었습니다. 상단 [저장]을 눌러 반영하세요.", "info");
+        }
+
+        // 6-4. 변경 데이터 일괄 저장 (wue_update 연동)
+        function saveParamsData() {
+            if (!gridApiParams) return;
+            saveCurrentMleToActiveRow();
+
+            var allData = gridApiParams.getData();
+            var changedList = [];
+
+            for (var i = 0; i < allData.length; i++) {
+                var d = allData[i];
+                if (d.isNew || d.isUpdated || d.isDeleted) {
+                    changedList.push(d);
+                }
+            }
+
+            if (changedList.length === 0) {
+                if (window.showToast) window.showToast("변경된 데이터가 없습니다.", "info");
+                return;
+            }
+
+            fetch('/api/usportfoliomodel/api-params/save', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(changedList)
+            })
+            .then(function (res) { return res.json(); })
+            .then(function (result) {
+                if (result.success) {
+                    if (window.showToast) window.showToast("성공적으로 저장되었습니다.", "success");
+                    loadApiParamsList();
+                } else {
+                    if (window.showToast) window.showToast(result.message || "저장 중 오류가 발생했습니다.", "error");
+                }
+            })
+            .catch(function (err) {
+                console.error("saveParamsData error:", err);
+                if (window.showToast) window.showToast("저장 중 통신 오류가 발생했습니다.", "error");
+            });
+        }
+
+        // 6-5. API_Q 요청 레코드 생성 (mle_q_value::doubleclicked 연동)
+        function handleCreateApiQ() {
+            saveCurrentMleToActiveRow();
+            if (!gridApiParams) return;
+            var selectedRows = gridApiParams.getSelectedRows();
+            if (!selectedRows || selectedRows.length === 0) {
+                if (window.showToast) window.showToast("요청자료를 생성할 행을 먼저 선택해주세요.", "warning");
+                return;
+            }
+
+            var data = selectedRows[0].getData();
+
+            fetch('/api/usportfoliomodel/api-params/create-q', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            })
+            .then(function (res) { return res.json(); })
+            .then(function (result) {
+                if (result.success) {
+                    if (window.showToast) window.showToast("API_Q에 요청자료 생성완료!!!", "success");
+                } else {
+                    if (window.showToast) window.showToast(result.message || "요청자료 생성 실패", "error");
+                }
+            })
+            .catch(function (err) {
+                console.error("handleCreateApiQ error:", err);
+                if (window.showToast) window.showToast("요청자료 생성 중 오류가 발생했습니다.", "error");
+            });
+        }
+
+        // 우측 MLE 초기화
+        function clearMleInputs() {
+            var mleUrl = pane.querySelector('#mleUrl');
+            var mleQValue = pane.querySelector('#mleQValue');
+            var mleComments = pane.querySelector('#mleComments');
+            var mleQueryParams = pane.querySelector('#mleQueryParams');
+
+            if (mleUrl) mleUrl.value = '';
+            if (mleQValue) mleQValue.value = '';
+            if (mleComments) mleComments.value = '';
+            if (mleQueryParams) mleQueryParams.value = '';
+
+            currentActiveRow = null;
+            currentActiveRowData = null;
+        }
+
+        // -------------------------------------------------------------
+        // 7. 서브 버튼 및 스플리터 초기화
+        // -------------------------------------------------------------
+        function initSubButtons() {
+            var btnCreateQ = pane.querySelector('#btnCreateApiQ');
+            if (btnCreateQ) btnCreateQ.addEventListener('click', handleCreateApiQ);
+        }
+
+        function initSplitters() {
+            if (window.AamsSplitter && typeof window.AamsSplitter.init === 'function') {
+                window.AamsSplitter.init(pane);
+            }
+        }
+
+        // -------------------------------------------------------------
+        // 8. 상단 공통 툴바 표준 계약 (규정 08-1)
+        // -------------------------------------------------------------
+        function initToolbar() {
+            pane.onSearch = function () {
+                loadApiParamsList();
+            };
+
+            pane.onInput = function () {
+                addNewRow();
+            };
+
+            pane.onSave = function () {
+                saveParamsData();
+            };
+
+            pane.onDelete = function () {
+                deleteSelectedRow();
+            };
+
+            pane.onRefresh = function () {
+                if (gridApiParams) gridApiParams.clearData();
+                clearMleInputs();
+                lastLoadedTrCoCd = null;
+                if (window.showToast) window.showToast("화면이 초기화되었습니다.", "info");
+            };
+
+            pane.onCorpGrChange = function (newCorpGr) {
+                initBrokerDddw();
+            };
+
+            pane.onExcel = function () {
+                if (gridApiParams && gridApiParams.getData().length > 0) {
+                    var ymd = (typeof getFilterYmd === 'function') ? getFilterYmd(pane, 'YYYYMMDD') : '';
+                    gridApiParams.download("xlsx", "API_PARAMS_목록_" + ymd + ".xlsx", { sheetName: "API_PARAMS" });
+                } else if (window.showToast) {
+                    window.showToast("내보낼 그리드 데이터가 없습니다.", "warning");
+                }
+            };
+        }
+
+        // MDI 실행 진입
+        if (document.readyState === "loading") {
+            document.addEventListener("DOMContentLoaded", startInit);
+        } else {
+            startInit();
+        }
+
+    })();
+    </script>
+</div>
+</html>

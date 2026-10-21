@@ -98,6 +98,7 @@ public class DynamicCodeSearchService {
         result.put("cmnt", master.getCmnt() != null ? master.getCmnt().trim() : "코드 선택");
         result.put("returnColumn", master.getReturnColumn());
         result.put("windowNm", master.getWindowNm());
+        result.put("columnSize", master.getColumnSize());
 
         // 헤더 파싱 (구분자 '@')
         List<Map<String, String>> headerList = new ArrayList<>();

@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.kfp.aams.domain.usportfoliomodel.mapper.FostkcodeMapper">
+
+    <!-- 1. 해외파생 종목코드 목록 조회 (d_fostkcode.srd 원본 SQL 100% 보존) -->
+    <select id="selectFostkcodeList" resultType="com.kfp.aams.domain.usportfoliomodel.dto.FostkcodeDto">
+        SELECT 1                AS used
+             , t1.SRSCD         AS srscd
+             , t1.AUTOORDGNRLYN AS autoordgnrlyn
+             , t1.AUTOORDTWAPYN AS autoordtwapyn
+             , t1.AUTOORDECNMYN AS autoordecnmyn
+             , t1.EXCHSUBCD     AS exchsubcd
+             , t1.SERIESKRNM    AS serieskrnm
+             , t1.EXCHCD        AS exchcd
+             , t1.MRKTCD        AS mrktcd
+             , t1.CLASCD        AS clascd
+             , t1.DISPDESZ      AS dispdesz
+             , t1.CALCDESZ      AS calcdesz
+             , t1.TICKSZ        AS ticksz
+             , t1.TICKVAL       AS tickval
+             , t1.CTRTSZ        AS ctrtsz
+             , t1.DISPDIGIT     AS dispdigit
+             , t1.MULTIPLIER    AS multiplier
+             , t1.SYMBOL        AS symbol
+             , t1.STKPRC        AS stkprc
+             , t1.UNDRINSTR     AS undrinstr
+             , t1.UNDRASSET     AS undrasset
+             , t1.REFRASSET     AS refrasset
+             , t1.INCTICKPRC    AS inctickprc
+             , t1.INCTICKSZ     AS incticksz
+             , t1.MANGI         AS mangi
+             , t1.YEARMON       AS yearmon
+             , t1.ATMFLG        AS atmflg
+             , t1.NEARFLG       AS nearflg
+          FROM API_FOSTKCODE t1
+             , SYM0YA        ya
+         WHERE t1.YEARMON   = #{ym}
+           AND ya.CORP_GR   = #{corpGr}
+           AND ya.JASAN_GB  = '1'
+           AND ya.BLBG_TCKR = t1.UNDRASSET
+         <if test="symbol != null and symbol != ''">
+           AND t1.SYMBOL = #{symbol}
+         </if>
+         ORDER BY t1.SRSCD ASC
+    </select>
+
+    <!-- 2. 종목코드 존재 여부 확인 -->
+    <select id="existsBySrscd" resultType="int">
+        SELECT COUNT(*)
+          FROM API_FOSTKCODE
+         WHERE SRSCD = #{srscd}
+    </select>
+
+    <!-- 3. 해외파생 종목코드 등록/수정 (UPSERT) -->
+    <update id="mergeFostkcode">
+        MERGE INTO API_FOSTKCODE t
+        USING DUAL
+           ON (t.SRSCD = #{srscd})
+        WHEN MATCHED THEN
+             UPDATE SET t.AUTOORDGNRLYN = #{autoordgnrlyn, jdbcType=VARCHAR}
+                      , t.AUTOORDTWAPYN = #{autoordtwapyn, jdbcType=VARCHAR}
+                      , t.AUTOORDECNMYN = #{autoordecnmyn, jdbcType=VARCHAR}
+                      , t.EXCHSUBCD     = #{exchsubcd, jdbcType=VARCHAR}
+                      , t.SERIESKRNM    = #{serieskrnm, jdbcType=VARCHAR}
+                      , t.EXCHCD        = #{exchcd, jdbcType=VARCHAR}
+                      , t.MRKTCD        = #{mrktcd, jdbcType=VARCHAR}
+                      , t.CLASCD        = #{clascd, jdbcType=VARCHAR}
+                      , t.DISPDESZ      = #{dispdesz, jdbcType=NUMERIC}
+                      , t.CALCDESZ      = #{calcdesz, jdbcType=NUMERIC}
+                      , t.TICKSZ        = #{ticksz, jdbcType=NUMERIC}
+                      , t.TICKVAL       = #{tickval, jdbcType=NUMERIC}
+                      , t.CTRTSZ        = #{ctrtsz, jdbcType=NUMERIC}
+                      , t.DISPDIGIT     = #{dispdigit, jdbcType=NUMERIC}
+                      , t.MULTIPLIER    = #{multiplier, jdbcType=NUMERIC}
+                      , t.SYMBOL        = #{symbol, jdbcType=VARCHAR}
+                      , t.STKPRC        = #{stkprc, jdbcType=NUMERIC}
+                      , t.UNDRINSTR     = #{undrinstr, jdbcType=VARCHAR}
+                      , t.UNDRASSET     = #{undrasset, jdbcType=VARCHAR}
+                      , t.REFRASSET     = #{refrasset, jdbcType=VARCHAR}
+                      , t.INCTICKPRC    = #{inctickprc, jdbcType=NUMERIC}
+                      , t.INCTICKSZ     = #{incticksz, jdbcType=NUMERIC}
+                      , t.MANGI         = #{mangi, jdbcType=VARCHAR}
+                      , t.YEARMON       = #{yearmon, jdbcType=VARCHAR}
+                      , t.ATMFLG        = #{atmflg, jdbcType=VARCHAR}
+                      , t.NEARFLG       = #{nearflg, jdbcType=VARCHAR}
+        WHEN NOT MATCHED THEN
+             INSERT (
+                 SRSCD, AUTOORDGNRLYN, AUTOORDTWAPYN, AUTOORDECNMYN, EXCHSUBCD,
+                 SERIESKRNM, EXCHCD, MRKTCD, CLASCD, DISPDESZ,
+                 CALCDESZ, TICKSZ, TICKVAL, CTRTSZ, DISPDIGIT,
+                 MULTIPLIER, SYMBOL, STKPRC, UNDRINSTR, UNDRASSET,
+                 REFRASSET, INCTICKPRC, INCTICKSZ, MANGI, YEARMON,
+                 ATMFLG, NEARFLG
+             )
+             VALUES (
+                 #{srscd}, #{autoordgnrlyn, jdbcType=VARCHAR}, #{autoordtwapyn, jdbcType=VARCHAR}, #{autoordecnmyn, jdbcType=VARCHAR}, #{exchsubcd, jdbcType=VARCHAR},
+                 #{serieskrnm, jdbcType=VARCHAR}, #{exchcd, jdbcType=VARCHAR}, #{mrktcd, jdbcType=VARCHAR}, #{clascd, jdbcType=VARCHAR}, #{dispdesz, jdbcType=NUMERIC},
+                 #{calcdesz, jdbcType=NUMERIC}, #{ticksz, jdbcType=NUMERIC}, #{tickval, jdbcType=NUMERIC}, #{ctrtsz, jdbcType=NUMERIC}, #{dispdigit, jdbcType=NUMERIC},
+                 #{multiplier, jdbcType=NUMERIC}, #{symbol, jdbcType=VARCHAR}, #{stkprc, jdbcType=NUMERIC}, #{undrinstr, jdbcType=VARCHAR}, #{undrasset, jdbcType=VARCHAR},
+                 #{refrasset, jdbcType=VARCHAR}, #{inctickprc, jdbcType=NUMERIC}, #{incticksz, jdbcType=NUMERIC}, #{mangi, jdbcType=VARCHAR}, #{yearmon, jdbcType=VARCHAR},
+                 #{atmflg, jdbcType=VARCHAR}, #{nearflg, jdbcType=VARCHAR}
+             )
+    </update>
+
+</mapper>

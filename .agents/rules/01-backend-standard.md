@@ -125,5 +125,6 @@ trigger: always_on
      model.addAttribute("initialYmd", workDate);
      model.addAttribute("ymd", workDate);
      ```
-4. **서비스/컨트롤러 생성자 주입 표준 (Zero-Lombok-ECJ-Conflict 원칙)**:
-   - IDE 백그라운드 컴파일러(ECJ)와 Lombok의 `@RequiredArgsConstructor` 충돌로 인한 바이트코드 오류(`The Java feature 'Flexible Constructor Bodies' is only available with source level 25 and above`, `BeanInstantiationException`)를 방지하기 위해, 스프링 빈 클래스에는 명시적인 표준 Java 생성자(Constructor Injection) 작성을 강력 권장한다.
+4. **서비스/컨트롤러 생성자 주입 및 Lombok 표준 (Lombok 1.18.32 고정 및 Java 21 LTS 호환 보장)**:
+   - 과거 부모 POM에서 상속된 최신 Lombok(1.18.46+)이 Java 25 프리뷰 스펙(`Flexible Constructor Bodies`)을 건드려 IDE 백그라운드 컴파일러(ECJ)와 충돌하는 문제를 방지하기 위해, `pom.xml`에 **Lombok 버전을 Java 21 LTS 정식 안정화 버전인 `1.18.32`로 고정**하고 `maven-compiler-plugin`에 `<release>21</release>` 및 프로젝트 루트 `lombok.config`를 적용하였습니다.
+   - 따라서 컨트롤러와 서비스 클래스에서 Lombok의 **`@RequiredArgsConstructor`** 및 **`@Slf4j`**를 안전하게 사용할 수 있으며, 필요에 따라 표준 Java 명시적 생성자 주입도 허용합니다.
