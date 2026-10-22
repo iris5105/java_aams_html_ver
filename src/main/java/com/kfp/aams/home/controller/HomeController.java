@@ -92,7 +92,9 @@ public class HomeController {
         boolean encEnabled = cryptoProperties.isEncryptionEnabled();
         return Map.of(
                 "encryptionEnabled", encEnabled,
-                "encryptionKey", encEnabled ? cryptoProperties.getSecretKey() : ""
+                "encryptionKey", encEnabled ? cryptoProperties.getSecretKey() : "",
+                "reason", cryptoProperties.getDetectionReason(),
+                "os", System.getProperty("os.name", "")
         );
     }
 
