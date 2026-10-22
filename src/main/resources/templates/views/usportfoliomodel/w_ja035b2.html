@@ -59,39 +59,30 @@
         var curMaxTrSeq = 0;
 
         // 파워빌더 dw_list::ue_dddw_retrieve 연동 DDDW 옵션 캐시
-        var trCdOptions = [];
-        var currencyOptions = [];
-        var gyuljeJmOptions = [];
+        const dddwOptionsMap = {
+            tr_cd: [],
+            currency: [],
+            gyulje_jm_cd: []
+        };
 
-        // 파워빌더 dw_list::ue_dddw_retrieve 표준 연동:
-        // F_DDDWCTL (THIS, 'tr_cd', gaa.corp_gr, '', 1, "tr_cd in (select tr_cd from szx1pt where obj_id='W_JA035B2')")
-        // f_dddwctl (THIS, 'gyulje_jm_cd', gaa.corp_gr, '', 1, "")
-        // f_dddwctl (THIS, 'currency', gaa.corp_gr, '', 1, "")
-        function initDddwOptions() {
-            var corpGr = window.resolveCorpGr ? window.resolveCorpGr(currentPane) : "";
+        /**
+         * PowerBuilder dw_list::ue_dddw_retrieve Event Integration
+         * Corresponds to dw_list::ue_dddw_retrieve in w_ja035b2.srw:
+         *   1. F_DDDWCTL (THIS, 'tr_cd', gaa.corp_gr, '', 1, "tr_cd in (select tr_cd from szx1pt where obj_id='W_JA035B2')")
+         *   2. F_DDDWCTL (THIS, 'currency', gaa.corp_gr, '', 1, "")
+         *   3. F_DDDWCTL (THIS, 'gyulje_jm_cd', gaa.corp_gr, '', 1, "")
+         */
+        function ue_dddw_retrieve(corpGr) {
+            var targetCorpGr = corpGr || (window.resolveCorpGr ? window.resolveCorpGr(currentPane) : "");
 
-            var pTrCd = (window.f_dddwctl && typeof window.f_dddwctl === 'function')
-                ? window.f_dddwctl('tr_cd', corpGr, '', 1, "tr_cd in (select tr_cd from szx1pt where obj_id='W_JA035B2')")
-                : fetch('/api/common/dddw?dddwId=tr_cd&corpGr=' + encodeURIComponent(corpGr) + '&seq=1&addWhere=' + encodeURIComponent("tr_cd in (select tr_cd from szx1pt where obj_id='W_JA035B2')")).then(function (res) { return res.json(); });
-
-            var pCurrency = (window.f_dddwctl && typeof window.f_dddwctl === 'function')
-                ? window.f_dddwctl('currency', corpGr, '', 1, "")
-                : fetch('/api/common/dddw?dddwId=currency&corpGr=' + encodeURIComponent(corpGr) + '&seq=1').then(function (res) { return res.json(); });
-
-            var pGyulje = (window.f_dddwctl && typeof window.f_dddwctl === 'function')
-                ? window.f_dddwctl('gyulje_jm_cd', corpGr, '', 1, "")
-                : fetch('/api/common/dddw?dddwId=gyulje_jm_cd&corpGr=' + encodeURIComponent(corpGr) + '&seq=1').then(function (res) { return res.json(); });
-
-            return Promise.allSettled([pTrCd, pCurrency, pGyulje]).then(function (results) {
-                if (results[0].status === 'fulfilled' && Array.isArray(results[0].value)) {
-                    trCdOptions = results[0].value;
-                }
-                if (results[1].status === 'fulfilled' && Array.isArray(results[1].value)) {
-                    currencyOptions = results[1].value;
-                }
-                if (results[2].status === 'fulfilled' && Array.isArray(results[2].value)) {
-                    gyuljeJmOptions = results[2].value;
-                }
+            return f_dddwctl.retrieveMultiple({
+                tr_cd:        ['tr_cd', targetCorpGr, '', 1, "tr_cd in (select tr_cd from szx1pt where obj_id='W_JA035B2')"],
+                currency:     ['currency', targetCorpGr, '', 1, ""],
+                gyulje_jm_cd: ['gyulje_jm_cd', targetCorpGr, '', 1, ""]
+            }).then(function (results) {
+                dddwOptionsMap.tr_cd = results.tr_cd || [];
+                dddwOptionsMap.currency = results.currency || [];
+                dddwOptionsMap.gyulje_jm_cd = results.gyulje_jm_cd || [];
 
                 if (gridList) {
                     if (typeof gridList.reformat === 'function') gridList.reformat();
@@ -100,6 +91,14 @@
             }).catch(function (err) {
                 console.warn('[Ja035b2] DDDW retrieve warning:', err);
             });
+        }
+
+        function getDddwLabel(dddwKey, codeVal) {
+            return f_dddwctl.getLabel(dddwOptionsMap, dddwKey, codeVal);
+        }
+
+        function getDddwOptions(dddwKey) {
+            return f_dddwctl.getOptions(dddwOptionsMap, dddwKey);
         }
 
         function markRowUpdated(cell) {
@@ -244,19 +243,15 @@
                         hozAlign: "center",
                         headerSort: false,
                         editor: "list",
-                        editorParams: function () {
-                            return {
-                                valuesLookup: function () {
-                                    return trCdOptions.map(function (it) {
-                                        var c = (it.code != null ? it.code : (it.cd != null ? it.cd : (it.SEBU_CD != null ? it.SEBU_CD : ''))).toString().trim();
-                                        var n = (it.name != null ? it.name : (it.dscr != null ? it.dscr : (it.SEBU_CD_NM != null ? it.SEBU_CD_NM : c))).toString().trim();
-                                        return { label: n, value: c, code: c, name: n };
-                                    });
-                                },
-                                itemFormatter: window.f_dddwctl && typeof window.f_dddwctl.get2ColItemFormatter === 'function'
-                                    ? window.f_dddwctl.get2ColItemFormatter('코드', '명칭')
-                                    : null
-                            };
+                        editorParams: {
+                            valuesLookup: function () {
+                                return getDddwOptions('tr_cd');
+                            },
+                            autocomplete: false,
+                            clearable: true,
+                            itemFormatter: window.f_dddwctl && typeof window.f_dddwctl.get2ColItemFormatter === 'function'
+                                ? window.f_dddwctl.get2ColItemFormatter('코드', '명칭')
+                                : null
                         },
                         editable: function (cell) {
                             return !cell.getRow().getData().isSummaryRow;
@@ -270,24 +265,7 @@
                             if (row && row.isSummaryRow) return "";
                             var val = (cell.getValue() || "").toString().trim();
                             if (!val) return "";
-
-                            // 1. f_dddwctl.getLabel
-                            if (window.f_dddwctl && typeof window.f_dddwctl.getLabel === 'function') {
-                                var lbl = window.f_dddwctl.getLabel(trCdOptions, val);
-                                if (lbl && lbl !== val) return lbl;
-                            }
-
-                            // 2. trCdOptions 매핑
-                            if (trCdOptions && trCdOptions.length > 0) {
-                                for (var i = 0; i < trCdOptions.length; i++) {
-                                    var opt = trCdOptions[i];
-                                    var c = (opt.code != null ? opt.code : (opt.cd != null ? opt.cd : (opt.SEBU_CD != null ? opt.SEBU_CD : ''))).toString().trim();
-                                    if (c === val) {
-                                        return opt.name != null ? opt.name : (opt.SEBU_CD_NM != null ? opt.SEBU_CD_NM : (opt.dscr != null ? opt.dscr : c));
-                                    }
-                                }
-                            }
-                            return val;
+                            return getDddwLabel('tr_cd', val);
                         }
                     },
                     {
@@ -397,22 +375,16 @@
                         hozAlign: "center",
                         headerSort: false,
                         editor: "list",
-                        editorParams: function () {
-                            return {
-                                valuesLookup: function () {
-                                    if (currencyOptions && currencyOptions.length > 0) {
-                                        return currencyOptions.map(function (it) {
-                                            var c = (it.code != null ? it.code : (it.cd != null ? it.cd : '')).toString().trim();
-                                            var n = (it.name != null ? it.name : (it.dscr != null ? it.dscr : c)).toString().trim();
-                                            return { label: n || c, value: c, code: c, name: n };
-                                        });
-                                    }
-                                    return ["USD", "KRW", "EUR", "JPY", "HKD", "GBP"];
-                                },
-                                itemFormatter: window.f_dddwctl && typeof window.f_dddwctl.get2ColItemFormatter === 'function'
-                                    ? window.f_dddwctl.get2ColItemFormatter('통화', '통화명')
-                                    : null
-                            };
+                        editorParams: {
+                            valuesLookup: function () {
+                                var opts = getDddwOptions('currency');
+                                return (opts && opts.length > 0) ? opts : ["USD", "KRW", "EUR", "JPY", "HKD", "GBP"];
+                            },
+                            autocomplete: false,
+                            clearable: true,
+                            itemFormatter: window.f_dddwctl && typeof window.f_dddwctl.get2ColItemFormatter === 'function'
+                                ? window.f_dddwctl.get2ColItemFormatter('통화', '통화명')
+                                : null
                         },
                         editable: function (cell) {
                             return !cell.getRow().getData().isSummaryRow;
@@ -649,19 +621,15 @@
                         hozAlign: "center",
                         headerSort: false,
                         editor: "list",
-                        editorParams: function () {
-                            return {
-                                valuesLookup: function () {
-                                    return gyuljeJmOptions.map(function (it) {
-                                        var c = (it.code != null ? it.code : (it.cd != null ? it.cd : '')).toString().trim();
-                                        var n = (it.name != null ? it.name : (it.dscr != null ? it.dscr : c)).toString().trim();
-                                        return { label: n || c, value: c, code: c, name: n };
-                                    });
-                                },
-                                itemFormatter: window.f_dddwctl && typeof window.f_dddwctl.get2ColItemFormatter === 'function'
-                                    ? window.f_dddwctl.get2ColItemFormatter('코드', '종목명')
-                                    : null
-                            };
+                        editorParams: {
+                            valuesLookup: function () {
+                                return getDddwOptions('gyulje_jm_cd');
+                            },
+                            autocomplete: false,
+                            clearable: true,
+                            itemFormatter: window.f_dddwctl && typeof window.f_dddwctl.get2ColItemFormatter === 'function'
+                                ? window.f_dddwctl.get2ColItemFormatter('코드', '종목명')
+                                : null
                         },
                         editable: function (cell) {
                             return !cell.getRow().getData().isSummaryRow;
@@ -675,20 +643,7 @@
                             if (row && row.isSummaryRow) return "";
                             var val = (cell.getValue() || "").toString().trim();
                             if (!val) return "";
-                            if (window.f_dddwctl && typeof window.f_dddwctl.getLabel === 'function') {
-                                var lbl = window.f_dddwctl.getLabel(gyuljeJmOptions, val);
-                                if (lbl && lbl !== val) return lbl;
-                            }
-                            if (gyuljeJmOptions && gyuljeJmOptions.length > 0) {
-                                for (var i = 0; i < gyuljeJmOptions.length; i++) {
-                                    var opt = gyuljeJmOptions[i];
-                                    var c = (opt.code != null ? opt.code : (opt.cd != null ? opt.cd : '')).toString().trim();
-                                    if (c === val) {
-                                        return opt.name != null ? opt.name : (opt.dscr != null ? opt.dscr : c);
-                                    }
-                                }
-                            }
-                            return val;
+                            return getDddwLabel('gyulje_jm_cd', val);
                         }
                     },
                     {
@@ -1199,7 +1154,7 @@
 
             currentPane.onCorpGrChange = function () {
                 // 회사그룹 변경 시 DDDW 목록 전체 갱신
-                initDddwOptions();
+                ue_dddw_retrieve();
             };
 
             currentPane.onExcel = function () {
@@ -1226,7 +1181,7 @@
             isInitialized = true;
 
             initGrid();
-            initDddwOptions();
+            ue_dddw_retrieve();
             initExcelButtons();
             initToolbar();
 

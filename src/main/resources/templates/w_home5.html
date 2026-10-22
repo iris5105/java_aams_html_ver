@@ -36,6 +36,19 @@
     <link rel="stylesheet" th:href="@{/css/layout-split-v.css(v='20261008_2')}" href="/css/layout-split-v.css?v=20261008_2">
     <link rel="stylesheet" th:href="@{/css/report-viewer.css(v='20261008_2')}" href="/css/report-viewer.css?v=20261008_2">
     <meta name="token-corp-gr" th:content="${tokenCorpGr}">
+    <!-- Payload & URL Encryption Module (Prod/Linux Auto-Activation) -->
+    <script th:src="@{/js/aams_crypto.js}"></script>
+    <script th:inline="javascript">
+        // 운영 또는 Linux 환경일 때 자동 활성화 (Windows 로컬은 평문 유지)
+        var isEncryptionEnabled = /*[[${encryptionEnabled}]]*/ false;
+        var encryptionKey = /*[[${encryptionKey}]]*/ '';
+        if (window.AamsCrypto) {
+            window.AamsCrypto.init({
+                enabled: isEncryptionEnabled,
+                key: encryptionKey
+            });
+        }
+    </script>
     <!-- Common & Specialized JavaScript Modules -->
     <script th:src="@{/js/common.js(v='20261008_3')}" src="/js/common.js?v=20261008_3"></script>
     <script th:inline="javascript">

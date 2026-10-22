@@ -57,9 +57,11 @@
         var codeSearchInstance = null;
 
         // 파워빌더 dw_list::ue_dddw_retrieve 연동 DDDW 옵션 캐시
-        var trusteeOptions = [];
-        var currencyOptions = [];
-        var gyuljeJmOptions = [];
+        const dddwOptionsMap = {
+            trustee: [],
+            currency: [],
+            gyulje_jm_cd: []
+        };
 
         // 1. Initialize Dynamic Code Search (u_dynamiccodesearch: rcd seq 4, w_ja035b.srw ue_setcodesearch)
         function initCodeSearch(retryCount) {
@@ -115,34 +117,24 @@
             return Promise.resolve([]);
         }
 
-        // 3. 그리드 내부 DDDW 옵션 초기화 (dw_list::ue_dddw_retrieve)
-        // F_DDDWCTL (THIS, 'trustee' , gaa.corp_gr, '', 1, "")
-        // F_DDDWCTL (THIS, 'gyulje_jm_cd', gaa.corp_gr, '', 1, "")
-        function initGridDddwOptions() {
-            var corpGr = window.resolveCorpGr ? window.resolveCorpGr(currentPane) : "";
+        /**
+         * PowerBuilder dw_list::ue_dddw_retrieve Event Integration
+         * Corresponds to dw_list::ue_dddw_retrieve in w_ja035b.srw:
+         *   1. F_DDDWCTL (THIS, 'trustee' , gaa.corp_gr, '', 1, "")
+         *   2. F_DDDWCTL (THIS, 'currency', gaa.corp_gr, '', 1, "")
+         *   3. F_DDDWCTL (THIS, 'gyulje_jm_cd', gaa.corp_gr, '', 1, "")
+         */
+        function ue_dddw_retrieve(corpGr) {
+            var targetCorpGr = corpGr || (window.resolveCorpGr ? window.resolveCorpGr(currentPane) : "");
 
-            var pTrustee = (window.f_dddwctl && typeof window.f_dddwctl === 'function')
-                ? window.f_dddwctl('trustee', corpGr, '', 1, "")
-                : fetch('/api/common/dddw?dddwId=trustee&corpGr=' + encodeURIComponent(corpGr) + '&seq=1').then(function (res) { return res.json(); });
-
-            var pCurrency = (window.f_dddwctl && typeof window.f_dddwctl === 'function')
-                ? window.f_dddwctl('currency', corpGr, '', 1, "")
-                : fetch('/api/common/dddw?dddwId=currency&corpGr=' + encodeURIComponent(corpGr) + '&seq=1').then(function (res) { return res.json(); });
-
-            var pGyulje = (window.f_dddwctl && typeof window.f_dddwctl === 'function')
-                ? window.f_dddwctl('gyulje_jm_cd', corpGr, '', 1, "")
-                : fetch('/api/common/dddw?dddwId=gyulje_jm_cd&corpGr=' + encodeURIComponent(corpGr) + '&seq=1').then(function (res) { return res.json(); });
-
-            return Promise.allSettled([pTrustee, pCurrency, pGyulje]).then(function (results) {
-                if (results[0].status === 'fulfilled' && Array.isArray(results[0].value)) {
-                    trusteeOptions = results[0].value;
-                }
-                if (results[1].status === 'fulfilled' && Array.isArray(results[1].value)) {
-                    currencyOptions = results[1].value;
-                }
-                if (results[2].status === 'fulfilled' && Array.isArray(results[2].value)) {
-                    gyuljeJmOptions = results[2].value;
-                }
+            return f_dddwctl.retrieveMultiple({
+                trustee:      ['trustee', targetCorpGr, '', 1, ''],
+                currency:     ['currency', targetCorpGr, '', 1, ''],
+                gyulje_jm_cd: ['gyulje_jm_cd', targetCorpGr, '', 1, '']
+            }).then(function (results) {
+                dddwOptionsMap.trustee = results.trustee || [];
+                dddwOptionsMap.currency = results.currency || [];
+                dddwOptionsMap.gyulje_jm_cd = results.gyulje_jm_cd || [];
 
                 if (gridList) {
                     if (typeof gridList.reformat === 'function') gridList.reformat();
@@ -151,6 +143,14 @@
             }).catch(function (err) {
                 console.warn('[Ja035b] Grid DDDW retrieve warning:', err);
             });
+        }
+
+        function getDddwLabel(dddwKey, codeVal) {
+            return f_dddwctl.getLabel(dddwOptionsMap, dddwKey, codeVal);
+        }
+
+        function getDddwOptions(dddwKey) {
+            return f_dddwctl.getOptions(dddwOptionsMap, dddwKey);
         }
 
         function markRowUpdated(cell) {
@@ -267,19 +267,15 @@
                         width: 110,
                         hozAlign: "center",
                         editor: "list",
-                        editorParams: function () {
-                            return {
-                                valuesLookup: function () {
-                                    return trusteeOptions.map(function (it) {
-                                        var c = (it.code != null ? it.code : (it.cd != null ? it.cd : (it.SEBU_CD != null ? it.SEBU_CD : ''))).toString().trim();
-                                        var n = (it.name != null ? it.name : (it.dscr != null ? it.dscr : (it.SEBU_CD_NM != null ? it.SEBU_CD_NM : c))).toString().trim();
-                                        return { label: n, value: c, code: c, name: n };
-                                    });
-                                },
-                                itemFormatter: window.f_dddwctl && typeof window.f_dddwctl.get2ColItemFormatter === 'function'
-                                    ? window.f_dddwctl.get2ColItemFormatter('코드', '보관처명')
-                                    : null
-                            };
+                        editorParams: {
+                            valuesLookup: function () {
+                                return getDddwOptions('trustee');
+                            },
+                            autocomplete: false,
+                            clearable: true,
+                            itemFormatter: window.f_dddwctl && typeof window.f_dddwctl.get2ColItemFormatter === 'function'
+                                ? window.f_dddwctl.get2ColItemFormatter('코드', '보관처명')
+                                : null
                         },
                         cellClick: window.aamsCellEdit,
                         cellEdited: function (cell) {
@@ -289,22 +285,7 @@
                         formatter: function (cell) {
                             var val = (cell.getValue() || "").toString().trim();
                             if (!val) return "";
-
-                            if (window.f_dddwctl && typeof window.f_dddwctl.getLabel === 'function') {
-                                var lbl = window.f_dddwctl.getLabel(trusteeOptions, val);
-                                if (lbl && lbl !== val) return '<span class="cell-text-blue font-bold">' + lbl + '</span>';
-                            }
-                            if (trusteeOptions && trusteeOptions.length > 0) {
-                                for (var i = 0; i < trusteeOptions.length; i++) {
-                                    var opt = trusteeOptions[i];
-                                    var c = (opt.code != null ? opt.code : (opt.cd != null ? opt.cd : '')).toString().trim();
-                                    if (c === val) {
-                                        var nm = opt.name != null ? opt.name : (opt.dscr != null ? opt.dscr : c);
-                                        return '<span class="cell-text-blue font-bold">' + nm + '</span>';
-                                    }
-                                }
-                            }
-                            return '<span class="cell-text-blue font-bold">' + val + '</span>';
+                            return '<span class="cell-text-blue font-bold">' + getDddwLabel('trustee', val) + '</span>';
                         }
                     },
                     {
@@ -389,22 +370,16 @@
                         hozAlign: "center",
                         headerSort: false,
                         editor: "list",
-                        editorParams: function () {
-                            return {
-                                valuesLookup: function () {
-                                    if (currencyOptions && currencyOptions.length > 0) {
-                                        return currencyOptions.map(function (it) {
-                                            var c = (it.code != null ? it.code : (it.cd != null ? it.cd : '')).toString().trim();
-                                            var n = (it.name != null ? it.name : (it.dscr != null ? it.dscr : c)).toString().trim();
-                                            return { label: n || c, value: c, code: c, name: n };
-                                        });
-                                    }
-                                    return ["USD", "KRW", "EUR", "JPY", "HKD", "CNY", "GBP"];
-                                },
-                                itemFormatter: window.f_dddwctl && typeof window.f_dddwctl.get2ColItemFormatter === 'function'
-                                    ? window.f_dddwctl.get2ColItemFormatter('통화', '통화명')
-                                    : null
-                            };
+                        editorParams: {
+                            valuesLookup: function () {
+                                var opts = getDddwOptions('currency');
+                                return (opts && opts.length > 0) ? opts : ["USD", "KRW", "EUR", "JPY", "HKD", "CNY", "GBP"];
+                            },
+                            autocomplete: false,
+                            clearable: true,
+                            itemFormatter: window.f_dddwctl && typeof window.f_dddwctl.get2ColItemFormatter === 'function'
+                                ? window.f_dddwctl.get2ColItemFormatter('통화', '통화명')
+                                : null
                         },
                         cellClick: window.aamsCellEdit,
                         cellEdited: function (cell) {
@@ -577,19 +552,15 @@
                         hozAlign: "center",
                         headerSort: false,
                         editor: "list",
-                        editorParams: function () {
-                            return {
-                                valuesLookup: function () {
-                                    return gyuljeJmOptions.map(function (it) {
-                                        var c = (it.code != null ? it.code : (it.cd != null ? it.cd : '')).toString().trim();
-                                        var n = (it.name != null ? it.name : (it.dscr != null ? it.dscr : c)).toString().trim();
-                                        return { label: n || c, value: c, code: c, name: n };
-                                    });
-                                },
-                                itemFormatter: window.f_dddwctl && typeof window.f_dddwctl.get2ColItemFormatter === 'function'
-                                    ? window.f_dddwctl.get2ColItemFormatter('코드', '종목명')
-                                    : null
-                            };
+                        editorParams: {
+                            valuesLookup: function () {
+                                return getDddwOptions('gyulje_jm_cd');
+                            },
+                            autocomplete: false,
+                            clearable: true,
+                            itemFormatter: window.f_dddwctl && typeof window.f_dddwctl.get2ColItemFormatter === 'function'
+                                ? window.f_dddwctl.get2ColItemFormatter('코드', '종목명')
+                                : null
                         },
                         editable: function (cell) {
                             var d = cell.getRow().getData();
@@ -603,12 +574,7 @@
                         formatter: function (cell) {
                             var val = (cell.getValue() || "").toString().trim();
                             if (!val) return "";
-
-                            if (window.f_dddwctl && typeof window.f_dddwctl.getLabel === 'function') {
-                                var lbl = window.f_dddwctl.getLabel(gyuljeJmOptions, val);
-                                if (lbl && lbl !== val) return lbl;
-                            }
-                            return val;
+                            return getDddwLabel('gyulje_jm_cd', val);
                         }
                     }
                 ]
@@ -1250,7 +1216,7 @@
 
             currentPane.onCorpGrChange = function () {
                 initFilterTrCdDddw();
-                initGridDddwOptions();
+                ue_dddw_retrieve();
             };
 
             // 서브 액션 버튼 연동
@@ -1279,7 +1245,7 @@
             // 3) 상단 필터: 거래코드 DDDW 및 DynamicCodeSearch 연동
             initFilterTrCdDddw();
             initCodeSearch();
-            initGridDddwOptions();
+            ue_dddw_retrieve();
             initExcelUpload();
 
             // 4) 툴바 바인딩

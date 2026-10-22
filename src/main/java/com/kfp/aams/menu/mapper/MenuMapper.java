@@ -29,4 +29,9 @@ public interface MenuMapper {
      * Get all menu items for global sidebar search
      */
     List<MenuDto> selectAllMenuList(@Param("userId") String userId, @Param("userNm") String userNm);
+
+    /**
+     * Get permitted program list for view access control
+     */
+    List<MenuDto> selectPermittedPgmList(@Param("userId") String userId, @Param("userNm") String userNm);
 }

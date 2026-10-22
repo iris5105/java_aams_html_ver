@@ -6,12 +6,14 @@ import com.kfp.aams.security.UserPrincipal;
 import com.kfp.aams.home.service.HomeService;
 import com.kfp.aams.menu.service.MenuService;
 import com.kfp.aams.common.service.WorkDateService;
+import com.kfp.aams.security.crypto.CryptoProperties;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @Controller
 public class HomeController {
@@ -19,11 +21,14 @@ public class HomeController {
     private final HomeService homeService;
     private final MenuService menuService;
     private final WorkDateService workDateService;
+    private final CryptoProperties cryptoProperties;
 
-    public HomeController(HomeService homeService, MenuService menuService, WorkDateService workDateService) {
+    public HomeController(HomeService homeService, MenuService menuService, WorkDateService workDateService,
+                          CryptoProperties cryptoProperties) {
         this.homeService = homeService;
         this.menuService = menuService;
         this.workDateService = workDateService;
+        this.cryptoProperties = cryptoProperties;
     }
 
     @GetMapping("/")
@@ -65,6 +70,10 @@ public class HomeController {
         model.addAttribute("topMenuList", topMenuList);
         model.addAttribute("sideMenuList", sideMenuList);
         model.addAttribute("activePgmNo", activePgmNo);
+        // 암호화 파이프라인 활성화 여부 및 키 주입 (Dual Fallback: prod 프로파일 또는 Linux 감지)
+        boolean encEnabled = cryptoProperties.isEncryptionEnabled();
+        model.addAttribute("encryptionEnabled", encEnabled);
+        model.addAttribute("encryptionKey", encEnabled ? cryptoProperties.getSecretKey() : "");
         // 카드 데이터는 클라이언트 비동기 REST API(/api/home/...)를 통해 지연 로딩(Lazy Loading)으로 조회
         return "w_home5";
     }
@@ -75,6 +84,16 @@ public class HomeController {
             return "redirect:/?corpGr=" + corpGr;
         }
         return "redirect:/";
+    }
+
+    @GetMapping("/api/common/security-config")
+    @ResponseBody
+    public Map<String, Object> getSecurityConfig() {
+        boolean encEnabled = cryptoProperties.isEncryptionEnabled();
+        return Map.of(
+                "encryptionEnabled", encEnabled,
+                "encryptionKey", encEnabled ? cryptoProperties.getSecretKey() : ""
+        );
     }
 
     @GetMapping("/api/home/companies")

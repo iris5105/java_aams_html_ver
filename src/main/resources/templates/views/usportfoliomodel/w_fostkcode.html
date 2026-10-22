@@ -55,22 +55,46 @@
             let gridFostkcode = null;
             let isInitialized = false;
 
-            // [초기화 1] 상단 필터 옵션구분 세팅 (f_dddwctl 'C,CALL,,P,PUT,' 명세)
+            // [초기화 1] 달력 컴포넌트 (AamsCalendar Month 모드 연동)
+            function initCalendar() {
+                if (typeof window.initFilterCalendar === 'function') {
+                    window.initFilterCalendar(pane, {
+                        inputId: 'filterYm',
+                        mode: 'month',
+                        onSelect: function (selectedYm) {
+                            // 규정 08-2 준수: 필터 변경 시 자동 조회를 절대 실행하지 않음
+                        }
+                    });
+                }
+            }
+
+            // [초기화 2] 상단 필터 옵션구분 세팅 (f_dddwctl 'C,CALL,,P,PUT,' 명세)
             function initFilterOptions() {
                 const selectDddw = pane.querySelector('#filterDddw, select[name="dddw"]');
                 if (selectDddw) {
                     selectDddw.innerHTML = '';
                     const opts = [
-                        { val: '', text: '전체' },
-                        { val: 'C', text: 'CALL' },
-                        { val: 'P', text: 'PUT' }
+                        { code: '', name: '전체' },
+                        { code: 'C', name: 'CALL' },
+                        { code: 'P', name: 'PUT' }
                     ];
                     opts.forEach(o => {
                         const optEl = document.createElement('option');
-                        optEl.value = o.val;
-                        optEl.textContent = o.text;
+                        optEl.value = o.code;
+                        optEl.textContent = o.name;
                         selectDddw.appendChild(optEl);
                     });
+
+                    if (window.f_dddwctl && typeof window.f_dddwctl.get2ColItemFormatter === 'function') {
+                        window.f_dddwctl.get2ColItemFormatter(selectDddw, opts, {
+                            codeTitle: "코드",
+                            nameTitle: "구분명",
+                            defaultVal: '',
+                            onSelect: function (code, name) {
+                                selectDddw.value = code;
+                            }
+                        });
+                    }
                 }
 
                 // 종목LOAD 파일 업로드 바인딩
@@ -380,11 +404,15 @@
                 }
             }
 
-            // 만기월 값 추출 헬퍼
+            // 만기월 값 추출 헬퍼 (6자리 YYYYMM 추출)
             function getFilterYmValue() {
                 const inputYm = pane.querySelector('#filterYm, input[name="ym"]');
                 let ymVal = inputYm ? (inputYm.value || '').trim() : '';
-                return ymVal.replace(/[^0-9]/g, ''); // 6자리 숫자 (YYYYMM)
+                let clean = ymVal.replace(/[^0-9]/g, '');
+                if (clean.length >= 6) {
+                    return clean.substring(0, 6);
+                }
+                return clean;
             }
 
             // 옵션구분 값 추출 헬퍼
@@ -457,6 +485,7 @@
                 if (isInitialized) return;
                 isInitialized = true;
 
+                initCalendar();
                 initFilterOptions();
                 initGrid();
                 initToolbar();

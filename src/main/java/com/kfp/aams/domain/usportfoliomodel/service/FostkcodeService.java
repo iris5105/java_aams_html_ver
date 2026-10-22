@@ -38,6 +38,9 @@ public class FostkcodeService {
 
         // ym 정규화 (YYYYMM 또는 YYYY-MM -> YYYYMM)
         String cleanYm = ym.trim().replace("-", "");
+        if (cleanYm.length() > 6) {
+            cleanYm = cleanYm.substring(0, 6);
+        }
         String cleanSymbol = (symbol != null && !symbol.isBlank()) ? symbol.trim() : null;
 
         return fostkcodeMapper.selectFostkcodeList(corpGr.trim(), cleanYm, cleanSymbol);

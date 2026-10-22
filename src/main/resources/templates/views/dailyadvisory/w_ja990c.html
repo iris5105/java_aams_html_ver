@@ -83,18 +83,26 @@
                 return Math.round(Number(val)).toLocaleString();
             }
 
-            // DDDW Loaders (Rule 7: 2-Column format)
-            function retrieveDddw() {
-                const targetCorpGr = resolveCorpGr(pane);
-                if (typeof window.f_dddwctl === 'function') {
-                    return Promise.all([
-                        window.f_dddwctl('tr_stop_gb', 1, targetCorpGr, '', '').then(list => {
-                            dddwOptionsMap.tr_stop_gb = list || [];
-                        }).catch(e => console.error(e)),
-                        window.f_dddwctl('sosok_gb', 1, targetCorpGr, '', '').then(list => {
-                            dddwOptionsMap.sosok_gb = list || [];
-                        }).catch(e => console.error(e))
-                    ]);
+            /**
+             * PowerBuilder dw_list::ue_dddw_retrieve Event Integration
+             * Corresponds to dw_list::ue_dddw_retrieve in w_ja990c.srw:
+             *   1. f_dddwctl (THIS, 'tr_stop_gb', targetCorpGr, '', 1, '')
+             *   2. f_dddwctl (THIS, 'sosok_gb', targetCorpGr, '', 1, '')
+             */
+            function ue_dddw_retrieve(corpGr) {
+                const targetCorpGr = (corpGr != null && String(corpGr).trim() !== "")
+                    ? corpGr
+                    : (typeof resolveCorpGr === 'function' ? resolveCorpGr(pane) : "");
+
+                if (window.f_dddwctl && typeof window.f_dddwctl.retrieveMultiple === 'function') {
+                    return window.f_dddwctl.retrieveMultiple({
+                        tr_stop_gb: ['tr_stop_gb', 1, targetCorpGr, '', ''],
+                        sosok_gb:   ['sosok_gb', 1, targetCorpGr, '', '']
+                    }).then(results => {
+                        dddwOptionsMap.tr_stop_gb = results.tr_stop_gb || [];
+                        dddwOptionsMap.sosok_gb = results.sosok_gb || [];
+                        if (gridMaster) gridMaster.redraw(true);
+                    }).catch(e => console.error('[w_ja990c] retrieveMultiple error:', e));
                 }
                 return Promise.resolve();
             }
@@ -469,7 +477,7 @@
 
             // Initialization Function
             function initGrids() {
-                retrieveDddw();
+                ue_dddw_retrieve();
 
                 const masterEl = pane ? pane.querySelector("#ja990c-master-grid") : document.getElementById("ja990c-master-grid");
                 const detailEl = pane ? pane.querySelector("#ja990c-detail-grid") : document.getElementById("ja990c-detail-grid");
@@ -715,9 +723,10 @@
                 pane.onSave = function() {
                     save();
                 };
-                pane.onCorpGrChange = function() {
+                pane.onCorpGrChange = function(newCorpGr) {
                     currentSelectedMaster = null;
                     lastLoadedMasterKey = null;
+                    ue_dddw_retrieve(newCorpGr);
                 };
                 pane.onRefresh = function() {
                     if (gridMaster) gridMaster.clearData();

@@ -63,10 +63,10 @@
 
             let gridMaster = null;
             let isInitialized = false;
-            let infoTypeMap = {}; // 코드 -> 명칭 매핑
-            let infoTypeOptions = [];
 
-
+            const dddwOptionsMap = {
+                info_type: []
+            };
 
             // 숫자 포맷터 헬퍼
             function numFormatter(cell, digits) {
@@ -91,63 +91,52 @@
                     .replace(/'/g, '&#039;');
             }
 
-            // [초기화 1] f_dddwctl을 통한 info_type(seq=2) DDDW 로드 및 커스텀 드롭다운 연동 (파워빌더 w_ja033a.srw::dw_list.ue_dddw_retrieve 반영)
-            function initInfoTypeDropdown(corpGr) {
-                const selectEl = pane.querySelector('#filterInfoType');
-                const targetCorpGr = corpGr || (typeof resolveCorpGr === 'function' ? resolveCorpGr(pane) : '');
+            /**
+             * PowerBuilder dw_list::ue_dddw_retrieve Event Integration
+             * Corresponds to dw_list::ue_dddw_retrieve in w_ja033a.srw:
+             *   f_dddwctl (THIS, 'info_type', '', '', 2, '')
+             */
+            function ue_dddw_retrieve(corpGr) {
+                const targetCorpGr = (corpGr != null && String(corpGr).trim() !== "")
+                    ? corpGr
+                    : (typeof resolveCorpGr === 'function' ? resolveCorpGr(pane) : "");
 
-                // 파워빌더 소스 100% 매핑: f_dddwctl (THIS, 'info_type', '', '', 2, '')
-                const dddwPromise = (typeof window.f_dddwctl === 'function')
-                    ? window.f_dddwctl('info_type', targetCorpGr, '', 2, '')
-                    : fetch(`/api/common/dddw?dddwId=info_type&seq=2&corpGr=${encodeURIComponent(targetCorpGr)}`).then(r => r.json());
+                return f_dddwctl.retrieveMultiple({
+                    info_type: ['info_type', targetCorpGr, '', 2, '']
+                }).then(results => {
+                    dddwOptionsMap.info_type = results.info_type || [];
 
-                return dddwPromise
-                    .then(list => {
-                        const items = Array.isArray(list) ? list : [];
-                        infoTypeMap = {};
-                        infoTypeOptions = [];
-
-                        items.forEach(item => {
-                            const code = (item.code != null ? item.code : (item.SEBU_CD != null ? item.SEBU_CD : item.cd));
-                            const name = (item.name != null ? item.name : (item.SEBU_CD_NM != null ? item.SEBU_CD_NM : item.dscr));
-                            if (code != null && String(code).trim() !== '') {
-                                const strCode = String(code).trim();
-                                const strName = String(name || strCode).trim();
-                                infoTypeMap[strCode] = strName;
-                                infoTypeOptions.push({
-                                    code: strCode,
-                                    name: strName
-                                });
+                    // 상단 필터바 2열 커스텀 드롭다운 연동 (규정 09-2.4)
+                    const selectEl = pane.querySelector('#filterInfoType');
+                    if (selectEl && window.f_dddwctl && typeof window.f_dddwctl.get2ColItemFormatter === 'function') {
+                        const dddwOpts = [{ code: '', name: '전체 (ALL)' }].concat(dddwOptionsMap.info_type);
+                        window.f_dddwctl.get2ColItemFormatter(selectEl, dddwOpts, {
+                            codeTitle: '코드',
+                            nameTitle: '구분명',
+                            defaultVal: selectEl.value || '',
+                            onSelect: function (code) {
+                                selectEl.value = code;
+                                // 규정 08 준수: 필터 변경 시 자동 조회를 실행하지 않음 (수동 조회 단일 정책)
                             }
                         });
+                    }
 
-                        // 2열 커스텀 드롭다운 컴포넌트 변환 (규정 09-2.4)
-                        if (selectEl && window.f_dddwctl && typeof window.f_dddwctl.get2ColItemFormatter === 'function') {
-                            const dddwOpts = [{ code: '', name: '전체 (ALL)' }].concat(infoTypeOptions);
-                            window.f_dddwctl.get2ColItemFormatter(selectEl, dddwOpts, {
-                                codeTitle: '코드',
-                                nameTitle: '구분명',
-                                defaultVal: selectEl.value || '',
-                                onSelect: function (code, name) {
-                                    selectEl.value = code;
-                                    loadData(); // 필터 변경 시 즉시 자동 조회
-                                }
-                            });
-                        }
+                    if (gridMaster) {
+                        gridMaster.redraw(true);
+                    }
+                    return dddwOptionsMap.info_type;
+                }).catch(err => {
+                    console.error('[w_ja033a] info_type(seq=2) DDDW 로드 실패:', err);
+                    return [];
+                });
+            }
 
-                        selectEl.addEventListener('change', function () {
-                            loadData();
-                        });
+            function getDddwLabel(dddwKey, codeVal) {
+                return f_dddwctl.getLabel(dddwOptionsMap, dddwKey, codeVal);
+            }
 
-                        if (gridMaster) {
-                            gridMaster.redraw(true);
-                        }
-                        return infoTypeOptions;
-                    })
-                    .catch(err => {
-                        console.error('[w_ja033a] info_type(seq=2) DDDW 로드 실패:', err);
-                        return [];
-                    });
+            function getDddwOptions(dddwKey) {
+                return f_dddwctl.getOptions(dddwOptionsMap, dddwKey);
             }
 
             // [초기화 2] Tabulator 그리드 빌드 (d_ja033a.srd 원본 메타데이터 100% 반영: 단순 조회용)
@@ -177,13 +166,7 @@
                             hozAlign: "center",
                             headerHozAlign: "center",
                             frozen: true,
-                            formatter: function (cell) {
-                                const val = cell.getValue();
-                                if (val == null || val === '') return '';
-                                const strVal = String(val).trim();
-                                const name = infoTypeMap[strVal];
-                                return escapeHtml(name || strVal);
-                            }
+                            formatter: cell => getDddwLabel('info_type', cell.getValue())
                         },
                         {
                             title: "단축코드",
@@ -369,7 +352,7 @@
 
                 pane.onCorpGrChange = function (newCorpGr) {
                     // 회사그룹 변경 시 DDDW 갱신 (수동 조회 단일 정책 규정 08-2)
-                    initInfoTypeDropdown(newCorpGr);
+                    ue_dddw_retrieve(newCorpGr);
                 };
 
                 pane.onExcel = function () {
@@ -384,7 +367,7 @@
                 if (isInitialized) return;
                 isInitialized = true;
 
-                initInfoTypeDropdown();
+                ue_dddw_retrieve();
                 initGrid();
                 initFileLoader();
                 initToolbar();

@@ -7,7 +7,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 @Slf4j
 @Service
@@ -53,5 +55,27 @@ public class MenuService {
      */
     public List<MenuDto> getAllMenuList(String userId, String userNm) {
         return menuMapper.selectAllMenuList(userId, userNm);
+    }
+
+    /**
+     * Get permitted program identifier set (PGM_ID, PGM_GO, PGM_NO) for access control
+     */
+    public Set<String> getPermittedPgmSet(String userId, String userNm) {
+        Set<String> permittedSet = new HashSet<>();
+        List<MenuDto> permittedList = menuMapper.selectPermittedPgmList(userId, userNm);
+        if (permittedList != null) {
+            for (MenuDto menu : permittedList) {
+                if (menu.getPgmId() != null && !menu.getPgmId().isBlank()) {
+                    permittedSet.add(menu.getPgmId().trim().toUpperCase());
+                }
+                if (menu.getPgmGo() != null && !menu.getPgmGo().isBlank()) {
+                    permittedSet.add(menu.getPgmGo().trim().toUpperCase());
+                }
+                if (menu.getPgmNo() != null && !menu.getPgmNo().isBlank()) {
+                    permittedSet.add(menu.getPgmNo().trim().toUpperCase());
+                }
+            }
+        }
+        return permittedSet;
     }
 }

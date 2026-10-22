@@ -327,10 +327,11 @@ function initFilterCalendar(pane, options) {
         return;
     }
 
-    // 2) 단일 달력 체크 (filterYmd)
-    const inputId = options.inputId || 'filterYmd';
+    // 2) 단일 달력 및 연월(Month) 달력 체크
+    const isMonthMode = (options.mode === 'month' || options.type === 'month' || options.inputId === 'filterYm' || (options.inputId && options.inputId.includes('Ym') && !options.inputId.includes('Ymd')));
+    const inputId = options.inputId || (isMonthMode ? 'filterYm' : 'filterYmd');
     const input = root.querySelector('#' + inputId)
-               || root.querySelector('input[name="ymd"]')
+               || (isMonthMode ? root.querySelector('input[name="ym"]') : root.querySelector('input[name="ymd"]'))
                || root.querySelector('.aams-calendar-input');
     if (!input) return;
 
@@ -339,17 +340,32 @@ function initFilterCalendar(pane, options) {
         ? window.WorkDateSyncManager.getWorkDate(detectedCorpGr)
         : '';
 
-    const initialYmd = syncYmd || options.initialYmd || input.value || (input.getAttribute ? input.getAttribute('value') : '') || '';
-    if (initialYmd) {
-        input.value = initialYmd;
+    let defaultVal = syncYmd;
+    if (isMonthMode && syncYmd && syncYmd.length >= 7) {
+        defaultVal = syncYmd.substring(0, 7);
+    }
+    const initialVal = isMonthMode
+        ? (options.initialYm || options.initialYmd || input.value || (input.getAttribute ? input.getAttribute('value') : '') || defaultVal || '')
+        : (syncYmd || options.initialYmd || input.value || (input.getAttribute ? input.getAttribute('value') : '') || '');
+
+    if (initialVal) {
+        input.value = initialVal;
     }
 
-    if (window.AamsCalendar && typeof window.AamsCalendar.initSimple === 'function') {
-        window.AamsCalendar.initSimple(input.id || inputId, {
-            pane: pane,
-            initialYmd: input.value || initialYmd,
-            onSelect: options.onSelect
-        });
+    if (window.AamsCalendar) {
+        if (isMonthMode && typeof window.AamsCalendar.initMonth === 'function') {
+            window.AamsCalendar.initMonth(input.id || inputId, {
+                pane: pane,
+                initialYmd: input.value || initialVal,
+                onSelect: options.onSelect
+            });
+        } else if (typeof window.AamsCalendar.initSimple === 'function') {
+            window.AamsCalendar.initSimple(input.id || inputId, {
+                pane: pane,
+                initialYmd: input.value || initialVal,
+                onSelect: options.onSelect
+            });
+        }
     }
 }
 window.initFilterCalendar = initFilterCalendar;

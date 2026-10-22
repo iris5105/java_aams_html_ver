@@ -26,19 +26,20 @@ window.AamsCalendar = (function() {
                 options = { initialYmd: options };
             }
             options = options || {};
-            const initialYmd = options.initialYmd || "";
+            const isMonthMode = (options.mode === 'month' || options.type === 'month' || options.isMonth === true);
+            const initialYmd = options.initialYm || options.initialYmd || "";
             let initialYear = new Date().getFullYear();
             let initialMonth = new Date().getMonth(); // 0-indexed (0=1월, 11=12월)
 
-            if (initialYmd && initialYmd.length >= 7) {
+            if (initialYmd && initialYmd.length >= 6) {
                 const parts = initialYmd.split("-");
-                if (parts.length === 3) {
+                if (parts.length >= 2) {
                     initialYear = parseInt(parts[0], 10);
                     initialMonth = parseInt(parts[1], 10) - 1;
                 }
             }
 
-            const isSimple = !!(options.isSimple || options.simple || options.highlight === false);
+            const isSimple = !!(options.isSimple || options.simple || options.highlight === false || isMonthMode);
 
             instances[inputId] = {
                 inputId: inputId,
@@ -47,6 +48,7 @@ window.AamsCalendar = (function() {
                 titleId: inputId + "_title",
                 monthsGridId: inputId + "_monthsGrid",
                 daysGridId: inputId + "_daysGrid",
+                mode: isMonthMode ? 'month' : 'date',
                 calYear: initialYear,
                 calMonth: initialMonth,
                 isSimple: isSimple,
@@ -80,6 +82,21 @@ window.AamsCalendar = (function() {
             options.highlight = false;
             options.datesApiUrl = null;
             options.highlightDates = [];
+            this.init(inputId, options);
+        },
+
+        /**
+         * 연월 전용 달력 초기화 (YYYY-MM 모드)
+         * @param {string|HTMLElement} inputId - 날짜 input 요소 ID 또는 DOM Element
+         * @param {object|string} options - { initialYm, pane, onSelect } 또는 initialYm 문자열
+         */
+        initMonth: function(inputId, options) {
+            if (typeof options === 'string') {
+                options = { initialYmd: options };
+            }
+            options = options || {};
+            options.mode = 'month';
+            options.isSimple = true;
             this.init(inputId, options);
         },
 
@@ -193,37 +210,51 @@ window.AamsCalendar = (function() {
             let popover = wrapper.querySelector('.calendar-popover');
             if (!popover) {
                 popover = document.createElement('div');
-                popover.className = 'calendar-popover';
-                popover.style.cssText = 'display: none; position: absolute; top: 100%; left: 0; margin-top: 6px; z-index: 9999; background: #ffffff; border: 1px solid #708090; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2); width: 235px; padding: 4px; font-family: "맑은 고딕", sans-serif;';
+                popover.className = 'calendar-popover' + (inst.mode === 'month' ? ' aams-month-popover' : '');
+                popover.style.cssText = 'display: none; position: absolute; top: 100%; left: 0; margin-top: 6px; z-index: 9999; background: #ffffff; border: 1px solid #708090; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2); width: ' + (inst.mode === 'month' ? '210px' : '235px') + '; padding: 4px; font-family: "맑은 고딕", sans-serif; border-radius: 4px;';
                 wrapper.appendChild(popover);
             }
             popover.id = inst.popoverId;
 
-            popover.innerHTML = `
-                <div style="display: flex; align-items: center; justify-content: space-between; padding: 4px 2px; border-bottom: 1px solid #e2e8f0; font-size: 13px;">
-                    <div style="display: flex; align-items: center; gap: 3px;">
-                        <button type="button" class="cal-nav-btn" onclick="AamsCalendar.prevYear('${inputId}', event)" title="이전 년도" style="background: none; border: none; cursor: pointer; color: #2563eb; font-weight: 800; font-size: 16px; padding: 0 4px; min-width: 22px; height: 24px; display: inline-flex; align-items: center; justify-content: center; line-height: 1;">«</button>
-                        <button type="button" class="cal-nav-btn" onclick="AamsCalendar.prevMonth('${inputId}', event)" title="이전 월" style="background: none; border: none; cursor: pointer; color: #2563eb; font-weight: 800; font-size: 16px; padding: 0 4px; min-width: 22px; height: 24px; display: inline-flex; align-items: center; justify-content: center; line-height: 1;">‹</button>
-                        <span id="${inst.titleId}" class="calendar-title" style="font-weight: 700; font-size: 13px; color: #1e293b; margin: 0 4px;"></span>
-                        <button type="button" class="cal-nav-btn" onclick="AamsCalendar.nextMonth('${inputId}', event)" title="다음 월" style="background: none; border: none; cursor: pointer; color: #2563eb; font-weight: 800; font-size: 16px; padding: 0 4px; min-width: 22px; height: 24px; display: inline-flex; align-items: center; justify-content: center; line-height: 1;">›</button>
-                        <button type="button" class="cal-nav-btn" onclick="AamsCalendar.nextYear('${inputId}', event)" title="다음 년도" style="background: none; border: none; cursor: pointer; color: #2563eb; font-weight: 800; font-size: 16px; padding: 0 4px; min-width: 22px; height: 24px; display: inline-flex; align-items: center; justify-content: center; line-height: 1;">»</button>
+            if (inst.mode === 'month') {
+                popover.innerHTML = `
+                    <div style="display: flex; align-items: center; justify-content: space-between; padding: 4px 2px; border-bottom: 1px solid #e2e8f0; font-size: 13px;">
+                        <div style="display: flex; align-items: center; gap: 4px;">
+                            <button type="button" class="cal-nav-btn" onclick="AamsCalendar.prevYear('${inputId}', event)" title="이전 년도" style="background: none; border: none; cursor: pointer; color: #2563eb; font-weight: 800; font-size: 16px; padding: 0 4px; min-width: 22px; height: 24px; display: inline-flex; align-items: center; justify-content: center; line-height: 1;">«</button>
+                            <span id="${inst.titleId}" class="calendar-title" style="font-weight: 700; font-size: 14px; color: #1e293b; margin: 0 4px;"></span>
+                            <button type="button" class="cal-nav-btn" onclick="AamsCalendar.nextYear('${inputId}', event)" title="다음 년도" style="background: none; border: none; cursor: pointer; color: #2563eb; font-weight: 800; font-size: 16px; padding: 0 4px; min-width: 22px; height: 24px; display: inline-flex; align-items: center; justify-content: center; line-height: 1;">»</button>
+                        </div>
+                        <button type="button" onclick="AamsCalendar.setThisMonth('${inputId}', event)" style="background: #ffffff; border: 1px solid #16a34a; color: #16a34a; font-weight: bold; padding: 1px 7px; font-size: 11px; cursor: pointer; border-radius: 2px;">이번달</button>
                     </div>
-                    <button type="button" onclick="AamsCalendar.setToday('${inputId}', event)" style="background: #ffffff; border: 1px solid #16a34a; color: #16a34a; font-weight: bold; padding: 1px 7px; font-size: 11px; cursor: pointer; border-radius: 2px;">오늘</button>
-                </div>
-                <div style="background-color: #3b4859; color: #ffffff; padding: 4px 3px; margin: 3px 0;">
-                    <div id="${inst.monthsGridId}" class="calendar-months-grid" style="display: grid; grid-template-columns: repeat(6, 1fr); gap: 2px; text-align: center; font-size: 11px;"></div>
-                </div>
-                <div style="display: grid; grid-template-columns: repeat(7, 1fr); text-align: center; font-weight: 600; font-size: 12px; padding: 3px 0; background: #fafafa;">
-                    <span style="color: #ef4444;">일</span>
-                    <span style="color: #334155;">월</span>
-                    <span style="color: #334155;">화</span>
-                    <span style="color: #334155;">수</span>
-                    <span style="color: #334155;">목</span>
-                    <span style="color: #334155;">금</span>
-                    <span style="color: #2563eb;">토</span>
-                </div>
-                <div id="${inst.daysGridId}" class="calendar-days-grid" style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 1px; text-align: center; font-size: 12px; padding: 2px 0;"></div>
-            `;
+                    <div id="${inst.monthsGridId}" class="calendar-months-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; padding: 8px 4px; text-align: center;"></div>
+                `;
+            } else {
+                popover.innerHTML = `
+                    <div style="display: flex; align-items: center; justify-content: space-between; padding: 4px 2px; border-bottom: 1px solid #e2e8f0; font-size: 13px;">
+                        <div style="display: flex; align-items: center; gap: 3px;">
+                            <button type="button" class="cal-nav-btn" onclick="AamsCalendar.prevYear('${inputId}', event)" title="이전 년도" style="background: none; border: none; cursor: pointer; color: #2563eb; font-weight: 800; font-size: 16px; padding: 0 4px; min-width: 22px; height: 24px; display: inline-flex; align-items: center; justify-content: center; line-height: 1;">«</button>
+                            <button type="button" class="cal-nav-btn" onclick="AamsCalendar.prevMonth('${inputId}', event)" title="이전 월" style="background: none; border: none; cursor: pointer; color: #2563eb; font-weight: 800; font-size: 16px; padding: 0 4px; min-width: 22px; height: 24px; display: inline-flex; align-items: center; justify-content: center; line-height: 1;">‹</button>
+                            <span id="${inst.titleId}" class="calendar-title" style="font-weight: 700; font-size: 13px; color: #1e293b; margin: 0 4px;"></span>
+                            <button type="button" class="cal-nav-btn" onclick="AamsCalendar.nextMonth('${inputId}', event)" title="다음 월" style="background: none; border: none; cursor: pointer; color: #2563eb; font-weight: 800; font-size: 16px; padding: 0 4px; min-width: 22px; height: 24px; display: inline-flex; align-items: center; justify-content: center; line-height: 1;">›</button>
+                            <button type="button" class="cal-nav-btn" onclick="AamsCalendar.nextYear('${inputId}', event)" title="다음 년도" style="background: none; border: none; cursor: pointer; color: #2563eb; font-weight: 800; font-size: 16px; padding: 0 4px; min-width: 22px; height: 24px; display: inline-flex; align-items: center; justify-content: center; line-height: 1;">»</button>
+                        </div>
+                        <button type="button" onclick="AamsCalendar.setToday('${inputId}', event)" style="background: #ffffff; border: 1px solid #16a34a; color: #16a34a; font-weight: bold; padding: 1px 7px; font-size: 11px; cursor: pointer; border-radius: 2px;">오늘</button>
+                    </div>
+                    <div style="background-color: #3b4859; color: #ffffff; padding: 4px 3px; margin: 3px 0;">
+                        <div id="${inst.monthsGridId}" class="calendar-months-grid" style="display: grid; grid-template-columns: repeat(6, 1fr); gap: 2px; text-align: center; font-size: 11px;"></div>
+                    </div>
+                    <div style="display: grid; grid-template-columns: repeat(7, 1fr); text-align: center; font-weight: 600; font-size: 12px; padding: 3px 0; background: #fafafa;">
+                        <span style="color: #ef4444;">일</span>
+                        <span style="color: #334155;">월</span>
+                        <span style="color: #334155;">화</span>
+                        <span style="color: #334155;">수</span>
+                        <span style="color: #334155;">목</span>
+                        <span style="color: #334155;">금</span>
+                        <span style="color: #2563eb;">토</span>
+                    </div>
+                    <div id="${inst.daysGridId}" class="calendar-days-grid" style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 1px; text-align: center; font-size: 12px; padding: 2px 0;"></div>
+                `;
+            }
         },
 
         loadHighlightDates: function(inputId, apiUrl, paramCorpGr) {
@@ -313,7 +344,7 @@ window.AamsCalendar = (function() {
                 const currentInput = (currentWrapper ? currentWrapper.querySelector('input') : null) || this.getElement(inputId, inst.pane);
                 if (currentInput && currentInput.value) {
                     const parts = currentInput.value.replace(/[^0-9]/g, '');
-                    if (parts.length === 8) {
+                    if (parts.length >= 6) {
                         inst.calYear = parseInt(parts.substring(0, 4), 10);
                         inst.calMonth = parseInt(parts.substring(4, 6), 10) - 1;
                     }
@@ -384,6 +415,34 @@ window.AamsCalendar = (function() {
             this.render(inputId, popover);
         },
 
+        setThisMonth: function(inputId, e) {
+            const inst = instances[inputId];
+            if (!inst) return;
+            const now = new Date();
+            const y = now.getFullYear();
+            const m = String(now.getMonth() + 1).padStart(2, '0');
+            const ymStr = `${y}-${m}`;
+
+            const popover = (e && e.target) ? e.target.closest('.calendar-popover') : null;
+            const wrapper = popover ? popover.closest('.aams-calendar-wrapper') : null;
+            const inputEl = (wrapper ? wrapper.querySelector('input') : null) || this.getElement(inputId, inst.pane);
+            if (inputEl) {
+                inputEl.value = ymStr;
+                try {
+                    inputEl.dispatchEvent(new Event('input', { bubbles: true }));
+                    inputEl.dispatchEvent(new Event('change', { bubbles: true }));
+                } catch(err) {}
+            }
+
+            inst.calYear = y;
+            inst.calMonth = now.getMonth();
+            this.close(inputId, popover);
+
+            if (typeof inst.onSelect === 'function') {
+                inst.onSelect(ymStr);
+            }
+        },
+
         setToday: function(inputId, e) {
             const inst = instances[inputId];
             if (!inst) return;
@@ -423,6 +482,80 @@ window.AamsCalendar = (function() {
             const titleEl = popover.querySelector('.calendar-title') || this.getElement(inst.titleId, inst.pane);
             const monthsGridEl = popover.querySelector('.calendar-months-grid') || this.getElement(inst.monthsGridId, inst.pane);
             const daysGridEl = popover.querySelector('.calendar-days-grid') || this.getElement(inst.daysGridId, inst.pane);
+
+            // [연월(Month) 달력 모드 렌더링]
+            if (inst.mode === 'month') {
+                if (titleEl) titleEl.textContent = `${inst.calYear}년`;
+                if (!monthsGridEl) return;
+                monthsGridEl.innerHTML = "";
+
+                const inputEl = this.getElement(inputId, inst.pane);
+                const selectedVal = inputEl ? inputEl.value.trim() : "";
+                const cleanDigits = selectedVal.replace(/\D/g, "");
+                const selectedYear = cleanDigits.length >= 4 ? parseInt(cleanDigits.substring(0, 4), 10) : -1;
+                const selectedMonth = cleanDigits.length >= 6 ? parseInt(cleanDigits.substring(4, 6), 10) - 1 : -1;
+
+                const now = new Date();
+                const nowYear = now.getFullYear();
+                const nowMonth = now.getMonth();
+
+                const self = this;
+                for (let m = 0; m < 12; m++) {
+                    const btn = document.createElement("button");
+                    btn.type = "button";
+                    btn.textContent = (m + 1) + "월";
+                    btn.style.cssText = "padding: 8px 0; font-size: 13px; font-weight: 500; border: 1px solid #e2e8f0; border-radius: 4px; background: #ffffff; color: #1e293b; cursor: pointer; transition: all 0.15s ease;";
+
+                    const isSelected = (inst.calYear === selectedYear && m === selectedMonth);
+                    const isThisMonth = (inst.calYear === nowYear && m === nowMonth);
+
+                    if (isSelected) {
+                        btn.style.background = "#2563eb";
+                        btn.style.borderColor = "#2563eb";
+                        btn.style.color = "#ffffff";
+                        btn.style.fontWeight = "700";
+                    } else if (isThisMonth) {
+                        btn.style.borderColor = "#3b82f6";
+                        btn.style.color = "#2563eb";
+                        btn.style.fontWeight = "700";
+                    }
+
+                    btn.onmouseenter = function() {
+                        if (!isSelected) {
+                            btn.style.background = "#f1f5f9";
+                            btn.style.borderColor = "#cbd5e1";
+                        }
+                    };
+                    btn.onmouseleave = function() {
+                        if (!isSelected) {
+                            btn.style.background = "#ffffff";
+                            btn.style.borderColor = isThisMonth ? "#3b82f6" : "#e2e8f0";
+                        }
+                    };
+
+                    btn.onclick = function(e) {
+                        e.stopPropagation();
+                        const ymStr = `${inst.calYear}-${String(m + 1).padStart(2, '0')}`;
+                        if (inputEl) {
+                            inputEl.value = ymStr;
+                            try {
+                                inputEl.dispatchEvent(new Event('input', { bubbles: true }));
+                                inputEl.dispatchEvent(new Event('change', { bubbles: true }));
+                            } catch(err) {}
+                        }
+                        inst.calMonth = m;
+                        self.close(inputId, popover);
+
+                        if (typeof inst.onSelect === 'function') {
+                            inst.onSelect(ymStr);
+                        }
+                    };
+
+                    monthsGridEl.appendChild(btn);
+                }
+                return;
+            }
+
             if (!titleEl || !monthsGridEl || !daysGridEl) return;
 
             // 1. Header Title

@@ -102,6 +102,25 @@
            AND T1.MENU_USE_YN = 'Y'
            AND T1.PGM_USE_YN = 'Y'
          ORDER BY NVL(T1.SORT_ORDER, 0), T1.PGM_GO
+    <!-- 5. Select Permitted Program List for View Access Control -->
+    <select id="selectPermittedPgmList" resultType="com.kfp.aams.menu.dto.MenuDto">
+        SELECT DISTINCT
+               t1.PGM_NO        AS pgmNo
+             , t1.PGM_ID        AS pgmId
+             , t1.PGM_NM        AS pgmNm
+             , t1.PGM_GO        AS pgmGo
+          FROM FW_PGM_MST t1
+             , FW_ROLE_PGM T2
+             , FW_ROLE_MEMB  T3
+             , FW_USER_MST T4
+         WHERE T1.PGM_NO = T2.PGM_NO
+           AND T2.ROLE_NO = T3.ROLE_NO
+           AND T3.MEMB_CODE1 = T4.CORP_GR
+           AND T4.USER_ID = #{userId}
+           <if test="userNm != null and userNm != ''">
+           AND T4.USER_NM = #{userNm}
+           </if>
+           AND T1.PGM_USE_YN = 'Y'
     </select>
 
 </mapper>

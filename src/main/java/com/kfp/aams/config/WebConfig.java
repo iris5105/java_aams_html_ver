@@ -13,6 +13,9 @@ import org.springframework.http.converter.StringHttpMessageConverter;
 import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
+import com.kfp.aams.security.interceptor.ViewAccessInterceptor;
+import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
+
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
@@ -25,6 +28,19 @@ import java.util.List;
  */
 @Configuration
 public class WebConfig implements WebMvcConfigurer {
+
+    private final ViewAccessInterceptor viewAccessInterceptor;
+
+    public WebConfig(ViewAccessInterceptor viewAccessInterceptor) {
+        this.viewAccessInterceptor = viewAccessInterceptor;
+    }
+
+    @Override
+    public void addInterceptors(InterceptorRegistry registry) {
+        registry.addInterceptor(viewAccessInterceptor)
+                .addPathPatterns("/views/**")
+                .excludePathPatterns("/views/common/**");
+    }
 
     @Bean
     @Primary
