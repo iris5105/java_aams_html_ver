@@ -60,7 +60,8 @@ public class Ja033cController {
 
         boolean isAdmin = false;
         if (principalObj instanceof UserPrincipal userPrincipal) {
-            isAdmin = userPrincipal.getAuthorities().stream()
+            isAdmin = "Y".equalsIgnoreCase(userPrincipal.getAdminYn())
+                    || userPrincipal.getAuthorities().stream()
                     .anyMatch(a -> a.getAuthority().equalsIgnoreCase("ROLE_ADMIN") || a.getAuthority().contains("ADMIN"));
         }
 

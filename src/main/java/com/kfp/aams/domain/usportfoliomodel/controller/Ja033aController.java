@@ -60,7 +60,8 @@ public class Ja033aController {
 
         boolean isAdmin = false;
         if (principalObj instanceof UserPrincipal userPrincipal) {
-            isAdmin = userPrincipal.getAuthorities().stream()
+            isAdmin = "Y".equalsIgnoreCase(userPrincipal.getAdminYn())
+                    || userPrincipal.getAuthorities().stream()
                     .anyMatch(a -> a.getAuthority().equalsIgnoreCase("ROLE_ADMIN") || a.getAuthority().contains("ADMIN"));
         }
 
@@ -111,7 +112,7 @@ public class Ja033aController {
     /**
      * 파워빌더 cb_load 연동: 종목 파일 업로드 및 일괄 등록
      */
-    @PostMapping("/api/usportfoliomodel/ja033a/load-file")
+    @PostMapping({"/api/usportfoliomodel/ja033a/load-master-file", "/api/usportfoliomodel/ja033a/load-file"})
     @ResponseBody
     public ResponseEntity<Map<String, Object>> loadMasterFile(@RequestParam("file") MultipartFile file) {
         try {

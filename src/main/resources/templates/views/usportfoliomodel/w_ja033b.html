@@ -26,11 +26,11 @@
                 </div>
             </div>
 
-            <!-- 관리자 전용 종목LOAD 버튼 (파워빌더 w_ja033b.srw::cb_load 로직 일체화) -->
-            <button th:if="${isAdmin}" type="button" class="t-btn btn-action" id="btnLoadFile" title="지수 선물/옵션 종목 마스터 파일(fo_idx*.mst)을 일괄 업로드하여 등록합니다.">
+            <!-- 종목LOAD 버튼 (파워빌더 w_ja033b.srw::cb_load 로직 일체화) -->
+            <button type="button" class="t-btn btn-action" id="btnLoadFile" title="지수 선물/옵션 종목 마스터 파일(fo_idx*.mst)을 일괄 업로드하여 등록합니다.">
                 <i class="fa-solid fa-file-arrow-up"></i> 종목LOAD
             </button>
-            <input th:if="${isAdmin}" type="file" id="mstFileInput" accept=".mst,.txt,*.*" style="display: none;" />
+            <input type="file" id="mstFileInput" accept=".mst,.txt,*.*" style="display: none;" />
 
             <span class="badge" style="background: #f1f5f9; color: #475569; font-size: 11.5px; font-weight: 600; padding: 4px 8px; border-radius: 4px;">
                 <i class="fa-solid fa-circle-info"></i> KRX 지수 선물/옵션 종목 코드를 조회합니다.
@@ -321,7 +321,7 @@
                         .then(res => {
                             if (res.success) {
                                 if (typeof showToast === 'function') {
-                                    showToast(res.message || "종목 LOAD가 완료되었습니다.", "success");
+                                    showToast(res.message || "지수 선물/옵션 종목 LOAD를 완료했습니다.", "success");
                                 }
                                 loadMasterData();
                             } else {
