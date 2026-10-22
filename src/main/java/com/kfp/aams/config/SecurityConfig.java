@@ -1,6 +1,5 @@
 package com.kfp.aams.config;
 
-import com.kfp.aams.security.crypto.EncryptedQueryParamFilter;
 import com.kfp.aams.security.JwtAuthenticationEntryPoint;
 import com.kfp.aams.security.JwtAuthenticationFilter;
 import lombok.RequiredArgsConstructor;
@@ -19,7 +18,6 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 @RequiredArgsConstructor
 public class SecurityConfig {
 
-    private final EncryptedQueryParamFilter encryptedQueryParamFilter;
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
 
@@ -40,7 +38,6 @@ public class SecurityConfig {
                                 "/js/**", "/images/**", "/img/**", "/h2-console/**", "/favicon.ico", "/favicon.svg", "/error", "/w_*")
                         .permitAll()
                         .anyRequest().permitAll())
-                .addFilterBefore(encryptedQueryParamFilter, JwtAuthenticationFilter.class)
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
