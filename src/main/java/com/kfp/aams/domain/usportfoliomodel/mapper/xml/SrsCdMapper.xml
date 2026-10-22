@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.kfp.aams.domain.usportfoliomodel.mapper.SrsCdMapper">
+
+    <!-- 1. 해외파생 생성종목 마스터 목록 조회 (d_srs_cd1.srd) -->
+    <select id="selectMasterList" resultType="com.kfp.aams.domain.usportfoliomodel.dto.SrsCdMasterDto">
+        SELECT t1.SRS_CD           AS srs_cd
+             , t1.STKPRC           AS stkprc
+             , t1.BLBG_TCKR        AS blbg_tckr
+             , t1.ISIN_CD          AS isin_cd
+             , t1.EXCH_CD          AS exch_cd
+             , t1.CRC_CD           AS crc_cd
+             , t1.EXPR_DATE        AS expr_date
+             , t1.GIJUN_STKPRC_YN  AS gijun_stkprc_yn
+             , t1.WEEK             AS week
+          FROM SRS_CD t1
+        <where>
+            <if test="isinCd != null and isinCd != ''">
+                t1.ISIN_CD LIKE '%' || #{isinCd} || '%'
+            </if>
+        </where>
+         ORDER BY t1.WEEK
+                , t1.STKPRC
+    </select>
+
+    <!-- 2. 해외옵션 일별 시세 내역 조회 (d_srs_cd2.srd) -->
+    <select id="selectDetailList" resultType="com.kfp.aams.domain.usportfoliomodel.dto.SrsCdDetailDto">
+        SELECT t1.corp_gr
+             , TO_CHAR(t1.ymd, 'YYYY-MM-DD') AS ymd
+             , t1.jm_cd
+             , t1.jonga
+             , t1.danga
+             , TO_CHAR(t1.load_time, 'YYYY-MM-DD HH24:MI:SS') AS load_time
+             , TO_CHAR(t1.px_close_dt, 'YYYY-MM-DD') AS px_close_dt
+             , t1.px_last
+             , TO_CHAR(t1.px_dt_1d, 'YYYY-MM-DD') AS px_dt_1d
+             , t1.px_close_1d
+             , t1.px_yest_close_exch_unadj
+             , t1.blbg_tckr
+             , t1.isin_cd
+             , t1.currency
+             , t1.hangsa_ga
+             , t1.bid
+             , t1.ask
+             , t1.time_ga
+             , t1.tvol
+             , t1.tamt
+             , t1.shar
+             , t1.tomv
+             , t1.t_rate
+             , t1.trd_to_date
+             , TO_CHAR(t1.YMD, 'iw') AS week
+          FROM SYT0LP t1
+         WHERE t1.corp_gr = #{corpGr}
+           AND t1.ymd BETWEEN ADD_MONTHS(TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD'), -12) AND TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
+           AND t1.jm_cd   = #{jmCd}
+         ORDER BY t1.ymd DESC
+    </select>
+
+    <!-- 3. SZX0YM 참조하여 파생코드 자동 계산 (w_srs_cd dw_list::itemchanged_next) -->
+    <select id="calcDerivedSrsCd" resultType="java.lang.String">
+        SELECT CASE WHEN TO_CHAR(TO_DATE(REPLACE(#{exprDate}, '-', ''), 'YYYYMMDD'), 'w') = '3' THEN ''
+                    ELSE TO_CHAR(TO_DATE(REPLACE(#{exprDate}, '-', ''), 'YYYYMMDD'), 'w')
+               END || #{blbgTckr} || SRS_MM || SUBSTR(REPLACE(#{exprDate}, '-', ''), 3, 2) || NVL(#{isCallPut}, '') || TO_CHAR(TRUNC(#{stkprc}))
+          FROM SZX0YM t1
+         WHERE t1.YMD_GB = 'M'
+           AND t1.YMD_ID = SUBSTR(REPLACE(#{exprDate}, '-', ''), 5, 2)
+           AND ROWNUM = 1
+    </select>
+
+    <!-- 4. SRS_CD 단건 등록 -->
+    <insert id="insertMaster">
+        INSERT INTO SRS_CD (
+            SRS_CD
+          , STKPRC
+          , BLBG_TCKR
+          , ISIN_CD
+          , EXCH_CD
+          , CRC_CD
+          , EXPR_DATE
+          , GIJUN_STKPRC_YN
+          , WEEK
+        ) VALUES (
+            #{srsCd}
+          , #{stkprc}
+          , #{blbgTckr}
+          , #{isinCd}
+          , #{exchCd}
+          , #{crcCd}
+          , REPLACE(#{exprDate}, '-', '')
+          , NVL(#{gijunStkprcYn}, 'N')
+          , #{week}
+        )
+    </insert>
+
+    <!-- 5. SRS_CD 단건 수정 -->
+    <update id="updateMaster">
+        UPDATE SRS_CD
+           SET SRS_CD          = #{srsCd}
+             , STKPRC          = #{stkprc}
+             , BLBG_TCKR       = #{blbgTckr}
+             , ISIN_CD         = #{isinCd}
+             , EXCH_CD         = #{exchCd}
+             , CRC_CD          = #{crcCd}
+             , EXPR_DATE       = REPLACE(#{exprDate}, '-', '')
+             , GIJUN_STKPRC_YN = NVL(#{gijunStkprcYn}, 'N')
+             , WEEK            = #{week}
+         WHERE SRS_CD = COALESCE(#{origSrsCd}, #{srsCd})
+    </update>
+
+    <!-- 6. SRS_CD 단건 삭제 -->
+    <delete id="deleteMaster">
+        DELETE FROM SRS_CD
+         WHERE SRS_CD = COALESCE(#{origSrsCd}, #{srsCd})
+    </delete>
+
+    <!-- 7. SRS_CD 존재 여부 확인 -->
+    <select id="existsMaster" resultType="int">
+        SELECT COUNT(1)
+          FROM SRS_CD
+         WHERE SRS_CD = #{srsCd}
+    </select>
+
+</mapper>

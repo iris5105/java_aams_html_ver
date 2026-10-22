@@ -62,17 +62,7 @@
             <div class="split-left-section split-panel panel-left">
                 <div class="sub-grid-header">
                     <span class="sub-title"><i class="fa-solid fa-list-ol"></i> 결산기별 이력</span>
-                    <div class="sub-grid-actions">
-                        <button type="button" class="btn-sub-grid btn-add" id="btnDetailAdd" title="신규 행 삽입">
-                            <i class="fa-solid fa-plus"></i> 행 삽입
-                        </button>
-                        <button type="button" class="btn-sub-grid btn-copy" id="btnDetailCopy" title="행 복사">
-                            <i class="fa-solid fa-copy"></i> 행 복사
-                        </button>
-                        <button type="button" class="btn-sub-grid btn-del" id="btnDetailDel" title="행 삭제">
-                            <i class="fa-solid fa-trash-can"></i> 행 삭제
-                        </button>
-                    </div>
+                    <div th:replace="~{fragments/tab_header :: detailNav(targetGrid='#grid-ja010b-detail', fileName='회기별결산내역')}"></div>
                 </div>
                 <div class="grid-table-wrapper">
                     <div id="grid-ja010b-detail" class="tabulator-aams-grid" style="height: 100%;"></div>
@@ -93,17 +83,7 @@
                 <div class="io-grid-box">
                     <div class="sub-grid-header">
                         <span class="sub-title"><i class="fa-solid fa-money-bill-transfer"></i> 입출금 내역</span>
-                        <div class="sub-grid-actions">
-                            <button type="button" class="btn-sub-grid btn-add" id="btnIoAdd" title="신규 행 삽입">
-                                <i class="fa-solid fa-plus"></i> 행 삽입
-                            </button>
-                            <button type="button" class="btn-sub-grid btn-copy" id="btnIoCopy" title="행 복사">
-                                <i class="fa-solid fa-copy"></i> 행 복사
-                            </button>
-                            <button type="button" class="btn-sub-grid btn-del" id="btnIoDel" title="행 삭제">
-                                <i class="fa-solid fa-trash-can"></i> 행 삭제
-                            </button>
-                        </div>
+                        <div th:replace="~{fragments/tab_header :: detailNav(targetGrid='#grid-ja010b-io', fileName='입출금내역')}"></div>
                     </div>
                     <div class="grid-table-wrapper">
                         <div id="grid-ja010b-io" class="tabulator-aams-grid" style="height: 100%;"></div>

@@ -1,0 +1,329 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.kfp.aams.domain.usportfoliomodel.mapper.Ja032fMapper">
+
+    <!-- 1. 해외주식 마스터 및 USPM 등록 종목 목록 (d_ja032f1) -->
+    <select id="selectMasterList" resultType="com.kfp.aams.domain.usportfoliomodel.dto.Ja032fMasterDto">
+        SELECT 2                            AS used
+             , t1.NCOD                      AS ncod
+             , t1.EXID                      AS exid
+             , t1.EXCD                      AS excd
+             , t1.EXNM                      AS exnm
+             , t1.SYMB                      AS symb
+             , t1.RSYM                      AS rsym
+             , t1.KNAM                      AS knam
+             , t1.ENAM                      AS enam
+             , t1.STIS                      AS stis
+             , t1.CURR                      AS curr
+             , t1.ZDIV                      AS zdiv
+             , t1.ZTYP                      AS ztyp
+             , t1.BASE                      AS basePrice
+             , t1.BNIT                      AS bnit
+             , t1.ANIT                      AS anit
+             , SUBSTR ('00' || t1.MSTM,-4)  AS mstm
+             , t1.METM                      AS metm
+             , t1.ISDR                      AS isdr
+             , t1.DRCD                      AS drcd
+             , t1.ICOD                      AS icod
+             , t1.SJONG                     AS sjong
+             , t1.TTYP                      AS ttyp
+             , CASE WHEN t1.ETYP IS NULL THEN NULL
+                    ELSE SUBSTR ('000' || t1.ETYP,-3)
+               END                          AS etyp
+             , t1.TTYP_SB                   AS ttypSb
+             , ya.CORP_GR                   AS corpGr
+             , ya.JM_CD                     AS jmCd
+             , ya.JM_NM                     AS jmNm
+             , ya.JASAN_GB                  AS jasanGb
+             , ya.SEQ_NO                    AS seqNo
+             , ya.BALH_NATION               AS balhNation
+             , ya.CURRENCY                  AS currency
+             , TO_CHAR(ya.SANGJ_YMD, 'YYYY-MM-DD') AS sangjYmd
+             , ya.SANGJ_JUSU                AS sangjJusu
+             , ya.BLBG_TCKR                 AS blbgTckr
+             , ya.ISIN_CD                   AS isinCd
+             , ya.SEDOL                     AS sedol
+             , ya.STOCK_GB                  AS stockGb
+             , ya.SJ_GB                     AS sjGb
+             , ya.BLBG_TCKR_TEXT            AS blbgTckrText
+             , ya.SRS_CD                    AS srsCd
+             , ya.EXCD                      AS sym0yaExcd
+             , TO_CHAR(ya.USPM_YMD, 'YYYY-MM-DD') AS uspmYmd
+             , ya.OPT_UNIT                  AS optUnit
+             , ya.OPT_1UNIT                 AS opt1unit
+             , ya.OPT_2UNIT                 AS opt2unit
+             , ya.OPT_4UNIT                 AS opt4unit
+             , ya.OPT_5UNIT                 AS opt5unit
+          FROM API_GLOBAL_MASTCODE t1
+             , SYM0YA              ya
+         WHERE ya.CORP_GR   = #{corpGr}
+           AND ya.JASAN_GB  = '1'
+           AND ya.BLBG_TCKR = t1.SYMB
+        UNION ALL
+        SELECT 1                            AS used
+             , t1.NCOD                      AS ncod
+             , t1.EXID                      AS exid
+             , t1.EXCD                      AS excd
+             , t1.EXNM                      AS exnm
+             , t1.SYMB                      AS symb
+             , t1.RSYM                      AS rsym
+             , t1.KNAM                      AS knam
+             , t1.ENAM                      AS enam
+             , t1.STIS                      AS stis
+             , t1.CURR                      AS curr
+             , t1.ZDIV                      AS zdiv
+             , t1.ZTYP                      AS ztyp
+             , t1.BASE                      AS basePrice
+             , t1.BNIT                      AS bnit
+             , t1.ANIT                      AS anit
+             , SUBSTR ('00' || t1.MSTM,-4)  AS mstm
+             , t1.METM                      AS metm
+             , t1.ISDR                      AS isdr
+             , t1.DRCD                      AS drcd
+             , t1.ICOD                      AS icod
+             , t1.SJONG                     AS sjong
+             , t1.TTYP                      AS ttyp
+             , CASE WHEN t1.ETYP IS NULL THEN NULL
+                    ELSE SUBSTR ('000' || t1.ETYP,-3)
+               END                          AS etyp
+             , t1.TTYP_SB                   AS ttypSb
+             , NULL                         AS corpGr
+             , NULL                         AS jmCd
+             , NULL                         AS jmNm
+             , NULL                         AS jasanGb
+             , NULL                         AS seqNo
+             , NULL                         AS balhNation
+             , NULL                         AS currency
+             , NULL                         AS sangjYmd
+             , NULL                         AS sangjJusu
+             , NULL                         AS blbgTckr
+             , NULL                         AS isinCd
+             , NULL                         AS sedol
+             , NULL                         AS stockGb
+             , NULL                         AS sjGb
+             , NULL                         AS blbgTckrText
+             , NULL                         AS srsCd
+             , NULL                         AS sym0yaExcd
+             , NULL                         AS uspmYmd
+             , NULL                         AS optUnit
+             , NULL                         AS opt1unit
+             , NULL                         AS opt2unit
+             , NULL                         AS opt4unit
+             , NULL                         AS opt5unit
+          FROM API_GLOBAL_MASTCODE t1
+         WHERE t1.SYMB NOT IN (SELECT BLBG_TCKR
+                                 FROM SYM0YA ya
+                                WHERE ya.CORP_GR  = #{corpGr}
+                                  AND ya.JASAN_GB = '1')
+         ORDER BY used DESC, symb ASC
+    </select>
+
+    <!-- 2. 종목 일별 시세 내역 (d_ja032f2) -->
+    <select id="selectDetailList" resultType="com.kfp.aams.domain.usportfoliomodel.dto.Ja032fDetailDto">
+        SELECT t1.CORP_GR                       AS corpGr
+             , TO_CHAR(t1.YMD, 'YYYY-MM-DD')    AS ymd
+             , t1.JM_CD                         AS jmCd
+             , t1.JONGA                         AS jonga
+             , t1.DANGA                         AS danga
+             , TO_CHAR(t1.LOAD_TIME, 'YYYY-MM-DD HH24:MI:SS') AS loadTime
+             , TO_CHAR(t1.PX_CLOSE_DT, 'YYYY-MM-DD') AS pxCloseDt
+             , t1.PX_LAST                       AS pxLast
+             , TO_CHAR(t1.PX_DT_1D, 'YYYY-MM-DD') AS pxDt1d
+             , t1.PX_CLOSE_1D                   AS pxClose1d
+             , t1.PX_YEST_CLOSE_EXCH_UNADJ      AS pxYestCloseExchUnadj
+             , t1.BLBG_TCKR                     AS blbgTckr
+             , t1.ISIN_CD                       AS isinCd
+             , t1.CURRENCY                      AS currency
+             , t1.HANGSA_GA                     AS hangsaGa
+             , t1.BID                           AS bid
+             , t1.ASK                           AS ask
+             , t1.TIME_GA                       AS timeGa
+             , t1.TVOL                          AS tvol
+             , t1.TAMT                          AS tamt
+             , t1.SHAR                          AS shar
+             , t1.TOMV                          AS tomv
+             , t1.T_RATE                        AS tRate
+             , t1.TRD_TO_DATE                   AS trdToDate
+             , TO_CHAR(t1.YMD, 'iw')            AS week
+          FROM SYT0LP t1
+         WHERE t1.CORP_GR = #{corpGr}
+           AND t1.YMD &gt;= ADD_MONTHS(TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD'), -13)
+           AND t1.YMD NOT IN (SELECT HOLI_YMD
+                                FROM SZX0HL ta
+                               WHERE ta.NATION_CD = 'US'
+                                 AND ta.HOLI_YMD &gt;= ADD_MONTHS(TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD'), -13))
+           AND t1.JM_CD   = #{jmCd}
+         ORDER BY t1.YMD DESC
+    </select>
+
+    <!-- 3. SYM0YA 옵션단위 및 상장구분 수정 -->
+    <update id="updateSym0ya">
+        UPDATE SYM0YA
+           SET OPT_UNIT  = #{optUnit, jdbcType=NUMERIC}
+             , OPT_1UNIT = #{opt1unit, jdbcType=NUMERIC}
+             , OPT_2UNIT = #{opt2unit, jdbcType=NUMERIC}
+             , OPT_4UNIT = #{opt4unit, jdbcType=NUMERIC}
+             , OPT_5UNIT = #{opt5unit, jdbcType=NUMERIC}
+             , SJ_GB     = #{sjGb, jdbcType=VARCHAR}
+         WHERE CORP_GR   = #{corpGr}
+           AND JM_CD     = #{jmCd}
+           AND JASAN_GB  = '1'
+    </update>
+
+    <!-- 4. SYM0YA 존재 여부 체크 -->
+    <select id="countSym0ya" resultType="int">
+        SELECT COUNT(*)
+          FROM SYM0YA
+         WHERE CORP_GR  = #{corpGr}
+           AND JM_CD    = #{jmCd}
+           AND JASAN_GB = #{jasanGb}
+    </select>
+
+    <!-- 5. SYM0YA 신규 등록 -->
+    <insert id="insertSym0ya">
+        INSERT INTO SYM0YA (
+            CORP_GR
+          , JM_CD
+          , JM_NM
+          , JASAN_GB
+          , SEQ_NO
+          , BALH_NATION
+          , CURRENCY
+          , BLBG_TCKR
+          , BLBG_TCKR_TEXT
+          , STOCK_GB
+          , SRS_CD
+          , EXCD
+          , USPM_YMD
+          , OPT_UNIT
+          , OPT_1UNIT
+          , OPT_2UNIT
+          , OPT_4UNIT
+          , OPT_5UNIT
+          , SJ_GB
+        ) VALUES (
+            #{corpGr}
+          , #{jmCd}
+          , #{jmNm}
+          , '1'
+          , 1
+          , #{balhNation, jdbcType=VARCHAR}
+          , #{currency, jdbcType=VARCHAR}
+          , #{blbgTckr}
+          , #{blbgTckrText, jdbcType=VARCHAR}
+          , #{stockGb, jdbcType=VARCHAR}
+          , #{srsCd, jdbcType=VARCHAR}
+          , #{sym0yaExcd, jdbcType=VARCHAR}
+          , SYSDATE
+          , #{optUnit, jdbcType=NUMERIC}
+          , #{opt1unit, jdbcType=NUMERIC}
+          , #{opt2unit, jdbcType=NUMERIC}
+          , #{opt4unit, jdbcType=NUMERIC}
+          , #{opt5unit, jdbcType=NUMERIC}
+          , NVL(#{sjGb}, '1')
+        )
+    </insert>
+
+    <!-- 6. API_Q 등록 (파워빌더 w_ja032f.srw 3종 호출) -->
+    <insert id="insertApiQ">
+        INSERT INTO API_Q (
+            COMPANY
+          , URL
+          , HEADERS
+          , QUERYPARAMS
+          , TABLENAME
+          , SUBTABLE
+          , REQUEST
+          , API_KEY
+          , KEY_VALUE
+          , SUB_KEY_VALUE
+          , CORP_GR
+          , TR_YMD
+          , KEY1
+        )
+        SELECT COMPANY
+             , URL
+             , HEADERS
+             , REPLACE (REPLACE (QUERYPARAMS, '@prdt', #{prdt}), '@pdno', #{symb})
+             , TABLENAME
+             , SUBTABLE
+             , '0'
+             , TO_CHAR(SYSDATE, 'YYYYMMDD') || '-' || RAWTOHEX(SYS_GUID())
+             , KEY_VALUE
+             , SUB_KEY_VALUE
+             , #{corpGr}
+             , SYSDATE
+             , #{key1}
+          FROM API_PARAMS t1
+         WHERE t1.TR_CO_CD = '00003'
+           AND t1.GR_CD    = '13'
+           AND t1.SCD      = '09'
+           AND t1.COMPANY  = 'KB_REAL'
+    </insert>
+
+    <!-- 7. USPM_DD 등록 -->
+    <insert id="insertUspmDd">
+        INSERT INTO USPM_DD (
+            CORP_GR
+          , YMD
+          , JM_CD
+        ) VALUES (
+            #{corpGr}
+          , TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
+          , #{jmCd}
+        )
+    </insert>
+
+    <!-- 8. API_13_02_200 프로시저 호출 -->
+    <select id="callApi1302200" statementType="CALLABLE">
+        { CALL API_13_02_200 (
+            #{corpGr, mode=IN, jdbcType=VARCHAR},
+            #{ymd, mode=IN, jdbcType=VARCHAR},
+            #{ref, mode=IN, jdbcType=VARCHAR}
+        ) }
+    </select>
+
+    <!-- 9. API_GLOBAL_MASTCODE 중복 체크 -->
+    <select id="selectGlobalMastcodeCount" resultType="int">
+        SELECT COUNT(*)
+          FROM API_GLOBAL_MASTCODE t1
+         WHERE t1.RSYM = #{rsym}
+    </select>
+
+    <!-- 10. API_GLOBAL_MASTCODE 신규 등록 (종목LOAD) -->
+    <insert id="insertGlobalMastcode">
+        INSERT INTO API_GLOBAL_MASTCODE (
+            NCOD, EXID, EXCD, EXNM, SYMB, RSYM, KNAM, ENAM, STIS, CURR,
+            ZDIV, ZTYP, BASE, BNIT, ANIT, MSTM, METM, ISDR, DRCD, ICOD,
+            SJONG, TTYP, ETYP, TTYP_SB
+        ) VALUES (
+            #{ncod, jdbcType=VARCHAR}
+          , #{exid, jdbcType=VARCHAR}
+          , #{excd, jdbcType=VARCHAR}
+          , #{exnm, jdbcType=VARCHAR}
+          , #{symb, jdbcType=VARCHAR}
+          , #{rsym, jdbcType=VARCHAR}
+          , #{knam, jdbcType=VARCHAR}
+          , #{enam, jdbcType=VARCHAR}
+          , #{stis, jdbcType=VARCHAR}
+          , #{curr, jdbcType=VARCHAR}
+          , #{zdiv, jdbcType=VARCHAR}
+          , #{ztyp, jdbcType=VARCHAR}
+          , #{base, jdbcType=NUMERIC}
+          , #{bnit, jdbcType=VARCHAR}
+          , #{anit, jdbcType=VARCHAR}
+          , #{mstm, jdbcType=VARCHAR}
+          , #{metm, jdbcType=VARCHAR}
+          , #{isdr, jdbcType=VARCHAR}
+          , #{drcd, jdbcType=VARCHAR}
+          , #{icod, jdbcType=VARCHAR}
+          , #{sjong, jdbcType=NUMERIC}
+          , #{ttyp, jdbcType=VARCHAR}
+          , #{etyp, jdbcType=VARCHAR}
+          , #{ttypSb, jdbcType=VARCHAR}
+        )
+    </insert>
+
+</mapper>

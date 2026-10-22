@@ -868,3 +868,252 @@ function printElementHtml(element, title) {
     printWin.document.close();
 }
 
+/* ==========================================================================
+   AAMS Grid Sub-Action Navigator Engine (파워빌더 fw_u_dw2subbtn 표준 6버튼)
+   ========================================================================== */
+
+function getGridFromNavBtn(btn) {
+    if (!btn) return null;
+    const group = btn.closest('.grid-nav-group') || btn;
+    const targetSelector = group.getAttribute('data-target-grid') || btn.getAttribute('data-target-grid') || '#gridDetail';
+    const pane = (typeof getActiveTabPane === 'function') ? getActiveTabPane(btn) : (btn.closest('.tab-pane') || btn.closest('.view-container'));
+    
+    // 1. pane 내부에서 targetSelector 탐색
+    let targetEl = null;
+    if (pane) {
+        targetEl = pane.querySelector(targetSelector);
+    }
+    if (!targetEl) {
+        targetEl = document.querySelector(targetSelector);
+    }
+    if (!targetEl) return null;
+    
+    // 2. Tabulator 인스턴스 획득
+    if (typeof Tabulator !== 'undefined' && typeof Tabulator.findTable === 'function') {
+        const found = Tabulator.findTable(targetEl);
+        if (found) {
+            return Array.isArray(found) ? found[0] : found;
+        }
+    }
+    return null;
+}
+
+function getNavFileName(btn) {
+    if (!btn) return '상세목록';
+    const group = btn.closest('.grid-nav-group') || btn;
+    return group.getAttribute('data-file-name') || btn.getAttribute('data-file-name') || '상세목록';
+}
+
+function onGridNavExcel(btn) {
+    const pane = (typeof getActiveTabPane === 'function') ? getActiveTabPane(btn) : null;
+    if (pane && typeof pane.onDetailExcel === 'function') {
+        pane.onDetailExcel(btn);
+        return;
+    }
+    const grid = getGridFromNavBtn(btn);
+    if (!grid) {
+        console.warn('[onGridNavExcel] 대상 그리드를 찾을 수 없습니다.');
+        return;
+    }
+    const fileName = getNavFileName(btn);
+    const ymd = (typeof getFilterYmd === 'function') ? getFilterYmd(pane, 'YYYYMMDD') : '';
+    const fullFileName = fileName + (ymd ? '_' + ymd : '') + '.xlsx';
+    grid.download('xlsx', fullFileName, { sheetName: fileName });
+}
+
+function onGridNavAdd(btn) {
+    const pane = (typeof getActiveTabPane === 'function') ? getActiveTabPane(btn) : null;
+    if (pane && typeof pane.onDetailInput === 'function') {
+        pane.onDetailInput(btn);
+        return;
+    }
+    if (pane && typeof pane.onDetailAdd === 'function') {
+        pane.onDetailAdd(btn);
+        return;
+    }
+    const grid = getGridFromNavBtn(btn);
+    if (!grid) return;
+    
+    // 합계행이 존재하는지 확인하여 합계행 바로 위에 추가
+    const rows = grid.getRows();
+    const summaryRow = rows.find(r => r.getData() && r.getData().isSummaryRow);
+    const newRowData = { isNew: true, _isNew: true };
+    
+    if (summaryRow) {
+        grid.addRow(newRowData, true, summaryRow).then(newRow => {
+            if (newRow) {
+                grid.deselectRow();
+                newRow.select();
+                newRow.scrollTo();
+            }
+        });
+    } else {
+        grid.addRow(newRowData, false).then(newRow => {
+            if (newRow) {
+                grid.deselectRow();
+                newRow.select();
+                newRow.scrollTo();
+            }
+        });
+    }
+}
+
+function onGridNavCopy(btn) {
+    const pane = (typeof getActiveTabPane === 'function') ? getActiveTabPane(btn) : null;
+    if (pane && typeof pane.onDetailCopy === 'function') {
+        pane.onDetailCopy(btn);
+        return;
+    }
+    const grid = getGridFromNavBtn(btn);
+    if (!grid) return;
+    
+    const selectedRows = grid.getSelectedRows();
+    if (!selectedRows || selectedRows.length === 0) {
+        if (typeof showToast === 'function') showToast('복사할 행을 먼저 선택해주세요.', 'warning');
+        return;
+    }
+    const targetRow = selectedRows[0];
+    const srcData = targetRow.getData();
+    if (srcData && srcData.isSummaryRow) return;
+    
+    const copiedData = Object.assign({}, srcData, { isNew: true, _isNew: true, isUpdated: false, isDeleted: false });
+    grid.addRow(copiedData, false, targetRow).then(newRow => {
+        if (newRow) {
+            grid.deselectRow();
+            newRow.select();
+            newRow.scrollTo();
+            if (typeof showToast === 'function') showToast('행이 복사되었습니다.', 'info');
+        }
+    });
+}
+
+function onGridNavDelete(btn) {
+    const pane = (typeof getActiveTabPane === 'function') ? getActiveTabPane(btn) : null;
+    if (pane && typeof pane.onDetailDelete === 'function') {
+        pane.onDetailDelete(btn);
+        return;
+    }
+    const grid = getGridFromNavBtn(btn);
+    if (!grid) return;
+    
+    const selectedRows = grid.getSelectedRows();
+    if (!selectedRows || selectedRows.length === 0) {
+        if (typeof showToast === 'function') showToast('삭제할 행을 먼저 선택해주세요.', 'warning');
+        return;
+    }
+    const targetRow = selectedRows[0];
+    const data = targetRow.getData();
+    if (data && data.isSummaryRow) return;
+    
+    if (data.isNew || data._isNew) {
+        targetRow.delete();
+        if (typeof showToast === 'function') showToast('신규 행이 삭제되었습니다.', 'info');
+    } else {
+        targetRow.update({ isDeleted: true, _isDeleted: true });
+        targetRow.getElement().classList.add('row-deleted');
+        if (typeof showToast === 'function') showToast('삭제 플래그가 설정되었습니다. 저장 시 반영됩니다.', 'info');
+    }
+}
+
+function onGridNavFirst(btn) {
+    const pane = (typeof getActiveTabPane === 'function') ? getActiveTabPane(btn) : null;
+    if (pane && typeof pane.onDetailFirst === 'function') {
+        pane.onDetailFirst(btn);
+        return;
+    }
+    const grid = getGridFromNavBtn(btn);
+    if (!grid) return;
+    const rows = grid.getRows();
+    const normalRows = rows.filter(r => r.getData() && !r.getData().isSummaryRow);
+    if (normalRows.length > 0) {
+        grid.deselectRow();
+        normalRows[0].select();
+        normalRows[0].scrollTo();
+    }
+}
+
+function onGridNavPrev(btn) {
+    const pane = (typeof getActiveTabPane === 'function') ? getActiveTabPane(btn) : null;
+    if (pane && typeof pane.onDetailPrev === 'function') {
+        pane.onDetailPrev(btn);
+        return;
+    }
+    const grid = getGridFromNavBtn(btn);
+    if (!grid) return;
+    const rows = grid.getRows();
+    const normalRows = rows.filter(r => r.getData() && !r.getData().isSummaryRow);
+    if (normalRows.length === 0) return;
+
+    const selectedRows = grid.getSelectedRows();
+    let targetIndex = 0;
+    if (selectedRows && selectedRows.length > 0) {
+        const currentSelected = selectedRows[0];
+        const currIdx = normalRows.indexOf(currentSelected);
+        if (currIdx > 0) {
+            targetIndex = currIdx - 1;
+        } else {
+            targetIndex = 0;
+        }
+    }
+    grid.deselectRow();
+    const targetRow = normalRows[targetIndex];
+    targetRow.select();
+    targetRow.scrollTo();
+}
+
+function onGridNavNext(btn) {
+    const pane = (typeof getActiveTabPane === 'function') ? getActiveTabPane(btn) : null;
+    if (pane && typeof pane.onDetailNext === 'function') {
+        pane.onDetailNext(btn);
+        return;
+    }
+    const grid = getGridFromNavBtn(btn);
+    if (!grid) return;
+    const rows = grid.getRows();
+    const normalRows = rows.filter(r => r.getData() && !r.getData().isSummaryRow);
+    if (normalRows.length === 0) return;
+
+    const selectedRows = grid.getSelectedRows();
+    let targetIndex = 0;
+    if (selectedRows && selectedRows.length > 0) {
+        const currentSelected = selectedRows[0];
+        const currIdx = normalRows.indexOf(currentSelected);
+        if (currIdx >= 0 && currIdx < normalRows.length - 1) {
+            targetIndex = currIdx + 1;
+        } else {
+            targetIndex = normalRows.length - 1;
+        }
+    }
+    grid.deselectRow();
+    const targetRow = normalRows[targetIndex];
+    targetRow.select();
+    targetRow.scrollTo();
+}
+
+function onGridNavLast(btn) {
+    const pane = (typeof getActiveTabPane === 'function') ? getActiveTabPane(btn) : null;
+    if (pane && typeof pane.onDetailLast === 'function') {
+        pane.onDetailLast(btn);
+        return;
+    }
+    const grid = getGridFromNavBtn(btn);
+    if (!grid) return;
+    const rows = grid.getRows();
+    const normalRows = rows.filter(r => r.getData() && !r.getData().isSummaryRow);
+    if (normalRows.length > 0) {
+        grid.deselectRow();
+        const lastRow = normalRows[normalRows.length - 1];
+        lastRow.select();
+        lastRow.scrollTo();
+    }
+}
+
+// 전역 바인딩
+window.onGridNavExcel = onGridNavExcel;
+window.onGridNavAdd = onGridNavAdd;
+window.onGridNavCopy = onGridNavCopy;
+window.onGridNavDelete = onGridNavDelete;
+window.onGridNavFirst = onGridNavFirst;
+window.onGridNavPrev = onGridNavPrev;
+window.onGridNavNext = onGridNavNext;
+window.onGridNavLast = onGridNavLast;

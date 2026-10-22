@@ -1,0 +1,320 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.kfp.aams.domain.usportfoliomodel.mapper.Ja032gMapper">
+
+    <!-- 1. 해외 파생종목 목록 조회 (d_ja032g1) -->
+    <select id="selectMasterList" resultType="com.kfp.aams.domain.usportfoliomodel.dto.Ja032gMasterDto">
+        SELECT t1.CORP_GR                       AS corpGr
+             , t1.JM_CD                         AS jmCd
+             , t1.JM_NM                         AS jmNm
+             , t1.STOCK_GB                      AS stockGb
+             , t1.JASAN_GB                      AS jasanGb
+             , t1.SEQ_NO                        AS seqNo
+             , t1.BALH_NATION                   AS balhNation
+             , t1.CURRENCY                      AS currency
+             , t1.IJA_PER                       AS ijaPer
+             , TO_CHAR(t1.BALH_YMD, 'YYYY-MM-DD') AS balhYmd
+             , TO_CHAR(t1.SANGHW_YMD, 'YYYY-MM-DD') AS sanghwYmd
+             , t1.AEKM                          AS aekm
+             , TO_CHAR(t1.SANGJ_YMD, 'YYYY-MM-DD') AS sangjYmd
+             , t1.SANGJ_JUSU                    AS sangjJusu
+             , t1.GYULJE_JM                     AS gyuljeJm
+             , t1.BLBG_TCKR                     AS blbgTckr
+             , t1.ISIN_CD                       AS isinCd
+             , t1.IJA_BDC                       AS ijaBdc
+             , t1.IJA_DCF                       AS ijaDcf
+             , t1.JASAN_ATTR                    AS jasanAttr
+             , t1.SJ_GB                         AS sjGb
+             , TO_CHAR(t1.LSY_YMD, 'YYYY-MM-DD') AS lsyYmd
+             , t1.UNIT_AEK                      AS unitAek
+             , t1.HANGSA_GA                     AS hangsaGa
+             , t1.JASAN                         AS jasan
+             , t1.SEDOL                         AS sedol
+             , t1.SIGA_AGENT                    AS sigaAgent
+             , t1.CHANGE_CURRENCY               AS changeCurrency
+             , t1.CHANGE_EX_RT                  AS changeExRt
+             , t1.CHANGE_JM_CD                  AS changeJmCd
+             , F_JM_NM(t1.CORP_GR, t1.CHANGE_JM_CD) AS xxChangeJmCd
+             , 1                                AS pVisible
+          FROM SYM0YA t1
+         WHERE t1.CORP_GR  = #{corpGr}
+           AND t1.JASAN_GB = 'A'
+        <if test="lsyYmd != null and lsyYmd != ''">
+           AND t1.LSY_YMD >= TRUNC(TO_DATE(REPLACE(#{lsyYmd}, '-', ''), 'YYYYMMDD'), 'DD')
+        </if>
+         ORDER BY t1.BALH_NATION ASC, t1.JM_CD ASC
+    </select>
+
+    <!-- 2. 해외옵션 일별 시세 내역 조회 (d_ja032g2) -->
+    <select id="selectDetailList" resultType="com.kfp.aams.domain.usportfoliomodel.dto.Ja032gDetailDto">
+        SELECT t1.CORP_GR                       AS corpGr
+             , TO_CHAR(t1.YMD, 'YYYY-MM-DD')    AS ymd
+             , t1.JM_CD                         AS jmCd
+             , t1.JONGA                         AS jonga
+             , t1.DANGA                         AS danga
+             , TO_CHAR(t1.LOAD_TIME, 'YYYY-MM-DD HH24:MI:SS') AS loadTime
+             , TO_CHAR(t1.PX_CLOSE_DT, 'YYYY-MM-DD') AS pxCloseDt
+             , t1.PX_LAST                       AS pxLast
+             , TO_CHAR(t1.PX_DT_1D, 'YYYY-MM-DD') AS pxDt1d
+             , t1.PX_CLOSE_1D                   AS pxClose1d
+             , t1.PX_YEST_CLOSE_EXCH_UNADJ      AS pxYestCloseExchUnadj
+             , t1.BLBG_TCKR                     AS blbgTckr
+             , t1.ISIN_CD                       AS isinCd
+             , t1.CURRENCY                      AS currency
+             , t1.HANGSA_GA                     AS hangsaGa
+             , t1.BID                           AS bid
+             , t1.ASK                           AS ask
+             , t1.TIME_GA                       AS timeGa
+             , t1.TVOL                          AS tvol
+             , t1.TAMT                          AS tamt
+             , t1.SHAR                          AS shar
+             , t1.TOMV                          AS tomv
+             , t1.T_RATE                        AS tRate
+             , t1.TRD_TO_DATE                   AS trdToDate
+             , TO_CHAR(t1.YMD, 'iw')            AS week
+          FROM SYT0LP t1
+         WHERE t1.CORP_GR = #{corpGr}
+           AND t1.JM_CD   = #{jmCd}
+           AND t1.YMD    >= ADD_MONTHS(TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD'), -12)
+           AND t1.YMD NOT IN (
+               SELECT ta.HOLI_YMD
+                 FROM SZX0HL ta
+                WHERE ta.NATION_CD = 'US'
+                  AND ta.HOLI_YMD >= ADD_MONTHS(TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD'), -13)
+           )
+         ORDER BY t1.YMD DESC
+    </select>
+
+    <!-- 3. 마스터 SYM0YA 등록 -->
+    <insert id="insertMaster">
+        INSERT INTO SYM0YA
+             ( CORP_GR
+             , JM_CD
+             , JM_NM
+             , STOCK_GB
+             , JASAN_GB
+             , SEQ_NO
+             , BALH_NATION
+             , CURRENCY
+             , IJA_PER
+             , BALH_YMD
+             , SANGHW_YMD
+             , AEKM
+             , SANGJ_YMD
+             , SANGJ_JUSU
+             , GYULJE_JM
+             , BLBG_TCKR
+             , ISIN_CD
+             , IJA_BDC
+             , IJA_DCF
+             , JASAN_ATTR
+             , SJ_GB
+             , LSY_YMD
+             , UNIT_AEK
+             , HANGSA_GA
+             , JASAN
+             , SEDOL
+             , SIGA_AGENT
+             , CHANGE_CURRENCY
+             , CHANGE_EX_RT
+             , CHANGE_JM_CD
+             )
+        VALUES
+             ( #{corpGr}
+             , #{jmCd}
+             , #{jmNm}
+             , #{stockGb, jdbcType=VARCHAR}
+             , NVL(#{jasanGb}, 'A')
+             , NVL(#{seqNo}, 1)
+             , #{balhNation, jdbcType=VARCHAR}
+             , #{currency, jdbcType=VARCHAR}
+             , #{ijaPer, jdbcType=NUMERIC}
+             , TO_DATE(REPLACE(#{balhYmd}, '-', ''), 'YYYYMMDD')
+             , TO_DATE(REPLACE(#{sanghwYmd}, '-', ''), 'YYYYMMDD')
+             , #{aekm, jdbcType=NUMERIC}
+             , TO_DATE(REPLACE(#{sangjYmd}, '-', ''), 'YYYYMMDD')
+             , #{sangjJusu, jdbcType=NUMERIC}
+             , #{gyuljeJm, jdbcType=VARCHAR}
+             , #{blbgTckr, jdbcType=VARCHAR}
+             , #{isinCd, jdbcType=VARCHAR}
+             , #{ijaBdc, jdbcType=VARCHAR}
+             , #{ijaDcf, jdbcType=VARCHAR}
+             , #{jasanAttr, jdbcType=VARCHAR}
+             , #{sjGb, jdbcType=VARCHAR}
+             , TO_DATE(REPLACE(#{lsyYmd}, '-', ''), 'YYYYMMDD')
+             , #{unitAek, jdbcType=NUMERIC}
+             , #{hangsaGa, jdbcType=NUMERIC}
+             , #{jasan, jdbcType=VARCHAR}
+             , #{sedol, jdbcType=VARCHAR}
+             , NVL(#{sigaAgent}, 'B')
+             , #{changeCurrency, jdbcType=VARCHAR}
+             , #{changeExRt, jdbcType=NUMERIC}
+             , #{changeJmCd, jdbcType=VARCHAR}
+             )
+    </insert>
+
+    <!-- 4. 마스터 SYM0YA 수정 -->
+    <update id="updateMaster">
+        UPDATE SYM0YA
+           SET JM_NM           = #{jmNm}
+             , STOCK_GB        = #{stockGb, jdbcType=VARCHAR}
+             , SEQ_NO          = NVL(#{seqNo}, 1)
+             , BALH_NATION     = #{balhNation, jdbcType=VARCHAR}
+             , CURRENCY        = #{currency, jdbcType=VARCHAR}
+             , IJA_PER         = #{ijaPer, jdbcType=NUMERIC}
+             , BALH_YMD        = TO_DATE(REPLACE(#{balhYmd}, '-', ''), 'YYYYMMDD')
+             , SANGHW_YMD      = TO_DATE(REPLACE(#{sanghwYmd}, '-', ''), 'YYYYMMDD')
+             , AEKM            = #{aekm, jdbcType=NUMERIC}
+             , SANGJ_YMD       = TO_DATE(REPLACE(#{sangjYmd}, '-', ''), 'YYYYMMDD')
+             , SANGJ_JUSU      = #{sangjJusu, jdbcType=NUMERIC}
+             , GYULJE_JM       = #{gyuljeJm, jdbcType=VARCHAR}
+             , BLBG_TCKR       = #{blbgTckr, jdbcType=VARCHAR}
+             , ISIN_CD         = #{isinCd, jdbcType=VARCHAR}
+             , IJA_BDC         = #{ijaBdc, jdbcType=VARCHAR}
+             , IJA_DCF         = #{ijaDcf, jdbcType=VARCHAR}
+             , JASAN_ATTR      = #{jasanAttr, jdbcType=VARCHAR}
+             , SJ_GB           = #{sjGb, jdbcType=VARCHAR}
+             , LSY_YMD         = TO_DATE(REPLACE(#{lsyYmd}, '-', ''), 'YYYYMMDD')
+             , UNIT_AEK        = #{unitAek, jdbcType=NUMERIC}
+             , HANGSA_GA       = #{hangsaGa, jdbcType=NUMERIC}
+             , JASAN           = #{jasan, jdbcType=VARCHAR}
+             , SIGA_AGENT      = NVL(#{sigaAgent}, 'B')
+             , CHANGE_CURRENCY = #{changeCurrency, jdbcType=VARCHAR}
+             , CHANGE_EX_RT    = #{changeExRt, jdbcType=NUMERIC}
+             , CHANGE_JM_CD    = #{changeJmCd, jdbcType=VARCHAR}
+         WHERE CORP_GR         = #{corpGr}
+           AND JM_CD           = #{jmCd}
+           AND JASAN_GB        = NVL(#{jasanGb}, 'A')
+           AND SEDOL           = #{sedol}
+    </update>
+
+    <!-- 5. 마스터 SYM0YA 삭제 -->
+    <delete id="deleteMaster">
+        DELETE FROM SYM0YA
+         WHERE CORP_GR  = #{corpGr}
+           AND JM_CD    = #{jmCd}
+           AND JASAN_GB = NVL(#{jasanGb}, 'A')
+           AND SEDOL    = #{sedol}
+    </delete>
+
+    <!-- 6. 디테일 SYT0LP 등록 -->
+    <insert id="insertDetail">
+        INSERT INTO SYT0LP
+             ( CORP_GR
+             , YMD
+             , JM_CD
+             , JONGA
+             , DANGA
+             , LOAD_TIME
+             , PX_CLOSE_DT
+             , PX_LAST
+             , PX_DT_1D
+             , PX_CLOSE_1D
+             , PX_YEST_CLOSE_EXCH_UNADJ
+             , BLBG_TCKR
+             , ISIN_CD
+             , CURRENCY
+             , HANGSA_GA
+             , BID
+             , ASK
+             , TIME_GA
+             , TVOL
+             , TAMT
+             , SHAR
+             , TOMV
+             , T_RATE
+             , TRD_TO_DATE
+             )
+        VALUES
+             ( #{corpGr}
+             , TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
+             , #{jmCd}
+             , #{jonga, jdbcType=NUMERIC}
+             , #{danga, jdbcType=NUMERIC}
+             , SYSDATE
+             , TO_DATE(REPLACE(#{pxCloseDt}, '-', ''), 'YYYYMMDD')
+             , #{pxLast, jdbcType=NUMERIC}
+             , TO_DATE(REPLACE(#{pxDt1d}, '-', ''), 'YYYYMMDD')
+             , #{pxClose1d, jdbcType=NUMERIC}
+             , #{pxYestCloseExchUnadj, jdbcType=NUMERIC}
+             , #{blbgTckr, jdbcType=VARCHAR}
+             , #{isinCd, jdbcType=VARCHAR}
+             , #{currency, jdbcType=VARCHAR}
+             , #{hangsaGa, jdbcType=NUMERIC}
+             , #{bid, jdbcType=NUMERIC}
+             , #{ask, jdbcType=NUMERIC}
+             , #{timeGa, jdbcType=NUMERIC}
+             , #{tvol, jdbcType=NUMERIC}
+             , #{tamt, jdbcType=NUMERIC}
+             , #{shar, jdbcType=NUMERIC}
+             , #{tomv, jdbcType=NUMERIC}
+             , #{tRate, jdbcType=NUMERIC}
+             , #{trdToDate, jdbcType=VARCHAR}
+             )
+    </insert>
+
+    <!-- 7. 디테일 SYT0LP 수정 -->
+    <update id="updateDetail">
+        UPDATE SYT0LP
+           SET JONGA                    = #{jonga, jdbcType=NUMERIC}
+             , DANGA                    = #{danga, jdbcType=NUMERIC}
+             , LOAD_TIME                = SYSDATE
+             , PX_CLOSE_DT              = TO_DATE(REPLACE(#{pxCloseDt}, '-', ''), 'YYYYMMDD')
+             , PX_LAST                  = #{pxLast, jdbcType=NUMERIC}
+             , PX_DT_1D                 = TO_DATE(REPLACE(#{pxDt1d}, '-', ''), 'YYYYMMDD')
+             , PX_CLOSE_1D              = #{pxClose1d, jdbcType=NUMERIC}
+             , PX_YEST_CLOSE_EXCH_UNADJ = #{pxYestCloseExchUnadj, jdbcType=NUMERIC}
+             , BLBG_TCKR                = #{blbgTckr, jdbcType=VARCHAR}
+             , ISIN_CD                  = #{isinCd, jdbcType=VARCHAR}
+             , CURRENCY                 = #{currency, jdbcType=VARCHAR}
+             , HANGSA_GA                = #{hangsaGa, jdbcType=NUMERIC}
+             , BID                      = #{bid, jdbcType=NUMERIC}
+             , ASK                      = #{ask, jdbcType=NUMERIC}
+             , TIME_GA                  = #{timeGa, jdbcType=NUMERIC}
+             , TVOL                     = #{tvol, jdbcType=NUMERIC}
+             , TAMT                     = #{tamt, jdbcType=NUMERIC}
+             , SHAR                     = #{shar, jdbcType=NUMERIC}
+             , TOMV                     = #{tomv, jdbcType=NUMERIC}
+             , T_RATE                   = #{tRate, jdbcType=NUMERIC}
+             , TRD_TO_DATE              = #{trdToDate, jdbcType=VARCHAR}
+         WHERE CORP_GR                  = #{corpGr}
+           AND YMD                      = TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
+           AND JM_CD                    = #{jmCd}
+    </update>
+
+    <!-- 8. 디테일 SYT0LP 삭제 -->
+    <delete id="deleteDetail">
+        DELETE FROM SYT0LP
+         WHERE CORP_GR = #{corpGr}
+           AND YMD     = TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
+           AND JM_CD   = #{jmCd}
+    </delete>
+
+    <!-- 9. 보조 쿼리: stockGb 기반 국가코드 조회 -->
+    <select id="selectNationByStockGb" resultType="java.lang.String">
+        SELECT t1.SEBU_CD_EFNM
+          FROM SZX0GR t1
+         WHERE t1.GR_CD   = 'Q0'
+           AND t1.SEBU_CD = #{stockGb}
+           AND ROWNUM     = 1
+    </select>
+
+    <!-- 10. 보조 쿼리: 국가코드 기반 통화 조회 -->
+    <select id="selectCurrencyByNation" resultType="java.lang.String">
+        SELECT t1.CURRENCY
+          FROM SZX0WA t1
+         WHERE t1.NATION_CD = #{nationCd}
+           AND ROWNUM       = 1
+    </select>
+
+    <!-- 11. 보조 쿼리: 통화 기반 국가코드 조회 -->
+    <select id="selectNationByCurrency" resultType="java.lang.String">
+        SELECT t1.NATION_CD
+          FROM SZX0WA t1
+         WHERE t1.CURRENCY = #{currency}
+           AND ROWNUM      = 1
+    </select>
+
+</mapper>

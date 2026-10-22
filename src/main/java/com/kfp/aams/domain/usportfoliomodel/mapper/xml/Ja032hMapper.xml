@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.kfp.aams.domain.usportfoliomodel.mapper.Ja032hMapper">
+
+    <!-- 목록 조회 (d_ja032h.srd 원본 쿼리 보존 및 검색 조건 확장) -->
+    <select id="selectList" resultType="com.kfp.aams.domain.usportfoliomodel.dto.Ja032hDto">
+        SELECT t1.FRID   AS frid
+             , t1.FRGN   AS frgn
+             , t1.ENAM   AS enam
+             , t1.KNAM   AS knam
+             , t1.SYMB   AS symb
+             , t1.EXID   AS exid
+             , t1.MKCD   AS mkcd
+             , t1.MKID   AS mkid
+          FROM API_FRGNCODE t1
+         <where>
+             <if test="frid != null and frid != '' and frid != 'ALL'">
+                 AND t1.FRID = #{frid}
+             </if>
+             <if test="keyword != null and keyword != ''">
+                 AND (
+                        UPPER(t1.FRGN) LIKE '%' || UPPER(#{keyword}) || '%'
+                     OR UPPER(t1.ENAM) LIKE '%' || UPPER(#{keyword}) || '%'
+                     OR t1.KNAM LIKE '%' || #{keyword} || '%'
+                     OR UPPER(t1.SYMB) LIKE '%' || UPPER(#{keyword}) || '%'
+                 )
+             </if>
+         </where>
+         ORDER BY t1.FRID ASC, t1.FRGN ASC
+    </select>
+
+    <!-- 단건 존재 카운트 -->
+    <select id="selectCountById" resultType="int">
+        SELECT COUNT(1)
+          FROM API_FRGNCODE t1
+         WHERE t1.FRID = #{frid}
+           AND t1.FRGN = #{frgn}
+    </select>
+
+    <!-- 단건 등록 -->
+    <insert id="insert" parameterType="com.kfp.aams.domain.usportfoliomodel.dto.Ja032hDto">
+        INSERT INTO API_FRGNCODE (
+            FRID,
+            FRGN,
+            ENAM,
+            KNAM,
+            SYMB,
+            EXID,
+            MKCD,
+            MKID
+        ) VALUES (
+            TRIM(#{frid}),
+            TRIM(#{frgn}),
+            TRIM(#{enam, jdbcType=VARCHAR}),
+            TRIM(#{knam, jdbcType=VARCHAR}),
+            TRIM(#{symb, jdbcType=VARCHAR}),
+            TRIM(#{exid, jdbcType=VARCHAR}),
+            TRIM(#{mkcd, jdbcType=VARCHAR}),
+            TRIM(#{mkid, jdbcType=VARCHAR})
+        )
+    </insert>
+
+    <!-- 단건 수정 -->
+    <update id="update" parameterType="com.kfp.aams.domain.usportfoliomodel.dto.Ja032hDto">
+        UPDATE API_FRGNCODE
+           SET ENAM = TRIM(#{enam, jdbcType=VARCHAR}),
+               KNAM = TRIM(#{knam, jdbcType=VARCHAR}),
+               SYMB = TRIM(#{symb, jdbcType=VARCHAR}),
+               EXID = TRIM(#{exid, jdbcType=VARCHAR}),
+               MKCD = TRIM(#{mkcd, jdbcType=VARCHAR}),
+               MKID = TRIM(#{mkid, jdbcType=VARCHAR})
+         WHERE FRID = #{frid}
+           AND FRGN = #{frgn}
+    </update>
+
+    <!-- 단건 삭제 -->
+    <delete id="delete">
+        DELETE FROM API_FRGNCODE
+         WHERE FRID = #{frid}
+           AND FRGN = #{frgn}
+    </delete>
+
+</mapper>

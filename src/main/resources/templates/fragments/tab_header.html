@@ -27,5 +27,19 @@
     <!-- 3. Common Corp Group Filter (Delegated to common filter module: fragments/filter/corp_filter.html) -->
     <div th:fragment="corpFilter(dddwId, seq, label)" th:replace="~{fragments/filter/corp_filter :: corpFilter(dddwId=${dddwId}, seq=${seq}, label=${label})}"></div>
 
+    <!-- 4. Common Grid Sub-Action Navigator (파워빌더 fw_u_dw2subbtn 동적 마스크 대응 표준 프래그먼트) -->
+    <!-- buttons 생략 시: 파워빌더 표준 기본 6종(엑셀, 추가, 복사, 삭제, 첫행, 마지막행) 표출 -->
+    <!-- buttons 명시 시: 지정된 버튼만 동적 표출 (예: 'excel,add,copy,del' / 'excel,first,last' / 'excel,first,prev,next,last' / 'all') -->
+    <div th:fragment="detailNav(targetGrid, fileName, buttons)" class="grid-nav-group" th:attr="data-target-grid=${targetGrid != null ? targetGrid : '#gridDetail'}, data-file-name=${fileName != null ? fileName : '상세목록'}">
+        <button th:if="${buttons == null || #strings.contains(buttons, 'excel') || #strings.contains(buttons, 'all')}" type="button" class="btn-grid-nav nav-excel" title="엑셀로 저장" onclick="onGridNavExcel(this)"><i class="fa-regular fa-file-excel"></i></button>
+        <button th:if="${(buttons == null || #strings.contains(buttons, 'add') || #strings.contains(buttons, 'input') || #strings.contains(buttons, 'all')) && (buttons == null || (!#strings.contains(buttons, '!add') && !#strings.contains(buttons, '!input')))}" type="button" class="btn-grid-nav nav-add" title="새로운 행 추가" onclick="onGridNavAdd(this)"><i class="fa-solid fa-plus"></i></button>
+        <button th:if="${(buttons == null || #strings.contains(buttons, 'copy') || #strings.contains(buttons, 'all')) && (buttons == null || !#strings.contains(buttons, '!copy'))}" type="button" class="btn-grid-nav nav-copy" title="선택된 행 복사" onclick="onGridNavCopy(this)"><i class="fa-regular fa-copy"></i></button>
+        <button th:if="${(buttons == null || #strings.contains(buttons, 'del') || #strings.contains(buttons, 'delete') || #strings.contains(buttons, 'all')) && (buttons == null || (!#strings.contains(buttons, '!del') && !#strings.contains(buttons, '!delete')))}" type="button" class="btn-grid-nav nav-delete" title="선택된 행 삭제" onclick="onGridNavDelete(this)"><i class="fa-regular fa-trash-can"></i></button>
+        <button th:if="${buttons == null || #strings.contains(buttons, 'first') || #strings.contains(buttons, 'all')}" type="button" class="btn-grid-nav nav-first" title="제일 첫 행으로 이동" onclick="onGridNavFirst(this)"><i class="fa-solid fa-backward-step"></i></button>
+        <button th:if="${buttons != null && (#strings.contains(buttons, 'prev') || #strings.contains(buttons, 'prior') || #strings.contains(buttons, 'all'))}" type="button" class="btn-grid-nav nav-prev" title="이전 행으로 이동" onclick="onGridNavPrev(this)"><i class="fa-solid fa-caret-left"></i></button>
+        <button th:if="${buttons != null && (#strings.contains(buttons, 'next') || #strings.contains(buttons, 'all'))}" type="button" class="btn-grid-nav nav-next" title="다음 행으로 이동" onclick="onGridNavNext(this)"><i class="fa-solid fa-caret-right"></i></button>
+        <button th:if="${buttons == null || #strings.contains(buttons, 'last') || #strings.contains(buttons, 'all')}" type="button" class="btn-grid-nav nav-last" title="제일 마지막 행으로 이동" onclick="onGridNavLast(this)"><i class="fa-solid fa-forward-step"></i></button>
+    </div>
+
 </body>
 </html>

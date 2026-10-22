@@ -48,17 +48,7 @@
             <div class="split-left-section split-panel panel-left">
                 <div class="sub-grid-header">
                     <span class="sub-title"><i class="fa-solid fa-layer-group"></i> 포트별 설정 목록</span>
-                    <div class="sub-grid-actions">
-                        <button type="button" class="btn-sub-grid btn-add" id="btnPortAdd" title="신규 포트 추가">
-                            <i class="fa-solid fa-plus"></i> 행 삽입
-                        </button>
-                        <button type="button" class="btn-sub-grid btn-copy" id="btnPortCopy" title="포트 복사">
-                            <i class="fa-solid fa-copy"></i> 행 복사
-                        </button>
-                        <button type="button" class="btn-sub-grid btn-del" id="btnPortDel" title="선택 포트 삭제">
-                            <i class="fa-solid fa-trash-can"></i> 행 삭제
-                        </button>
-                    </div>
+                    <div th:replace="~{fragments/tab_header :: detailNav(targetGrid='#gridJa032aPort', fileName='포트별설정목록', buttons='excel,add,copy,del')}"></div>
                 </div>
                 <div class="grid-table-wrapper">
                     <div id="gridJa032aPort" class="tabulator-aams-grid"></div>
@@ -69,14 +59,7 @@
             <div class="split-right-section split-panel panel-right">
                 <div class="sub-grid-header">
                     <span class="sub-title"><i class="fa-solid fa-chart-pie"></i> 포트 내 종목 상세 목록</span>
-                    <div class="sub-grid-actions">
-                        <button type="button" class="btn-sub-grid btn-add" id="btnDetailAdd" title="종목 행 삽입">
-                            <i class="fa-solid fa-plus"></i> 행 삽입
-                        </button>
-                        <button type="button" class="btn-sub-grid btn-del" id="btnDetailDel" title="종목 행 삭제">
-                            <i class="fa-solid fa-trash-can"></i> 행 삭제
-                        </button>
-                    </div>
+                    <div th:replace="~{fragments/tab_header :: detailNav(targetGrid='#gridJa032aDetail', fileName='포트내종목상세목록')}"></div>
                 </div>
                 <div class="grid-table-wrapper">
                     <div id="gridJa032aDetail" class="tabulator-aams-grid"></div>
