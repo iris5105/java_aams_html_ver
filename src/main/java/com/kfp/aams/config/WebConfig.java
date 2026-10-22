@@ -38,8 +38,8 @@ public class WebConfig implements WebMvcConfigurer {
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
         registry.addInterceptor(viewAccessInterceptor)
-                .addPathPatterns("/views/**")
-                .excludePathPatterns("/views/common/**");
+                .addPathPatterns("/views/**", "/api/**")
+                .excludePathPatterns("/views/common/**", "/api/common/security-config");
     }
 
     @Bean

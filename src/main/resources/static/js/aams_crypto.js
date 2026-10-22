@@ -26,6 +26,7 @@
 
             if (!this._enabled) {
                 this._isInitialized = true;
+                this._installFetchInterceptor();
                 return Promise.resolve(false);
             }
 
@@ -185,12 +186,30 @@
             var originalFetch = window.fetch;
 
             window.fetch = async function (resource, init) {
-                // 암호화 비활성화 시 원본 fetch 수행
-                if (!AamsCrypto._enabled) {
-                    return originalFetch.apply(this, arguments);
+                init = init || {};
+
+                // AJAX/Fetch 요청 식별 헤더 (브라우저 주소창 직접 입력과 구분)
+                if (init.headers instanceof Headers) {
+                    if (!init.headers.has('X-Requested-With')) {
+                        init.headers.set('X-Requested-With', 'XMLHttpRequest');
+                    }
+                } else if (Array.isArray(init.headers)) {
+                    var hasXrw = init.headers.some(function (h) { return h[0].toLowerCase() === 'x-requested-with'; });
+                    if (!hasXrw) {
+                        init.headers.push(['X-Requested-With', 'XMLHttpRequest']);
+                    }
+                } else {
+                    init.headers = init.headers || {};
+                    if (!init.headers['X-Requested-With'] && !init.headers['x-requested-with']) {
+                        init.headers['X-Requested-With'] = 'XMLHttpRequest';
+                    }
                 }
 
-                init = init || {};
+                // 암호화 비활성화 시 원본 fetch 수행
+                if (!AamsCrypto._enabled) {
+                    return originalFetch.call(this, resource, init);
+                }
+
                 var url = (typeof resource === 'string') ? resource : (resource && resource.url ? resource.url : '');
 
                 // REST API (/api/**) 대상만 암호화 파이프라인 적용

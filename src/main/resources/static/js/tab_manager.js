@@ -222,7 +222,11 @@ class TabManager {
             container.appendChild(pane);
 
             // 6. Fetch View Content
-            fetch(tabObj.url)
+            fetch(tabObj.url, {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
                 .then(res => {
                     if (!res.ok) throw new Error("HTTP error " + res.status);
                     return res.text();
