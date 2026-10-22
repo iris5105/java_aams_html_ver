@@ -152,9 +152,9 @@
 
                 <!-- 좌측 하단: API 요청 상세 건별 목록 (dw_detail) -->
                 <div class="pane-bottom" style="height: 40%; display: flex; flex-direction: column; min-height: 150px;">
-                    <!-- 서브 컨트롤 바 (우측 끝에 엑셀 및 네비게이션 버튼 배치: 공통 detailNav 연동) -->
+                    <!-- 서브 컨트롤 바 (우측 끝에 엑셀 및 네비게이션 버튼 배치: 공통 detailNav 연동 - 파워빌더 dw_detail 규격 0010001001) -->
                     <div style="display: flex; justify-content: flex-end; align-items: center; padding: 2px 6px; background-color: #f1f5f9; border-bottom: 1px solid #cbd5e1;">
-                        <div th:replace="~{fragments/tab_header :: detailNav(targetGrid='#gridDetail', fileName='API요청상세')}"></div>
+                        <div th:replace="~{fragments/tab_header :: detailNav(targetGrid='#gridDetail', fileName='API요청상세', buttons='0010001001')}"></div>
                     </div>
                     <div class="panel-body" style="flex: 1; min-height: 0; padding: 0;">
                         <div id="gridDetail" class="tabulator-aams-grid"></div>
@@ -450,8 +450,12 @@
                         currentMasterRow = null;
                         currentDetailRow = null;
 
-                        if (gridDetail) gridDetail.clearData();
-                        if (gridData) gridData.clearData();
+                        if (gridDetail && gridDetail.initialized) {
+                            try { gridDetail.clearData(); } catch (e) {}
+                        }
+                        if (gridData && gridData.initialized) {
+                            try { gridData.clearData(); } catch (e) {}
+                        }
                         clearStatusForm();
 
                         if (gridMaster) {
@@ -810,9 +814,15 @@
                 };
 
                 pane.onRefresh = function () {
-                    if (gridMaster) gridMaster.clearData();
-                    if (gridDetail) gridDetail.clearData();
-                    if (gridData) gridData.clearData();
+                    if (gridMaster && gridMaster.initialized) {
+                        try { gridMaster.clearData(); } catch (e) {}
+                    }
+                    if (gridDetail && gridDetail.initialized) {
+                        try { gridDetail.clearData(); } catch (e) {}
+                    }
+                    if (gridData && gridData.initialized) {
+                        try { gridData.clearData(); } catch (e) {}
+                    }
 
                     lastLoadedMasterKey = null;
                     lastLoadedDetailKey = null;

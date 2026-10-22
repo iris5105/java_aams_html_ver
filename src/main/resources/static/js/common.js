@@ -3709,4 +3709,21 @@ window.sanitizeGridData = function(grid, dataList, extraAllowedFields) {
 
     window.WorkDateSyncManager = WorkDateSyncManager;
 
+    /**
+     * Tabulator 인스턴스 초기화(tableBuilt) 전 clearData 호출 방어 헬퍼
+     * verticalFillMode 및 Table Not Initialized 에러 원천 차단
+     * @param {Tabulator} grid
+     */
+    function safeClearGrid(grid) {
+        if (!grid) return;
+        if (grid.initialized) {
+            try {
+                grid.clearData();
+            } catch (e) {
+                console.warn('[safeClearGrid] clearData skipped:', e);
+            }
+        }
+    }
+    window.safeClearGrid = safeClearGrid;
+
 })(window);

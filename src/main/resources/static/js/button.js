@@ -166,14 +166,16 @@ function clearAllTabulatorsInPane(pane) {
         });
     } catch (e) {}
 
-    // 4. 발견된 모든 Tabulator 인스턴스에 대해 clearData 및 deselectRow 강제 실행
+    // 4. 발견된 모든 Tabulator 인스턴스에 대해 clearData 및 deselectRow 안전 실행 (초기화 완료된 경우에만 실행)
     tablesToClear.forEach(tbl => {
         try {
-            if (typeof tbl.clearData === 'function') {
-                tbl.clearData();
-            }
-            if (typeof tbl.deselectRow === 'function') {
-                tbl.deselectRow();
+            if (tbl && tbl.initialized) {
+                if (typeof tbl.clearData === 'function') {
+                    tbl.clearData();
+                }
+                if (typeof tbl.deselectRow === 'function') {
+                    tbl.deselectRow();
+                }
             }
         } catch (err) {
             console.warn('[clearAllTabulatorsInPane] 테이블 데이터 초기화 중 경고:', err);
@@ -1108,6 +1110,64 @@ function onGridNavLast(btn) {
     }
 }
 
+/**
+ * 파워빌더 DataWindow 서브버튼(fw_u_dw2subbtn) 동적 마스크 제어 함수
+ * @param {HTMLElement|string} targetEl .grid-nav-group 또는 그 컨테이너
+ * @param {string} [mask] 10자리 마스크 코드('0010001001') 또는 쉼표 구분 키워드('excel,first,last')
+ */
+function applyGridNavMask(targetEl, mask) {
+    const groups = (typeof targetEl === 'string')
+        ? document.querySelectorAll(targetEl)
+        : (targetEl && targetEl.classList && targetEl.classList.contains('grid-nav-group'))
+            ? [targetEl]
+            : (targetEl ? targetEl.querySelectorAll('.grid-nav-group') : document.querySelectorAll('.grid-nav-group'));
+
+    groups.forEach(group => {
+        const m = (mask || group.getAttribute('data-buttons') || '0011111001').trim();
+        const btnMap = {
+            excel: group.querySelector('.nav-excel'),
+            add: group.querySelector('.nav-add'),
+            copy: group.querySelector('.nav-copy'),
+            del: group.querySelector('.nav-delete'),
+            first: group.querySelector('.nav-first'),
+            prev: group.querySelector('.nav-prev'),
+            next: group.querySelector('.nav-next'),
+            last: group.querySelector('.nav-last')
+        };
+
+        if (m.length === 10) {
+            // 파워빌더 10자리 표준 마스크: 1:save, 2:load, 3:excel, 4:input, 5:copy, 6:delete, 7:first, 8:prior, 9:next, 10:last
+            if (btnMap.excel) btnMap.excel.style.display = (m.charAt(2) === '1') ? '' : 'none';
+            if (btnMap.add)   btnMap.add.style.display   = (m.charAt(3) === '1') ? '' : 'none';
+            if (btnMap.copy)  btnMap.copy.style.display  = (m.charAt(4) === '1') ? '' : 'none';
+            if (btnMap.del)   btnMap.del.style.display   = (m.charAt(5) === '1') ? '' : 'none';
+            if (btnMap.first) btnMap.first.style.display = (m.charAt(6) === '1') ? '' : 'none';
+            if (btnMap.prev)  btnMap.prev.style.display  = (m.charAt(7) === '1') ? '' : 'none';
+            if (btnMap.next)  btnMap.next.style.display  = (m.charAt(8) === '1') ? '' : 'none';
+            if (btnMap.last)  btnMap.last.style.display  = (m.charAt(9) === '1') ? '' : 'none';
+        } else {
+            // 쉼표 구분 키워드 (예: 'excel,first,last')
+            const parts = m.toLowerCase().split(',').map(s => s.trim());
+            const isAll = parts.includes('all');
+            if (btnMap.excel) btnMap.excel.style.display = (isAll || parts.includes('excel')) ? '' : 'none';
+            if (btnMap.add)   btnMap.add.style.display   = (isAll || parts.includes('add') || parts.includes('input')) ? '' : 'none';
+            if (btnMap.copy)  btnMap.copy.style.display  = (isAll || parts.includes('copy')) ? '' : 'none';
+            if (btnMap.del)   btnMap.del.style.display   = (isAll || parts.includes('del') || parts.includes('delete')) ? '' : 'none';
+            if (btnMap.first) btnMap.first.style.display = (isAll || parts.includes('first')) ? '' : 'none';
+            if (btnMap.prev)  btnMap.prev.style.display  = (isAll || parts.includes('prev') || parts.includes('prior')) ? '' : 'none';
+            if (btnMap.next)  btnMap.next.style.display  = (isAll || parts.includes('next')) ? '' : 'none';
+            if (btnMap.last)  btnMap.last.style.display  = (isAll || parts.includes('last')) ? '' : 'none';
+        }
+    });
+}
+
+// DOM 로드 시 자동 초기화
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => applyGridNavMask(document));
+} else {
+    applyGridNavMask(document);
+}
+
 // 전역 바인딩
 window.onGridNavExcel = onGridNavExcel;
 window.onGridNavAdd = onGridNavAdd;
@@ -1117,3 +1177,4 @@ window.onGridNavFirst = onGridNavFirst;
 window.onGridNavPrev = onGridNavPrev;
 window.onGridNavNext = onGridNavNext;
 window.onGridNavLast = onGridNavLast;
+window.applyGridNavMask = applyGridNavMask;

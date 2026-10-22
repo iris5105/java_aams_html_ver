@@ -43,9 +43,9 @@
 
         <!-- 하단 디테일 패널: 해외옵션 일별 시세 내역 (dw_detail / d_ja032g2) -->
         <div class="pane-bottom detail-section" style="flex: 1 1 45%; min-height: 160px; display: flex; flex-direction: column; border: 1px solid #86efac; border-radius: 2px; overflow: hidden; background: #ffffff;">
-            <!-- 하단 그리드 상단 우측 파워빌더 DataWindow 네비게이터/컨트롤 바 (공통 detailNav 연동) -->
+            <!-- 하단 그리드 상단 우측 파워빌더 DataWindow 네비게이터/컨트롤 바 (공통 detailNav 연동 - 파워빌더 기본 6종 0011111001) -->
             <div style="display: flex; justify-content: flex-end; align-items: center; padding: 2px 6px; background: #ffffff; border-bottom: 1px solid #e2e8f0;">
-                <div th:replace="~{fragments/tab_header :: detailNav(targetGrid='#gridDetail', fileName='해외옵션일별시세')}"></div>
+                <div th:replace="~{fragments/tab_header :: detailNav(targetGrid='#gridDetail', fileName='해외옵션일별시세', buttons='0011111001')}"></div>
             </div>
             <div class="pane-body" style="flex: 1 1 auto; height: 100%; width: 100%; overflow: hidden;">
                 <div id="gridDetail" class="tabulator-aams-grid" style="height: 100%;"></div>
@@ -763,7 +763,9 @@
                 var corpGr = (typeof resolveCorpGr === 'function') ? resolveCorpGr(pane) : '';
                 var lsyYmd = (typeof getFilterYmd === 'function') ? getFilterYmd(pane, 'YYYYMMDD') : '';
 
-                if (gridDetail) gridDetail.clearData();
+                if (gridDetail && gridDetail.initialized) {
+                    try { gridDetail.clearData(); } catch (e) {}
+                }
                 lastLoadedMasterKey = null;
 
                 fetch(`/api/usportfoliomodel/ja032g/master?corpGr=${encodeURIComponent(corpGr)}&lsyYmd=${encodeURIComponent(lsyYmd)}`)
@@ -1170,8 +1172,12 @@
                 };
 
                 pane.onRefresh = function () {
-                    if (gridMaster) gridMaster.clearData();
-                    if (gridDetail) gridDetail.clearData();
+                    if (gridMaster && gridMaster.initialized) {
+                        try { gridMaster.clearData(); } catch (e) {}
+                    }
+                    if (gridDetail && gridDetail.initialized) {
+                        try { gridDetail.clearData(); } catch (e) {}
+                    }
                     lastLoadedMasterKey = null;
                     currentSelectedMasterRow = null;
 
