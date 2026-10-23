@@ -2477,6 +2477,269 @@ function aamsCellEdit(e, cell) {
         });
     }
 
+    // No(시퀀스/순번) 및 컨트롤 컬럼(선택체크박스, 돋보기/달력 버튼 등) 판별 헬퍼
+    function isSequenceOrControlColumn(col) {
+        if (!col) return true;
+        // 1. rownum 포매터 또는 필드
+        if (col.formatter === "rownum" || col.field === "rownum" || col.field === "rowNum") return true;
+        // 2. 타이틀이 No, No., NO, 순번, 순서 등 시퀀스 헤더인 경우
+        if (col.title) {
+            const cleanTitle = String(col.title).replace(/<[^>]*>/g, '').trim().toUpperCase();
+            if (cleanTitle === "NO." || cleanTitle === "NO" || cleanTitle === "순번" || cleanTitle === "순서" || cleanTitle === "#") return true;
+        }
+        // 3. 필드명이 명시적 시퀀스이고 타이틀이 짧은 번호 컬럼인 경우
+        if (col.field && (col.field === "seq" || col.field === "no" || col.field === "rowNo") && col.width && col.width <= 50) return true;
+        // 4. 선택 체크박스 컬럼
+        if (col.formatter === "rowSelection" || col.titleFormatter === "rowSelection") return true;
+        // 5. 돋보기/달력/액션 버튼 add-on 컬럼
+        if (typeof col.field === 'string') {
+            if (col.field.startsWith('xx_btn_') || col.field.startsWith('p_dd_') || col.field.startsWith('btn_')) return true;
+        }
+        // 6. 필드가 없거나 빈 타이틀의 버튼용 컬럼
+        if (!col.field || (col.title === "" && col.width && col.width <= 40)) return true;
+
+        return false;
+    }
+
+    /**
+     * 대상 그리드가 마스터 그리드(Master Grid)인지 판별
+     * 사용자 요구사항: "지금까지 만들어진 내용은 amster-grid에만 적용되게끔 해줘"
+     * 디테일, 서브, 인스펙터, 팝업 그리드는 배제하고 오직 마스터 그리드에만 연속 중복 숨김 및 그룹 구분선 적용
+     */
+    function isMasterGrid(container, options) {
+        if (!options) options = {};
+
+        // 1) 명시적 옵션이 선언되어 있는 경우 최우선 존중
+        if (options.suppressRepeating === true || options.suppressDuplicates === true || options.isMasterGrid === true) {
+            return true;
+        }
+        if (options.suppressRepeating === false || options.suppressDuplicates === false || options.isMasterGrid === false) {
+            return false;
+        }
+        if (Array.isArray(options.suppressRepeatingColumns) || Array.isArray(options.suppressDuplicateColumns)) {
+            return true;
+        }
+
+        // 2) 전역 자동 플래그가 false인 경우 마스터 그리드라도 자동 적용 안 함
+        if (typeof window !== 'undefined' && window.AAMS_AUTO_SUPPRESS_REPEATING === false) {
+            return false;
+        }
+
+        // 3) 컨테이너 엘리먼트 획득
+        let el = null;
+        if (typeof container === 'string') {
+            try { el = document.querySelector(container); } catch (e) { el = null; }
+        } else if (container && container.nodeType === 1) {
+            el = container;
+        }
+
+        if (!el) {
+            return false;
+        }
+
+        const id = (el.id || '').toLowerCase();
+        const cls = (typeof el.className === 'string' ? el.className.toLowerCase() : '');
+
+        // 4) 디테일, 서브, 인스펙터, 모달/팝업 그리드는 절대 마스터가 아니므로 즉시 배제
+        const isDetailOrSub = id.includes('detail') || id.includes('sub') || id.includes('data') ||
+                              id.includes('item') || id.includes('history') || id.includes('log') ||
+                              id.includes('modal') || id.includes('popup') || id.includes('volat') ||
+                              id.includes('updown') || id.includes('beta') || id.includes('day') ||
+                              cls.includes('detail') || cls.includes('sub');
+
+        if (isDetailOrSub) {
+            return false;
+        }
+
+        if (typeof el.closest === 'function') {
+            if (el.closest('.pane-bottom, .split-right, .pane-right, .detail-section, .modal, .popup, .tabulator-popup')) {
+                return false;
+            }
+        }
+
+        // 5) 마스터/리스트 명칭이 있거나 마스터 영역(master-section, pane-left, pane-top 등)에 속하는 경우
+        if (id.includes('master') || id.includes('list') || id.includes('main') || cls.includes('master') || cls.includes('main')) {
+            return true;
+        }
+
+        if (typeof el.closest === 'function') {
+            if (el.closest('.master-section, .pane-left, .split-left, .pane-top, .split-top')) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * 마스터 그리드 첫 번째 컬럼의 값(유형)이 바뀔 때 이전 그룹 마지막 행의 하단에 구분선 스타일 적용
+     * 사용자 요구사항: "첫번째 컬럼에 대해서 유형이 바뀔때 이전 데이터유형의 하단부에 구분선을 만들어서 데이터가 다르단거를 보여줄 수 있어?"
+     */
+    function setupGroupSeparator(options, firstField) {
+        if (!options || !firstField) return;
+        if (options._isGroupSeparatorHooked) return;
+        options._isGroupSeparatorHooked = true;
+
+        const origRowFormatter = options.rowFormatter;
+        options.rowFormatter = function(row) {
+            if (typeof origRowFormatter === 'function') {
+                origRowFormatter(row);
+            }
+
+            try {
+                const curData = (typeof row.getData === 'function') ? row.getData() : null;
+                const rowEl = (typeof row.getElement === 'function') ? row.getElement() : null;
+                if (!curData || !rowEl) return;
+
+                // 합계 행(isSummaryRow)이나 신규 입력 행(isNew)은 구분선 대상이 아님
+                if (curData.isSummaryRow || curData.isNew) {
+                    rowEl.classList.remove('aams-group-separator-row');
+                    return;
+                }
+
+                let isGroupEnd = false;
+                let nextRow = null;
+                if (typeof row.getNextRow === 'function') {
+                    nextRow = row.getNextRow();
+                }
+
+                if (nextRow) {
+                    const nextData = (typeof nextRow.getData === 'function') ? nextRow.getData() : null;
+                    if (nextData) {
+                        if (nextData.isSummaryRow) {
+                            // 다음 행이 합계 행이면 현재 행이 일반 데이터의 마지막 행
+                            isGroupEnd = true;
+                        } else {
+                            const curVal = curData[firstField];
+                            const nextVal = nextData[firstField];
+                            const strCur = (curVal != null) ? String(curVal).trim() : '';
+                            const strNext = (nextVal != null) ? String(nextVal).trim() : '';
+
+                            // 첫 번째 컬럼의 값이 다르면 현재 행이 이전 그룹의 마지막 행!
+                            if (strCur && strNext && strCur !== strNext) {
+                                isGroupEnd = true;
+                            }
+                        }
+                    }
+                }
+
+                if (isGroupEnd) {
+                    rowEl.classList.add('aams-group-separator-row');
+                } else {
+                    rowEl.classList.remove('aams-group-separator-row');
+                }
+            } catch (e) {
+                // 방어적 예외 처리
+            }
+        };
+    }
+
+    /**
+     * Suppress Repeating Values (연속 중복값 숨김) 및 마스터 그리드 그룹 구분선 컬럼 전처리
+     * 파워빌더 DataWindow의 'Suppress Repeating Values' 기능과 동일하게
+     * No.(시퀀스)를 제외한 첫 번째, 두 번째 컬럼에 대해 연속된 행에서 동일한 값이 나올 경우 하위 행의 텍스트를 숨김 처리합니다.
+     * 오직 'master-grid'(마스터 그리드)에만 자동 적용되며, 첫 번째 컬럼의 값이 변경될 때 이전 그룹 하단에 구분선이 표출됩니다.
+     */
+    function processColumnsSuppressRepeating(columns, options, container) {
+        if (!Array.isArray(columns) || columns.length === 0) return;
+
+        const isMaster = isMasterGrid(container, options);
+        const specifiedCols = options && (options.suppressRepeatingColumns || options.suppressDuplicateColumns);
+
+        // 1. 그리드 레벨 지정 옵션 반영
+        if (Array.isArray(specifiedCols) && specifiedCols.length > 0) {
+            columns.forEach((col, idx) => {
+                if (!col) return;
+                if (specifiedCols.includes(col.field) || specifiedCols.includes(idx) || specifiedCols.includes(idx + 1)) {
+                    col.suppressRepeating = true;
+                }
+            });
+        } else if (isMaster) {
+            // [사용자 표준 규격] 마스터 그리드에 한하여 No(시퀀스)를 제외한 "첫 번째"와 "두 번째" 컬럼에 자동 적용 (정확히 2개 컬럼)
+            let count = 0;
+            columns.forEach(col => {
+                if (!col || count >= 2) return;
+                // No(시퀀스) 및 시스템 컨트롤 컬럼 제외
+                if (isSequenceOrControlColumn(col)) return;
+                col.suppressRepeating = true;
+                count++;
+            });
+        }
+
+        // 2. suppress 대상 필드 목록을 순서대로 수집 (계층 의존성 추적용)
+        const suppressFields = [];
+        columns.forEach(col => {
+            if (!col || !col.field) return;
+            if (col.suppressRepeating === true || col.suppressDuplicates === true || col.suppressDuplicate === true) {
+                if (!suppressFields.includes(col.field)) {
+                    suppressFields.push(col.field);
+                }
+            }
+        });
+
+        if (suppressFields.length === 0) return;
+
+        // 3. 첫 번째 컬럼 유형 변경 시 하단 구분선 적용 (마스터 그리드 한정)
+        if (isMaster && suppressFields.length > 0) {
+            setupGroupSeparator(options, suppressFields[0]);
+        }
+
+        // 4. 각 suppress 컬럼에 대해 계층형 중복 숨김 포매터 래핑
+        columns.forEach(col => {
+            if (!col || !col.field) return;
+            const fieldIdx = suppressFields.indexOf(col.field);
+            if (fieldIdx === -1) return;
+
+            // 이미 AAMS Suppress 포매터가 래핑되어 있다면 중복 래핑 방지
+            if (col._isAamsSuppressApplied) return;
+            col._isAamsSuppressApplied = true;
+
+            const parentFields = suppressFields.slice(0, fieldIdx + 1);
+            const origFormatter = col.formatter;
+
+            col.formatter = function(cell, formatterParams, onRendered) {
+                const row = cell.getRow();
+                const curData = (typeof row.getData === 'function') ? row.getData() : null;
+
+                // 합계 행(isSummaryRow)이나 신규 행(isNew)은 숨기지 않음
+                if (curData && (curData.isSummaryRow || curData.isNew)) {
+                    if (typeof origFormatter === 'function') {
+                        return origFormatter(cell, formatterParams, onRendered);
+                    }
+                    return cell.getValue() != null ? cell.getValue() : "";
+                }
+
+                const prevRow = (typeof row.getPrevRow === 'function') ? row.getPrevRow() : null;
+                if (prevRow) {
+                    const prevData = (typeof prevRow.getData === 'function') ? prevRow.getData() : null;
+                    if (prevData && !prevData.isSummaryRow) {
+                        let isAllMatch = true;
+                        for (let i = 0; i < parentFields.length; i++) {
+                            const f = parentFields[i];
+                            const curVal = curData ? curData[f] : undefined;
+                            const prevVal = prevData[f];
+                            const strCur = (curVal != null) ? String(curVal).trim() : '';
+                            const strPrev = (prevVal != null) ? String(prevVal).trim() : '';
+                            if (!strCur || strCur !== strPrev) {
+                                isAllMatch = false;
+                                break;
+                            }
+                        }
+                        if (isAllMatch) {
+                            return ""; // 상위 계층 포함 전체 일치 시 중복 숨김
+                        }
+                    }
+                }
+
+                if (typeof origFormatter === 'function') {
+                    return origFormatter(cell, formatterParams, onRendered);
+                }
+                const rawVal = cell.getValue();
+                return (rawVal != null) ? rawVal : "";
+            };
+        });
+    }
+
     function applyPatch() {
         if (!window.Tabulator || window.Tabulator._isAamsPatched) return;
 
@@ -2487,6 +2750,7 @@ function aamsCellEdit(e, cell) {
             if (options && options.columns) {
                 processColumnsHeaderCss(options.columns);
                 processColumnsListEditor(options.columns);
+                processColumnsSuppressRepeating(options.columns, options, container);
             }
 
             // Ensure default columnDefaults.vertAlign = "middle" so Tabulator natively injects justifyContent based on hozAlign
@@ -2508,12 +2772,13 @@ function aamsCellEdit(e, cell) {
             // Instantiate original Tabulator
             const table = new OriginalTabulator(container, options);
 
-            // Hook dynamic column APIs to process headerCssClass & listEditor
+            // Hook dynamic column APIs to process headerCssClass & listEditor & suppressRepeating
             const origSetColumns = table.setColumns;
             table.setColumns = function(cols) {
                 if (cols) {
                     processColumnsHeaderCss(cols);
                     processColumnsListEditor(cols);
+                    processColumnsSuppressRepeating(cols, options, container);
                 }
                 return origSetColumns.apply(table, arguments);
             };
@@ -2522,9 +2787,28 @@ function aamsCellEdit(e, cell) {
                 if (col) {
                     processColumnsHeaderCss([col]);
                     processColumnsListEditor([col]);
+                    processColumnsSuppressRepeating([col], options, container);
                 }
                 return origAddColumn.apply(table, arguments);
             };
+
+            // 그룹 구분선이 활성화된 경우 데이터 로드 및 정렬 시 행 렌더링 갱신
+            if (options && options._isGroupSeparatorHooked) {
+                table.on("dataLoaded", function() {
+                    setTimeout(function() {
+                        if (table && typeof table.reformat === 'function') {
+                            table.reformat();
+                        }
+                    }, 20);
+                });
+                table.on("dataSorted", function() {
+                    setTimeout(function() {
+                        if (table && typeof table.reformat === 'function') {
+                            table.reformat();
+                        }
+                    }, 20);
+                });
+            }
 
             // Automatically attach row selection engine if selectable is enabled (default in AAMS)
             const isSelectable = (options.selectableRows !== false && options.selectable !== false);
@@ -2551,6 +2835,9 @@ function aamsCellEdit(e, cell) {
 
         window.Tabulator = AamsTabulator;
     }
+
+    // AAMS 전역 Suppress Repeating 활성화 플래그 (기본 true)
+    window.AAMS_AUTO_SUPPRESS_REPEATING = true;
 
     if (window.Tabulator) {
         applyPatch();

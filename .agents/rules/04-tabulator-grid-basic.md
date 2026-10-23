@@ -52,3 +52,39 @@ trigger: always_on
    - 행 선택 하이라이트는 공통 CSS의 배경색(`background-color: #bae6fd`)과 셀 경계선(`border-bottom`, `border-right`)으로만 표현한다.
 3. **수정 불가능한 셀 클릭 시 왜곡 방지 (Zero-Cell-Distortion)**:
    - 비편집 셀 클릭 시 개별 셀에 임의의 포커스 링 테두리나 배경색 변경을 주지 않고, 행 선택(`.tabulator-selected`)만 깔끔하게 유지한다.
+
+---
+
+## 4. 연속 중복값 숨김 및 마스터 그리드 그룹 구분선 표준 (Suppress Repeating Values & Group Separator)
+
+파워빌더 DataWindow의 `Suppress Repeating Values` 기능과 동일하게, 상위 분류나 그룹 코드가 연속된 행에서 동일하게 반복될 때 첫 행에만 표시하고 그 아래의 중복 텍스트는 자동으로 숨겨 그리드의 가독성을 극대화합니다.  
+**사용자 표준 규격에 따라 디테일/서브 그리드는 배제하고 오직 마스터 그리드(`master-grid`)에만 한정 적용**되며, **첫 번째 컬럼의 데이터 유형(그룹)이 변경될 때 이전 그룹 하단에 구분선(Group Separator Border)이 자동 표출**됩니다.
+
+1. **마스터 그리드 한정 자동 적용 (Master-Grid Only Standard)**:
+   - 디테일 그리드, 서브 그리드, 데이터 인스펙터, 모달/팝업 그리드는 적용 대상에서 엄격히 배제됩니다.
+   - 오직 마스터 그리드(`id`나 `class`에 `master`, `list`, `main`이 포함되거나 `master-section`, `pane-left`, `pane-top`에 배치된 그리드, 또는 `suppressRepeating: true` / `isMasterGrid: true`로 명시된 그리드)에 한하여 `No.`(시퀀스/순번) 컬럼을 제외한 **첫 번째 및 두 번째 데이터 컬럼(정확히 2개 컬럼)에 자동으로 중복값 숨김이 적용**됩니다.
+2. **첫 번째 컬럼 유형 변경 시 하단 그룹 구분선 (Group Separator Border)**:
+   - 첫 번째 데이터 컬럼(No 제외 첫 컬럼, 예: `Company`, 펀드코드 등)의 값이 동일하게 유지되다가 다른 유형의 값으로 바뀔 때, **이전 데이터 그룹의 마지막 행 하단부에 `1px solid #64748b` 슬림 구분선(`.aams-group-separator-row`)을 자동 생성**하여 데이터 그룹이 서로 다름을 시각적으로 명확하고 세련되게 구분합니다.
+   - 합계 행(`isSummaryRow`) 직전의 마지막 데이터 행에도 동일하게 구분선이 적용됩니다.
+3. **특정 그리드 비활성화 규격 (`suppressRepeating: false`)**:
+   - 매 행마다 모든 값이 온전히 표출되어야 하는 특정 마스터 그리드의 경우, 초기화 옵션에 `suppressRepeating: false`를 선언하여 비활성화합니다:
+     ```javascript
+     gridMaster = new Tabulator(el, {
+         height: "100%",
+         suppressRepeating: false, // 해당 그리드만 중복 숨김 해제
+         columns: [ ... ]
+     });
+     ```
+4. **컬럼 단위 명시적 지정 표준 (`suppressRepeating: true`)**:
+   - 3번째 이상의 컬럼에도 중복 숨김을 적용하거나 특정 컬럼에 명시할 경우 `suppressRepeating: true` 속성을 지정합니다:
+     ```javascript
+     { title: "Company", field: "company", width: 85, hozAlign: "center", suppressRepeating: true },
+     { title: "자료유형", field: "snm", width: 200, hozAlign: "left", suppressRepeating: true },
+     ```
+5. **계층형(Hierarchy) 의존성 자동 연동**:
+   - 복수 개의 컬럼에 `suppressRepeating`이 적용된 경우, N번째 컬럼은 앞선 상위 컬럼들의 값이 모두 일치할 때에만 숨김 처리됩니다.
+   - 상위 컬럼(예: 회사명)이 변경되면 하위 컬럼(예: 자료유형)의 값이 우연히 같더라도 새로운 그룹의 시작이므로 정상 표출됩니다.
+6. **원본 데이터 및 기존 formatter 보존**:
+   - 화면에 표시되는 텍스트만 빈칸으로 처리될 뿐 `row.getData()` 원본 데이터는 온전히 보존되므로, 행 선택 및 상세 서브 그리드 연동이 완벽하게 유지됩니다.
+   - 기존 사용자 정의 `formatter`가 설정된 경우에도 중복이 아닐 때 정상 실행되어 배지, 천단위 콤마 등의 스타일이 100% 보존됩니다.
+   - 합계 행(`isSummaryRow: true`)이나 신규 행(`isNew: true`), 인라인 편집 셀은 숨김 대상에서 원천 배제됩니다.
