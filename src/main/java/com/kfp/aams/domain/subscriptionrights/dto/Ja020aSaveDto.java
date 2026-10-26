@@ -3,13 +3,17 @@ package com.kfp.aams.domain.subscriptionrights.dto;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 import java.util.List;
 
 /**
  * W_JA020A 일괄 저장 요청 DTO
  */
+@Getter
+@Setter
 @Data
 @Builder
 @NoArgsConstructor

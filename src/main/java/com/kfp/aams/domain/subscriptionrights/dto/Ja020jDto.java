@@ -4,7 +4,9 @@ import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -13,6 +15,8 @@ import java.time.LocalDate;
  * W_JA020J (현금 펀드/종목별 시가등록) DTO
  * d_ja020j.srd 메타데이터 매핑
  */
+@Getter
+@Setter
 @Data
 @Builder
 @NoArgsConstructor

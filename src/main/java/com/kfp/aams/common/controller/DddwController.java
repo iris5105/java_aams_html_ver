@@ -31,4 +31,13 @@ public class DddwController {
         String targetId = (dddwId != null && !dddwId.isBlank()) ? dddwId : dddwNm;
         return dddwService.getDddwList(targetId, seq, corpGr, addWhere, addOrderBy, session);
     }
+
+    /**
+     * DDDW 캐시 수동 초기화
+     */
+    @GetMapping("/api/common/dddw/clear-cache")
+    public java.util.Map<String, Object> clearCache() {
+        dddwService.clearCache();
+        return java.util.Map.of("success", true, "message", "DDDW 캐시가 초기화되었습니다.");
+    }
 }

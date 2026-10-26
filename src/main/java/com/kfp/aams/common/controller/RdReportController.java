@@ -104,7 +104,8 @@ public class RdReportController {
      */
     @GetMapping("/preview")
     public ResponseEntity<byte[]> preview(
-            @RequestParam("mrdName") String mrdName,
+            @RequestParam(value = "mrdName", required = false) String mrdName,
+            @RequestParam(value = "mrdPath", required = false) String mrdPath,
             @RequestParam(value = "corpGr", required = false) String corpGr,
             @RequestParam(value = "format", defaultValue = "pdf") String format,
             @RequestParam(value = "downloadName", required = false) String downloadName,
@@ -113,12 +114,18 @@ public class RdReportController {
             @RequestParam Map<String, String> allParams,
             jakarta.servlet.http.HttpServletResponse response) {
 
+        String effectiveMrd = (mrdName != null && !mrdName.isBlank()) ? mrdName.trim() : (mrdPath != null ? mrdPath.trim() : null);
+        if (effectiveMrd == null || effectiveMrd.isBlank()) {
+            log.warn("RD 공통 미리보기 요청 실패: mrdName/mrdPath 파라미터가 누락되었습니다.");
+            return ResponseEntity.badRequest().build();
+        }
+
         try {
             corpGr = sanitizeCorpGr(corpGr);
             Map<String, Object> mergedParams = extractDynamicParams(allParams, paramsJson);
             String effectiveFormat = resolvePreviewFormat(format, userAgent);
             RdReportService.ExportResult result = rdReportService.generateReport(
-                    corpGr, mrdName, mergedParams, effectiveFormat, downloadName);
+                    corpGr, effectiveMrd, mergedParams, effectiveFormat, downloadName);
 
             if (isHtmlFormat(effectiveFormat)) {
                 response.setContentType("text/html; charset=UTF-8");
@@ -144,18 +151,25 @@ public class RdReportController {
      */
     @GetMapping("/export")
     public ResponseEntity<byte[]> export(
-            @RequestParam("mrdName") String mrdName,
+            @RequestParam(value = "mrdName", required = false) String mrdName,
+            @RequestParam(value = "mrdPath", required = false) String mrdPath,
             @RequestParam(value = "corpGr", required = false) String corpGr,
             @RequestParam(value = "format", defaultValue = "pdf") String format,
             @RequestParam(value = "downloadName", required = false) String downloadName,
             @RequestParam(value = "params", required = false) String paramsJson,
             @RequestParam Map<String, String> allParams) {
 
+        String effectiveMrd = (mrdName != null && !mrdName.isBlank()) ? mrdName.trim() : (mrdPath != null ? mrdPath.trim() : null);
+        if (effectiveMrd == null || effectiveMrd.isBlank()) {
+            log.warn("RD 공통 내보내기 요청 실패: mrdName/mrdPath 파라미터가 누락되었습니다.");
+            return ResponseEntity.badRequest().build();
+        }
+
         try {
             corpGr = sanitizeCorpGr(corpGr);
             Map<String, Object> mergedParams = extractDynamicParams(allParams, paramsJson);
             RdReportService.ExportResult result = rdReportService.generateReport(
-                    corpGr, mrdName, mergedParams, format, downloadName);
+                    corpGr, effectiveMrd, mergedParams, format, downloadName);
 
             MediaType mediaType = MediaType.parseMediaType(result.getContentType());
 

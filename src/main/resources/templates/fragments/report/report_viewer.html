@@ -33,7 +33,7 @@
     </button>
 </div>
 
-<!-- 2. 데스크톱 분할 우측 리포트 카드 패널 -->
+<!-- 2. 데스크톱 분할 우측 리포트 카드 패널 (좌우 분할용) -->
 <div th:fragment="reportViewerPane(reportTitle, defaultStatus)" class="pane-right detail-section report-card">
     <div class="pane-header report-header">
         <div class="report-title-area" style="display: flex; align-items: center; gap: 8px;">
@@ -45,6 +45,28 @@
         <div th:replace="~{fragments/report/report_viewer :: exportButtons}"></div>
     </div>
     <div class="pane-body report-body" style="background-color: #525659; position: relative; width: 100%; height: calc(100% - 41px); overflow: hidden;">
+        <!-- 로딩 스피너 -->
+        <div id="preview-loading" class="report-loading" style="display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; color: #ffffff; z-index: 10;">
+            <i class="fa-solid fa-spinner fa-spin fa-2x" style="margin-bottom: 8px;"></i>
+            <div style="font-size: 12px;">보고서를 로드 중입니다...</div>
+        </div>
+        <!-- 리포트 iframe -->
+        <iframe id="report-frame" class="report-frame" style="width: 100% !important; height: 100% !important; border: none; display: block; background-color: #525659;" src="about:blank"></iframe>
+    </div>
+</div>
+
+<!-- 2-1. 데스크톱 분할 하단 리포트 카드 패널 (상하 분할용) -->
+<div th:fragment="reportViewerBottomPane(reportTitle, defaultStatus)" class="pane-bottom detail-section report-card" style="display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden;">
+    <div class="pane-header report-header">
+        <div class="report-title-area" style="display: flex; align-items: center; gap: 8px;">
+            <span class="fw-bold small text-secondary preview-header-title">
+                <i class="fa-solid fa-file-invoice me-1"></i> <th:block th:text="${reportTitle}">리포트 미리보기</th:block>
+            </span>
+            <span id="preview-status" class="preview-status small text-muted" th:text="${defaultStatus ?: '선택된 항목 없음'}">선택된 항목 없음</span>
+        </div>
+        <div th:replace="~{fragments/report/report_viewer :: exportButtons}"></div>
+    </div>
+    <div class="pane-body report-body" style="background-color: #525659; position: relative; width: 100%; flex: 1; min-height: 0; overflow: hidden;">
         <!-- 로딩 스피너 -->
         <div id="preview-loading" class="report-loading" style="display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; color: #ffffff; z-index: 10;">
             <i class="fa-solid fa-spinner fa-spin fa-2x" style="margin-bottom: 8px;"></i>

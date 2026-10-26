@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<div class="view-container layout-single ja020m-container layout-mobile-stack-container" th:fragment="mainView" data-pgm-id="W_JA020M"
+     style="display: flex; flex-direction: column; height: 100%; width: 100%; overflow: hidden; background-color: #ffffff; position: relative;">
+
+    <!-- 1. 상단 공통 툴바 (Row 1: 공통 액션 버튼 + 네비게이션 브레드크럼) -->
+    <div class="view-toolbar">
+        <div class="toolbar-left">
+            <div th:replace="~{fragments/tab_header :: toolbarButtons}"></div>
+        </div>
+        <div th:replace="~{fragments/tab_header :: toolbarBreadcrumb}"></div>
+    </div>
+
+    <!-- 2. 상단 필터바 (Row 2: dc_dddw_ym 보고월 단일 월 선택 필터) -->
+    <div class="filter-bar">
+        <div class="filter-left" style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+            <div class="filter-item" style="position: relative; display: flex; align-items: center; gap: 6px;">
+                <label for="filterYm" style="font-size: 12px; font-weight: 600; color: #334155;">보고월</label>
+                <div class="aams-calendar-wrapper" style="position: relative; display: inline-flex; align-items: center;">
+                    <input type="text" id="filterYm" name="ym" class="t-input aams-calendar-input"
+                           style="width: 100px; padding: 4px 8px; font-size: 13px; text-align: center; border: 1px solid #cbd5e1; border-radius: 4px 0 0 4px; cursor: pointer; background: #ffffff;"
+                           th:value="${initialYm}" readonly autocomplete="off" />
+                    <button type="button" class="t-btn btn-calendar" title="달력 열기"
+                            style="padding: 5px 10px; border-radius: 0 4px 4px 0; border-left: none; background-color: #3b82f6; color: #ffffff; border: 1px solid #3b82f6; cursor: pointer;"
+                            onclick="AamsCalendar.toggle('filterYm', event)">
+                        <i class="fa-regular fa-calendar-days"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. 메인 콘텐츠 섹션: 단일 MRD 리포트 뷰어 (wt_listole ole_rd 전면 표출) -->
+    <div class="report-container-panel" style="flex: 1 1 auto; min-height: 0; width: 100%; padding: 0 12px 12px 12px; display: flex; flex-direction: column; box-sizing: border-box; overflow: hidden;">
+        <div class="report-card" style="flex: 1 1 auto; min-height: 0; height: 100%; width: 100%; display: flex; flex-direction: column; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 4px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+            
+            <!-- 리포트 상단 헤더: 리포트 제목 및 5종 포맷 내보내기 툴바 -->
+            <div class="report-header" style="display: flex; justify-content: space-between; align-items: center; padding: 8px 14px; background: #f8fafc; border-bottom: 1px solid #cbd5e1; flex-shrink: 0; flex-wrap: wrap; gap: 8px;">
+                <div class="report-title-area" style="display: flex; align-items: center; gap: 10px;">
+                    <span class="preview-header-title" style="font-size: 13px; font-weight: 700; color: #1e293b; display: inline-flex; align-items: center; gap: 6px;">
+                        <i class="fa-solid fa-file-invoice" style="color: #2563eb;"></i> 금투협보고자료
+                    </span>
+                    <span id="preview-status" class="preview-status" style="font-size: 12px; font-weight: 500; color: #475569; background-color: #ffffff; border: 1px solid #cbd5e1; padding: 2px 8px; border-radius: 4px;">
+                        조회 대기 중
+                    </span>
+                </div>
+
+                <!-- 5종 포맷 내보내기 버튼 그룹 + 새 창 열기 (PDF, Excel, Word, PPT, HWP) -->
+                <div class="export-button-group" style="display: flex; align-items: center; gap: 4px;">
+                    <div th:replace="~{fragments/report/report_viewer :: exportButtons}"></div>
+                </div>
+            </div>
+
+            <!-- 리포트 본체 (Crownix 자체 툴바와 본문이 100% 꽉 차게 표시되는 iframe) -->
+            <div class="report-body" style="background-color: #525659; position: relative; width: 100%; flex: 1 1 auto; min-height: 0; overflow: hidden;">
+                <!-- 로딩 스피너 -->
+                <div id="preview-loading" class="report-loading" style="display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; color: #ffffff; z-index: 10;">
+                    <i class="fa-solid fa-spinner fa-spin fa-2x" style="margin-bottom: 8px;"></i>
+                    <div style="font-size: 12px;">보고서를 로드 중입니다...</div>
+                </div>
+                <!-- 리포트 iframe -->
+                <iframe id="report-frame" class="report-frame" style="width: 100% !important; height: 100% !important; border: none; display: block; background-color: #525659;" src="about:blank"></iframe>
+            </div>
+        </div>
+    </div>
+
+    <!-- 모바일 전용 리포트 모달 (공통 프래그먼트) -->
+    <div th:replace="~{fragments/report/report_viewer :: reportMobileModal(modalId='ja020mMobileModal', modalTitle='금투협보고자료')}"></div>
+
+    <!-- 4. 화면 전용 스크립트 격리 블록 -->
+    <script th:inline="javascript">
+        (function () {
+            // MDI 최상위 탭 컨테이너 획득 (Zero-Hardcoded-ID & Pane Scoping)
+            const currentScript = document.currentScript;
+            const pane = currentScript ? (currentScript.closest('.tab-pane') || currentScript.closest('.view-container')) : null;
+            if (!pane) return;
+
+            let isInitialized = false;
+
+            function isMobile() {
+                return window.innerWidth <= 876;
+            }
+
+            // [1. 보고월 달력 컴포넌트 초기화 (AamsCalendar Month 모드)]
+            function initCalendar() {
+                var inputEl = pane.querySelector('#filterYm');
+                var initialYm = inputEl ? inputEl.value : '';
+
+                if (window.AamsCalendar && typeof window.AamsCalendar.init === 'function') {
+                    window.AamsCalendar.init('filterYm', {
+                        pane: pane,
+                        mode: 'month',
+                        initialYm: initialYm,
+                        onSelect: function (selectedYm) {
+                            // 규칙 08 준수: 필터 변경 시 자동 조회를 실행하지 않음
+                        }
+                    });
+                }
+            }
+
+            // [2. 현재 선택된 보고월 추출]
+            function getSelectedYm() {
+                var inputEl = pane.querySelector('#filterYm');
+                return inputEl ? (inputEl.value || '').trim() : '';
+            }
+
+            // [3. 리포트 URL 빌더]
+            function buildPreviewUrl() {
+                var corpGr = (typeof resolveCorpGr === "function") ? resolveCorpGr(pane) : "";
+                var ym = getSelectedYm();
+
+                var queryParams = new URLSearchParams();
+                queryParams.set("corpGr", corpGr);
+                queryParams.set("ym", ym);
+                queryParams.set("t", new Date().getTime().toString());
+
+                var rawUrl = "/api/subscriptionrights/ja020m/preview?" + queryParams.toString();
+                return (window.AamsReport && typeof window.AamsReport.formatPreviewUrl === "function")
+                    ? window.AamsReport.formatPreviewUrl(rawUrl, "120")
+                    : rawUrl + "#toolbar=1&navpanes=0&zoom=120";
+            }
+
+            // [4. 금투협보고자료 리포트 로드]
+            function loadReport() {
+                var corpGr = (typeof resolveCorpGr === "function") ? resolveCorpGr(pane) : "";
+                var ym = getSelectedYm();
+
+                if (!corpGr) {
+                    if (typeof showToast === "function") showToast("회사그룹 정보가 누락되었습니다.", "warning");
+                    return;
+                }
+                if (!ym) {
+                    if (typeof showToast === "function") showToast("보고월을 선택해주세요.", "warning");
+                    return;
+                }
+
+                var spinner = pane.querySelector("#preview-loading");
+                var statusEl = pane.querySelector("#preview-status");
+                var reportFrame = pane.querySelector("#report-frame");
+                var reportMobileFrame = pane.querySelector("#reportMobileFrame");
+                var mobileModal = pane.querySelector("#ja020mMobileModal");
+
+                if (spinner) spinner.style.display = "flex";
+                if (statusEl) statusEl.textContent = "보고월: " + ym;
+
+                var previewUrl = buildPreviewUrl();
+
+                if (isMobile()) {
+                    if (reportMobileFrame) reportMobileFrame.src = previewUrl;
+                    if (mobileModal) mobileModal.style.display = "flex";
+                    if (spinner) spinner.style.display = "none";
+                } else {
+                    if (reportFrame) {
+                        reportFrame.onload = function () {
+                            if (spinner) spinner.style.display = "none";
+                        };
+                        reportFrame.src = previewUrl;
+                    }
+                }
+            }
+
+            // [5. 5종 포맷 내보내기]
+            function exportReport(format) {
+                var corpGr = (typeof resolveCorpGr === "function") ? resolveCorpGr(pane) : "";
+                var ym = getSelectedYm();
+
+                if (!ym) {
+                    if (typeof showToast === "function") showToast("보고월을 선택해주세요.", "warning");
+                    return;
+                }
+
+                var queryParams = new URLSearchParams();
+                queryParams.set("corpGr", corpGr);
+                queryParams.set("ym", ym);
+                queryParams.set("format", format || "pdf");
+
+                window.location.href = "/api/subscriptionrights/ja020m/export?" + queryParams.toString();
+            }
+
+            // [6. 회사그룹 변경 시 초기 보고월 갱신]
+            function refreshInitialYm() {
+                var corpGr = (typeof resolveCorpGr === "function") ? resolveCorpGr(pane) : "";
+                if (!corpGr) return;
+
+                fetch("/api/subscriptionrights/ja020m/initial-ym?corpGr=" + encodeURIComponent(corpGr))
+                    .then(function (res) { return res.json(); })
+                    .then(function (data) {
+                        if (data && data.initialYm) {
+                            var inputEl = pane.querySelector("#filterYm");
+                            if (inputEl) {
+                                inputEl.value = data.initialYm;
+                            }
+                        }
+                    })
+                    .catch(function (err) {
+                        console.error("[w_ja020m] 초기 보고월 조회 실패:", err);
+                    });
+            }
+
+            // [7. 툴바 및 버튼 이벤트 바인딩]
+            function initToolbarAndButtons() {
+                // 상단 공통 [조회]
+                pane.onSearch = function () {
+                    loadReport();
+                };
+
+                // 상단 공통 [새로고침]
+                pane.onRefresh = function () {
+                    var reportFrame = pane.querySelector("#report-frame");
+                    if (reportFrame) reportFrame.src = "about:blank";
+
+                    var statusEl = pane.querySelector("#preview-status");
+                    if (statusEl) statusEl.textContent = "조회 대기 중";
+
+                    refreshInitialYm();
+
+                    if (typeof showToast === "function") {
+                        showToast("화면이 초기화되었습니다.", "info");
+                    }
+                };
+
+                // 상단 회사그룹 변경
+                pane.onCorpGrChange = function (newCorpGr) {
+                    refreshInitialYm();
+                };
+
+                // 상단 공통 [엑셀] 내보내기 연동
+                pane.onExcel = function () {
+                    exportReport("excel");
+                };
+
+                // 헤더 5종 포맷 내보내기 버튼 이벤트 바인딩
+                var exportBtns = pane.querySelectorAll(".btn-export-format");
+                exportBtns.forEach(function (btn) {
+                    btn.addEventListener("click", function () {
+                        var fmt = btn.getAttribute("data-format");
+                        if (fmt) exportReport(fmt);
+                    });
+                });
+
+                // 새 창 열기 버튼 바인딩
+                var btnNewWindow = pane.querySelector(".btn-open-window, .btn-open-new-window, #btnOpenNewWindow");
+                if (btnNewWindow) {
+                    btnNewWindow.addEventListener("click", function () {
+                        var previewUrl = buildPreviewUrl();
+                        window.open(previewUrl, "_blank");
+                    });
+                }
+
+                // 모바일 모달 닫기 바인딩
+                var modalCloseBtn = pane.querySelector(".btn-report-modal-close");
+                var mobileModal = pane.querySelector("#ja020mMobileModal");
+                if (modalCloseBtn && mobileModal) {
+                    modalCloseBtn.addEventListener("click", function () {
+                        mobileModal.style.display = "none";
+                    });
+                }
+            }
+
+            // [MDI 단일 진입점 실행]
+            function startInit() {
+                if (isInitialized) return;
+                isInitialized = true;
+
+                initCalendar();
+                initToolbarAndButtons();
+
+                // 화면 최초 진입 시 자동 1회 조회 (파워빌더 eb_direct_retrieve = true 규격)
+                setTimeout(function () {
+                    loadReport();
+                }, 100);
+            }
+
+            if (document.readyState === "loading") {
+                document.addEventListener("DOMContentLoaded", startInit);
+            } else {
+                startInit();
+            }
+        })();
+    </script>
+</div>
+</html>

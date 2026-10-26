@@ -1,0 +1,198 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.kfp.aams.domain.subscriptionrights.mapper.Ja021aMapper">
+
+    <!-- 1. 마스터: 발행기관별 배당권리 내역 조회 (d_ja021a1) -->
+    <select id="selectMasterList" resultType="com.kfp.aams.domain.subscriptionrights.dto.Ja021aMasterDto">
+        SELECT t1.corp_gr                                                             AS corpGr
+             , TO_CHAR(t1.TR_YMD, 'YYYY-MM-DD')                                       AS trYmd
+             , t1.TR_CD                                                               AS trCd
+             , t1.BALH_CO                                                             AS balhCo
+             , t1.BAED_MTH                                                            AS baedMth
+             , t1.BAEJ_MTH                                                            AS baejMth
+             , t1.CASH_ILBAN_RT                                                       AS cashIlbanRt
+             , t1.CASH_WOOS_RT                                                        AS cashWoosRt
+             , t1.STOCK_ILBAN_RT                                                      AS stockIlbanRt
+             , t1.STOCK_WOOS_RT                                                       AS stockWoosRt
+             , TO_CHAR(t1.BROK_YMD, 'YYYY-MM-DD')                                      AS brokYmd
+             , TO_CHAR(t1.JUCHONG_YMD, 'YYYY-MM-DD')                                   AS juchongYmd
+             , jb.BALH_NM                                                             AS balhNm
+             , jb.BALH_NM                                                             AS xxBalhCo
+             , CASE WHEN t1.stock_woos_rt = 0 THEN NULL
+                    ELSE t1.stock_woos_rt * 100
+               END                                                                    AS stockWoosPer
+             , CASE WHEN t1.stock_ilban_rt = 0 THEN NULL
+                    ELSE t1.stock_ilban_rt * 100
+               END                                                                    AS stockIlbanPer
+             , CASE WHEN t1.cash_woos_rt = 0 THEN NULL
+                    ELSE t1.cash_woos_rt * 100
+               END                                                                    AS cashWoosPer
+             , CASE WHEN t1.cash_ilban_rt = 0 THEN NULL
+                    ELSE t1.cash_ilban_rt * 100
+               END                                                                    AS cashIlbanPer
+             , t1.ILBAN_AEK                                                           AS ilbanAek
+             , t1.WOOS_AEK                                                            AS woosAek
+             , CASE WHEN t1.tr_ymd &gt;= TO_DATE(REPLACE(#{workDate}, '-', ''), 'YYYYMMDD') THEN 1
+                    ELSE 0
+               END                                                                    AS pVisible
+          FROM SJT0BK t1
+          LEFT OUTER JOIN SJX0JB jb
+                       ON jb.BALH_CO = t1.BALH_CO
+         WHERE 1=1
+           <if test="corpGr != null and corpGr != ''">
+               AND t1.corp_gr = #{corpGr}
+           </if>
+           AND t1.TR_YMD  = TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
+           AND t1.TR_CD   = #{trCd}
+         ORDER BY t1.balh_co ASC
+    </select>
+
+    <!-- 2. 디테일: 종목별 배당권리 상세 조회 (d_ja021a2) -->
+    <select id="selectDetailList" resultType="com.kfp.aams.domain.subscriptionrights.dto.Ja021aDetailDto">
+        SELECT t1.corp_gr                                                             AS corpGr
+             , TO_CHAR(t1.TR_YMD, 'YYYY-MM-DD')                                       AS trYmd
+             , t1.TR_CD                                                               AS trCd
+             , t1.BALH_CO                                                             AS balhCo
+             , t1.JM_CD                                                               AS jjCd
+             , t1.JM_CD                                                               AS jmCd
+             , t1.CASH_RT                                                             AS cashRt
+             , t1.STOCK_RT                                                            AS stockRt
+             , t1.BAED_AEK                                                            AS baedAek
+             , t1.cash_rt * 100                                                       AS cashPer
+             , t1.stock_rt * 100                                                      AS stockPer
+             , f_jm_nm(t1.corp_gr, t1.jm_cd)                                          AS xxJjCd
+             , f_jm_nm(t1.corp_gr, t1.jm_cd)                                          AS jmNm
+             , CASE WHEN t1.tr_ymd &gt;= TO_DATE(REPLACE(#{workDate}, '-', ''), 'YYYYMMDD') THEN 1
+                    ELSE 0
+               END                                                                    AS pVisible
+          FROM sjt0bj t1
+         WHERE 1=1
+           <if test="corpGr != null and corpGr != ''">
+               AND t1.corp_gr = #{corpGr}
+           </if>
+           AND t1.TR_YMD  = TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
+           AND t1.TR_CD   = #{trCd}
+           AND t1.BALH_CO = #{balhCo}
+         ORDER BY t1.jm_cd ASC
+    </select>
+
+    <!-- 3. 발행기관 액면가 조회 -->
+    <select id="selectBalhAekm" resultType="java.math.BigDecimal">
+        SELECT aekm
+          FROM SJX0JB
+         WHERE balh_co = #{balhCo}
+    </select>
+
+    <!-- 4. 우선주 존재 여부 확인 -->
+    <select id="selectWoosStockMethod" resultType="string">
+        SELECT NVL(MAX('3'), '1')
+          FROM SJM0JJ
+         WHERE balh_co = #{balhCo}
+           AND woos_ilban_gb &lt;&gt; '0'
+    </select>
+
+    <!-- 5. 마스터(SJT0BK) CUD -->
+    <insert id="insertMaster">
+        INSERT INTO SJT0BK (
+            CORP_GR, TR_YMD, TR_CD, BALH_CO,
+            BAED_MTH, BAEJ_MTH,
+            CASH_ILBAN_RT, CASH_WOOS_RT, STOCK_ILBAN_RT, STOCK_WOOS_RT,
+            BROK_YMD, JUCHONG_YMD, ILBAN_AEK, WOOS_AEK
+        ) VALUES (
+            #{corpGr},
+            TO_DATE(REPLACE(#{trYmd}, '-', ''), 'YYYYMMDD'),
+            #{trCd},
+            #{balhCo},
+            #{baedMth},
+            #{baejMth},
+            #{cashIlbanRt},
+            #{cashWoosRt},
+            #{stockIlbanRt},
+            #{stockWoosRt},
+            TO_DATE(REPLACE(#{brokYmd}, '-', ''), 'YYYYMMDD'),
+            CASE WHEN #{juchongYmd} IS NOT NULL AND #{juchongYmd} != ''
+                 THEN TO_DATE(REPLACE(#{juchongYmd}, '-', ''), 'YYYYMMDD')
+                 ELSE NULL
+            END,
+            #{ilbanAek},
+            #{woosAek}
+        )
+    </insert>
+
+    <update id="updateMaster">
+        UPDATE SJT0BK
+           SET BAED_MTH       = #{baedMth}
+             , BAEJ_MTH       = #{baejMth}
+             , CASH_ILBAN_RT  = #{cashIlbanRt}
+             , CASH_WOOS_RT   = #{cashWoosRt}
+             , STOCK_ILBAN_RT = #{stockIlbanRt}
+             , STOCK_WOOS_RT  = #{stockWoosRt}
+             , BROK_YMD       = TO_DATE(REPLACE(#{brokYmd}, '-', ''), 'YYYYMMDD')
+             , JUCHONG_YMD    = CASE WHEN #{juchongYmd} IS NOT NULL AND #{juchongYmd} != ''
+                                     THEN TO_DATE(REPLACE(#{juchongYmd}, '-', ''), 'YYYYMMDD')
+                                     ELSE NULL
+                                END
+             , ILBAN_AEK      = #{ilbanAek}
+             , WOOS_AEK       = #{woosAek}
+         WHERE CORP_GR = #{corpGr}
+           AND TR_YMD  = TO_DATE(REPLACE(#{trYmd}, '-', ''), 'YYYYMMDD')
+           AND TR_CD   = #{trCd}
+           AND BALH_CO = #{balhCo}
+    </update>
+
+    <delete id="deleteMaster">
+        DELETE FROM SJT0BK
+         WHERE CORP_GR = #{corpGr}
+           AND TR_YMD  = TO_DATE(REPLACE(#{trYmd}, '-', ''), 'YYYYMMDD')
+           AND TR_CD   = #{trCd}
+           AND BALH_CO = #{balhCo}
+    </delete>
+
+    <!-- 6. 디테일(SJT0BJ) CUD -->
+    <insert id="insertDetail">
+        INSERT INTO SJT0BJ (
+            CORP_GR, TR_YMD, TR_CD, BALH_CO, JM_CD,
+            CASH_RT, STOCK_RT, BAED_AEK
+        ) VALUES (
+            #{corpGr},
+            TO_DATE(REPLACE(#{trYmd}, '-', ''), 'YYYYMMDD'),
+            #{trCd},
+            #{balhCo},
+            #{jjCd},
+            #{cashRt},
+            #{stockRt},
+            #{baedAek}
+        )
+    </insert>
+
+    <update id="updateDetail">
+        UPDATE SJT0BJ
+           SET CASH_RT  = #{cashRt}
+             , STOCK_RT = #{stockRt}
+             , BAED_AEK = #{baedAek}
+         WHERE CORP_GR = #{corpGr}
+           AND TR_YMD  = TO_DATE(REPLACE(#{trYmd}, '-', ''), 'YYYYMMDD')
+           AND TR_CD   = #{trCd}
+           AND BALH_CO = #{balhCo}
+           AND JM_CD   = #{jjCd}
+    </update>
+
+    <delete id="deleteDetail">
+        DELETE FROM SJT0BJ
+         WHERE CORP_GR = #{corpGr}
+           AND TR_YMD  = TO_DATE(REPLACE(#{trYmd}, '-', ''), 'YYYYMMDD')
+           AND TR_CD   = #{trCd}
+           AND BALH_CO = #{balhCo}
+           AND JM_CD   = #{jjCd}
+    </delete>
+
+    <delete id="deleteDetailsByMaster">
+        DELETE FROM SJT0BJ
+         WHERE CORP_GR = #{corpGr}
+           AND TR_YMD  = TO_DATE(REPLACE(#{trYmd}, '-', ''), 'YYYYMMDD')
+           AND TR_CD   = #{trCd}
+           AND BALH_CO = #{balhCo}
+    </delete>
+
+</mapper>

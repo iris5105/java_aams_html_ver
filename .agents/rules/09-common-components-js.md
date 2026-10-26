@@ -152,6 +152,88 @@ trigger: always_on
    - 드롭다운 오픈 시 상단에 고정된 `[코드 | 명칭]` 헤더 행과 함께 정렬된 2열 테이블 팝업이 표출됩니다.
    - 클릭 즉시 값이 반영되고 `change` 이벤트가 버블링되어 하위 필터나 그리드 연동이 매끄럽게 동작합니다.
 
+### 2.5 파워빌더 `ue_dddw_retrieve` 이벤트의 웹 변환 표준 규격 (`f_dddwctl.retrieveMultiple` & `dddwOptionsMap` 패턴)
+
+> [!IMPORTANT]
+> **파워빌더 DataWindow의 `ue_dddw_retrieve` 이벤트는 반드시 `f_dddwctl.retrieveMultiple` 및 `dddwOptionsMap` 단일 객체 패턴으로 100% 표준화**  
+> 1. 화면 내에서 사용되는 모든 그리드 DDDW 옵션 데이터는 전역 변수나 개별 배열로 분산시키지 않고 **단일 `dddwOptionsMap` 객체**로 통합 관리합니다.  
+> 2. 개별 `f_dddwctl`을 따로 비동기 호출하거나 하드코딩하지 않고, 반드시 **`ue_dddw_retrieve(corpGr)` 함수를 선언하여 `f_dddwctl.retrieveMultiple({...})`로 일괄 병렬 수신**합니다.  
+> 3. 파워빌더 `F_DDDWCTL (THIS, dddw_id, corp_gr, add_data, iseq, swhere)`의 인자를 1:1 배열 형태로 전달합니다 (`[dddwId, corpGr, addData, seq, addWhere]`).  
+> 4. 수신 완료 시 `dddwOptionsMap`에 할당한 후 `grid.redraw(true)`를 호출하여 그리드 셀 레이블을 최신으로 자동 갱신합니다.  
+> 5. 그리드 컬럼 설정에서는 표준 헬퍼 함수인 **`getDddwLabel(dddwKey, codeVal)`**과 **`getDddwOptions(dddwKey)`**를 사용하여 `formatter`와 `editorParams.valuesLookup`을 일관되게 바인딩합니다.  
+> 6. 상단 공통 툴바의 회사그룹 변경 이벤트(`pane.onCorpGrChange(newCorpGr)`) 시 반드시 `ue_dddw_retrieve(newCorpGr)`를 호출하여 변경된 회사그룹의 DDDW 목록으로 즉시 재조회합니다.
+
+#### 표준 구현 코드 스니펫
+```javascript
+// 1. DDDW 옵션 캐시 통합 맵 (화면에서 사용하는 모든 DDDW 키 선언)
+let dddwOptionsMap = {
+    series_g1: [],
+    series_g2: [],
+    bm_gr: [],
+    baed_mth: [],
+    baej_mth: []
+};
+
+// 2. 파워빌더 ue_dddw_retrieve 이벤트 1:1 표준 변환 함수
+function ue_dddw_retrieve(corpGr) {
+    const targetCorpGr = corpGr != null ? corpGr : resolveCorpGr(pane);
+
+    if (window.f_dddwctl && typeof window.f_dddwctl.retrieveMultiple === 'function') {
+        window.f_dddwctl.retrieveMultiple({
+            series_g1: ['series_g1', targetCorpGr, '', 1, `corp_gr='${targetCorpGr}'`],
+            series_g2: ['series_g2', targetCorpGr, '', 1, `corp_gr='${targetCorpGr}'`],
+            bm_gr:     ['bm_gr', targetCorpGr, '', 1, ''],
+            baed_mth:  ['baed_mth', targetCorpGr, '', 1, ''],
+            baej_mth:  ['baej_mth', targetCorpGr, '', 1, '']
+        }).then(results => {
+            Object.keys(results).forEach(k => {
+                dddwOptionsMap[k] = results[k] || [];
+            });
+
+            // 그리드 셀 레이블 즉시 리프레시
+            if (gridMaster) gridMaster.redraw(true);
+            if (gridDetail) gridDetail.redraw(true);
+        }).catch(err => {
+            console.warn("[ue_dddw_retrieve] DDDW 로드 실패:", err);
+        });
+    }
+}
+
+// 3. Tabulator formatter 전용 라벨 조회 헬퍼
+function getDddwLabel(dddwKey, codeVal) {
+    return (window.f_dddwctl && typeof window.f_dddwctl.getLabel === 'function')
+        ? window.f_dddwctl.getLabel(dddwOptionsMap, dddwKey, codeVal)
+        : (codeVal || '');
+}
+
+// 4. Tabulator editorParams valuesLookup 전용 옵션 조회 헬퍼
+function getDddwOptions(dddwKey) {
+    return (window.f_dddwctl && typeof window.f_dddwctl.getOptions === 'function')
+        ? window.f_dddwctl.getOptions(dddwOptionsMap, dddwKey)
+        : (dddwOptionsMap[dddwKey] || []).map(o => ({ value: o.code, label: o.name }));
+}
+
+// 5. 그리드 컬럼 바인딩 표준
+{
+    title: "대분류",
+    field: "seriesG1",
+    hozAlign: "center",
+    formatter: cell => getDddwLabel('series_g1', cell.getValue()),
+    editor: "list",
+    editorParams: {
+        valuesLookup: () => getDddwOptions('series_g1'),
+        autocomplete: true,
+        itemFormatter: window.f_dddwctl.get2ColItemFormatter("코드", "대분류명")
+    },
+    cellClick: aamsCellEdit
+}
+
+// 6. 상단 공통 툴바 회사그룹 변경 표준 연동
+pane.onCorpGrChange = function (newCorpGr) {
+    ue_dddw_retrieve(newCorpGr);
+};
+```
+
 ---
 
 ## 3. 달력 컴포넌트 표준 규격 (`aams_calendar.js` & `dc_ymd`)

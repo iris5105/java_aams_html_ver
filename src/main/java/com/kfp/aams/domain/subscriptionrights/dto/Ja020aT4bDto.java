@@ -4,7 +4,9 @@ import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -12,6 +14,8 @@ import java.time.LocalDate;
 /**
  * W_JA020A 탭2: 배정등록 하단 펀드별 배정내역 DTO (d_ja020a_t4b)
  */
+@Getter
+@Setter
 @Data
 @Builder
 @NoArgsConstructor

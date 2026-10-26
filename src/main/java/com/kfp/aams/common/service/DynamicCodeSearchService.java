@@ -4,6 +4,8 @@ import com.kfp.aams.common.dto.DynamicCodeSearchDto;
 import com.kfp.aams.common.mapper.DynamicCodeSearchMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -15,6 +17,11 @@ import java.util.*;
 @Service
 @Transactional(readOnly = true)
 public class DynamicCodeSearchService {
+
+    private static final Logger sqlLog = LoggerFactory.getLogger("com.kfp.aams.sql");
+    private static final String ANSI_RESET = "\u001B[0m";
+    private static final String ANSI_MAGENTA = "\u001B[1;35m"; // Bold Magenta for Dynamic Code Search
+    private static final String ANSI_RED = "\u001B[1;31m";
 
     private final DynamicCodeSearchMapper dynamicCodeSearchMapper;
     private final JdbcTemplate jdbcTemplate;
@@ -149,9 +156,8 @@ public class DynamicCodeSearchService {
         sql = sql.replace(":corp_gr", "'" + (corpGr != null ? corpGr.trim() : "") + "'");
         sql = applyAddWhere(sql, addWhere);
 
-        log.debug("DynamicCodeSearch SQL for {} ({}): {}", columnNm, columnSeq, sql);
-
         List<Map<String, Object>> rawList;
+        long startTime = System.currentTimeMillis();
         try {
             rawList = jdbcTemplate.query(sql, (rs, rowNum) -> {
                 ResultSetMetaData meta = rs.getMetaData();
@@ -163,8 +169,35 @@ public class DynamicCodeSearchService {
                 }
                 return map;
             });
+            long elapsedTime = System.currentTimeMillis() - startTime;
+
+            StringBuilder sb = new StringBuilder();
+            sb.append(ANSI_MAGENTA).append("---------------- [Dynamic Code Search SQL (dynamicsearch - CODE_SELECT) (").append(elapsedTime).append(")ms] ----------------").append(ANSI_RESET).append("\n");
+            sb.append("Column    : ").append(columnNm).append(" (Seq: ").append(columnSeq).append(")\n");
+            if (corpGr != null && !corpGr.isBlank()) {
+                sb.append("CorpGr    : ").append(corpGr).append("\n");
+            }
+            if (keyword != null && !keyword.isBlank()) {
+                sb.append("Keyword   : ").append(keyword).append("\n");
+            }
+            if (addWhere != null && !addWhere.isBlank()) {
+                sb.append("AddWhere  : ").append(addWhere).append("\n");
+            }
+            sb.append(ANSI_MAGENTA).append("-----------------------------------------------------------------------------------------------").append(ANSI_RESET).append("\n");
+            sb.append(formatSql(sql)).append("\n");
+            sb.append("ResultRows: ").append(rawList != null ? rawList.size() : 0).append("\n");
+            sb.append(ANSI_MAGENTA).append("-----------------------------------------------------------------------------------------------").append(ANSI_RESET);
+            sqlLog.info(sb.toString());
         } catch (Exception e) {
-            log.error("Failed to execute dynamic code search SQL: {}", sql, e);
+            long elapsedTime = System.currentTimeMillis() - startTime;
+            StringBuilder sb = new StringBuilder();
+            sb.append(ANSI_RED).append("---------------- [Dynamic Code Search SQL FAILED (").append(elapsedTime).append(")ms] ----------------").append(ANSI_RESET).append("\n");
+            sb.append("Column    : ").append(columnNm).append(" (Seq: ").append(columnSeq).append(")\n");
+            sb.append("Error     : ").append(e.getClass().getSimpleName()).append(": ").append(e.getMessage()).append("\n");
+            sb.append(ANSI_RED).append("-----------------------------------------------------------------------------------------------").append(ANSI_RESET).append("\n");
+            sb.append(formatSql(sql)).append("\n");
+            sb.append(ANSI_RED).append("-----------------------------------------------------------------------------------------------").append(ANSI_RESET);
+            sqlLog.error(sb.toString(), e);
             return Collections.emptyList();
         }
 
@@ -273,9 +306,8 @@ public class DynamicCodeSearchService {
         sql = sql.replace(":arg_code", "'" + code.trim() + "'");
         sql = applyAddWhere(sql, addWhere);
 
-        log.debug("DynamicCodeSearch EDIT_SELECT SQL: {}", sql);
-
         List<Map<String, Object>> list;
+        long startTime = System.currentTimeMillis();
         try {
             list = jdbcTemplate.query(sql, (rs, rowNum) -> {
                 ResultSetMetaData meta = rs.getMetaData();
@@ -286,8 +318,41 @@ public class DynamicCodeSearchService {
                 }
                 return map;
             });
+            long elapsedTime = System.currentTimeMillis() - startTime;
+
+            String codeName = "";
+            if (!list.isEmpty()) {
+                Map<String, Object> firstRow = list.get(0);
+                List<String> keys = new ArrayList<>(firstRow.keySet());
+                codeName = !keys.isEmpty() && firstRow.get(keys.get(0)) != null ? String.valueOf(firstRow.get(keys.get(0))) : "";
+            }
+
+            StringBuilder sb = new StringBuilder();
+            sb.append(ANSI_MAGENTA).append("---------------- [Dynamic Code Search SQL (dynamicsearch - EDIT_SELECT) (").append(elapsedTime).append(")ms] ----------------").append(ANSI_RESET).append("\n");
+            sb.append("Column    : ").append(columnNm).append(" (Seq: ").append(columnSeq).append(")\n");
+            sb.append("Code      : ").append(code).append("\n");
+            if (corpGr != null && !corpGr.isBlank()) {
+                sb.append("CorpGr    : ").append(corpGr).append("\n");
+            }
+            if (addWhere != null && !addWhere.isBlank()) {
+                sb.append("AddWhere  : ").append(addWhere).append("\n");
+            }
+            sb.append(ANSI_MAGENTA).append("-----------------------------------------------------------------------------------------------").append(ANSI_RESET).append("\n");
+            sb.append(formatSql(sql)).append("\n");
+            sb.append("FoundName : ").append(codeName.isEmpty() ? "(없음)" : codeName).append("\n");
+            sb.append(ANSI_MAGENTA).append("-----------------------------------------------------------------------------------------------").append(ANSI_RESET);
+            sqlLog.info(sb.toString());
         } catch (Exception e) {
-            log.error("Failed to execute EDIT_SELECT SQL: {}", sql, e);
+            long elapsedTime = System.currentTimeMillis() - startTime;
+            StringBuilder sb = new StringBuilder();
+            sb.append(ANSI_RED).append("---------------- [Dynamic Code Search SQL FAILED (").append(elapsedTime).append(")ms] ----------------").append(ANSI_RESET).append("\n");
+            sb.append("Column    : ").append(columnNm).append(" (Seq: ").append(columnSeq).append(")\n");
+            sb.append("Code      : ").append(code).append("\n");
+            sb.append("Error     : ").append(e.getClass().getSimpleName()).append(": ").append(e.getMessage()).append("\n");
+            sb.append(ANSI_RED).append("-----------------------------------------------------------------------------------------------").append(ANSI_RESET).append("\n");
+            sb.append(formatSql(sql)).append("\n");
+            sb.append(ANSI_RED).append("-----------------------------------------------------------------------------------------------").append(ANSI_RESET);
+            sqlLog.error(sb.toString(), e);
             return null;
         }
 
@@ -335,5 +400,25 @@ public class DynamicCodeSearchService {
                 return sql + " WHERE (" + trimmedWhere + ")";
             }
         }
+    }
+
+    /**
+     * 한 줄로 작성된 동적 SQL을 가독성 있게 들여쓰기/줄바꿈 포맷팅
+     */
+    private static String formatSql(String sql) {
+        if (sql == null || sql.isBlank()) return "";
+        return sql.trim()
+                .replaceAll("(?i)\\s+SELECT\\s+", "\nSELECT ")
+                .replaceAll("(?i)\\s+FROM\\s+", "\n  FROM ")
+                .replaceAll("(?i)\\s+JOIN\\s+", "\n  JOIN ")
+                .replaceAll("(?i)\\s+LEFT OUTER JOIN\\s+", "\n  LEFT OUTER JOIN ")
+                .replaceAll("(?i)\\s+LEFT JOIN\\s+", "\n  LEFT JOIN ")
+                .replaceAll("(?i)\\s+RIGHT JOIN\\s+", "\n  RIGHT JOIN ")
+                .replaceAll("(?i)\\s+INNER JOIN\\s+", "\n  INNER JOIN ")
+                .replaceAll("(?i)\\s+WHERE\\s+", "\n WHERE ")
+                .replaceAll("(?i)\\s+AND\\s+", "\n   AND ")
+                .replaceAll("(?i)\\s+OR\\s+", "\n    OR ")
+                .replaceAll("(?i)\\s+GROUP BY\\s+", "\n GROUP BY ")
+                .replaceAll("(?i)\\s+ORDER BY\\s+", "\n ORDER BY ");
     }
 }

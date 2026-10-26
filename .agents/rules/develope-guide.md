@@ -65,7 +65,8 @@ description: "AAMS 차세대 웹 시스템 화면 개발 프레임워크 표준 
    - `isInitialized` 플래그로 중복 초기화 방지
 2. **공통 컴포넌트 초기화**:
    - 기준일자 달력: `initFilterCalendar(pane, { onSelect: ... })` (수기 마크업 금지)
-   - 드롭다운: `initFilterDddw(pane, config)` 또는 `f_dddwctl.get2ColItemFormatter` (2열 커스텀 드롭다운)
+   - 상단 필터바 드롭다운: `initFilterDddw(pane, config)` 또는 `f_dddwctl.get2ColItemFormatter` (2열 커스텀 드롭다운)
+   - **그리드 DDDW 일괄 수신**: 파워빌더 `ue_dddw_retrieve`는 반드시 **`f_dddwctl.retrieveMultiple({ key: [...] })` 및 `dddwOptionsMap` 단일 객체 패턴**으로 병렬 수신 (`pane.onCorpGrChange` 시 연동 필수, [09-common-components-js.md] 2.5절 참조)
    - 스플리터: `AamsSplitter.init(pane)` (AamsSplitter.create 호출 절대 금지)
 3. **Tabulator 그리드 빌드**:
    - 원클릭 편집 진입: `editTriggerEvent: "click"` 및 편집 셀 `cellClick: aamsCellEdit`

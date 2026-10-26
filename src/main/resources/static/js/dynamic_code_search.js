@@ -232,7 +232,12 @@ window.DynamicCodeSearch = (function() {
 
     function closeModal() {
         const existing = document.getElementById("aamsDynamicCodeSearchModal");
-        if (existing) existing.remove();
+        if (existing) {
+            if (existing._tabulatorInstance) {
+                try { existing._tabulatorInstance.destroy(); } catch (e) {}
+            }
+            existing.remove();
+        }
         document.removeEventListener("keydown", handleModalEscKey);
     }
 
@@ -243,10 +248,7 @@ window.DynamicCodeSearch = (function() {
     }
 
     /**
-     * Render the modal DOM and handle interactions
-     */
-    /**
-     * Render the modal DOM and handle interactions
+     * Render the modal DOM with Tabulator grid and handle interactions
      */
     function renderModalDOM(config, fullList, initialKeyword, onSelectCallback) {
         let title = (config && config.cmnt) ? config.cmnt : "코드(더블클릭) 선택";
@@ -269,16 +271,19 @@ window.DynamicCodeSearch = (function() {
             });
         }
 
-        // 각 컬럼 너비 및 전체 그리드 너비 계산 (내부 그리드 너비에 딱 맞추기)
+        // 각 컬럼 너비 및 전체 모달 너비 계산
         let totalGridWidth = 50; // No. 컬럼 너비
-        const headers = [{ title: "No.", width: 50, align: "center" }];
+        const columns = [
+            { title: "No.", formatter: "rownum", width: 50, hozAlign: "center", headerHozAlign: "center", headerSort: false, resizable: false }
+        ];
+
+        let firstDataField = "code";
 
         rawHeaders.forEach((h, idx) => {
             let colW = 110;
             const t = (h.title || "").trim();
 
             if (rawSizes.length > idx && rawSizes[idx] > 0) {
-                // column_size 값이 있으면 (파워빌더 문자수 기준: 약 9~10px per unit)
                 colW = Math.max(80, Math.min(420, rawSizes[idx] * 9));
             } else if (t.includes("명") || t.includes("내역") || t.includes("내용") || t.includes("설명") || t.includes("한글")) {
                 colW = 260; // 명칭 컬럼은 넉넉하게 260px
@@ -293,18 +298,35 @@ window.DynamicCodeSearch = (function() {
             }
 
             const isAlignLeft = (t.includes("명") || t.includes("내역") || t.includes("내용") || t.includes("설명") || t.includes("한글"));
-            headers.push({
+            const fieldKey = (idx === 0) ? "code" : (idx === 1 ? "name" : "col_" + idx);
+            if (idx === 0) firstDataField = fieldKey;
+
+            const colDef = {
                 title: t,
+                field: fieldKey,
                 width: colW,
-                align: isAlignLeft ? "left" : "center"
-            });
+                hozAlign: isAlignLeft ? "left" : "center",
+                headerHozAlign: "center",
+                headerSort: true
+            };
+
+            // 첫 번째 데이터 컬럼(코드)에 자연어 및 '%' 우선 정렬 소터 지정
+            if (idx === 0) {
+                colDef.sorter = function(a, b, aRow, bRow, column, dir, sorterParams) {
+                    const sA = String(a ?? "").trim();
+                    const sB = String(b ?? "").trim();
+                    if (sA === "%") return dir === "asc" ? -1 : 1;
+                    if (sB === "%") return dir === "asc" ? 1 : -1;
+                    return sA.localeCompare(sB, undefined, { numeric: true, sensitivity: "base" });
+                };
+            }
+
+            columns.push(colDef);
             totalGridWidth += colW;
         });
 
-        // 내부 그리드 너비에 맞춰 모달창 전체 너비(WIDTH) 자동 계산
-        // 좌/우 5px 여백(총 10px), 테이블 테두리(2px), 스크롤바(약 16~18px) 및 여유분을 감안하여 모달 윈도우 너비 결정
-        // 최소 420px (상단 검색창 및 타이틀 영역 가독성 보장), 최대 92vw
-        const modalWidth = Math.max(420, Math.min(Math.round(window.innerWidth * 0.92), totalGridWidth + 34));
+        // 내부 그리드 너비에 맞춰 모달창 전체 너비(WIDTH) 자동 계산 (최소 440px ~ 최대 92vw)
+        const modalWidth = Math.max(440, Math.min(Math.round(window.innerWidth * 0.92), totalGridWidth + 34));
 
         // Create overlay
         const overlay = document.createElement("div");
@@ -324,19 +346,8 @@ window.DynamicCodeSearch = (function() {
                     <input type="text" class="dynamic-code-filter-input" placeholder="검색어 입력..." value="${escapeHtml(initialKeyword)}" />
                     <button type="button" class="dynamic-code-filter-btn">필터조회</button>
                 </div>
-                <div class="dynamic-code-modal-body">
-                    <div class="dynamic-code-table-wrapper">
-                        <table class="dynamic-code-table">
-                            <thead>
-                                <tr>
-                                    ${headers.map((h, i) => `<th style="width: ${h.width}px; text-align: ${h.align};">${escapeHtml(h.title)}</th>`).join("")}
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <!-- Rows injected dynamically -->
-                            </tbody>
-                        </table>
-                    </div>
+                <div class="dynamic-code-modal-body" style="padding: 6px; flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column;">
+                    <div id="dynamicCodeSearchGrid" class="tabulator-aams-grid" style="width: 100%; height: 100%;"></div>
                 </div>
             </div>
         `;
@@ -348,26 +359,146 @@ window.DynamicCodeSearch = (function() {
         const closeBtn = overlay.querySelector(".dynamic-code-modal-close");
         const filterInput = overlay.querySelector(".dynamic-code-filter-input");
         const filterBtn = overlay.querySelector(".dynamic-code-filter-btn");
-        const tbody = overlay.querySelector("tbody");
+        const gridContainer = overlay.querySelector("#dynamicCodeSearchGrid");
 
         closeBtn.onclick = closeModal;
         overlay.onclick = function(e) {
             if (e.target === overlay) closeModal();
         };
 
-        // Filter Rows logic
-        let currentFilteredList = [];
-        let selectedRowIndex = 0;
+        // 데이터 매핑: 각 행에 code, name, col_... 필드 바인딩
+        const tableData = (fullList || []).map((item, idx) => {
+            const keys = Object.keys(item).filter(k => k !== "fseq" && k !== "codeVal" && k !== "codeName");
+            const codeVal = item.codeVal != null ? String(item.codeVal) : (keys.length > 0 ? String(item[keys[0]] ?? "") : "");
+            const codeName = item.codeName != null ? String(item.codeName) : (keys.length > 1 ? String(item[keys[1]] ?? "") : "");
 
+            const rowObj = {
+                _raw: item,
+                code: codeVal,
+                name: codeName
+            };
+
+            rawHeaders.forEach((h, hIdx) => {
+                const fieldKey = (hIdx === 0) ? "code" : (hIdx === 1 ? "name" : "col_" + hIdx);
+                if (hIdx >= 2) {
+                    rowObj[fieldKey] = (keys.length > hIdx && item[keys[hIdx]] != null) ? String(item[keys[hIdx]] ?? "") : "";
+                }
+            });
+
+            return rowObj;
+        });
+
+        function chooseRow(rowObj) {
+            if (!rowObj) return;
+            const rawItem = rowObj._raw || rowObj;
+            const code = rowObj.code != null ? String(rowObj.code) : "";
+            const name = rowObj.name != null ? String(rowObj.name) : "";
+
+            closeModal();
+            if (typeof onSelectCallback === "function") {
+                onSelectCallback(code, name, rawItem);
+            }
+        }
+
+        // Tabulator 인스턴스 빌드 (현재 시스템의 .tabulator-aams-grid 스타일 적용)
+        const tabulatorInstance = new Tabulator(gridContainer, {
+            data: tableData,
+            height: "100%",
+            layout: "fitColumns",
+            selectableRows: 1,
+            headerSort: true,
+            // [핵심] No. 컬럼을 제외한 첫 번째 데이터 컬럼 기준 오름차순 기본 정렬 적용
+            initialSort: [
+                { column: firstDataField, dir: "asc" }
+            ],
+            columns: columns,
+            placeholder: "<div style='text-align:center; padding: 40px; color:#64748b;'>일치하는 데이터가 없습니다.</div>",
+            rowFormatter: function(row) {
+                const el = row.getElement();
+                if (el) {
+                    el.setAttribute("tabindex", "0");
+                }
+            }
+        });
+
+        overlay._tabulatorInstance = tabulatorInstance;
+
+        // [핵심 기능] 정렬된 첫 번째 보이는 행에 포커스 & 커서 안착 함수
+        function focusFirstSortedRow() {
+            if (!tabulatorInstance) return;
+            const visibleRows = tabulatorInstance.getRows("visible");
+            if (!visibleRows || visibleRows.length === 0) return;
+
+            tabulatorInstance.deselectRow();
+            const firstRow = visibleRows[0];
+            firstRow.select();
+            try { firstRow.scrollTo(); } catch (e) {}
+
+            const rowEl = firstRow.getElement();
+            if (rowEl) {
+                rowEl.setAttribute("tabindex", "0");
+                rowEl.focus();
+            }
+        }
+
+        // 인덱스 기반 행 포커스 & 선택 이동 헬퍼
+        function focusRowByIndex(idx) {
+            if (!tabulatorInstance) return;
+            const visibleRows = tabulatorInstance.getRows("visible");
+            if (!visibleRows || visibleRows.length === 0) return;
+
+            const nextIdx = Math.max(0, Math.min(visibleRows.length - 1, idx));
+            const targetRow = visibleRows[nextIdx];
+            tabulatorInstance.deselectRow();
+            targetRow.select();
+            try { targetRow.scrollTo(); } catch (e) {}
+
+            const rowEl = targetRow.getElement();
+            if (rowEl) {
+                rowEl.setAttribute("tabindex", "0");
+                rowEl.focus();
+            }
+        }
+
+        // 행 클릭 시 선택 및 포커스 부여
+        tabulatorInstance.on("rowClick", function(e, row) {
+            tabulatorInstance.deselectRow();
+            row.select();
+            const el = row.getElement();
+            if (el) {
+                el.setAttribute("tabindex", "0");
+                el.focus();
+            }
+        });
+
+        // 행 더블클릭 시 즉시 항목 선택 완료
+        tabulatorInstance.on("rowDblClick", function(e, row) {
+            chooseRow(row.getData());
+        });
+
+        // 테이블 빌드 완료 시 정렬된 첫 번째 행 자동 선택 & 커서 안착
+        tabulatorInstance.on("tableBuilt", function() {
+            if (initialKeyword && initialKeyword.trim()) {
+                applyFilter(initialKeyword);
+            } else {
+                setTimeout(focusFirstSortedRow, 40);
+            }
+        });
+
+        // 헤더 클릭 정렬 등 정렬 이벤트 발생 시 첫 번째 행으로 커서 동기화
+        tabulatorInstance.on("dataSorted", function() {
+            setTimeout(focusFirstSortedRow, 30);
+        });
+
+        // 실시간 필터 로직
         function applyFilter(kw) {
             const term = (kw || "").trim().toLowerCase();
-            const list = fullList || [];
             if (!term) {
-                currentFilteredList = list.slice();
+                tabulatorInstance.clearFilter();
             } else {
-                currentFilteredList = list.filter(item => {
-                    for (let key in item) {
-                        if (item[key] != null && String(item[key]).toLowerCase().includes(term)) {
+                tabulatorInstance.setFilter(function(data) {
+                    for (let key in data) {
+                        if (key !== "_raw" && data[key] != null && String(data[key]).toLowerCase().includes(term)) {
                             return true;
                         }
                     }
@@ -375,74 +506,11 @@ window.DynamicCodeSearch = (function() {
                 });
             }
 
-            renderTableRows();
+            // 필터링 후 정렬된 첫 번째 보이는 행에 자동 커서 안착
+            setTimeout(focusFirstSortedRow, 40);
         }
 
-        function renderTableRows() {
-            tbody.innerHTML = "";
-            selectedRowIndex = 0;
-
-            if (currentFilteredList.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="${headers.length}" style="text-align: center; height: 260px; line-height: 260px; color: #64748b; font-size: 13px;">일치하는 데이터가 없습니다.</td></tr>`;
-                return;
-            }
-
-            currentFilteredList.forEach((item, index) => {
-                const tr = document.createElement("tr");
-                tr.className = "dynamic-code-row" + (index === 0 ? " selected" : "");
-                tr.setAttribute("data-index", index);
-
-                // Column values: No, Code, Name, ... (headers.length와 1:1 일치)
-                const keys = Object.keys(item).filter(k => k !== "fseq" && k !== "codeVal" && k !== "codeName");
-                const colValues = [ index + 1 ];
-
-                rawHeaders.forEach((h, hIdx) => {
-                    let val = "";
-                    if (hIdx === 0) {
-                        val = item.codeVal != null ? item.codeVal : (keys.length > 0 ? item[keys[0]] : "");
-                    } else if (hIdx === 1) {
-                        val = item.codeName != null ? item.codeName : (keys.length > 1 ? item[keys[1]] : "");
-                    } else {
-                        val = (keys.length > hIdx && item[keys[hIdx]] != null) ? item[keys[hIdx]] : "";
-                    }
-                    colValues.push(val != null ? String(val) : "");
-                });
-
-                tr.innerHTML = colValues.map((val, cIdx) => {
-                    const headerDef = headers[cIdx] || { align: "center" };
-                    return `<td style="text-align: ${headerDef.align};">${escapeHtml(String(val))}</td>`;
-                }).join("");
-
-                // Click select
-                tr.onclick = function() {
-                    tbody.querySelectorAll(".dynamic-code-row").forEach(r => r.classList.remove("selected"));
-                    tr.classList.add("selected");
-                    selectedRowIndex = index;
-                };
-
-                // Double click choose
-                tr.ondblclick = function() {
-                    chooseItem(item);
-                };
-
-                tbody.appendChild(tr);
-            });
-        }
-
-
-        function chooseItem(item) {
-            if (!item) return;
-            const keys = Object.keys(item).filter(k => k !== "fseq" && k !== "codeVal" && k !== "codeName");
-            const code = item.codeVal != null ? String(item.codeVal) : (keys.length > 0 ? String(item[keys[0]]) : "");
-            const name = item.codeName != null ? String(item.codeName) : (keys.length > 1 ? String(item[keys[1]]) : "");
-
-            closeModal();
-            if (typeof onSelectCallback === "function") {
-                onSelectCallback(code, name, item);
-            }
-        }
-
-        // 1. Real-time live filtering on input (typing, IME composition, deletion)
+        // 실시간 검색어 입력 이벤트 (한글 조합 고려)
         filterInput.addEventListener("input", function() {
             applyFilter(filterInput.value);
         });
@@ -453,60 +521,89 @@ window.DynamicCodeSearch = (function() {
             applyFilter(filterInput.value);
         });
 
-        // 2. Filter button click
+        // 필터조회 버튼 클릭
         filterBtn.onclick = function() {
             applyFilter(filterInput.value);
         };
 
-        // 3. Filter input keydown navigation & selection
+        // 검색창 키보드 탐색 (아래 방향키 입력 시 그리드 첫 번째 행으로 커서 이동)
         filterInput.onkeydown = function(e) {
             if (e.key === "Enter") {
                 e.preventDefault();
                 if (e.isComposing) return;
 
-                if (currentFilteredList && currentFilteredList.length > 0) {
-                    const targetIndex = (selectedRowIndex >= 0 && selectedRowIndex < currentFilteredList.length) ? selectedRowIndex : 0;
-                    chooseItem(currentFilteredList[targetIndex]);
+                const selected = tabulatorInstance.getSelectedRows();
+                if (selected && selected.length > 0) {
+                    chooseRow(selected[0].getData());
+                } else {
+                    const visible = tabulatorInstance.getRows("visible");
+                    if (visible && visible.length > 0) {
+                        chooseRow(visible[0].getData());
+                    }
                 }
             } else if (e.key === "ArrowDown") {
                 e.preventDefault();
-                moveSelection(1);
+                focusFirstSortedRow();
+            }
+        };
+
+        // 그리드 영역 키보드 탐색 (위/아래 방향키 행 이동, Enter 선택 확정, 문자 타이핑 시 검색창 인계)
+        gridContainer.addEventListener("keydown", function(e) {
+            const visibleRows = tabulatorInstance.getRows("visible");
+            if (!visibleRows || visibleRows.length === 0) return;
+
+            const selected = tabulatorInstance.getSelectedRows();
+            let curIdx = 0;
+            if (selected && selected.length > 0) {
+                curIdx = visibleRows.indexOf(selected[0]);
+                if (curIdx < 0) curIdx = 0;
+            }
+
+            if (e.key === "ArrowDown") {
+                e.preventDefault();
+                focusRowByIndex(curIdx + 1);
             } else if (e.key === "ArrowUp") {
                 e.preventDefault();
-                moveSelection(-1);
-            }
-        };
-
-        // Table keyboard navigation
-        function moveSelection(delta) {
-            const rows = tbody.querySelectorAll(".dynamic-code-row");
-            if (rows.length === 0) return;
-            selectedRowIndex = Math.max(0, Math.min(rows.length - 1, selectedRowIndex + delta));
-            rows.forEach((r, idx) => {
-                if (idx === selectedRowIndex) {
-                    r.classList.add("selected");
-                    r.scrollIntoView({ block: "nearest" });
+                if (curIdx === 0) {
+                    // 최상단 첫 번째 행에서 위로 가면 상단 검색창으로 포커스 전환
+                    filterInput.focus();
+                    if (filterInput.value) filterInput.select();
                 } else {
-                    r.classList.remove("selected");
+                    focusRowByIndex(curIdx - 1);
                 }
-            });
-        }
+            } else if (e.key === "Enter") {
+                e.preventDefault();
+                if (selected && selected.length > 0) {
+                    chooseRow(selected[0].getData());
+                } else if (visibleRows.length > 0) {
+                    chooseRow(visibleRows[0].getData());
+                }
+            } else if (e.key === "Escape") {
+                e.preventDefault();
+                closeModal();
+            } else if (e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey) {
+                // 사용자가 행에 커서가 있는 상태에서 일반 문자/숫자/한글을 타이핑하면 상단 검색창으로 포커스 인계
+                filterInput.focus();
+                filterInput.value += e.key;
+                applyFilter(filterInput.value);
+                e.preventDefault();
+            }
+        });
 
-        // Keyboard Enter on modal window to choose selected row
+        // 모달 윈도우 엔터키 폴백
         modalWindow.onkeydown = function(e) {
-            if (e.key === "Enter" && e.target !== filterInput) {
-                if (currentFilteredList[selectedRowIndex]) {
-                    chooseItem(currentFilteredList[selectedRowIndex]);
+            if (e.key === "Enter" && e.target !== filterInput && !gridContainer.contains(e.target)) {
+                const selected = tabulatorInstance.getSelectedRows();
+                if (selected && selected.length > 0) {
+                    chooseRow(selected[0].getData());
                 }
             }
         };
 
-        // Initial render & focus
-        applyFilter(initialKeyword);
+        // [사용자 요구] 모달창이 뜰 때 sorting된 첫 번째 행에 커서(포커스)가 가있도록 안착
         setTimeout(() => {
-            filterInput.focus();
-            if (filterInput.value) filterInput.select();
-        }, 50);
+            focusFirstSortedRow();
+        }, 80);
     }
 
     function escapeHtml(str) {

@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.kfp.aams.domain.subscriptionrights.mapper.Ja020qMapper">
+
+    <!-- 1. 계좌(종목)별 주간 운용현황 펀드 목록 (d_uzm0hy) -->
+    <select id="selectFundList" resultType="com.kfp.aams.domain.dailyadvisory.dto.Uzm0hyDto">
+        SELECT t1.corp_gr                                       AS corpGr
+             , t1.enc_acct_no                                   AS encAcctNo
+             , t1.fund_cd                                       AS fundCd
+             , t1.fund_nm                                       AS fundNm
+             , t1.type_gb                                       AS typeGb
+             , t1.fst_seolj_ymd                                 AS fstSeoljYmd
+             , t1.sintak_gigan                                  AS sintakGigan
+             , t1.bf_gyul_ymd                                   AS bfGyulYmd
+             , t1.af_gyul_ymd                                   AS afGyulYmd
+             , t1.target_jasan                                  AS targetJasan
+             , t1.gyul_gi                                       AS gyulGi
+             , t1.haeji_gb                                      AS haejiGb
+             , t1.haeji_ymd                                     AS haejiYmd
+             , t1.re_seolj_year                                 AS reSeoljYear
+             , t1.re_seolj_aek                                  AS reSeoljAek
+             , t1.mg_cd                                         AS mgCd
+             , t1.re_seolj_ymd                                  AS reSeoljYmd
+             , t1.series_gb                                     AS seriesGb
+             , TO_DECRYPTS(t1.enc_acct_no)                     AS acctNo
+             , se.gugan                                         AS gugan
+          FROM SZM0IA t1
+             , SZX0SE se
+         WHERE t1.corp_gr                     = #{corpGr}
+           AND NVL(t1.haeji_ymd, TO_DATE('2099-12-31', 'YYYY-MM-DD')) &gt; #{ymd}
+           AND se.corp_gr                     = t1.corp_gr
+           AND se.series_gb                   = t1.series_gb
+         ORDER BY t1.haeji_gb ASC, t1.mg_cd ASC, t1.fund_nm ASC, t1.re_seolj_ymd ASC
+    </select>
+
+    <!-- 2. 구간 조회 (F_GUGAN) -->
+    <select id="selectGuganRaw" resultType="com.kfp.aams.domain.subscriptionrights.dto.Ja020qGuganRawDto">
+        SELECT gu.s3_fymd     AS s3Fymd
+             , gu.s3_tymd     AS s3Tymd
+             , gu.s3_ilsu     AS s3Ilsu
+             , gu.m3_fymd     AS m3Fymd
+             , gu.m3_tymd     AS m3Tymd
+             , gu.m3_ilsu     AS m3Ilsu
+             , gu.g3b_fymd    AS g3bFymd
+             , gu.g3b_tymd    AS g3bTymd
+             , gu.g3b_ilsu    AS g3bIlsu
+             , gu.b3_fymd     AS b3Fymd
+             , gu.b3_tymd     AS b3Tymd
+             , gu.b3_ilsu     AS b3Ilsu
+             , gu.m3_gu       AS m3Gu
+             , gu.g3_gu       AS g3Gu
+          FROM TABLE(F_GUGAN(#{corpGr}, #{fundCd}, #{ymd})) gu
+    </select>
+
+    <!-- 3. 최초설정일자 조회 (전구간 탭용) -->
+    <select id="selectFstSeoljYmd" resultType="java.time.LocalDate">
+        SELECT t1.FST_SEOLJ_YMD
+          FROM SZM0IA t1
+         WHERE t1.CORP_GR = #{corpGr}
+           AND t1.fund_cd = #{fundCd}
+    </select>
+
+</mapper>
