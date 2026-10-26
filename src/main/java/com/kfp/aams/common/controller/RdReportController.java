@@ -36,7 +36,16 @@ public class RdReportController {
 
     // 예약어 키 목록 (RD 파라미터가 아닌 컨트롤러 제어용 파라미터)
     private static final Set<String> RESERVED_KEYS = new HashSet<>(Arrays.asList(
-            "mrdname", "corpgr", "format", "downloadname", "params", "t", "_"));
+            "mrdname", "corpgr", "corp_gr", "format", "downloadname", "params", "t", "_"));
+
+    private String sanitizeCorpGr(String corpGr) {
+        if (corpGr == null || corpGr.isBlank()) return null;
+        corpGr = corpGr.trim();
+        if (corpGr.contains(",")) {
+            corpGr = corpGr.split(",")[0].trim();
+        }
+        return corpGr.isBlank() ? null : corpGr;
+    }
 
     public static class RdReportRequest {
         private String mrdName;
@@ -105,6 +114,7 @@ public class RdReportController {
             jakarta.servlet.http.HttpServletResponse response) {
 
         try {
+            corpGr = sanitizeCorpGr(corpGr);
             Map<String, Object> mergedParams = extractDynamicParams(allParams, paramsJson);
             String effectiveFormat = resolvePreviewFormat(format, userAgent);
             RdReportService.ExportResult result = rdReportService.generateReport(
@@ -142,6 +152,7 @@ public class RdReportController {
             @RequestParam Map<String, String> allParams) {
 
         try {
+            corpGr = sanitizeCorpGr(corpGr);
             Map<String, Object> mergedParams = extractDynamicParams(allParams, paramsJson);
             RdReportService.ExportResult result = rdReportService.generateReport(
                     corpGr, mrdName, mergedParams, format, downloadName);
@@ -169,7 +180,7 @@ public class RdReportController {
         try {
             String effectiveFormat = resolvePreviewFormat(req.getFormat(), userAgent);
             RdReportService.ExportResult result = rdReportService.generateReport(
-                    req.getCorpGr(), req.getMrdName(), req.getParams(), effectiveFormat, req.getDownloadName());
+                    sanitizeCorpGr(req.getCorpGr()), req.getMrdName(), req.getParams(), effectiveFormat, req.getDownloadName());
 
             if (isHtmlFormat(effectiveFormat)) {
                 response.setContentType("text/html; charset=UTF-8");
@@ -234,7 +245,7 @@ public class RdReportController {
     public ResponseEntity<byte[]> exportPost(@RequestBody RdReportRequest req) {
         try {
             RdReportService.ExportResult result = rdReportService.generateReport(
-                    req.getCorpGr(), req.getMrdName(), req.getParams(), req.getFormat(), req.getDownloadName());
+                    sanitizeCorpGr(req.getCorpGr()), req.getMrdName(), req.getParams(), req.getFormat(), req.getDownloadName());
 
             MediaType mediaType = MediaType.parseMediaType(result.getContentType());
 

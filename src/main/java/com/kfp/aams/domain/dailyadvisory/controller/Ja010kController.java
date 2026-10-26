@@ -51,7 +51,7 @@ public class Ja010kController {
 
         LocalDate baseDate = LocalDate.parse(workDateService.getWorkDateOrDefault(corpGr));
         LocalDate tymd = (paramTymd != null) ? paramTymd : baseDate;
-        LocalDate fymd = (paramFymd != null) ? paramFymd : baseDate.minusMonths(3).plusDays(1);
+        LocalDate fymd = (paramFymd != null) ? paramFymd : baseDate.minusMonths(3);
 
         model.addAttribute("fullpgm2", fullpgm2);
         model.addAttribute("corpGr", corpGr);

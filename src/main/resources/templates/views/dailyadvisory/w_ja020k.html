@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
-<div class="view-container layout-single ja020k-container layout-mobile-stack-container" th:fragment="ja020kView" style="display: flex; flex-direction: column; height: 100%; width: 100%; overflow: hidden;">
+<div class="view-container layout-single ja020k-container layout-mobile-stack-container" th:fragment="ja020kView" data-pgm-id="W_JA020K" style="display: flex; flex-direction: column; height: 100%; width: 100%; overflow: hidden;">
 
     <!-- 1. 상단 공통 툴바 (Row 1: 툴바 버튼 + 네비게이션 브레드크럼) -->
     <div class="view-toolbar">
@@ -114,20 +114,32 @@
                 var reportEngine = window.AamsReport;
                 reportViewer = (reportEngine && typeof reportEngine.bindViewer === 'function')
                     ? reportEngine.bindViewer(pane, {
-                        mrdName: function(data) {
-                            var seriesGb = getFilterSeriesGb();
-                            return (seriesGb === '1110') ? 'rd_ja020k1.mrd' : ((seriesGb === '1120') ? 'rd_ja020k2.mrd' : 'rd_ja020k3.mrd');
-                        },
-                        getParams: function(data) {
+                        buildPreviewUrl: function (data) {
+                            var corpGr = resolveCorpGr(pane);
                             var ymd = getFilterYmd(pane, 'YYYYMMDD');
                             var seriesGb = getFilterSeriesGb();
-                            var ymdDot = getFilterYmd(pane, 'YYYY.MM.DD');
-                            return {
-                                corpGr: resolveCorpGr(pane),
-                                series_gb: seriesGb,
-                                gubun: (seriesGb === '1110') ? '2' : ((seriesGb === '1120') ? '1' : ''),
-                                ymd: ymdDot
-                            };
+                            var rawUrl = '/api/daily/ja020k/preview?corpGr=' + encodeURIComponent(corpGr) +
+                                '&ymd=' + encodeURIComponent(ymd) +
+                                '&seriesGb=' + encodeURIComponent(seriesGb) +
+                                '&t=' + new Date().getTime();
+                            return reportEngine.formatPreviewUrl(rawUrl, 120);
+                        },
+                        buildExportUrl: function (data, format) {
+                            var corpGr = resolveCorpGr(pane);
+                            var ymd = getFilterYmd(pane, 'YYYYMMDD');
+                            var seriesGb = getFilterSeriesGb();
+                            return '/api/daily/ja020k/export?corpGr=' + encodeURIComponent(corpGr) +
+                                '&ymd=' + encodeURIComponent(ymd) +
+                                '&seriesGb=' + encodeURIComponent(seriesGb) +
+                                '&format=' + encodeURIComponent(format || 'pdf') +
+                                '&t=' + new Date().getTime();
+                        },
+                        getTitle: function (data) {
+                            var seriesNm = getFilterSeriesNm();
+                            return '일(종목)별 운용현황 (' + seriesNm + ')';
+                        },
+                        getStatus: function (data) {
+                            return "조회일자: " + getFilterYmd(pane);
                         },
                         beforeAction: function(data, action) {
                             var ymd = getFilterYmd(pane);

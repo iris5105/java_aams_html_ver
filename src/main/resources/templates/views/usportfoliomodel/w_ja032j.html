@@ -1,0 +1,727 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<!--
+  AAMS 화면 표준 템플릿: W_JA032J (해외주식종가/업종지수 등록)
+  - 파워빌더 소스: pb_recource/JA032/w_ja032j.srw (from wt_vertdetail)
+  - dw_list: d_ja032j1 (종가일자 및 주차 목록)
+  - dw_detail: d_ja032j2 (해외주식 종가 및 거래정보 상세)
+-->
+<div class="view-container layout-split-h layout-mobile-stack-container" th:fragment="mainView"
+     style="display: flex; flex-direction: column; height: 100%; width: 100%; overflow: hidden; background-color: #ffffff; position: relative;">
+
+    <!-- 0. 데이터 로딩 오버레이 (마스터/디테일 조회 및 저장 시 사용) -->
+    <div id="ja032jLoadingOverlay" class="view-loading-overlay d-none">
+        <div class="view-loading-card">
+            <div class="view-loading-spinner">
+                <i class="fa-solid fa-circle-notch fa-spin"></i>
+            </div>
+            <div class="view-loading-title">데이터 로딩 중</div>
+            <div id="ja032jLoadingDesc" class="view-loading-desc">
+                해외주식 종가 데이터를 불러오고 있습니다...
+            </div>
+            <div class="view-loading-sub">
+                데이터 건수가 많을 경우 수 초가 소요될 수 있습니다.
+            </div>
+        </div>
+    </div>
+
+    <!-- 1. 상단 공통 툴바 (Row 1) -->
+    <div class="view-toolbar">
+        <div class="toolbar-left">
+            <div th:replace="~{fragments/tab_header :: toolbarButtons}"></div>
+        </div>
+        <div th:replace="~{fragments/tab_header :: toolbarBreadcrumb}"></div>
+    </div>
+
+    <!-- 2. 상단 상태/정보바 (Row 2) -->
+    <div class="filter-bar" style="display: flex; align-items: center; justify-content: space-between; padding: 4px 12px; background-color: #f8fafc; border-bottom: 1px solid #cbd5e1;">
+        <div class="filter-left" style="display: flex; align-items: center; gap: 10px;">
+            <span style="font-size: 12px; font-weight: 600; color: #334155;">
+                <i class="fa-solid fa-earth-americas text-primary" style="margin-right: 4px;"></i>
+                미국 및 글로벌 시장 해외주식/업종지수 일별 종가 정보 관리
+            </span>
+            <span class="badge" style="background-color: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; font-size: 11px; padding: 2px 8px; border-radius: 4px;">
+                작업영업일: <span th:text="${workDate}"></span>
+            </span>
+        </div>
+        <div class="filter-actions" style="display: flex; align-items: center; gap: 6px;">
+            <span style="font-size: 11px; color: #64748b;">
+                <i class="fa-solid fa-circle-info" style="margin-right: 3px;"></i>
+                좌측 종가일자를 선택하면 우측에 종목별 종가 상세가 조회됩니다.
+            </span>
+        </div>
+    </div>
+
+    <!-- 3. 메인 콘텐츠 섹션 (좌우 수평 분할 AamsSplitter) -->
+    <div class="layout-split-h split-body layout-mobile-stack" data-split-key="W_JA032J_H" data-default-ratio="25:75" style="flex: 1; min-height: 0;">
+
+        <!-- 좌측 패널: 종가일자 마스터 목록 (dw_list - d_ja032j1) -->
+        <div class="pane-left master-section" style="width: 25%; height: 100%; display: flex; flex-direction: column; min-width: 200px;">
+            <div class="panel-header" style="display: flex; align-items: center; justify-content: space-between; padding: 6px 10px; background-color: #f1f5f9; border-bottom: 1px solid #cbd5e1;">
+                <span class="panel-title" style="font-size: 12px; font-weight: 700; color: #1e293b;">
+                    <i class="fa-solid fa-calendar-days text-primary" style="margin-right: 6px;"></i>종가일자 목록
+                </span>
+                <!-- 건수 배지 절대 작성 금지 (Zero-Count-Badge 준수) -->
+            </div>
+            <div class="panel-body" style="flex: 1; min-height: 0; padding: 0;">
+                <div id="gridMaster" class="tabulator-aams-grid"></div>
+            </div>
+        </div>
+
+        <!-- 수직 스플릿바 (외부 좌우) -->
+        <div class="split-gutter-h"></div>
+
+        <!-- 우측 패널: 해외주식 종가 상세 내역 (dw_detail - d_ja032j2) -->
+        <div class="pane-right detail-section" style="width: 75%; height: 100%; display: flex; flex-direction: column; min-width: 450px;">
+            <div class="panel-header" style="display: flex; align-items: center; justify-content: space-between; padding: 5px 10px; background-color: #f1f5f9; border-bottom: 1px solid #cbd5e1;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span class="panel-title" style="font-size: 12px; font-weight: 700; color: #1e293b;">
+                        <i class="fa-solid fa-chart-line text-success" style="margin-right: 6px;"></i>해외주식 종가/업종지수 상세
+                    </span>
+                    <span id="textSelectedDateBadge" class="badge" style="background-color: #dbeafe; color: #1d4ed8; font-size: 11px; padding: 2px 8px; border-radius: 4px; display: none;">
+                        기준일: <span id="textSelectedYmd"></span>
+                    </span>
+                </div>
+                <!-- 8개 서브 공통버튼 (detail_nav: 엑셀, 추가, 복사, 삭제, 첫행, 이전행, 다음행, 마지막행) -->
+                <div th:replace="~{fragments/grid/detail_nav :: detailNav(targetGrid='#gridDetail', fileName='해외주식종가', buttons='all')}"></div>
+            </div>
+            <div class="panel-body" style="flex: 1; min-height: 0; padding: 0;">
+                <div id="gridDetail" class="tabulator-aams-grid"></div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- 4. 화면 전용 격리 스크립트 블록 -->
+    <script th:inline="javascript">
+        (function () {
+            // MDI 최상위 탭 컨테이너 획득 (Zero-Hardcoded-ID & Pane Scoping)
+            const currentScript = document.currentScript;
+            const pane = currentScript ? (currentScript.closest('.tab-pane') || currentScript.closest('.view-container')) : null;
+            if (!pane) return;
+
+            let gridMaster = null;
+            let gridDetail = null;
+            let isInitialized = false;
+            let lastLoadedMasterKey = null;
+            let currentSelectedYmd = null;
+
+            // [로딩 화면 제어 헬퍼]
+            function showLoading(show, message) {
+                var overlay = pane.querySelector('#ja032jLoadingOverlay');
+                var desc = pane.querySelector('#ja032jLoadingDesc');
+                if (!overlay) return;
+                if (show) {
+                    if (desc && message) desc.textContent = message;
+                    overlay.classList.remove('d-none');
+                } else {
+                    overlay.classList.add('d-none');
+                }
+            }
+
+            // [초기화 1] Tabulator 그리드 빌드
+            function initGrids() {
+                // (1) 좌측 마스터 그리드 (dw_list - d_ja032j1)
+                const elMaster = pane.querySelector('#gridMaster');
+                if (elMaster) {
+                    gridMaster = new Tabulator(elMaster, {
+                        height: "100%",
+                        layout: "fitColumns",
+                        selectableRows: 1,
+                        placeholder: "조회된 종가일자 목록이 없습니다.",
+                        columns: [
+                            { title: "No.", formatter: "rownum", width: 45, hozAlign: "center", headerHozAlign: "center", headerSort: false },
+                            { title: "종가일자", field: "ymd", width: 120, hozAlign: "center", headerHozAlign: "center" },
+                            { title: "주", field: "week", width: 60, hozAlign: "center", headerHozAlign: "center" }
+                        ]
+                    });
+
+                    // 행 선택 삼중 안전망 (규칙 05-3)
+                    if (typeof setupTabulatorRowSelection === 'function') {
+                        setupTabulatorRowSelection(gridMaster, function (row, data) {
+                            syncDetail(row, data);
+                        });
+                    }
+                    gridMaster.on("rowClick", function (e, row) {
+                        syncDetail(row, row ? row.getData() : null);
+                    });
+                    gridMaster.on("rowSelectionChanged", function (data, rows) {
+                        if (rows && rows.length > 0) {
+                            syncDetail(rows[0], rows[0].getData());
+                        }
+                    });
+                }
+
+                // (2) 우측 디테일 그리드 (dw_detail - d_ja032j2)
+                const elDetail = pane.querySelector('#gridDetail');
+                if (elDetail) {
+                    gridDetail = new Tabulator(elDetail, {
+                        height: "100%",
+                        layout: "fitDataFill",
+                        selectableRows: 1,
+                        editTriggerEvent: "click", // 원클릭 인라인 편집 (규칙 04-1)
+                        placeholder: "좌측 종가일자를 선택하면 상세 종가 내역이 표출됩니다.",
+                        columns: [
+                            { title: "No.", formatter: "rownum", width: 45, hozAlign: "center", headerHozAlign: "center", headerSort: false, frozen: true },
+                            {
+                                title: "종목코드",
+                                field: "yjCd",
+                                width: 110,
+                                hozAlign: "center",
+                                headerHozAlign: "center",
+                                frozen: true,
+                                editor: "input",
+                                editable: function (cell) {
+                                    var rowData = cell.getRow().getData();
+                                    return !!rowData.isNew; // 신규 행만 코드 수정 가능
+                                },
+                                cellClick: aamsCellEdit,
+                                cellEdited: function (cell) {
+                                    onDetailCodeEdited(cell);
+                                }
+                            },
+                            {
+                                title: "",
+                                field: "xx_btn_yjCd",
+                                width: 36,
+                                minWidth: 36,
+                                maxWidth: 36,
+                                hozAlign: "center",
+                                headerHozAlign: "center",
+                                headerSort: false,
+                                resizable: false,
+                                frozen: true,
+                                formatter: function (cell) {
+                                    const rowData = cell.getRow().getData();
+                                    const disClass = rowData.isNew ? "" : "disabled";
+                                    return `<button type="button" class="btn-grid-addon btn-search ${disClass}" title="해외종목 검색"><i class="fa-solid fa-magnifying-glass"></i></button>`;
+                                },
+                                cellClick: function (e, cell) {
+                                    e.stopPropagation();
+                                    const row = cell.getRow();
+                                    const rowData = row.getData();
+                                    if (!rowData.isNew) return;
+                                    openStockSearchModal(row);
+                                }
+                            },
+                            {
+                                title: "주식종목명",
+                                field: "xxYjCd",
+                                minWidth: 160,
+                                width: 180,
+                                hozAlign: "left",
+                                headerHozAlign: "center",
+                                frozen: true,
+                                formatter: function (cell) {
+                                    return '<span class="font-bold text-dark">' + (cell.getValue() || '') + '</span>';
+                                }
+                            },
+                            {
+                                title: "종가",
+                                field: "jonga",
+                                width: 95,
+                                hozAlign: "right",
+                                headerHozAlign: "center",
+                                editor: "input",
+                                cellClick: aamsCellEdit,
+                                formatter: function (cell) {
+                                    var v = cell.getValue();
+                                    if (v == null || v === '') return '';
+                                    return (window.formatNumber ? window.formatNumber(v, 2) : Number(v).toFixed(2));
+                                },
+                                cellEdited: function (cell) {
+                                    markRowUpdated(cell);
+                                    // 전일대비 동적 재계산
+                                    var row = cell.getRow();
+                                    var curJonga = parseFloat(cell.getValue()) || 0;
+                                    var junJonga = parseFloat(row.getData().junJonga) || 0;
+                                    row.update({ diffJonga: (curJonga - junJonga) });
+                                }
+                            },
+                            {
+                                title: "전일대비",
+                                field: "diffJonga",
+                                width: 85,
+                                hozAlign: "right",
+                                headerHozAlign: "center",
+                                formatter: function (cell) {
+                                    var v = cell.getValue();
+                                    if (v == null || v === '') return '';
+                                    var num = parseFloat(v) || 0;
+                                    var str = (window.formatNumber ? window.formatNumber(num, 2) : num.toFixed(2));
+                                    if (num > 0) {
+                                        return '<span class="cell-price-up font-bold">▲ ' + str + '</span>';
+                                    } else if (num < 0) {
+                                        return '<span class="cell-price-down font-bold">▼ ' + str + '</span>';
+                                    }
+                                    return '<span class="cell-text-muted">- ' + str + '</span>';
+                                }
+                            },
+                            {
+                                title: "거래량",
+                                field: "syt0lpTvol",
+                                width: 100,
+                                hozAlign: "right",
+                                headerHozAlign: "center",
+                                editor: "input",
+                                cellClick: aamsCellEdit,
+                                formatter: function (cell) {
+                                    var v = cell.getValue();
+                                    return (v != null && v !== '') ? (window.formatNumber ? window.formatNumber(v, 0) : Number(v).toLocaleString()) : '';
+                                },
+                                cellEdited: function (cell) {
+                                    markRowUpdated(cell);
+                                }
+                            },
+                            {
+                                title: "거래대금",
+                                field: "syt0lpTamt",
+                                width: 115,
+                                hozAlign: "right",
+                                headerHozAlign: "center",
+                                editor: "input",
+                                cellClick: aamsCellEdit,
+                                formatter: function (cell) {
+                                    var v = cell.getValue();
+                                    return (v != null && v !== '') ? (window.formatNumber ? window.formatNumber(v, 0) : Number(v).toLocaleString()) : '';
+                                },
+                                cellEdited: function (cell) {
+                                    markRowUpdated(cell);
+                                }
+                            },
+                            {
+                                title: "상장주수",
+                                field: "syt0lpShar",
+                                width: 110,
+                                hozAlign: "right",
+                                headerHozAlign: "center",
+                                editor: "input",
+                                cellClick: aamsCellEdit,
+                                formatter: function (cell) {
+                                    var v = cell.getValue();
+                                    return (v != null && v !== '') ? (window.formatNumber ? window.formatNumber(v, 0) : Number(v).toLocaleString()) : '';
+                                },
+                                cellEdited: function (cell) {
+                                    markRowUpdated(cell);
+                                }
+                            },
+                            {
+                                title: "시가총액",
+                                field: "syt0lpTomv",
+                                width: 115,
+                                hozAlign: "right",
+                                headerHozAlign: "center",
+                                editor: "input",
+                                cellClick: aamsCellEdit,
+                                formatter: function (cell) {
+                                    var v = cell.getValue();
+                                    return (v != null && v !== '') ? (window.formatNumber ? window.formatNumber(v, 0) : Number(v).toLocaleString()) : '';
+                                },
+                                cellEdited: function (cell) {
+                                    markRowUpdated(cell);
+                                }
+                            },
+                            {
+                                title: "블룸버그코드",
+                                field: "blbgTckr",
+                                width: 100,
+                                hozAlign: "center",
+                                headerHozAlign: "center",
+                                headerCssClass: "col-hdr-blue"
+                            },
+                            {
+                                title: "ISIN코드",
+                                field: "isinCd",
+                                width: 130,
+                                hozAlign: "center",
+                                headerHozAlign: "center"
+                            },
+                            {
+                                title: "통화",
+                                field: "currency",
+                                width: 65,
+                                hozAlign: "center",
+                                headerHozAlign: "center",
+                                headerCssClass: "col-hdr-blue"
+                            }
+                        ]
+                    });
+                }
+            }
+
+            // [헬퍼] 행 변경 플래그 설정
+            function markRowUpdated(cell) {
+                var row = cell.getRow();
+                var data = row.getData();
+                if (!data.isNew) {
+                    row.update({ isUpdated: true, rowStatus: "U" });
+                }
+            }
+
+            // [종목 검색 모달]
+            function openStockSearchModal(row) {
+                const corpGr = (typeof resolveCorpGr === 'function') ? resolveCorpGr(pane) : '';
+                const curVal = row.getData().yjCd || '';
+                if (window.DynamicCodeSearch && typeof window.DynamicCodeSearch.openModal === 'function') {
+                    window.DynamicCodeSearch.openModal({
+                        columnNm: "koscom_cd", // 해외 종목 코드 검색
+                        seq: 1,
+                        corpGr: corpGr,
+                        initialKeyword: curVal,
+                        onSelect: function (code, name, fullRow) {
+                            row.update({
+                                yjCd: code,
+                                jmCd: code,
+                                xxYjCd: name,
+                                jmNm: name,
+                                isinCd: fullRow ? (fullRow.isinCd || fullRow.ISIN_CD || '') : '',
+                                currency: fullRow ? (fullRow.currency || fullRow.CURRENCY || 'USD') : 'USD',
+                                blbgTckr: fullRow ? (fullRow.blbgTckr || fullRow.BLBG_TCKR || '') : '',
+                                isUpdated: true
+                            });
+                        }
+                    });
+                }
+            }
+
+            // [종목코드 직접 수기 입력 처리]
+            function onDetailCodeEdited(cell) {
+                var row = cell.getRow();
+                var val = (cell.getValue() || '').trim().toUpperCase();
+                row.update({ yjCd: val, jmCd: val });
+                if (!val) {
+                    row.update({ xxYjCd: '', jmNm: '', isinCd: '', blbgTckr: '', currency: '' });
+                    return;
+                }
+
+                var corpGr = (typeof resolveCorpGr === 'function') ? resolveCorpGr(pane) : '';
+                var searchUrl = '/api/common/code-search/get?columnNm=koscom_cd&seq=1&corpGr=' + encodeURIComponent(corpGr) + '&code=' + encodeURIComponent(val);
+                fetch(searchUrl)
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data && data.code) {
+                            row.update({
+                                yjCd: data.code,
+                                jmCd: data.code,
+                                xxYjCd: data.codeName || data.name || '',
+                                jmNm: data.codeName || data.name || '',
+                                isinCd: data.isinCd || '',
+                                currency: data.currency || 'USD',
+                                blbgTckr: data.blbgTckr || '',
+                                isUpdated: true
+                            });
+                        } else {
+                            openStockSearchModal(row);
+                        }
+                    })
+                    .catch(() => openStockSearchModal(row));
+            }
+
+            // [동기화] 마스터 선택 -> 디테일 목록 로드
+            function syncDetail(row, masterRowData) {
+                if (!row) return;
+                var data = masterRowData || (row.getData ? row.getData() : null);
+                if (!data || !data.ymd) return;
+
+                var currentKey = data.ymd;
+                if (lastLoadedMasterKey === currentKey) return; // 중복 호출 방지 가드
+                lastLoadedMasterKey = currentKey;
+                currentSelectedYmd = data.ymd;
+
+                // 우측 헤더 뱃지 갱신
+                const badge = pane.querySelector('#textSelectedDateBadge');
+                const txt = pane.querySelector('#textSelectedYmd');
+                if (badge && txt) {
+                    txt.textContent = data.ymd;
+                    badge.style.display = 'inline-flex';
+                }
+
+                loadDetailData(data.ymd);
+            }
+
+            // [조회 1] 마스터 종가일자 목록 로드
+            function loadMasterData() {
+                const corpGr = (typeof resolveCorpGr === 'function') ? resolveCorpGr(pane) : '';
+                showLoading(true, "종가일자 목록을 불러오고 있습니다...");
+
+                fetch(`/api/usportfoliomodel/ja032j/master?corpGr=${encodeURIComponent(corpGr)}`)
+                    .then(res => res.json())
+                    .then(list => {
+                        lastLoadedMasterKey = null; // 재조회 시 첫 행 선택 보장
+                        if (gridDetail) gridDetail.clearData();
+                        if (gridMaster) {
+                            gridMaster.setData(list || []).then(function () {
+                                var rows = gridMaster.getRows();
+                                if (rows && rows.length > 0) {
+                                    rows[0].select();
+                                    syncDetail(rows[0], rows[0].getData());
+                                } else {
+                                    showLoading(false);
+                                }
+                            }).catch(function () {
+                                showLoading(false);
+                            });
+                        } else {
+                            showLoading(false);
+                        }
+                    })
+                    .catch(err => {
+                        showLoading(false);
+                        console.error("마스터 목록 조회 실패:", err);
+                        if (typeof showToast === 'function') showToast("종가일자 목록 조회 중 오류가 발생했습니다.", "error");
+                    });
+            }
+
+            // [조회 2] 디테일 해외주식 종가 목록 로드
+            function loadDetailData(ymd) {
+                if (!ymd) {
+                    showLoading(false);
+                    return;
+                }
+                const corpGr = (typeof resolveCorpGr === 'function') ? resolveCorpGr(pane) : '';
+                showLoading(true, ymd + " 해외주식 종가 데이터를 불러오고 있습니다...");
+
+                fetch(`/api/usportfoliomodel/ja032j/detail?corpGr=${encodeURIComponent(corpGr)}&ymd=${encodeURIComponent(ymd)}`)
+                    .then(res => res.json())
+                    .then(list => {
+                        if (gridDetail) {
+                            gridDetail.setData(list || []).then(function () {
+                                showLoading(false);
+                            }).catch(function () {
+                                showLoading(false);
+                            });
+                        } else {
+                            showLoading(false);
+                        }
+                    })
+                    .catch(err => {
+                        showLoading(false);
+                        console.error("디테일 목록 조회 실패:", err);
+                        if (typeof showToast === 'function') showToast("해외주식 종가 상세 조회 중 오류가 발생했습니다.", "error");
+                    });
+            }
+
+            // [행 추가]
+            function addDetailRow() {
+                if (!currentSelectedYmd) {
+                    if (typeof showToast === 'function') showToast("먼저 좌측에서 종가일자를 선택해주세요.", "warning");
+                    return;
+                }
+                if (!gridDetail) return;
+
+                const corpGr = (typeof resolveCorpGr === 'function') ? resolveCorpGr(pane) : '';
+                const newRow = {
+                    isNew: true,
+                    rowStatus: "C",
+                    corpGr: corpGr,
+                    ymd: currentSelectedYmd,
+                    yjCd: "",
+                    jmCd: "",
+                    xxYjCd: "",
+                    jmNm: "",
+                    jonga: 0,
+                    junJonga: 0,
+                    diffJonga: 0,
+                    syt0lpTvol: 0,
+                    syt0lpTamt: 0,
+                    syt0lpShar: 0,
+                    syt0lpTomv: 0,
+                    blbgTckr: "",
+                    isinCd: "",
+                    currency: "USD"
+                };
+
+                gridDetail.addRow(newRow, true).then(function (row) {
+                    row.select();
+                    if (typeof showToast === 'function') showToast("신규 행이 추가되었습니다. 종목코드를 입력하세요.", "info");
+                });
+            }
+
+            // [행 삭제]
+            function deleteDetailRow() {
+                if (!gridDetail) return;
+                var selectedRows = gridDetail.getSelectedRows();
+                if (!selectedRows || selectedRows.length === 0) {
+                    if (typeof showToast === 'function') showToast("삭제할 행을 선택해주세요.", "warning");
+                    return;
+                }
+
+                var row = selectedRows[0];
+                var rowData = row.getData();
+                if (rowData.isNew) {
+                    row.delete();
+                    if (typeof showToast === 'function') showToast("추가된 행이 취소되었습니다.", "info");
+                } else {
+                    row.update({ isDeleted: true, rowStatus: "D" });
+                    row.getElement().style.display = 'none'; // 화면에서 숨김 표시
+                    if (typeof showToast === 'function') showToast("삭제 대기 상태로 변경되었습니다. [저장] 시 반영됩니다.", "info");
+                }
+            }
+
+            // [행 복사]
+            function copyDetailRow() {
+                if (!gridDetail) return;
+                var selectedRows = gridDetail.getSelectedRows();
+                if (!selectedRows || selectedRows.length === 0) {
+                    if (typeof showToast === 'function') showToast("복사할 행을 선택해주세요.", "warning");
+                    return;
+                }
+
+                var origData = selectedRows[0].getData();
+                var copiedRow = Object.assign({}, origData, {
+                    isNew: true,
+                    isUpdated: false,
+                    isDeleted: false,
+                    rowStatus: "C",
+                    yjCd: "",
+                    jmCd: "",
+                    xxYjCd: "",
+                    jmNm: ""
+                });
+
+                gridDetail.addRow(copiedRow, true).then(function (row) {
+                    row.select();
+                    if (typeof showToast === 'function') showToast("행이 복사되었습니다. 종목코드를 입력하세요.", "info");
+                });
+            }
+
+            // [저장]
+            function saveDetailData() {
+                if (!gridDetail || !currentSelectedYmd) {
+                    if (typeof showToast === 'function') showToast("저장할 데이터가 없습니다.", "warning");
+                    return;
+                }
+
+                var allData = gridDetail.getData();
+                var changedList = [];
+
+                for (var i = 0; i < allData.length; i++) {
+                    var d = allData[i];
+                    if (d.isNew || d.isUpdated || d.isDeleted) {
+                        if ((d.isNew || d.isUpdated) && !d.isDeleted) {
+                            var code = (d.yjCd || d.jmCd || '').trim();
+                            if (!code) {
+                                if (typeof showToast === 'function') showToast("종목코드가 누락된 행이 있습니다.", "warning");
+                                return;
+                            }
+                        }
+                        changedList.push(d);
+                    }
+                }
+
+                if (changedList.length === 0) {
+                    if (typeof showToast === 'function') showToast("변경된 데이터가 없습니다.", "info");
+                    return;
+                }
+
+                const corpGr = (typeof resolveCorpGr === 'function') ? resolveCorpGr(pane) : '';
+                showLoading(true, "변경된 해외주식 종가 데이터를 저장하고 있습니다...");
+
+                fetch(`/api/usportfoliomodel/ja032j/save?corpGr=${encodeURIComponent(corpGr)}&ymd=${encodeURIComponent(currentSelectedYmd)}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(changedList)
+                })
+                    .then(res => res.json())
+                    .then(res => {
+                        showLoading(false);
+                        if (res.success) {
+                            if (typeof showToast === 'function') showToast(res.message || "저장되었습니다.", "success");
+                            loadDetailData(currentSelectedYmd);
+                        } else {
+                            if (typeof showToast === 'function') showToast(res.message || "저장 실패", "error");
+                        }
+                    })
+                    .catch(err => {
+                        showLoading(false);
+                        console.error("저장 실패:", err);
+                        if (typeof showToast === 'function') showToast("저장 처리 중 오류가 발생했습니다.", "error");
+                    });
+            }
+
+            // [스플리터 초기화]
+            function initSplitter() {
+                if (window.AamsSplitter && typeof window.AamsSplitter.init === 'function') {
+                    window.AamsSplitter.init(pane);
+                }
+            }
+
+            // [상단 툴바 및 서브버튼 이벤트 바인딩]
+            function initToolbar() {
+                pane.onSearch = function () {
+                    loadMasterData();
+                };
+
+                pane.onInput = function () {
+                    addDetailRow();
+                };
+
+                pane.onSave = function () {
+                    saveDetailData();
+                };
+
+                pane.onRefresh = function () {
+                    if (gridMaster) gridMaster.clearData();
+                    if (gridDetail) gridDetail.clearData();
+                    lastLoadedMasterKey = null; // Zero-Stale-Key 원칙
+                    currentSelectedYmd = null;
+                    const badge = pane.querySelector('#textSelectedDateBadge');
+                    if (badge) badge.style.display = 'none';
+
+                    showLoading(false);
+
+                    if (typeof showToast === 'function') showToast("화면이 초기화되었습니다.", "info");
+                };
+
+                pane.onExcel = function () {
+                    if (gridDetail) {
+                        gridDetail.download("xlsx", "해외주식종가_" + (currentSelectedYmd || "전체") + ".xlsx", { sheetName: "해외주식종가" });
+                    }
+                };
+
+                pane.onCorpGrChange = function (newCorpGr) {
+                    // 수동 조회 단일 정책 준수
+                };
+
+                // 서브 그리드 8종 공통 네비게이터 버튼 연동 (button.js 표준 계약: detailNav)
+                pane.onDetailAdd = pane.onDetailInput = function () {
+                    addDetailRow();
+                };
+
+                pane.onDetailDelete = function () {
+                    deleteDetailRow();
+                };
+
+                pane.onDetailCopy = function () {
+                    copyDetailRow();
+                };
+
+                pane.onDetailExcel = function () {
+                    if (gridDetail) {
+                        gridDetail.download("xlsx", "해외주식종가_" + (currentSelectedYmd || "전체") + ".xlsx", { sheetName: "해외주식종가" });
+                    }
+                };
+            }
+
+            // [MDI 단일 진입점]
+            function startInit() {
+                if (isInitialized) return;
+                isInitialized = true;
+
+                initGrids();
+                initSplitter();
+                initToolbar();
+
+                // 파워빌더 소스 원본: boolean eb_direct_retrieve = true (화면 진입 시 최초 1회 자동 로드)
+                loadMasterData();
+            }
+
+            if (document.readyState === "loading") {
+                document.addEventListener("DOMContentLoaded", startInit);
+            } else {
+                startInit();
+            }
+        })();
+    </script>
+</div>
+</html>

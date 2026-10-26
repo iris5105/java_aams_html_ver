@@ -1,0 +1,250 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.kfp.aams.domain.subscriptionrights.mapper.Ja020aMapper">
+
+    <!-- 1. 탭1: 기본정보 조회 (d_ja020a_t1a) -->
+    <select id="selectT1List" resultType="com.kfp.aams.domain.subscriptionrights.dto.Ja020aT1Dto">
+        SELECT t1.JC_JOIN                     AS jcJoin
+             , t1.ymd                         AS ymd
+             , t1.CY_GB                       AS cyGb
+             , t1.balh_co                     AS balhCo
+             , t1.JM_NM                       AS jmNm
+             , t1.JM_NM                       AS xxBalhCo
+             , t1.jg_tr_co_cd                 AS trCoCd
+             , t1.jg_tr_co_nm                 AS xxTrCoCd
+             , t1.START_YMD                   AS startYmd
+             , t1.END_YMD                     AS endYmd
+             , t1.SJ_YMD                      AS sjYmd
+             , t1.NABIB_YMD                   AS nabibYmd
+             , t1.TOT_B_JUSU                  AS totBJusu
+             , t1.TOT_G_JUSU                  AS totGJusu
+             , t1.tot_g_danga                 AS totGDanga
+             , t1.TOT_G_AEK                   AS totGAek
+             , t1.cy_jm_cd                    AS cyJmCd
+             , t1.sj_jm_cd                    AS sjJmCd
+             , t1.susu_per                    AS susuPer
+             , t1.jkm_per                     AS jkmPer
+             , t1.competition_rate            AS competitionRate
+             , t1.BIGO                        AS bigo
+             , t1.UPD_USER                    AS updUser
+             , f_jm_nm('', t1.cy_jm_cd)       AS xxCyJmCd
+             , f_jm_nm('', t1.sj_jm_cd)       AS xxSjJmCd
+             , CASE WHEN t1.balh_co IS NULL OR
+                         ((t1.start_ymd IS NULL OR t1.start_ymd &lt; aa.hyun_ymd) AND (NVL(t1.sj_ymd, aa.hyun_ymd + 1) &gt; aa.hyun_ymd))
+                    THEN 1
+                    ELSE 0
+               END                            AS pVisible
+          FROM SZX0AA aa
+             , SJG1JC t1
+         WHERE aa.corp_gr = #{corpGr}
+         ORDER BY t1.ymd DESC, t1.jm_nm ASC, t1.balh_co ASC
+    </select>
+
+    <!-- 신규 관리번호(jc_join) 채번 -->
+    <select id="selectNextJcJoin" resultType="string">
+        SELECT NVL(f_n0(seqval('join_seq')), TO_CHAR(SYSDATE, 'YYYYMMDD') || LPAD(NVL(MAX(TO_NUMBER(SUBSTR(jc_join, 9))), 0) + 1, 2, '0'))
+          FROM SJG1JC
+    </select>
+
+    <!-- SJG1JC 등록 -->
+    <insert id="insertSjg1jc">
+        INSERT INTO SJG1JC (
+            JC_JOIN, ymd, CY_GB, balh_co, JM_NM, jg_tr_co_cd, jg_tr_co_nm,
+            START_YMD, END_YMD, SJ_YMD, NABIB_YMD, TOT_B_JUSU, TOT_G_JUSU,
+            tot_g_danga, TOT_G_AEK, cy_jm_cd, sj_jm_cd, susu_per, jkm_per,
+            competition_rate, BIGO, UPD_USER
+        ) VALUES (
+            #{jcJoin}, #{ymd}, #{cyGb}, #{balhCo}, #{jmNm}, #{trCoCd}, #{xxTrCoCd},
+            #{startYmd}, #{endYmd}, #{sjYmd}, #{nabibYmd}, #{totBJusu}, #{totGJusu},
+            #{totGDanga}, #{totGAek}, #{cyJmCd}, #{sjJmCd}, #{susuPer}, #{jkmPer},
+            #{competitionRate}, #{bigo}, #{updUser}
+        )
+    </insert>
+
+    <!-- SJG1JC 수정 -->
+    <update id="updateSjg1jc">
+        UPDATE SJG1JC
+           SET ymd              = #{ymd}
+             , CY_GB            = #{cyGb}
+             , balh_co          = #{balhCo}
+             , JM_NM            = #{jmNm}
+             , jg_tr_co_cd      = #{trCoCd}
+             , jg_tr_co_nm      = #{xxTrCoCd}
+             , START_YMD        = #{startYmd}
+             , END_YMD          = #{endYmd}
+             , SJ_YMD           = #{sjYmd}
+             , NABIB_YMD        = #{nabibYmd}
+             , TOT_B_JUSU       = #{totBJusu}
+             , TOT_G_JUSU       = #{totGJusu}
+             , tot_g_danga      = #{totGDanga}
+             , TOT_G_AEK        = #{totGAek}
+             , cy_jm_cd         = #{cyJmCd}
+             , sj_jm_cd         = #{sjJmCd}
+             , susu_per         = #{susuPer}
+             , jkm_per          = #{jkmPer}
+             , competition_rate = #{competitionRate}
+             , BIGO             = #{bigo}
+             , UPD_USER         = #{updUser}
+         WHERE JC_JOIN          = #{jcJoin}
+    </update>
+
+    <!-- SJG1JC 삭제 -->
+    <delete id="deleteSjg1jc">
+        DELETE FROM SJG1JC WHERE JC_JOIN = #{jcJoin}
+    </delete>
+
+    <!-- SJG1FC 신청/청약 데이터 존재 여부 확인 -->
+    <select id="countSjg1fc" resultType="int">
+        SELECT COUNT(*) FROM SJG1FC WHERE JC_JOIN = #{jcJoin}
+    </select>
+
+    <!-- 2. 탭2: 청약종목 목록 조회 (d_ja020a_t4a) -->
+    <select id="selectT4aList" resultType="com.kfp.aams.domain.subscriptionrights.dto.Ja020aT4aDto">
+        SELECT tr.corp_gr                         AS corpGr
+             , TR.JC_JOIN                         AS jcJoin
+             , tr.jg_tr_co_cd                     AS jgTrCoCd
+             , tr.sc_YMD                          AS scYmd
+             , tr.sc_JUSU                         AS scJusu
+             , tr.sc_DANGA                        AS scDanga
+             , tr.sc_AEK                          AS scAek
+             , tr.sc_USER                         AS scUser
+             , tr.cy_YMD                          AS cyYmd
+             , tr.cy_JUSU                         AS cyJusu
+             , tr.cy_DANGA                        AS cyDanga
+             , tr.cy_AEK                          AS cyAek
+             , tr.cy_JKM                          AS cyJkm
+             , tr.cy_USER                         AS cyUser
+             , tr.lock_end                        AS lockEnd
+             , tr.nabib_ymd                       AS nabibYmd
+             , tr.cy_type                         AS cyType
+             , tr.BIGO                            AS bigo
+             , T1.JC_JOIN                         AS jcJcJoin
+             , t1.ymd                             AS ymd
+             , t1.balh_co                         AS balhCo
+             , t1.jg_tr_co_cd                     AS sjg1jcJgTrCoCd
+             , t1.jg_tr_co_nm                     AS jgTrCoNm
+             , t1.JM_NM                           AS jmNm
+             , f_balh_nm(#{corpGr}, t1.balh_co)   AS xxBalhCo
+             , t1.cy_GB                           AS cyGb
+             , t1.sj_ymd                          AS sjYmd
+             , t1.sj_jm_cd                        AS sjJmCd
+             , t1.tot_g_danga                     AS totGDanga
+             , t1.start_ymd                       AS startYmd
+             , t1.end_ymd                         AS endYmd
+             , t1.susu_per                        AS susuPer
+             , t1.jkm_per                         AS jkmPer
+             , t1.nabib_ymd                       AS jcNabibYmd
+             , t1.bigo                            AS jcBigo
+             , CASE WHEN t1.nabib_ymd &gt; aa.hyun_ymd
+                    THEN 1
+                    ELSE 0
+               END                                AS pVisible
+          FROM SZX0AA aa
+             , SJG1JC t1
+          LEFT OUTER JOIN sjg1jc_tr tr  ON tr.corp_gr = #{corpGr}
+                                       AND tr.JC_JOIN = t1.JC_JOIN
+         WHERE aa.corp_gr = #{corpGr}
+           AND t1.ymd     &lt;= aa.GIJUNGA_YMD
+           AND t1.balh_co IS NOT NULL
+           AND (t1.nabib_ymd &gt;= aa.hyun_ymd OR tr.jc_join IS NOT NULL)
+         ORDER BY t1.ymd DESC, t1.jm_nm ASC, t1.sj_jm_cd ASC
+    </select>
+
+    <!-- 3. 탭2: 펀드별 배정 목록 조회 (d_ja020a_t4b) -->
+    <select id="selectT4bList" resultType="com.kfp.aams.domain.subscriptionrights.dto.Ja020aT4bDto">
+        SELECT t1.corp_gr                         AS corpGr
+             , t1.JC_JOIN                         AS jcJoin
+             , t1.jg_tr_co_cd                     AS jgTrCoCd
+             , t1.FUND_CD                         AS fundCd
+             , gi.SUN_JASAN_AEK                   AS sunJasanAek
+             , t1.SC_JUSU                         AS scJusu
+             , t1.SC_AEK                          AS scAek
+             , t1.CY_JUSU                         AS cyJusu
+             , t1.CY_AEK                          AS cyAek
+             , t1.CY_JKM                          AS cyJkm
+             , t1.CY_SUSU                         AS cySusu
+             , NVL(t1.CY_AEK, 0) + NVL(t1.CY_SUSU, 0) - NVL(t1.CY_JKM, 0) AS cyGyuljeAek
+             , t1.lock_end                        AS lockEnd
+             , t1.f47_ymd                         AS f47Ymd
+             , f_fund_nm(t1.corp_gr, t1.fund_cd)  AS fundNm
+             , f_fund_nm(t1.corp_gr, t1.fund_cd)  AS xxFundCd
+             , CASE WHEN tr.nabib_ymd &gt;= #{workDate} THEN 1
+                    ELSE 0
+               END                                AS pVisible
+          FROM sjg1fc t1
+             , sjg1jc tr
+             , skt0gi gi
+         WHERE t1.corp_gr     = #{corpGr}
+           AND t1.JC_JOIN     = #{jcJoin}
+           AND t1.jg_tr_co_cd = #{jgTrCoCd}
+           AND tr.jc_join     = t1.jc_join
+           AND tr.jg_tr_co_cd = t1.jg_tr_co_cd
+           AND gi.corp_gr     = t1.corp_gr
+           AND gi.YMD         = #{ymd} - 1
+           AND gi.FUND_CD     = t1.FUND_CD
+         ORDER BY t1.fund_cd ASC
+    </select>
+
+    <!-- 청약 헤더 저장 (sjg1jc_tr MERGE) -->
+    <update id="mergeSjg1jcTr">
+        MERGE INTO sjg1jc_tr tr
+        USING DUAL
+           ON (tr.corp_gr = #{corpGr} AND tr.jc_join = #{jcJoin} AND tr.jg_tr_co_cd = #{jgTrCoCd})
+        WHEN MATCHED THEN
+           UPDATE SET tr.cy_ymd    = #{cyYmd}
+                    , tr.cy_jusu   = #{cyJusu}
+                    , tr.cy_danga  = #{cyDanga}
+                    , tr.cy_aek    = #{cyAek}
+                    , tr.cy_jkm    = #{cyJkm}
+                    , tr.cy_user   = #{cyUser}
+                    , tr.lock_end  = #{lockEnd}
+                    , tr.nabib_ymd = #{nabibYmd}
+                    , tr.cy_type   = #{cyType}
+                    , tr.bigo      = #{bigo}
+        WHEN NOT MATCHED THEN
+           INSERT (corp_gr, jc_join, jg_tr_co_cd, cy_ymd, cy_jusu, cy_danga, cy_aek, cy_jkm, cy_user, lock_end, nabib_ymd, cy_type, bigo)
+           VALUES (#{corpGr}, #{jcJoin}, #{jgTrCoCd}, #{cyYmd}, #{cyJusu}, #{cyDanga}, #{cyAek}, #{cyJkm}, #{cyUser}, #{lockEnd}, #{nabibYmd}, #{cyType}, #{bigo})
+    </update>
+
+    <!-- 펀드별 배정 저장 (sjg1fc UPDATE) -->
+    <update id="updateSjg1fc">
+        UPDATE sjg1fc
+           SET cy_jusu  = #{cyJusu}
+             , cy_aek   = #{cyAek}
+             , cy_jkm   = #{cyJkm}
+             , cy_susu  = #{cySusu}
+             , lock_end = #{lockEnd}
+         WHERE corp_gr     = #{corpGr}
+           AND jc_join     = #{jcJoin}
+           AND jg_tr_co_cd = #{jgTrCoCd}
+           AND fund_cd     = #{fundCd}
+    </update>
+
+    <!-- 4. 탭3: 수요예측참여총괄표 목록 조회 (d_ja020a_t5) -->
+    <select id="selectT5List" resultType="com.kfp.aams.domain.subscriptionrights.dto.Ja020aT5Dto">
+        SELECT tr.CORP_GR                         AS corpGr
+             , t1.YMD                             AS ymd
+             , t1.JC_JOIN                         AS jcJoin
+             , t1.sj_JM_CD                        AS sjJmCd
+             , tr.JG_TR_CO_CD                     AS jgTrCoCd
+             , t1.JM_NM                           AS jmNm
+             , t1.CY_GB                           AS cyGb
+             , tr.sc_ymd                          AS scYmd
+             , tr.SC_JUSU                         AS scJusu
+             , tr.SC_DANGA                        AS scDanga
+             , tr.CY_JUSU                         AS cyJusu
+             , tr.CY_DANGA                        AS cyDanga
+             , tr.BIGO                            AS bigo
+             , tr.lock_end                        AS lockEnd
+             , tr.CY_YMD                          AS cyYmd
+             , tr.NABIB_YMD                       AS nabibYmd
+          FROM sjg1jc t1
+             , sjg1jc_tr tr
+         WHERE tr.corp_gr = #{corpGr}
+           AND tr.jc_join = t1.jc_join
+           AND tr.cy_jusu &gt; 0
+         ORDER BY t1.ymd DESC, t1.jm_nm ASC, t1.sj_jm_cd ASC
+    </select>
+
+</mapper>

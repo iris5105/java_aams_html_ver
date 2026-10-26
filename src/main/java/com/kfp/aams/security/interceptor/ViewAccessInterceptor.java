@@ -37,10 +37,11 @@ public class ViewAccessInterceptor implements HandlerInterceptor {
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
         String uri = request.getRequestURI();
 
-        // 1. 공통 및 예외 경로 2차 방어 (화이트리스트)
+        // 1. 공통 및 예외 경로 2차 방어 (화이트리스트: 공통뷰, 에러, 보안설정, 다운로드, 파일내보내기, 리포트 미리보기)
         if (uri.startsWith("/views/common/") || uri.equals("/error")
                 || uri.contains("/security-config") || uri.contains("/download")
-                || uri.contains("/export") || uri.contains("/rd/")) {
+                || uri.contains("/export") || uri.contains("/rd/")
+                || uri.contains("/preview") || uri.contains("/report")) {
             return true;
         }
 
@@ -259,6 +260,12 @@ public class ViewAccessInterceptor implements HandlerInterceptor {
         String secFetchDest = request.getHeader("Sec-Fetch-Dest");
         if ("empty".equalsIgnoreCase(secFetchDest)) {
             return false; // JS Fetch MDI 비동기 호출
+        }
+
+        // iframe, frame, object, embed 내부에서 로드되는 프레임 임베디드 호출은 주소창 직접 입력이 아님
+        if ("iframe".equalsIgnoreCase(secFetchDest) || "frame".equalsIgnoreCase(secFetchDest)
+                || "object".equalsIgnoreCase(secFetchDest) || "embed".equalsIgnoreCase(secFetchDest)) {
+            return false;
         }
 
         if ("document".equalsIgnoreCase(secFetchDest)) {

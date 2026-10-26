@@ -22,7 +22,22 @@
         buildPreviewUrl: function(mrdName, params, options) {
             options = options || {};
             var qs = ['mrdName=' + encodeURIComponent(mrdName)];
-            if (options.corpGr) qs.push('corpGr=' + encodeURIComponent(options.corpGr));
+
+            // 회사그룹(corpGr) 단일값 정제 및 중복 방어
+            var effectiveCorpGr = options.corpGr;
+            if (!effectiveCorpGr && params && typeof params === 'object') {
+                effectiveCorpGr = params.corpGr || params.corp_gr;
+            }
+            if (effectiveCorpGr) {
+                effectiveCorpGr = String(effectiveCorpGr).trim();
+                if (effectiveCorpGr.indexOf(',') !== -1) {
+                    effectiveCorpGr = effectiveCorpGr.split(',')[0].trim();
+                }
+                if (effectiveCorpGr) {
+                    qs.push('corpGr=' + encodeURIComponent(effectiveCorpGr));
+                }
+            }
+
             if (options.downloadName) qs.push('downloadName=' + encodeURIComponent(options.downloadName));
             if (options.timestamp !== false) qs.push('t=' + new Date().getTime());
 
@@ -34,6 +49,10 @@
             if (params && typeof params === 'object') {
                 for (var k in params) {
                     if (params.hasOwnProperty(k) && params[k] !== undefined && params[k] !== null) {
+                        var kLower = k.trim().toLowerCase();
+                        if (kLower === 'corpgr' || kLower === 'corp_gr') {
+                            continue; // 이미 위에서 단일 corpGr로 추가함
+                        }
                         qs.push(encodeURIComponent(k) + '=' + encodeURIComponent(params[k]));
                     }
                 }
@@ -55,13 +74,32 @@
             options = options || {};
             var qs = ['mrdName=' + encodeURIComponent(mrdName)];
             qs.push('format=' + encodeURIComponent(format || 'pdf'));
-            if (options.corpGr) qs.push('corpGr=' + encodeURIComponent(options.corpGr));
+
+            // 회사그룹(corpGr) 단일값 정제 및 중복 방어
+            var effectiveCorpGr = options.corpGr;
+            if (!effectiveCorpGr && params && typeof params === 'object') {
+                effectiveCorpGr = params.corpGr || params.corp_gr;
+            }
+            if (effectiveCorpGr) {
+                effectiveCorpGr = String(effectiveCorpGr).trim();
+                if (effectiveCorpGr.indexOf(',') !== -1) {
+                    effectiveCorpGr = effectiveCorpGr.split(',')[0].trim();
+                }
+                if (effectiveCorpGr) {
+                    qs.push('corpGr=' + encodeURIComponent(effectiveCorpGr));
+                }
+            }
+
             if (options.downloadName) qs.push('downloadName=' + encodeURIComponent(options.downloadName));
             qs.push('t=' + new Date().getTime());
 
             if (params && typeof params === 'object') {
                 for (var k in params) {
                     if (params.hasOwnProperty(k) && params[k] !== undefined && params[k] !== null) {
+                        var kLower = k.trim().toLowerCase();
+                        if (kLower === 'corpgr' || kLower === 'corp_gr') {
+                            continue; // 이미 위에서 단일 corpGr로 추가함
+                        }
                         qs.push(encodeURIComponent(k) + '=' + encodeURIComponent(params[k]));
                     }
                 }
@@ -157,9 +195,14 @@
             }
 
             function resolveCorp() {
-                if (typeof config.getCorpGr === 'function') return config.getCorpGr();
-                if (typeof window.resolveCorpGr === 'function') return window.resolveCorpGr(root);
-                return '';
+                var c = '';
+                if (typeof config.getCorpGr === 'function') c = config.getCorpGr(selectedData);
+                else if (typeof window.resolveCorpGr === 'function') c = window.resolveCorpGr(root);
+                if (c) {
+                    c = String(c).trim();
+                    if (c.indexOf(',') !== -1) c = c.split(',')[0].trim();
+                }
+                return c;
             }
 
             function resolveDataKey(data) {

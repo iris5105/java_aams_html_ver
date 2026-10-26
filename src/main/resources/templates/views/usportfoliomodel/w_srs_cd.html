@@ -78,8 +78,19 @@
                 }
             }
 
+            // [기본값 설정] 해외주식종목 필터 기본값 '%' (전체)
+            function setDefaultStockFilter() {
+                var input = pane.querySelector('#filterXx');
+                var text = pane.querySelector('#textXxName');
+                if (input) input.value = '%';
+                if (text) text.textContent = '(%) 전체';
+            }
+
             // [초기화 2] 다이나믹 코드검색 컴포넌트 (해외주식종목: seq 51)
             function initCodeSearch() {
+                // 기본값 '%' 전체 세팅
+                setDefaultStockFilter();
+
                 if (window.DynamicCodeSearch && typeof window.DynamicCodeSearch.bind === 'function') {
                     codeSearchInstance = window.DynamicCodeSearch.bind({
                         inputEl: "#filterXx",
@@ -93,6 +104,9 @@
                         },
                         onSelect: function (code, name, rowData) {
                             // 규칙 08 준수: 필터 조건 변경 시 자동 조회 절대 금지
+                            if (!code || code === '%') {
+                                setDefaultStockFilter();
+                            }
                         }
                     });
                 }
@@ -106,7 +120,6 @@
                         height: "100%",
                         layout: "fitDataFill",
                         selectableRows: 1,
-                        editTriggerEvent: "click",
                         placeholder: "조회된 데이터가 없습니다.",
                         rowFormatter: function (row) {
                             const data = row.getData();
@@ -129,13 +142,7 @@
                                 width: 160,
                                 hozAlign: "left",
                                 headerHozAlign: "center",
-                                headerSort: true,
-                                editor: "input",
-                                editable: function (cell) {
-                                    var data = cell.getRow().getData();
-                                    return !!data.isNew;
-                                },
-                                cellClick: (typeof aamsCellEdit === 'function') ? aamsCellEdit : undefined
+                                headerSort: true
                             },
                             {
                                 title: "행사가격",
@@ -144,18 +151,10 @@
                                 hozAlign: "right",
                                 headerHozAlign: "center",
                                 headerSort: true,
-                                editor: "number",
-                                cellClick: (typeof aamsCellEdit === 'function') ? aamsCellEdit : undefined,
                                 formatter: function (cell) {
                                     var val = cell.getValue();
                                     if (val == null || val === '') return '';
                                     return Number(val).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 });
-                                },
-                                cellEdited: function (cell) {
-                                    var row = cell.getRow();
-                                    var data = row.getData();
-                                    data.isUpdated = true;
-                                    onMasterCodeParamsChanged(row);
                                 }
                             },
                             {
@@ -165,52 +164,8 @@
                                 hozAlign: "center",
                                 headerHozAlign: "center",
                                 headerSort: true,
-                                editor: window.aamsDateEditor || "input",
-                                cellClick: (typeof aamsCellEdit === 'function') ? aamsCellEdit : undefined,
                                 formatter: function (cell) {
                                     return formatDateVal(cell.getValue());
-                                },
-                                cellEdited: function (cell) {
-                                    if (typeof aamsValidateDateCell === 'function') {
-                                        aamsValidateDateCell(cell, function (c, validDate) {
-                                            var row = c.getRow();
-                                            row.update({ exprDate: validDate, isUpdated: true });
-                                            onMasterCodeParamsChanged(row);
-                                        });
-                                    } else {
-                                        var row = cell.getRow();
-                                        row.update({ exprDate: formatDateVal(cell.getValue()), isUpdated: true });
-                                        onMasterCodeParamsChanged(row);
-                                    }
-                                }
-                            },
-                            {
-                                title: "",
-                                field: "_btn_exprDate",
-                                width: 36,
-                                minWidth: 36,
-                                maxWidth: 36,
-                                hozAlign: "center",
-                                headerSort: false,
-                                resizable: false,
-                                formatter: function () {
-                                    return '<button type="button" class="btn-grid-addon btn-cal" title="만기일자 선택"><i class="fa-regular fa-calendar-days"></i></button>';
-                                },
-                                cellClick: function (e, cell) {
-                                    e.stopPropagation();
-                                    var row = cell.getRow();
-                                    var curVal = row.getData().exprDate || "";
-                                    if (window.AamsCalendar && typeof window.AamsCalendar.openDatePicker === 'function') {
-                                        window.AamsCalendar.openDatePicker({
-                                            anchorEl: cell.getElement(),
-                                            initialYmd: curVal,
-                                            format: 'dash',
-                                            onSelect: function (selectedYmd) {
-                                                row.update({ exprDate: selectedYmd, isUpdated: true });
-                                                onMasterCodeParamsChanged(row);
-                                            }
-                                        });
-                                    }
                                 }
                             },
                             {
@@ -219,18 +174,7 @@
                                 width: 90,
                                 hozAlign: "left",
                                 headerHozAlign: "center",
-                                headerSort: true,
-                                editor: "input",
-                                editable: function (cell) {
-                                    var data = cell.getRow().getData();
-                                    return !!data.isNew;
-                                },
-                                cellClick: (typeof aamsCellEdit === 'function') ? aamsCellEdit : undefined,
-                                cellEdited: function (cell) {
-                                    var row = cell.getRow();
-                                    row.update({ isUpdated: true });
-                                    onMasterCodeParamsChanged(row);
-                                }
+                                headerSort: true
                             },
                             {
                                 title: "ISIN 코드",
@@ -238,16 +182,7 @@
                                 minWidth: 120,
                                 hozAlign: "left",
                                 headerHozAlign: "center",
-                                headerSort: true,
-                                editor: "input",
-                                editable: function (cell) {
-                                    var data = cell.getRow().getData();
-                                    return !!data.isNew;
-                                },
-                                cellClick: (typeof aamsCellEdit === 'function') ? aamsCellEdit : undefined,
-                                cellEdited: function (cell) {
-                                    cell.getRow().update({ isUpdated: true });
-                                }
+                                headerSort: true
                             },
                             {
                                 title: "거래소",
@@ -255,16 +190,7 @@
                                 width: 70,
                                 hozAlign: "center",
                                 headerHozAlign: "center",
-                                headerSort: true,
-                                editor: "input",
-                                editable: function (cell) {
-                                    var data = cell.getRow().getData();
-                                    return !!data.isNew;
-                                },
-                                cellClick: (typeof aamsCellEdit === 'function') ? aamsCellEdit : undefined,
-                                cellEdited: function (cell) {
-                                    cell.getRow().update({ isUpdated: true });
-                                }
+                                headerSort: true
                             },
                             {
                                 title: "통화",
@@ -272,16 +198,7 @@
                                 width: 60,
                                 hozAlign: "center",
                                 headerHozAlign: "center",
-                                headerSort: true,
-                                editor: "input",
-                                editable: function (cell) {
-                                    var data = cell.getRow().getData();
-                                    return !!data.isNew;
-                                },
-                                cellClick: (typeof aamsCellEdit === 'function') ? aamsCellEdit : undefined,
-                                cellEdited: function (cell) {
-                                    cell.getRow().update({ isUpdated: true });
-                                }
+                                headerSort: true
                             },
                             {
                                 title: "주차",
@@ -289,8 +206,7 @@
                                 width: 60,
                                 hozAlign: "center",
                                 headerHozAlign: "center",
-                                headerSort: true,
-                                editable: false
+                                headerSort: true
                             }
                         ]
                     });
@@ -426,32 +342,6 @@
                 }
             }
 
-            // [파생종목코드 자동 계산 로직 (itemchanged_next)]
-            function onMasterCodeParamsChanged(row) {
-                var data = row.getData();
-                if (!data) return;
-
-                var exprDate = (data.exprDate || "").replace(/[^0-9]/g, '');
-                var stkprc = parseFloat(data.stkprc);
-                var blbgTckr = (data.blbgTckr || "").trim();
-
-                if (exprDate.length === 8 && !isNaN(stkprc) && stkprc > 0 && blbgTckr) {
-                    var curCd = data.srsCd || "";
-                    var pos = curCd.indexOf(' ');
-                    var isCallPut = (pos >= 0 && curCd.length >= pos + 3) ? curCd.substring(pos + 1, pos + 3) : '';
-
-                    var url = `/api/usportfoliomodel/srs-cd/calc-code?exprDate=${encodeURIComponent(exprDate)}&blbgTckr=${encodeURIComponent(blbgTckr)}&stkprc=${encodeURIComponent(stkprc)}&isCallPut=${encodeURIComponent(isCallPut)}`;
-                    fetch(url)
-                        .then(res => res.json())
-                        .then(resData => {
-                            if (resData && resData.derivedCode) {
-                                row.update({ srsCd: resData.derivedCode, isUpdated: true });
-                            }
-                        })
-                        .catch(err => console.error("파생코드 자동 계산 실패:", err));
-                }
-            }
-
             // [마스터-디테일 동기화 (syncDetail)]
             function syncDetail(row, masterRowData) {
                 if (!row) return;
@@ -524,94 +414,6 @@
                     });
             }
 
-            // [행 추가] 마스터 신규 행 추가
-            function addNewMasterRow() {
-                if (!gridMaster) return;
-                var currentYmd = (typeof getFilterYmd === 'function') ? getFilterYmd(pane, 'YYYY-MM-DD') : '';
-                var newRow = {
-                    srsCd: "",
-                    stkprc: null,
-                    exprDate: currentYmd,
-                    blbgTckr: "",
-                    isinCd: "",
-                    exchCd: "",
-                    crcCd: "USD",
-                    gijunStkprcYn: "N",
-                    week: "",
-                    isNew: true
-                };
-
-                gridMaster.addRow(newRow, true).then(row => {
-                    gridMaster.deselectRow();
-                    row.select();
-                    currentSelectedMasterRow = row;
-                });
-            }
-
-            // [행 삭제] 마스터 선택 행 삭제
-            function deleteMasterRow() {
-                if (!gridMaster) return;
-                var selectedRows = gridMaster.getSelectedRows();
-                if (!selectedRows || selectedRows.length === 0) {
-                    if (typeof showToast === 'function') showToast("삭제할 행을 선택하세요.", "warning");
-                    return;
-                }
-
-                var row = selectedRows[0];
-                var data = row.getData();
-
-                if (data.isNew) {
-                    row.delete();
-                    currentSelectedMasterRow = null;
-                    if (gridDetail) gridDetail.clearData();
-                } else {
-                    data.isDeleted = true;
-                    row.getElement().style.display = "none";
-                }
-            }
-
-            // [데이터 저장] 마스터 수정/신규/삭제 일괄 저장
-            function saveMasterData() {
-                if (!gridMaster) return;
-                var allData = gridMaster.getData();
-                var saveList = [];
-
-                for (var i = 0; i < allData.length; i++) {
-                    var d = allData[i];
-                    if (d.isNew || d.isUpdated || d.isDeleted) {
-                        if (d.isNew && (!d.srsCd || !d.srsCd.trim())) {
-                            if (typeof showToast === 'function') showToast("신규 행의 파생종목코드를 입력해주세요.", "warning");
-                            return;
-                        }
-                        saveList.push(d);
-                    }
-                }
-
-                if (saveList.length === 0) {
-                    if (typeof showToast === 'function') showToast("저장할 변경 내역이 없습니다.", "info");
-                    return;
-                }
-
-                fetch('/api/usportfoliomodel/srs-cd/save', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(saveList)
-                })
-                .then(res => res.json())
-                .then(result => {
-                    if (result.success) {
-                        if (typeof showToast === 'function') showToast(result.message || "저장되었습니다.", "success");
-                        loadMasterData();
-                    } else {
-                        if (typeof showToast === 'function') showToast(result.message || "저장 실패", "error");
-                    }
-                })
-                .catch(err => {
-                    console.error("저장 오류:", err);
-                    if (typeof showToast === 'function') showToast("저장 처리 중 오류가 발생했습니다.", "error");
-                });
-            }
-
             // [초기화 4] 스플리터
             function initSplitter() {
                 if (window.AamsSplitter && typeof window.AamsSplitter.init === 'function') {
@@ -626,21 +428,22 @@
                 };
 
                 pane.onInput = function () {
-                    addNewMasterRow();
+                    if (typeof showToast === 'function') showToast("해외파생 생성종목 목록은 조회 전용 화면입니다.", "info");
                 };
 
                 pane.onSave = function () {
-                    saveMasterData();
+                    if (typeof showToast === 'function') showToast("해외파생 생성종목 목록은 조회 전용 화면입니다.", "info");
                 };
 
                 pane.onDelete = function () {
-                    deleteMasterRow();
+                    if (typeof showToast === 'function') showToast("해외파생 생성종목 목록은 조회 전용 화면입니다.", "info");
                 };
 
                 pane.onRefresh = function () {
                     if (codeSearchInstance && typeof codeSearchInstance.clear === 'function') {
                         codeSearchInstance.clear();
                     }
+                    setDefaultStockFilter();
                     if (gridMaster) gridMaster.clearData();
                     if (gridDetail) gridDetail.clearData();
                     lastLoadedMasterKey = null;

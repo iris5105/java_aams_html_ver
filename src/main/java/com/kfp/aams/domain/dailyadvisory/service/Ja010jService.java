@@ -1,6 +1,5 @@
 package com.kfp.aams.domain.dailyadvisory.service;
 
-import com.kfp.aams.common.service.RdReportService;
 import com.kfp.aams.domain.dailyadvisory.dto.Ja010jDto;
 import com.kfp.aams.domain.dailyadvisory.mapper.Ja010jMapper;
 import lombok.RequiredArgsConstructor;
@@ -19,7 +18,6 @@ import java.util.List;
 public class Ja010jService {
 
     private final Ja010jMapper ja010jMapper;
-    private final RdReportService rdReportService;
 
     public List<Ja010jDto> selectJa010jList(String corpGr, LocalDate ymd) {
         if (corpGr == null || corpGr.isBlank() || ymd == null) {
@@ -27,20 +25,5 @@ public class Ja010jService {
         }
         return ja010jMapper.selectJa010jList(corpGr, ymd);
     }
-
-    public RdReportService.ExportResult generateReport(String corpGr, String fundCd, String companyName,
-                                                      String fundNm, LocalDate fymd, LocalDate tymd, String format) throws Exception {
-        String title;
-        if ("0".equals(fundCd)) {
-            title = companyName + " 3개월 평잔현황";
-        } else if ("1".equals(fundCd) || "2".equals(fundCd)) {
-            title = (fundNm != null && !fundNm.isBlank()) ? fundNm + " 3개월 평잔현황" : companyName + " 3개월 평잔현황";
-        } else {
-            title = (fundNm != null && !fundNm.isBlank()) ? fundNm + " 3개월 평잔현황" : "3개월 평잔현황";
-        }
-
-        String fymdStr = (fymd != null) ? fymd.toString() : "";
-        String tymdStr = (tymd != null) ? tymd.toString() : "";
-        return rdReportService.generateJa010jReport(corpGr, fundCd, title, fymdStr, tymdStr, format);
-    }
 }
+

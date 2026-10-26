@@ -3,26 +3,25 @@ package com.kfp.aams.domain.dailyadvisory.controller;
 import com.kfp.aams.common.service.WorkDateService;
 import com.kfp.aams.domain.dailyadvisory.dto.Ja010jDto;
 import com.kfp.aams.domain.dailyadvisory.service.Ja010jService;
-import com.kfp.aams.common.service.RdReportService;
 import com.kfp.aams.menu.service.MenuService;
+import com.kfp.aams.security.JwtProvider;
 import com.kfp.aams.security.UserPrincipal;
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.format.annotation.DateTimeFormat;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.CookieValue;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.List;
@@ -36,6 +35,7 @@ public class Ja010jController {
     private final Ja010jService ja010jService;
     private final WorkDateService workDateService;
     private final MenuService menuService;
+    private final JwtProvider jwtProvider;
 
     @GetMapping({"/views/w_ja010j", "/views/dailyadvisory/w_ja010j"})
     public String ja010jView(@AuthenticationPrincipal Object principalObj,
@@ -44,15 +44,16 @@ public class Ja010jController {
                              @RequestParam(name = "tymd", required = false) @DateTimeFormat(pattern = "yyyy-MM-dd", fallbackPatterns = {"yyyyMMdd", "yyyy.MM.dd"}) LocalDate paramTymd,
                              @CookieValue(name = "savedCorpGr", required = false) String cookieCorpGr1,
                              @CookieValue(name = "corpGr", required = false) String cookieCorpGr2,
+                             @CookieValue(name = "accessToken", required = false) String accessToken,
+                             HttpServletRequest request,
                              Model model) {
         UserPrincipal principal = (principalObj instanceof UserPrincipal p) ? p : null;
         String cookieCorpGr = (cookieCorpGr1 != null && !cookieCorpGr1.isBlank()) ? cookieCorpGr1 : cookieCorpGr2;
         String corpGr = resolveCorpGr(paramCorpGr, cookieCorpGr, principal);
 
+        boolean isAdmin = checkIsAdmin(principalObj, accessToken, request);
+
         var menuDto = menuService.getMenuByPgmId("W_JA010J");
-        if (menuDto == null) {
-            menuDto = menuService.getMenuByPgmId("w_ja010j");
-        }
         String fullpgm2 = (menuDto != null) ? menuDto.getFullpgm2() : "사무관리 > 자문일일 > 공모청약 수요예측 참여표(회사)";
 
         // 파워빌더 w_ja010j.srw (wue_lastopen) 명세:
@@ -68,14 +69,17 @@ public class Ja010jController {
                 tymd = LocalDate.now();
             }
         }
-        LocalDate fymd = (paramFymd != null) ? paramFymd : tymd.minusMonths(3).plusDays(1);
+        LocalDate fymd = (paramFymd != null) ? paramFymd : tymd.minusMonths(3);
 
         model.addAttribute("fullpgm2", fullpgm2);
         model.addAttribute("corpGr", corpGr);
+        model.addAttribute("adminYn", isAdmin ? "Y" : "N");
+        model.addAttribute("isAdmin", isAdmin);
         model.addAttribute("initialTymd", tymd.toString());
         model.addAttribute("initialFymd", fymd.toString());
         model.addAttribute("tymd", tymd.toString());
         model.addAttribute("fymd", fymd.toString());
+        model.addAttribute("workDate", tymd.toString());
 
         return "views/dailyadvisory/w_ja010j";
     }
@@ -93,7 +97,7 @@ public class Ja010jController {
         } catch (Exception e) {
             tymd = LocalDate.now();
         }
-        LocalDate fymd = tymd.minusMonths(3).plusDays(1);
+        LocalDate fymd = tymd.minusMonths(3);
 
         Map<String, String> response = new HashMap<>();
         response.put("workDate", tymd.toString());
@@ -105,67 +109,71 @@ public class Ja010jController {
     @GetMapping("/api/daily/ja010j/list")
     @ResponseBody
     public ResponseEntity<List<Ja010jDto>> getList(
-            @RequestParam("corpGr") String corpGr,
-            @RequestParam("ymd") @DateTimeFormat(pattern = "yyyy-MM-dd", fallbackPatterns = {"yyyyMMdd", "yyyy.MM.dd"}) LocalDate ymd) {
-        List<Ja010jDto> list = ja010jService.selectJa010jList(corpGr, ymd);
+            @AuthenticationPrincipal Object principalObj,
+            @RequestParam(name = "corpGr", required = false) String corpGr,
+            @RequestParam("ymd") @DateTimeFormat(pattern = "yyyy-MM-dd", fallbackPatterns = {"yyyyMMdd", "yyyy.MM.dd"}) LocalDate ymd,
+            @CookieValue(name = "accessToken", required = false) String accessToken,
+            HttpServletRequest request) {
+
+        // 파워빌더 w_ja010j.srw 명세: 계정 권한이 어드민(gaa.aams)인 경우 '%'를 넘겨 전체 회사 참여그룹 조회
+        boolean isAdmin = checkIsAdmin(principalObj, accessToken, request);
+        String targetCorpGr;
+        if (isAdmin) {
+            targetCorpGr = "%";
+        } else {
+            targetCorpGr = (corpGr != null && corpGr.contains(",")) ? corpGr.split(",")[0].trim() : (corpGr != null ? corpGr.trim() : "");
+            if (targetCorpGr.isBlank() && principalObj instanceof UserPrincipal p && p.getCorpGr() != null) {
+                targetCorpGr = p.getCorpGr().trim();
+            }
+        }
+
+        List<Ja010jDto> list = ja010jService.selectJa010jList(targetCorpGr, ymd);
         return ResponseEntity.ok(list);
     }
 
-    @GetMapping("/api/daily/ja010j/preview")
-    public ResponseEntity<byte[]> previewReport(
-            @RequestParam("corpGr") String corpGr,
-            @RequestParam("fundCd") String fundCd,
-            @RequestParam(value = "companyName", required = false) String companyName,
-            @RequestParam(value = "fundNm", required = false) String fundNm,
-            @RequestParam("fymd") @DateTimeFormat(pattern = "yyyy-MM-dd", fallbackPatterns = {"yyyyMMdd", "yyyy.MM.dd"}) LocalDate fymd,
-            @RequestParam("tymd") @DateTimeFormat(pattern = "yyyy-MM-dd", fallbackPatterns = {"yyyyMMdd", "yyyy.MM.dd"}) LocalDate tymd,
-            @RequestParam(value = "format", defaultValue = "pdf") String format,
-            @RequestHeader(value = "User-Agent", required = false) String userAgent) {
-        try {
-            boolean isMobile = (format != null && format.toLowerCase().contains("htm"))
-                    || (userAgent != null && (userAgent.toLowerCase().contains("mobile") || userAgent.toLowerCase().contains("android") || userAgent.toLowerCase().contains("iphone") || userAgent.toLowerCase().contains("ipad")));
-            String effectiveFormat = isMobile ? "html" : "pdf";
-
-            RdReportService.ExportResult exportResult = ja010jService.generateReport(
-                    corpGr, fundCd, companyName, fundNm, fymd, tymd, effectiveFormat);
-
-            if (isMobile) {
-                return ResponseEntity.ok()
-                        .contentType(MediaType.valueOf("text/html; charset=UTF-8"))
-                        .body(exportResult.getData());
-            }
-
-            return ResponseEntity.ok()
-                    .contentType(MediaType.APPLICATION_PDF)
-                    .header(HttpHeaders.CONTENT_DISPOSITION, com.kfp.aams.common.controller.RdReportController.buildContentDisposition("inline", exportResult.getFilename()))
-                    .body(exportResult.getData());
-        } catch (Exception e) {
-            log.error("공모청약 수요예측 참여표 (w_ja010j) 미리보기 오류: ", e);
-            return ResponseEntity.internalServerError().build();
+    /**
+     * 사용자 어드민 권한 여부 판별 (Principal -> SecurityContext -> JWT -> Cookie 순차 안전 검증)
+     */
+    private boolean checkIsAdmin(Object principalObj, String accessToken, HttpServletRequest request) {
+        if (principalObj instanceof UserPrincipal p && "Y".equalsIgnoreCase(p.getAdminYn())) {
+            return true;
         }
+        try {
+            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+            if (auth != null && auth.getPrincipal() instanceof UserPrincipal p && "Y".equalsIgnoreCase(p.getAdminYn())) {
+                return true;
+            }
+        } catch (Exception ignored) {
+        }
+        String token = (accessToken != null && !accessToken.isBlank()) ? accessToken : extractAccessTokenFromRequest(request);
+        if (token != null && !token.isBlank()) {
+            try {
+                UserPrincipal p = jwtProvider.getUserPrincipal(token);
+                if (p != null && "Y".equalsIgnoreCase(p.getAdminYn())) {
+                    return true;
+                }
+            } catch (Exception ignored) {
+            }
+        }
+        if (request != null && request.getCookies() != null) {
+            for (Cookie c : request.getCookies()) {
+                if ("adminYn".equals(c.getName()) && "Y".equalsIgnoreCase(c.getValue())) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
-    @GetMapping("/api/daily/ja010j/export")
-    public ResponseEntity<byte[]> exportReport(
-            @RequestParam("corpGr") String corpGr,
-            @RequestParam("fundCd") String fundCd,
-            @RequestParam(value = "companyName", required = false) String companyName,
-            @RequestParam(value = "fundNm", required = false) String fundNm,
-            @RequestParam("fymd") @DateTimeFormat(pattern = "yyyy-MM-dd", fallbackPatterns = {"yyyyMMdd", "yyyy.MM.dd"}) LocalDate fymd,
-            @RequestParam("tymd") @DateTimeFormat(pattern = "yyyy-MM-dd", fallbackPatterns = {"yyyyMMdd", "yyyy.MM.dd"}) LocalDate tymd,
-            @RequestParam(value = "format", defaultValue = "pdf") String format) {
-        try {
-            RdReportService.ExportResult exportResult = ja010jService.generateReport(
-                    corpGr, fundCd, companyName, fundNm, fymd, tymd, format);
-
-            return ResponseEntity.ok()
-                    .contentType(MediaType.parseMediaType(exportResult.getContentType()))
-                    .header(HttpHeaders.CONTENT_DISPOSITION, com.kfp.aams.common.controller.RdReportController.buildContentDisposition("attachment", exportResult.getFilename()))
-                    .body(exportResult.getData());
-        } catch (Exception e) {
-            log.error("공모청약 수요예측 참여표 (w_ja010j) 내보내기 오류: ", e);
-            return ResponseEntity.internalServerError().build();
+    private String extractAccessTokenFromRequest(HttpServletRequest request) {
+        if (request != null && request.getCookies() != null) {
+            for (Cookie c : request.getCookies()) {
+                if ("accessToken".equals(c.getName()) && c.getValue() != null && !c.getValue().isBlank()) {
+                    return c.getValue();
+                }
+            }
         }
+        return null;
     }
 
     /**

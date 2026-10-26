@@ -10,6 +10,22 @@
 <div class="view-container layout-split ja032g-container layout-mobile-stack-container" th:fragment="mainView"
      style="display: flex; flex-direction: column; height: 100%; width: 100%; overflow: hidden; background-color: #ffffff; position: relative;">
 
+    <!-- 0. 데이터 로딩 오버레이 (마스터/디테일 조회 및 저장 시 사용) -->
+    <div id="ja032gLoadingOverlay" class="view-loading-overlay d-none">
+        <div class="view-loading-card">
+            <div class="view-loading-spinner">
+                <i class="fa-solid fa-circle-notch fa-spin"></i>
+            </div>
+            <div class="view-loading-title">데이터 로딩 중</div>
+            <div id="ja032gLoadingDesc" class="view-loading-desc">
+                해외 파생종목 데이터를 불러오고 있습니다...
+            </div>
+            <div class="view-loading-sub">
+                데이터 건수가 많을 경우 수 초가 소요될 수 있습니다.
+            </div>
+        </div>
+    </div>
+
     <!-- 1. 상단 공통 툴바 (Row 1) -->
     <div class="view-toolbar">
         <div class="toolbar-left">
@@ -69,6 +85,19 @@
             let isInitialized = false;
             let lastLoadedMasterKey = null;
             let currentSelectedMasterRow = null;
+
+            // [로딩 화면 제어 헬퍼]
+            function showLoading(show, message) {
+                var overlay = pane.querySelector('#ja032gLoadingOverlay');
+                var desc = pane.querySelector('#ja032gLoadingDesc');
+                if (!overlay) return;
+                if (show) {
+                    if (desc && message) desc.textContent = message;
+                    overlay.classList.remove('d-none');
+                } else {
+                    overlay.classList.add('d-none');
+                }
+            }
 
             // [초기화 1] 달력 컴포넌트
             function initCalendar() {
@@ -738,9 +767,15 @@
 
             // [동기화] 마스터 행 선택 -> 디테일(일별 시세) 조회
             function syncDetail(row, masterRowData) {
-                if (!row) return;
+                if (!row) {
+                    showLoading(false);
+                    return;
+                }
                 var data = masterRowData || (row.getData ? row.getData() : null);
-                if (!data || data.isSummaryRow) return;
+                if (!data || data.isSummaryRow) {
+                    showLoading(false);
+                    return;
+                }
 
                 var corpGr = (typeof resolveCorpGr === 'function') ? resolveCorpGr(pane) : '';
                 var ymd = (typeof getFilterYmd === 'function') ? getFilterYmd(pane, 'YYYYMMDD') : '';
@@ -748,11 +783,15 @@
 
                 if (!jmCd) {
                     if (gridDetail) gridDetail.clearData();
+                    showLoading(false);
                     return;
                 }
 
                 var currentKey = (data.corpGr || corpGr) + "_" + jmCd;
-                if (lastLoadedMasterKey === currentKey) return; // 중복 호출 방지
+                if (lastLoadedMasterKey === currentKey) {
+                    showLoading(false);
+                    return; // 중복 호출 방지
+                }
                 lastLoadedMasterKey = currentKey;
 
                 loadDetailList(corpGr, ymd, jmCd);
@@ -768,6 +807,8 @@
                 }
                 lastLoadedMasterKey = null;
 
+                showLoading(true, "해외 파생종목 목록을 불러오고 있습니다...");
+
                 fetch(`/api/usportfoliomodel/ja032g/master?corpGr=${encodeURIComponent(corpGr)}&lsyYmd=${encodeURIComponent(lsyYmd)}`)
                     .then(res => {
                         if (!res.ok) throw new Error("서버 응답 오류 (" + res.status + ")");
@@ -780,11 +821,18 @@
                                 if (rows && rows.length > 0) {
                                     rows[0].select();
                                     syncDetail(rows[0], rows[0].getData());
+                                } else {
+                                    showLoading(false);
                                 }
+                            }).catch(() => {
+                                showLoading(false);
                             });
+                        } else {
+                            showLoading(false);
                         }
                     })
                     .catch(err => {
+                        showLoading(false);
                         console.error("해외 파생종목 목록 조회 오류:", err);
                         if (typeof showToast === 'function') showToast("조회 중 오류가 발생했습니다.", "error");
                     });
@@ -792,7 +840,12 @@
 
             // [조회 2] 디테일 목록 조회
             function loadDetailList(corpGr, ymd, jmCd) {
-                if (!gridDetail) return;
+                if (!gridDetail) {
+                    showLoading(false);
+                    return;
+                }
+
+                showLoading(true, (jmCd ? ("[" + jmCd + "] ") : "") + "일별 시세 내역을 불러오고 있습니다...");
 
                 fetch(`/api/usportfoliomodel/ja032g/detail?corpGr=${encodeURIComponent(corpGr)}&ymd=${encodeURIComponent(ymd)}&jmCd=${encodeURIComponent(jmCd)}`)
                     .then(res => {
@@ -801,13 +854,17 @@
                     })
                     .then(data => {
                         gridDetail.setData(data || []).then(() => {
+                            showLoading(false);
                             var dRows = gridDetail.getRows();
                             if (dRows && dRows.length > 0) {
                                 dRows[0].select();
                             }
+                        }).catch(() => {
+                            showLoading(false);
                         });
                     })
                     .catch(err => {
+                        showLoading(false);
                         console.error("일별 시세 목록 조회 오류:", err);
                     });
             }
@@ -1031,7 +1088,7 @@
 
             // [저장 1] 마스터 일괄 저장
             function saveMasterList() {
-                if (!gridMaster) return;
+                if (!gridMaster) return false;
                 var rows = gridMaster.getData();
                 var changedList = [];
 
@@ -1040,7 +1097,7 @@
                     if (r.isNew || r.isUpdated || r.isDeleted) {
                         if (!r.isDeleted && (!r.jmCd || !r.jmCd.trim())) {
                             if (typeof showToast === 'function') showToast((i + 1) + "번째 행의 종목코드를 입력해주세요.", "warning");
-                            return;
+                            return false;
                         }
                         changedList.push(r);
                     }
@@ -1049,6 +1106,8 @@
                 if (changedList.length === 0) {
                     return false;
                 }
+
+                showLoading(true, "파생종목 변경 데이터를 저장하고 있습니다...");
 
                 var corpGr = (typeof resolveCorpGr === 'function') ? resolveCorpGr(pane) : '';
                 fetch(`/api/usportfoliomodel/ja032g/save-master?corpGr=${encodeURIComponent(corpGr)}`, {
@@ -1058,6 +1117,7 @@
                 })
                     .then(res => res.json())
                     .then(res => {
+                        showLoading(false);
                         if (res && res.success) {
                             if (typeof showToast === 'function') showToast(res.message || "파생종목이 정상 저장되었습니다.", "success");
                             loadMasterList();
@@ -1066,6 +1126,7 @@
                         }
                     })
                     .catch(err => {
+                        showLoading(false);
                         console.error("마스터 저장 오류:", err);
                         if (typeof showToast === 'function') showToast("파생종목 저장 중 통신 오류가 발생했습니다.", "error");
                     });
@@ -1075,7 +1136,7 @@
 
             // [저장 2] 디테일 일괄 저장
             function saveDetailList() {
-                if (!gridDetail) return;
+                if (!gridDetail) return false;
                 var rows = gridDetail.getData();
                 var changedList = [];
 
@@ -1084,7 +1145,7 @@
                     if (r.isNew || r.isUpdated || r.isDeleted) {
                         if (!r.isDeleted && (!r.ymd || !r.ymd.trim())) {
                             if (typeof showToast === 'function') showToast((i + 1) + "번째 시세 행의 일자를 입력해주세요.", "warning");
-                            return;
+                            return false;
                         }
                         changedList.push(r);
                     }
@@ -1094,6 +1155,8 @@
                     if (typeof showToast === 'function') showToast("저장할 변경 시세 데이터가 없습니다.", "info");
                     return false;
                 }
+
+                showLoading(true, "일별 시세 변경 데이터를 저장하고 있습니다...");
 
                 var corpGr = (typeof resolveCorpGr === 'function') ? resolveCorpGr(pane) : '';
                 var jmCd = currentSelectedMasterRow ? (currentSelectedMasterRow.getData().jmCd || '') : '';
@@ -1105,6 +1168,7 @@
                 })
                     .then(res => res.json())
                     .then(res => {
+                        showLoading(false);
                         if (res && res.success) {
                             if (typeof showToast === 'function') showToast(res.message || "일별 시세가 정상 저장되었습니다.", "success");
                             var ymd = (typeof getFilterYmd === 'function') ? getFilterYmd(pane, 'YYYYMMDD') : '';
@@ -1114,6 +1178,7 @@
                         }
                     })
                     .catch(err => {
+                        showLoading(false);
                         console.error("디테일 저장 오류:", err);
                         if (typeof showToast === 'function') showToast("시세 저장 중 통신 오류가 발생했습니다.", "error");
                     });
@@ -1172,6 +1237,7 @@
                 };
 
                 pane.onRefresh = function () {
+                    showLoading(false);
                     if (gridMaster && gridMaster.initialized) {
                         try { gridMaster.clearData(); } catch (e) {}
                     }

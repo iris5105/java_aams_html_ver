@@ -12,6 +12,8 @@ import org.springframework.web.bind.annotation.CookieValue;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
+import java.time.LocalDate;
+
 /**
  * Controller for W_JA036H (외화증권 매매내역)
  * 단독 리포트 뷰어 (rd_ja036h.mrd) 화면
@@ -53,9 +55,16 @@ public class Ja036hController {
 
         // DB 기준 작업일자 연동 (WorkDateService)
         String workDate = workDateService.getWorkDateOrDefault(corpGr);
+        LocalDate toDate;
+        try {
+            toDate = LocalDate.parse(workDate.replace(".", "-"));
+        } catch (Exception e) {
+            toDate = LocalDate.now();
+        }
+        LocalDate fromDate = toDate.minusMonths(3);
 
-        String initialFymd = (paramFymd != null && !paramFymd.isBlank()) ? paramFymd : workDate;
-        String initialTymd = (paramTymd != null && !paramTymd.isBlank()) ? paramTymd : workDate;
+        String initialFymd = (paramFymd != null && !paramFymd.isBlank()) ? paramFymd : fromDate.toString();
+        String initialTymd = (paramTymd != null && !paramTymd.isBlank()) ? paramTymd : toDate.toString();
 
         model.addAttribute("fullpgm2", fullpgm2);
         model.addAttribute("corpGr", corpGr);

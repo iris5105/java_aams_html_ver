@@ -173,6 +173,21 @@ public class DynamicCodeSearchService {
         int seqNo = 1;
         String kw = (keyword != null) ? keyword.trim().toLowerCase() : "";
 
+        // w_srs_cd.srw: ue_setcodesearch rs_addrow = '%,전체,' 지원 (rcd seq 51)
+        if ("rcd".equalsIgnoreCase(columnNm) && Integer.valueOf(51).equals(columnSeq)) {
+            if (kw.isEmpty() || "%".contains(kw) || "전체".contains(kw)) {
+                Map<String, Object> defaultAllRow = new LinkedHashMap<>();
+                defaultAllRow.put("fseq", seqNo++);
+                defaultAllRow.put("codeVal", "%");
+                defaultAllRow.put("codeName", "전체");
+                defaultAllRow.put("display", "(%) 전체");
+                defaultAllRow.put("isin_cd", "%");
+                defaultAllRow.put("blbg_tckr", "%");
+                defaultAllRow.put("jm_nm", "전체");
+                filteredList.add(defaultAllRow);
+            }
+        }
+
         for (Map<String, Object> row : rawList) {
             boolean match = true;
             if (!kw.isEmpty()) {
@@ -233,6 +248,17 @@ public class DynamicCodeSearchService {
     public Map<String, Object> getCodeItem(String columnNm, Integer columnSeq, String corpGr, String code, String addWhere) {
         if (code == null || code.isBlank()) {
             return null;
+        }
+
+        // '%' 전체 코드 지원 (w_srs_cd 등 rs_addrow)
+        if ("%".equals(code.trim())) {
+            Map<String, Object> allItem = new LinkedHashMap<>();
+            allItem.put("code", "%");
+            allItem.put("codename", "전체");
+            allItem.put("codeName", "전체");
+            allItem.put("name", "전체");
+            allItem.put("display", "(%) 전체");
+            return allItem;
         }
 
         DynamicCodeSearchDto master = getMasterMetadata(columnNm, columnSeq);

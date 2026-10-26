@@ -1,7 +1,12 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
-<div class="view-container layout-split ja010j-container layout-mobile-stack-container" th:fragment="ja010jView" style="display: flex; flex-direction: column; height: 100%; width: 100%; overflow: hidden;">
-
+<div class="view-container layout-split-h ja010j-container layout-mobile-stack-container" th:fragment="ja010jView"
+     data-pgm-id="W_JA010J"
+     th:data-initial-tymd="${initialTymd}"
+     th:data-initial-fymd="${initialFymd}"
+     th:data-corp-gr="${corpGr}"
+     th:data-is-admin="${isAdmin}"
+     style="display: flex; flex-direction: column; height: 100%; width: 100%; overflow: hidden;">
 
     <!-- 1. 상단 공통 툴바 (Row 1: 공통 액션 버튼 + 네비게이션 브레드크럼) -->
     <div class="view-toolbar">
@@ -11,73 +16,90 @@
         <div th:replace="~{fragments/tab_header :: toolbarBreadcrumb}"></div>
     </div>
 
-    <!-- 2. 상단 필터바 (Row 2: srw dw_c dataobject인 dc_ftymd 공통 프래그먼트 연동, 규칙 13, 14, 17) -->
+    <!-- 2. 상단 필터바 (Row 2: srw dw_c dataobject인 dc_ftymd 공통 프래그먼트 연동, 규칙 08, 09) -->
     <div class="filter-bar">
         <div class="filter-left">
             <th:block th:replace="~{fragments/filter/dc_ftymd :: filter(label='조회기간')}"></th:block>
         </div>
-        <div class="filter-actions" style="display: flex; align-items: center; gap: 6px;">
-        </div>
     </div>
 
-    <!-- 3. 메인 레이아웃 (좌: d_ja010j1 참여그룹 목록, 우: RD 수요예측 참여표 리포트) -->
-    <div class="layout-split-h split-body" data-split-key="W_JA010J" data-default-ratio="42:58">
+    <!-- 3. 메인 레이아웃 (좌: d_ja010j1 참여그룹 목록, 우: RD 3개월 평잔현황 리포트 - wt_vertole 상속 구조) -->
+    <div class="layout-split-h split-body layout-mobile-stack" data-split-key="W_JA010J" data-default-ratio="42:58" style="flex: 1; min-height: 0;">
         <!-- 좌측 참여그룹 목록 그리드 -->
-        <div class="pane-left left-pane">
+        <div class="split-pane pane-left" style="width: 42%;">
             <div class="pane-header">
-                <span class="fw-bold small text-secondary"><i class="fa-solid fa-list me-1"></i> 참여그룹 목록</span>
+                <span class="panel-title"><i class="fa-solid fa-list me-1"></i> 참여그룹 목록</span>
             </div>
             <div class="pane-body">
                 <div id="ja010j-grid" class="tabulator-aams-grid" style="height: 100%; width: 100%;"></div>
             </div>
         </div>
 
-        <!-- 우측 RD 미리보기 뷰어 (공통 프래그먼트) -->
-        <div th:replace="~{fragments/report/report_viewer :: reportViewerPane(reportTitle='수요예측 참여표 리포트', defaultStatus='선택된 그룹 없음')}"></div>
+        <!-- 스플리터 드래그 바 (규칙 10) -->
+        <div class="split-gutter-h"></div>
+
+        <!-- 우측 RD 미리보기 뷰어 (공통 프래그먼트: 3개월 평잔현황) -->
+        <div th:replace="~{fragments/report/report_viewer :: reportViewerPane(reportTitle='3개월 평잔현황', defaultStatus='선택된 그룹 없음')}"></div>
     </div>
 
     <!-- 모바일 전용 리포트 모달 (공통 프래그먼트) -->
-    <div th:replace="~{fragments/report/report_viewer :: reportMobileModal(modalId='ja010jMobileModal', modalTitle='수요예측 참여표 리포트')}"></div>
+    <div th:replace="~{fragments/report/report_viewer :: reportMobileModal(modalId='ja010jMobileModal', modalTitle='3개월 평잔현황')}"></div>
 
-    <script th:inline="javascript">
+    <script>
         (function () {
-            var currentPane = document.currentScript.closest('.tab-pane') || document;
-            var initialTymd = /*[[${initialTymd}]]*/ '';
-            var initialFymd = /*[[${initialFymd}]]*/ '';
-            var serverCorpGr = /*[[${corpGr}]]*/ '';
+            var currentScript = document.currentScript;
+            var pane = currentScript ? (currentScript.closest('.tab-pane') || currentScript.closest('.view-container')) : null;
+            var currentPane = pane || document;
+
+            var initialTymd = currentPane.getAttribute('data-initial-tymd') || '';
+            var initialFymd = currentPane.getAttribute('data-initial-fymd') || '';
+            var serverCorpGr = currentPane.getAttribute('data-corp-gr') || '';
+            var isAdmin = currentPane.getAttribute('data-is-admin') === 'true';
 
             var grid = null;
             var isInitialized = false;
             var lastLoadedMasterKey = null;
             var currentSelectedRowData = null;
+            var reportViewer = null;
 
-            // 회사그룹은 common.js의 전역 헬퍼 함수(resolveCorpGr / getFilterCorpGr) 사용
-
-            // 기간 일자는 common.js의 전역 헬퍼 함수(getFilterFymd / getFilterTymd) 사용
+            // 리포트 타이틀 공통 생성 헬퍼
+            function getReportTitle(data) {
+                if (!data) return '3개월 평잔현황';
+                var fCd = (data.fundCd != null) ? String(data.fundCd) : '0';
+                if (fCd === '0') {
+                    var cName = (data.companyName || '').replace('-고유공모계좌', '').trim();
+                    return (cName || data.corpGr || '') + ' 3개월 평잔현황';
+                }
+                return (data.fundNm || data.companyName || '') + ' 3개월 평잔현황';
+            }
 
             // 달력 컴포넌트 초기화 (common.js initFilterCalendar 공통 연동: Range 자동 감지)
             function initCalendar() {
-                initFilterCalendar(currentPane);
+                if (typeof window.initFilterCalendar === 'function') {
+                    window.initFilterCalendar(currentPane);
+                }
             }
 
             function initGrid() {
                 var gridEl = currentPane.querySelector('#ja010j-grid');
                 if (!gridEl) return;
 
-                // d_ja010j1.srd 컬럼 x좌표 순서와 100% 일치
+                // d_ja010j1.srd 컬럼 및 속성 100% 반영:
+                // - corp_gr: color="32768" (초록색 headerCssClass: "col-hdr-green"), sparse(names="corp_gr") -> suppressRepeating: true
+                // - company_name: alignment="0" (좌측 정렬)
                 grid = new Tabulator(gridEl, {
                     height: "100%",
-                    layout: "fitDataFill",
-                    selectable: 1,
+                    layout: "fitColumns",
+                    selectableRows: 1,
                     data: [],
                     columns: [
-                        { title: "No.", formatter: "rownum", width: 45, hozAlign: "center", headerHozAlign: "center" },
-                        { title: "회사코드", field: "corpGr", width: 85, hozAlign: "center", headerHozAlign: "center" },
+                        { title: "No.", formatter: "rownum", width: 50, hozAlign: "center", headerHozAlign: "center", resizable: false, headerSort: false },
+                        { title: "회사코드", field: "corpGr", width: 85, hozAlign: "center", headerHozAlign: "center", headerCssClass: "col-hdr-green", suppressRepeating: true },
                         { title: "공모참여그룹회사명", field: "companyName", minWidth: 260, hozAlign: "left", headerHozAlign: "center" }
                     ]
                 });
 
-                // 개발지침 규칙 8번 삼중 안전망 (setupTabulatorRowSelection + rowClick + rowSelectionChanged)
+                // 개발지침 규칙 05 삼중 안전망 (setupTabulatorRowSelection + rowClick + rowSelectionChanged)
                 if (typeof setupTabulatorRowSelection === "function") {
                     setupTabulatorRowSelection(grid, function (row, data) {
                         syncDetail(row, data, false);
@@ -88,19 +110,13 @@
                     syncDetail(row, row ? row.getData() : null, isRealClick);
                 });
                 grid.on("rowSelectionChanged", function (data, rows) {
-                    if (rows && rows.length > 0 && !isMobileView()) {
+                    var isMobile = window.AamsReport && typeof window.AamsReport.isMobileView === 'function'
+                        ? window.AamsReport.isMobileView(currentPane)
+                        : (window.innerWidth <= 876);
+                    if (rows && rows.length > 0 && !isMobile) {
                         syncDetail(rows[0], rows[0].getData(), false);
                     }
                 });
-            }
-
-            // Helper to check if currently in mobile view (태블릿-S / 876px 이하 또는 우측 패널 숨김)
-            function isMobileView() {
-                var right = currentPane.querySelector('.split-right') || currentPane.querySelector('.report-card');
-                if (right && window.getComputedStyle(right).display === 'none') {
-                    return true;
-                }
-                return window.innerWidth <= 876 || (currentPane.clientWidth > 0 && currentPane.clientWidth <= 876);
             }
 
             function syncDetail(row, masterRowData, isUserClick) {
@@ -111,43 +127,43 @@
                     }
                     row.select();
                 }
-                var el = (typeof row.getElement === 'function') ? row.getElement() : null;
-                if (el && !el.classList.contains('tabulator-selected')) {
-                    el.classList.add('tabulator-selected');
-                }
                 var data = masterRowData || (row.getData ? row.getData() : null);
                 if (!data) return;
 
                 currentSelectedRowData = data;
 
-                var currentKey = (data.corpGr || "") + "_" + (data.fundCd || "") + "_" + (data.companyName || "");
-                if (isMobileView()) {
+                var isMobile = window.AamsReport && typeof window.AamsReport.isMobileView === 'function'
+                    ? window.AamsReport.isMobileView(currentPane)
+                    : (window.innerWidth <= 876);
+
+                if (isMobile) {
                     if (isUserClick && reportViewer) {
-                        var title = (data.companyName || '') + ' 수요예측 참여표';
-                        reportViewer.openModal(data, title);
+                        reportViewer.openModal(data);
                     }
                 } else {
+                    var currentKey = (data.corpGr || "") + "_" + (data.fundCd || "") + "_" + (data.companyName || "");
                     if (lastLoadedMasterKey === currentKey) return;
                     lastLoadedMasterKey = currentKey;
 
-                    var fymd = getFilterFymd(currentPane, 'YYYYMMDD');
-                    var tymd = getFilterTymd(currentPane, 'YYYYMMDD');
-                    var fStr = (fymd.length === 8) ? (fymd.substring(0, 4) + "." + fymd.substring(4, 6) + "." + fymd.substring(6, 8)) : fymd;
-                    var tStr = (tymd.length === 8) ? (tymd.substring(0, 4) + "." + tymd.substring(4, 6) + "." + tymd.substring(6, 8)) : tymd;
-                    reportViewer.load(data, "조회구간: " + fStr + " ~ " + tStr);
+                    if (reportViewer) {
+                        reportViewer.load(data);
+                    }
                 }
             }
 
             function loadList() {
-                var corpGr = resolveCorpGr(currentPane);
-                var tymd = getFilterTymd(currentPane);
+                var corpGr = (typeof resolveCorpGr === 'function') ? resolveCorpGr(currentPane) : serverCorpGr;
+                var tymd = (typeof getFilterTymd === 'function') ? getFilterTymd(currentPane, 'YYYY-MM-DD') : '';
 
-                if (!corpGr) {
+                if (!corpGr && !isAdmin) {
                     if (typeof showToast === "function") showToast("회사그룹을 선택해주세요.", "warning");
                     return;
                 }
 
-                var url = "/api/daily/ja010j/list?corpGr=" + encodeURIComponent(corpGr) + "&ymd=" + encodeURIComponent(tymd);
+                // 파워빌더 w_ja010j.srw wue_retrieve 명세:
+                // IF gaa.aams Then dw_list.retrieve('%', tymd) Else dw_list.retrieve(gaa.corp_gr, tymd)
+                var queryCorpGr = isAdmin ? "%" : corpGr;
+                var url = "/api/daily/ja010j/list?corpGr=" + encodeURIComponent(queryCorpGr) + "&ymd=" + encodeURIComponent(tymd);
                 fetch(url)
                     .then(function (res) { return res.json(); })
                     .then(function (data) {
@@ -157,43 +173,34 @@
                         if (grid) {
                             grid.setData(list).then(function () {
                                 var rows = grid.getRows();
-                                // 개발지침 규칙 15: 데이터 존재 시 행 선택 (데스크톱만 첫 행 자동 선택, 모바일은 자동 포커스 방지)
                                 if (rows && rows.length > 0) {
-                                    if (!isMobileView()) {
-                                        grid.deselectRow();
-                                        rows[0].select();
-                                        syncDetail(rows[0], rows[0].getData(), false);
+                                    var isMobile = window.AamsReport && typeof window.AamsReport.isMobileView === 'function'
+                                        ? window.AamsReport.isMobileView(currentPane)
+                                        : (window.innerWidth <= 876);
 
-                                        // 가상 DOM 렌더링 완료 후 첫 번째 행 선택 및 포커스 하이라이트 확정 (규칙 15)
-                                        setTimeout(function () {
-                                            if (grid && !isMobileView()) {
-                                                var currentRows = grid.getRows();
-                                                if (currentRows && currentRows.length > 0) {
-                                                    var targetRow = currentRows[0];
-                                                    if (!targetRow.isSelected || !targetRow.isSelected()) {
-                                                        grid.deselectRow();
-                                                        targetRow.select();
-                                                    }
-                                                    var el = (typeof targetRow.getElement === 'function') ? targetRow.getElement() : null;
-                                                    if (el) {
-                                                        el.classList.add('tabulator-selected');
-                                                        if (!el.hasAttribute('tabindex')) {
-                                                            el.setAttribute('tabindex', '-1');
-                                                        }
-                                                        try {
-                                                            el.focus({ preventScroll: true });
-                                                        } catch (e) {}
-                                                    }
+                                    if (!isMobile) {
+                                        // 파워빌더 ue_activate 명세: dw_list.uf_find ("corp_gr='" + gaa.corp_gr + "'")
+                                        // 현재 접속한 회사그룹(corpGr)과 일치하는 행을 우선 탐색하여 자동 포커스/선택, 없으면 첫 행 선택
+                                        var targetRow = rows[0];
+                                        if (corpGr) {
+                                            for (var i = 0; i < rows.length; i++) {
+                                                var rData = rows[i].getData();
+                                                if (rData && rData.corpGr === corpGr) {
+                                                    targetRow = rows[i];
+                                                    break;
                                                 }
                                             }
-                                        }, 60);
+                                        }
+                                        grid.deselectRow();
+                                        targetRow.select();
+                                        syncDetail(targetRow, targetRow.getData(), false);
                                     } else {
                                         grid.deselectRow();
                                         currentSelectedRowData = null;
                                         lastLoadedMasterKey = null;
                                     }
                                 } else {
-                                    reportViewer.clear();
+                                    if (reportViewer) reportViewer.clear();
                                 }
                             });
                         }
@@ -204,7 +211,11 @@
                     });
             }
 
-            var reportViewer = null;
+            function initSplitter() {
+                if (window.AamsSplitter && typeof window.AamsSplitter.init === 'function') {
+                    window.AamsSplitter.init(currentPane);
+                }
+            }
 
             function startInit() {
                 if (isInitialized) return;
@@ -212,8 +223,13 @@
 
                 initCalendar();
                 initGrid();
+                initSplitter();
 
-                // 리포트 뷰어 일체형 자동 바인딩 (공통 프래그먼트 및 모듈 연동, 자동 반응형 리사이즈)
+                // 파워빌더 ole_rd::ue_retrieve 분기 명세 100% 반영:
+                // CASE '0': 'rd_ja010j_0.mrd', corp_gr, title: '... 3개월 평잔현황', fymd, tymd
+                // CASE '1': IF corp_gr='2202' THEN 'rd_ja010j_2202.mrd' ELSE 'rd_ja010j_1.mrd'
+                // CASE '2': 'rd_ja010j_2.mrd'
+                // CASE ELSE: 'rd_ja010j_6.mrd', fund_cd
                 var reportEngine = window.AamsReport;
                 reportViewer = (reportEngine && typeof reportEngine.bindViewer === 'function')
                     ? reportEngine.bindViewer(currentPane, {
@@ -227,29 +243,56 @@
                         },
                         modalSelector: '#ja010jMobileModal',
                         grid: function () { return grid; },
-                        getParams: function (data) {
-                            return {
-                                corpGr: (data && data.corpGr) ? data.corpGr : resolveCorpGr(currentPane),
-                                fundCd: (data && data.fundCd != null) ? data.fundCd : '0',
-                                companyName: (data && data.companyName) ? data.companyName : '',
-                                fundNm: (data && data.fundNm) ? data.fundNm : '',
-                                fymd: getFilterFymd(currentPane, 'YYYYMMDD'),
-                                tymd: getFilterTymd(currentPane, 'YYYYMMDD')
-                            };
+                        getCorpGr: function (data) {
+                            return (data && data.corpGr) ? data.corpGr : resolveCorpGr(currentPane);
                         },
-                        getDownloadName: function (data, format) {
-                            var cName = (data && data.companyName) ? data.companyName : '수요예측';
-                            return cName + '_참여표';
+                        getParams: function (data) {
+                            if (!data) return {};
+                            var fCd = (data.fundCd != null) ? String(data.fundCd) : '0';
+                            var fymd = (typeof getFilterFymd === 'function') ? getFilterFymd(currentPane, 'YYYY.MM.DD') : '';
+                            var tymd = (typeof getFilterTymd === 'function') ? getFilterTymd(currentPane, 'YYYY.MM.DD') : '';
+
+                            var params = {
+                                title: getReportTitle(data),
+                                fymd: fymd,
+                                tymd: tymd
+                            };
+                            if (fCd !== '0' && fCd !== '1' && fCd !== '2') {
+                                params.fund_cd = data.fundCd;
+                            }
+                            return params;
+                        },
+                        getTitle: function (data) {
+                            return getReportTitle(data);
+                        },
+                        getStatus: function () {
+                            var fymd = (typeof getFilterFymd === 'function') ? getFilterFymd(currentPane, 'YYYY.MM.DD') : '';
+                            var tymd = (typeof getFilterTymd === 'function') ? getFilterTymd(currentPane, 'YYYY.MM.DD') : '';
+                            return "조회구간: " + fymd + " ~ " + tymd;
+                        },
+                        getDownloadName: function (data) {
+                            var tymdClean = (typeof getFilterTymd === 'function') ? getFilterTymd(currentPane, 'YYYYMMDD') : '';
+                            var title = getReportTitle(data).replace(/[\\/:*?"<>|]/g, "_").trim();
+                            return tymdClean + "_" + (title || "수요예측_참여표");
                         }
                     })
                     : null;
 
-                // 개발지침 규칙 9: 상단 공통 툴바 표준 계약 함수 연결
-                currentPane.onRetrieve = currentPane.onSearch = function () {
+                // 개발지침 규칙 08: 상단 공통 툴바 표준 계약 바인딩
+                currentPane.onSearch = function () {
                     loadList();
                 };
 
-                // 회사그룹 변경 이벤트 연동 (개발지침 달력 규칙 4)
+                // 상단 공통 툴바 [엑셀] 버튼 연동 (규칙 12)
+                currentPane.onExcel = function () {
+                    if (reportViewer && currentSelectedRowData) {
+                        reportViewer.exportReport('excel');
+                    } else if (grid) {
+                        grid.download("xlsx", "참여그룹목록.xlsx", { sheetName: "참여그룹" });
+                    }
+                };
+
+                // 회사그룹 변경 이벤트 연동 (개발지침 규칙 08 준수: 자동 조회는 실행하지 않고 일자만 갱신)
                 currentPane.onCorpGrChange = function () {
                     var newCorpGr = resolveCorpGr(currentPane);
                     if (!newCorpGr) return;
@@ -257,8 +300,8 @@
                         .then(function (res) { return res.json(); })
                         .then(function (data) {
                             if (data && data.tymd) {
-                                var fEl = currentPane.querySelector('#filterFYmd') || currentPane.querySelector('input[name="fYmd"]');
-                                var tEl = currentPane.querySelector('#filterTYmd') || currentPane.querySelector('input[name="tYmd"]');
+                                var fEl = currentPane.querySelector('#filterFYmd');
+                                var tEl = currentPane.querySelector('#filterTYmd');
                                 if (fEl && data.fymd) fEl.value = data.fymd;
                                 if (tEl && data.tymd) tEl.value = data.tymd;
                             }
@@ -268,14 +311,14 @@
                         });
                 };
 
-                // 새로고침 연동 (개발지침 공통버튼 규칙 1)
+                // 새로고침 연동 (규칙 08: 상태 완전 초기화, 자동 재조회 절대 금지)
                 currentPane.onRefresh = function () {
                     if (grid) grid.clearData();
                     currentSelectedRowData = null;
                     lastLoadedMasterKey = null;
 
-                    var fEl = currentPane.querySelector('#filterFYmd') || currentPane.querySelector('input[name="fYmd"]');
-                    var tEl = currentPane.querySelector('#filterTYmd') || currentPane.querySelector('input[name="tYmd"]');
+                    var fEl = currentPane.querySelector('#filterFYmd');
+                    var tEl = currentPane.querySelector('#filterTYmd');
                     if (fEl && initialFymd) fEl.value = initialFymd;
                     if (tEl && initialTymd) tEl.value = initialTymd;
 

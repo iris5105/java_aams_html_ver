@@ -723,6 +723,30 @@ window.AamsCalendar = (function() {
         // =========================================================================
         rangeInstances: {},
 
+        calcMonthsBefore: function(dateStr, months, sep) {
+            months = (typeof months === 'number') ? months : 3;
+            if (!dateStr) {
+                const today = new Date();
+                dateStr = this.formatDate(today.getFullYear(), today.getMonth() + 1, today.getDate(), '.');
+            }
+            const clean = String(dateStr).replace(/\D/g, '');
+            if (clean.length < 8) return dateStr;
+            const y = parseInt(clean.substring(0, 4), 10);
+            const m = parseInt(clean.substring(4, 6), 10);
+            const d = parseInt(clean.substring(6, 8), 10);
+
+            let targetM = m - months;
+            let targetY = y;
+            while (targetM <= 0) {
+                targetM += 12;
+                targetY -= 1;
+            }
+            const maxDays = new Date(targetY, targetM, 0).getDate();
+            const targetD = Math.min(d, maxDays);
+            const delimiter = sep || (dateStr.includes('-') ? '-' : '.');
+            return this.formatDate(targetY, targetM, targetD, delimiter);
+        },
+
         /**
          * Initialize dual From-To Range Calendar
          * @param {string} fromInputId - ID of start date input (e.g. 'filterFYmd')
@@ -745,8 +769,12 @@ window.AamsCalendar = (function() {
             const today = new Date();
             const todayStr = this.formatDate(today.getFullYear(), today.getMonth() + 1, today.getDate(), '.');
 
-            let curFYmd = options.initialFYmd || fromEl.value || todayStr;
             let curTYmd = options.initialTYmd || toEl.value || todayStr;
+            let curFYmd = options.initialFYmd || fromEl.value;
+            // ftymd 표준: 시작일자가 지정되지 않았거나 종료일자와 같은 경우 3달 전 날짜로 자동 지정
+            if (!curFYmd || curFYmd === curTYmd) {
+                curFYmd = this.calcMonthsBefore(curTYmd, 3, curTYmd.includes('-') ? '-' : '.');
+            }
 
             // Normalize format with dot '.' if hyphens were used
             curFYmd = curFYmd.replace(/-/g, '.');

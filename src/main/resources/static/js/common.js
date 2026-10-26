@@ -201,6 +201,67 @@ window.resolveFilterYmd = resolveFilterYmd;
 window.getFilterYmd = resolveFilterYmd;
 
 /**
+ * 기준일자로부터 N개월 전 날짜 계산 유틸리티 (오버플로우 방지)
+ * @param {string} dateStr - 'YYYY-MM-DD', 'YYYY.MM.DD', 'YYYYMMDD'
+ * @param {number} [months=3] - 감산할 개월 수 (기본 3)
+ * @param {string} [delimiter] - 구분자 (미지정 시 입력값 구분자 유지)
+ * @returns {string} N개월 전 날짜
+ */
+function calcMonthsBeforeDate(dateStr, months, delimiter) {
+    months = (typeof months === 'number') ? months : 3;
+    if (!dateStr) return '';
+    const clean = String(dateStr).replace(/[^0-9]/g, '');
+    if (clean.length < 8) return dateStr;
+    const y = parseInt(clean.substring(0, 4), 10);
+    const m = parseInt(clean.substring(4, 6), 10);
+    const d = parseInt(clean.substring(6, 8), 10);
+
+    let targetM = m - months;
+    let targetY = y;
+    while (targetM <= 0) {
+        targetM += 12;
+        targetY -= 1;
+    }
+    const maxDays = new Date(targetY, targetM, 0).getDate();
+    const targetD = Math.min(d, maxDays);
+
+    const mm = String(targetM).padStart(2, '0');
+    const dd = String(targetD).padStart(2, '0');
+    const delim = delimiter !== undefined ? delimiter : (String(dateStr).includes('.') ? '.' : (String(dateStr).includes('-') ? '-' : ''));
+    if (!delim) return `${targetY}${mm}${dd}`;
+    return `${targetY}${delim}${mm}${delim}${dd}`;
+}
+window.calcMonthsBeforeDate = calcMonthsBeforeDate;
+
+/**
+ * 기준월로부터 N개월 전 월 계산 유틸리티
+ * @param {string} monthStr - 'YYYY-MM', 'YYYY.MM', 'YYYYMM'
+ * @param {number} [months=3] - 감산할 개월 수 (기본 3)
+ * @param {string} [delimiter] - 구분자 (미지정 시 입력값 구분자 유지)
+ * @returns {string} N개월 전 월
+ */
+function calcMonthsBeforeMonth(monthStr, months, delimiter) {
+    months = (typeof months === 'number') ? months : 3;
+    if (!monthStr) return '';
+    const clean = String(monthStr).replace(/[^0-9]/g, '');
+    if (clean.length < 6) return monthStr;
+    const y = parseInt(clean.substring(0, 4), 10);
+    const m = parseInt(clean.substring(4, 6), 10);
+
+    let targetM = m - months;
+    let targetY = y;
+    while (targetM <= 0) {
+        targetM += 12;
+        targetY -= 1;
+    }
+    const mm = String(targetM).padStart(2, '0');
+    const delim = delimiter !== undefined ? delimiter : (String(monthStr).includes('.') ? '.' : (String(monthStr).includes('-') ? '-' : ''));
+    if (!delim) return `${targetY}${mm}`;
+    return `${targetY}${delim}${mm}`;
+}
+window.calcMonthsBeforeMonth = calcMonthsBeforeMonth;
+
+/**
  * Safe Resolution for Current Filter Start Date (filterFYmd / filterFymd)
  * 화면 상단 기간 필터바의 시작일자를 추출하여 지정한 포맷으로 안전하게 반환합니다.
  * @param {HTMLElement|string} [pane] - 현재 화면/탭 컨테이너 요소
@@ -233,6 +294,14 @@ function resolveFilterFymd(pane, format) {
     else if (input && input.getAttribute('value')) rawVal = String(input.getAttribute('value')).trim();
 
     if (!rawVal) {
+        var baseTymd = resolveFilterTymd(targetPane, 'YYYY-MM-DD');
+        if (baseTymd) {
+            var fymd3m = calcMonthsBeforeDate(baseTymd, 3, '-');
+            const clean = fymd3m.replace(/[^0-9]/g, '');
+            if (targetFormat === 'YYYYMMDD') return clean;
+            if (targetFormat === 'YYYY.MM.DD') return fymd3m.replace(/-/g, '.');
+            return fymd3m;
+        }
         return resolveFilterYmd(targetPane, targetFormat);
     }
 
@@ -305,6 +374,107 @@ window.getFilterTymd = resolveFilterTymd;
 window.getFilterTYmd = resolveFilterTymd;
 
 /**
+ * Safe Resolution for Current Filter Start Month (filterFMm / filterFmm)
+ * 화면 상단 기간 월 필터바의 시작월을 추출하여 지정한 포맷으로 안전하게 반환합니다.
+ */
+function resolveFilterFmm(pane, format) {
+    if (!pane && window.currentPane) pane = window.currentPane;
+    let targetFormat = format;
+    let targetPane = pane;
+    if (typeof pane === 'string' && !format) {
+        var upper = pane.toUpperCase();
+        if (upper === 'YYYY-MM' || upper === 'YYYYMM' || upper === 'YYYY.MM') {
+            targetFormat = upper;
+            targetPane = null;
+        }
+    }
+    if (!targetFormat) targetFormat = 'YYYY-MM';
+    targetFormat = targetFormat.toUpperCase();
+
+    const root = (targetPane && typeof targetPane.querySelector === 'function') ? targetPane : document;
+    const input = root.querySelector('#filterFMm')
+               || root.querySelector('#filterFmm')
+               || root.querySelector('input[name="fMm"]')
+               || root.querySelector('input[name="fmm"]');
+
+    let rawVal = '';
+    if (input && input.value) rawVal = String(input.value).trim();
+    else if (input && input.getAttribute('value')) rawVal = String(input.getAttribute('value')).trim();
+
+    if (!rawVal) {
+        var baseTmm = resolveFilterTmm(targetPane, 'YYYY-MM');
+        if (baseTmm) {
+            rawVal = calcMonthsBeforeMonth(baseTmm, 3, '-');
+        }
+    }
+
+    const clean = rawVal.replace(/[^0-9]/g, '');
+    if (clean.length === 6) {
+        const y = clean.substring(0, 4);
+        const m = clean.substring(4, 6);
+        if (targetFormat === 'YYYYMM') return clean;
+        if (targetFormat === 'YYYY.MM') return `${y}.${m}`;
+        return `${y}-${m}`;
+    }
+    return rawVal;
+}
+window.resolveFilterFmm = resolveFilterFmm;
+window.getFilterFmm = resolveFilterFmm;
+window.getFilterFMm = resolveFilterFmm;
+
+/**
+ * Safe Resolution for Current Filter End Month (filterTMm / filterTmm)
+ * 화면 상단 기간 월 필터바의 종료월을 추출하여 지정한 포맷으로 안전하게 반환합니다.
+ */
+function resolveFilterTmm(pane, format) {
+    if (!pane && window.currentPane) pane = window.currentPane;
+    let targetFormat = format;
+    let targetPane = pane;
+    if (typeof pane === 'string' && !format) {
+        var upper = pane.toUpperCase();
+        if (upper === 'YYYY-MM' || upper === 'YYYYMM' || upper === 'YYYY.MM') {
+            targetFormat = upper;
+            targetPane = null;
+        }
+    }
+    if (!targetFormat) targetFormat = 'YYYY-MM';
+    targetFormat = targetFormat.toUpperCase();
+
+    const root = (targetPane && typeof targetPane.querySelector === 'function') ? targetPane : document;
+    const input = root.querySelector('#filterTMm')
+               || root.querySelector('#filterTmm')
+               || root.querySelector('input[name="tMm"]')
+               || root.querySelector('input[name="tmm"]');
+
+    let rawVal = '';
+    if (input && input.value) rawVal = String(input.value).trim();
+    else if (input && input.getAttribute('value')) rawVal = String(input.getAttribute('value')).trim();
+
+    if (!rawVal) {
+        var detectedCorpGr = (typeof resolveCorpGr === 'function') ? resolveCorpGr(targetPane) : '';
+        var syncYmd = (window.WorkDateSyncManager && typeof window.WorkDateSyncManager.getWorkDate === 'function')
+            ? window.WorkDateSyncManager.getWorkDate(detectedCorpGr)
+            : '';
+        if (syncYmd && syncYmd.length >= 7) {
+            rawVal = syncYmd.substring(0, 7);
+        }
+    }
+
+    const clean = rawVal.replace(/[^0-9]/g, '');
+    if (clean.length === 6) {
+        const y = clean.substring(0, 4);
+        const m = clean.substring(4, 6);
+        if (targetFormat === 'YYYYMM') return clean;
+        if (targetFormat === 'YYYY.MM') return `${y}.${m}`;
+        return `${y}-${m}`;
+    }
+    return rawVal;
+}
+window.resolveFilterTmm = resolveFilterTmm;
+window.getFilterTmm = resolveFilterTmm;
+window.getFilterTMm = resolveFilterTmm;
+
+/**
  * Filter Calendar 자동 초기화 헬퍼 (initCalendar 보일러플레이트 제거용)
  * @param {HTMLElement} [pane] - 화면 탭 컨테이너
  * @param {object|string} [options] - 초기 옵션 또는 initialYmd
@@ -316,29 +486,59 @@ function initFilterCalendar(pane, options) {
 
     const root = (pane && typeof pane.querySelector === 'function') ? pane : document;
 
-    // 1) 기간 달력 체크 (filterFYmd & filterTYmd)
+    var detectedCorpGr = (typeof resolveCorpGr === 'function') ? resolveCorpGr(pane) : '';
+    var syncYmd = (window.WorkDateSyncManager && typeof window.WorkDateSyncManager.getWorkDate === 'function')
+        ? window.WorkDateSyncManager.getWorkDate(detectedCorpGr)
+        : '';
+
+    // 1) 기간 일자 달력 체크 (filterFYmd & filterTYmd)
     const fymdInput = root.querySelector(options.fymdId ? '#' + options.fymdId : '#filterFYmd, #filterFymd');
     const tymdInput = root.querySelector(options.tymdId ? '#' + options.tymdId : '#filterTYmd, #filterTymd');
     if (fymdInput && tymdInput && window.AamsCalendar && typeof window.AamsCalendar.initRange === 'function') {
+        var curTYmd = options.initialTYmd || options.initialYmd || tymdInput.value || syncYmd || '';
+        if (curTYmd && (!tymdInput.value || tymdInput.value.trim() === '')) {
+            tymdInput.value = curTYmd;
+        }
+        var curFYmd = options.initialFYmd || options.initialFymd || fymdInput.value || '';
+        // ftymd 표준: 시작일자가 없거나 종료일자와 같은 경우 3달 전 날짜로 자동 지정
+        if (!curFYmd || curFYmd === curTYmd) {
+            curFYmd = calcMonthsBeforeDate(curTYmd || syncYmd, 3, (curTYmd.includes('-') ? '-' : '.'));
+            fymdInput.value = curFYmd;
+        }
+
         window.AamsCalendar.initRange(fymdInput.id || 'filterFYmd', tymdInput.id || 'filterTYmd', {
             pane: pane,
+            initialFYmd: curFYmd,
+            initialTYmd: curTYmd,
             onSelect: options.onSelect
         });
         return;
     }
 
-    // 2) 단일 달력 및 연월(Month) 달력 체크
+    // 2) 기간 월(From-To Month) 체크 (filterFMm & filterTMm)
+    const fMmInput = root.querySelector(options.fmmId ? '#' + options.fmmId : '#filterFMm, #filterFmm, input[name="fMm"], input[name="fmm"]');
+    const tMmInput = root.querySelector(options.tmmId ? '#' + options.tmmId : '#filterTMm, #filterTmm, input[name="tMm"], input[name="tmm"]');
+    if (fMmInput && tMmInput) {
+        var curTMm = options.initialTMm || tMmInput.value || (syncYmd && syncYmd.length >= 7 ? syncYmd.substring(0, 7) : '');
+        if (curTMm && (!tMmInput.value || tMmInput.value.trim() === '')) {
+            tMmInput.value = curTMm;
+        }
+        var curFMm = options.initialFMm || fMmInput.value || '';
+        // ftmm 표준: 시작월이 없거나 종료월과 같은 경우 3달 전 월로 자동 지정
+        if (!curFMm || curFMm === curTMm) {
+            curFMm = calcMonthsBeforeMonth(curTMm, 3, (curTMm.includes('.') ? '.' : '-'));
+            fMmInput.value = curFMm;
+        }
+        return;
+    }
+
+    // 3) 단일 달력 및 연월(Month) 달력 체크
     const isMonthMode = (options.mode === 'month' || options.type === 'month' || options.inputId === 'filterYm' || (options.inputId && options.inputId.includes('Ym') && !options.inputId.includes('Ymd')));
     const inputId = options.inputId || (isMonthMode ? 'filterYm' : 'filterYmd');
     const input = root.querySelector('#' + inputId)
                || (isMonthMode ? root.querySelector('input[name="ym"]') : root.querySelector('input[name="ymd"]'))
                || root.querySelector('.aams-calendar-input');
     if (!input) return;
-
-    var detectedCorpGr = (typeof resolveCorpGr === 'function') ? resolveCorpGr(pane) : '';
-    var syncYmd = (window.WorkDateSyncManager && typeof window.WorkDateSyncManager.getWorkDate === 'function')
-        ? window.WorkDateSyncManager.getWorkDate(detectedCorpGr)
-        : '';
 
     let defaultVal = syncYmd;
     if (isMonthMode && syncYmd && syncYmd.length >= 7) {
@@ -1571,14 +1771,22 @@ window.WorkDateSyncManager = {
         var ymdInput = pane.querySelector('#filterYmd') || pane.querySelector('input[name="ymd"]');
         var fymdInput = pane.querySelector('#filterFYmd, #filterFymd, input[name="fYmd"], input[name="fymd"]');
         var tymdInput = pane.querySelector('#filterTYmd, #filterTymd, input[name="tYmd"], input[name="tymd"]');
-        if (!ymdInput && !fymdInput && !tymdInput) return;
+        var fmmInput = pane.querySelector('#filterFMm, #filterFmm, input[name="fMm"], input[name="fmm"]');
+        var tmmInput = pane.querySelector('#filterTMm, #filterTmm, input[name="tMm"], input[name="tmm"]');
+        if (!ymdInput && !fymdInput && !tymdInput && !fmmInput && !tmmInput) return;
 
         var cachedDate = getCookieWorkDate();
         if (cachedDate) {
             if (ymdInput && (!ymdInput.value || ymdInput.value.trim() === '')) ymdInput.value = cachedDate;
             var cachedDot = cachedDate.replace(/-/g, '.');
-            if (fymdInput && (!fymdInput.value || fymdInput.value.trim() === '')) fymdInput.value = cachedDot;
             if (tymdInput && (!tymdInput.value || tymdInput.value.trim() === '')) tymdInput.value = cachedDot;
+            if (fymdInput && (!fymdInput.value || fymdInput.value.trim() === '')) {
+                fymdInput.value = calcMonthsBeforeDate(cachedDot, 3, '.');
+            }
+            if (tmmInput && (!tmmInput.value || tmmInput.value.trim() === '')) tmmInput.value = cachedDate.substring(0, 7);
+            if (fmmInput && (!fmmInput.value || fmmInput.value.trim() === '')) {
+                fmmInput.value = calcMonthsBeforeMonth(cachedDate.substring(0, 7), 3, '-');
+            }
         }
 
         var targetCorp = corpGr || (typeof resolveCorpGr === 'function' ? resolveCorpGr(pane) : '');
@@ -1587,8 +1795,10 @@ window.WorkDateSyncManager = {
                 if (workDate) {
                     if (ymdInput) ymdInput.value = workDate;
                     var dateDot = workDate.replace(/-/g, '.');
-                    if (fymdInput) fymdInput.value = dateDot;
                     if (tymdInput) tymdInput.value = dateDot;
+                    if (fymdInput) fymdInput.value = calcMonthsBeforeDate(dateDot, 3, '.');
+                    if (tmmInput) tmmInput.value = workDate.substring(0, 7);
+                    if (fmmInput) fmmInput.value = calcMonthsBeforeMonth(workDate.substring(0, 7), 3, '-');
                 }
             });
         }
@@ -2489,8 +2699,28 @@ function aamsCellEdit(e, cell) {
         }
         // 3. 필드명이 명시적 시퀀스이고 타이틀이 짧은 번호 컬럼인 경우
         if (col.field && (col.field === "seq" || col.field === "no" || col.field === "rowNo") && col.width && col.width <= 50) return true;
-        // 4. 선택 체크박스 컬럼
-        if (col.formatter === "rowSelection" || col.titleFormatter === "rowSelection") return true;
+
+        // 4. 선택 체크박스 및 불리언 체크 컬럼 판별 (사용자 표준 규격: "no와 체크박스 유형을 제외")
+        if (col.formatter === "rowSelection" || col.titleFormatter === "rowSelection" || col.formatter === "tickCross") return true;
+        if (typeof col.formatter === 'function') {
+            const fnStr = col.formatter.toString();
+            if (fnStr.includes('type="checkbox"') || fnStr.includes("type='checkbox'") || fnStr.includes('checkbox') || fnStr.includes('rowSelection')) {
+                return true;
+            }
+        }
+        if (col.title) {
+            const cleanTitle = String(col.title).replace(/<[^>]*>/g, '').trim().toUpperCase();
+            if (['선택', '체크', '미사용', '삭제', 'USE', 'CHK', 'SELECT', 'SEL'].includes(cleanTitle)) {
+                if (!col.width || col.width <= 75) return true;
+            }
+        }
+        if (col.field) {
+            const fld = String(col.field).toLowerCase();
+            if (['chk', 'check', 'selected', 'ischeck', 'used'].includes(fld)) {
+                if (!col.width || col.width <= 75) return true;
+            }
+        }
+
         // 5. 돋보기/달력/액션 버튼 add-on 컬럼
         if (typeof col.field === 'string') {
             if (col.field.startsWith('xx_btn_') || col.field.startsWith('p_dd_') || col.field.startsWith('btn_')) return true;
@@ -2499,6 +2729,106 @@ function aamsCellEdit(e, cell) {
         if (!col.field || (col.title === "" && col.width && col.width <= 40)) return true;
 
         return false;
+    }
+
+    // 사용자 지정 가독성 향상 스타일(중복 숨김 & 그룹 구분선) 적용 대상 화면 화이트리스트 (21개 화면)
+    const SUPPRESS_REPEATING_WHITELIST = [
+        'W_JA990C',
+        'W_JA010M3',
+        'W_JA010J',
+        'W_JA010Q',
+        'W_JA010H1',
+        'W_JA020K1',
+        'W_JA010H',
+        'W_JA010G',
+        'W_JA010B',
+        'W_JA032E_PUT',
+        'W_JA032E_CALL',
+        'W_JA032O',
+        'W_JA032C',
+        'W_JA050A',
+        'W_JA032K',
+        'W_JA032D',
+        'W_API_PARAMS',
+        'W_JA033A',
+        'W_JA033B',
+        'W_JA033C',
+        'W_SZX0SE'
+    ];
+
+    /**
+     * 그리드 컨테이너 및 옵션으로부터 현재 화면(Program ID)을 식별하고 화이트리스트 대상 여부 반환
+     */
+    function resolveTargetScreenForSuppressRepeating(container, options) {
+        if (!options) options = {};
+
+        // 1) options에 pgmId가 직접 명시된 경우
+        const rawPgmId = options.pgmId || options.screenId || options.splitKey;
+        const candidates = [];
+        if (rawPgmId) candidates.push(String(rawPgmId));
+
+        let el = null;
+        if (typeof container === 'string') {
+            try { el = document.querySelector(container); } catch (e) { el = null; }
+        } else if (container && container.nodeType === 1) {
+            el = container;
+        }
+
+        if (el) {
+            if (el.getAttribute('data-pgm-id')) candidates.push(el.getAttribute('data-pgm-id'));
+            if (el.getAttribute('data-split-key')) candidates.push(el.getAttribute('data-split-key'));
+            if (el.id) candidates.push(el.id);
+            if (el.className) candidates.push(el.className);
+
+            if (typeof el.closest === 'function') {
+                const pane = el.closest('.tab-pane, .view-container, [data-pgm-id], [data-split-key], [id^="tab-pane-"]');
+                if (pane) {
+                    if (pane.getAttribute('data-pgm-id')) candidates.push(pane.getAttribute('data-pgm-id'));
+                    if (pane.getAttribute('data-split-key')) candidates.push(pane.getAttribute('data-split-key'));
+                    if (pane.getAttribute('data-tab-key')) candidates.push(pane.getAttribute('data-tab-key'));
+                    if (pane.id) candidates.push(pane.id);
+                    if (pane.className) candidates.push(pane.className);
+
+                    const splitEl = pane.querySelector('[data-split-key]');
+                    if (splitEl && splitEl.getAttribute('data-split-key')) {
+                        candidates.push(splitEl.getAttribute('data-split-key'));
+                    }
+
+                    // MDI tabManager 연동
+                    if (pane.id && pane.id.startsWith('tab-pane-') && window.tabManager && Array.isArray(window.tabManager.openTabs)) {
+                        const tabKey = pane.id.replace('tab-pane-', '');
+                        const tabObj = window.tabManager.openTabs.find(t => t.tabKey === tabKey || t.pgmNo === tabKey || t.pgmId === tabKey);
+                        if (tabObj) {
+                            if (tabObj.pgmId) candidates.push(tabObj.pgmId);
+                            if (tabObj.url) candidates.push(tabObj.url);
+                        }
+                    }
+                }
+            }
+        }
+
+        // 현재 브라우저 URL 경로도 후보에 추가
+        if (typeof window !== 'undefined' && window.location && window.location.pathname) {
+            candidates.push(window.location.pathname);
+        }
+
+        // 화이트리스트 키를 길이 역순(긴 이름 우선, 예: JA010H1 -> JA010H)으로 정렬하여 정확한 매칭 수행
+        const sortedTargets = [...SUPPRESS_REPEATING_WHITELIST].sort((a, b) => b.length - a.length);
+
+        for (const candidate of candidates) {
+            if (!candidate || typeof candidate !== 'string') continue;
+            const upper = candidate.toUpperCase().replace(/[^A-Z0-9_]/g, '_');
+
+            for (const target of sortedTargets) {
+                const coreKey = target.replace(/^W_/, '');
+                // 'W_JA032E_PUT' 또는 'JA032E_PUT' 패턴 완전/부분 일치 검사
+                if (upper.includes(target) || upper.includes(coreKey)) {
+                    return target;
+                }
+            }
+        }
+
+        return null;
     }
 
     /**
@@ -2634,19 +2964,46 @@ function aamsCellEdit(e, cell) {
         };
     }
 
+    const appliedSuppressColumns = (typeof WeakSet !== 'undefined') ? new WeakSet() : { has: () => false, add: () => {} };
+
+    /**
+     * Tabulator v5/v6 컬럼 정의 유효성 검사 경고(Invalid column definition option) 방지를 위한
+     * 커스텀 프로퍼티 정리 헬퍼 (headerCssClass와 동일한 규격)
+     */
+    function cleanupSuppressOptions(columns) {
+        if (!Array.isArray(columns)) return;
+        columns.forEach(col => {
+            if (!col) return;
+            delete col.suppressRepeating;
+            delete col.suppressDuplicates;
+            delete col.suppressDuplicate;
+            delete col._isAamsSuppressApplied;
+            if (col.columns && Array.isArray(col.columns)) {
+                cleanupSuppressOptions(col.columns);
+            }
+        });
+    }
+
     /**
      * Suppress Repeating Values (연속 중복값 숨김) 및 마스터 그리드 그룹 구분선 컬럼 전처리
-     * 파워빌더 DataWindow의 'Suppress Repeating Values' 기능과 동일하게
-     * No.(시퀀스)를 제외한 첫 번째, 두 번째 컬럼에 대해 연속된 행에서 동일한 값이 나올 경우 하위 행의 텍스트를 숨김 처리합니다.
-     * 오직 'master-grid'(마스터 그리드)에만 자동 적용되며, 첫 번째 컬럼의 값이 변경될 때 이전 그룹 하단에 구분선이 표출됩니다.
+     * [사용자 표준 규격]
+     * 오직 지정된 21개 화면의 master-grid에 한하여 No.(시퀀스)와 체크박스 유형을 제외한
+     * 첫 번째, 두 번째 컬럼에 대해 연속 중복값을 숨기고, 첫 번째 컬럼 유형 변경 시 하단 구분선을 표출합니다.
+     * 그 외의 다른 모든 화면은 일반 그리드로 표출됩니다.
      */
     function processColumnsSuppressRepeating(columns, options, container) {
         if (!Array.isArray(columns) || columns.length === 0) return;
 
+        // 1. 명시적 비활성화 옵션(suppressRepeating === false 등)이 있으면 정리 후 즉시 종료
+        if (options && (options.suppressRepeating === false || options.suppressDuplicates === false || options.isMasterGrid === false)) {
+            cleanupSuppressOptions(columns);
+            return;
+        }
+
         const isMaster = isMasterGrid(container, options);
         const specifiedCols = options && (options.suppressRepeatingColumns || options.suppressDuplicateColumns);
 
-        // 1. 그리드 레벨 지정 옵션 반영
+        // 2. 개발자가 명시적으로 컬럼 배열을 지정한 경우 최우선 적용
         if (Array.isArray(specifiedCols) && specifiedCols.length > 0) {
             columns.forEach((col, idx) => {
                 if (!col) return;
@@ -2654,16 +3011,42 @@ function aamsCellEdit(e, cell) {
                     col.suppressRepeating = true;
                 }
             });
-        } else if (isMaster) {
-            // [사용자 표준 규격] 마스터 그리드에 한하여 No(시퀀스)를 제외한 "첫 번째"와 "두 번째" 컬럼에 자동 적용 (정확히 2개 컬럼)
-            let count = 0;
-            columns.forEach(col => {
-                if (!col || count >= 2) return;
-                // No(시퀀스) 및 시스템 컨트롤 컬럼 제외
-                if (isSequenceOrControlColumn(col)) return;
-                col.suppressRepeating = true;
-                count++;
-            });
+        } else {
+            // 3. 사용자 지정 표준 규격:
+            // 오직 21개 지정 화면의 master-grid에 한해서만 자동 적용!
+            // 그 외의 모든 화면은 자동으로 적용하지 않고 일반 표출 유지.
+            const targetScreen = resolveTargetScreenForSuppressRepeating(container, options);
+            if (!targetScreen || !isMaster) {
+                // 화이트리스트 화면이 아니거나 디테일 그리드면 정리 후 종료
+                cleanupSuppressOptions(columns);
+                return;
+            }
+
+            if (targetScreen === 'W_SZX0SE') {
+                // [W_SZX0SE (2, 3)] 특화: 대분류(seriesG1), 시리즈(seriesG2) 컬럼 (No와 미사용 체크박스 제외 1, 2번째)
+                let count = 0;
+                columns.forEach(col => {
+                    if (!col) return;
+                    if (col.field === 'seriesG1' || col.field === 'seriesG2') {
+                        col.suppressRepeating = true;
+                    } else if (isSequenceOrControlColumn(col)) {
+                        // No.(0) 및 미사용 체크박스(1) 건너뜀
+                    } else if (count < 2) {
+                        col.suppressRepeating = true;
+                        count++;
+                    }
+                });
+            } else {
+                // [일반 대상 화면]: No(시퀀스)와 체크박스 유형을 제외한 첫 번째, 두 번째 컬럼에 자동 적용 (정확히 2개 컬럼)
+                let count = 0;
+                columns.forEach(col => {
+                    if (!col || count >= 2) return;
+                    // No(시퀀스) 및 체크박스 유형 컬럼 제외
+                    if (isSequenceOrControlColumn(col)) return;
+                    col.suppressRepeating = true;
+                    count++;
+                });
+            }
         }
 
         // 2. suppress 대상 필드 목록을 순서대로 수집 (계층 의존성 추적용)
@@ -2677,7 +3060,10 @@ function aamsCellEdit(e, cell) {
             }
         });
 
-        if (suppressFields.length === 0) return;
+        if (suppressFields.length === 0) {
+            cleanupSuppressOptions(columns);
+            return;
+        }
 
         // 3. 첫 번째 컬럼 유형 변경 시 하단 구분선 적용 (마스터 그리드 한정)
         if (isMaster && suppressFields.length > 0) {
@@ -2691,8 +3077,8 @@ function aamsCellEdit(e, cell) {
             if (fieldIdx === -1) return;
 
             // 이미 AAMS Suppress 포매터가 래핑되어 있다면 중복 래핑 방지
-            if (col._isAamsSuppressApplied) return;
-            col._isAamsSuppressApplied = true;
+            if (appliedSuppressColumns.has(col)) return;
+            appliedSuppressColumns.add(col);
 
             const parentFields = suppressFields.slice(0, fieldIdx + 1);
             const origFormatter = col.formatter;
@@ -2738,6 +3124,9 @@ function aamsCellEdit(e, cell) {
                 return (rawVal != null) ? rawVal : "";
             };
         });
+
+        // 5. Tabulator v5/v6 엔진으로 전달되기 전 비표준 커스텀 옵션 정리 (Invalid column definition option 경고 방지)
+        cleanupSuppressOptions(columns);
     }
 
     function applyPatch() {
@@ -2751,6 +3140,15 @@ function aamsCellEdit(e, cell) {
                 processColumnsHeaderCss(options.columns);
                 processColumnsListEditor(options.columns);
                 processColumnsSuppressRepeating(options.columns, options, container);
+            }
+
+            // Tabulator 생성자에 전달 전 커스텀 options 프로퍼티 정리
+            if (options) {
+                delete options.suppressRepeatingColumns;
+                delete options.suppressDuplicateColumns;
+                delete options.isMasterGrid;
+                if ('suppressRepeating' in options) delete options.suppressRepeating;
+                if ('suppressDuplicates' in options) delete options.suppressDuplicates;
             }
 
             // Ensure default columnDefaults.vertAlign = "middle" so Tabulator natively injects justifyContent based on hozAlign
@@ -3266,7 +3664,22 @@ window.sanitizeGridData = function(grid, dataList, extraAllowedFields) {
         buildPreviewUrl: function(mrdName, params, options) {
             options = options || {};
             var qs = ['mrdName=' + encodeURIComponent(mrdName)];
-            if (options.corpGr) qs.push('corpGr=' + encodeURIComponent(options.corpGr));
+
+            // 회사그룹(corpGr) 단일값 정제 및 중복 방어
+            var effectiveCorpGr = options.corpGr;
+            if (!effectiveCorpGr && params && typeof params === 'object') {
+                effectiveCorpGr = params.corpGr || params.corp_gr;
+            }
+            if (effectiveCorpGr) {
+                effectiveCorpGr = String(effectiveCorpGr).trim();
+                if (effectiveCorpGr.indexOf(',') !== -1) {
+                    effectiveCorpGr = effectiveCorpGr.split(',')[0].trim();
+                }
+                if (effectiveCorpGr) {
+                    qs.push('corpGr=' + encodeURIComponent(effectiveCorpGr));
+                }
+            }
+
             if (options.downloadName) qs.push('downloadName=' + encodeURIComponent(options.downloadName));
             if (options.timestamp !== false) qs.push('t=' + new Date().getTime());
 
@@ -3278,6 +3691,10 @@ window.sanitizeGridData = function(grid, dataList, extraAllowedFields) {
             if (params && typeof params === 'object') {
                 for (var k in params) {
                     if (params.hasOwnProperty(k) && params[k] !== undefined && params[k] !== null) {
+                        var kLower = k.trim().toLowerCase();
+                        if (kLower === 'corpgr' || kLower === 'corp_gr') {
+                            continue; // 이미 위에서 단일 corpGr로 추가함
+                        }
                         qs.push(encodeURIComponent(k) + '=' + encodeURIComponent(params[k]));
                     }
                 }
@@ -3291,13 +3708,32 @@ window.sanitizeGridData = function(grid, dataList, extraAllowedFields) {
             options = options || {};
             var qs = ['mrdName=' + encodeURIComponent(mrdName)];
             qs.push('format=' + encodeURIComponent(format || 'pdf'));
-            if (options.corpGr) qs.push('corpGr=' + encodeURIComponent(options.corpGr));
+
+            // 회사그룹(corpGr) 단일값 정제 및 중복 방어
+            var effectiveCorpGr = options.corpGr;
+            if (!effectiveCorpGr && params && typeof params === 'object') {
+                effectiveCorpGr = params.corpGr || params.corp_gr;
+            }
+            if (effectiveCorpGr) {
+                effectiveCorpGr = String(effectiveCorpGr).trim();
+                if (effectiveCorpGr.indexOf(',') !== -1) {
+                    effectiveCorpGr = effectiveCorpGr.split(',')[0].trim();
+                }
+                if (effectiveCorpGr) {
+                    qs.push('corpGr=' + encodeURIComponent(effectiveCorpGr));
+                }
+            }
+
             if (options.downloadName) qs.push('downloadName=' + encodeURIComponent(options.downloadName));
             qs.push('t=' + new Date().getTime());
 
             if (params && typeof params === 'object') {
                 for (var k in params) {
                     if (params.hasOwnProperty(k) && params[k] !== undefined && params[k] !== null) {
+                        var kLower = k.trim().toLowerCase();
+                        if (kLower === 'corpgr' || kLower === 'corp_gr') {
+                            continue; // 이미 위에서 단일 corpGr로 추가함
+                        }
                         qs.push(encodeURIComponent(k) + '=' + encodeURIComponent(params[k]));
                     }
                 }
@@ -3373,9 +3809,14 @@ window.sanitizeGridData = function(grid, dataList, extraAllowedFields) {
             }
 
             function resolveCorp() {
-                if (typeof config.getCorpGr === 'function') return config.getCorpGr();
-                if (typeof window.resolveCorpGr === 'function') return window.resolveCorpGr(root);
-                return '';
+                var c = '';
+                if (typeof config.getCorpGr === 'function') c = config.getCorpGr(selectedData);
+                else if (typeof window.resolveCorpGr === 'function') c = window.resolveCorpGr(root);
+                if (c) {
+                    c = String(c).trim();
+                    if (c.indexOf(',') !== -1) c = c.split(',')[0].trim();
+                }
+                return c;
             }
 
             function resolveDataKey(data) {
@@ -3799,9 +4240,25 @@ window.sanitizeGridData = function(grid, dataList, extraAllowedFields) {
             var dateInputs = this.findDateInputs(pane);
             dateInputs.forEach(function(input) {
                 if (input) {
-                    input.value = targetYmd;
-                    if (input._flatpickr && typeof input._flatpickr.setDate === 'function') {
-                        input._flatpickr.setDate(targetYmd, false);
+                    var inputId = (input.id || '').toLowerCase();
+                    var inputName = (input.name || '').toLowerCase();
+                    if (inputId === 'filterfymd' || inputId === 'filterfymd' || inputName === 'fymd') {
+                        var delim = input.value && input.value.includes('.') ? '.' : (targetYmd.includes('.') ? '.' : '-');
+                        var val = calcMonthsBeforeDate(targetYmd, 3, delim);
+                        input.value = val;
+                        if (input._flatpickr && typeof input._flatpickr.setDate === 'function') {
+                            input._flatpickr.setDate(val, false);
+                        }
+                    } else if (inputId === 'filterfmm' || inputName === 'fmm') {
+                        var val = calcMonthsBeforeMonth(targetYmd.substring(0, 7), 3, '-');
+                        input.value = val;
+                    } else if (inputId === 'filtertmm' || inputName === 'tmm') {
+                        input.value = targetYmd.substring(0, 7);
+                    } else {
+                        input.value = targetYmd;
+                        if (input._flatpickr && typeof input._flatpickr.setDate === 'function') {
+                            input._flatpickr.setDate(targetYmd, false);
+                        }
                     }
                 }
             });
@@ -3834,9 +4291,25 @@ window.sanitizeGridData = function(grid, dataList, extraAllowedFields) {
 
                 var dateInputs = self.findDateInputs(pane);
                 dateInputs.forEach(function(input) {
-                    input.value = targetYmd;
-                    if (input._flatpickr && typeof input._flatpickr.setDate === 'function') {
-                        input._flatpickr.setDate(targetYmd, false);
+                    var inputId = (input.id || '').toLowerCase();
+                    var inputName = (input.name || '').toLowerCase();
+                    if (inputId === 'filterfymd' || inputName === 'fymd') {
+                        var delim = input.value && input.value.includes('.') ? '.' : (targetYmd.includes('.') ? '.' : '-');
+                        var val = calcMonthsBeforeDate(targetYmd, 3, delim);
+                        input.value = val;
+                        if (input._flatpickr && typeof input._flatpickr.setDate === 'function') {
+                            input._flatpickr.setDate(val, false);
+                        }
+                    } else if (inputId === 'filterfmm' || inputName === 'fmm') {
+                        var val = calcMonthsBeforeMonth(targetYmd.substring(0, 7), 3, '-');
+                        input.value = val;
+                    } else if (inputId === 'filtertmm' || inputName === 'tmm') {
+                        input.value = targetYmd.substring(0, 7);
+                    } else {
+                        input.value = targetYmd;
+                        if (input._flatpickr && typeof input._flatpickr.setDate === 'function') {
+                            input._flatpickr.setDate(targetYmd, false);
+                        }
                     }
                 });
 
@@ -3988,8 +4461,8 @@ window.sanitizeGridData = function(grid, dataList, extraAllowedFields) {
         findDateInputs: function(pane) {
             if (!pane) return [];
             return Array.from(pane.querySelectorAll(
-                '#filterYmd, #ymd, #trYmd, #workDate, #tymd, #filterFYmd, #filterTYmd, #filterFymd, #filterTymd, ' +
-                'input[name="filterYmd"], input[name="ymd"], input[name="trYmd"], input[name="workDate"], input[name="tymd"], input[name="fYmd"], input[name="tYmd"], input[name="fymd"]'
+                '#filterYmd, #ymd, #trYmd, #workDate, #tymd, #filterFYmd, #filterTYmd, #filterFymd, #filterTymd, #filterFMm, #filterTMm, #filterFmm, #filterTmm, ' +
+                'input[name="filterYmd"], input[name="ymd"], input[name="trYmd"], input[name="workDate"], input[name="tymd"], input[name="fYmd"], input[name="tYmd"], input[name="fymd"], input[name="fMm"], input[name="tMm"]'
             ));
         }
     };

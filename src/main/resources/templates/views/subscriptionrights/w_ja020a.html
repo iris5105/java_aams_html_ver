@@ -1,0 +1,1321 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<div class="view-container layout-mobile-stack-container" th:fragment="mainView"
+     style="display: flex; flex-direction: column; height: 100%; width: 100%; overflow: hidden; background-color: #ffffff; position: relative;">
+
+    <!-- 1. 상단 공통 툴바 (Row 1) -->
+    <div class="view-toolbar">
+        <div class="toolbar-left">
+            <div th:replace="~{fragments/tab_header :: toolbarButtons}"></div>
+        </div>
+        <div th:replace="~{fragments/tab_header :: toolbarBreadcrumb}"></div>
+    </div>
+
+    <!-- 2. 서브 탭 네비게이션 바 -->
+    <div class="sub-tab-bar" style="display: flex; gap: 4px; padding: 6px 14px 0 14px; background: #f8fafc; border-bottom: 1px solid #cbd5e1; flex-shrink: 0;">
+        <button type="button" class="sub-tab-btn active" id="tabBtn1" data-tab="t1"
+                style="padding: 7px 18px; border: 1px solid #cbd5e1; border-bottom: none; border-radius: 4px 4px 0 0; background: #fff; font-weight: 600; font-size: 13px; color: #2563eb; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
+            <i class="fa-solid fa-list-check"></i> 기본정보
+        </button>
+        <button type="button" class="sub-tab-btn" id="tabBtn2" data-tab="t4"
+                style="padding: 7px 18px; border: 1px solid #cbd5e1; border-bottom: none; border-radius: 4px 4px 0 0; background: #f1f5f9; font-weight: 500; font-size: 13px; color: #475569; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
+            <i class="fa-solid fa-user-check"></i> 배정등록(청약주수)
+        </button>
+        <button type="button" class="sub-tab-btn" id="tabBtn3" data-tab="t5"
+                style="padding: 7px 18px; border: 1px solid #cbd5e1; border-bottom: none; border-radius: 4px 4px 0 0; background: #f1f5f9; font-weight: 500; font-size: 13px; color: #475569; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
+            <i class="fa-solid fa-file-invoice"></i> 수요예측참여총괄표
+        </button>
+    </div>
+
+    <!-- 3. 메인 콘텐츠 영역 (탭별 컨테이너) -->
+    <div class="tab-content-wrapper" style="flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; position: relative;">
+
+        <!-- [TAB 1] 기본정보 (좌: 그리드 + 우: 상세 폼) -->
+        <div class="tab-pane-view active" id="paneTab1" style="display: flex; height: 100%; width: 100%; min-height: 0;">
+            <div class="layout-split-h split-body layout-mobile-stack" data-split-key="JA020A_T1_H" data-default-ratio="55:45" style="width: 100%; height: 100%; display: flex;">
+                <!-- 좌측: 공모종목 목록 그리드 -->
+                <div class="split-pane split-left" style="width: 55%; display: flex; flex-direction: column; min-width: 0;">
+                    <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center;">
+                        <span class="panel-title"><i class="fa-solid fa-table-list"></i> 공모종목 목록</span>
+                        <div class="panel-actions">
+                            <button type="button" class="btn-sub-grid" id="btnT1NewRow" title="신규 종목 등록"><i class="fa-solid fa-plus"></i> 신규</button>
+                        </div>
+                    </div>
+                    <div class="panel-body" style="flex: 1; min-height: 0; position: relative;">
+                        <div id="gridT1" class="tabulator-aams-grid" style="height: 100%;"></div>
+                    </div>
+                </div>
+
+                <div class="split-gutter-h"></div>
+
+                <!-- 우측: 공모종목 상세 입력 폼 -->
+                <div class="split-pane split-right" style="width: 45%; display: flex; flex-direction: column; min-width: 0; background: #ffffff;">
+                    <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center;">
+                        <span class="panel-title"><i class="fa-solid fa-pen-to-square"></i> 공모종목 상세정보</span>
+                        <div class="panel-actions">
+                            <button type="button" class="btn-sub-grid btn-save" id="btnT1Save"><i class="fa-solid fa-floppy-disk"></i> 저장</button>
+                            <button type="button" class="btn-sub-grid btn-delete" id="btnT1Delete"><i class="fa-solid fa-trash"></i> 삭제</button>
+                        </div>
+                    </div>
+                    <div class="panel-body" style="flex: 1; overflow-y: auto; padding: 14px 18px;">
+                        <form id="formT1" onsubmit="return false;" style="display: flex; flex-direction: column; gap: 10px;">
+                            <input type="hidden" id="t1CorpGr" name="corpGr" th:value="${corpGr}" />
+                            
+                            <!-- 청약구분 / 관리번호 -->
+                            <div style="display: flex; gap: 12px; align-items: center;">
+                                <div style="flex: 1; display: flex; align-items: center; gap: 8px;">
+                                    <label class="form-label" style="width: 100px; min-width: 100px; font-weight: 600; color: #334155; font-size: 12px; background: #f1f5f9; padding: 4px 8px; border: 1px solid #cbd5e1; border-radius: 3px; text-align: center;">청약구분</label>
+                                    <div style="display: flex; gap: 12px; align-items: center; font-size: 13px;">
+                                        <label style="display: inline-flex; align-items: center; gap: 4px; cursor: pointer;">
+                                            <input type="radio" name="cyGb" value="1" checked /> 1. 공모
+                                        </label>
+                                        <label style="display: inline-flex; align-items: center; gap: 4px; cursor: pointer;">
+                                            <input type="radio" name="cyGb" value="2" /> 2. 실권주
+                                        </label>
+                                    </div>
+                                </div>
+                                <div style="flex: 1; display: flex; align-items: center; gap: 8px;">
+                                    <label class="form-label" style="width: 90px; min-width: 90px; font-weight: 600; color: #334155; font-size: 12px; background: #f1f5f9; padding: 4px 8px; border: 1px solid #cbd5e1; border-radius: 3px; text-align: center;">관리번호</label>
+                                    <input type="text" id="t1JcJoin" name="jcJoin" class="form-input" readonly placeholder="신규시 자동채번" style="flex: 1; height: 26px; border: 1px solid #cbd5e1; border-radius: 3px; padding: 0 8px; background: #f8fafc; font-size: 12px;" />
+                                </div>
+                            </div>
+
+                            <!-- 공모종목명 / 발행기관 -->
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <label class="form-label" style="width: 100px; min-width: 100px; font-weight: 600; color: #334155; font-size: 12px; background: #f1f5f9; padding: 4px 8px; border: 1px solid #cbd5e1; border-radius: 3px; text-align: center;">공모종목명</label>
+                                <input type="text" id="t1JmNm" name="jmNm" class="form-input" placeholder="종목명 입력" style="flex: 1; height: 26px; border: 1px solid #cbd5e1; border-radius: 3px; padding: 0 8px; font-size: 12px;" />
+                                <input type="text" id="t1BalhCo" name="balhCo" class="form-input" placeholder="발행사코드" style="width: 80px; height: 26px; border: 1px solid #cbd5e1; border-radius: 3px; padding: 0 8px; font-size: 12px;" />
+                                <button type="button" class="btn-grid-addon btn-search" id="btnT1BalhSearch" title="발행기관 검색" style="height: 26px; width: 28px; border: 1px solid #cbd5e1; background: #f8fafc; border-radius: 3px; cursor: pointer;"><i class="fa-solid fa-magnifying-glass"></i></button>
+                            </div>
+
+                            <!-- 공모일자 / 대표주관사 -->
+                            <div style="display: flex; gap: 12px; align-items: center;">
+                                <div style="flex: 1; display: flex; align-items: center; gap: 8px;">
+                                    <label class="form-label" style="width: 100px; min-width: 100px; font-weight: 600; color: #2563eb; font-size: 12px; background: #eff6ff; padding: 4px 8px; border: 1px solid #bfdbfe; border-radius: 3px; text-align: center;">공모일자</label>
+                                    <div style="display: flex; align-items: center; gap: 4px; flex: 1;">
+                                        <input type="text" id="t1Ymd" name="ymd" class="form-input" placeholder="YYYY-MM-DD" style="flex: 1; height: 26px; border: 1px solid #cbd5e1; border-radius: 3px; padding: 0 8px; font-size: 12px;" />
+                                        <button type="button" class="btn-grid-addon btn-cal" id="btnT1YmdCal" title="달력" style="height: 26px; width: 28px; border: 1px solid #cbd5e1; background: #f8fafc; border-radius: 3px; cursor: pointer;"><i class="fa-regular fa-calendar-days"></i></button>
+                                    </div>
+                                </div>
+                                <div style="flex: 1; display: flex; align-items: center; gap: 8px;">
+                                    <label class="form-label" style="width: 90px; min-width: 90px; font-weight: 600; color: #334155; font-size: 12px; background: #f1f5f9; padding: 4px 8px; border: 1px solid #cbd5e1; border-radius: 3px; text-align: center;">대표주관사</label>
+                                    <input type="text" id="t1JgTrCoCd" name="jgTrCoCd" class="form-input" placeholder="코드" style="width: 60px; height: 26px; border: 1px solid #cbd5e1; border-radius: 3px; padding: 0 6px; font-size: 12px;" />
+                                    <input type="text" id="t1JgTrCoNm" name="jgTrCoNm" class="form-input" placeholder="주관사명" readonly style="flex: 1; height: 26px; border: 1px solid #cbd5e1; border-radius: 3px; padding: 0 6px; background: #f8fafc; font-size: 12px;" />
+                                    <button type="button" class="btn-grid-addon btn-search" id="btnT1TrCoSearch" title="주관사 검색" style="height: 26px; width: 28px; border: 1px solid #cbd5e1; background: #f8fafc; border-radius: 3px; cursor: pointer;"><i class="fa-solid fa-magnifying-glass"></i></button>
+                                </div>
+                            </div>
+
+                            <!-- 수요예측기간 (시작일자 ~ 마감일자) -->
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <label class="form-label" style="width: 100px; min-width: 100px; font-weight: 600; color: #334155; font-size: 12px; background: #f1f5f9; padding: 4px 8px; border: 1px solid #cbd5e1; border-radius: 3px; text-align: center;">수요예측일</label>
+                                <div style="display: flex; align-items: center; gap: 6px; flex: 1;">
+                                    <input type="text" id="t1StartYmd" name="startYmd" class="form-input" placeholder="시작일자" style="flex: 1; height: 26px; border: 1px solid #cbd5e1; border-radius: 3px; padding: 0 8px; font-size: 12px;" />
+                                    <button type="button" class="btn-grid-addon btn-cal" id="btnT1StartYmdCal" title="달력" style="height: 26px; width: 28px; border: 1px solid #cbd5e1; background: #f8fafc; border-radius: 3px; cursor: pointer;"><i class="fa-regular fa-calendar-days"></i></button>
+                                    <span>~</span>
+                                    <input type="text" id="t1EndYmd" name="endYmd" class="form-input" placeholder="마감일자" style="flex: 1; height: 26px; border: 1px solid #cbd5e1; border-radius: 3px; padding: 0 8px; font-size: 12px; color: #dc2626;" />
+                                    <button type="button" class="btn-grid-addon btn-cal" id="btnT1EndYmdCal" title="달력" style="height: 26px; width: 28px; border: 1px solid #cbd5e1; background: #f8fafc; border-radius: 3px; cursor: pointer;"><i class="fa-regular fa-calendar-days"></i></button>
+                                </div>
+                            </div>
+
+                            <!-- 청약금납입일 / 상장일자 -->
+                            <div style="display: flex; gap: 12px; align-items: center;">
+                                <div style="flex: 1; display: flex; align-items: center; gap: 8px;">
+                                    <label class="form-label" style="width: 100px; min-width: 100px; font-weight: 600; color: #334155; font-size: 12px; background: #f1f5f9; padding: 4px 8px; border: 1px solid #cbd5e1; border-radius: 3px; text-align: center;">청약금납입일</label>
+                                    <div style="display: flex; align-items: center; gap: 4px; flex: 1;">
+                                        <input type="text" id="t1NabibYmd" name="nabibYmd" class="form-input" placeholder="YYYY-MM-DD" style="flex: 1; height: 26px; border: 1px solid #cbd5e1; border-radius: 3px; padding: 0 8px; font-size: 12px;" />
+                                        <button type="button" class="btn-grid-addon btn-cal" id="btnT1NabibYmdCal" title="달력" style="height: 26px; width: 28px; border: 1px solid #cbd5e1; background: #f8fafc; border-radius: 3px; cursor: pointer;"><i class="fa-regular fa-calendar-days"></i></button>
+                                    </div>
+                                </div>
+                                <div style="flex: 1; display: flex; align-items: center; gap: 8px;">
+                                    <label class="form-label" style="width: 90px; min-width: 90px; font-weight: 600; color: #334155; font-size: 12px; background: #f1f5f9; padding: 4px 8px; border: 1px solid #cbd5e1; border-radius: 3px; text-align: center;">상장일자</label>
+                                    <div style="display: flex; align-items: center; gap: 4px; flex: 1;">
+                                        <input type="text" id="t1SjYmd" name="sjYmd" class="form-input" placeholder="YYYY-MM-DD" style="flex: 1; height: 26px; border: 1px solid #cbd5e1; border-radius: 3px; padding: 0 8px; font-size: 12px;" />
+                                        <button type="button" class="btn-grid-addon btn-cal" id="btnT1SjYmdCal" title="달력" style="height: 26px; width: 28px; border: 1px solid #cbd5e1; background: #f8fafc; border-radius: 3px; cursor: pointer;"><i class="fa-regular fa-calendar-days"></i></button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- 총발행수량 / 총공모수량 -->
+                            <div style="display: flex; gap: 12px; align-items: center;">
+                                <div style="flex: 1; display: flex; align-items: center; gap: 8px;">
+                                    <label class="form-label" style="width: 100px; min-width: 100px; font-weight: 600; color: #334155; font-size: 12px; background: #f1f5f9; padding: 4px 8px; border: 1px solid #cbd5e1; border-radius: 3px; text-align: center;">총발행수량</label>
+                                    <input type="text" id="t1TotBJusu" name="totBJusu" class="form-input" placeholder="0" style="flex: 1; height: 26px; border: 1px solid #cbd5e1; border-radius: 3px; padding: 0 8px; font-size: 12px; text-align: right;" />
+                                </div>
+                                <div style="flex: 1; display: flex; align-items: center; gap: 8px;">
+                                    <label class="form-label" style="width: 90px; min-width: 90px; font-weight: 600; color: #334155; font-size: 12px; background: #f1f5f9; padding: 4px 8px; border: 1px solid #cbd5e1; border-radius: 3px; text-align: center;">총공모수량</label>
+                                    <input type="text" id="t1TotGJusu" name="totGJusu" class="form-input" placeholder="0" style="flex: 1; height: 26px; border: 1px solid #cbd5e1; border-radius: 3px; padding: 0 8px; font-size: 12px; text-align: right;" />
+                                </div>
+                            </div>
+
+                            <!-- 공모(발행)단가 / 총공모금액 -->
+                            <div style="display: flex; gap: 12px; align-items: center;">
+                                <div style="flex: 1; display: flex; align-items: center; gap: 8px;">
+                                    <label class="form-label" style="width: 100px; min-width: 100px; font-weight: 600; color: #334155; font-size: 12px; background: #f1f5f9; padding: 4px 8px; border: 1px solid #cbd5e1; border-radius: 3px; text-align: center;">공모단가</label>
+                                    <input type="text" id="t1TotGDanga" name="totGDanga" class="form-input" placeholder="0" style="flex: 1; height: 26px; border: 1px solid #cbd5e1; border-radius: 3px; padding: 0 8px; font-size: 12px; text-align: right;" />
+                                </div>
+                                <div style="flex: 1; display: flex; align-items: center; gap: 8px;">
+                                    <label class="form-label" style="width: 90px; min-width: 90px; font-weight: 600; color: #334155; font-size: 12px; background: #f1f5f9; padding: 4px 8px; border: 1px solid #cbd5e1; border-radius: 3px; text-align: center;">총공모금액</label>
+                                    <input type="text" id="t1TotGAek" name="totGAek" class="form-input" placeholder="0" readonly style="flex: 1; height: 26px; border: 1px solid #cbd5e1; border-radius: 3px; padding: 0 8px; font-size: 12px; text-align: right; background: #f8fafc;" />
+                                </div>
+                            </div>
+
+                            <!-- 청약종목 (비상장식별자) -->
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <label class="form-label" style="width: 100px; min-width: 100px; font-weight: 600; color: #334155; font-size: 12px; background: #f1f5f9; padding: 4px 8px; border: 1px solid #cbd5e1; border-radius: 3px; text-align: center;">청약종목</label>
+                                <input type="text" id="t1CyJmCd" name="cyJmCd" class="form-input" placeholder="종목코드" style="width: 100px; height: 26px; border: 1px solid #cbd5e1; border-radius: 3px; padding: 0 8px; font-size: 12px;" />
+                                <button type="button" class="btn-grid-addon btn-search" id="btnT1CyJmSearch" title="종목 검색" style="height: 26px; width: 28px; border: 1px solid #cbd5e1; background: #f8fafc; border-radius: 3px; cursor: pointer;"><i class="fa-solid fa-magnifying-glass"></i></button>
+                                <input type="text" id="t1XxCyJmCd" name="xxCyJmCd" class="form-input" placeholder="청약종목명" readonly style="flex: 1; height: 26px; border: 1px solid #cbd5e1; border-radius: 3px; padding: 0 8px; font-size: 12px; background: #f8fafc;" />
+                            </div>
+
+                            <!-- 상장예정종목 -->
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <label class="form-label" style="width: 100px; min-width: 100px; font-weight: 600; color: #334155; font-size: 12px; background: #f1f5f9; padding: 4px 8px; border: 1px solid #cbd5e1; border-radius: 3px; text-align: center;">상장예정종목</label>
+                                <input type="text" id="t1SjJmCd" name="sjJmCd" class="form-input" placeholder="종목코드" style="width: 100px; height: 26px; border: 1px solid #cbd5e1; border-radius: 3px; padding: 0 8px; font-size: 12px;" />
+                                <button type="button" class="btn-grid-addon btn-search" id="btnT1SjJmSearch" title="종목 검색" style="height: 26px; width: 28px; border: 1px solid #cbd5e1; background: #f8fafc; border-radius: 3px; cursor: pointer;"><i class="fa-solid fa-magnifying-glass"></i></button>
+                                <input type="text" id="t1XxSjJmCd" name="xxSjJmCd" class="form-input" placeholder="상장종목명" readonly style="flex: 1; height: 26px; border: 1px solid #cbd5e1; border-radius: 3px; padding: 0 8px; font-size: 12px; background: #f8fafc;" />
+                            </div>
+
+                            <!-- 수수료율 / 증거금율 / 경쟁률 -->
+                            <div style="display: flex; gap: 8px; align-items: center;">
+                                <div style="flex: 1; display: flex; align-items: center; gap: 4px;">
+                                    <label class="form-label" style="width: 100px; min-width: 100px; font-weight: 600; color: #334155; font-size: 12px; background: #f1f5f9; padding: 4px 6px; border: 1px solid #cbd5e1; border-radius: 3px; text-align: center;">수수료율(%)</label>
+                                    <input type="text" id="t1SusuPer" name="susuPer" class="form-input" placeholder="0.00" style="flex: 1; height: 26px; border: 1px solid #cbd5e1; border-radius: 3px; padding: 0 6px; font-size: 12px; text-align: right;" />
+                                </div>
+                                <div style="flex: 1; display: flex; align-items: center; gap: 4px;">
+                                    <label class="form-label" style="width: 80px; min-width: 80px; font-weight: 600; color: #334155; font-size: 12px; background: #f1f5f9; padding: 4px 6px; border: 1px solid #cbd5e1; border-radius: 3px; text-align: center;">증거금율(%)</label>
+                                    <input type="text" id="t1JkmPer" name="jkmPer" class="form-input" placeholder="0.00" style="flex: 1; height: 26px; border: 1px solid #cbd5e1; border-radius: 3px; padding: 0 6px; font-size: 12px; text-align: right;" />
+                                </div>
+                                <div style="flex: 1; display: flex; align-items: center; gap: 4px;">
+                                    <label class="form-label" style="width: 70px; min-width: 70px; font-weight: 600; color: #334155; font-size: 12px; background: #f1f5f9; padding: 4px 6px; border: 1px solid #cbd5e1; border-radius: 3px; text-align: center;">경쟁률</label>
+                                    <input type="text" id="t1CompetitionRate" name="competitionRate" class="form-input" placeholder="0.00" style="flex: 1; height: 26px; border: 1px solid #cbd5e1; border-radius: 3px; padding: 0 6px; font-size: 12px; text-align: right;" />
+                                </div>
+                            </div>
+
+                            <!-- 특이사항 (비고) -->
+                            <div style="display: flex; align-items: flex-start; gap: 8px;">
+                                <label class="form-label" style="width: 100px; min-width: 100px; font-weight: 600; color: #334155; font-size: 12px; background: #f1f5f9; padding: 4px 8px; border: 1px solid #cbd5e1; border-radius: 3px; text-align: center; margin-top: 2px;">특이사항(비고)</label>
+                                <textarea id="t1Bigo" name="bigo" rows="3" class="form-input" placeholder="비고 입력" style="flex: 1; height: 60px; border: 1px solid #cbd5e1; border-radius: 3px; padding: 6px 8px; font-size: 12px; resize: none;"></textarea>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- [TAB 2] 배정등록(청약주수) (상: 청약종목 목록 + 하: 펀드별 배정 목록) -->
+        <div class="tab-pane-view" id="paneTab2" style="display: none; height: 100%; width: 100%; min-height: 0;">
+            <div class="layout-split-v split-body layout-mobile-stack" data-split-key="JA020A_T4_V" data-default-ratio="40:60" style="width: 100%; height: 100%; display: flex; flex-direction: column;">
+                <!-- 상단: 청약종목 목록 -->
+                <div class="split-pane split-top" style="height: 40%; display: flex; flex-direction: column; min-height: 0;">
+                    <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center;">
+                        <span class="panel-title"><i class="fa-solid fa-list-ol"></i> 청약종목 목록 (수요예측 및 청약기준)</span>
+                    </div>
+                    <div class="panel-body" style="flex: 1; min-height: 0; position: relative;">
+                        <div id="gridT4a" class="tabulator-aams-grid" style="height: 100%;"></div>
+                    </div>
+                </div>
+
+                <div class="split-gutter-v"></div>
+
+                <!-- 하단: 펀드별 청약/배정 내역 -->
+                <div class="split-pane split-bottom" style="height: 60%; display: flex; flex-direction: column; min-height: 0;">
+                    <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center;">
+                        <span class="panel-title"><i class="fa-solid fa-coins"></i> 펀드별 청약 및 배정등록 내역</span>
+                        <div class="panel-actions">
+                            <button type="button" class="btn-sub-grid btn-save" id="btnT4Save"><i class="fa-solid fa-floppy-disk"></i> 배정저장</button>
+                        </div>
+                    </div>
+                    <div class="panel-body" style="flex: 1; min-height: 0; position: relative;">
+                        <div id="gridT4b" class="tabulator-aams-grid" style="height: 100%;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- [TAB 3] 수요예측참여총괄표 (좌: 종목 목록 + 우: MRD 리포트 뷰어) -->
+        <div class="tab-pane-view" id="paneTab3" style="display: none; height: 100%; width: 100%; min-height: 0;">
+            <div class="layout-split-h split-body layout-mobile-stack" data-split-key="JA020A_T5_H" data-default-ratio="40:60" style="width: 100%; height: 100%; display: flex;">
+                <!-- 좌측: 종목 목록 -->
+                <div class="split-pane split-left" style="width: 40%; display: flex; flex-direction: column; min-width: 0;">
+                    <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center;">
+                        <span class="panel-title"><i class="fa-solid fa-file-lines"></i> 수요예측 참여 종목</span>
+                    </div>
+                    <div class="panel-body" style="flex: 1; min-height: 0; position: relative;">
+                        <div id="gridT5" class="tabulator-aams-grid" style="height: 100%;"></div>
+                    </div>
+                </div>
+
+                <div class="split-gutter-h"></div>
+
+                <!-- 우측: MRD 리포트 뷰어 -->
+                <div class="split-pane split-right" style="width: 60%; display: flex; flex-direction: column; min-width: 0; background: #ffffff;">
+                    <div th:replace="~{fragments/report/report_viewer :: reportViewer(
+                        title='수요예측 참여 총괄표',
+                        modalId='ja020aReportMobileModal'
+                    )}"></div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- 4. 화면 전용 스크립트 격리 블록 -->
+    <script th:inline="javascript">
+        (function () {
+            const currentScript = document.currentScript;
+            const pane = currentScript ? (currentScript.closest('.tab-pane') || currentScript.closest('.view-container')) : null;
+            if (!pane) return;
+
+            let isInitialized = false;
+            let activeTabId = "t1"; // "t1" | "t4" | "t5"
+            let currentJcJoin = ""; // 현재 선택된 공모종목 관리번호
+
+            // 그리드 인스턴스
+            let gridT1 = null;
+            let gridT4a = null;
+            let gridT4b = null;
+            let gridT5 = null;
+
+            // 상태 캐시
+            let selectedT1RowData = null;
+            let selectedT4aRowData = null;
+            let isT1NewMode = false;
+            let lastLoadedT4Key = null;
+
+            // 리포트 뷰어 객체
+            let reportViewer = null;
+
+            // [날짜 포맷 헬퍼]
+            function formatDate(str) {
+                if (!str) return "";
+                var s = String(str).replace(/[^0-9]/g, "");
+                if (s.length === 8) {
+                    return s.substring(0, 4) + "-" + s.substring(4, 6) + "-" + s.substring(6, 8);
+                }
+                return str;
+            }
+
+            // [금액/수량 포맷 헬퍼]
+            function formatNum(val, dec) {
+                if (val == null || val === "") return "";
+                var num = parseFloat(val);
+                if (isNaN(num)) return val;
+                if (dec != null && dec > 0) {
+                    return num.toLocaleString(undefined, { minimumFractionDigits: dec, maximumFractionDigits: dec });
+                }
+                return Math.round(num).toLocaleString();
+            }
+
+            function unformatNum(val) {
+                if (!val) return 0;
+                var n = parseFloat(String(val).replace(/,/g, ""));
+                return isNaN(n) ? 0 : n;
+            }
+
+            // [1. 탭 전환 처리]
+            function switchTab(tabId) {
+                if (activeTabId === tabId) return;
+                activeTabId = tabId;
+
+                // 버튼 스타일 변경
+                var tabBtns = pane.querySelectorAll(".sub-tab-btn");
+                tabBtns.forEach(function (btn) {
+                    var isCurrent = btn.getAttribute("data-tab") === tabId;
+                    btn.classList.toggle("active", isCurrent);
+                    btn.style.background = isCurrent ? "#fff" : "#f1f5f9";
+                    btn.style.fontWeight = isCurrent ? "600" : "500";
+                    btn.style.color = isCurrent ? "#2563eb" : "#475569";
+                });
+
+                // 패널 표시 전환
+                var p1 = pane.querySelector("#paneTab1");
+                var p2 = pane.querySelector("#paneTab2");
+                var p3 = pane.querySelector("#paneTab3");
+                if (p1) p1.style.display = (tabId === "t1") ? "flex" : "none";
+                if (p2) p2.style.display = (tabId === "t4") ? "flex" : "none";
+                if (p3) p3.style.display = (tabId === "t5") ? "flex" : "none";
+
+                // 리드로우 및 조회 동기화
+                setTimeout(function () {
+                    if (tabId === "t1" && gridT1) {
+                        gridT1.redraw(true);
+                        if (currentJcJoin) selectRowByJcJoin(gridT1, currentJcJoin);
+                    } else if (tabId === "t4" && gridT4a) {
+                        gridT4a.redraw(true);
+                        if (gridT4b) gridT4b.redraw(true);
+                        loadT4aData();
+                    } else if (tabId === "t5" && gridT5) {
+                        gridT5.redraw(true);
+                        loadT5Data();
+                    }
+                }, 50);
+            }
+
+            function selectRowByJcJoin(grid, jcJoin) {
+                if (!grid || !jcJoin) return;
+                var rows = grid.getRows();
+                for (var i = 0; i < rows.length; i++) {
+                    var d = rows[i].getData();
+                    if (d && d.jcJoin === jcJoin) {
+                        grid.deselectRow();
+                        rows[i].select();
+                        rows[i].scrollTo();
+                        break;
+                    }
+                }
+            }
+
+            // [2. 탭1: 기본정보 그리드 및 폼]
+            function initTab1() {
+                var el = pane.querySelector("#gridT1");
+                if (!el) return;
+
+                gridT1 = new Tabulator(el, {
+                    height: "100%",
+                    layout: "fitDataFill",
+                    selectableRows: 1,
+                    editTriggerEvent: "click",
+                    columns: [
+                        { title: "No.", formatter: "rownum", width: 45, hozAlign: "center", headerHozAlign: "center" },
+                        { title: "발행기관", field: "balhCo", width: 80, hozAlign: "center" },
+                        { title: "공모종목명", field: "jmNm", width: 150, hozAlign: "left" },
+                        {
+                            title: "청약구분", field: "cyGb", width: 85, hozAlign: "center",
+                            formatter: function (cell) {
+                                var v = cell.getValue();
+                                if (v === "1") return "1.공모";
+                                if (v === "2") return "2.실권주";
+                                return v || "";
+                            }
+                        },
+                        { title: "공모일자", field: "ymd", width: 95, hozAlign: "center", headerCssClass: "col-hdr-blue" },
+                        { title: "대표주관사", field: "jgTrCoNm", width: 130, hozAlign: "left" },
+                        { title: "시작일자", field: "startYmd", width: 95, hozAlign: "center" },
+                        { title: "마감일자", field: "endYmd", width: 95, hozAlign: "center", headerCssClass: "col-hdr-red" },
+                        { title: "청약금납입일", field: "nabibYmd", width: 95, hozAlign: "center" },
+                        { title: "상장일자", field: "sjYmd", width: 95, hozAlign: "center" },
+                        {
+                            title: "총공모수량", field: "totGJusu", width: 100, hozAlign: "right",
+                            formatter: function (c) { return formatNum(c.getValue()); }
+                        },
+                        {
+                            title: "공모단가", field: "totGDanga", width: 90, hozAlign: "right",
+                            formatter: function (c) { return formatNum(c.getValue()); }
+                        },
+                        {
+                            title: "총공모금액", field: "totGAek", width: 120, hozAlign: "right",
+                            formatter: function (c) { return formatNum(c.getValue()); }
+                        },
+                        { title: "청약종목코드", field: "cyJmCd", width: 100, hozAlign: "center" },
+                        { title: "상장예정종목", field: "sjJmCd", width: 100, hozAlign: "center" },
+                        { title: "상장예정종목명", field: "xxSjJmCd", width: 140, hozAlign: "left" },
+                        { title: "수수료율(%)", field: "susuPer", width: 90, hozAlign: "right", formatter: function (c) { return formatNum(c.getValue(), 2); } },
+                        { title: "증거금율(%)", field: "jkmPer", width: 90, hozAlign: "right", formatter: function (c) { return formatNum(c.getValue(), 2); } },
+                        { title: "경쟁률", field: "competitionRate", width: 90, hozAlign: "right", formatter: function (c) { return formatNum(c.getValue(), 2); } },
+                        { title: "비고", field: "bigo", width: 180, hozAlign: "left" }
+                    ]
+                });
+
+                if (typeof setupTabulatorRowSelection === "function") {
+                    setupTabulatorRowSelection(gridT1, function (row, data) {
+                        bindT1Form(data);
+                    });
+                }
+                gridT1.on("rowClick", function (e, row) {
+                    bindT1Form(row ? row.getData() : null);
+                });
+
+                // 총공모금액 실시간 계산 이벤트 바인딩
+                var inputJusu = pane.querySelector("#t1TotGJusu");
+                var inputDanga = pane.querySelector("#t1TotGDanga");
+                var inputAek = pane.querySelector("#t1TotGAek");
+
+                function calcTotGAek() {
+                    var j = unformatNum(inputJusu.value);
+                    var d = unformatNum(inputDanga.value);
+                    inputAek.value = formatNum(j * d);
+                }
+
+                if (inputJusu) inputJusu.addEventListener("input", calcTotGAek);
+                if (inputDanga) inputDanga.addEventListener("input", calcTotGAek);
+
+                // 달력 바인딩 헬퍼
+                function bindCalBtn(btnId, targetInputId) {
+                    var btn = pane.querySelector(btnId);
+                    if (!btn) return;
+                    btn.addEventListener("click", function (e) {
+                        e.stopPropagation();
+                        var curVal = (pane.querySelector(targetInputId).value || "").trim();
+                        if (window.AamsCalendar && typeof window.AamsCalendar.openDatePicker === "function") {
+                            window.AamsCalendar.openDatePicker({
+                                anchorEl: btn,
+                                initialYmd: curVal,
+                                format: "dash",
+                                onSelect: function (selYmd) {
+                                    pane.querySelector(targetInputId).value = selYmd;
+                                }
+                            });
+                        }
+                    });
+                }
+
+                bindCalBtn("#btnT1YmdCal", "#t1Ymd");
+                bindCalBtn("#btnT1StartYmdCal", "#t1StartYmd");
+                bindCalBtn("#btnT1EndYmdCal", "#t1EndYmd");
+                bindCalBtn("#btnT1NabibYmdCal", "#t1NabibYmd");
+                bindCalBtn("#btnT1SjYmdCal", "#t1SjYmd");
+
+                // 코드검색 바인딩 헬퍼
+                var btnBalh = pane.querySelector("#btnT1BalhSearch");
+                if (btnBalh) {
+                    btnBalh.addEventListener("click", function () {
+                        if (window.DynamicCodeSearch && typeof window.DynamicCodeSearch.openModal === "function") {
+                            window.DynamicCodeSearch.openModal({
+                                columnNm: "balh_co",
+                                seq: 1,
+                                initialKeyword: pane.querySelector("#t1BalhCo").value || "",
+                                onSelect: function (code, name) {
+                                    pane.querySelector("#t1BalhCo").value = code;
+                                    if (!pane.querySelector("#t1JmNm").value) {
+                                        pane.querySelector("#t1JmNm").value = name;
+                                    }
+                                }
+                            });
+                        }
+                    });
+                }
+
+                var btnTrCo = pane.querySelector("#btnT1TrCoSearch");
+                if (btnTrCo) {
+                    btnTrCo.addEventListener("click", function () {
+                        if (window.DynamicCodeSearch && typeof window.DynamicCodeSearch.openModal === "function") {
+                            window.DynamicCodeSearch.openModal({
+                                columnNm: "tr_co_cd",
+                                seq: 1,
+                                addWhere: "tr_gb='1' and used='1'",
+                                initialKeyword: pane.querySelector("#t1JgTrCoCd").value || "",
+                                onSelect: function (code, name) {
+                                    pane.querySelector("#t1JgTrCoCd").value = code;
+                                    pane.querySelector("#t1JgTrCoNm").value = name;
+                                }
+                            });
+                        }
+                    });
+                }
+
+                var btnCyJm = pane.querySelector("#btnT1CyJmSearch");
+                if (btnCyJm) {
+                    btnCyJm.addEventListener("click", function () {
+                        if (window.DynamicCodeSearch && typeof window.DynamicCodeSearch.openModal === "function") {
+                            window.DynamicCodeSearch.openModal({
+                                columnNm: "jm_cd",
+                                seq: 1,
+                                initialKeyword: pane.querySelector("#t1CyJmCd").value || "",
+                                onSelect: function (code, name) {
+                                    pane.querySelector("#t1CyJmCd").value = code;
+                                    pane.querySelector("#t1XxCyJmCd").value = name;
+                                }
+                            });
+                        }
+                    });
+                }
+
+                var btnSjJm = pane.querySelector("#btnT1SjJmSearch");
+                if (btnSjJm) {
+                    btnSjJm.addEventListener("click", function () {
+                        if (window.DynamicCodeSearch && typeof window.DynamicCodeSearch.openModal === "function") {
+                            window.DynamicCodeSearch.openModal({
+                                columnNm: "jm_cd",
+                                seq: 1,
+                                initialKeyword: pane.querySelector("#t1SjJmCd").value || "",
+                                onSelect: function (code, name) {
+                                    pane.querySelector("#t1SjJmCd").value = code;
+                                    pane.querySelector("#t1XxSjJmCd").value = name;
+                                }
+                            });
+                        }
+                    });
+                }
+
+                // 신규 버튼
+                var btnNew = pane.querySelector("#btnT1NewRow");
+                if (btnNew) {
+                    btnNew.addEventListener("click", setT1NewMode);
+                }
+
+                // 탭1 저장 버튼
+                var btnSave = pane.querySelector("#btnT1Save");
+                if (btnSave) {
+                    btnSave.addEventListener("click", saveT1Data);
+                }
+
+                // 탭1 삭제 버튼
+                var btnDelete = pane.querySelector("#btnT1Delete");
+                if (btnDelete) {
+                    btnDelete.addEventListener("click", deleteT1Data);
+                }
+            }
+
+            function bindT1Form(data) {
+                if (!data) return;
+                selectedT1RowData = data;
+                isT1NewMode = false;
+                currentJcJoin = data.jcJoin || "";
+
+                pane.querySelector("#t1JcJoin").value = data.jcJoin || "";
+                pane.querySelector("#t1JmNm").value = data.jmNm || data.xxBalhCo || "";
+                pane.querySelector("#t1BalhCo").value = data.balhCo || "";
+                pane.querySelector("#t1Ymd").value = formatDate(data.ymd);
+                pane.querySelector("#t1JgTrCoCd").value = data.jgTrCoCd || "";
+                pane.querySelector("#t1JgTrCoNm").value = data.jgTrCoNm || data.xxTrCoCd || "";
+                pane.querySelector("#t1StartYmd").value = formatDate(data.startYmd);
+                pane.querySelector("#t1EndYmd").value = formatDate(data.endYmd);
+                pane.querySelector("#t1NabibYmd").value = formatDate(data.nabibYmd);
+                pane.querySelector("#t1SjYmd").value = formatDate(data.sjYmd);
+
+                pane.querySelector("#t1TotBJusu").value = formatNum(data.totBJusu);
+                pane.querySelector("#t1TotGJusu").value = formatNum(data.totGJusu);
+                pane.querySelector("#t1TotGDanga").value = formatNum(data.totGDanga);
+                pane.querySelector("#t1TotGAek").value = formatNum(data.totGAek);
+
+                pane.querySelector("#t1CyJmCd").value = data.cyJmCd || "";
+                pane.querySelector("#t1XxCyJmCd").value = data.xxCyJmCd || "";
+                pane.querySelector("#t1SjJmCd").value = data.sjJmCd || "";
+                pane.querySelector("#t1XxSjJmCd").value = data.xxSjJmCd || "";
+
+                pane.querySelector("#t1SusuPer").value = (data.susuPer != null) ? data.susuPer : "";
+                pane.querySelector("#t1JkmPer").value = (data.jkmPer != null) ? data.jkmPer : "";
+                pane.querySelector("#t1CompetitionRate").value = (data.competitionRate != null) ? data.competitionRate : "";
+                pane.querySelector("#t1Bigo").value = data.bigo || "";
+
+                var cyGbRadios = pane.querySelectorAll("input[name='cyGb']");
+                cyGbRadios.forEach(function (r) {
+                    r.checked = (r.value === (data.cyGb || "1"));
+                });
+            }
+
+            function setT1NewMode() {
+                isT1NewMode = true;
+                selectedT1RowData = null;
+                if (gridT1) gridT1.deselectRow();
+
+                var defaultWorkDate = (typeof getFilterYmd === "function") ? getFilterYmd(pane) : "";
+                pane.querySelector("#t1JcJoin").value = "";
+                pane.querySelector("#t1JmNm").value = "";
+                pane.querySelector("#t1BalhCo").value = "";
+                pane.querySelector("#t1Ymd").value = defaultWorkDate;
+                pane.querySelector("#t1JgTrCoCd").value = "";
+                pane.querySelector("#t1JgTrCoNm").value = "";
+                pane.querySelector("#t1StartYmd").value = "";
+                pane.querySelector("#t1EndYmd").value = "";
+                pane.querySelector("#t1NabibYmd").value = "";
+                pane.querySelector("#t1SjYmd").value = "";
+                pane.querySelector("#t1TotBJusu").value = "";
+                pane.querySelector("#t1TotGJusu").value = "";
+                pane.querySelector("#t1TotGDanga").value = "";
+                pane.querySelector("#t1TotGAek").value = "";
+                pane.querySelector("#t1CyJmCd").value = "";
+                pane.querySelector("#t1XxCyJmCd").value = "";
+                pane.querySelector("#t1SjJmCd").value = "";
+                pane.querySelector("#t1XxSjJmCd").value = "";
+                pane.querySelector("#t1SusuPer").value = "";
+                pane.querySelector("#t1JkmPer").value = "";
+                pane.querySelector("#t1CompetitionRate").value = "";
+                pane.querySelector("#t1Bigo").value = "";
+
+                var r1 = pane.querySelector("input[name='cyGb'][value='1']");
+                if (r1) r1.checked = true;
+
+                pane.querySelector("#t1JmNm").focus();
+                if (typeof showToast === "function") showToast("신규 등록 모드로 전환되었습니다.", "info");
+            }
+
+            function loadT1Data() {
+                var corpGr = (typeof resolveCorpGr === "function") ? resolveCorpGr(pane) : "";
+                fetch("/api/subscriptionrights/ja020a/t1/list?corpGr=" + encodeURIComponent(corpGr))
+                    .then(function (res) { return res.json(); })
+                    .then(function (list) {
+                        if (gridT1) {
+                            gridT1.setData(list || []);
+                            if (list && list.length > 0) {
+                                if (currentJcJoin) {
+                                    selectRowByJcJoin(gridT1, currentJcJoin);
+                                }
+                            }
+                        }
+                    })
+                    .catch(function (err) {
+                        console.error("T1 Load error:", err);
+                        if (typeof showToast === "function") showToast("기본정보 목록 조회 중 오류가 발생했습니다.", "error");
+                    });
+            }
+
+            function saveT1Data() {
+                var corpGr = (typeof resolveCorpGr === "function") ? resolveCorpGr(pane) : "";
+                var jmNm = (pane.querySelector("#t1JmNm").value || "").trim();
+                if (!jmNm) {
+                    if (typeof showToast === "function") showToast("공모종목명을 입력해주세요.", "warning");
+                    pane.querySelector("#t1JmNm").focus();
+                    return;
+                }
+
+                var ymd = (pane.querySelector("#t1Ymd").value || "").trim();
+                var cyGbChecked = pane.querySelector("input[name='cyGb']:checked");
+                var cyGb = cyGbChecked ? cyGbChecked.value : "1";
+
+                var payload = {
+                    corpGr: corpGr,
+                    isNew: isT1NewMode,
+                    jcJoin: pane.querySelector("#t1JcJoin").value || "",
+                    cyGb: cyGb,
+                    jmNm: jmNm,
+                    balhCo: (pane.querySelector("#t1BalhCo").value || "").trim(),
+                    ymd: ymd ? ymd.replace(/[^0-9]/g, "-") : null,
+                    jgTrCoCd: (pane.querySelector("#t1JgTrCoCd").value || "").trim(),
+                    jgTrCoNm: (pane.querySelector("#t1JgTrCoNm").value || "").trim(),
+                    startYmd: pane.querySelector("#t1StartYmd").value ? pane.querySelector("#t1StartYmd").value.replace(/[^0-9]/g, "-") : null,
+                    endYmd: pane.querySelector("#t1EndYmd").value ? pane.querySelector("#t1EndYmd").value.replace(/[^0-9]/g, "-") : null,
+                    nabibYmd: pane.querySelector("#t1NabibYmd").value ? pane.querySelector("#t1NabibYmd").value.replace(/[^0-9]/g, "-") : null,
+                    sjYmd: pane.querySelector("#t1SjYmd").value ? pane.querySelector("#t1SjYmd").value.replace(/[^0-9]/g, "-") : null,
+                    totBJusu: unformatNum(pane.querySelector("#t1TotBJusu").value),
+                    totGJusu: unformatNum(pane.querySelector("#t1TotGJusu").value),
+                    totGDanga: unformatNum(pane.querySelector("#t1TotGDanga").value),
+                    totGAek: unformatNum(pane.querySelector("#t1TotGAek").value),
+                    cyJmCd: (pane.querySelector("#t1CyJmCd").value || "").trim(),
+                    sjJmCd: (pane.querySelector("#t1SjJmCd").value || "").trim(),
+                    susuPer: parseFloat(pane.querySelector("#t1SusuPer").value) || null,
+                    jkmPer: parseFloat(pane.querySelector("#t1JkmPer").value) || null,
+                    competitionRate: parseFloat(pane.querySelector("#t1CompetitionRate").value) || null,
+                    bigo: (pane.querySelector("#t1Bigo").value || "").trim()
+                };
+
+                fetch("/api/subscriptionrights/ja020a/t1/save", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload)
+                })
+                    .then(function (res) { return res.json(); })
+                    .then(function (res) {
+                        if (res.success) {
+                            if (typeof showToast === "function") showToast(res.message || "저장되었습니다.", "success");
+                            if (res.data && res.data.jcJoin) {
+                                currentJcJoin = res.data.jcJoin;
+                            }
+                            loadT1Data();
+                        } else {
+                            if (typeof showToast === "function") showToast(res.message || "저장 실패", "error");
+                        }
+                    })
+                    .catch(function (err) {
+                        console.error("T1 Save error:", err);
+                        if (typeof showToast === "function") showToast("저장 처리 중 오류가 발생했습니다.", "error");
+                    });
+            }
+
+            function deleteT1Data() {
+                var jcJoin = (pane.querySelector("#t1JcJoin").value || "").trim();
+                if (!jcJoin) {
+                    if (typeof showToast === "function") showToast("삭제할 종목을 먼저 선택해주세요.", "warning");
+                    return;
+                }
+
+                if (!confirm("공모종목 [" + (pane.querySelector("#t1JmNm").value || jcJoin) + "] 을 삭제하시겠습니까?")) {
+                    return;
+                }
+
+                fetch("/api/subscriptionrights/ja020a/t1/delete", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ jcJoin: jcJoin })
+                })
+                    .then(function (res) { return res.json(); })
+                    .then(function (res) {
+                        if (res.success) {
+                            if (typeof showToast === "function") showToast(res.message || "삭제되었습니다.", "success");
+                            currentJcJoin = "";
+                            setT1NewMode();
+                            loadT1Data();
+                        } else {
+                            if (typeof showToast === "function") showToast(res.message || "삭제 실패", "warning");
+                        }
+                    })
+                    .catch(function (err) {
+                        console.error("T1 Delete error:", err);
+                        if (typeof showToast === "function") showToast("삭제 처리 중 오류가 발생했습니다.", "error");
+                    });
+            }
+
+            // [3. 탭2: 배정등록 그리드들 (gridT4a & gridT4b)]
+            function initTab2() {
+                var elA = pane.querySelector("#gridT4a");
+                var elB = pane.querySelector("#gridT4b");
+                if (!elA || !elB) return;
+
+                // 상단 청약종목 목록 그리드
+                gridT4a = new Tabulator(elA, {
+                    height: "100%",
+                    layout: "fitDataFill",
+                    selectableRows: 1,
+                    columns: [
+                        { title: "No.", formatter: "rownum", width: 45, hozAlign: "center", headerHozAlign: "center" },
+                        { title: "공모종목명", field: "jmNm", width: 140, hozAlign: "left" },
+                        { title: "대표주관사", field: "jgTrCoNm", width: 120, hozAlign: "left" },
+                        {
+                            title: "공모구분", field: "cyGb", width: 80, hozAlign: "center",
+                            formatter: function (c) {
+                                var v = c.getValue();
+                                return (v === "1") ? "1.공모" : ((v === "2") ? "2.실권주" : v || "");
+                            }
+                        },
+                        { title: "신청일자", field: "scYmd", width: 95, hozAlign: "center" },
+                        { title: "신청수량", field: "scJusu", width: 95, hozAlign: "right", formatter: function (c) { return formatNum(c.getValue()); } },
+                        { title: "신청단가", field: "scDanga", width: 90, hozAlign: "right", formatter: function (c) { return formatNum(c.getValue()); } },
+                        { title: "신청금액", field: "scAek", width: 110, hozAlign: "right", formatter: function (c) { return formatNum(c.getValue()); } },
+                        { title: "청약일자", field: "cyYmd", width: 95, hozAlign: "center", headerCssClass: "col-hdr-blue" },
+                        { title: "청약수량", field: "cyJusu", width: 95, hozAlign: "right", headerCssClass: "col-hdr-blue", formatter: function (c) { return formatNum(c.getValue()); } },
+                        { title: "청약단가", field: "cyDanga", width: 90, hozAlign: "right", headerCssClass: "col-hdr-blue", formatter: function (c) { return formatNum(c.getValue()); } },
+                        { title: "청약금액", field: "cyAek", width: 110, hozAlign: "right", headerCssClass: "col-hdr-blue", formatter: function (c) { return formatNum(c.getValue()); } },
+                        { title: "청약증거금", field: "cyJkm", width: 110, hozAlign: "right", headerCssClass: "col-hdr-blue", formatter: function (c) { return formatNum(c.getValue()); } },
+                        { title: "청약금납입일", field: "nabibYmd", width: 95, hozAlign: "center" },
+                        { title: "매도제한일", field: "lockEnd", width: 95, hozAlign: "center", headerCssClass: "col-hdr-red" },
+                        { title: "비고", field: "bigo", width: 160, hozAlign: "left" }
+                    ]
+                });
+
+                if (typeof setupTabulatorRowSelection === "function") {
+                    setupTabulatorRowSelection(gridT4a, function (row, data) {
+                        syncT4Detail(data);
+                    });
+                }
+                gridT4a.on("rowClick", function (e, row) {
+                    syncT4Detail(row ? row.getData() : null);
+                });
+
+                // 하단 펀드별 청약/배정 그리드
+                gridT4b = new Tabulator(elB, {
+                    height: "100%",
+                    layout: "fitDataFill",
+                    selectableRows: 1,
+                    editTriggerEvent: "click",
+                    rowFormatter: function (row) {
+                        var d = row.getData();
+                        if (d && d.isSummaryRow) {
+                            row.getElement().classList.add("aams-summary-row");
+                        }
+                    },
+                    columns: [
+                        {
+                            title: "No.", formatter: function (cell) {
+                                var row = cell.getRow();
+                                if (row.getData() && row.getData().isSummaryRow) return "";
+                                return cell.getRow().getPosition();
+                            },
+                            width: 45, hozAlign: "center", headerHozAlign: "center"
+                        },
+                        {
+                            title: "관리번호", field: "fundCd", width: 90, hozAlign: "center",
+                            formatter: function (cell) {
+                                var d = cell.getRow().getData();
+                                if (d && d.isSummaryRow) return "합계";
+                                return cell.getValue() || "";
+                            }
+                        },
+                        { title: "계좌명", field: "xxFundCd", width: 170, hozAlign: "left" },
+                        {
+                            title: "순자산", field: "sunJasanAek", width: 115, hozAlign: "right",
+                            formatter: function (c) {
+                                var d = c.getRow().getData();
+                                if (d && d.isSummaryRow) return "";
+                                return formatNum(c.getValue());
+                            }
+                        },
+                        {
+                            title: "신청수량", field: "scJusu", width: 95, hozAlign: "right",
+                            formatter: function (c) {
+                                var d = c.getRow().getData();
+                                if (d && d.isSummaryRow) return "";
+                                return formatNum(c.getValue());
+                            }
+                        },
+                        {
+                            title: "신청금액", field: "scAek", width: 115, hozAlign: "right",
+                            formatter: function (c) {
+                                var d = c.getRow().getData();
+                                if (d && d.isSummaryRow) return "";
+                                return formatNum(c.getValue());
+                            }
+                        },
+                        {
+                            title: "매도제한일", field: "lockEnd", width: 105, hozAlign: "center", headerCssClass: "col-hdr-red",
+                            editor: (window.aamsDateEditor || "input"),
+                            editorParams: { separator: "-" },
+                            cellClick: (window.aamsCellEdit || null),
+                            editable: function (cell) {
+                                var d = cell.getRow().getData();
+                                return d && !d.isSummaryRow;
+                            },
+                            cellEdited: function (cell) {
+                                var d = cell.getRow().getData();
+                                d.isUpdated = true;
+                            }
+                        },
+                        {
+                            title: "청약수량", field: "cyJusu", width: 100, hozAlign: "right", headerCssClass: "col-hdr-blue",
+                            editor: "input",
+                            cellClick: (window.aamsCellEdit || null),
+                            editable: function (cell) {
+                                var d = cell.getRow().getData();
+                                return d && !d.isSummaryRow;
+                            },
+                            formatter: function (c) {
+                                var val = c.getValue();
+                                var str = formatNum(val);
+                                return '<span class="cell-text-blue">' + str + '</span>';
+                            },
+                            cellEdited: function (cell) {
+                                var row = cell.getRow();
+                                var d = row.getData();
+                                d.isUpdated = true;
+                                var danga = (selectedT4aRowData && selectedT4aRowData.cyDanga) ? selectedT4aRowData.cyDanga : 0;
+                                var susuPer = (selectedT4aRowData && selectedT4aRowData.susuPer) ? selectedT4aRowData.susuPer : 0;
+                                var jkmPer = (selectedT4aRowData && selectedT4aRowData.jkmPer) ? selectedT4aRowData.jkmPer : 0;
+
+                                var j = unformatNum(cell.getValue());
+                                var aek = Math.round(j * danga);
+                                var susu = (susuPer > 0) ? Math.floor(aek * susuPer / 100) : 0;
+                                var jkm = (jkmPer > 0) ? Math.floor(aek * jkmPer / 100) : aek;
+
+                                row.update({
+                                    cyJusu: j,
+                                    cyAek: aek,
+                                    cySusu: susu,
+                                    cyJkm: jkm,
+                                    cyGyulAek: aek + susu
+                                });
+                                recalcT4bSummary();
+                            }
+                        },
+                        {
+                            title: "청약금액", field: "cyAek", width: 120, hozAlign: "right", headerCssClass: "col-hdr-blue",
+                            formatter: function (c) {
+                                var val = c.getValue();
+                                var str = formatNum(val);
+                                return '<span class="cell-text-blue font-bold">' + str + '</span>';
+                            }
+                        },
+                        {
+                            title: "청약증거금", field: "cyJkm", width: 120, hozAlign: "right", headerCssClass: "col-hdr-blue",
+                            editor: "input",
+                            cellClick: (window.aamsCellEdit || null),
+                            editable: function (cell) {
+                                var d = cell.getRow().getData();
+                                return d && !d.isSummaryRow;
+                            },
+                            formatter: function (c) {
+                                var val = c.getValue();
+                                var str = formatNum(val);
+                                return '<span class="cell-text-blue">' + str + '</span>';
+                            },
+                            cellEdited: function (cell) {
+                                var row = cell.getRow();
+                                var d = row.getData();
+                                d.isUpdated = true;
+                                row.update({ cyJkm: unformatNum(cell.getValue()) });
+                                recalcT4bSummary();
+                            }
+                        },
+                        {
+                            title: "청약수수료", field: "cySusu", width: 105, hozAlign: "right", headerCssClass: "col-hdr-blue",
+                            editor: "input",
+                            cellClick: (window.aamsCellEdit || null),
+                            editable: function (cell) {
+                                var d = cell.getRow().getData();
+                                return d && !d.isSummaryRow;
+                            },
+                            formatter: function (c) {
+                                var val = c.getValue();
+                                var str = formatNum(val);
+                                return '<span class="cell-text-blue">' + str + '</span>';
+                            },
+                            cellEdited: function (cell) {
+                                var row = cell.getRow();
+                                var d = row.getData();
+                                d.isUpdated = true;
+                                var susu = unformatNum(cell.getValue());
+                                var aek = d.cyAek || 0;
+                                row.update({ cySusu: susu, cyGyulAek: aek + susu });
+                                recalcT4bSummary();
+                            }
+                        },
+                        {
+                            title: "청약결제액", field: "cyGyulAek", width: 125, hozAlign: "right", headerCssClass: "col-hdr-blue",
+                            formatter: function (c) {
+                                var val = c.getValue();
+                                var str = formatNum(val);
+                                return '<span class="cell-text-blue font-bold">' + str + '</span>';
+                            }
+                        }
+                    ]
+                });
+
+                var btnSaveT4 = pane.querySelector("#btnT4Save");
+                if (btnSaveT4) {
+                    btnSaveT4.addEventListener("click", saveT4Data);
+                }
+            }
+
+            function syncT4Detail(data) {
+                if (!data) return;
+                selectedT4aRowData = data;
+                currentJcJoin = data.jcJoin || "";
+
+                var key = (data.corpGr || "") + "_" + (data.jcJoin || "") + "_" + (data.jgTrCoCd || "");
+                if (lastLoadedT4Key === key) return;
+                lastLoadedT4Key = key;
+
+                var corpGr = (typeof resolveCorpGr === "function") ? resolveCorpGr(pane) : "";
+                var url = "/api/subscriptionrights/ja020a/t4/detail-list?corpGr=" + encodeURIComponent(corpGr)
+                    + "&jcJoin=" + encodeURIComponent(data.jcJoin || "")
+                    + "&jgTrCoCd=" + encodeURIComponent(data.jgTrCoCd || "")
+                    + "&ymd=" + encodeURIComponent(formatDate(data.ymd) || "");
+
+                fetch(url)
+                    .then(function (res) { return res.json(); })
+                    .then(function (list) {
+                        if (gridT4b) {
+                            var processed = (list || []).map(function (item) {
+                                var aek = item.cyAek || 0;
+                                var susu = item.cySusu || 0;
+                                item.cyGyulAek = aek + susu;
+                                return item;
+                            });
+                            gridT4b.setData(processed);
+                            recalcT4bSummary();
+                        }
+                    })
+                    .catch(function (err) {
+                        console.error("T4 detail load error:", err);
+                        if (typeof showToast === "function") showToast("펀드별 배정 목록 조회 중 오류가 발생했습니다.", "error");
+                    });
+            }
+
+            function recalcT4bSummary() {
+                if (!gridT4b) return;
+                var rows = gridT4b.getRows();
+                var normalRows = rows.filter(function (r) {
+                    var d = r.getData();
+                    return d && !d.isSummaryRow;
+                });
+                var summaryRow = rows.find(function (r) {
+                    var d = r.getData();
+                    return d && d.isSummaryRow;
+                });
+
+                if (normalRows.length === 0) {
+                    if (summaryRow) summaryRow.delete();
+                    return;
+                }
+
+                var totJusu = 0;
+                var totAek = 0;
+                var totJkm = 0;
+                var totSusu = 0;
+                var totGyulAek = 0;
+
+                normalRows.forEach(function (r) {
+                    var d = r.getData();
+                    totJusu += (parseFloat(d.cyJusu) || 0);
+                    totAek += (parseFloat(d.cyAek) || 0);
+                    totJkm += (parseFloat(d.cyJkm) || 0);
+                    totSusu += (parseFloat(d.cySusu) || 0);
+                    totGyulAek += (parseFloat(d.cyGyulAek) || 0);
+                });
+
+                var sumData = {
+                    isSummaryRow: true,
+                    fundCd: "합계",
+                    xxFundCd: "",
+                    cyJusu: totJusu,
+                    cyAek: totAek,
+                    cyJkm: totJkm,
+                    cySusu: totSusu,
+                    cyGyulAek: totGyulAek
+                };
+
+                if (summaryRow) {
+                    summaryRow.update(sumData);
+                } else {
+                    gridT4b.addRow(sumData, false);
+                }
+            }
+
+            function loadT4aData() {
+                var corpGr = (typeof resolveCorpGr === "function") ? resolveCorpGr(pane) : "";
+                lastLoadedT4Key = null;
+                fetch("/api/subscriptionrights/ja020a/t4/header-list?corpGr=" + encodeURIComponent(corpGr))
+                    .then(function (res) { return res.json(); })
+                    .then(function (list) {
+                        if (gridT4a) {
+                            gridT4a.setData(list || []);
+                            if (list && list.length > 0) {
+                                if (currentJcJoin) {
+                                    selectRowByJcJoin(gridT4a, currentJcJoin);
+                                }
+                            } else {
+                                if (gridT4b) gridT4b.clearData();
+                            }
+                        }
+                    })
+                    .catch(function (err) {
+                        console.error("T4 header load error:", err);
+                        if (typeof showToast === "function") showToast("청약종목 목록 조회 중 오류가 발생했습니다.", "error");
+                    });
+            }
+
+            function saveT4Data() {
+                if (!gridT4b) return;
+                var rows = gridT4b.getData();
+                var changedList = [];
+                rows.forEach(function (d) {
+                    if (d.isSummaryRow) return;
+                    if (d.isUpdated) {
+                        changedList.push(d);
+                    }
+                });
+
+                if (changedList.length === 0) {
+                    if (typeof showToast === "function") showToast("변경된 배정 데이터가 없습니다.", "info");
+                    return;
+                }
+
+                var corpGr = (typeof resolveCorpGr === "function") ? resolveCorpGr(pane) : "";
+                var payload = {
+                    corpGr: corpGr,
+                    activeTab: "t4",
+                    t4aData: selectedT4aRowData,
+                    t4bList: changedList
+                };
+
+                fetch("/api/subscriptionrights/ja020a/t4/save", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload)
+                })
+                    .then(function (res) { return res.json(); })
+                    .then(function (res) {
+                        if (res.success) {
+                            if (typeof showToast === "function") showToast(res.message || "배정내역이 저장되었습니다.", "success");
+                            lastLoadedT4Key = null;
+                            syncT4Detail(selectedT4aRowData);
+                        } else {
+                            if (typeof showToast === "function") showToast(res.message || "저장 실패", "error");
+                        }
+                    })
+                    .catch(function (err) {
+                        console.error("T4 save error:", err);
+                        if (typeof showToast === "function") showToast("배정 저장 처리 중 오류가 발생했습니다.", "error");
+                    });
+            }
+
+            // [4. 탭3: 수요예측참여총괄표 (gridT5 & MRD 리포트)]
+            function initTab3() {
+                var el = pane.querySelector("#gridT5");
+                if (!el) return;
+
+                gridT5 = new Tabulator(el, {
+                    height: "100%",
+                    layout: "fitDataFill",
+                    selectableRows: 1,
+                    columns: [
+                        { title: "No.", formatter: "rownum", width: 45, hozAlign: "center", headerHozAlign: "center" },
+                        { title: "종목명", field: "xxJmCd", width: 140, hozAlign: "left" },
+                        {
+                            title: "공모구분", field: "cyGb", width: 80, hozAlign: "center",
+                            formatter: function (c) {
+                                var v = c.getValue();
+                                return (v === "1") ? "1.공모" : ((v === "2") ? "2.실권주" : v || "");
+                            }
+                        },
+                        { title: "신청일자", field: "scYmd", width: 95, hozAlign: "center" },
+                        { title: "신청수량", field: "scJusu", width: 95, hozAlign: "right", formatter: function (c) { return formatNum(c.getValue()); } },
+                        { title: "청약일자", field: "cyYmd", width: 95, hozAlign: "center", headerCssClass: "col-hdr-blue" },
+                        { title: "청약수량", field: "cyJusu", width: 95, hozAlign: "right", headerCssClass: "col-hdr-blue", formatter: function (c) { return formatNum(c.getValue()); } },
+                        { title: "납입일자", field: "nabibYmd", width: 95, hozAlign: "center" },
+                        { title: "매도제한일", field: "cyBoyuYmd", width: 95, hozAlign: "center", headerCssClass: "col-hdr-red" },
+                        { title: "비고", field: "bigo", width: 150, hozAlign: "left" }
+                    ]
+                });
+
+                if (window.AamsReport && typeof window.AamsReport.bindViewer === "function") {
+                    reportViewer = window.AamsReport.bindViewer(pane, {
+                        reportFile: "rd_ja020a.mrd",
+                        modalId: "ja020aReportMobileModal",
+                        zoom: "120",
+                        getCorpGr: function () {
+                            return (typeof resolveCorpGr === "function") ? resolveCorpGr(pane) : "";
+                        },
+                        buildParams: function (data) {
+                            return {
+                                title: "수요예측 참여 총괄표",
+                                jc_join: (data && data.jcJoin) ? data.jcJoin : (currentJcJoin || "")
+                            };
+                        },
+                        getTitle: function (data) {
+                            return "수요예측 참여 총괄표 - " + ((data && (data.xxJmCd || data.jmNm)) || "");
+                        },
+                        getStatus: function (data) {
+                            return "관리번호: " + ((data && data.jcJoin) || "");
+                        },
+                        getDownloadName: function (data) {
+                            var safeNm = (data && (data.xxJmCd || data.jmNm) || "수요예측총괄표").replace(/[\\/:*?"<>|]/g, "_");
+                            return "수요예측총괄표_" + safeNm;
+                        }
+                    });
+                }
+
+                if (typeof setupTabulatorRowSelection === "function") {
+                    setupTabulatorRowSelection(gridT5, function (row, data) {
+                        syncT5Report(data);
+                    });
+                }
+                gridT5.on("rowClick", function (e, row) {
+                    syncT5Report(row ? row.getData() : null);
+                });
+            }
+
+            function syncT5Report(data) {
+                if (!data) return;
+                currentJcJoin = data.jcJoin || "";
+                if (reportViewer) {
+                    reportViewer.loadPreview(data);
+                }
+            }
+
+            function loadT5Data() {
+                var corpGr = (typeof resolveCorpGr === "function") ? resolveCorpGr(pane) : "";
+                fetch("/api/subscriptionrights/ja020a/t5/list?corpGr=" + encodeURIComponent(corpGr))
+                    .then(function (res) { return res.json(); })
+                    .then(function (list) {
+                        if (gridT5) {
+                            gridT5.setData(list || []);
+                            if (list && list.length > 0) {
+                                if (currentJcJoin) {
+                                    selectRowByJcJoin(gridT5, currentJcJoin);
+                                }
+                            }
+                        }
+                    })
+                    .catch(function (err) {
+                        console.error("T5 load error:", err);
+                        if (typeof showToast === "function") showToast("수요예측 종목 목록 조회 중 오류가 발생했습니다.", "error");
+                    });
+            }
+
+            // [5. 상단 공통 툴바 표준 계약 바인딩]
+            function initToolbar() {
+                pane.onSearch = function () {
+                    if (activeTabId === "t1") {
+                        loadT1Data();
+                    } else if (activeTabId === "t4") {
+                        loadT4aData();
+                    } else if (activeTabId === "t5") {
+                        loadT5Data();
+                    }
+                };
+
+                pane.onInput = function () {
+                    if (activeTabId === "t1") {
+                        setT1NewMode();
+                    }
+                };
+
+                pane.onSave = function () {
+                    if (activeTabId === "t1") {
+                        saveT1Data();
+                    } else if (activeTabId === "t4") {
+                        saveT4Data();
+                    }
+                };
+
+                pane.onDelete = function () {
+                    if (activeTabId === "t1") {
+                        deleteT1Data();
+                    }
+                };
+
+                pane.onRefresh = function () {
+                    if (gridT1) gridT1.clearData();
+                    if (gridT4a) gridT4a.clearData();
+                    if (gridT4b) gridT4b.clearData();
+                    if (gridT5) gridT5.clearData();
+                    currentJcJoin = "";
+                    selectedT1RowData = null;
+                    selectedT4aRowData = null;
+                    lastLoadedT4Key = null;
+                    setT1NewMode();
+                    if (typeof showToast === "function") showToast("화면이 초기화되었습니다.", "info");
+                };
+
+                pane.onCorpGrChange = function (newCorpGr) {
+                    // 규칙 08 준수: 필터 변경 시 자동 조회는 실행하지 않음
+                };
+
+                pane.onExcel = function () {
+                    if (activeTabId === "t1" && gridT1) {
+                        gridT1.download("xlsx", "공모종목목록.xlsx", { sheetName: "공모종목" });
+                    } else if (activeTabId === "t4" && gridT4b) {
+                        gridT4b.download("xlsx", "펀드별배정등록.xlsx", { sheetName: "펀드별배정" });
+                    } else if (activeTabId === "t5") {
+                        if (reportViewer && typeof reportViewer.exportFormat === "function") {
+                            reportViewer.exportFormat("excel");
+                        } else if (gridT5) {
+                            gridT5.download("xlsx", "수요예측참여종목.xlsx", { sheetName: "수요예측종목" });
+                        }
+                    }
+                };
+            }
+
+            // [6. 스플리터 초기화]
+            function initSplitters() {
+                if (window.AamsSplitter && typeof window.AamsSplitter.init === "function") {
+                    window.AamsSplitter.init(pane);
+                }
+            }
+
+            // [7. 탭 버튼 클릭 이벤트 바인딩]
+            function initTabButtons() {
+                var btn1 = pane.querySelector("#tabBtn1");
+                var btn2 = pane.querySelector("#tabBtn2");
+                var btn3 = pane.querySelector("#tabBtn3");
+                if (btn1) btn1.addEventListener("click", function () { switchTab("t1"); });
+                if (btn2) btn2.addEventListener("click", function () { switchTab("t4"); });
+                if (btn3) btn3.addEventListener("click", function () { switchTab("t5"); });
+            }
+
+            // [MDI 단일 진입점 실행]
+            function startInit() {
+                if (isInitialized) return;
+                isInitialized = true;
+
+                initTabButtons();
+                initTab1();
+                initTab2();
+                initTab3();
+                initSplitters();
+                initToolbar();
+
+                // w_ja020a.srw의 eb_direct_retrieve = true 규격 반영: 최초 진입 시 탭1 조회
+                setTimeout(function () {
+                    loadT1Data();
+                }, 100);
+            }
+
+            if (document.readyState === "loading") {
+                document.addEventListener("DOMContentLoaded", startInit);
+            } else {
+                startInit();
+            }
+        })();
+    </script>
+</div>
+</html>

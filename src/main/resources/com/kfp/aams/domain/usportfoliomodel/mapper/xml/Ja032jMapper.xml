@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.kfp.aams.domain.usportfoliomodel.mapper.Ja032jMapper">
+
+    <!-- 1. 마스터 종가일자 및 주차 목록 조회 (d_ja032j1) -->
+    <select id="selectMasterList" resultType="com.kfp.aams.domain.usportfoliomodel.dto.Ja032jMasterDto">
+        SELECT DISTINCT TO_CHAR(t1.YMD, 'YYYY-MM-DD') AS ymd
+             , TO_CHAR(t1.YMD, 'iw')                   AS week
+          FROM SYT0LP t1
+         WHERE t1.corp_gr = #{corpGr}
+           AND t1.YMD     >= ADD_MONTHS(SYSDATE, -15)
+           AND t1.YMD     NOT IN (SELECT HOLI_YMD
+                                    FROM SZX0HL ta
+                                   WHERE ta.NATION_CD = 'US'
+                                     AND ta.HOLI_YMD  >= ADD_MONTHS(SYSDATE, -15))
+         ORDER BY ymd DESC
+    </select>
+
+    <!-- 2. 디테일 해외주식 종가 목록 조회 (d_ja032j2) -->
+    <select id="selectDetailList" resultType="com.kfp.aams.domain.usportfoliomodel.dto.Ja032jDetailDto">
+        SELECT t1.CORP_GR                                             AS corp_gr
+             , TO_CHAR(t1.YMD, 'YYYY-MM-DD')                          AS ymd
+             , t1.JM_CD                                               AS yj_cd
+             , t1.JM_CD                                               AS jm_cd
+             , t1.JONGA                                               AS jonga
+             , t1.TVOL                                                AS syt0lp_tvol
+             , t1.TVOL                                                AS tvol
+             , t1.TAMT                                                AS syt0lp_tamt
+             , t1.TAMT                                                AS tamt
+             , t1.SHAR                                                AS syt0lp_shar
+             , t1.SHAR                                                AS shar
+             , t1.TOMV                                                AS syt0lp_tomv
+             , t1.TOMV                                                AS tomv
+             , TO_CHAR(t1.LOAD_TIME, 'YYYY-MM-DD HH24:MI:SS')        AS load_time
+             , ya.JASAN_GB                                            AS jasan_gb
+             , ya.BLBG_TCKR                                           AS blbg_tckr
+             , ya.ISIN_CD                                             AS isin_cd
+             , ya.CURRENCY                                            AS currency
+             , F_JM_NM(t1.CORP_GR, t1.jm_cd)                          AS xx_yj_cd
+             , F_JM_NM(t1.CORP_GR, t1.jm_cd)                          AS jm_nm
+             , F_YJONGA(t1.CORP_GR, t1.jm_cd, t1.ymd - 1)            AS jun_jonga
+             , (t1.JONGA - F_YJONGA(t1.CORP_GR, t1.jm_cd, t1.ymd - 1)) AS diff_jonga
+             , 1                                                      AS p_visible
+          FROM SYT0LP t1
+             , SYM0YA ya
+         WHERE t1.CORP_GR  = #{corpGr}
+           AND t1.YMD      = TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
+           AND ya.CORP_GR  = t1.CORP_GR
+           AND ya.JM_CD    = t1.JM_CD
+           AND ya.JASAN_GB = '1'
+         ORDER BY CASE WHEN ya.BLBG_TCKR IN ('SPX','NDX') THEN '1' ELSE '2' END
+                , t1.JM_CD
+    </select>
+
+    <!-- 3. 디테일 등록 (SYT0LP) -->
+    <insert id="insertDetail">
+        INSERT INTO SYT0LP
+             ( CORP_GR
+             , YMD
+             , JM_CD
+             , JONGA
+             , TVOL
+             , TAMT
+             , SHAR
+             , TOMV
+             , LOAD_TIME
+             )
+        VALUES
+             ( #{corpGr}
+             , TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
+             , #{jmCd}
+             , #{jonga, jdbcType=NUMERIC}
+             , #{syt0lpTvol, jdbcType=NUMERIC}
+             , #{syt0lpTamt, jdbcType=NUMERIC}
+             , #{syt0lpShar, jdbcType=NUMERIC}
+             , #{syt0lpTomv, jdbcType=NUMERIC}
+             , SYSDATE
+             )
+    </insert>
+
+    <!-- 4. 디테일 수정 (SYT0LP) -->
+    <update id="updateDetail">
+        UPDATE SYT0LP
+           SET JONGA     = #{jonga, jdbcType=NUMERIC}
+             , TVOL      = #{syt0lpTvol, jdbcType=NUMERIC}
+             , TAMT      = #{syt0lpTamt, jdbcType=NUMERIC}
+             , SHAR      = #{syt0lpShar, jdbcType=NUMERIC}
+             , TOMV      = #{syt0lpTomv, jdbcType=NUMERIC}
+             , LOAD_TIME = SYSDATE
+         WHERE CORP_GR   = #{corpGr}
+           AND YMD       = TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
+           AND JM_CD     = #{jmCd}
+    </update>
+
+    <!-- 5. 디테일 삭제 (SYT0LP) -->
+    <delete id="deleteDetail">
+        DELETE FROM SYT0LP
+         WHERE CORP_GR   = #{corpGr}
+           AND YMD       = TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
+           AND JM_CD     = #{jmCd}
+    </delete>
+
+</mapper>

@@ -107,11 +107,23 @@ public class RdReportService {
     }
 
     /**
+     * 회사그룹 코드 단일값 정제 (콤마 구분 중복 전달 방어: "2402,2402" -> "2402")
+     */
+    public String cleanCorpGr(String corp) {
+        if (corp == null || corp.isBlank()) return "";
+        corp = corp.trim();
+        if (corp.contains(",")) {
+            corp = corp.split(",")[0].trim();
+        }
+        return corp;
+    }
+
+    /**
      * corpGr 파라미터가 없거나 비어있는 경우 현재 요청의 쿠키(savedCorpGr, corpGr) 및 SecurityContext에서 추출
      */
     public String resolveCorpGr(String corpGr) {
         if (corpGr != null && !corpGr.isBlank()) {
-            return corpGr.trim();
+            return cleanCorpGr(corpGr);
         }
 
         // 1. 현재 HTTP 요청의 쿠키에서 조회
@@ -123,12 +135,14 @@ public class RdReportService {
                     for (Cookie c : request.getCookies()) {
                         if ("savedCorpGr".equals(c.getName()) && c.getValue() != null && !c.getValue().isBlank()) {
                             String val = URLDecoder.decode(c.getValue(), StandardCharsets.UTF_8).trim();
+                            val = cleanCorpGr(val);
                             if (!val.isBlank()) return val;
                         }
                     }
                     for (Cookie c : request.getCookies()) {
                         if ("corpGr".equals(c.getName()) && c.getValue() != null && !c.getValue().isBlank()) {
                             String val = URLDecoder.decode(c.getValue(), StandardCharsets.UTF_8).trim();
+                            val = cleanCorpGr(val);
                             if (!val.isBlank()) return val;
                         }
                     }
@@ -143,7 +157,7 @@ public class RdReportService {
             Authentication auth = SecurityContextHolder.getContext().getAuthentication();
             if (auth != null && auth.getPrincipal() instanceof UserPrincipal p) {
                 if (p.getCorpGr() != null && !p.getCorpGr().isBlank()) {
-                    return p.getCorpGr().trim();
+                    return cleanCorpGr(p.getCorpGr());
                 }
             }
         } catch (Exception e) {
@@ -488,6 +502,7 @@ public class RdReportService {
         StringBuilder sb = new StringBuilder();
 
         // 파워빌더 u_rd.sru 표준: Crownix Data Server(rdagent.jsp) 데이터소스 연결 파라미터
+        corpGr = cleanCorpGr(corpGr);
         sb.append("/rcontype [Data Server] /rf [http://app.aams.kr:8080/DataServer/rdagent.jsp] /rsn [KFP] /rv ");
 
         boolean hasCorpGr = false;
@@ -505,9 +520,9 @@ public class RdReportService {
                 String v = String.valueOf(valObj).trim();
 
                 // 예약어 및 시스템 제어 옵션 처리
-                if ("corp_gr".equalsIgnoreCase(k)) {
+                if ("corp_gr".equalsIgnoreCase(k) || "corpgr".equalsIgnoreCase(k)) {
                     hasCorpGr = true;
-                    String targetCorp = (corpGr != null && !corpGr.isBlank()) ? corpGr : v;
+                    String targetCorp = (!corpGr.isBlank()) ? corpGr : cleanCorpGr(v);
                     sb.append("corp_gr[").append(targetCorp).append("] ");
                     continue;
                 }
@@ -532,13 +547,13 @@ public class RdReportService {
             }
         }
 
-        if (!hasCorpGr && corpGr != null && !corpGr.isBlank()) {
+        if (!hasCorpGr && !corpGr.isBlank()) {
             sb.append("corp_gr[").append(corpGr).append("] ");
         }
 
         // 파워빌더 u_rd.sru 표준: rt_key[CORP_GR + user_id + f_systimestamp]
         if (!hasRtKey) {
-            String targetCorp = (corpGr != null) ? corpGr.trim() : "";
+            String targetCorp = cleanCorpGr(corpGr);
             String userId = resolveUserId();
             String timestamp = getSystimestamp();
             sb.append("rt_key[").append(targetCorp).append(userId).append(timestamp).append("] ");
