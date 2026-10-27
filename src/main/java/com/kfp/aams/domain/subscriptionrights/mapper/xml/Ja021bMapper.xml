@@ -1,0 +1,635 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.kfp.aams.domain.subscriptionrights.mapper.Ja021bMapper">
+
+    <!-- 1. 좌측 회사 목록 (dl_corp_gr + sjt0bm 배당 존재 여부) -->
+    <select id="selectCorpList" resultType="com.kfp.aams.domain.subscriptionrights.dto.Ja021bCorpDto">
+        SELECT aa.CORP_GR                                                             AS corpGr
+             , aa.COMPANY_NAME                                                        AS corpNm
+             , (SELECT COUNT(1)
+                  FROM SJT0BM bm
+                 WHERE bm.corp_gr = aa.corp_gr
+                   AND bm.ymd BETWEEN TO_DATE(REPLACE(#{ym}, '-', ''), 'YYYYMM')
+                                  AND LAST_DAY(TO_DATE(REPLACE(#{ym}, '-', ''), 'YYYYMM'))
+               )                                                                      AS dataCount
+          FROM SZX0AA aa
+         WHERE aa.customer_gr = #{customerGr}
+         <if test="corpGr != null and corpGr != '' and corpGr != '%'">
+           AND aa.corp_gr = #{corpGr}
+         </if>
+         ORDER BY aa.corp_gr ASC
+    </select>
+
+    <!-- 2. 탭 1 마스터: 예상배당공시 (d_ja021b_t11) -->
+    <select id="selectT1MasterList" resultType="com.kfp.aams.domain.subscriptionrights.dto.Ja021bMasterDto">
+        SELECT t1.corp_gr                                                             AS corpGr
+             , TO_CHAR(t1.TR_YMD, 'YYYY-MM-DD')                                       AS trYmd
+             , t1.TR_CD                                                               AS trCd
+             , t1.BALH_CO                                                             AS balhCo
+             , jb.BALH_NM                                                             AS balhNm
+             , jb.BALH_NM                                                             AS xxBalhCo
+             , t1.BAED_MTH                                                            AS baedMth
+             , t1.BAEJ_MTH                                                            AS baejMth
+             , t1.CASH_ILBAN_RT                                                       AS cashIlbanRt
+             , t1.CASH_WOOS_RT                                                        AS cashWoosRt
+             , t1.STOCK_ILBAN_RT                                                      AS stockIlbanRt
+             , t1.STOCK_WOOS_RT                                                       AS stockWoosRt
+             , TO_CHAR(t1.BROK_YMD, 'YYYY-MM-DD')                                      AS brokYmd
+             , TO_CHAR(t1.JUCHONG_YMD, 'YYYY-MM-DD')                                   AS juchongYmd
+             , CASE WHEN t1.stock_woos_rt = 0 THEN NULL ELSE t1.stock_woos_rt * 100 END   AS stockWoosPer
+             , CASE WHEN t1.stock_ilban_rt = 0 THEN NULL ELSE t1.stock_ilban_rt * 100 END  AS stockIlbanPer
+             , CASE WHEN t1.cash_woos_rt = 0 THEN NULL ELSE t1.cash_woos_rt * 100 END       AS cashWoosPer
+             , CASE WHEN t1.cash_ilban_rt = 0 THEN NULL ELSE t1.cash_ilban_rt * 100 END     AS cashIlbanPer
+             , t1.ILBAN_AEK                                                           AS ilbanAek
+             , t1.WOOS_AEK                                                            AS woosAek
+          FROM SJT0BK t1
+          LEFT OUTER JOIN SJX0JB jb
+                       ON jb.BALH_CO = t1.BALH_CO
+         WHERE 1=1
+         <choose>
+             <when test="corpGr != null and corpGr != '' and corpGr != '%'">
+                 AND t1.corp_gr = #{corpGr}
+             </when>
+             <otherwise>
+                 AND t1.corp_gr = '%'
+             </otherwise>
+         </choose>
+           AND t1.TR_YMD BETWEEN TO_DATE(REPLACE(#{ym}, '-', ''), 'YYYYMM')
+                             AND LAST_DAY(TO_DATE(REPLACE(#{ym}, '-', ''), 'YYYYMM'))
+           AND t1.TR_CD   = 'G10'
+           AND EXISTS (SELECT 1 FROM SZX0AA aa WHERE aa.customer_gr = #{customerGr})
+         ORDER BY t1.balh_co ASC
+    </select>
+
+    <!-- 3. 종목별 배당 상세/등록 (d_ja021b_t12, d_ja021b_p1) -->
+    <select id="selectItemList" resultType="com.kfp.aams.domain.subscriptionrights.dto.Ja021bItemDto">
+        SELECT t1.CORP_GR                                                             AS corpGr
+             , TO_CHAR(t1.TR_YMD, 'YYYY-MM-DD')                                       AS trYmd
+             , t1.TR_CD                                                               AS trCd
+             , t1.BALH_CO                                                             AS balhCo
+             , t1.JM_CD                                                               AS jjCd
+             , t1.JM_CD                                                               AS jmCd
+             , t1.CASH_RT                                                             AS cashRt
+             , t1.STOCK_RT                                                            AS stockRt
+             , t1.BAED_AEK                                                            AS baedAek
+             , t1.cash_rt * 100                                                       AS cashPer
+             , t1.stock_rt * 100                                                      AS stockPer
+             , F_JM_NM(t1.corp_gr, t1.jm_cd)                                          AS xxJjCd
+             , F_JM_NM(t1.corp_gr, t1.jm_cd)                                          AS jmNm
+          FROM SJT0BJ t1
+         WHERE 1=1
+         <choose>
+             <when test="corpGr != null and corpGr != '' and corpGr != '%'">
+                 AND t1.corp_gr = #{corpGr}
+             </when>
+             <otherwise>
+                 AND t1.corp_gr LIKE '%'
+             </otherwise>
+         </choose>
+           AND t1.TR_YMD  = TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
+           AND t1.TR_CD   = #{trCd}
+           AND t1.BALH_CO = #{balhCo}
+         ORDER BY t1.jm_cd ASC
+    </select>
+
+    <!-- 4. 종목마스터에서 초기 종목 목록 가져오기 (sjm0jj) -->
+    <select id="selectInitialBalhItems" resultType="com.kfp.aams.domain.subscriptionrights.dto.Ja021bItemDto">
+        SELECT jm.JM_CD                                                               AS jjCd
+             , jm.JM_CD                                                               AS jmCd
+             , jm.JJ_NM                                                               AS xxJjCd
+             , jm.JJ_NM                                                               AS jmNm
+          FROM SJM0JJ jm
+         WHERE jm.balh_co = #{balhCo}
+           AND jm.danc_gb IN ('A', 'C', 'D')
+         ORDER BY jm.jm_cd DESC
+    </select>
+
+    <!-- 5. 탭 2: 운용사별 예상배당 마스터 (d_ja021b_t21) -->
+    <select id="selectT2MasterList" resultType="com.kfp.aams.domain.subscriptionrights.dto.Ja021bMasterDto">
+        SELECT NVL(t1.corp_gr, #{corpGr})                                             AS corpGr
+             , TO_CHAR(NVL(t1.TR_YMD, bk.tr_ymd), 'YYYY-MM-DD')                       AS trYmd
+             , NVL(t1.TR_CD, 'G10')                                                   AS trCd
+             , NVL(t1.BALH_CO, bk.balh_co)                                            AS balhCo
+             , NVL(t1.BAED_MTH, bk.baed_mth)                                          AS baedMth
+             , NVL(t1.BAEJ_MTH, bk.baej_mth)                                          AS baejMth
+             , NVL(t1.CASH_ILBAN_RT, bk.cash_ilban_rt)                                 AS cashIlbanRt
+             , NVL(t1.CASH_WOOS_RT, bk.cash_woos_rt)                                   AS cashWoosRt
+             , NVL(t1.STOCK_ILBAN_RT, bk.stock_ilban_rt)                               AS stockIlbanRt
+             , NVL(t1.STOCK_WOOS_RT, bk.stock_woos_rt)                                 AS stockWoosRt
+             , TO_CHAR(NVL(t1.BROK_YMD, bk.brok_ymd), 'YYYY-MM-DD')                     AS brokYmd
+             , TO_CHAR(NVL(t1.JUCHONG_YMD, bk.juchong_ymd), 'YYYY-MM-DD')                 AS juchongYmd
+             , NVL(t1.stock_woos_rt, bk.stock_woos_rt) * 100                          AS stockWoosPer
+             , NVL(t1.stock_ilban_rt, bk.stock_ilban_rt) * 100                        AS stockIlbanPer
+             , NVL(t1.cash_woos_rt, bk.cash_woos_rt) * 100                            AS cashWoosPer
+             , NVL(t1.cash_ilban_rt, bk.cash_ilban_rt) * 100                          AS cashIlbanPer
+             , NVL(t1.ILBAN_AEK, bk.ilban_aek)                                        AS ilbanAek
+             , NVL(t1.WOOS_AEK, bk.woos_aek)                                          AS woosAek
+             , TO_CHAR(bk.TR_YMD, 'YYYY-MM-DD')                                       AS bkTrYmd
+             , bk.TR_CD                                                               AS bkTrCd
+             , bk.BALH_CO                                                             AS bkBalhCo
+             , bk.BAED_MTH                                                            AS bkBaedMth
+             , bk.BAEJ_MTH                                                            AS bkBaejMth
+             , bk.CASH_ILBAN_RT                                                       AS bkCashIlbanRt
+             , bk.CASH_WOOS_RT                                                        AS bkCashWoosRt
+             , bk.STOCK_ILBAN_RT                                                      AS bkStockIlbanRt
+             , bk.STOCK_WOOS_RT                                                       AS bkStockWoosRt
+             , bk.stock_woos_rt * 100                                                 AS bkStockWoosPer
+             , bk.stock_ilban_rt * 100                                                AS bkStockIlbanPer
+             , bk.cash_woos_rt * 100                                                  AS bkCashWoosPer
+             , bk.cash_ilban_rt * 100                                                 AS bkCashIlbanPer
+             , TO_CHAR(bk.BROK_YMD, 'YYYY-MM-DD')                                      AS bkBrokYmd
+             , TO_CHAR(bk.JUCHONG_YMD, 'YYYY-MM-DD')                                   AS bkJuchongYmd
+             , bk.ILBAN_AEK                                                           AS bkIlbanAek
+             , bk.WOOS_AEK                                                            AS bkWoosAek
+             , jb.BALH_NM                                                             AS balhNm
+             , jb.BALH_NM                                                             AS xxBalhCo
+             , CASE WHEN NVL(t1.stock_woos_rt,0) != NVL(bk.stock_woos_rt,0) OR 
+                         NVL(t1.stock_ilban_rt,0) != NVL(bk.stock_ilban_rt,0) OR 
+                         NVL(t1.cash_woos_rt,0) != NVL(bk.cash_woos_rt,0) OR 
+                         NVL(t1.cash_ilban_rt,0) != NVL(bk.cash_ilban_rt,0)
+                    THEN 255
+                    ELSE 2960685
+               END                                                                    AS fontColor
+             , CASE WHEN t1.tr_ymd &gt;= TO_DATE(REPLACE(#{workDate}, '-', ''), 'YYYYMMDD') OR t1.corp_gr IS NULL
+                    THEN 1
+                    ELSE 0
+               END                                                                    AS pVisible
+          FROM SJT0BK bk
+          LEFT OUTER JOIN sjx0jb jb ON jb.BALH_CO = bk.BALH_CO
+          LEFT OUTER JOIN sjt0bk t1 ON t1.corp_gr  = #{corpGr}
+                                    AND t1.TR_YMD   = bk.tr_ymd
+                                    AND t1.TR_CD    = bk.tr_cd
+                                    AND t1.balh_co  = bk.balh_co
+                                    AND t1.baed_mth = bk.baed_mth
+                                    AND t1.baej_mth = bk.baej_mth
+         WHERE bk.corp_gr = '%'
+           AND bk.TR_YMD  BETWEEN TO_DATE(REPLACE(#{ym}, '-', ''), 'YYYYMM')
+                              AND LAST_DAY(TO_DATE(REPLACE(#{ym}, '-', ''), 'YYYYMM'))
+           AND bk.TR_CD   = 'G10'
+           AND bk.balh_co IN (SELECT balh_co
+                                FROM SJT0BM ta
+                               WHERE ta.corp_gr = #{corpGr}
+                                 AND ta.ymd     BETWEEN TO_DATE(REPLACE(#{ym}, '-', ''), 'YYYYMM')
+                                                    AND LAST_DAY(TO_DATE(REPLACE(#{ym}, '-', ''), 'YYYYMM')))
+         ORDER BY bk.balh_co ASC
+    </select>
+
+    <!-- 6. 탭 2: 펀드별 배당권리 상세 (d_ja021b_t22) -->
+    <select id="selectT2DetailList" resultType="com.kfp.aams.domain.subscriptionrights.dto.Ja021bFundDetailDto">
+        SELECT t1.CORP_GR                                                             AS corpGr
+             , TO_CHAR(t1.YMD, 'YYYY-MM-DD')                                           AS ymd
+             , t1.BALH_CO                                                             AS balhCo
+             , t1.FUND_CD                                                             AS fundCd
+             , F_FUND_NM(t1.corp_gr, t1.fund_cd)                                      AS fundNm
+             , t1.OLD_JM_CD                                                           AS oldJmCd
+             , CASE WHEN t1.old_jm_cd = t1.new_jm_cd THEN NULL ELSE t1.NEW_JM_CD END     AS newJmCd
+             , t1.BOYU_JUSU                                                           AS boyuJusu
+             , t1.BOYU_CHUI_AEK                                                       AS boyuChuiAek
+             , t1.BAED_BU_ILSU                                                        AS baedBuIlsu
+             , t1.BROK_JUSU                                                           AS brokJusu
+             , t1.YESA_JUSU                                                           AS yesaJusu
+             , t1.DANGA                                                               AS danga
+             , t1.YESA_AEK                                                            AS yesaAek
+             , TO_CHAR(t1.HWAKJ_YMD, 'YYYY-MM-DD')                                    AS hwakjYmd
+             , t1.HWAKJ_JUSU                                                          AS hwakjJusu
+             , t1.HWAKJ_AEK                                                           AS hwakjAek
+             , TO_CHAR(t1.JUCHONG_YMD, 'YYYY-MM-DD')                                  AS juchongYmd
+             , t1.JUCHONG_JUSU                                                        AS juchongJusu
+             , t1.JUCHONG_AEK                                                         AS juchongAek
+             , TO_CHAR(t1.SURY_YMD, 'YYYY-MM-DD')                                    AS suryYmd
+             , t1.SURY_JU_AEK                                                         AS suryJuAek
+          FROM SJT0BM t1
+         WHERE t1.corp_gr = #{corpGr}
+           AND t1.ymd     = TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
+           AND t1.balh_co = #{balhCo}
+         ORDER BY t1.fund_cd ASC
+    </select>
+
+    <!-- 7. 탭 3: 현금확정배당(G20) 마스터 (d_ja021b_t31) -->
+    <select id="selectT3MasterList" resultType="com.kfp.aams.domain.subscriptionrights.dto.Ja021bMasterDto">
+        SELECT NVL(t1.corp_gr, '%')                                                   AS corpGr
+             , TO_CHAR(NVL(t1.TR_YMD, bk.tr_ymd), 'YYYY-MM-DD')                       AS trYmd
+             , NVL(t1.TR_CD, 'G20')                                                   AS trCd
+             , NVL(t1.BALH_CO, bk.balh_co)                                            AS balhCo
+             , NVL(t1.BAED_MTH, bk.baed_mth)                                          AS baedMth
+             , NVL(t1.BAEJ_MTH, bk.baej_mth)                                          AS baejMth
+             , NVL(t1.CASH_ILBAN_RT, bk.cash_ilban_rt)                                 AS cashIlbanRt
+             , NVL(t1.CASH_WOOS_RT, bk.cash_woos_rt)                                   AS cashWoosRt
+             , NVL(t1.STOCK_ILBAN_RT, bk.stock_ilban_rt)                               AS stockIlbanRt
+             , NVL(t1.STOCK_WOOS_RT, bk.stock_woos_rt)                                 AS stockWoosRt
+             , TO_CHAR(NVL(t1.BROK_YMD, bk.brok_ymd), 'YYYY-MM-DD')                     AS brokYmd
+             , TO_CHAR(NVL(t1.JUCHONG_YMD, bk.juchong_ymd), 'YYYY-MM-DD')                 AS juchongYmd
+             , NVL(t1.stock_woos_rt, bk.stock_woos_rt) * 100                          AS stockWoosPer
+             , NVL(t1.stock_ilban_rt, bk.stock_ilban_rt) * 100                        AS stockIlbanPer
+             , NVL(t1.cash_woos_rt, bk.cash_woos_rt) * 100                            AS cashWoosPer
+             , NVL(t1.cash_ilban_rt, bk.cash_ilban_rt) * 100                          AS cashIlbanPer
+             , NVL(t1.ILBAN_AEK, bk.ilban_aek)                                        AS ilbanAek
+             , NVL(t1.WOOS_AEK, bk.woos_aek)                                          AS woosAek
+             , TO_CHAR(bk.TR_YMD, 'YYYY-MM-DD')                                       AS bkTrYmd
+             , bk.TR_CD                                                               AS bkTrCd
+             , bk.BALH_CO                                                             AS bkBalhCo
+             , bk.BAED_MTH                                                            AS bkBaedMth
+             , bk.BAEJ_MTH                                                            AS bkBaejMth
+             , bk.CASH_ILBAN_RT                                                       AS bkCashIlbanRt
+             , bk.CASH_WOOS_RT                                                        AS bkCashWoosRt
+             , bk.STOCK_ILBAN_RT                                                      AS bkStockIlbanRt
+             , bk.STOCK_WOOS_RT                                                       AS bkStockWoosRt
+             , bk.stock_woos_rt * 100                                                 AS bkStockWoosPer
+             , bk.stock_ilban_rt * 100                                                AS bkStockIlbanPer
+             , bk.cash_woos_rt * 100                                                  AS bkCashWoosPer
+             , bk.cash_ilban_rt * 100                                                 AS bkCashIlbanPer
+             , TO_CHAR(bk.BROK_YMD, 'YYYY-MM-DD')                                      AS bkBrokYmd
+             , TO_CHAR(bk.JUCHONG_YMD, 'YYYY-MM-DD')                                   AS bkJuchongYmd
+             , bk.ILBAN_AEK                                                           AS bkIlbanAek
+             , bk.WOOS_AEK                                                            AS bkWoosAek
+             , jb.BALH_NM                                                             AS balhNm
+             , jb.BALH_NM                                                             AS xxBalhCo
+             , CASE WHEN t1.tr_ymd = TRUNC(SYSDATE, 'DD') THEN 1
+                    WHEN t1.tr_ymd IS NULL                THEN 2
+                    ELSE 9
+               END                                                                    AS trSort
+             , CASE WHEN NVL(t1.stock_woos_rt,0) != NVL(bk.stock_woos_rt,0) OR
+                         NVL(t1.stock_ilban_rt,0) != NVL(bk.stock_ilban_rt,0) OR
+                         NVL(t1.cash_woos_rt,0) != NVL(bk.cash_woos_rt,0) OR
+                         NVL(t1.cash_ilban_rt,0) != NVL(bk.cash_ilban_rt,0)
+                    THEN 255
+                    ELSE 2960685
+               END                                                                    AS fontColor
+             , CASE WHEN t1.tr_ymd &gt;= TO_DATE(REPLACE(#{workDate}, '-', ''), 'YYYYMMDD') OR t1.corp_gr IS NULL
+                    THEN 1
+                    ELSE 0
+               END                                                                    AS pVisible
+             , CASE WHEN NVL(tt.jm_cnt, 0) = 0 THEN '0'
+                    ELSE '1'
+               END                                                                    AS pSjt0bj
+          FROM SJT0BK bk
+          LEFT OUTER JOIN SJX0JB jb ON jb.BALH_CO = bk.BALH_CO
+          LEFT OUTER JOIN (SELECT sub_t1.*
+                             FROM (SELECT g1.*
+                                        , ROW_NUMBER() OVER (PARTITION BY balh_co, brok_ymd, baed_mth, baej_mth
+                                                                 ORDER BY tr_ymd DESC) AS rnum
+                                     FROM SJT0BK g1
+                                    WHERE g1.corp_gr = '%'
+                                      AND g1.TR_CD   = 'G20') sub_t1
+                            WHERE sub_t1.rnum = 1) t1
+                       ON t1.balh_co  = bk.balh_co
+                      AND t1.brok_ymd = bk.brok_ymd
+                      AND t1.baed_mth = bk.baed_mth
+                      AND t1.baej_mth = bk.baej_mth
+          LEFT OUTER JOIN (SELECT tr_ymd
+                                , balh_co
+                                , COUNT(*) AS jm_cnt
+                             FROM SJT0BJ p1
+                            WHERE corp_gr = '%'
+                              AND tr_ymd BETWEEN TO_DATE(REPLACE(#{ym}, '-', ''), 'YYYYMM')
+                                             AND TO_DATE(REPLACE(#{workDate}, '-', ''), 'YYYYMMDD')
+                              AND tr_cd   = 'G20'
+                              AND cash_rt &gt; 0
+                            GROUP BY tr_ymd, balh_co) tt
+                       ON tt.tr_ymd  = t1.tr_ymd
+                      AND tt.balh_co = t1.balh_co
+         WHERE bk.corp_gr = '%'
+           AND bk.TR_YMD  BETWEEN TO_DATE(REPLACE(#{ym}, '-', ''), 'YYYYMM')
+                              AND LAST_DAY(TO_DATE(REPLACE(#{ym}, '-', ''), 'YYYYMM'))
+           AND bk.balh_co IN (SELECT ta.balh_co
+                                FROM SJT0BM ta
+                                JOIN SZX0AA aa ON aa.corp_gr = ta.corp_gr
+                               WHERE ta.ymd BETWEEN TO_DATE(REPLACE(#{ym}, '-', ''), 'YYYYMM')
+                                                AND LAST_DAY(TO_DATE(REPLACE(#{ym}, '-', ''), 'YYYYMM'))
+                                 AND aa.customer_gr = #{customerGr})
+           AND bk.TR_CD   = 'G10'
+         ORDER BY trSort ASC, trYmd DESC, baejMth ASC, balhCo ASC
+    </select>
+
+    <!-- 8. 탭 3~5 디테일: 펀드별 배당권리 상세 (d_ja021b_t32, t42, t52) -->
+    <select id="selectT3DetailList" resultType="com.kfp.aams.domain.subscriptionrights.dto.Ja021bFundDetailDto">
+        SELECT t1.CORP_GR                                                             AS corpGr
+             , aa.company_name                                                        AS corpNm
+             , TO_CHAR(t1.YMD, 'YYYY-MM-DD')                                           AS ymd
+             , t1.BALH_CO                                                             AS balhCo
+             , t1.FUND_CD                                                             AS fundCd
+             , F_FUND_NM(t1.corp_gr, t1.fund_cd)                                      AS fundNm
+             , t1.OLD_JM_CD                                                           AS oldJmCd
+             , t1.NEW_JM_CD                                                           AS newJmCd
+             , t1.BOYU_JUSU                                                           AS boyuJusu
+             , t1.BOYU_CHUI_AEK                                                       AS boyuChuiAek
+             , t1.BAED_BU_ILSU                                                        AS baedBuIlsu
+             , t1.BROK_JUSU                                                           AS brokJusu
+             , t1.YESA_JUSU                                                           AS yesaJusu
+             , t1.DANGA                                                               AS danga
+             , t1.YESA_AEK                                                            AS yesaAek
+             , TO_CHAR(t1.HWAKJ_YMD, 'YYYY-MM-DD')                                    AS hwakjYmd
+             , t1.HWAKJ_JUSU                                                          AS hwakjJusu
+             , t1.HWAKJ_AEK                                                           AS hwakjAek
+             , TO_CHAR(t1.JUCHONG_YMD, 'YYYY-MM-DD')                                  AS juchongYmd
+             , t1.JUCHONG_JUSU                                                        AS juchongJusu
+             , t1.JUCHONG_AEK                                                         AS juchongAek
+             , TO_CHAR(t1.SURY_YMD, 'YYYY-MM-DD')                                    AS suryYmd
+             , t1.SURY_JU_AEK                                                         AS suryJuAek
+          FROM SJT0BM t1
+          JOIN SZX0AA aa ON aa.CORP_GR = t1.CORP_GR
+         WHERE 1=1
+         <choose>
+             <when test="corpGr != null and corpGr != '' and corpGr != '%'">
+                 AND t1.corp_gr = #{corpGr}
+             </when>
+             <otherwise>
+                 AND t1.corp_gr LIKE '%'
+             </otherwise>
+         </choose>
+           AND aa.customer_gr = #{customerGr}
+           AND t1.YMD         = TO_DATE(REPLACE(#{brokYmd}, '-', ''), 'YYYYMMDD')
+           AND t1.BALH_CO     = #{balhCo}
+         ORDER BY t1.corp_gr ASC, t1.fund_cd ASC
+    </select>
+
+    <!-- 9. 탭 4: 주식확정배당(G20) 마스터 (d_ja021b_t41) -->
+    <select id="selectT4MasterList" resultType="com.kfp.aams.domain.subscriptionrights.dto.Ja021bMasterDto">
+        WITH with_bj AS (
+            SELECT tr_ymd, balh_co, COUNT(*) AS jm_cnt
+              FROM sjt0bj p1
+             WHERE corp_gr = '%'
+               AND tr_ymd BETWEEN TO_DATE(REPLACE(#{ym}, '-', ''), 'YYYYMM')
+                              AND TO_DATE(REPLACE(#{workDate}, '-', ''), 'YYYYMMDD')
+               AND tr_cd = 'G20'
+               AND stock_rt &gt; 0
+             GROUP BY tr_ymd, balh_co
+        )
+        SELECT NVL(t1.corp_gr, '%')                                                   AS corpGr
+             , TO_CHAR(NVL(t1.TR_YMD, bk.tr_ymd), 'YYYY-MM-DD')                       AS trYmd
+             , NVL(t1.TR_CD, 'G20')                                                   AS trCd
+             , NVL(t1.BALH_CO, bk.balh_co)                                            AS balhCo
+             , NVL(t1.BAED_MTH, bk.baed_mth)                                          AS baedMth
+             , NVL(t1.BAEJ_MTH, bk.baej_mth)                                          AS baejMth
+             , NVL(t1.CASH_ILBAN_RT, bk.cash_ilban_rt)                                 AS cashIlbanRt
+             , NVL(t1.CASH_WOOS_RT, bk.cash_woos_rt)                                   AS cashWoosRt
+             , NVL(t1.STOCK_ILBAN_RT, bk.stock_ilban_rt)                               AS stockIlbanRt
+             , NVL(t1.STOCK_WOOS_RT, bk.stock_woos_rt)                                 AS stockWoosRt
+             , TO_CHAR(NVL(t1.BROK_YMD, bk.brok_ymd), 'YYYY-MM-DD')                     AS brokYmd
+             , TO_CHAR(NVL(t1.JUCHONG_YMD, bk.juchong_ymd), 'YYYY-MM-DD')                 AS juchongYmd
+             , NVL(t1.stock_woos_rt, bk.stock_woos_rt) * 100                          AS stockWoosPer
+             , NVL(t1.stock_ilban_rt, bk.stock_ilban_rt) * 100                        AS stockIlbanPer
+             , NVL(t1.cash_woos_rt, bk.cash_woos_rt) * 100                            AS cashWoosPer
+             , NVL(t1.cash_ilban_rt, bk.cash_ilban_rt) * 100                          AS cashIlbanPer
+             , NVL(t1.ILBAN_AEK, bk.ilban_aek)                                        AS ilbanAek
+             , NVL(t1.WOOS_AEK, bk.woos_aek)                                          AS woosAek
+             , TO_CHAR(bk.TR_YMD, 'YYYY-MM-DD')                                       AS bkTrYmd
+             , bk.TR_CD                                                               AS bkTrCd
+             , bk.BALH_CO                                                             AS bkBalhCo
+             , bk.BAED_MTH                                                            AS bkBaedMth
+             , bk.BAEJ_MTH                                                            AS bkBaejMth
+             , bk.CASH_ILBAN_RT                                                       AS bkCashIlbanRt
+             , bk.CASH_WOOS_RT                                                        AS bkCashWoosRt
+             , bk.STOCK_ILBAN_RT                                                      AS bkStockIlbanRt
+             , bk.STOCK_WOOS_RT                                                       AS bkStockWoosRt
+             , bk.stock_woos_rt * 100                                                 AS bkStockWoosPer
+             , bk.stock_ilban_rt * 100                                                AS bkStockIlbanPer
+             , bk.cash_woos_rt * 100                                                  AS bkCashWoosPer
+             , bk.cash_ilban_rt * 100                                                 AS bkCashIlbanPer
+             , TO_CHAR(bk.BROK_YMD, 'YYYY-MM-DD')                                      AS bkBrokYmd
+             , TO_CHAR(bk.JUCHONG_YMD, 'YYYY-MM-DD')                                   AS bkJuchongYmd
+             , bk.ILBAN_AEK                                                           AS bkIlbanAek
+             , bk.WOOS_AEK                                                            AS bkWoosAek
+             , jb.BALH_NM                                                             AS balhNm
+             , jb.BALH_NM                                                             AS xxBalhCo
+             , CASE WHEN t1.tr_ymd = TRUNC(SYSDATE, 'DD') THEN 1
+                    WHEN t1.tr_ymd IS NULL                THEN 2
+                    ELSE 9
+               END                                                                    AS trSort
+             , CASE WHEN NVL(t1.stock_woos_rt,0) != NVL(bk.stock_woos_rt,0) OR 
+                         NVL(t1.stock_ilban_rt,0) != NVL(bk.stock_ilban_rt,0) OR 
+                         NVL(t1.cash_woos_rt,0) != NVL(bk.cash_woos_rt,0) OR 
+                         NVL(t1.cash_ilban_rt,0) != NVL(bk.cash_ilban_rt,0)
+                    THEN 255
+                    ELSE 2960685
+               END                                                                    AS fontColor
+             , CASE WHEN t1.tr_ymd &gt;= TO_DATE(REPLACE(#{workDate}, '-', ''), 'YYYYMMDD') OR t1.corp_gr IS NULL
+                    THEN 1
+                    ELSE 0
+               END                                                                    AS pVisible
+             , CASE WHEN NVL(tt.jm_cnt, 0) = 0 THEN '0'
+                    ELSE '1'
+               END                                                                    AS pSjt0bj
+          FROM SJT0BK bk
+          LEFT OUTER JOIN sjx0jb jb ON jb.BALH_CO = bk.BALH_CO
+          LEFT OUTER JOIN sjt0bk t1 ON t1.corp_gr  = '%'
+                                    AND t1.TR_CD    = 'G20'
+                                    AND t1.balh_co  = bk.balh_co
+                                    AND t1.brok_ymd = bk.brok_ymd
+                                    AND t1.baed_mth = bk.baed_mth
+                                    AND t1.baej_mth = bk.baej_mth
+          LEFT OUTER JOIN with_bj tt ON tt.tr_ymd  = t1.tr_ymd
+                                     AND tt.balh_co = t1.balh_co
+         WHERE bk.corp_gr  = '%'
+           AND bk.TR_YMD   BETWEEN TO_DATE(REPLACE(#{ym}, '-', ''), 'YYYYMM')
+                               AND LAST_DAY(TO_DATE(REPLACE(#{ym}, '-', ''), 'YYYYMM'))
+           AND bk.TR_CD    = 'G10'
+           AND bk.BAED_MTH = '3'
+           AND bk.balh_co  IN (SELECT balh_co
+                                 FROM SJT0BM ta
+                                    , SZX0AA aa
+                                WHERE ta.corp_gr     LIKE '%'
+                                  AND ta.ymd         BETWEEN TO_DATE(REPLACE(#{ym}, '-', ''), 'YYYYMM')
+                                                         AND LAST_DAY(TO_DATE(REPLACE(#{ym}, '-', ''), 'YYYYMM'))
+                                  AND aa.corp_gr     = ta.corp_gr
+                                  AND aa.customer_gr = #{customerGr})
+         ORDER BY trSort ASC, trYmd DESC, baejMth ASC, balhCo ASC
+    </select>
+
+    <!-- 10. 탭 5: 2차(주총)확정(G25) 마스터 (d_ja021b_t51) -->
+    <select id="selectT5MasterList" resultType="com.kfp.aams.domain.subscriptionrights.dto.Ja021bMasterDto">
+        SELECT NVL(t1.corp_gr, '%')                                                   AS corpGr
+             , TO_CHAR(NVL(t1.TR_YMD, bk.tr_ymd), 'YYYY-MM-DD')                       AS trYmd
+             , NVL(t1.TR_CD, 'G25')                                                   AS trCd
+             , NVL(t1.BALH_CO, bk.balh_co)                                            AS balhCo
+             , NVL(t1.BAED_MTH, bk.baed_mth)                                          AS baedMth
+             , NVL(t1.BAEJ_MTH, bk.baej_mth)                                          AS baejMth
+             , NVL(t1.CASH_ILBAN_RT, b1.cash_ilban_rt)                                 AS cashIlbanRt
+             , NVL(t1.CASH_WOOS_RT, b1.cash_woos_rt)                                   AS cashWoosRt
+             , NVL(t1.STOCK_ILBAN_RT, b1.stock_ilban_rt)                               AS stockIlbanRt
+             , NVL(t1.STOCK_WOOS_RT, b1.stock_woos_rt)                                 AS stockWoosRt
+             , TO_CHAR(NVL(t1.BROK_YMD, bk.brok_ymd), 'YYYY-MM-DD')                     AS brokYmd
+             , TO_CHAR(NVL(t1.JUCHONG_YMD, bk.juchong_ymd), 'YYYY-MM-DD')                 AS juchongYmd
+             , NVL(t1.stock_woos_rt, b1.stock_woos_rt) * 100                          AS stockWoosPer
+             , NVL(t1.stock_ilban_rt, b1.stock_ilban_rt) * 100                        AS stockIlbanPer
+             , NVL(t1.cash_woos_rt, b1.cash_woos_rt) * 100                            AS cashWoosPer
+             , NVL(t1.cash_ilban_rt, b1.cash_ilban_rt) * 100                          AS cashIlbanPer
+             , NVL(t1.ILBAN_AEK, b1.ilban_aek)                                        AS ilbanAek
+             , NVL(t1.WOOS_AEK, b1.woos_aek)                                          AS woosAek
+             , TO_CHAR(bk.TR_YMD, 'YYYY-MM-DD')                                       AS bkTrYmd
+             , bk.TR_CD                                                               AS bkTrCd
+             , bk.BALH_CO                                                             AS bkBalhCo
+             , bk.BAED_MTH                                                            AS bkBaedMth
+             , bk.BAEJ_MTH                                                            AS bkBaejMth
+             , b1.CASH_ILBAN_RT                                                       AS bkCashIlbanRt
+             , b1.CASH_WOOS_RT                                                        AS bkCashWoosRt
+             , b1.STOCK_ILBAN_RT                                                      AS bkStockIlbanRt
+             , b1.STOCK_WOOS_RT                                                       AS bkStockWoosRt
+             , b1.stock_woos_rt * 100                                                 AS bkStockWoosPer
+             , b1.stock_ilban_rt * 100                                                AS bkStockIlbanPer
+             , b1.cash_woos_rt * 100                                                  AS bkCashWoosPer
+             , b1.cash_ilban_rt * 100                                                 AS bkCashIlbanPer
+             , TO_CHAR(bk.BROK_YMD, 'YYYY-MM-DD')                                      AS bkBrokYmd
+             , TO_CHAR(bk.JUCHONG_YMD, 'YYYY-MM-DD')                                   AS bkJuchongYmd
+             , b1.ILBAN_AEK                                                           AS bkIlbanAek
+             , b1.WOOS_AEK                                                            AS bkWoosAek
+             , jb.BALH_NM                                                             AS balhNm
+             , jb.BALH_NM                                                             AS xxBalhCo
+             , CASE WHEN t1.tr_ymd = TRUNC(SYSDATE, 'DD') THEN 1
+                    WHEN t1.tr_ymd IS NULL                THEN 2
+                    ELSE 9
+               END                                                                    AS trSort
+             , CASE WHEN NVL(t1.stock_woos_rt,0) != NVL(bk.stock_woos_rt,0) OR
+                         NVL(t1.stock_ilban_rt,0) != NVL(bk.stock_ilban_rt,0) OR
+                         NVL(t1.cash_woos_rt,0) != NVL(bk.cash_woos_rt,0) OR
+                         NVL(t1.cash_ilban_rt,0) != NVL(bk.cash_ilban_rt,0)
+                    THEN 255
+                    ELSE 2960685
+               END                                                                    AS fontColor
+             , CASE WHEN t1.tr_ymd &gt;= TO_DATE(REPLACE(#{workDate}, '-', ''), 'YYYYMMDD') OR t1.corp_gr IS NULL
+                    THEN 1
+                    ELSE 0
+               END                                                                    AS pVisible
+          FROM SJT0BK bk
+          LEFT OUTER JOIN SJX0JB jb ON jb.BALH_CO = bk.BALH_CO
+          LEFT OUTER JOIN SJT0BK t1 ON t1.corp_gr  = '%'
+                                   AND t1.balh_co  = bk.balh_co
+                                   AND t1.TR_CD    = 'G25'
+                                   AND t1.brok_ymd = bk.brok_ymd
+                                   AND t1.baed_mth = bk.baed_mth
+                                   AND t1.baej_mth = bk.baej_mth
+             , SJT0BK b1
+         WHERE bk.corp_gr  = '%'
+           AND bk.TR_YMD   BETWEEN TO_DATE(REPLACE(#{ym}, '-', ''), 'YYYYMM')
+                               AND LAST_DAY(TO_DATE(REPLACE(#{ym}, '-', ''), 'YYYYMM'))
+           AND bk.balh_co  IN (SELECT balh_co
+                                 FROM SJT0BM ta
+                                    , SZX0AA aa
+                                WHERE ta.corp_gr     LIKE '%'
+                                  AND ta.ymd         BETWEEN TO_DATE(REPLACE(#{ym}, '-', ''), 'YYYYMM')
+                                                         AND LAST_DAY(TO_DATE(REPLACE(#{ym}, '-', ''), 'YYYYMM'))
+                                  AND aa.corp_gr     = ta.corp_gr
+                                  AND aa.customer_gr = #{customerGr})
+           AND bk.TR_CD    = 'G10'
+           AND b1.corp_gr  = '%'
+           AND b1.tr_ymd   = F_G20_YMD(bk.balh_co, bk.brok_ymd, bk.baed_mth, bk.baej_mth, t1.tr_ymd)
+           AND b1.balh_co  = bk.balh_co
+           AND b1.TR_CD    = 'G20'
+           AND b1.brok_ymd = bk.brok_ymd
+           AND b1.baed_mth = bk.baed_mth
+           AND b1.baej_mth = bk.baej_mth
+         ORDER BY trSort ASC, trYmd DESC, baejMth ASC, balhCo ASC
+    </select>
+
+    <!-- 11. 발행사 액면가 조회 -->
+    <select id="selectBalhAekm" resultType="java.math.BigDecimal">
+        SELECT aekm
+          FROM SJX0JB
+         WHERE balh_co = #{balhCo}
+    </select>
+
+    <!-- 12. 마스터(SJT0BK) CUD -->
+    <insert id="insertMaster">
+        INSERT INTO SJT0BK (
+            CORP_GR, TR_YMD, TR_CD, BALH_CO,
+            BAED_MTH, BAEJ_MTH,
+            CASH_ILBAN_RT, CASH_WOOS_RT, STOCK_ILBAN_RT, STOCK_WOOS_RT,
+            BROK_YMD, JUCHONG_YMD, ILBAN_AEK, WOOS_AEK
+        ) VALUES (
+            #{corpGr},
+            TO_DATE(REPLACE(#{trYmd}, '-', ''), 'YYYYMMDD'),
+            #{trCd},
+            #{balhCo},
+            #{baedMth},
+            #{baejMth},
+            #{cashIlbanRt},
+            #{cashWoosRt},
+            #{stockIlbanRt},
+            #{stockWoosRt},
+            TO_DATE(REPLACE(#{brokYmd}, '-', ''), 'YYYYMMDD'),
+            CASE WHEN #{juchongYmd} IS NOT NULL AND #{juchongYmd} != ''
+                 THEN TO_DATE(REPLACE(#{juchongYmd}, '-', ''), 'YYYYMMDD')
+                 ELSE NULL
+            END,
+            #{ilbanAek},
+            #{woosAek}
+        )
+    </insert>
+
+    <update id="updateMaster">
+        UPDATE SJT0BK
+           SET BAED_MTH       = #{baedMth}
+             , BAEJ_MTH       = #{baejMth}
+             , CASH_ILBAN_RT  = #{cashIlbanRt}
+             , CASH_WOOS_RT   = #{cashWoosRt}
+             , STOCK_ILBAN_RT = #{stockIlbanRt}
+             , STOCK_WOOS_RT  = #{stockWoosRt}
+             , BROK_YMD       = TO_DATE(REPLACE(#{brokYmd}, '-', ''), 'YYYYMMDD')
+             , JUCHONG_YMD    = CASE WHEN #{juchongYmd} IS NOT NULL AND #{juchongYmd} != ''
+                                     THEN TO_DATE(REPLACE(#{juchongYmd}, '-', ''), 'YYYYMMDD')
+                                     ELSE NULL
+                                END
+             , ILBAN_AEK      = #{ilbanAek}
+             , WOOS_AEK       = #{woosAek}
+         WHERE CORP_GR = #{corpGr}
+           AND TR_YMD  = TO_DATE(REPLACE(#{trYmd}, '-', ''), 'YYYYMMDD')
+           AND TR_CD   = #{trCd}
+           AND BALH_CO = #{balhCo}
+    </update>
+
+    <delete id="deleteMaster">
+        DELETE FROM SJT0BK
+         WHERE CORP_GR = #{corpGr}
+           AND TR_YMD  = TO_DATE(REPLACE(#{trYmd}, '-', ''), 'YYYYMMDD')
+           AND TR_CD   = #{trCd}
+           AND BALH_CO = #{balhCo}
+    </delete>
+
+    <!-- 13. 종목별 상세(SJT0BJ) CUD -->
+    <insert id="insertItem">
+        INSERT INTO SJT0BJ (
+            CORP_GR, TR_YMD, TR_CD, BALH_CO, JM_CD,
+            CASH_RT, STOCK_RT, BAED_AEK
+        ) VALUES (
+            #{corpGr},
+            TO_DATE(REPLACE(#{trYmd}, '-', ''), 'YYYYMMDD'),
+            #{trCd},
+            #{balhCo},
+            #{jjCd},
+            #{cashRt},
+            #{stockRt},
+            #{baedAek}
+        )
+    </insert>
+
+    <update id="updateItem">
+        UPDATE SJT0BJ
+           SET CASH_RT  = #{cashRt}
+             , STOCK_RT = #{stockRt}
+             , BAED_AEK = #{baedAek}
+         WHERE CORP_GR = #{corpGr}
+           AND TR_YMD  = TO_DATE(REPLACE(#{trYmd}, '-', ''), 'YYYYMMDD')
+           AND TR_CD   = #{trCd}
+           AND BALH_CO = #{balhCo}
+           AND JM_CD   = #{jjCd}
+    </update>
+
+    <delete id="deleteItem">
+        DELETE FROM SJT0BJ
+         WHERE CORP_GR = #{corpGr}
+           AND TR_YMD  = TO_DATE(REPLACE(#{trYmd}, '-', ''), 'YYYYMMDD')
+           AND TR_CD   = #{trCd}
+           AND BALH_CO = #{balhCo}
+           AND JM_CD   = #{jjCd}
+    </delete>
+
+    <delete id="deleteItemsByMaster">
+        DELETE FROM SJT0BJ
+         WHERE CORP_GR = #{corpGr}
+           AND TR_YMD  = TO_DATE(REPLACE(#{trYmd}, '-', ''), 'YYYYMMDD')
+           AND TR_CD   = #{trCd}
+           AND BALH_CO = #{balhCo}
+    </delete>
+
+</mapper>
