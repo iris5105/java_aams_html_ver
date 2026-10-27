@@ -180,7 +180,7 @@ public class Ja021bController {
 
         String queryWorkDate = (workDate != null && !workDate.isBlank())
                 ? workDate
-                : ja021bService.getWorkDate(corpGr != null ? corpGr : "2402");
+                : ja021bService.getWorkDate(corpGr);
 
         List<Ja021bMasterDto> list = ja021bService.getT3MasterList(customerGr, ym, queryWorkDate);
         return ResponseEntity.ok(list != null ? list : Collections.emptyList());
@@ -214,7 +214,7 @@ public class Ja021bController {
 
         String queryWorkDate = (workDate != null && !workDate.isBlank())
                 ? workDate
-                : ja021bService.getWorkDate(corpGr != null ? corpGr : "2402");
+                : ja021bService.getWorkDate(corpGr);
 
         List<Ja021bMasterDto> list = ja021bService.getT4MasterList(customerGr, ym, queryWorkDate);
         return ResponseEntity.ok(list != null ? list : Collections.emptyList());
@@ -233,7 +233,7 @@ public class Ja021bController {
 
         String queryWorkDate = (workDate != null && !workDate.isBlank())
                 ? workDate
-                : ja021bService.getWorkDate(corpGr != null ? corpGr : "2402");
+                : ja021bService.getWorkDate(corpGr);
 
         List<Ja021bMasterDto> list = ja021bService.getT5MasterList(customerGr, ym, queryWorkDate);
         return ResponseEntity.ok(list != null ? list : Collections.emptyList());

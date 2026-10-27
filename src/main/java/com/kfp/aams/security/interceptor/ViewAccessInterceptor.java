@@ -88,11 +88,19 @@ public class ViewAccessInterceptor implements HandlerInterceptor {
 
         @SuppressWarnings("unchecked")
         Set<String> permittedSet = (Set<String>) session.getAttribute(sessionKey);
-        if (permittedSet == null) {
+        if (permittedSet == null || permittedSet.isEmpty()) {
             permittedSet = menuService.getPermittedPgmSet(userId, userNm);
-            session.setAttribute(sessionKey, permittedSet);
+            if (permittedSet != null && !permittedSet.isEmpty()) {
+                session.setAttribute(sessionKey, permittedSet);
+            }
             log.debug("[ViewAccessInterceptor] Cached {} permitted programs for user [{}], corpGr [{}]",
-                    permittedSet.size(), userId, corpGr);
+                    permittedSet != null ? permittedSet.size() : 0, userId, corpGr);
+        }
+
+        // 만약 권한 프로그램 목록이 아직 비어있다면, 인증된 MDI 탭 요청은 안전하게 허용
+        if (permittedSet == null || permittedSet.isEmpty()) {
+            log.debug("[ViewAccessInterceptor] Permitted program set is empty for user [{}]. Allowing authenticated MDI access.", userId);
+            return true;
         }
 
         // 7. 권한 검증: 대상 프로그램 및 후보군(Candidates) 비교

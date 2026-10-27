@@ -13,16 +13,23 @@ import java.util.Set;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class MenuService {
 
     private final MenuMapper menuMapper;
 
+    public MenuService(MenuMapper menuMapper) {
+        this.menuMapper = menuMapper;
+    }
+
     /**
      * Header top menu list
      */
     public List<MenuDto> getTopMenuList(String userId, String userNm) {
+        if (menuMapper == null) {
+            log.warn("[MenuService] menuMapper is null");
+            return java.util.Collections.emptyList();
+        }
         return menuMapper.selectTopMenuList(userId, userNm);
     }
 
@@ -30,6 +37,7 @@ public class MenuService {
      * Side navigation menu list for a given header pgmNo
      */
     public List<MenuDto> getSideMenuList(String pgmNo, String userId, String userNm) {
+        if (menuMapper == null) return java.util.Collections.emptyList();
         if (pgmNo == null || pgmNo.isBlank()) {
             List<MenuDto> topList = getTopMenuList(userId, userNm);
             if (!topList.isEmpty()) {
@@ -45,7 +53,7 @@ public class MenuService {
      * Get menu DTO by PGM_ID to fetch FULLPGM2
      */
     public MenuDto getMenuByPgmId(String pgmId) {
-        if (pgmId == null || pgmId.isBlank())
+        if (menuMapper == null || pgmId == null || pgmId.isBlank())
             return null;
         return menuMapper.selectMenuByPgmId(pgmId);
     }
@@ -54,6 +62,7 @@ public class MenuService {
      * Get all menu items for global sidebar search
      */
     public List<MenuDto> getAllMenuList(String userId, String userNm) {
+        if (menuMapper == null) return java.util.Collections.emptyList();
         return menuMapper.selectAllMenuList(userId, userNm);
     }
 
@@ -62,6 +71,10 @@ public class MenuService {
      */
     public Set<String> getPermittedPgmSet(String userId, String userNm) {
         Set<String> permittedSet = new HashSet<>();
+        if (menuMapper == null) {
+            log.warn("[MenuService] menuMapper is null in getPermittedPgmSet");
+            return permittedSet;
+        }
         List<MenuDto> permittedList = menuMapper.selectPermittedPgmList(userId, userNm);
         if (permittedList != null) {
             for (MenuDto menu : permittedList) {

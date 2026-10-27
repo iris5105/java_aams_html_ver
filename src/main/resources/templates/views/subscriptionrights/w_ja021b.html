@@ -15,12 +15,18 @@
     <!-- 2. 상단 필터바 (Row 2: 필터 + 액션버튼 일체화) -->
     <div class="filter-bar" style="display: flex; align-items: center; justify-content: space-between; padding: 6px 14px; background: #f8fafc; border-bottom: 1px solid #e2e8f0; flex-shrink: 0;">
         <div class="filter-left" style="display: flex; align-items: center; gap: 14px; flex-wrap: wrap;">
-            <!-- 배당공시월 -->
-            <div style="display: flex; align-items: center; gap: 6px;">
-                <label class="filter-label" style="font-weight: 600; font-size: 12px; color: #334155;">배당공시월</label>
-                <div style="display: flex; align-items: center; gap: 4px; width: 130px;">
-                    <input type="month" id="filterYm" name="ym" class="form-input" th:value="${initialYm}"
-                           style="height: 28px; border: 1px solid #cbd5e1; border-radius: 4px; padding: 0 8px; font-size: 12px; flex: 1;" />
+            <!-- 배당공시월 (AamsCalendar Month 모드 규격) -->
+            <div class="filter-item" style="position: relative; display: flex; align-items: center; gap: 6px;">
+                <label for="filterYm" class="filter-label" style="font-weight: 600; font-size: 12px; color: #334155;">배당공시월</label>
+                <div class="aams-calendar-wrapper" style="position: relative; display: inline-flex; align-items: center;">
+                    <input type="text" id="filterYm" name="ym" class="t-input aams-calendar-input"
+                           style="width: 100px; height: 28px; padding: 0 8px; font-size: 12px; text-align: center; border: 1px solid #cbd5e1; border-radius: 4px 0 0 4px; cursor: pointer; background: #ffffff; box-sizing: border-box;"
+                           th:value="${initialYm != null ? initialYm : (ym != null ? ym : '2026-10')}" readonly autocomplete="off" />
+                    <button type="button" class="t-btn btn-calendar" title="달력 열기"
+                            style="height: 28px; padding: 0 10px; border-radius: 0 4px 4px 0; border-left: none; background-color: #3b82f6; color: #ffffff; border: 1px solid #3b82f6; cursor: pointer; display: inline-flex; align-items: center; justify-content: center;"
+                            onclick="AamsCalendar.toggle('filterYm', event)">
+                        <i class="fa-regular fa-calendar-days"></i>
+                    </button>
                 </div>
             </div>
 
@@ -33,15 +39,10 @@
                 </select>
             </div>
 
-            <!-- 안내 태그 -->
+            <!-- 안내 태그 (파워빌더 dw_c tag 일치) -->
             <span class="badge" style="background: #eff6ff; color: #2563eb; border: 1px solid #bfdbfe; font-size: 12px; padding: 4px 10px; border-radius: 4px; display: inline-flex; align-items: center; gap: 6px;">
                 <i class="fa-solid fa-circle-info"></i> 확정배당 종목별등록은 확정일자 더블클릭
             </span>
-
-            <!-- 액션 버튼: 종목별 확정배당 팝업 단축 버튼 -->
-            <button type="button" class="t-btn btn-action" id="btnOpenPopupModal" style="height: 28px; font-size: 12px; display: inline-flex; align-items: center; gap: 5px; padding: 0 10px; background: #3b82f6; color: #fff; border: 1px solid #2563eb; border-radius: 4px; cursor: pointer;">
-                <i class="fa-solid fa-arrow-up-right-from-square"></i> 종목별 확정배당 등록
-            </button>
         </div>
     </div>
 
@@ -270,6 +271,7 @@
             if (!pane) return;
 
             let isInitialized = false;
+            let isSearched = false;
             let currentTab = "t1";
 
             // 그리드 인스턴스들
@@ -303,6 +305,94 @@
                 balhNm: "",
                 aekm: 5000
             };
+
+            // [1. 배당공시월 달력 컴포넌트 초기화 (AamsCalendar Month 모드 규격: 09-common-components-js.md)]
+            function initCalendar() {
+                const inputEl = pane.querySelector('#filterYm');
+                const initialYm = inputEl ? inputEl.value : '';
+
+                if (window.AamsCalendar && typeof window.AamsCalendar.initMonth === 'function') {
+                    window.AamsCalendar.initMonth('filterYm', {
+                        pane: pane,
+                        initialYmd: initialYm,
+                        onSelect: function (selectedYm) {
+                            // 규칙 08 준수: 필터 변경 시 자동 조회를 실행하지 않음
+                        }
+                    });
+                } else if (window.AamsCalendar && typeof window.AamsCalendar.init === 'function') {
+                    window.AamsCalendar.init('filterYm', {
+                        pane: pane,
+                        mode: 'month',
+                        initialYmd: initialYm,
+                        onSelect: function (selectedYm) {
+                            // 규칙 08 준수: 필터 변경 시 자동 조회를 실행하지 않음
+                        }
+                    });
+                }
+            }
+
+            // [2. 현재 선택된 배당공시월 추출]
+            function getSelectedYm(format) {
+                const inputEl = pane.querySelector('#filterYm');
+                const val = inputEl ? (inputEl.value || '').trim() : '';
+                if (!val) return '';
+                const clean = val.replace(/[^0-9]/g, '');
+                if (format === 'YYYYMM') return clean.substring(0, 6);
+                if (format === 'YYYY-MM') {
+                    return (clean.length >= 6) ? `${clean.substring(0, 4)}-${clean.substring(4, 6)}` : val;
+                }
+                return val;
+            }
+
+            // [3. 파워빌더 소스 기반 공통 버튼 활성화/비활성화 제어 (08-toolbar-and-query-policy.md)]
+            // - w_ja021b.srw dw_list: eb_new_false=true, eb_copy_false=true, eb_delete_false=true
+            // - wt_tabvert.srw ue_setenabled:
+            //     p_input:  dw_list.eb_new_false=FALSE  -> 비활성화 (disabled)
+            //     p_copy:   dw_list.eb_copy_false=FALSE -> 비활성화 (disabled)
+            //     p_delete: dw_list.eb_delete_false=FALSE -> 비활성화 (disabled)
+            //     p_print:  인쇄 미제공 -> 비활성화 (disabled)
+            //     p_retrieve, p_clear, p_excel, p_close: 상시 활성화 (enabled)
+            //     p_update: ue_wpage_updatetable() -> 탭1(예상배당공시)은 조회전용이므로 비활성화, 탭2~5는 활성화
+            function setBtnState(btn, isEnabled) {
+                if (!btn) return;
+                if (isEnabled) {
+                    btn.disabled = false;
+                    btn.removeAttribute('disabled');
+                    btn.classList.remove('disabled');
+                    btn.removeAttribute('aria-disabled');
+                    btn.style.pointerEvents = '';
+                    btn.style.opacity = '1';
+                } else {
+                    btn.disabled = true;
+                    btn.setAttribute('disabled', 'disabled');
+                    btn.classList.add('disabled');
+                    btn.setAttribute('aria-disabled', 'true');
+                    btn.style.pointerEvents = 'none';
+                    btn.style.opacity = '0.45';
+                }
+            }
+
+            function updateToolbarButtons(tabId) {
+                const targetTab = tabId || currentTab || 't1';
+                const toolbar = pane.querySelector('.view-toolbar') || pane.closest('.tab-pane') || pane;
+                if (!toolbar) return;
+
+                // 1) 상시 활성화 버튼: [조회], [새로고침], [엑셀], [닫기]
+                setBtnState(toolbar.querySelector('.btn-search'), true);
+                setBtnState(toolbar.querySelector('.btn-refresh'), true);
+                setBtnState(toolbar.querySelector('.btn-excel'), true);
+                setBtnState(toolbar.querySelector('.btn-close'), true);
+
+                // 2) 파워빌더 소스에 의해 상시 비활성화: [입력], [복사], [삭제], [인쇄]
+                setBtnState(toolbar.querySelector('.btn-input'), false);
+                setBtnState(toolbar.querySelector('.btn-copy'), false);
+                setBtnState(toolbar.querySelector('.btn-delete'), false);
+                setBtnState(toolbar.querySelector('.btn-print'), false);
+
+                // 3) [저장]: 탭 1(예상배당공시)은 단순 조회용 -> 비활성화, 탭 2~5는 인라인 수정 가능 -> 활성화
+                const isSaveAllowed = (targetTab !== 't1');
+                setBtnState(toolbar.querySelector('.btn-save'), isSaveAllowed);
+            }
 
             // DDDW 옵션 캐시
             let dddwOptionsMap = {
@@ -346,7 +436,38 @@
                 });
             }
 
-            // [초기화 1] 그리드 빌드
+            // [달력 팝업 컬럼 공통 정의: 05-tabulator-grid-events.md]
+            const calBtnColDef = {
+                title: "",
+                field: "p_dd_tr_ymd",
+                width: 36,
+                minWidth: 36,
+                maxWidth: 36,
+                hozAlign: "center",
+                headerSort: false,
+                resizable: false,
+                formatter: function () {
+                    return '<button type="button" class="btn-grid-addon btn-cal" title="날짜 선택"><i class="fa-regular fa-calendar-days"></i></button>';
+                },
+                cellClick: function (e, cell) {
+                    e.stopPropagation();
+                    const row = cell.getRow();
+                    const curVal = row.getData().trYmd || "";
+                    if (window.AamsCalendar && typeof window.AamsCalendar.openDatePicker === 'function') {
+                        window.AamsCalendar.openDatePicker({
+                            anchorEl: cell.getElement(),
+                            initialYmd: curVal,
+                            format: 'dash',
+                            onSelect: function (selectedYmd) {
+                                row.update({ trYmd: selectedYmd });
+                                markRowUpdated(cell);
+                            }
+                        });
+                    }
+                }
+            };
+
+            // [초기화 1] 그리드 빌드 (파워빌더 DataWindow 11개 1:1 매핑)
             function initGrids() {
                 // 1. 좌측 회사 목록 그리드 (dl_corp_gr)
                 const elCorp = pane.querySelector('#gridCorp');
@@ -357,17 +478,11 @@
                         selectableRows: 1,
                         columns: [
                             { title: "No.", formatter: "rownum", width: 45, hozAlign: "center", headerHozAlign: "center" },
-                            { title: "회사", field: "corpGr", width: 70, hozAlign: "center", headerHozAlign: "center" },
+                            { title: "회사", field: "corpGr", width: 60, hozAlign: "center", headerHozAlign: "center" },
                             { title: "회사명", field: "corpNm", hozAlign: "left", headerHozAlign: "center" },
                             {
-                                title: "건수", field: "dataCount", width: 55, hozAlign: "center", headerHozAlign: "center",
-                                formatter: function (cell) {
-                                    const val = cell.getValue() || 0;
-                                    if (val > 0) {
-                                        return `<span style="background: #2563eb; color: #fff; padding: 2px 6px; border-radius: 10px; font-size: 11px; font-weight: 600;">${val}</span>`;
-                                    }
-                                    return `<span style="color: #94a3b8; font-size: 11px;">0</span>`;
-                                }
+                                title: "건수", field: "dataCount", width: 60, hozAlign: "right", headerHozAlign: "center",
+                                formatter: cell => formatNumCell(cell.getValue(), 0)
                             }
                         ]
                     });
@@ -392,42 +507,45 @@
                         editTriggerEvent: "click",
                         columns: [
                             { title: "No.", formatter: "rownum", width: 45, hozAlign: "center", headerHozAlign: "center" },
-                            { title: "처리일자", field: "trYmd", width: 95, hozAlign: "center", headerHozAlign: "center", headerCssClass: "col-hdr-red" },
-                            { title: "발행기관", field: "balhCo", width: 75, hozAlign: "center", headerHozAlign: "center" },
-                            { title: "발행기관명", field: "balhNm", width: 140, hozAlign: "left", headerHozAlign: "center" },
+                            { title: "처리일자", field: "trYmd", width: 85, hozAlign: "center", headerHozAlign: "center" },
+                            { title: "발행기관", field: "balhCo", width: 70, hozAlign: "center", headerHozAlign: "center" },
+                            {
+                                title: "발행기관명", field: "xxBalhCo", width: 140, hozAlign: "left", headerHozAlign: "center",
+                                formatter: cell => cell.getValue() || cell.getRow().getData().balhNm || ''
+                            },
                             {
                                 title: "배당방법", field: "baedMth", width: 85, hozAlign: "center", headerHozAlign: "center",
                                 formatter: cell => getDddwLabel('baed_mth', cell.getValue())
                             },
                             {
-                                title: "배정방법", field: "baejMth", width: 100, hozAlign: "center", headerHozAlign: "center",
+                                title: "배정방법", field: "baejMth", width: 85, hozAlign: "center", headerHozAlign: "center",
                                 formatter: cell => getDddwLabel('baej_mth', cell.getValue())
                             },
                             {
                                 title: "보통주당<br>현금예상배당금", field: "ilbanAek", width: 120, hozAlign: "right", headerHozAlign: "center",
-                                formatter: cell => formatNumCell(cell.getValue(), 2)
+                                formatter: cell => formatNumCell(cell.getValue(), 0)
                             },
                             {
                                 title: "우선주당<br>현금예상배당금", field: "woosAek", width: 120, hozAlign: "right", headerHozAlign: "center",
-                                formatter: cell => formatNumCell(cell.getValue(), 2)
+                                formatter: cell => formatNumCell(cell.getValue(), 0)
                             },
                             {
-                                title: "예상배당<br>보통현금(%)", field: "cashIlbanPer", width: 105, hozAlign: "right", headerHozAlign: "center", headerCssClass: "col-hdr-red",
-                                formatter: cell => formatRedPercent(cell.getValue(), 3)
+                                title: "예상배당<br>보통현금(%)", field: "cashIlbanPer", width: 95, hozAlign: "right", headerHozAlign: "center", headerCssClass: "col-hdr-blue",
+                                formatter: cell => formatRedPercent(cell.getValue(), 4)
                             },
                             {
-                                title: "예상배당<br>우선현금(%)", field: "cashWoosPer", width: 105, hozAlign: "right", headerHozAlign: "center", headerCssClass: "col-hdr-red",
-                                formatter: cell => formatRedPercent(cell.getValue(), 3)
+                                title: "예상배당<br>우선현금(%)", field: "cashWoosPer", width: 95, hozAlign: "right", headerHozAlign: "center", headerCssClass: "col-hdr-blue",
+                                formatter: cell => formatRedPercent(cell.getValue(), 4)
                             },
                             {
-                                title: "예상배당<br>주식보통(%)", field: "stockIlbanPer", width: 105, hozAlign: "right", headerHozAlign: "center", headerCssClass: "col-hdr-red",
-                                formatter: cell => formatRedPercent(cell.getValue(), 3)
+                                title: "예상배당<br>주식보통(%)", field: "stockIlbanPer", width: 95, hozAlign: "right", headerHozAlign: "center", headerCssClass: "col-hdr-blue",
+                                formatter: cell => formatRedPercent(cell.getValue(), 4)
                             },
                             {
-                                title: "예상배당<br>주식우선(%)", field: "stockWoosPer", width: 105, hozAlign: "right", headerHozAlign: "center", headerCssClass: "col-hdr-red",
-                                formatter: cell => formatRedPercent(cell.getValue(), 3)
+                                title: "예상배당<br>주식우선(%)", field: "stockWoosPer", width: 95, hozAlign: "right", headerHozAlign: "center", headerCssClass: "col-hdr-blue",
+                                formatter: cell => formatRedPercent(cell.getValue(), 4)
                             },
-                            { title: "배당락일", field: "brokYmd", width: 95, hozAlign: "center", headerHozAlign: "center" }
+                            { title: "배당락일", field: "brokYmd", width: 85, hozAlign: "center", headerHozAlign: "center" }
                         ]
                     });
 
@@ -450,25 +568,31 @@
                         selectableRows: 1,
                         columns: [
                             { title: "No.", formatter: "rownum", width: 45, hozAlign: "center", headerHozAlign: "center" },
-                            { title: "종목코드", field: "jmCd", width: 100, hozAlign: "center", headerHozAlign: "center" },
-                            { title: "종목명", field: "jmNm", width: 180, hozAlign: "left", headerHozAlign: "center" },
+                            {
+                                title: "종목코드", field: "jjCd", width: 80, hozAlign: "center", headerHozAlign: "center",
+                                formatter: cell => cell.getValue() || cell.getRow().getData().jmCd || ''
+                            },
+                            {
+                                title: "종목명", field: "xxJjCd", width: 160, hozAlign: "left", headerHozAlign: "center",
+                                formatter: cell => cell.getValue() || cell.getRow().getData().jmNm || ''
+                            },
                             {
                                 title: "배당금", field: "baedAek", width: 110, hozAlign: "right", headerHozAlign: "center",
                                 formatter: cell => formatNumCell(cell.getValue(), 0)
                             },
                             {
-                                title: "현금배당(%)", field: "cashPer", width: 110, hozAlign: "right", headerHozAlign: "center", headerCssClass: "col-hdr-red",
+                                title: "현금배당(%)", field: "cashPer", width: 95, hozAlign: "right", headerHozAlign: "center", headerCssClass: "col-hdr-blue",
                                 formatter: cell => formatRedPercent(cell.getValue(), 4)
                             },
                             {
-                                title: "주식배당(%)", field: "stockPer", width: 110, hozAlign: "right", headerHozAlign: "center", headerCssClass: "col-hdr-red",
+                                title: "주식배당(%)", field: "stockPer", width: 95, hozAlign: "right", headerHozAlign: "center", headerCssClass: "col-hdr-blue",
                                 formatter: cell => formatRedPercent(cell.getValue(), 4)
                             }
                         ]
                     });
                 }
 
-                // 4. [탭 2] 마스터 그리드 (운용사별 예상배당: d_ja021b_t21, 편집 가능)
+                // 4. [탭 2] 마스터 그리드 (운용사별 예상배당 등록: d_ja021b_t21)
                 const elT2Master = pane.querySelector('#gridT2Master');
                 if (elT2Master) {
                     gridT2Master = new Tabulator(elT2Master, {
@@ -478,8 +602,19 @@
                         editTriggerEvent: "click",
                         columns: [
                             { title: "No.", formatter: "rownum", width: 45, hozAlign: "center", headerHozAlign: "center" },
-                            { title: "발행기관", field: "balhCo", width: 75, hozAlign: "center", headerHozAlign: "center" },
-                            { title: "발행기관명", field: "balhNm", width: 140, hozAlign: "left", headerHozAlign: "center" },
+                            {
+                                title: "처리일자", field: "trYmd", width: 85, hozAlign: "center", headerHozAlign: "center",
+                                editor: window.aamsDateEditor || "input",
+                                editorParams: { separator: "-" },
+                                cellClick: window.aamsCellEdit,
+                                cellEdited: markRowUpdated
+                            },
+                            calBtnColDef,
+                            { title: "발행기관", field: "balhCo", width: 70, hozAlign: "center", headerHozAlign: "center" },
+                            {
+                                title: "발행기관명", field: "xxBalhCo", width: 130, hozAlign: "left", headerHozAlign: "center",
+                                formatter: cell => cell.getValue() || cell.getRow().getData().balhNm || ''
+                            },
                             {
                                 title: "배당방법", field: "baedMth", width: 85, hozAlign: "center", headerHozAlign: "center",
                                 formatter: cell => getDddwLabel('baed_mth', cell.getValue()),
@@ -491,7 +626,7 @@
                                 cellClick: window.aamsCellEdit
                             },
                             {
-                                title: "배정방법", field: "baejMth", width: 100, hozAlign: "center", headerHozAlign: "center",
+                                title: "배정방법", field: "baejMth", width: 85, hozAlign: "center", headerHozAlign: "center",
                                 formatter: cell => getDddwLabel('baej_mth', cell.getValue()),
                                 editor: "list",
                                 editorParams: {
@@ -501,64 +636,64 @@
                                 cellClick: window.aamsCellEdit
                             },
                             {
-                                title: "운용사별<br>보통주당(원)", field: "ilbanAek", width: 105, hozAlign: "right", headerHozAlign: "center",
+                                title: "보통주당<br>현금예상배당금", field: "ilbanAek", width: 115, hozAlign: "right", headerHozAlign: "center",
                                 editor: "number",
                                 cellClick: window.aamsCellEdit,
                                 cellEdited: onMasterAekEdited,
-                                formatter: cell => formatNumCell(cell.getValue(), 2)
+                                formatter: cell => formatNumCell(cell.getValue(), 0)
                             },
                             {
-                                title: "운용사별<br>우선주당(원)", field: "woosAek", width: 105, hozAlign: "right", headerHozAlign: "center",
+                                title: "우선주당<br>현금예상배당금", field: "woosAek", width: 115, hozAlign: "right", headerHozAlign: "center",
                                 editor: "number",
                                 cellClick: window.aamsCellEdit,
                                 cellEdited: onMasterAekEdited,
-                                formatter: cell => formatNumCell(cell.getValue(), 2)
+                                formatter: cell => formatNumCell(cell.getValue(), 0)
                             },
                             {
-                                title: "운용사별<br>보통현금(%)", field: "cashIlbanPer", width: 105, hozAlign: "right", headerHozAlign: "center", headerCssClass: "col-hdr-red",
+                                title: "운용사별<br>보통현금(%)", field: "cashIlbanPer", width: 95, hozAlign: "right", headerHozAlign: "center", headerCssClass: "col-hdr-blue",
                                 editor: "number",
                                 cellClick: window.aamsCellEdit,
                                 cellEdited: onMasterPerEdited,
-                                formatter: formatCompareCell('bkCashIlbanPer', 3)
+                                formatter: formatCompareCell('bkCashIlbanPer', 4)
                             },
                             {
-                                title: "운용사별<br>우선현금(%)", field: "cashWoosPer", width: 105, hozAlign: "right", headerHozAlign: "center", headerCssClass: "col-hdr-red",
+                                title: "운용사별<br>우선현금(%)", field: "cashWoosPer", width: 95, hozAlign: "right", headerHozAlign: "center", headerCssClass: "col-hdr-blue",
                                 editor: "number",
                                 cellClick: window.aamsCellEdit,
                                 cellEdited: onMasterPerEdited,
-                                formatter: formatCompareCell('bkCashWoosPer', 3)
+                                formatter: formatCompareCell('bkCashWoosPer', 4)
                             },
                             {
-                                title: "운용사별<br>주식보통(%)", field: "stockIlbanPer", width: 105, hozAlign: "right", headerHozAlign: "center", headerCssClass: "col-hdr-red",
+                                title: "운용사별<br>주식보통(%)", field: "stockIlbanPer", width: 95, hozAlign: "right", headerHozAlign: "center", headerCssClass: "col-hdr-blue",
                                 editor: "number",
                                 cellClick: window.aamsCellEdit,
                                 cellEdited: onMasterPerEdited,
-                                formatter: formatCompareCell('bkStockIlbanPer', 3)
+                                formatter: formatCompareCell('bkStockIlbanPer', 4)
                             },
                             {
-                                title: "운용사별<br>주식우선(%)", field: "stockWoosPer", width: 105, hozAlign: "right", headerHozAlign: "center", headerCssClass: "col-hdr-red",
+                                title: "운용사별<br>주식우선(%)", field: "stockWoosPer", width: 95, hozAlign: "right", headerHozAlign: "center", headerCssClass: "col-hdr-blue",
                                 editor: "number",
                                 cellClick: window.aamsCellEdit,
                                 cellEdited: onMasterPerEdited,
-                                formatter: formatCompareCell('bkStockWoosPer', 3)
+                                formatter: formatCompareCell('bkStockWoosPer', 4)
+                            },
+                            { title: "배당락일", field: "brokYmd", width: 85, hozAlign: "center", headerHozAlign: "center" },
+                            {
+                                title: "공통보통<br>현금배당(%)", field: "bkCashIlbanPer", width: 95, hozAlign: "right", headerHozAlign: "center",
+                                formatter: cell => formatNumCell(cell.getValue(), 4)
                             },
                             {
-                                title: "공시보통<br>현금(%)", field: "bkCashIlbanPer", width: 95, hozAlign: "right", headerHozAlign: "center",
-                                formatter: cell => formatNumCell(cell.getValue(), 3)
+                                title: "공통우선<br>현금배당(%)", field: "bkCashWoosPer", width: 95, hozAlign: "right", headerHozAlign: "center",
+                                formatter: cell => formatNumCell(cell.getValue(), 4)
                             },
                             {
-                                title: "공시우선<br>현금(%)", field: "bkCashWoosPer", width: 95, hozAlign: "right", headerHozAlign: "center",
-                                formatter: cell => formatNumCell(cell.getValue(), 3)
+                                title: "공통적용<br>주식보통(%)", field: "bkStockIlbanPer", width: 95, hozAlign: "right", headerHozAlign: "center",
+                                formatter: cell => formatNumCell(cell.getValue(), 4)
                             },
                             {
-                                title: "공시주식<br>보통(%)", field: "bkStockIlbanPer", width: 95, hozAlign: "right", headerHozAlign: "center",
-                                formatter: cell => formatNumCell(cell.getValue(), 3)
-                            },
-                            {
-                                title: "공시주식<br>우선(%)", field: "bkStockWoosPer", width: 95, hozAlign: "right", headerHozAlign: "center",
-                                formatter: cell => formatNumCell(cell.getValue(), 3)
-                            },
-                            { title: "배당락일", field: "brokYmd", width: 95, hozAlign: "center", headerHozAlign: "center" }
+                                title: "공통적용<br>주식우선(%)", field: "bkStockWoosPer", width: 95, hozAlign: "right", headerHozAlign: "center",
+                                formatter: cell => formatNumCell(cell.getValue(), 4)
+                            }
                         ]
                     });
 
@@ -575,7 +710,40 @@
                 // 5. [탭 2] 디테일 그리드 (펀드별 배당권리 상세: d_ja021b_t22)
                 const elT2Detail = pane.querySelector('#gridT2Detail');
                 if (elT2Detail) {
-                    gridT2Detail = buildFundDetailGrid(elT2Detail);
+                    gridT2Detail = new Tabulator(elT2Detail, {
+                        height: "100%",
+                        layout: "fitDataFill",
+                        selectableRows: 1,
+                        columns: [
+                            { title: "No.", formatter: "rownum", width: 45, hozAlign: "center", headerHozAlign: "center" },
+                            {
+                                title: "펀드코드", field: "fundCd", width: 80, hozAlign: "center", headerHozAlign: "center", headerCssClass: "col-hdr-green",
+                                formatter: cell => `<span class="cell-text-green">${cell.getValue() || ''}</span>`
+                            },
+                            { title: "계좌명", field: "fundNm", width: 140, hozAlign: "left", headerHozAlign: "center" },
+                            { title: "배당신주<br>종목코드", field: "newJmCd", width: 90, hozAlign: "center", headerHozAlign: "center" },
+                            {
+                                title: "권리락 취득액", field: "boyuChuiAek", width: 115, hozAlign: "right", headerHozAlign: "center",
+                                formatter: cell => formatNumCell(cell.getValue(), 0)
+                            },
+                            {
+                                title: "배당락 주식수", field: "brokJusu", width: 105, hozAlign: "right", headerHozAlign: "center",
+                                formatter: cell => formatNumCell(cell.getValue(), 0)
+                            },
+                            {
+                                title: "예상배당<br>주식수량", field: "yesaJusu", width: 105, hozAlign: "right", headerHozAlign: "center",
+                                formatter: cell => formatNumCell(cell.getValue(), 0)
+                            },
+                            {
+                                title: "단가", field: "danga", width: 95, hozAlign: "right", headerHozAlign: "center",
+                                formatter: cell => formatNumCell(cell.getValue(), 0)
+                            },
+                            {
+                                title: "예상 배당액", field: "yesaAek", width: 120, hozAlign: "right", headerHozAlign: "center",
+                                formatter: cell => formatNumCell(cell.getValue(), 0)
+                            }
+                        ]
+                    });
                 }
 
                 // 6. [탭 3] 마스터 그리드 (현금확정배당 G20: d_ja021b_t31, 편집 및 더블클릭 연동)
@@ -588,8 +756,27 @@
                         editTriggerEvent: "click",
                         columns: [
                             { title: "No.", formatter: "rownum", width: 45, hozAlign: "center", headerHozAlign: "center" },
+                            { title: "발행기관", field: "balhCo", width: 70, hozAlign: "center", headerHozAlign: "center" },
                             {
-                                title: "확정일자", field: "trYmd", width: 105, hozAlign: "center", headerHozAlign: "center", headerCssClass: "col-hdr-red",
+                                title: "발행기관명", field: "xxBalhCo", width: 130, hozAlign: "left", headerHozAlign: "center",
+                                formatter: cell => cell.getValue() || cell.getRow().getData().balhNm || ''
+                            },
+                            {
+                                title: "배당방법", field: "baedMth", width: 85, hozAlign: "center", headerHozAlign: "center",
+                                formatter: cell => getDddwLabel('baed_mth', cell.getValue()),
+                                editor: "list",
+                                editorParams: { valuesLookup: () => getDddwOptions('baed_mth'), autocomplete: true },
+                                cellClick: window.aamsCellEdit
+                            },
+                            {
+                                title: "배정방법", field: "baejMth", width: 85, hozAlign: "center", headerHozAlign: "center",
+                                formatter: cell => getDddwLabel('baej_mth', cell.getValue()),
+                                editor: "list",
+                                editorParams: { valuesLookup: () => getDddwOptions('baej_mth'), autocomplete: true },
+                                cellClick: window.aamsCellEdit
+                            },
+                            {
+                                title: "확정일자", field: "trYmd", width: 85, hozAlign: "center", headerHozAlign: "center", headerCssClass: "col-hdr-blue",
                                 editor: window.aamsDateEditor || "input",
                                 editorParams: { separator: "-" },
                                 cellClick: window.aamsCellEdit,
@@ -599,59 +786,43 @@
                                     return `<span class="cell-text-red font-bold" title="더블클릭 시 종목별 등록">${val}</span>`;
                                 }
                             },
-                            { title: "발행기관", field: "balhCo", width: 75, hozAlign: "center", headerHozAlign: "center" },
-                            { title: "발행기관명", field: "balhNm", width: 140, hozAlign: "left", headerHozAlign: "center" },
-                            {
-                                title: "배당방법", field: "baedMth", width: 85, hozAlign: "center", headerHozAlign: "center",
-                                formatter: cell => getDddwLabel('baed_mth', cell.getValue()),
-                                editor: "list",
-                                editorParams: { valuesLookup: () => getDddwOptions('baed_mth'), autocomplete: true },
-                                cellClick: window.aamsCellEdit
-                            },
-                            {
-                                title: "배정방법", field: "baejMth", width: 100, hozAlign: "center", headerHozAlign: "center",
-                                formatter: cell => getDddwLabel('baej_mth', cell.getValue()),
-                                editor: "list",
-                                editorParams: { valuesLookup: () => getDddwOptions('baej_mth'), autocomplete: true },
-                                cellClick: window.aamsCellEdit
-                            },
+                            calBtnColDef,
                             {
                                 title: "보통주당<br>현금확정배당금", field: "ilbanAek", width: 115, hozAlign: "right", headerHozAlign: "center",
                                 editor: "number",
                                 cellClick: window.aamsCellEdit,
                                 cellEdited: onMasterAekEdited,
-                                formatter: cell => formatNumCell(cell.getValue(), 2)
+                                formatter: cell => formatNumCell(cell.getValue(), 0)
                             },
                             {
                                 title: "우선주당<br>현금확정배당금", field: "woosAek", width: 115, hozAlign: "right", headerHozAlign: "center",
                                 editor: "number",
                                 cellClick: window.aamsCellEdit,
                                 cellEdited: onMasterAekEdited,
-                                formatter: cell => formatNumCell(cell.getValue(), 2)
+                                formatter: cell => formatNumCell(cell.getValue(), 0)
                             },
                             {
-                                title: "보통확정<br>현금(%)", field: "cashIlbanPer", width: 105, hozAlign: "right", headerHozAlign: "center", headerCssClass: "col-hdr-red",
+                                title: "보통확정<br>현금(%)", field: "cashIlbanPer", width: 95, hozAlign: "right", headerHozAlign: "center", headerCssClass: "col-hdr-blue",
                                 editor: "number",
                                 cellClick: window.aamsCellEdit,
                                 cellEdited: onMasterPerEdited,
-                                formatter: formatCompareCell('bkCashIlbanPer', 3)
+                                formatter: formatCompareCell('bkCashIlbanPer', 4)
                             },
                             {
-                                title: "우선확정<br>현금(%)", field: "cashWoosPer", width: 105, hozAlign: "right", headerHozAlign: "center", headerCssClass: "col-hdr-red",
+                                title: "우선확정<br>현금(%)", field: "cashWoosPer", width: 95, hozAlign: "right", headerHozAlign: "center", headerCssClass: "col-hdr-blue",
                                 editor: "number",
                                 cellClick: window.aamsCellEdit,
                                 cellEdited: onMasterPerEdited,
-                                formatter: formatCompareCell('bkCashWoosPer', 3)
+                                formatter: formatCompareCell('bkCashWoosPer', 4)
                             },
-                            { title: "배당락일", field: "brokYmd", width: 95, hozAlign: "center", headerHozAlign: "center" },
+                            { title: "배당락일", field: "brokYmd", width: 85, hozAlign: "center", headerHozAlign: "center" },
                             {
-                                title: "종목별등록", field: "pSjt0bj", width: 85, hozAlign: "center", headerHozAlign: "center",
-                                formatter: function (cell) {
-                                    const val = cell.getValue();
-                                    return (val === '1')
-                                        ? `<span style="background: #10b981; color: #fff; padding: 2px 6px; border-radius: 4px; font-size: 11px;">등록됨</span>`
-                                        : `<span style="background: #e2e8f0; color: #64748b; padding: 2px 6px; border-radius: 4px; font-size: 11px;">미등록</span>`;
-                                }
+                                title: "예상보통<br>현금배당(%)", field: "bkCashIlbanPer", width: 95, hozAlign: "right", headerHozAlign: "center",
+                                formatter: cell => formatNumCell(cell.getValue(), 4)
+                            },
+                            {
+                                title: "예상우선<br>현금배당(%)", field: "bkCashWoosPer", width: 95, hozAlign: "right", headerHozAlign: "center",
+                                formatter: cell => formatNumCell(cell.getValue(), 4)
                             }
                         ]
                     });
@@ -675,7 +846,42 @@
                 // 7. [탭 3] 디테일 그리드 (d_ja021b_t32)
                 const elT3Detail = pane.querySelector('#gridT3Detail');
                 if (elT3Detail) {
-                    gridT3Detail = buildFundDetailGrid(elT3Detail);
+                    gridT3Detail = new Tabulator(elT3Detail, {
+                        height: "100%",
+                        layout: "fitDataFill",
+                        selectableRows: 1,
+                        columns: [
+                            { title: "No.", formatter: "rownum", width: 45, hozAlign: "center", headerHozAlign: "center" },
+                            { title: "운용사", field: "corpGr", width: 60, hozAlign: "center", headerHozAlign: "center" },
+                            {
+                                title: "펀드코드", field: "fundCd", width: 80, hozAlign: "center", headerHozAlign: "center", headerCssClass: "col-hdr-green",
+                                formatter: cell => `<span class="cell-text-green">${cell.getValue() || ''}</span>`
+                            },
+                            { title: "계좌명", field: "fundNm", width: 140, hozAlign: "left", headerHozAlign: "center" },
+                            { title: "종목코드", field: "oldJmCd", width: 80, hozAlign: "center", headerHozAlign: "center" },
+                            {
+                                title: "배당락 주식수", field: "brokJusu", width: 105, hozAlign: "right", headerHozAlign: "center",
+                                formatter: cell => formatNumCell(cell.getValue(), 0)
+                            },
+                            {
+                                title: "예상 배당액", field: "yesaAek", width: 120, hozAlign: "right", headerHozAlign: "center",
+                                formatter: cell => formatNumCell(cell.getValue(), 0)
+                            },
+                            { title: "확정일자", field: "hwakjYmd", width: 85, hozAlign: "center", headerHozAlign: "center", headerCssClass: "col-hdr-blue", },
+                            {
+                                title: "확정<br>현금배당액", field: "hwakjAek", width: 120, hozAlign: "right", headerHozAlign: "center", headerCssClass: "col-hdr-blue",
+                                formatter: cell => formatNumCell(cell.getValue(), 0)
+                            },
+                            {
+                                title: "수령일자", field: "suryYmd", width: 85, hozAlign: "center", headerHozAlign: "center", headerCssClass: "col-hdr-green",
+                                formatter: cell => `<span class="cell-text-green">${cell.getValue() || ''}</span>`
+                            },
+                            {
+                                title: "수령<br>현금배당액", field: "suryJuAek", width: 120, hozAlign: "right", headerHozAlign: "center", headerCssClass: "col-hdr-green",
+                                formatter: cell => `<span class="cell-text-green">${formatNumCell(cell.getValue(), 0)}</span>`
+                            }
+                        ]
+                    });
                 }
 
                 // 8. [탭 4] 마스터 그리드 (주식확정배당 G20: d_ja021b_t41, 편집 및 더블클릭 연동)
@@ -688,35 +894,51 @@
                         editTriggerEvent: "click",
                         columns: [
                             { title: "No.", formatter: "rownum", width: 45, hozAlign: "center", headerHozAlign: "center" },
+                            { title: "발행기관", field: "balhCo", width: 70, hozAlign: "center", headerHozAlign: "center" },
                             {
-                                title: "확정일자", field: "trYmd", width: 105, hozAlign: "center", headerHozAlign: "center", headerCssClass: "col-hdr-red",
+                                title: "발행기관명", field: "xxBalhCo", width: 130, hozAlign: "left", headerHozAlign: "center",
+                                formatter: cell => cell.getValue() || cell.getRow().getData().balhNm || ''
+                            },
+                            {
+                                title: "배당방법", field: "baedMth", width: 85, hozAlign: "center", headerHozAlign: "center",
+                                formatter: cell => getDddwLabel('baed_mth', cell.getValue())
+                            },
+                            {
+                                title: "배정방법", field: "baejMth", width: 85, hozAlign: "center", headerHozAlign: "center",
+                                formatter: cell => getDddwLabel('baej_mth', cell.getValue())
+                            },
+                            {
+                                title: "확정일자", field: "trYmd", width: 85, hozAlign: "center", headerHozAlign: "center", headerCssClass: "col-hdr-blue",
                                 editor: window.aamsDateEditor || "input",
                                 editorParams: { separator: "-" },
                                 cellClick: window.aamsCellEdit,
                                 cellEdited: markRowUpdated,
                                 formatter: cell => `<span class="cell-text-red font-bold" title="더블클릭 시 종목별 등록">${cell.getValue() || ''}</span>`
                             },
-                            { title: "발행기관", field: "balhCo", width: 75, hozAlign: "center", headerHozAlign: "center" },
-                            { title: "발행기관명", field: "balhNm", width: 140, hozAlign: "left", headerHozAlign: "center" },
+                            calBtnColDef,
                             {
-                                title: "배정방법", field: "baejMth", width: 100, hozAlign: "center", headerHozAlign: "center",
-                                formatter: cell => getDddwLabel('baej_mth', cell.getValue())
-                            },
-                            {
-                                title: "주식확정<br>배당보통(%)", field: "stockIlbanPer", width: 110, hozAlign: "right", headerHozAlign: "center", headerCssClass: "col-hdr-red",
+                                title: "주식확정<br>배당보통(%)", field: "stockIlbanPer", width: 100, hozAlign: "right", headerHozAlign: "center", headerCssClass: "col-hdr-blue",
                                 editor: "number",
                                 cellClick: window.aamsCellEdit,
                                 cellEdited: onMasterPerEdited,
-                                formatter: formatCompareCell('bkStockIlbanPer', 3)
+                                formatter: formatCompareCell('bkStockIlbanPer', 4)
                             },
                             {
-                                title: "주식확정<br>배당우선(%)", field: "stockWoosPer", width: 110, hozAlign: "right", headerHozAlign: "center", headerCssClass: "col-hdr-red",
+                                title: "주식확정<br>배당우선(%)", field: "stockWoosPer", width: 100, hozAlign: "right", headerHozAlign: "center", headerCssClass: "col-hdr-blue",
                                 editor: "number",
                                 cellClick: window.aamsCellEdit,
                                 cellEdited: onMasterPerEdited,
-                                formatter: formatCompareCell('bkStockWoosPer', 3)
+                                formatter: formatCompareCell('bkStockWoosPer', 4)
                             },
-                            { title: "배당락일", field: "brokYmd", width: 95, hozAlign: "center", headerHozAlign: "center" }
+                            { title: "배당락일", field: "brokYmd", width: 85, hozAlign: "center", headerHozAlign: "center" },
+                            {
+                                title: "예상주식<br>주식보통(%)", field: "bkStockIlbanPer", width: 100, hozAlign: "right", headerHozAlign: "center",
+                                formatter: cell => formatNumCell(cell.getValue(), 4)
+                            },
+                            {
+                                title: "예상적용<br>주식우선(%)", field: "bkStockWoosPer", width: 100, hozAlign: "right", headerHozAlign: "center",
+                                formatter: cell => formatNumCell(cell.getValue(), 4)
+                            }
                         ]
                     });
 
@@ -738,7 +960,49 @@
                 // 9. [탭 4] 디테일 그리드 (d_ja021b_t42)
                 const elT4Detail = pane.querySelector('#gridT4Detail');
                 if (elT4Detail) {
-                    gridT4Detail = buildFundDetailGrid(elT4Detail);
+                    gridT4Detail = new Tabulator(elT4Detail, {
+                        height: "100%",
+                        layout: "fitDataFill",
+                        selectableRows: 1,
+                        columns: [
+                            { title: "No.", formatter: "rownum", width: 45, hozAlign: "center", headerHozAlign: "center" },
+                            { title: "운용사", field: "corpGr", width: 60, hozAlign: "center", headerHozAlign: "center" },
+                            {
+                                title: "펀드코드", field: "fundCd", width: 80, hozAlign: "center", headerHozAlign: "center", headerCssClass: "col-hdr-green",
+                                formatter: cell => `<span class="cell-text-green">${cell.getValue() || ''}</span>`
+                            },
+                            { title: "계좌명", field: "fundNm", width: 140, hozAlign: "left", headerHozAlign: "center" },
+                            {
+                                title: "배당락 주식수", field: "brokJusu", width: 105, hozAlign: "right", headerHozAlign: "center",
+                                formatter: cell => formatNumCell(cell.getValue(), 0)
+                            },
+                            {
+                                title: "예상배당<br>주식수량", field: "yesaJusu", width: 105, hozAlign: "right", headerHozAlign: "center",
+                                formatter: cell => formatNumCell(cell.getValue(), 0)
+                            },
+                            {
+                                title: "예상 배당액", field: "yesaAek", width: 115, hozAlign: "right", headerHozAlign: "center",
+                                formatter: cell => formatNumCell(cell.getValue(), 0)
+                            },
+                            { title: "확정일자", field: "hwakjYmd", width: 85, hozAlign: "center", headerHozAlign: "center" , headerCssClass: "col-hdr-blue" },
+                            {
+                                title: "확정 주수", field: "hwakjJusu", width: 105, hozAlign: "right", headerHozAlign: "center", headerCssClass: "col-hdr-blue" ,
+                                formatter: cell => formatNumCell(cell.getValue(), 0)
+                            },
+                            {
+                                title: "확정 배당액", field: "hwakjAek", width: 115, hozAlign: "right", headerHozAlign: "center", headerCssClass: "col-hdr-blue" ,
+                                formatter: cell => formatNumCell(cell.getValue(), 0)
+                            },
+                            {
+                                title: "수령일자", field: "suryYmd", width: 85, hozAlign: "center", headerHozAlign: "center", headerCssClass: "col-hdr-green",
+                                formatter: cell => `<span class="cell-text-green">${cell.getValue() || ''}</span>`
+                            },
+                            {
+                                title: "수령주수", field: "suryJuAek", width: 105, hozAlign: "right", headerHozAlign: "center", headerCssClass: "col-hdr-green",
+                                formatter: cell => `<span class="cell-text-green">${formatNumCell(cell.getValue(), 0)}</span>`
+                            }
+                        ]
+                    });
                 }
 
                 // 10. [탭 5] 마스터 그리드 (2차(주총)확정 G25: d_ja021b_t51)
@@ -751,53 +1015,65 @@
                         editTriggerEvent: "click",
                         columns: [
                             { title: "No.", formatter: "rownum", width: 45, hozAlign: "center", headerHozAlign: "center" },
+                            { title: "발행기관", field: "balhCo", width: 70, hozAlign: "center", headerHozAlign: "center" },
                             {
-                                title: "2차(주총)<br>확정일자", field: "trYmd", width: 105, hozAlign: "center", headerHozAlign: "center", headerCssClass: "col-hdr-red",
+                                title: "발행기관명", field: "xxBalhCo", width: 130, hozAlign: "left", headerHozAlign: "center",
+                                formatter: cell => cell.getValue() || cell.getRow().getData().balhNm || ''
+                            },
+                            {
+                                title: "배당방법", field: "baedMth", width: 85, hozAlign: "center", headerHozAlign: "center",
+                                formatter: cell => getDddwLabel('baed_mth', cell.getValue())
+                            },
+                            {
+                                title: "배정방법", field: "baejMth", width: 85, hozAlign: "center", headerHozAlign: "center",
+                                formatter: cell => getDddwLabel('baej_mth', cell.getValue())
+                            },
+                            {
+                                title: "2차(주총)<br>확정일자", field: "trYmd", width: 95, hozAlign: "center", headerHozAlign: "center", headerCssClass: "col-hdr-blue",
                                 editor: window.aamsDateEditor || "input",
                                 editorParams: { separator: "-" },
                                 cellClick: window.aamsCellEdit,
                                 cellEdited: markRowUpdated,
                                 formatter: cell => `<span class="cell-text-red font-bold">${cell.getValue() || ''}</span>`
                             },
-                            { title: "발행기관", field: "balhCo", width: 75, hozAlign: "center", headerHozAlign: "center" },
-                            { title: "발행기관명", field: "balhNm", width: 140, hozAlign: "left", headerHozAlign: "center" },
-                            {
-                                title: "배당방법", field: "baedMth", width: 85, hozAlign: "center", headerHozAlign: "center",
-                                formatter: cell => getDddwLabel('baed_mth', cell.getValue())
-                            },
-                            {
-                                title: "배정방법", field: "baejMth", width: 100, hozAlign: "center", headerHozAlign: "center",
-                                formatter: cell => getDddwLabel('baej_mth', cell.getValue())
-                            },
+                            calBtnColDef,
                             {
                                 title: "보통주당<br>현금확정배당금", field: "ilbanAek", width: 115, hozAlign: "right", headerHozAlign: "center",
                                 editor: "number",
                                 cellClick: window.aamsCellEdit,
                                 cellEdited: onMasterAekEdited,
-                                formatter: cell => formatNumCell(cell.getValue(), 2)
+                                formatter: cell => formatNumCell(cell.getValue(), 0)
                             },
                             {
                                 title: "우선주당<br>현금확정배당금", field: "woosAek", width: 115, hozAlign: "right", headerHozAlign: "center",
                                 editor: "number",
                                 cellClick: window.aamsCellEdit,
                                 cellEdited: onMasterAekEdited,
-                                formatter: cell => formatNumCell(cell.getValue(), 2)
+                                formatter: cell => formatNumCell(cell.getValue(), 0)
                             },
                             {
-                                title: "보통확정<br>현금(%)", field: "cashIlbanPer", width: 105, hozAlign: "right", headerHozAlign: "center", headerCssClass: "col-hdr-red",
+                                title: "보통확정<br>현금(%)", field: "cashIlbanPer", width: 95, hozAlign: "right", headerHozAlign: "center", headerCssClass: "col-hdr-blue",
                                 editor: "number",
                                 cellClick: window.aamsCellEdit,
                                 cellEdited: onMasterPerEdited,
-                                formatter: formatCompareCell('bkCashIlbanPer', 3)
+                                formatter: formatCompareCell('bkCashIlbanPer', 4)
                             },
                             {
-                                title: "우선확정<br>현금(%)", field: "cashWoosPer", width: 105, hozAlign: "right", headerHozAlign: "center", headerCssClass: "col-hdr-red",
+                                title: "우선확정<br>현금(%)", field: "cashWoosPer", width: 95, hozAlign: "right", headerHozAlign: "center", headerCssClass: "col-hdr-blue",
                                 editor: "number",
                                 cellClick: window.aamsCellEdit,
                                 cellEdited: onMasterPerEdited,
-                                formatter: formatCompareCell('bkCashWoosPer', 3)
+                                formatter: formatCompareCell('bkCashWoosPer', 4)
                             },
-                            { title: "배당락일", field: "brokYmd", width: 95, hozAlign: "center", headerHozAlign: "center" }
+                            { title: "배당락일", field: "brokYmd", width: 85, hozAlign: "center", headerHozAlign: "center" },
+                            {
+                                title: "확정보통<br>현금배당(%)", field: "bkCashIlbanPer", width: 95, hozAlign: "right", headerHozAlign: "center",
+                                formatter: cell => formatNumCell(cell.getValue(), 4)
+                            },
+                            {
+                                title: "확정우선<br>현금배당(%)", field: "bkCashWoosPer", width: 95, hozAlign: "right", headerHozAlign: "center",
+                                formatter: cell => formatNumCell(cell.getValue(), 4)
+                            }
                         ]
                     });
 
@@ -814,7 +1090,42 @@
                 // 11. [탭 5] 디테일 그리드 (d_ja021b_t52)
                 const elT5Detail = pane.querySelector('#gridT5Detail');
                 if (elT5Detail) {
-                    gridT5Detail = buildFundDetailGrid(elT5Detail);
+                    gridT5Detail = new Tabulator(elT5Detail, {
+                        height: "100%",
+                        layout: "fitDataFill",
+                        selectableRows: 1,
+                        columns: [
+                            { title: "No.", formatter: "rownum", width: 45, hozAlign: "center", headerHozAlign: "center" },
+                            { title: "운용사", field: "corpGr", width: 60, hozAlign: "center", headerHozAlign: "center" },
+                            {
+                                title: "펀드코드", field: "fundCd", width: 80, hozAlign: "center", headerHozAlign: "center", headerCssClass: "col-hdr-green",
+                                formatter: cell => `<span class="cell-text-green">${cell.getValue() || ''}</span>`
+                            },
+                            { title: "계좌명", field: "fundNm", width: 140, hozAlign: "left", headerHozAlign: "center" },
+                            {
+                                title: "배당락 주식수", field: "brokJusu", width: 105, hozAlign: "right", headerHozAlign: "center",
+                                formatter: cell => formatNumCell(cell.getValue(), 0)
+                            },
+                            { title: "확정일자", field: "hwakjYmd", width: 85, hozAlign: "center", headerHozAlign: "center" },
+                            {
+                                title: "확정<br>현금배당액", field: "hwakjAek", width: 120, hozAlign: "right", headerHozAlign: "center",
+                                formatter: cell => formatNumCell(cell.getValue(), 0)
+                            },
+                            { title: "2차(주총)<br>확정일자", field: "juchongYmd", width: 95, hozAlign: "center", headerHozAlign: "center", headerCssClass: "col-hdr-blue" },
+                            {
+                                title: "2차(주총)<br>확정금액", field: "juchongAek", width: 120, hozAlign: "right", headerHozAlign: "center", headerCssClass: "col-hdr-blue",
+                                formatter: cell => formatNumCell(cell.getValue(), 0)
+                            },
+                            {
+                                title: "수령일자", field: "suryYmd", width: 85, hozAlign: "center", headerHozAlign: "center", headerCssClass: "col-hdr-green",
+                                formatter: cell => `<span class="cell-text-green">${cell.getValue() || ''}</span>`
+                            },
+                            {
+                                title: "수령<br>현금배당액", field: "suryJuAek", width: 120, hozAlign: "right", headerHozAlign: "center", headerCssClass: "col-hdr-green",
+                                formatter: cell => `<span class="cell-text-green">${formatNumCell(cell.getValue(), 0)}</span>`
+                            }
+                        ]
+                    });
                 }
 
                 // 12. 팝업 모달 그리드 (d_ja021b_p1: 종목별 확정배당 등록)
@@ -827,21 +1138,27 @@
                         editTriggerEvent: "click",
                         columns: [
                             { title: "No.", formatter: "rownum", width: 45, hozAlign: "center", headerHozAlign: "center" },
-                            { title: "종목코드", field: "jmCd", width: 110, hozAlign: "center", headerHozAlign: "center" },
-                            { title: "종목명", field: "jmNm", hozAlign: "left", headerHozAlign: "center" },
                             {
-                                title: "배당금(원)", field: "baedAek", width: 120, hozAlign: "right", headerHozAlign: "center",
+                                title: "종목코드", field: "jjCd", width: 90, hozAlign: "center", headerHozAlign: "center",
+                                formatter: cell => cell.getValue() || cell.getRow().getData().jmCd || ''
+                            },
+                            {
+                                title: "종목명", field: "xxJjCd", hozAlign: "left", headerHozAlign: "center",
+                                formatter: cell => cell.getValue() || cell.getRow().getData().jmNm || ''
+                            },
+                            {
+                                title: "배당금(원)", field: "baedAek", width: 110, hozAlign: "right", headerHozAlign: "center",
                                 editor: "number",
                                 cellClick: window.aamsCellEdit,
                                 cellEdited: onPopupBaedAekEdited,
                                 formatter: cell => formatNumCell(cell.getValue(), 0)
                             },
                             {
-                                title: "현금배당(%)", field: "cashPer", width: 120, hozAlign: "right", headerHozAlign: "center", headerCssClass: "col-hdr-red",
+                                title: "현금배당(%)", field: "cashPer", width: 100, hozAlign: "right", headerHozAlign: "center", headerCssClass: "col-hdr-blue",
                                 formatter: cell => formatRedPercent(cell.getValue(), 4)
                             },
                             {
-                                title: "주식배당(%)", field: "stockPer", width: 120, hozAlign: "right", headerHozAlign: "center", headerCssClass: "col-hdr-red",
+                                title: "주식배당(%)", field: "stockPer", width: 100, hozAlign: "right", headerHozAlign: "center", headerCssClass: "col-hdr-blue",
                                 editor: "number",
                                 cellClick: window.aamsCellEdit,
                                 cellEdited: onPopupStockPerEdited,
@@ -850,50 +1167,6 @@
                         ]
                     });
                 }
-            }
-
-            // 공통 펀드별 배당권리 상세 그리드 빌더
-            function buildFundDetailGrid(el) {
-                return new Tabulator(el, {
-                    height: "100%",
-                    layout: "fitDataFill",
-                    selectableRows: 1,
-                    columns: [
-                        { title: "No.", formatter: "rownum", width: 45, hozAlign: "center", headerHozAlign: "center" },
-                        { title: "회사명", field: "corpNm", width: 120, hozAlign: "left", headerHozAlign: "center" },
-                        { title: "펀드코드", field: "fundCd", width: 90, hozAlign: "center", headerHozAlign: "center" },
-                        { title: "펀드명", field: "fundNm", width: 160, hozAlign: "left", headerHozAlign: "center" },
-                        { title: "기존종목", field: "oldJmCd", width: 95, hozAlign: "center", headerHozAlign: "center" },
-                        { title: "신규종목", field: "newJmCd", width: 95, hozAlign: "center", headerHozAlign: "center" },
-                        {
-                            title: "보유주수", field: "boyuJusu", width: 95, hozAlign: "right", headerHozAlign: "center",
-                            formatter: cell => formatNumCell(cell.getValue(), 0)
-                        },
-                        {
-                            title: "보유취득금액", field: "boyuChuiAek", width: 110, hozAlign: "right", headerHozAlign: "center",
-                            formatter: cell => formatNumCell(cell.getValue(), 0)
-                        },
-                        { title: "배당부일수", field: "baedBuIlsu", width: 80, hozAlign: "right", headerHozAlign: "center" },
-                        {
-                            title: "배당락주수", field: "brokJusu", width: 95, hozAlign: "right", headerHozAlign: "center",
-                            formatter: cell => formatNumCell(cell.getValue(), 0)
-                        },
-                        {
-                            title: "예상배당금", field: "yesaAek", width: 110, hozAlign: "right", headerHozAlign: "center",
-                            formatter: cell => formatNumCell(cell.getValue(), 0)
-                        },
-                        { title: "확정일자", field: "hwakjYmd", width: 95, hozAlign: "center", headerHozAlign: "center" },
-                        {
-                            title: "확정배당금", field: "hwakjAek", width: 110, hozAlign: "right", headerHozAlign: "center",
-                            formatter: cell => formatNumCell(cell.getValue(), 0)
-                        },
-                        { title: "주총일자", field: "juchongYmd", width: 95, hozAlign: "center", headerHozAlign: "center" },
-                        {
-                            title: "주총배당금", field: "juchongAek", width: 110, hozAlign: "right", headerHozAlign: "center",
-                            formatter: cell => formatNumCell(cell.getValue(), 0)
-                        }
-                    ]
-                });
             }
 
             // [포맷터 헬퍼]
@@ -1003,7 +1276,7 @@
 
             // [데이터 로드: 회사 목록]
             function loadCorpList() {
-                const ym = (pane.querySelector('#filterYm').value || '').trim();
+                const ym = getSelectedYm();
                 const customerGr = (pane.querySelector('#filterCustomerGr').value || '').trim();
                 const corpGr = (typeof resolveCorpGr === 'function') ? resolveCorpGr(pane) : '';
 
@@ -1028,14 +1301,14 @@
             function onSelectCorp(corpData) {
                 if (!corpData) return;
                 selectedCorpGr = corpData.corpGr || "";
-                if (currentTab === "t2") {
+                if (isSearched && currentTab === "t2") {
                     loadT2Master();
                 }
             }
 
             // [탭 1 로드]
             function loadT1Master() {
-                const ym = (pane.querySelector('#filterYm').value || '').trim();
+                const ym = getSelectedYm();
                 const customerGr = (pane.querySelector('#filterCustomerGr').value || '').trim();
                 const corpGr = (typeof resolveCorpGr === 'function') ? resolveCorpGr(pane) : '%';
 
@@ -1074,8 +1347,8 @@
 
             // [탭 2 로드]
             function loadT2Master() {
-                const ym = (pane.querySelector('#filterYm').value || '').trim();
-                const targetCorp = selectedCorpGr || (typeof resolveCorpGr === 'function' ? resolveCorpGr(pane) : '2402');
+                const ym = getSelectedYm();
+                const targetCorp = selectedCorpGr || ((typeof resolveCorpGr === 'function') ? resolveCorpGr(pane) : '');
 
                 fetch(`/api/subscriptionrights/ja021b/t2/master?corpGr=${encodeURIComponent(targetCorp)}&ym=${encodeURIComponent(ym)}`)
                     .then(res => res.json())
@@ -1111,7 +1384,7 @@
 
             // [탭 3 로드]
             function loadT3Master() {
-                const ym = (pane.querySelector('#filterYm').value || '').trim();
+                const ym = getSelectedYm();
                 const customerGr = (pane.querySelector('#filterCustomerGr').value || '').trim();
 
                 fetch(`/api/subscriptionrights/ja021b/t3/master?customerGr=${encodeURIComponent(customerGr)}&ym=${encodeURIComponent(ym)}`)
@@ -1148,7 +1421,7 @@
 
             // [탭 4 로드]
             function loadT4Master() {
-                const ym = (pane.querySelector('#filterYm').value || '').trim();
+                const ym = getSelectedYm();
                 const customerGr = (pane.querySelector('#filterCustomerGr').value || '').trim();
 
                 fetch(`/api/subscriptionrights/ja021b/t4/master?customerGr=${encodeURIComponent(customerGr)}&ym=${encodeURIComponent(ym)}`)
@@ -1185,7 +1458,7 @@
 
             // [탭 5 로드]
             function loadT5Master() {
-                const ym = (pane.querySelector('#filterYm').value || '').trim();
+                const ym = getSelectedYm();
                 const customerGr = (pane.querySelector('#filterCustomerGr').value || '').trim();
 
                 fetch(`/api/subscriptionrights/ja021b/t5/master?customerGr=${encodeURIComponent(customerGr)}&ym=${encodeURIComponent(ym)}`)
@@ -1249,8 +1522,14 @@
                     targetPane.style.display = 'flex';
                 }
 
-                // 그리드 가상 렌더링 갱신
+                // 탭별 버튼 활성화 상태 갱신 (파워빌더 소스 기준: 탭 1 저장 불가, 탭 2~5 저장 가능)
+                updateToolbarButtons(tabId);
+
+                // 스플리터 재초기화 및 그리드 가상 렌더링 갱신
                 setTimeout(() => {
+                    if (window.AamsSplitter && typeof window.AamsSplitter.init === 'function') {
+                        window.AamsSplitter.init(pane);
+                    }
                     if (window.AamsSplitter && typeof window.AamsSplitter.redrawGrids === 'function') {
                         window.AamsSplitter.redrawGrids(pane);
                     } else {
@@ -1258,7 +1537,9 @@
                     }
                 }, 50);
 
-                loadCurrentTab();
+                if (isSearched) {
+                    loadCurrentTab();
+                }
             }
 
             // [종목별 확정배당 팝업 모달 열기]
@@ -1325,14 +1606,6 @@
                         switchTab(tabId);
                     });
                 });
-
-                // 단축 팝업 오픈 버튼
-                const btnOpenPopup = pane.querySelector('#btnOpenPopupModal');
-                if (btnOpenPopup) {
-                    btnOpenPopup.addEventListener('click', function () {
-                        openPopupModal('G20', null);
-                    });
-                }
 
                 // 팝업 모달 닫기 버튼들
                 const btnCloseX = pane.querySelector('#btnClosePopupModalX');
@@ -1408,7 +1681,7 @@
                             if (result.success) {
                                 if (typeof showToast === 'function') showToast(result.message || "저장되었습니다.", "success");
                                 closePopupModal();
-                                loadCurrentTab();
+                                if (isSearched) loadCurrentTab();
                             } else {
                                 if (typeof showToast === 'function') showToast(result.message || "저장 실패", "error");
                             }
@@ -1421,6 +1694,8 @@
 
                 // 상단 공통 툴바 표준 계약 (08-toolbar-and-query-policy.md)
                 pane.onSearch = function () {
+                    isSearched = true;
+                    pane.isSearched = true;
                     loadCorpList();
                     loadCurrentTab();
                 };
@@ -1463,7 +1738,22 @@
                     });
                 };
 
+                pane.onInput = function () {
+                    if (typeof showToast === 'function') showToast("입력이 지원되지 않는 화면입니다.", "info");
+                };
+
+                pane.onCopy = function () {
+                    if (typeof showToast === 'function') showToast("복사가 지원되지 않는 화면입니다.", "info");
+                };
+
+                pane.onDelete = function () {
+                    if (typeof showToast === 'function') showToast("삭제가 지원되지 않는 화면입니다.", "info");
+                };
+
                 pane.onRefresh = function () {
+                    isSearched = false;
+                    pane.isSearched = false;
+
                     [gridCorp, gridT1Master, gridT1Detail, gridT2Master, gridT2Detail,
                      gridT3Master, gridT3Detail, gridT4Master, gridT4Detail, gridT5Master, gridT5Detail, gridPopup].forEach(g => {
                         if (g) g.clearData();
@@ -1474,6 +1764,8 @@
                     selectedT3MasterRow = null;
                     selectedT4MasterRow = null;
                     selectedT5MasterRow = null;
+
+                    updateToolbarButtons(currentTab);
 
                     if (typeof showToast === 'function') {
                         showToast("화면이 초기화되었습니다.", "info");
@@ -1492,6 +1784,11 @@
                     }
                 };
 
+                // 권한 적용 후 버튼 상태 동기화 리스너
+                pane.addEventListener('buttonAuthApplied', function () {
+                    updateToolbarButtons(currentTab);
+                });
+
                 // 필터 조건 변경 시: 규칙 08 준수 (자동 조회를 절대 실행하지 않음)
             }
 
@@ -1507,14 +1804,17 @@
                 if (isInitialized) return;
                 isInitialized = true;
 
+                initCalendar();
                 initGrids();
                 initToolbarAndEvents();
                 initSplitters();
                 ue_dddw_retrieve();
 
-                // 초기 데이터 1회 로드
-                loadCorpList();
-                loadCurrentTab();
+                // 파워빌더 소스 기반 상단 공통 버튼 상태 초기화
+                updateToolbarButtons(currentTab);
+                setTimeout(() => updateToolbarButtons(currentTab), 100);
+
+                // 규칙 08 준수: 화면 진입 시 자동 조회를 실행하지 않음 (상단 [조회] 클릭 시에만 수동 조회 실행)
             }
 
             if (document.readyState === "loading") {
