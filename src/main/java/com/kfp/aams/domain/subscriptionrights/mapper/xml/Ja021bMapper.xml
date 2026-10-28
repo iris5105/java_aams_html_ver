@@ -15,7 +15,7 @@
                )                                                                      AS dataCount
           FROM SZX0AA aa
          WHERE aa.customer_gr = #{customerGr}
-         <if test="corpGr != null and corpGr != '' and corpGr != '%'">
+         <if test="corpGr != null and corpGr != '' and corpGr != &quot;%&quot;">
            AND aa.corp_gr = #{corpGr}
          </if>
          ORDER BY aa.corp_gr ASC
@@ -48,7 +48,7 @@
                        ON jb.BALH_CO = t1.BALH_CO
          WHERE 1=1
          <choose>
-             <when test="corpGr != null and corpGr != '' and corpGr != '%'">
+             <when test="corpGr != null and corpGr != '' and corpGr != &quot;%&quot;">
                  AND t1.corp_gr = #{corpGr}
              </when>
              <otherwise>
@@ -80,7 +80,7 @@
           FROM SJT0BJ t1
          WHERE 1=1
          <choose>
-             <when test="corpGr != null and corpGr != '' and corpGr != '%'">
+             <when test="corpGr != null and corpGr != '' and corpGr != &quot;%&quot;">
                  AND t1.corp_gr = #{corpGr}
              </when>
              <otherwise>
@@ -331,7 +331,7 @@
           JOIN SZX0AA aa ON aa.CORP_GR = t1.CORP_GR
          WHERE 1=1
          <choose>
-             <when test="corpGr != null and corpGr != '' and corpGr != '%'">
+             <when test="corpGr != null and corpGr != '' and corpGr != &quot;%&quot;">
                  AND t1.corp_gr = #{corpGr}
              </when>
              <otherwise>

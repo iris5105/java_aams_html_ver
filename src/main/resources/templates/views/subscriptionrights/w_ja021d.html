@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<div class="view-container layout-single layout-mobile-stack-container" th:fragment="mainView"
+     th:attr="data-work-date=${workDate},data-corp-gr=${corpGr}">
+    <div class="view-toolbar">
+        <div class="toolbar-left">
+            <div th:replace="~{fragments/tab_header :: toolbarButtons}"></div>
+        </div>
+        <div th:replace="~{fragments/tab_header :: toolbarBreadcrumb}"></div>
+    </div>
+    <div class="filter-bar">
+        <div th:replace="~{fragments/filter/d_ja021d :: filter}"></div>
+    </div>
+    <div class="report-container-panel">
+        <div th:replace="~{fragments/report/report_viewer :: reportViewerBottomPane(reportTitle='배당 명세표', defaultStatus='조건을 선택한 후 조회하십시오')}"></div>
+    </div>
+    <div th:replace="~{fragments/report/report_viewer :: reportMobileModal(modalId='ja021dMobileModal', modalTitle='배당 명세표')}"></div>
+
+    <script th:inline="javascript">
+        (function () {
+            const script = document.currentScript;
+            const pane = script ? (script.closest('.tab-pane') || script.closest('.view-container')) : null;
+            if (!pane) return;
+
+            let isInitialized = false;
+            let initialYmd = /*[[${initialYmd}]]*/ '';
+            let dateRequestId = 0;
+            let updatingWorkDate = false;
+            let reportViewer;
+            let issuerSearch;
+            let reportTypes = [];
+            const fromInput = pane.querySelector('#filterFYmd');
+            const toInput = pane.querySelector('#filterTYmd');
+            const typeSelect = pane.querySelector('#filterDddw');
+            const issuerInput = pane.querySelector('#filterBalhCo');
+
+            function initDates(ymd) {
+                if (!ymd) return;
+                // PB wue_lastopen: both dates equal idt_workdate, with no date highlighting.
+                AamsCalendar.initRange('filterFYmd', 'filterTYmd', {
+                    pane: pane, initialFYmd: ymd, initialTYmd: ymd, preserveSameDay: true
+                });
+            }
+
+            function initReportTypes() {
+                return initFilterDddw(pane, {
+                    selectId: 'filterDddw', defaultOptions: reportTypes,
+                    defaultVal: reportTypes[0].code, nameTitle: '출력구분'
+                });
+            }
+
+            function reportDate(value) {
+                const clean = (value || '').replace(/[.\-]/g, '');
+                if (!/^\d{8}$/.test(clean)) return '';
+                const year = Number(clean.slice(0, 4));
+                const month = Number(clean.slice(4, 6));
+                const day = Number(clean.slice(6, 8));
+                const date = new Date(year, month - 1, day);
+                if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) return '';
+                return clean.slice(0, 4) + '.' + clean.slice(4, 6) + '.' + clean.slice(6, 8);
+            }
+
+            function search() {
+                if (updatingWorkDate) {
+                    showToast('회사 기준일자를 확인 중입니다. 잠시 후 조회하십시오.', 'info');
+                    return;
+                }
+                const corpGr = resolveCorpGr(pane);
+                const type = reportTypes.find(item => item.code === typeSelect.value);
+                const frYmd = reportDate(fromInput.value);
+                const toYmd = reportDate(toInput.value);
+                const balhCo = issuerInput.value.trim();
+                if (!corpGr) { showToast('회사그룹을 확인하십시오.', 'warning'); return; }
+                if (!type) { showToast('출력구분을 선택하십시오.', 'warning'); return; }
+                if (!frYmd || !toYmd || frYmd > toYmd) {
+                    showToast('공시일 시작일과 종료일을 올바르게 선택하십시오.', 'warning');
+                    return;
+                }
+                if (!balhCo) { showToast('발행기관을 선택하십시오. 전체 조회는 %를 입력하십시오.', 'warning'); return; }
+                // Preserve the searched company and parameters for exports after filter changes.
+                const data = {
+                    corpGr: corpGr,
+                    params: {gb: type.gb, tr_cd: type.trCd, title: type.name + ' 명세표',
+                        fr_ymd: frYmd, to_ymd: toYmd, balh_co: balhCo}
+                };
+                if (AamsReport.isMobileView(pane)) reportViewer.openMobile(data);
+                else reportViewer.loadPreview(data, null, true);
+            }
+
+            function startInit() {
+                if (isInitialized) return;
+                isInitialized = true;
+                reportTypes = Array.from(typeSelect.options).map(option => ({
+                    code: option.value, name: option.textContent,
+                    gb: option.dataset.gb, trCd: option.dataset.trCd
+                }));
+                initDates(initialYmd);
+                initReportTypes();
+                issuerSearch = DynamicCodeSearch.bind({
+                    pane: pane, inputEl: issuerInput, btnEl: pane.querySelector('#btnBalhSearch'),
+                    textEl: pane.querySelector('#textBalhName'), columnNm: 'balh_co', seq: 1,
+                    getCorpGr: function () { return resolveCorpGr(pane); },
+                    allCode: '%', allName: '전발행기관'
+                });
+                reportViewer = AamsReport.bindViewer(pane, {
+                    reportFile: 'rd_ja021d.mrd', modalId: 'ja021dMobileModal',
+                    defaultStatus: '조건을 선택한 후 조회하십시오',
+                    getCorpGr: function (data) { return data ? data.corpGr : resolveCorpGr(pane); },
+                    buildParams: function (data) { return data.params; },
+                    getTitle: function (data) { return data.params.title; },
+                    getStatus: function (data) { return '공시일: ' + data.params.fr_ymd + ' ~ ' + data.params.to_ymd; },
+                    getDownloadName: function (data) {
+                        return data.params.title + '_' + data.params.fr_ymd + '_' + data.params.to_ymd;
+                    }
+                });
+                pane.onSearch = search;
+                pane.onExcel = function () { reportViewer.exportFormat('excel'); };
+                pane.onPrint = function () { reportViewer.openNewWindow(); };
+                pane.onClear = pane.onRefresh = function () {
+                    reportViewer.closeMobile();
+                    reportViewer.clear();
+                    initDates(initialYmd);
+                    initReportTypes();
+                    issuerSearch.setValue('%');
+                    showToast('화면이 초기화되었습니다.', 'info');
+                };
+                pane.onCorpGrChange = async function (newCorpGr) {
+                    const requestId = ++dateRequestId;
+                    updatingWorkDate = true;
+                    try {
+                        const response = await fetch('/api/common/workdate?' + new URLSearchParams({corpGr: newCorpGr}));
+                        if (!response.ok) throw new Error('작업일자 조회 실패');
+                        const data = await response.json();
+                        if (requestId !== dateRequestId) return;
+                        if (!data.workDate) throw new Error('작업일자 없음');
+                        initialYmd = data.workDate;
+                        initDates(initialYmd);
+                        issuerSearch.setValue('%');
+                        // Keep the current report until the user explicitly searches again.
+                    } catch (error) {
+                        if (requestId === dateRequestId) showToast('회사 기준일자를 가져오지 못했습니다.', 'error');
+                    } finally {
+                        if (requestId === dateRequestId) updatingWorkDate = false;
+                    }
+                };
+                // No eb_direct_retrieve in the PB source: manual search only.
+            }
+
+            if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', startInit, {once: true});
+            else startInit();
+        })();
+    </script>
+</div>
+</html>

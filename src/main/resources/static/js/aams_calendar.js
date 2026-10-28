@@ -771,8 +771,8 @@ window.AamsCalendar = (function() {
 
             let curTYmd = options.initialTYmd || toEl.value || todayStr;
             let curFYmd = options.initialFYmd || fromEl.value;
-            // ftymd 표준: 시작일자가 지정되지 않았거나 종료일자와 같은 경우 3달 전 날짜로 자동 지정
-            if (!curFYmd || curFYmd === curTYmd) {
+            // preserveSameDay retains an explicit one-day range; other screens keep the 3-month default.
+            if (!curFYmd || (curFYmd === curTYmd && !options.preserveSameDay)) {
                 curFYmd = this.calcMonthsBefore(curTYmd, 3, curTYmd.includes('-') ? '-' : '.');
             }
 

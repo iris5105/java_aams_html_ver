@@ -33,6 +33,7 @@ window.DynamicCodeSearch = (function() {
      *   - pane: container element (optional)
      *   - getCorpGr: function returning current corpGr (optional)
      *   - onSelect: callback function(code, name, rowData)
+     *   - allCode, allName: optional explicit wildcard and label (no code lookup)
      */
     function bind(options) {
         if (!options) return null;
@@ -98,6 +99,17 @@ window.DynamicCodeSearch = (function() {
             const corpGr = getCorpGr();
             const trimmed = (codeVal || "").trim();
             const addWhere = resolveAddWhere();
+
+            // Some PB filters use an explicit wildcard for all issuers/funds.
+            if (options.allCode != null && trimmed === String(options.allCode)) {
+                input.value = trimmed;
+                if (textLabel) textLabel.textContent = options.allName || "";
+                lastValidatedCode = trimmed;
+                if (triggerCallback && typeof onSelect === "function") {
+                    onSelect(trimmed, options.allName || "", null);
+                }
+                return;
+            }
 
             if (!trimmed) {
                 if (textLabel) textLabel.textContent = "";

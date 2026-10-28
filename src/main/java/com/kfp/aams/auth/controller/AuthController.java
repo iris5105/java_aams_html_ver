@@ -104,6 +104,10 @@ public class AuthController {
             }
         }
         userDto.setCorpGr(effectiveCorpGr);
+        // Resolve the company name from the active company, not the account's company.
+        String loginCompanyName = userQueryDslRepository.findCompanyNameByCorpGr(effectiveCorpGr);
+        loginCompanyName = loginCompanyName != null ? loginCompanyName.trim() : "";
+        userDto.setCompanyName(loginCompanyName);
 
         // Issue JWT Access Token (with all UserDto claims) and Refresh Token (1 week)
         String accessToken = jwtProvider.createAccessToken(userDto);
@@ -213,22 +217,16 @@ public class AuthController {
         response.addCookie(junyongYmdCookie);
 
         // Set corpNm & companyName Cookie for client scripts (30 days)
-        String loginCompanyName = userDto.getCompanyName();
-        if (loginCompanyName == null || loginCompanyName.isBlank()) {
-            loginCompanyName = userQueryDslRepository.findCompanyNameByCorpGr(userDto.getCorpGr());
-        }
-        if (loginCompanyName != null && !loginCompanyName.isBlank()) {
-            String encCompanyName = java.net.URLEncoder.encode(loginCompanyName.trim(), java.nio.charset.StandardCharsets.UTF_8);
-            Cookie corpNmCookie = new Cookie("corpNm", encCompanyName);
-            corpNmCookie.setPath("/");
-            corpNmCookie.setMaxAge(30 * 24 * 60 * 60);
-            response.addCookie(corpNmCookie);
+        String encCompanyName = java.net.URLEncoder.encode(loginCompanyName, java.nio.charset.StandardCharsets.UTF_8);
+        Cookie corpNmCookie = new Cookie("corpNm", encCompanyName);
+        corpNmCookie.setPath("/");
+        corpNmCookie.setMaxAge(30 * 24 * 60 * 60);
+        response.addCookie(corpNmCookie);
 
-            Cookie companyNameCookie = new Cookie("companyName", encCompanyName);
-            companyNameCookie.setPath("/");
-            companyNameCookie.setMaxAge(30 * 24 * 60 * 60);
-            response.addCookie(companyNameCookie);
-        }
+        Cookie companyNameCookie = new Cookie("companyName", encCompanyName);
+        companyNameCookie.setPath("/");
+        companyNameCookie.setMaxAge(30 * 24 * 60 * 60);
+        response.addCookie(companyNameCookie);
 
         // Set adminYn Cookie for client scripts (30 days)
         Cookie adminYnCookie = new Cookie("adminYn", userDto.getAdminYn() != null ? userDto.getAdminYn() : "N");
@@ -254,8 +252,8 @@ public class AuthController {
                 .userNm(userDto.getUserNm())
                 .corpGr(userDto.getCorpGr())
                 .encEMail(userDto.getEncEMail())
-                .companyName(loginCompanyName != null ? loginCompanyName.trim() : userDto.getCompanyName())
-                .corpNm(loginCompanyName != null ? loginCompanyName.trim() : userDto.getCompanyName())
+                .companyName(loginCompanyName)
+                .corpNm(loginCompanyName)
                 .hyunYmd(userDto.getHyunYmd())
                 .workDate(workDate)
                 .workYmd(workDate)

@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+<!-- PB dw_c.dataobject = d_ja021d: 공시일 범위 / 출력구분 / 발행기관 -->
+<div th:fragment="filter" class="filter-left">
+    <div th:replace="~{fragments/filter/dc_ftymd :: filter(label='공시일')}"></div>
+    <div class="filter-item">
+        <label for="filterDddw">출력구분</label>
+        <select id="filterDddw" name="rptGb" class="filter-select">
+            <option th:each="type : ${reportTypes}" th:value="${type.code}"
+                    th:text="${type.name}" th:attr="data-gb=${type.gb},data-tr-cd=${type.trCd}"></option>
+        </select>
+    </div>
+    <div class="filter-item filter-code-search-item">
+        <label for="filterBalhCo">발행기관</label>
+        <div class="code-search-input-wrapper">
+            <input type="text" id="filterBalhCo" name="balhCo" class="filter-input code-search-input"
+                   value="%" maxlength="5" autocomplete="off" aria-label="발행기관 코드" />
+            <button type="button" id="btnBalhSearch" class="btn-code-search" title="발행기관 검색">
+                <i class="fa-solid fa-magnifying-glass"></i>
+            </button>
+        </div>
+        <span id="textBalhName" class="code-search-name">전발행기관</span>
+    </div>
+</div>
+</body>
+</html>
