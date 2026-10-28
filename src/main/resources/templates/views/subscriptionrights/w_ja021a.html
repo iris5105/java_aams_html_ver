@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
 <div class="view-container layout-split-v layout-mobile-stack-container" th:fragment="mainView"
-     th:attr="data-work-date=${workDate}"
+     th:attr="data-work-date=${workDate}, data-corp-nm=${corpNm}"
      style="display: flex; flex-direction: column; height: 100%; width: 100%; overflow: hidden; background-color: #ffffff; position: relative;">
 
     <!-- 1. 상단 공통 툴바 (Row 1) -->
@@ -144,12 +144,18 @@
                     });
                 }
 
-                // 구분2 (배당적용대상): '%' (전운용사적용) vs corpGr (자사적용)
+                // 구분2 (배당적용대상): '%' (전운용사적용) vs corpGr (운용사명, PB gaa.corp_nm)
                 const selectDddw2 = pane.querySelector('#filterDddw2, select[name="dddw2"]');
                 if (selectDddw2) {
+                    const serverCorpNm = (pane.getAttribute('data-corp-nm') || '').trim();
+                    let corpNm = (serverCorpNm && serverCorpNm !== '자사적용') ? serverCorpNm : '';
+                    if (!corpNm) {
+                        corpNm = (window.currentCompanyName || sessionStorage.getItem('companyName') || '').trim();
+                    }
+                    const targetName = corpNm ? corpNm : (corpGr ? `자사적용(${corpGr})` : '자사적용');
                     const options = [
                         { code: "%", name: "전운용사적용" },
-                        { code: corpGr, name: "자사적용(" + corpGr + ")" }
+                        { code: corpGr, name: targetName }
                     ];
 
                     if (window.f_dddwctl && typeof window.f_dddwctl.get2ColItemFormatter === 'function') {
@@ -162,7 +168,7 @@
                             }
                         });
                     } else {
-                        selectDddw2.innerHTML = '<option value="%">전운용사적용</option><option value="' + corpGr + '">자사적용</option>';
+                        selectDddw2.innerHTML = '<option value="%">전운용사적용</option><option value="' + corpGr + '">' + targetName + '</option>';
                     }
                 }
 
@@ -227,7 +233,7 @@
                             },
                             {
                                 title: "",
-                                field: "xx_btn_balhCo",
+                                field: "p_xx_balhCo",
                                 width: 36,
                                 minWidth: 36,
                                 maxWidth: 36,
@@ -518,7 +524,7 @@
                             },
                             {
                                 title: "",
-                                field: "xx_btn_jjCd",
+                                field: "p_xx_jjCd",
                                 width: 36,
                                 minWidth: 36,
                                 maxWidth: 36,
@@ -1153,7 +1159,21 @@
 
                 pane.onCorpGrChange = function (newCorpGr) {
                     // 필터 변경 시 자동 조회 절대 금지 (규칙 08 준수)
-                    initFilters();
+                    if (newCorpGr) {
+                        fetch(`/api/subscriptionrights/ja021a/company-name?corpGr=${encodeURIComponent(newCorpGr)}`)
+                            .then(r => r.json())
+                            .then(data => {
+                                if (data && data.companyName) {
+                                    pane.setAttribute('data-corp-nm', data.companyName);
+                                }
+                                initFilters();
+                            })
+                            .catch(() => {
+                                initFilters();
+                            });
+                    } else {
+                        initFilters();
+                    }
                 };
 
                 pane.onExcel = function () {

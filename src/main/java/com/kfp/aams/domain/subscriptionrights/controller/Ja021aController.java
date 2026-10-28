@@ -34,9 +34,11 @@ public class Ja021aController {
                              @RequestParam(name = "ymd", required = false) String paramYmd,
                              @CookieValue(name = "savedCorpGr", required = false) String cookieCorpGr1,
                              @CookieValue(name = "corpGr", required = false) String cookieCorpGr2,
+                             @CookieValue(name = "userCorpGr", required = false) String cookieCorpGr3,
                              Model model) {
         UserPrincipal principal = (principalObj instanceof UserPrincipal p) ? p : null;
-        String cookieCorpGr = (cookieCorpGr1 != null && !cookieCorpGr1.isBlank()) ? cookieCorpGr1 : cookieCorpGr2;
+        String cookieCorpGr = (cookieCorpGr1 != null && !cookieCorpGr1.isBlank()) ? cookieCorpGr1
+                : ((cookieCorpGr2 != null && !cookieCorpGr2.isBlank()) ? cookieCorpGr2 : cookieCorpGr3);
         String corpGr = resolveCorpGr(paramCorpGr, cookieCorpGr, principal);
 
         var menuDto = menuService.getMenuByPgmId("W_JA021A");
@@ -52,13 +54,63 @@ public class Ja021aController {
                 ? paramYmd
                 : ja021aService.getWorkDate(corpGr);
 
+        // 운용사명 연동 (SZX0AA.COMPANY_NAME)
+        // 1) corpGr이 존재하면 SZX0AA 테이블에서 실제 회사명 우선 조회
+        String corpNm = "";
+        if (corpGr != null && !corpGr.isBlank()) {
+            corpNm = ja021aService.getCompanyName(corpGr);
+        }
+
+        // 2) corpNm이 비어있거나 조회가 안 된 경우 principal 정보 활용
+        if ((corpNm == null || corpNm.isBlank()) && principal != null) {
+            if (principal.getCompanyName() != null && !principal.getCompanyName().isBlank()) {
+                corpNm = principal.getCompanyName().trim();
+            }
+            if ((corpGr == null || corpGr.isBlank()) && principal.getCorpGr() != null && !principal.getCorpGr().isBlank()) {
+                corpGr = principal.getCorpGr().trim();
+                if (corpNm == null || corpNm.isBlank()) {
+                    corpNm = ja021aService.getCompanyName(corpGr);
+                }
+            }
+        }
+
+        log.info("[viewJa021a] paramCorpGr: {}, cookieCorpGr: {}, principalCorpGr: {}, resolved corpGr: '{}', corpNm: '{}'",
+                paramCorpGr, cookieCorpGr, (principal != null ? principal.getCorpGr() : null), corpGr, corpNm);
+
         model.addAttribute("fullpgm2", fullpgm2);
-        model.addAttribute("corpGr", corpGr);
+        model.addAttribute("corpGr", corpGr != null ? corpGr : "");
+        model.addAttribute("corpNm", corpNm != null ? corpNm : "");
         model.addAttribute("workDate", workDate);
         model.addAttribute("initialYmd", workDate);
         model.addAttribute("ymd", workDate);
 
         return "views/subscriptionrights/w_ja021a";
+    }
+
+    /**
+     * 운용사명 비동기 조회 (회사변경 시 클라이언트 필터 갱신 지원)
+     */
+    @GetMapping("/api/subscriptionrights/ja021a/company-name")
+    @ResponseBody
+    public ResponseEntity<Map<String, String>> getCompanyName(
+            @RequestParam(name = "corpGr", required = false) String paramCorpGr,
+            @AuthenticationPrincipal Object principalObj) {
+        UserPrincipal principal = (principalObj instanceof UserPrincipal p) ? p : null;
+        String targetCorpGr = (paramCorpGr != null && !paramCorpGr.isBlank()) ? paramCorpGr.trim()
+                : (principal != null && principal.getCorpGr() != null ? principal.getCorpGr().trim() : "");
+
+        String name = "";
+        if (!targetCorpGr.isBlank()) {
+            name = ja021aService.getCompanyName(targetCorpGr);
+        }
+        if ((name == null || name.isBlank()) && principal != null && targetCorpGr.equals(principal.getCorpGr())) {
+            name = principal.getCompanyName();
+        }
+
+        return ResponseEntity.ok(Map.of(
+                "corpGr", targetCorpGr,
+                "companyName", name != null ? name : ""
+        ));
     }
 
     /**

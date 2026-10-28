@@ -48,4 +48,9 @@ public interface Ja021aMapper {
     int updateDetail(Ja021aDetailDto dto);
     int deleteDetail(Ja021aDetailDto dto);
     int deleteDetailsByMaster(Ja021aMasterDto dto);
+
+    /**
+     * 운용사명 조회 (SZX0AA.COMPANY_NAME)
+     */
+    String selectCompanyName(@Param("corpGr") String corpGr);
 }

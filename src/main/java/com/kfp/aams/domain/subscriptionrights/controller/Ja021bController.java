@@ -96,11 +96,17 @@ public class Ja021bController {
             @CookieValue(name = "corpGr", required = false) String cookieCorpGr2) {
 
         UserPrincipal principal = (principalObj instanceof UserPrincipal p) ? p : null;
-        String cookieCorpGr = (cookieCorpGr1 != null && !cookieCorpGr1.isBlank()) ? cookieCorpGr1 : cookieCorpGr2;
-        String corpGr = resolveCorpGr(paramCorpGr, cookieCorpGr, principal);
+        boolean isAdmin = checkIsAdmin(principal);
 
-        // aams 사용자이거나 paramCorpGr가 '%'이면 전체 조회
-        String targetCorpGr = (paramCorpGr != null && !paramCorpGr.isBlank()) ? paramCorpGr : "%";
+        // 계정의 권한이 ADMIN인 경우 corpGr을 '%'로 전달하여 전체 회사 조회
+        String targetCorpGr;
+        if (isAdmin) {
+            targetCorpGr = "%";
+        } else {
+            String cookieCorpGr = (cookieCorpGr1 != null && !cookieCorpGr1.isBlank()) ? cookieCorpGr1 : cookieCorpGr2;
+            String corpGr = resolveCorpGr(paramCorpGr, cookieCorpGr, principal);
+            targetCorpGr = (corpGr != null && !corpGr.isBlank()) ? corpGr : "%";
+        }
 
         List<Ja021bCorpDto> list = ja021bService.getCorpList(ym, customerGr, targetCorpGr);
         return ResponseEntity.ok(list != null ? list : Collections.emptyList());
@@ -283,5 +289,20 @@ public class Ja021bController {
             return principal.getCorpGr();
         }
         return "";
+    }
+
+    private boolean checkIsAdmin(UserPrincipal principal) {
+        if (principal == null) {
+            return false;
+        }
+        if ("Y".equalsIgnoreCase(principal.getAdminYn())) {
+            return true;
+        }
+        if (principal.getAuthorities() != null) {
+            return principal.getAuthorities().stream()
+                    .anyMatch(a -> a.getAuthority().equalsIgnoreCase("ROLE_ADMIN")
+                            || a.getAuthority().contains("ADMIN"));
+        }
+        return false;
     }
 }

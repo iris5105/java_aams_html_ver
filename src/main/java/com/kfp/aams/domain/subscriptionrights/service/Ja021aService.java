@@ -126,4 +126,16 @@ public class Ja021aService {
             }
         }
     }
+
+    /**
+     * 운용사명 조회 (SZX0AA.COMPANY_NAME)
+     */
+    @Transactional(readOnly = true)
+    public String getCompanyName(String corpGr) {
+        if (corpGr == null || corpGr.isBlank()) {
+            return "";
+        }
+        String name = ja021aMapper.selectCompanyName(corpGr.trim());
+        return name != null ? name.trim() : "";
+    }
 }

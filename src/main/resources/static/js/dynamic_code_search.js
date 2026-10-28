@@ -310,14 +310,17 @@ window.DynamicCodeSearch = (function() {
                 headerSort: true
             };
 
-            // 첫 번째 데이터 컬럼(코드)에 자연어 및 '%' 우선 정렬 소터 지정
+            // 첫 번째 데이터 컬럼(코드)에 표준 코드(ASCII) 및 '%' 우선 정렬 소터 지정
             if (idx === 0) {
                 colDef.sorter = function(a, b, aRow, bRow, column, dir, sorterParams) {
                     const sA = String(a ?? "").trim();
                     const sB = String(b ?? "").trim();
-                    if (sA === "%") return dir === "asc" ? -1 : 1;
-                    if (sB === "%") return dir === "asc" ? 1 : -1;
-                    return sA.localeCompare(sB, undefined, { numeric: true, sensitivity: "base" });
+                    if (sA === sB) return 0;
+                    // 단독 '%' 전체 행은 항상 최우선 정렬
+                    if (sA === "%") return -1;
+                    if (sB === "%") return 1;
+                    // 표준 ASCII 사전순 정렬 (자연 정렬 numeric:true 배제 -> 00000, 0IRIS, 0001A 등의 코드 왜곡 방지)
+                    return (sA < sB) ? -1 : 1;
                 };
             }
 
@@ -362,9 +365,7 @@ window.DynamicCodeSearch = (function() {
         const gridContainer = overlay.querySelector("#dynamicCodeSearchGrid");
 
         closeBtn.onclick = closeModal;
-        overlay.onclick = function(e) {
-            if (e.target === overlay) closeModal();
-        };
+        // 창 외부(overlay 배경) 클릭 시 닫히는 현상 방지: x버튼 클릭 또는 그리드 더블클릭으로만 닫힘
 
         // 데이터 매핑: 각 행에 code, name, col_... 필드 바인딩
         const tableData = (fullList || []).map((item, idx) => {
@@ -423,8 +424,10 @@ window.DynamicCodeSearch = (function() {
 
         overlay._tabulatorInstance = tabulatorInstance;
 
-        // [핵심 기능] 정렬된 첫 번째 보이는 행에 포커스 & 커서 안착 함수
-        function focusFirstSortedRow() {
+        let isFiltered = false;
+
+        // [핵심 기능] 정렬된 첫 번째 보이는 행 선택 헬퍼 (shouldFocus가 true일 때만 DOM 포커스 이동)
+        function selectFirstSortedRow(shouldFocus) {
             if (!tabulatorInstance) return;
             const visibleRows = tabulatorInstance.getRows("visible");
             if (!visibleRows || visibleRows.length === 0) return;
@@ -432,14 +435,19 @@ window.DynamicCodeSearch = (function() {
             tabulatorInstance.deselectRow();
             const firstRow = visibleRows[0];
             firstRow.select();
-            try { firstRow.scrollTo(); } catch (e) {}
+            try { firstRow.scrollTo("nearest", false); } catch (e) {
+                try { firstRow.scrollTo(); } catch (err) {}
+            }
 
-            const rowEl = firstRow.getElement();
-            if (rowEl) {
-                rowEl.setAttribute("tabindex", "0");
-                rowEl.focus();
+            if (shouldFocus) {
+                const rowEl = firstRow.getElement();
+                if (rowEl) {
+                    rowEl.setAttribute("tabindex", "0");
+                    rowEl.focus();
+                }
             }
         }
+        const focusFirstSortedRow = () => selectFirstSortedRow(true);
 
         // 인덱스 기반 행 포커스 & 선택 이동 헬퍼
         function focusRowByIndex(idx) {
@@ -451,13 +459,114 @@ window.DynamicCodeSearch = (function() {
             const targetRow = visibleRows[nextIdx];
             tabulatorInstance.deselectRow();
             targetRow.select();
-            try { targetRow.scrollTo(); } catch (e) {}
+            try { targetRow.scrollTo("nearest", false); } catch (e) {
+                try { targetRow.scrollTo(); } catch (err) {}
+            }
 
             const rowEl = targetRow.getElement();
             if (rowEl) {
                 rowEl.setAttribute("tabindex", "0");
                 rowEl.focus();
             }
+        }
+
+        // 검색어 입력 시 현재 조회되어 있는 데이터 그리드의 위치로 스크롤 및 선택 이동
+        function scrollToMatchingRow(kw) {
+            if (!tabulatorInstance) return;
+
+            // 이전에 필터가 적용되어 있었다면 전체 목록 복원
+            if (isFiltered) {
+                tabulatorInstance.clearFilter();
+                isFiltered = false;
+            }
+
+            const term = (kw || "").trim().toLowerCase();
+            const rows = tabulatorInstance.getRows();
+            if (!rows || rows.length === 0) return;
+
+            if (!term) {
+                selectFirstSortedRow(false);
+                return;
+            }
+
+            let targetRow = null;
+
+            // 1순위: code 또는 name 컬럼의 접두사 일치 (startsWith)
+            for (let i = 0; i < rows.length; i++) {
+                const d = rows[i].getData();
+                const c = (d.code != null ? String(d.code) : "").toLowerCase();
+                const n = (d.name != null ? String(d.name) : "").toLowerCase();
+                if (c.startsWith(term) || n.startsWith(term)) {
+                    targetRow = rows[i];
+                    break;
+                }
+            }
+
+            // 2순위: code 또는 name 컬럼의 부분 일치 (includes)
+            if (!targetRow) {
+                for (let i = 0; i < rows.length; i++) {
+                    const d = rows[i].getData();
+                    const c = (d.code != null ? String(d.code) : "").toLowerCase();
+                    const n = (d.name != null ? String(d.name) : "").toLowerCase();
+                    if (c.includes(term) || n.includes(term)) {
+                        targetRow = rows[i];
+                        break;
+                    }
+                }
+            }
+
+            // 3순위: 기타 컬럼의 부분 일치 (includes)
+            if (!targetRow) {
+                for (let i = 0; i < rows.length; i++) {
+                    const d = rows[i].getData();
+                    let matched = false;
+                    for (let key in d) {
+                        if (key !== "_raw" && key !== "code" && key !== "name" && d[key] != null) {
+                            if (String(d[key]).toLowerCase().includes(term)) {
+                                matched = true;
+                                break;
+                            }
+                        }
+                    }
+                    if (matched) {
+                        targetRow = rows[i];
+                        break;
+                    }
+                }
+            }
+
+            if (targetRow) {
+                tabulatorInstance.deselectRow();
+                targetRow.select();
+                try {
+                    targetRow.scrollTo("nearest", false);
+                } catch (e) {
+                    try { targetRow.scrollTo(); } catch (err) {}
+                }
+            }
+        }
+
+        // 엔터키 또는 필터조회 버튼 클릭 시 실행되는 필터 로직
+        function applyFilter(kw) {
+            if (!tabulatorInstance) return;
+            const term = (kw || "").trim().toLowerCase();
+            if (!term) {
+                tabulatorInstance.clearFilter();
+                isFiltered = false;
+            } else {
+                tabulatorInstance.setFilter(function(data) {
+                    for (let key in data) {
+                        if (key !== "_raw" && data[key] != null && String(data[key]).toLowerCase().includes(term)) {
+                            return true;
+                        }
+                    }
+                    return false;
+                });
+                isFiltered = true;
+            }
+
+            // 필터링 후 정렬된 첫 번째 보이는 행을 시각적으로 선택만 유지 (검색창 포커스 유지)
+            setTimeout(() => selectFirstSortedRow(false), 30);
         }
 
         // 행 클릭 시 선택 및 포커스 부여
@@ -471,83 +580,55 @@ window.DynamicCodeSearch = (function() {
             }
         });
 
-        // 행 더블클릭 시 즉시 항목 선택 완료
+        // 행 더블클릭 시 즉시 항목 선택 완료 및 창 닫기
         tabulatorInstance.on("rowDblClick", function(e, row) {
             chooseRow(row.getData());
         });
 
-        // 테이블 빌드 완료 시 정렬된 첫 번째 행 자동 선택 & 커서 안착
+        // 테이블 빌드 완료 시 키워드가 있으면 위치 이동, 없으면 첫 행 선택
         tabulatorInstance.on("tableBuilt", function() {
             if (initialKeyword && initialKeyword.trim()) {
-                applyFilter(initialKeyword);
+                scrollToMatchingRow(initialKeyword);
             } else {
-                setTimeout(focusFirstSortedRow, 40);
+                setTimeout(() => selectFirstSortedRow(false), 30);
             }
         });
 
-        // 헤더 클릭 정렬 등 정렬 이벤트 발생 시 첫 번째 행으로 커서 동기화
+        // 헤더 클릭 정렬 등 정렬 이벤트 발생 시 첫 번째 행으로 선택 동기화 (검색창 포커스 탈취 금지)
         tabulatorInstance.on("dataSorted", function() {
-            setTimeout(focusFirstSortedRow, 30);
+            const keepInputFocus = (document.activeElement === filterInput);
+            setTimeout(() => selectFirstSortedRow(!keepInputFocus), 30);
         });
 
-        // 실시간 필터 로직
-        function applyFilter(kw) {
-            const term = (kw || "").trim().toLowerCase();
-            if (!term) {
-                tabulatorInstance.clearFilter();
-            } else {
-                tabulatorInstance.setFilter(function(data) {
-                    for (let key in data) {
-                        if (key !== "_raw" && data[key] != null && String(data[key]).toLowerCase().includes(term)) {
-                            return true;
-                        }
-                    }
-                    return false;
-                });
-            }
-
-            // 필터링 후 정렬된 첫 번째 보이는 행에 자동 커서 안착
-            setTimeout(focusFirstSortedRow, 40);
-        }
-
-        // 실시간 검색어 입력 이벤트 (한글 조합 고려)
+        // 실시간 검색어 입력 이벤트 (한글 조합 고려) -> 위치 이동만 실행
         filterInput.addEventListener("input", function() {
-            applyFilter(filterInput.value);
+            scrollToMatchingRow(filterInput.value);
         });
         filterInput.addEventListener("compositionupdate", function() {
-            applyFilter(filterInput.value);
+            scrollToMatchingRow(filterInput.value);
         });
         filterInput.addEventListener("compositionend", function() {
-            applyFilter(filterInput.value);
+            scrollToMatchingRow(filterInput.value);
         });
 
-        // 필터조회 버튼 클릭
+        // 필터조회 버튼 클릭 -> 필터 실행
         filterBtn.onclick = function() {
             applyFilter(filterInput.value);
         };
 
-        // 검색창 키보드 탐색 (아래 방향키 입력 시 그리드 첫 번째 행으로 커서 이동)
+        // 검색창 키보드 탐색: Enter키 입력 시 필터 조회 실행
         filterInput.onkeydown = function(e) {
             if (e.key === "Enter") {
                 e.preventDefault();
                 if (e.isComposing) return;
-
-                const selected = tabulatorInstance.getSelectedRows();
-                if (selected && selected.length > 0) {
-                    chooseRow(selected[0].getData());
-                } else {
-                    const visible = tabulatorInstance.getRows("visible");
-                    if (visible && visible.length > 0) {
-                        chooseRow(visible[0].getData());
-                    }
-                }
+                applyFilter(filterInput.value);
             } else if (e.key === "ArrowDown") {
                 e.preventDefault();
-                focusFirstSortedRow();
+                selectFirstSortedRow(true);
             }
         };
 
-        // 그리드 영역 키보드 탐색 (위/아래 방향키 행 이동, Enter 선택 확정, 문자 타이핑 시 검색창 인계)
+        // 그리드 영역 키보드 탐색 (위/아래 방향키 행 이동, 문자 타이핑 시 검색창 인계)
         gridContainer.addEventListener("keydown", function(e) {
             const visibleRows = tabulatorInstance.getRows("visible");
             if (!visibleRows || visibleRows.length === 0) return;
@@ -571,13 +652,6 @@ window.DynamicCodeSearch = (function() {
                 } else {
                     focusRowByIndex(curIdx - 1);
                 }
-            } else if (e.key === "Enter") {
-                e.preventDefault();
-                if (selected && selected.length > 0) {
-                    chooseRow(selected[0].getData());
-                } else if (visibleRows.length > 0) {
-                    chooseRow(visibleRows[0].getData());
-                }
             } else if (e.key === "Escape") {
                 e.preventDefault();
                 closeModal();
@@ -585,25 +659,23 @@ window.DynamicCodeSearch = (function() {
                 // 사용자가 행에 커서가 있는 상태에서 일반 문자/숫자/한글을 타이핑하면 상단 검색창으로 포커스 인계
                 filterInput.focus();
                 filterInput.value += e.key;
-                applyFilter(filterInput.value);
+                scrollToMatchingRow(filterInput.value);
                 e.preventDefault();
             }
         });
 
-        // 모달 윈도우 엔터키 폴백
-        modalWindow.onkeydown = function(e) {
-            if (e.key === "Enter" && e.target !== filterInput && !gridContainer.contains(e.target)) {
-                const selected = tabulatorInstance.getSelectedRows();
-                if (selected && selected.length > 0) {
-                    chooseRow(selected[0].getData());
-                }
-            }
-        };
-
-        // [사용자 요구] 모달창이 뜰 때 sorting된 첫 번째 행에 커서(포커스)가 가있도록 안착
+        // 모달창 오픈 시: 첫 행 선택 유지 및 검색창에 포커스 부여 (지속적인 검색어 입력 및 백스페이스 보장)
         setTimeout(() => {
-            focusFirstSortedRow();
-        }, 80);
+            if (initialKeyword && initialKeyword.trim()) {
+                scrollToMatchingRow(initialKeyword);
+            } else {
+                selectFirstSortedRow(false);
+            }
+            if (filterInput) {
+                filterInput.focus();
+                if (filterInput.value) filterInput.select();
+            }
+        }, 60);
     }
 
     function escapeHtml(str) {

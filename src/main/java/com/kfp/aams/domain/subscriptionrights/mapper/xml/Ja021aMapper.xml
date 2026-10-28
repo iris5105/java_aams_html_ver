@@ -195,4 +195,11 @@
            AND BALH_CO = #{balhCo}
     </delete>
 
+    <!-- 6. 운용사명 조회 (SZX0AA.COMPANY_NAME) -->
+    <select id="selectCompanyName" resultType="java.lang.String">
+        SELECT TRIM(company_name)
+          FROM SZX0AA
+         WHERE TRIM(corp_gr) = TRIM(#{corpGr})
+    </select>
+
 </mapper>
