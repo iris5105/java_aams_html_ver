@@ -21,10 +21,19 @@ public class LoginResponseDto {
     private String userNm;
     private String encEMail;
     private String companyName;
+    private String corpNm;
     private String hyunYmd;
     private String workDate;
     private String junyongDate;
     private String workYmd;
     private String junyongYmd;
     private String customerGr;
+
+    public String getCorpNm() {
+        return (corpNm != null && !corpNm.isBlank()) ? corpNm : companyName;
+    }
+
+    public String getCompanyName() {
+        return (companyName != null && !companyName.isBlank()) ? companyName : corpNm;
+    }
 }

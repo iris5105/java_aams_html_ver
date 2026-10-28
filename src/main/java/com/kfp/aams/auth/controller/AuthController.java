@@ -212,6 +212,24 @@ public class AuthController {
         junyongYmdCookie.setMaxAge(30 * 24 * 60 * 60);
         response.addCookie(junyongYmdCookie);
 
+        // Set corpNm & companyName Cookie for client scripts (30 days)
+        String loginCompanyName = userDto.getCompanyName();
+        if (loginCompanyName == null || loginCompanyName.isBlank()) {
+            loginCompanyName = userQueryDslRepository.findCompanyNameByCorpGr(userDto.getCorpGr());
+        }
+        if (loginCompanyName != null && !loginCompanyName.isBlank()) {
+            String encCompanyName = java.net.URLEncoder.encode(loginCompanyName.trim(), java.nio.charset.StandardCharsets.UTF_8);
+            Cookie corpNmCookie = new Cookie("corpNm", encCompanyName);
+            corpNmCookie.setPath("/");
+            corpNmCookie.setMaxAge(30 * 24 * 60 * 60);
+            response.addCookie(corpNmCookie);
+
+            Cookie companyNameCookie = new Cookie("companyName", encCompanyName);
+            companyNameCookie.setPath("/");
+            companyNameCookie.setMaxAge(30 * 24 * 60 * 60);
+            response.addCookie(companyNameCookie);
+        }
+
         // Set adminYn Cookie for client scripts (30 days)
         Cookie adminYnCookie = new Cookie("adminYn", userDto.getAdminYn() != null ? userDto.getAdminYn() : "N");
         adminYnCookie.setPath("/");
@@ -224,8 +242,8 @@ public class AuthController {
         clearAdminCookie.setMaxAge(0);
         response.addCookie(clearAdminCookie);
 
-        log.info("User {} logged in successfully (adminYn: {}). Assigned corpGr: {}, workDate: {}, junyongDate: {}.", userDto.getUserId(),
-                userDto.getAdminYn(), userDto.getCorpGr(), workDate, junyongDate);
+        log.info("User {} logged in successfully (adminYn: {}). Assigned corpGr: {}, companyName: {}, workDate: {}, junyongDate: {}.", userDto.getUserId(),
+                userDto.getAdminYn(), userDto.getCorpGr(), loginCompanyName, workDate, junyongDate);
 
         return ResponseEntity.ok(LoginResponseDto.builder()
                 .success(true)
@@ -236,7 +254,8 @@ public class AuthController {
                 .userNm(userDto.getUserNm())
                 .corpGr(userDto.getCorpGr())
                 .encEMail(userDto.getEncEMail())
-                .companyName(userDto.getCompanyName())
+                .companyName(loginCompanyName != null ? loginCompanyName.trim() : userDto.getCompanyName())
+                .corpNm(loginCompanyName != null ? loginCompanyName.trim() : userDto.getCompanyName())
                 .hyunYmd(userDto.getHyunYmd())
                 .workDate(workDate)
                 .workYmd(workDate)
@@ -261,6 +280,18 @@ public class AuthController {
             return ResponseEntity.badRequest().body(Map.of("success", false, "message", "변경할 회사 코드가 필요합니다."));
         }
 
+        String reqCorpNm = request != null ? request.get("corpNm") : null;
+        if (reqCorpNm == null || reqCorpNm.isBlank()) {
+            reqCorpNm = request != null ? request.get("companyName") : null;
+        }
+
+        String companyName = userQueryDslRepository.findCompanyNameByCorpGr(newCorpGr);
+        if (companyName == null || companyName.isBlank()) {
+            companyName = (reqCorpNm != null && !reqCorpNm.isBlank()) ? reqCorpNm.trim() : (principal.getCompanyName() != null ? principal.getCompanyName().trim() : "");
+        } else {
+            companyName = companyName.trim();
+        }
+
         UserDto updatedUserDto = UserDto.builder()
                 .userId(principal.getUserId())
                 .userNm(principal.getUserNm())
@@ -275,7 +306,7 @@ public class AuthController {
                 .bookmarkStart(principal.getBookmarkStart())
                 .lastConnect(principal.getLastConnect())
                 .encEMail(principal.getEncEMail())
-                .companyName(principal.getCompanyName())
+                .companyName(companyName)
                 .hyunYmd(principal.getHyunYmd())
                 .customerGr(principal.getCustomerGr())
                 .build();
@@ -343,6 +374,20 @@ public class AuthController {
         junyongYmdCookie.setMaxAge(30 * 24 * 60 * 60);
         response.addCookie(junyongYmdCookie);
 
+        // Set corpNm & companyName Cookie for client scripts (30 days)
+        if (companyName != null && !companyName.isBlank()) {
+            String encCompanyName = java.net.URLEncoder.encode(companyName, java.nio.charset.StandardCharsets.UTF_8);
+            Cookie corpNmCookie = new Cookie("corpNm", encCompanyName);
+            corpNmCookie.setPath("/");
+            corpNmCookie.setMaxAge(30 * 24 * 60 * 60);
+            response.addCookie(corpNmCookie);
+
+            Cookie companyNameCookie = new Cookie("companyName", encCompanyName);
+            companyNameCookie.setPath("/");
+            companyNameCookie.setMaxAge(30 * 24 * 60 * 60);
+            response.addCookie(companyNameCookie);
+        }
+
         if (principal.getUserId() != null && !principal.getUserId().isBlank()) {
             Cookie userIdCookie = new Cookie("userId", CookieCryptoUtil.encrypt(principal.getUserId()));
             userIdCookie.setPath("/");
@@ -355,11 +400,14 @@ public class AuthController {
         clearUserIdCookie.setMaxAge(0);
         response.addCookie(clearUserIdCookie);
 
-        log.info("User {} switched company corpGr to {}, workDate: {}, junyongDate: {}", principal.getUserId(), newCorpGr, switchedWorkDate, switchedJunyongDate);
+        log.info("User {} switched company corpGr to {}, companyName: {}, workDate: {}, junyongDate: {}",
+                principal.getUserId(), newCorpGr, companyName, switchedWorkDate, switchedJunyongDate);
 
         return ResponseEntity.ok(Map.of(
                 "success", true,
                 "corpGr", newCorpGr,
+                "corpNm", companyName != null ? companyName : "",
+                "companyName", companyName != null ? companyName : "",
                 "workDate", switchedWorkDate,
                 "junyongDate", switchedJunyongDate,
                 "workYmd", switchedWorkDate,

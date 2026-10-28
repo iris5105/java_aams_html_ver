@@ -31,10 +31,13 @@ public class Ja021aController {
     @GetMapping({"/views/w_ja021a", "/views/subscriptionrights/w_ja021a"})
     public String viewJa021a(@AuthenticationPrincipal Object principalObj,
                              @RequestParam(name = "corpGr", required = false) String paramCorpGr,
+                             @RequestParam(name = "corpNm", required = false) String paramCorpNm,
                              @RequestParam(name = "ymd", required = false) String paramYmd,
                              @CookieValue(name = "savedCorpGr", required = false) String cookieCorpGr1,
                              @CookieValue(name = "corpGr", required = false) String cookieCorpGr2,
                              @CookieValue(name = "userCorpGr", required = false) String cookieCorpGr3,
+                             @CookieValue(name = "corpNm", required = false) String cookieCorpNm1,
+                             @CookieValue(name = "companyName", required = false) String cookieCorpNm2,
                              Model model) {
         UserPrincipal principal = (principalObj instanceof UserPrincipal p) ? p : null;
         String cookieCorpGr = (cookieCorpGr1 != null && !cookieCorpGr1.isBlank()) ? cookieCorpGr1
@@ -54,23 +57,27 @@ public class Ja021aController {
                 ? paramYmd
                 : ja021aService.getWorkDate(corpGr);
 
-        // 운용사명 연동 (SZX0AA.COMPANY_NAME)
-        // 1) corpGr이 존재하면 SZX0AA 테이블에서 실제 회사명 우선 조회
-        String corpNm = "";
-        if (corpGr != null && !corpGr.isBlank()) {
+        // 운용사명 연동 (SZX0AA.COMPANY_NAME 또는 클라이언트 파라미터/쿠키/세션)
+        String corpNm = (paramCorpNm != null && !paramCorpNm.isBlank()) ? paramCorpNm.trim() : "";
+
+        if (corpNm.isBlank()) {
+            String cNm1 = decodeCookie(cookieCorpNm1);
+            String cNm2 = decodeCookie(cookieCorpNm2);
+            if (!cNm1.isBlank()) corpNm = cNm1;
+            else if (!cNm2.isBlank()) corpNm = cNm2;
+        }
+
+        if (corpNm.isBlank() && corpGr != null && !corpGr.isBlank()) {
             corpNm = ja021aService.getCompanyName(corpGr);
         }
 
-        // 2) corpNm이 비어있거나 조회가 안 된 경우 principal 정보 활용
-        if ((corpNm == null || corpNm.isBlank()) && principal != null) {
+        if (corpNm.isBlank() && principal != null) {
             if (principal.getCompanyName() != null && !principal.getCompanyName().isBlank()) {
                 corpNm = principal.getCompanyName().trim();
             }
             if ((corpGr == null || corpGr.isBlank()) && principal.getCorpGr() != null && !principal.getCorpGr().isBlank()) {
                 corpGr = principal.getCorpGr().trim();
-                if (corpNm == null || corpNm.isBlank()) {
-                    corpNm = ja021aService.getCompanyName(corpGr);
-                }
+                corpNm = ja021aService.getCompanyName(corpGr);
             }
         }
 
@@ -85,6 +92,15 @@ public class Ja021aController {
         model.addAttribute("ymd", workDate);
 
         return "views/subscriptionrights/w_ja021a";
+    }
+
+    private String decodeCookie(String value) {
+        if (value == null || value.isBlank()) return "";
+        try {
+            return java.net.URLDecoder.decode(value, java.nio.charset.StandardCharsets.UTF_8).trim();
+        } catch (Exception e) {
+            return value.trim();
+        }
     }
 
     /**

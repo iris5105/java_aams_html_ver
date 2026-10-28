@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
 <div class="view-container layout-split-v layout-mobile-stack-container" th:fragment="mainView"
-     th:attr="data-work-date=${workDate}, data-corp-nm=${corpNm}"
+     th:attr="data-work-date=${workDate}, data-corp-nm=${corpNm}, data-company-name=${corpNm}"
      style="display: flex; flex-direction: column; height: 100%; width: 100%; overflow: hidden; background-color: #ffffff; position: relative;">
 
     <!-- 1. 상단 공통 툴바 (Row 1) -->
@@ -145,17 +145,19 @@
                 }
 
                 // 구분2 (배당적용대상): '%' (전운용사적용) vs corpGr (운용사명, PB gaa.corp_nm)
-                const selectDddw2 = pane.querySelector('#filterDddw2, select[name="dddw2"]');
-                if (selectDddw2) {
-                    const serverCorpNm = (pane.getAttribute('data-corp-nm') || '').trim();
-                    let corpNm = (serverCorpNm && serverCorpNm !== '자사적용') ? serverCorpNm : '';
-                    if (!corpNm) {
-                        corpNm = (window.currentCompanyName || sessionStorage.getItem('companyName') || '').trim();
+                function renderFilterDddw2(cNm) {
+                    const selectDddw2 = pane.querySelector('#filterDddw2, select[name="dddw2"]');
+                    if (!selectDddw2) return;
+
+                    const curCorpGr = (typeof resolveCorpGr === 'function') ? resolveCorpGr(pane) : '';
+                    let finalNm = (cNm && cNm !== '자사적용') ? cNm : (typeof resolveCorpNm === 'function' ? resolveCorpNm(pane) : '');
+                    if (!finalNm || finalNm === '자사적용') {
+                        finalNm = (window.currentCompanyName || sessionStorage.getItem('corpNm') || sessionStorage.getItem('companyName') || '').trim();
                     }
-                    const targetName = corpNm ? corpNm : (corpGr ? `자사적용(${corpGr})` : '자사적용');
+                    const targetName = finalNm ? finalNm : (curCorpGr ? `자사적용(${curCorpGr})` : '자사적용');
                     const options = [
                         { code: "%", name: "전운용사적용" },
-                        { code: corpGr, name: targetName }
+                        { code: curCorpGr, name: targetName }
                     ];
 
                     if (window.f_dddwctl && typeof window.f_dddwctl.get2ColItemFormatter === 'function') {
@@ -168,9 +170,23 @@
                             }
                         });
                     } else {
-                        selectDddw2.innerHTML = '<option value="%">전운용사적용</option><option value="' + corpGr + '">' + targetName + '</option>';
+                        selectDddw2.innerHTML = '<option value="%">전운용사적용</option><option value="' + curCorpGr + '">' + targetName + '</option>';
+                    }
+
+                    // 회사명이 아직 없으면 백엔드 비동기 API로 조회하여 레이블 즉시 갱신
+                    if (!finalNm && curCorpGr) {
+                        fetch(`/api/subscriptionrights/ja021a/company-name?corpGr=${encodeURIComponent(curCorpGr)}`)
+                            .then(r => r.json())
+                            .then(res => {
+                                if (res && res.companyName && res.companyName.trim()) {
+                                    pane.setAttribute('data-corp-nm', res.companyName.trim());
+                                    renderFilterDddw2(res.companyName.trim());
+                                }
+                            })
+                            .catch(() => {});
                     }
                 }
+                renderFilterDddw2();
 
                 // 파워빌더 dw_list::ue_dddw_retrieve 100% 반영:
                 // F_DDDWCTL (THIS, 'baed_mth', gaa.corp_gr, '', 1, "")

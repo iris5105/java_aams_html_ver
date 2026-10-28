@@ -118,6 +118,58 @@ function resolveCorpGr(pane) {
 
     return "";
 }
+
+/**
+ * 활성 화면/세션의 운용사명(corpNm, companyName) 추출 공통 헬퍼
+ */
+function resolveCorpNm(pane) {
+    if (!pane && window.currentPane) pane = window.currentPane;
+
+    // 1. 현재 화면/탭 pane에 서버가 주입한 data-corp-nm 또는 data-company-name 속성
+    if (pane && typeof pane.getAttribute === 'function') {
+        const paneCorpNm = pane.getAttribute('data-corp-nm') || pane.getAttribute('data-company-name');
+        if (paneCorpNm && paneCorpNm.trim() && paneCorpNm.trim() !== '자사적용') {
+            return paneCorpNm.trim();
+        }
+    }
+
+    // 2. MDI 전역 변수
+    if (window.currentCompanyName && String(window.currentCompanyName).trim()) {
+        return String(window.currentCompanyName).trim();
+    }
+    if (window.currentCorpNm && String(window.currentCorpNm).trim()) {
+        return String(window.currentCorpNm).trim();
+    }
+
+    // 3. sessionStorage
+    try {
+        const sCorpNm = sessionStorage.getItem('corpNm') || sessionStorage.getItem('companyName');
+        if (sCorpNm && sCorpNm.trim()) return sCorpNm.trim();
+    } catch(e) {}
+
+    // 4. localStorage
+    try {
+        const lCorpNm = localStorage.getItem('corpNm') || localStorage.getItem('companyName');
+        if (lCorpNm && lCorpNm.trim()) return lCorpNm.trim();
+    } catch(e) {}
+
+    // 5. 쿠키 (corpNm, companyName)
+    const mCorpNm = document.cookie.match(/(?:^|;\s*)corpNm=([^;]*)/)
+                 || document.cookie.match(/(?:^|;\s*)companyName=([^;]*)/);
+    if (mCorpNm && mCorpNm[1]) {
+        try {
+            return decodeURIComponent(mCorpNm[1]).trim();
+        } catch(e) {
+            return mCorpNm[1].trim();
+        }
+    }
+
+    return "";
+}
+
+function getFilterCorpNm(pane) {
+    return resolveCorpNm(pane);
+}
 window.resolveCorpGr = resolveCorpGr;
 window.getFilterCorpGr = resolveCorpGr;
 
@@ -1217,9 +1269,10 @@ function renderCompanies(list) {
         const isActive = c.corpGr === activeCorpGr ? 'active' : '';
         const logoUrl = `/img/right_logo/fw_top_logo_right_${c.corpGr}.jpg`;
         const companyName = c.companyName || c.corpGr;
+        const safeCompanyName = (companyName || '').replace(/'/g, "\\'");
 
         return `
-            <div class="company-card ${isActive}" onclick="selectCompany('${c.corpGr}')">
+            <div class="company-card ${isActive}" onclick="selectCompany('${c.corpGr}', '${safeCompanyName}')">
                 <img src="${logoUrl}" alt="${companyName}" 
                      onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
                 <div class="company-card-fallback" style="display: none;">
@@ -1247,23 +1300,39 @@ function filterCompanies() {
     renderCompanies(filtered);
 }
 
-function selectCompany(corpGr) {
+function selectCompany(corpGr, companyName) {
     const activeCorpGr = window.currentCorpGr || '';
     if (corpGr === activeCorpGr) {
         closeCompanyModal();
         return;
     }
+
+    if (!companyName && window.allCompanies) {
+        const found = window.allCompanies.find(c => c.corpGr === corpGr);
+        if (found) companyName = found.companyName;
+    }
+
     fetch('/api/auth/switch-company', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ corpGr: corpGr })
+        body: JSON.stringify({ corpGr: corpGr, corpNm: companyName, companyName: companyName })
     })
     .then(res => res.json())
     .then(data => {
         if (data.success) {
-            // 1. 세션 스토리지에 변경된 회사의 회사코드 및 최신 영업일자/전영업일자 즉시 반영
+            const finalCorpNm = (data.corpNm || data.companyName || companyName || '').trim();
+
+            // 1. 세션 스토리지에 변경된 회사의 회사코드, 회사명 및 최신 영업일자/전영업일자 즉시 반영
             try {
                 if (data.corpGr) sessionStorage.setItem('corpGr', data.corpGr);
+                if (finalCorpNm) {
+                    sessionStorage.setItem('corpNm', finalCorpNm);
+                    sessionStorage.setItem('companyName', finalCorpNm);
+                    localStorage.setItem('corpNm', finalCorpNm);
+                    localStorage.setItem('companyName', finalCorpNm);
+                    document.cookie = "corpNm=" + encodeURIComponent(finalCorpNm) + "; path=/; max-age=2592000";
+                    document.cookie = "companyName=" + encodeURIComponent(finalCorpNm) + "; path=/; max-age=2592000";
+                }
                 if (data.workDate) {
                     sessionStorage.setItem('workDate', data.workDate);
                     sessionStorage.setItem('workYmd', data.workDate);
@@ -1284,6 +1353,7 @@ function selectCompany(corpGr) {
 
             // 3. 전역 변수 및 WorkDateSyncManager 동기화
             if (data.corpGr) window.currentCorpGr = data.corpGr;
+            if (finalCorpNm) window.currentCompanyName = finalCorpNm;
             if (data.workDate) window.currentWorkDate = data.workDate;
             if (data.junyongDate) window.currentJunyongDate = data.junyongDate;
             if (window.WorkDateSyncManager && typeof window.WorkDateSyncManager.saveWorkDateMap === 'function' && data.corpGr && data.workDate) {

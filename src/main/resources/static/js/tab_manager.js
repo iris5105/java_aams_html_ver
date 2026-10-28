@@ -558,10 +558,15 @@ class TabManager {
             if (pgmNo) queryParams.push(`pgmNo=${encodeURIComponent(pgmNo)}`);
             if (pgmGo) queryParams.push(`pgmGo=${encodeURIComponent(pgmGo)}`);
 
-            // 현재 활성 회사코드 추출
+            // 현재 활성 회사코드 및 회사명 추출
             const currentCorpGr = (typeof resolveCorpGr === 'function' ? resolveCorpGr() : '') || window.g_currentCorpGr || '';
             if (currentCorpGr) {
                 queryParams.push(`corpGr=${encodeURIComponent(currentCorpGr)}`);
+            }
+            const currentCorpNm = (typeof getFilterCorpNm === 'function' ? getFilterCorpNm() : '') 
+                || window.currentCompanyName || sessionStorage.getItem('corpNm') || sessionStorage.getItem('companyName') || '';
+            if (currentCorpNm) {
+                queryParams.push(`corpNm=${encodeURIComponent(currentCorpNm)}`);
             }
             // 최신 작업일자 추출 (WorkDateSyncManager)
             if (window.WorkDateSyncManager && typeof window.WorkDateSyncManager.getWorkDate === 'function') {

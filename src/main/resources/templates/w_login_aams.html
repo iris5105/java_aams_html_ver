@@ -291,6 +291,15 @@
                     localStorage.setItem('userId', data.userId);
                     localStorage.setItem('userNm', data.userNm || '');
                     localStorage.setItem('corpGr', data.corpGr);
+                    const corpNm = (data.corpNm || data.companyName || '').trim();
+                    if (corpNm) {
+                        localStorage.setItem('corpNm', corpNm);
+                        localStorage.setItem('companyName', corpNm);
+                        sessionStorage.setItem('corpNm', corpNm);
+                        sessionStorage.setItem('companyName', corpNm);
+                        document.cookie = "corpNm=" + encodeURIComponent(corpNm) + "; path=/; max-age=2592000";
+                        document.cookie = "companyName=" + encodeURIComponent(corpNm) + "; path=/; max-age=2592000";
+                    }
 
                     // 날짜(workDate, junyongDate)는 매일/회사별로 바뀌므로 localStorage에서 제거하고 sessionStorage에만 보관
                     localStorage.removeItem('workDate');

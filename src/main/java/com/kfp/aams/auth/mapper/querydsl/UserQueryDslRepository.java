@@ -66,4 +66,20 @@ public class UserQueryDslRepository {
                         .and(user.userId.eq(userId).or(user.encEMail.eq(QueryDslUtils.toEncrypts(userId)))))
                 .fetchFirst();
     }
+
+    /**
+     * SZX0AA 테이블에서 corp_gr로 COMPANY_NAME 조회
+     */
+    public String findCompanyNameByCorpGr(String corpGr) {
+        if (corpGr == null || corpGr.isBlank()) {
+            return "";
+        }
+        QSzx0aa company = QSzx0aa.szx0aa;
+        String name = queryFactory
+                .select(company.companyName)
+                .from(company)
+                .where(company.corpGr.trim().eq(corpGr.trim()))
+                .fetchFirst();
+        return name != null ? name.trim() : "";
+    }
 }
