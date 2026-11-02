@@ -1,0 +1,1025 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<div class="view-container layout-single ja031a-container layout-mobile-stack-container" th:fragment="mainView" data-pgm-id="W_JA031A"
+     th:attr="data-work-date=${workDate},data-corp-gr=${corpGr}"
+     style="display: flex; flex-direction: column; height: 100%; width: 100%; overflow: hidden; background-color: #ffffff; position: relative;">
+
+    <!-- 1. 상단 공통 툴바 -->
+    <div class="view-toolbar">
+        <div class="toolbar-left">
+            <div th:replace="~{fragments/tab_header :: toolbarButtons}"></div>
+        </div>
+        <div th:replace="~{fragments/tab_header :: toolbarBreadcrumb}"></div>
+    </div>
+
+    <!-- 2. 상단 필터바 (dc_ymd_dddw + 만기거래생성 액션 버튼 인접 배치 - 규칙 08 준수) -->
+    <div class="filter-bar">
+        <div class="filter-left">
+            <div th:replace="~{fragments/filter/dc_ymd_dddw :: filter(labelYmd='영업일자', labelDddw='매매구분')}"></div>
+            <button type="button" class="t-btn btn-action" id="btnCreateExpiryTr" title="선물/옵션 만기거래생성 실행" style="margin-left: 8px;">
+                <i class="fa-solid fa-calendar-check"></i> 만기거래생성
+            </button>
+        </div>
+    </div>
+
+    <!-- 3. 메인 그리드 영역 (d_ja031a1.srd 1:1 반영) -->
+    <div class="grid-section" style="flex: 1 1 auto; padding: 0 12px 10px; min-height: 0; display: flex; flex-direction: column;">
+        <div class="sub-grid-header" style="display: flex; align-items: center; justify-content: space-between; min-height: 28px; padding: 4px 10px; background: #f8fafc; border: 1px solid #cbd5e1; border-bottom: 0; flex-shrink: 0;">
+            <span class="sub-title" style="font-weight: 600; font-size: 13px; color: #1e293b;">
+                <i class="fa-solid fa-arrow-trend-up" style="margin-right: 6px; color: #3b82f6;"></i>선물매매 거래 목록
+            </span>
+            <div class="panel-actions">
+                <div th:replace="~{fragments/tab_header :: detailNav(targetGrid='#gridList', fileName='선물매매_거래목록', buttons='0010000001')}"></div>
+            </div>
+        </div>
+        <div class="grid-table-wrapper" style="flex: 1 1 auto; min-height: 290px; border: 1px solid #cbd5e1; position: relative; overflow: hidden;">
+            <div id="gridList" class="tabulator-aams-grid" style="height: 100%; width: 100%;"></div>
+        </div>
+    </div>
+
+    <!-- 4. 화면 전용 스크립트 -->
+    <script th:inline="javascript">
+        (function () {
+            const currentScript = document.currentScript;
+            const pane = currentScript ? (currentScript.closest('.tab-pane') || currentScript.closest('.view-container')) : null;
+            if (!pane) return;
+
+            const api = '/api/assetmanagement/ja031a';
+            const field = id => pane.querySelector('#' + id);
+
+            let initialYmd = /*[[${ymd}]]*/ '';
+            let workDate = /*[[${workDate}]]*/ '';
+            const initialCorpGr = /*[[${corpGr}]]*/ '';
+
+            let isInitialized = false;
+            let dataRequest = 0;
+            let codeRequest = 0;
+            let gridList = null;
+            let saving = false;
+            let loading = false;
+            let newRowSeq = 0;
+            let updatingCell = false;
+
+            const toNumber = val => {
+                if (val == null || val === '') return 0;
+                const n = Number(String(val).replace(/,/g, ''));
+                return isNaN(n) ? 0 : n;
+            };
+
+            const toDashYmd = val => {
+                if (!val) return '';
+                const s = String(val).replace(/[^\d]/g, '');
+                return s.length === 8 ? `${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6, 8)}` : String(val || '');
+            };
+
+            const toDotYmd = val => {
+                if (!val) return '';
+                const s = String(val).replace(/[^\d]/g, '');
+                return s.length === 8 ? `${s.slice(0, 4)}.${s.slice(4, 6)}.${s.slice(6, 8)}` : String(val || '');
+            };
+
+            function isManageableDate() {
+                const ymd = toDashYmd(field('filterYmd') ? field('filterYmd').value : initialYmd);
+                const wDate = toDashYmd(workDate || initialYmd);
+                return !ymd || !wDate || ymd >= wDate;
+            }
+
+            function updateExpiryButtonState() {
+                const btn = field('btnCreateExpiryTr');
+                if (!btn) return;
+                const manageable = isManageableDate();
+                btn.disabled = !manageable;
+                btn.style.opacity = manageable ? '1' : '0.5';
+                btn.style.cursor = manageable ? 'pointer' : 'not-allowed';
+            }
+
+            function canEditCell(cell) {
+                if (!cell) return false;
+                const rowData = cell.getRow().getData();
+                if (!rowData || rowData.isSummaryRow) return false;
+                if (!isManageableDate()) return false;
+                if (rowData.isNew) return true;
+                return Number(rowData.pVisible ?? 1) === 1;
+            }
+
+            // 합계 행 동적 재계산 (규칙 06 준수: Data Summary Row 패턴)
+            function recalcSummaryRow() {
+                if (!gridList) return;
+                const rows = gridList.getRows();
+                const normalRows = rows.filter(r => {
+                    const d = r.getData();
+                    return d && !d.isSummaryRow && !d.isDeleted;
+                });
+                const summaryRow = rows.find(r => {
+                    const d = r.getData();
+                    return d && d.isSummaryRow;
+                });
+
+                if (normalRows.length === 0) {
+                    if (summaryRow) summaryRow.delete();
+                    return;
+                }
+
+                let totalGyeySu = 0;
+                let totalGyeyAek = 0;
+                let totalYakjungAek = 0;
+                let totalChaAek = 0;
+
+                normalRows.forEach(r => {
+                    const d = r.getData();
+                    totalGyeySu += toNumber(d.gyeySu);
+                    totalGyeyAek += toNumber(d.gyeyAek);
+                    totalYakjungAek += toNumber(d.yakjungAek);
+                    totalChaAek += toNumber(d.chaAek);
+                });
+
+                const summaryData = {
+                    isSummaryRow: true,
+                    xxFundCd: '합계',
+                    fundNm: '합계',
+                    gyeySu: totalGyeySu,
+                    gyeyAek: totalGyeyAek,
+                    yakjungAek: totalYakjungAek,
+                    chaAek: totalChaAek
+                };
+
+                if (summaryRow) {
+                    summaryRow.update(summaryData);
+                } else {
+                    gridList.addRow(summaryData, false);
+                }
+            }
+
+            function markRowUpdated(row) {
+                const d = row.getData();
+                if (!d || d.isSummaryRow) return;
+                if (!d.isNew) {
+                    d.isUpdated = true;
+                    d.rowStatus = 'U';
+                }
+                const el = row.getElement();
+                if (el) el.classList.add('row-modified');
+            }
+
+            // 계산식 compute_3 (약정금액) 및 compute_6 (차액) 실시간 재계산
+            function recalcRowCalculatedFields(row) {
+                const d = row.getData();
+                if (!d || d.isSummaryRow) return;
+
+                const su = toNumber(d.gyeySu);
+                const jisu = toNumber(d.gyeyJisu);
+                const unit = toNumber(d.xxUnitAek) || 1;
+                const gyeyAek = toNumber(d.gyeyAek);
+
+                const yakjung = Math.round(su * jisu * unit);
+                const cha = gyeyAek - yakjung;
+
+                row.update({
+                    yakjungAek: yakjung,
+                    chaAek: cha
+                });
+            }
+
+            // --- 돋보기 모달 팝업 연동 ---
+            // 1. 선물종목 검색 모달 (dw_list::ue_setcodesearch 'sj_cd')
+            function openSjCdModal(row) {
+                const data = row.getData();
+                if (!data || data.isSummaryRow) return;
+                const trCd = field('filterDddw') ? field('filterDddw').value : 'S10';
+
+                // PB: SELECT sebu_cd_efnm FROM szx0gr WHERE gr_cd = 'B4' AND sebu_cd = :trCd
+                // sj_gb='...' 조건 매핑
+                if (window.DynamicCodeSearch && typeof window.DynamicCodeSearch.openModal === 'function') {
+                    window.DynamicCodeSearch.openModal({
+                        columnNm: 'sj_cd',
+                        seq: 1,
+                        corpGr: (typeof resolveCorpGr === 'function') ? resolveCorpGr(pane) : initialCorpGr,
+                        initialKeyword: data.sjCd || '',
+                        onSelect: function (code, name, rowData) {
+                            const unitAek = (rowData && rowData.unitAek) ? Number(rowData.unitAek) : (rowData && rowData.unit_aek ? Number(rowData.unit_aek) : 1);
+                            row.update({
+                                sjCd: code,
+                                xxSjCd: name,
+                                sjNm: name,
+                                xxUnitAek: unitAek,
+                                unitAek: unitAek
+                            });
+                            markRowUpdated(row);
+                            recalcRowCalculatedFields(row);
+                            recalcSummaryRow();
+                        }
+                    });
+                }
+            }
+
+            // 2. 관리번호(펀드) 검색 모달 (dw_list::ue_setcodesearch 'fund_cd')
+            function openFundCdModal(row) {
+                const data = row.getData();
+                if (!data || data.isSummaryRow) return;
+                if (window.DynamicCodeSearch && typeof window.DynamicCodeSearch.openModal === 'function') {
+                    window.DynamicCodeSearch.openModal({
+                        columnNm: 'fund_cd',
+                        seq: 1,
+                        corpGr: (typeof resolveCorpGr === 'function') ? resolveCorpGr(pane) : initialCorpGr,
+                        initialKeyword: data.fundCd || '',
+                        onSelect: function (code, name, rowData) {
+                            row.update({
+                                fundCd: code,
+                                xxFundCd: name,
+                                fundNm: name
+                            });
+                            markRowUpdated(row);
+                        }
+                    });
+                }
+            }
+
+            // 3. 수수료매매처 검색 모달 (dw_list::ue_setcodesearch 'susu_tr_co_cd')
+            function openSusuTrCoCdModal(row) {
+                const data = row.getData();
+                if (!data || data.isSummaryRow) return;
+                const corpGr = (typeof resolveCorpGr === 'function') ? resolveCorpGr(pane) : initialCorpGr;
+                const addWhere = `used='1' and tr_co_cd in (select tr_co_cd from ssm0ss where corp_gr='${corpGr}')`;
+
+                if (window.DynamicCodeSearch && typeof window.DynamicCodeSearch.openModal === 'function') {
+                    window.DynamicCodeSearch.openModal({
+                        columnNm: 'tr_co_cd',
+                        seq: 1,
+                        corpGr: corpGr,
+                        addWhere: addWhere,
+                        initialKeyword: data.susuTrCoCd || '',
+                        onSelect: function (code, name, rowData) {
+                            row.update({
+                                susuTrCoCd: code,
+                                xxSusuTrCoCd: name,
+                                susuTrCoNm: name
+                            });
+                            markRowUpdated(row);
+                        }
+                    });
+                }
+            }
+
+            // 셀 편집 완료 핸들러: 선물종목 검증 (PB dw_list::itemchanged 'sj_cd')
+            function onSjCdEdited(cell) {
+                const row = cell.getRow();
+                const d = row.getData();
+                if (!d || d.isSummaryRow) return;
+
+                const val = String(cell.getValue() || '').trim();
+                const trCd = field('filterDddw') ? field('filterDddw').value : 'S10';
+
+                if (val && val.length >= 4) {
+                    const ch4 = val.charAt(3);
+                    if (['S10', 'S11', 'S12', 'S20', 'S21', 'S22'].includes(trCd) && ch4 !== '1') {
+                        if (typeof showToast === 'function') showToast('선물종목을 확인하십시오.', 'warning');
+                    } else if (['S70', 'S71', 'S72', 'S80', 'S81', 'S82'].includes(trCd) && ch4 !== '2') {
+                        if (typeof showToast === 'function') showToast('선물종목을 확인하십시오.', 'warning');
+                    } else if (['S90', 'S91', 'S92', 'SA0', 'SA1', 'SA2'].includes(trCd) && ch4 !== '3') {
+                        if (typeof showToast === 'function') showToast('선물종목을 확인하십시오.', 'warning');
+                    }
+                }
+
+                markRowUpdated(row);
+
+                // 단위승수 동적 조회
+                if (val) {
+                    const corpGr = (typeof resolveCorpGr === 'function') ? resolveCorpGr(pane) : initialCorpGr;
+                    fetch(`${api}/unit-aek?` + new URLSearchParams({ corpGr: corpGr, sjCd: val }))
+                        .then(r => r.json())
+                        .then(res => {
+                            if (res && res.unitAek != null) {
+                                row.update({ xxUnitAek: res.unitAek, unitAek: res.unitAek });
+                                recalcRowCalculatedFields(row);
+                                recalcSummaryRow();
+                            }
+                        })
+                        .catch(() => {});
+                }
+            }
+
+            function onAmountEdited(cell) {
+                if (updatingCell) return;
+                const row = cell.getRow();
+                const d = row.getData();
+                if (!d || d.isSummaryRow) return;
+
+                updatingCell = true;
+                try {
+                    markRowUpdated(row);
+                    recalcRowCalculatedFields(row);
+                    recalcSummaryRow();
+                } finally {
+                    updatingCell = false;
+                }
+            }
+
+            function initGrid() {
+                const el = field('gridList');
+                if (!el) return;
+
+                gridList = new Tabulator(el, {
+                    height: '100%',
+                    layout: 'fitDataFill',
+                    selectableRows: 1,
+                    selectableRowsCheck: row => !row.getData().isSummaryRow,
+                    editTriggerEvent: 'click',
+                    placeholder: '조회된 데이터가 없습니다.',
+                    rowFormatter: function (row) {
+                        const d = row.getData();
+                        if (d && d.isSummaryRow) {
+                            row.getElement().classList.add('aams-summary-row');
+                        }
+                    },
+                    columns: [
+                        {
+                            title: 'No.',
+                            width: 50,
+                            hozAlign: 'center',
+                            headerHozAlign: 'center',
+                            headerSort: false,
+                            resizable: false,
+                            formatter: function (cell) {
+                                const d = cell.getRow().getData();
+                                if (d && d.isSummaryRow) return '';
+                                return cell.getRow().getPosition();
+                            }
+                        },
+                        {
+                            title: '선물종목',
+                            field: 'sjCd',
+                            width: 110,
+                            hozAlign: 'center',
+                            headerHozAlign: 'center',
+                            headerCssClass: 'col-hdr-blue',
+                            editor: 'input',
+                            editable: canEditCell,
+                            cellClick: typeof aamsCellEdit === 'function' ? aamsCellEdit : undefined,
+                            formatter: function (cell) {
+                                const d = cell.getRow().getData();
+                                if (d && d.isSummaryRow) return '';
+                                return cell.getValue() || '';
+                            },
+                            cellEdited: onSjCdEdited
+                        },
+                        {
+                            title: '',
+                            field: 'xx_btn_sjCd',
+                            width: 36,
+                            minWidth: 36,
+                            maxWidth: 36,
+                            hozAlign: 'center',
+                            headerSort: false,
+                            resizable: false,
+                            formatter: function (cell) {
+                                const d = cell.getRow().getData();
+                                if (d && d.isSummaryRow) return '';
+                                const disClass = canEditCell(cell) ? '' : 'disabled';
+                                return `<button type="button" class="btn-grid-addon btn-search ${disClass}" title="선물종목 검색"><i class="fa-solid fa-magnifying-glass"></i></button>`;
+                            },
+                            cellClick: function (e, cell) {
+                                e.stopPropagation();
+                                const row = cell.getRow();
+                                const d = row.getData();
+                                if (!d || d.isSummaryRow) return;
+                                if (!canEditCell(cell)) {
+                                    gridList.deselectRow();
+                                    row.select();
+                                    return;
+                                }
+                                openSjCdModal(row);
+                            }
+                        },
+                        {
+                            title: '선물종목명',
+                            field: 'xxSjCd',
+                            width: 180,
+                            hozAlign: 'left',
+                            headerHozAlign: 'center',
+                            formatter: function (cell) {
+                                const d = cell.getRow().getData();
+                                if (d && d.isSummaryRow) return '';
+                                return cell.getValue() || '';
+                            }
+                        },
+                        {
+                            title: '관리번호',
+                            field: 'fundCd',
+                            width: 100,
+                            hozAlign: 'center',
+                            headerHozAlign: 'center',
+                            headerCssClass: 'col-hdr-green',
+                            editor: 'input',
+                            editable: canEditCell,
+                            cellClick: typeof aamsCellEdit === 'function' ? aamsCellEdit : undefined,
+                            formatter: function (cell) {
+                                const d = cell.getRow().getData();
+                                if (d && d.isSummaryRow) return '';
+                                const val = cell.getValue() || '';
+                                return `<span class="cell-text-green">${val}</span>`;
+                            },
+                            cellEdited: function (cell) {
+                                const row = cell.getRow();
+                                markRowUpdated(row);
+                            }
+                        },
+                        {
+                            title: '',
+                            field: 'xx_btn_fundCd',
+                            width: 36,
+                            minWidth: 36,
+                            maxWidth: 36,
+                            hozAlign: 'center',
+                            headerSort: false,
+                            resizable: false,
+                            formatter: function (cell) {
+                                const d = cell.getRow().getData();
+                                if (d && d.isSummaryRow) return '';
+                                const disClass = canEditCell(cell) ? '' : 'disabled';
+                                return `<button type="button" class="btn-grid-addon btn-search ${disClass}" title="관리번호 검색"><i class="fa-solid fa-magnifying-glass"></i></button>`;
+                            },
+                            cellClick: function (e, cell) {
+                                e.stopPropagation();
+                                const row = cell.getRow();
+                                const d = row.getData();
+                                if (!d || d.isSummaryRow) return;
+                                if (!canEditCell(cell)) {
+                                    gridList.deselectRow();
+                                    row.select();
+                                    return;
+                                }
+                                openFundCdModal(row);
+                            }
+                        },
+                        {
+                            title: '계좌명',
+                            field: 'xxFundCd',
+                            width: 190,
+                            hozAlign: 'left',
+                            headerHozAlign: 'center',
+                            formatter: function (cell) {
+                                const d = cell.getRow().getData();
+                                if (d && d.isSummaryRow) {
+                                    return '<div style="text-align: center; font-weight: bold; width: 100%;">합계</div>';
+                                }
+                                return cell.getValue() || '';
+                            }
+                        },
+                        {
+                            title: '수량',
+                            field: 'gyeySu',
+                            width: 100,
+                            hozAlign: 'right',
+                            headerHozAlign: 'center',
+                            cssClass: 'cell-editable-blue',
+                            editor: 'input',
+                            editable: canEditCell,
+                            cellClick: typeof aamsCellEdit === 'function' ? aamsCellEdit : undefined,
+                            formatter: function (cell) {
+                                const d = cell.getRow().getData();
+                                const val = cell.getValue();
+                                const str = val != null && val !== ''
+                                    ? (typeof window.formatNumber === 'function' ? window.formatNumber(val, 0) : Number(val).toLocaleString())
+                                    : '0';
+                                if (d && d.isSummaryRow) return `<span class="font-bold">${str}</span>`;
+                                return str;
+                            },
+                            cellEdited: onAmountEdited
+                        },
+                        {
+                            title: '지수 /<br>환율',
+                            field: 'gyeyJisu',
+                            width: 110,
+                            hozAlign: 'right',
+                            headerHozAlign: 'center',
+                            cssClass: 'cell-editable-blue',
+                            editor: 'input',
+                            editable: canEditCell,
+                            cellClick: typeof aamsCellEdit === 'function' ? aamsCellEdit : undefined,
+                            formatter: function (cell) {
+                                const d = cell.getRow().getData();
+                                if (d && d.isSummaryRow) return '';
+                                const val = cell.getValue();
+                                if (val == null || val === '') return '0.00';
+                                return Number(val).toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 3 });
+                            },
+                            cellEdited: onAmountEdited
+                        },
+                        {
+                            title: '증거금<br>(계약금액)',
+                            field: 'gyeyAek',
+                            width: 130,
+                            hozAlign: 'right',
+                            headerHozAlign: 'center',
+                            cssClass: 'cell-editable-blue',
+                            editor: 'input',
+                            editable: canEditCell,
+                            cellClick: typeof aamsCellEdit === 'function' ? aamsCellEdit : undefined,
+                            formatter: function (cell) {
+                                const d = cell.getRow().getData();
+                                const val = cell.getValue();
+                                const str = val != null && val !== ''
+                                    ? (typeof window.formatNumber === 'function' ? window.formatNumber(val, 0) : Number(val).toLocaleString())
+                                    : '0';
+                                if (d && d.isSummaryRow) return `<span class="font-bold">${str}</span>`;
+                                return str;
+                            },
+                            cellEdited: onAmountEdited
+                        },
+                        {
+                            title: '약정금액',
+                            field: 'yakjungAek',
+                            width: 130,
+                            hozAlign: 'right',
+                            headerHozAlign: 'center',
+                            formatter: function (cell) {
+                                const d = cell.getRow().getData();
+                                const val = cell.getValue();
+                                const str = val != null && val !== ''
+                                    ? (typeof window.formatNumber === 'function' ? window.formatNumber(val, 0) : Number(val).toLocaleString())
+                                    : '0';
+                                if (d && d.isSummaryRow) return `<span class="font-bold">${str}</span>`;
+                                return str;
+                            }
+                        },
+                        {
+                            title: '차액',
+                            field: 'chaAek',
+                            width: 110,
+                            hozAlign: 'right',
+                            headerHozAlign: 'center',
+                            formatter: function (cell) {
+                                const d = cell.getRow().getData();
+                                const val = cell.getValue();
+                                const str = val != null && val !== ''
+                                    ? (typeof window.formatNumber === 'function' ? window.formatNumber(val, 0) : Number(val).toLocaleString())
+                                    : '0';
+                                if (d && d.isSummaryRow) return `<span class="font-bold">${str}</span>`;
+                                return str;
+                            }
+                        },
+                        {
+                            title: '수수료<br>매매처',
+                            field: 'susuTrCoCd',
+                            width: 100,
+                            hozAlign: 'center',
+                            headerHozAlign: 'center',
+                            cssClass: 'cell-editable-blue',
+                            editor: 'input',
+                            editable: canEditCell,
+                            cellClick: typeof aamsCellEdit === 'function' ? aamsCellEdit : undefined,
+                            formatter: function (cell) {
+                                const d = cell.getRow().getData();
+                                if (d && d.isSummaryRow) return '';
+                                return cell.getValue() || '';
+                            },
+                            cellEdited: function (cell) {
+                                const row = cell.getRow();
+                                markRowUpdated(row);
+                            }
+                        },
+                        {
+                            title: '',
+                            field: 'xx_btn_susuTrCoCd',
+                            width: 36,
+                            minWidth: 36,
+                            maxWidth: 36,
+                            hozAlign: 'center',
+                            headerSort: false,
+                            resizable: false,
+                            formatter: function (cell) {
+                                const d = cell.getRow().getData();
+                                if (d && d.isSummaryRow) return '';
+                                const disClass = canEditCell(cell) ? '' : 'disabled';
+                                return `<button type="button" class="btn-grid-addon btn-search ${disClass}" title="수수료매매처 검색"><i class="fa-solid fa-magnifying-glass"></i></button>`;
+                            },
+                            cellClick: function (e, cell) {
+                                e.stopPropagation();
+                                const row = cell.getRow();
+                                const d = row.getData();
+                                if (!d || d.isSummaryRow) return;
+                                if (!canEditCell(cell)) {
+                                    gridList.deselectRow();
+                                    row.select();
+                                    return;
+                                }
+                                openSusuTrCoCdModal(row);
+                            }
+                        },
+                        {
+                            title: '수수료율(매매처명)',
+                            field: 'xxSusuTrCoCd',
+                            width: 160,
+                            hozAlign: 'left',
+                            headerHozAlign: 'center',
+                            formatter: function (cell) {
+                                const d = cell.getRow().getData();
+                                if (d && d.isSummaryRow) return '';
+                                return cell.getValue() || '';
+                            }
+                        },
+                        {
+                            title: '거래순번',
+                            field: 'trSeqNo',
+                            width: 80,
+                            hozAlign: 'center',
+                            headerHozAlign: 'center',
+                            formatter: function (cell) {
+                                const d = cell.getRow().getData();
+                                if (d && d.isSummaryRow) return '';
+                                return cell.getValue() || '';
+                            }
+                        }
+                    ]
+                });
+
+                if (typeof setupTabulatorRowSelection === 'function') {
+                    setupTabulatorRowSelection(gridList);
+                }
+                if (window.AamsResponsive && typeof window.AamsResponsive.bindGridResize === 'function') {
+                    window.AamsResponsive.bindGridResize(pane, [gridList]);
+                }
+            }
+
+            // 조회 실행 (w_ja031a.srw wue_retrieve)
+            async function loadData() {
+                if (saving) {
+                    if (typeof showToast === 'function') showToast('저장 중입니다.', 'info');
+                    return;
+                }
+                const corpGr = (typeof resolveCorpGr === 'function') ? resolveCorpGr(pane) : initialCorpGr;
+                const ymd = toDashYmd(field('filterYmd') ? field('filterYmd').value : initialYmd);
+                const trCd = field('filterDddw') ? field('filterDddw').value : 'S10';
+
+                if (!corpGr || !ymd || !trCd) {
+                    if (typeof showToast === 'function') showToast('영업일자와 매매구분을 확인하십시오.', 'warning');
+                    return;
+                }
+
+                const reqId = ++dataRequest;
+                loading = true;
+                try {
+                    const res = await fetch(`${api}/list?` + new URLSearchParams({ corpGr: corpGr, ymd: ymd, trCd: trCd }));
+                    if (!res.ok) throw new Error('데이터 조회 중 오류가 발생했습니다.');
+                    const list = await res.json();
+                    if (reqId !== dataRequest) return;
+
+                    const rows = (Array.isArray(list) ? list : []).map(row => Object.assign({}, row, {
+                        originalFundCd: row.originalFundCd || row.fundCd,
+                        originalSjCd: row.originalSjCd || row.sjCd,
+                        originalTrSeqNo: row.originalTrSeqNo || row.trSeqNo,
+                        isNew: false,
+                        isUpdated: false,
+                        isDeleted: false
+                    }));
+
+                    await gridList.setData(rows);
+                    recalcSummaryRow();
+
+                    if (rows.length > 0) {
+                        const firstNormal = gridList.getRows().find(r => r.getData() && !r.getData().isSummaryRow);
+                        if (firstNormal) firstNormal.select();
+                    } else if (typeof showToast === 'function') {
+                        showToast('조회된 데이터가 없습니다.', 'info');
+                    }
+                } catch (err) {
+                    if (reqId === dataRequest && typeof showToast === 'function') {
+                        showToast(err.message, 'error');
+                    }
+                } finally {
+                    if (reqId === dataRequest) loading = false;
+                }
+            }
+
+            // 행 추가 (w_ja031a.srw dw_list::ue_insertstart 상속 로직 반영)
+            async function addNewRow() {
+                if (!gridList) return;
+                if (!isManageableDate()) {
+                    if (typeof showToast === 'function') showToast('과거 영업일자는 입력할 수 없습니다.', 'warning');
+                    return;
+                }
+
+                const corpGr = (typeof resolveCorpGr === 'function') ? resolveCorpGr(pane) : initialCorpGr;
+                const ymd = toDashYmd(field('filterYmd') ? field('filterYmd').value : initialYmd);
+                const trCd = field('filterDddw') ? field('filterDddw').value : 'S10';
+
+                // 이전 선택 행이 있으면 주요 필드 상속 (PB ue_insertstart)
+                const selectedRows = gridList.getSelectedRows();
+                const lastRowData = (selectedRows && selectedRows.length > 0) ? selectedRows[0].getData() : null;
+
+                const newRowData = {
+                    _tempId: ++newRowSeq,
+                    corpGr: corpGr,
+                    trYmd: ymd,
+                    trCd: trCd,
+                    chasu: 1,
+                    sjCd: (lastRowData && !lastRowData.isSummaryRow) ? (lastRowData.sjCd || '') : '',
+                    xxSjCd: (lastRowData && !lastRowData.isSummaryRow) ? (lastRowData.xxSjCd || '') : '',
+                    fundCd: (lastRowData && !lastRowData.isSummaryRow) ? (lastRowData.fundCd || '') : '',
+                    xxFundCd: (lastRowData && !lastRowData.isSummaryRow) ? (lastRowData.xxFundCd || '') : '',
+                    xxUnitAek: (lastRowData && !lastRowData.isSummaryRow) ? (lastRowData.xxUnitAek || 1) : 1,
+                    gyeySu: 0,
+                    gyeyJisu: (lastRowData && !lastRowData.isSummaryRow) ? (lastRowData.gyeyJisu || 0) : 0,
+                    gyeyAek: 0,
+                    yakjungAek: 0,
+                    chaAek: 0,
+                    susuTrCoCd: (lastRowData && !lastRowData.isSummaryRow) ? (lastRowData.susuTrCoCd || '') : '',
+                    xxSusuTrCoCd: (lastRowData && !lastRowData.isSummaryRow) ? (lastRowData.xxSusuTrCoCd || '') : '',
+                    xxMgCd: (lastRowData && !lastRowData.isSummaryRow) ? (lastRowData.xxMgCd || '') : '',
+                    pVisible: 1,
+                    isNew: true,
+                    isUpdated: false,
+                    isDeleted: false,
+                    rowStatus: 'C'
+                };
+
+                const summaryRow = gridList.getRows().find(r => r.getData() && r.getData().isSummaryRow);
+                let addedRow;
+                if (summaryRow) {
+                    addedRow = await gridList.addRow(newRowData, true, summaryRow);
+                } else {
+                    addedRow = await gridList.addRow(newRowData, false);
+                }
+                recalcSummaryRow();
+
+                if (addedRow) {
+                    gridList.deselectRow();
+                    addedRow.select();
+                    setTimeout(() => {
+                        if (typeof gridList.scrollToRow === 'function') {
+                            gridList.scrollToRow(addedRow, 'center', false);
+                        } else if (typeof addedRow.scrollTo === 'function') {
+                            addedRow.scrollTo('center', false);
+                        }
+                        const targetCell = addedRow.getCell('fundCd');
+                        if (targetCell) {
+                            if (typeof targetCell.edit === 'function') {
+                                targetCell.edit(true);
+                            } else {
+                                const el = targetCell.getElement();
+                                if (el) el.focus();
+                            }
+                        }
+                    }, 50);
+                }
+            }
+
+            // 행 삭제
+            const deletedList = [];
+            async function deleteSelectedRow() {
+                if (!gridList) return;
+                if (!isManageableDate()) {
+                    if (typeof showToast === 'function') showToast('과거 영업일자는 삭제할 수 없습니다.', 'warning');
+                    return;
+                }
+                const selectedRows = gridList.getSelectedRows();
+                const row = selectedRows && selectedRows[0];
+                if (!row || row.getData().isSummaryRow) {
+                    if (typeof showToast === 'function') showToast('삭제할 행을 선택하십시오.', 'warning');
+                    return;
+                }
+                const d = row.getData();
+                if (!d.isNew) {
+                    d.isDeleted = true;
+                    d.rowStatus = 'D';
+                    deletedList.push(Object.assign({}, d));
+                }
+                await row.delete();
+                recalcSummaryRow();
+            }
+
+            // 저장 실행 (w_ja031a.srw updatestart)
+            async function saveData() {
+                if (!gridList || saving || loading) return;
+                if (!isManageableDate()) {
+                    if (typeof showToast === 'function') showToast('과거 영업일자의 거래내역은 저장할 수 없습니다.', 'warning');
+                    return;
+                }
+
+                const corpGr = (typeof resolveCorpGr === 'function') ? resolveCorpGr(pane) : initialCorpGr;
+                const ymd = toDashYmd(field('filterYmd') ? field('filterYmd').value : initialYmd);
+                const trCd = field('filterDddw') ? field('filterDddw').value : 'S10';
+
+                const changedRows = [];
+                gridList.getData().forEach(d => {
+                    if (!d || d.isSummaryRow) return;
+                    if (d.isNew || d.isUpdated || d.isDeleted) {
+                        changedRows.push(d);
+                    }
+                });
+
+                if (changedRows.length === 0 && deletedList.length === 0) {
+                    if (typeof showToast === 'function') showToast('저장할 변경 내역이 없습니다.', 'info');
+                    return;
+                }
+
+                saving = true;
+                try {
+                    const payload = {
+                        corpGr: corpGr,
+                        ymd: ymd,
+                        trCd: trCd,
+                        items: changedRows,
+                        deletedList: deletedList
+                    };
+
+                    const res = await fetch(`${api}/save?corpGr=${encodeURIComponent(corpGr)}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    const resData = await res.json();
+                    if (!res.ok || resData.success === false) {
+                        throw new Error(resData.message || '저장 중 오류가 발생했습니다.');
+                    }
+
+                    if (typeof showToast === 'function') {
+                        showToast(resData.message || '정상적으로 저장되었습니다.', 'success');
+                    }
+                    deletedList.length = 0;
+                    await loadData();
+                    await updateHighlightDates();
+                } catch (err) {
+                    if (typeof showToast === 'function') {
+                        showToast(err.message, 'error');
+                    }
+                } finally {
+                    saving = false;
+                }
+            }
+
+            // 만기거래생성 (cb_other clicked -> KFP.SR_JA031A)
+            async function createExpiryTr() {
+                if (saving || loading) return;
+                if (!isManageableDate()) {
+                    if (typeof showToast === 'function') showToast('과거 영업일자는 만기거래생성을 실행할 수 없습니다.', 'warning');
+                    return;
+                }
+
+                const corpGr = (typeof resolveCorpGr === 'function') ? resolveCorpGr(pane) : initialCorpGr;
+                const ymd = toDashYmd(field('filterYmd') ? field('filterYmd').value : initialYmd);
+
+                if (!confirm(`[${ymd}] 만기거래생성을 실행하시겠습니까?`)) {
+                    return;
+                }
+
+                loading = true;
+                try {
+                    const res = await fetch(`${api}/create-expiry?corpGr=${encodeURIComponent(corpGr)}&ymd=${encodeURIComponent(ymd)}`, {
+                        method: 'POST'
+                    });
+                    const resData = await res.json();
+                    if (!res.ok || resData.success === false) {
+                        throw new Error(resData.message || '만기거래생성 중 오류가 발생했습니다.');
+                    }
+
+                    if (typeof showToast === 'function') {
+                        showToast(resData.message || '거래내역 생성처리를 완료 했습니다.', 'success');
+                    }
+                    await loadData();
+                    await updateHighlightDates();
+                } catch (err) {
+                    if (typeof showToast === 'function') {
+                        showToast(err.message, 'error');
+                    }
+                } finally {
+                    loading = false;
+                }
+            }
+
+            // 달력 하이라이트 일자 갱신 (규칙 09 준수)
+            async function updateHighlightDates() {
+                const corpGr = (typeof resolveCorpGr === 'function') ? resolveCorpGr(pane) : initialCorpGr;
+                try {
+                    const res = await fetch(`${api}/dates?corpGr=${encodeURIComponent(corpGr)}`);
+                    if (res.ok) {
+                        const dates = await res.json();
+                        if (Array.isArray(dates) && window.AamsCalendar && typeof window.AamsCalendar.setHighlightDates === 'function') {
+                            window.AamsCalendar.setHighlightDates('filterYmd', dates);
+                        }
+                    }
+                } catch (err) {
+                    console.warn('[w_ja031a] dates 조회 오류:', err);
+                }
+            }
+
+            // 매매구분(dddw) 드롭다운 갱신 (w_ja031a.srw dw_c::itemchanged)
+            async function refreshDddwSelect() {
+                const reqId = ++codeRequest;
+                const corpGr = (typeof resolveCorpGr === 'function') ? resolveCorpGr(pane) : initialCorpGr;
+                const curYmd = toDashYmd(field('filterYmd') ? field('filterYmd').value : initialYmd);
+
+                const manageable = isManageableDate();
+                const dddwWhere = manageable
+                    ? "szx1pt.obj_id='W_JA031A'"
+                    : `szx1pt.obj_id='W_JA031A' and szx0gc.tr_cd in (select tr_cd from sst1kt where corp_gr='${corpGr}' and tr_ymd='${curYmd}')`;
+
+                try {
+                    const prevVal = field('filterDddw') && field('filterDddw').value ? field('filterDddw').value : 'S10';
+                    const targetSelect = field('filterDddw');
+                    const dddwConfig = {
+                        codeTitle: '코드',
+                        nameTitle: '매매구분',
+                        defaultVal: prevVal
+                    };
+
+                    if (window.f_dddwctl && typeof window.f_dddwctl === 'function') {
+                        // f_dddwctl 자체 내장 2열 드롭다운 변환 시그니처
+                        await window.f_dddwctl(targetSelect, 'dddw', corpGr, '', 1, dddwWhere, dddwConfig);
+                    } else if (typeof initFilterDddw === 'function') {
+                        await initFilterDddw(pane, Object.assign({
+                            selectId: 'filterDddw',
+                            dddwId: 'dddw',
+                            corpGr: corpGr,
+                            seq: 1,
+                            addWhere: dddwWhere
+                        }, dddwConfig));
+                    }
+                } catch (err) {
+                    console.warn('[w_ja031a] dddw 옵션 갱신 오류:', err);
+                }
+            }
+
+            function startInit() {
+                if (isInitialized) return;
+                isInitialized = true;
+
+                initGrid();
+
+                // 달력 컴포넌트 초기화
+                if (window.AamsCalendar && typeof window.AamsCalendar.init === 'function') {
+                    window.AamsCalendar.init({
+                        inputId: 'filterYmd',
+                        parent: pane,
+                        initialDate: initialYmd,
+                        onSelect: function (dateStr) {
+                            updateExpiryButtonState();
+                            refreshDddwSelect();
+                        }
+                    });
+                }
+                updateHighlightDates();
+                refreshDddwSelect();
+                updateExpiryButtonState();
+
+                // 만기거래생성 버튼 이벤트 바인딩
+                const btnExpiry = field('btnCreateExpiryTr');
+                if (btnExpiry) {
+                    btnExpiry.addEventListener('click', createExpiryTr);
+                }
+
+                // 매매구분 변경 이벤트
+                const selDddw = field('filterDddw');
+                if (selDddw) {
+                    selDddw.addEventListener('change', () => {
+                        // 규칙 08: 필터 변경 시 자동 조회 금지, 수동 조회 대기
+                    });
+                }
+
+                // 상단 공통 툴바 표준 계약 (규칙 08 준수)
+                pane.onSearch = loadData;
+                pane.onInput = addNewRow;
+                pane.onDelete = deleteSelectedRow;
+                pane.onSave = saveData;
+                pane.onExcel = pane.onDetailExcel = function () {
+                    if (gridList) {
+                        const ymdRaw = toDashYmd(field('filterYmd') ? field('filterYmd').value : initialYmd).replace(/-/g, '');
+                        gridList.download('xlsx', `선물매매_거래목록_${ymdRaw}.xlsx`, { sheetName: '선물매매거래' });
+                    }
+                };
+
+                pane.onRefresh = pane.onClear = async function () {
+                    dataRequest++;
+                    if (gridList) await gridList.clearData();
+                    deletedList.length = 0;
+                    if (field('filterYmd')) field('filterYmd').value = initialYmd;
+                    updateExpiryButtonState();
+                    await refreshDddwSelect();
+                    await updateHighlightDates();
+                    if (typeof showToast === 'function') {
+                        showToast('화면이 초기화되었습니다.', 'info');
+                    }
+                };
+
+                pane.onCorpGrChange = async function (newCorpGr) {
+                    pane.dataset.corpGr = newCorpGr || '';
+                    deletedList.length = 0;
+                    if (gridList) await gridList.clearData();
+                    await refreshDddwSelect();
+                    await updateHighlightDates();
+                };
+
+                // 초기 직접 조회 (규칙 08 준수: 툴바 조회 트리거)
+                loadData();
+            }
+
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', startInit, { once: true });
+            } else {
+                startInit();
+            }
+        })();
+    </script>
+</div>
+</html>
+

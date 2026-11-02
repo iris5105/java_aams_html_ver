@@ -650,59 +650,29 @@ function initFilterDddw(pane, config) {
     const dddwId = config.dddwId;
     const seq = config.seq || 1;
     const addWhere = config.addWhere || '';
+    const addData = config.addData || '';
     const defaultOptions = config.defaultOptions || [];
 
-    function populate(options) {
-        const list = (options && options.length > 0) ? options : defaultOptions;
-        if (!list || list.length === 0) return list;
-
-        selectEl.innerHTML = '';
-        list.forEach(function (opt) {
-            const code = (opt.code != null ? opt.code : (opt.cd != null ? opt.cd : '')).toString().trim();
-            const name = (opt.name != null ? opt.name : (opt.nm != null ? opt.nm : (opt.dscr != null ? opt.dscr : code))).toString().trim();
-            const optEl = document.createElement('option');
-            optEl.value = code;
-            optEl.textContent = name;
-            selectEl.appendChild(optEl);
-        });
-
-        let targetVal = config.defaultVal || selectEl.value;
-        const match = list.find(function(o) {
-            const c = (o.code != null ? o.code : o.cd || '').toString().trim();
-            return c === targetVal;
-        });
-        if (!match && list.length > 0) {
-            targetVal = (list[0].code != null ? list[0].code : list[0].cd || '').toString().trim();
-        }
-        selectEl.value = targetVal;
-
-        if (window.f_dddwctl && typeof window.f_dddwctl.get2ColItemFormatter === 'function') {
-            window.f_dddwctl.get2ColItemFormatter(selectEl, list, {
-                codeTitle: config.codeTitle || "코드",
-                nameTitle: config.nameTitle || "코드명",
-                defaultVal: targetVal,
-                onSelect: function (code, name) {
-                    selectEl.value = code;
-                    if (typeof config.onSelect === 'function') {
-                        config.onSelect(code, name);
-                    }
-                }
-            });
-        }
-        return list;
-    }
-
-    const addData = config.addData || '';
-
     if (dddwId && typeof window.f_dddwctl === 'function') {
-        return window.f_dddwctl(dddwId, corpGr, addData, seq, addWhere).then(function (options) {
-            return populate(options);
-        }).catch(function (e) {
+        const fullConfig = Object.assign({
+            codeTitle: config.codeTitle || "코드",
+            nameTitle: config.nameTitle || "코드명",
+            defaultVal: config.defaultVal || selectEl.value,
+            onSelect: config.onSelect
+        }, config);
+
+        return window.f_dddwctl(selectEl, dddwId, corpGr, addData, seq, addWhere, fullConfig).catch(function (e) {
             console.warn('[common.initFilterDddw] f_dddwctl load error, using default options:', e);
-            return populate(defaultOptions);
+            if (defaultOptions && defaultOptions.length > 0 && window.f_dddwctl.get2ColItemFormatter) {
+                window.f_dddwctl.get2ColItemFormatter(selectEl, defaultOptions, fullConfig);
+            }
+            return defaultOptions;
         });
     } else {
-        return Promise.resolve(populate(defaultOptions));
+        if (defaultOptions && defaultOptions.length > 0 && window.f_dddwctl && window.f_dddwctl.get2ColItemFormatter) {
+            window.f_dddwctl.get2ColItemFormatter(selectEl, defaultOptions, config);
+        }
+        return Promise.resolve(defaultOptions);
     }
 }
 window.initFilterDddw = initFilterDddw;

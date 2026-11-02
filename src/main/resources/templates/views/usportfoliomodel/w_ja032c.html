@@ -363,26 +363,35 @@
         function initDddwFilter() {
             var dddwSelect = currentPane.querySelector('#filterDddw, select[name="dddw"]');
             if (dddwSelect) {
-                dddwSelect.innerHTML = '';
                 var options = [
-                    { value: '변동수준', text: '변동수준' },
-                    { value: '괴리율', text: '괴리율' },
-                    { value: '베타', text: '베타' },
-                    { value: '델타/감마/세타/베가/로', text: '델타/감마/세타/베가/로' },
-                    { value: '상승/하락일수', text: '상승/하락일수' }
+                    { code: '변동수준', name: '변동수준' },
+                    { code: '괴리율', name: '괴리율' },
+                    { code: '베타', name: '베타' },
+                    { code: '델타/감마/세타/베가/로', name: '델타/감마/세타/베가/로' },
+                    { code: '상승/하락일수', name: '상승/하락일수' }
                 ];
-                options.forEach(function (opt) {
-                    var el = document.createElement('option');
-                    el.value = opt.value;
-                    el.textContent = opt.text;
-                    if (opt.value === '변동수준') el.selected = true;
-                    dddwSelect.appendChild(el);
-                });
-
-                // 조회구분 변경 즉시 우측 하단 분석 영역만 실시간 갱신 (마스터 펀드 및 종목 그리드 선택 유지)
-                dddwSelect.addEventListener('change', function () {
-                    onSearchTypeChange();
-                });
+                if (window.f_dddwctl && typeof window.f_dddwctl.get2ColItemFormatter === 'function') {
+                    window.f_dddwctl.get2ColItemFormatter(dddwSelect, options, {
+                        codeTitle: '코드',
+                        nameTitle: '조회구분',
+                        defaultVal: '변동수준',
+                        onSelect: function () {
+                            onSearchTypeChange();
+                        }
+                    });
+                } else {
+                    dddwSelect.innerHTML = '';
+                    options.forEach(function (opt) {
+                        var el = document.createElement('option');
+                        el.value = opt.code;
+                        el.textContent = opt.name;
+                        if (opt.code === '변동수준') el.selected = true;
+                        dddwSelect.appendChild(el);
+                    });
+                    dddwSelect.addEventListener('change', function () {
+                        onSearchTypeChange();
+                    });
+                }
             }
         }
 

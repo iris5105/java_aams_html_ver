@@ -13,8 +13,21 @@ trigger: always_on
 1. **그리드 인라인 스타일 작성 절대 금지 (Zero-Inline-Style)**:
    - Tabulator 그리드의 컬럼 헤더(`title`)나 셀 포매터(`formatter`) 내부에 `style="color:..."` 등의 인라인 HTML 스타일을 직접 작성하지 않는다.
    - 모든 색상, 배지, 정렬, 강조 표시는 [tabulator-custom.css](file:///d:/work/java_aams_html_ver/src/main/resources/static/css/tabulator-custom.css)의 **AAMS Tabulator Grid Standard Color System** 클래스를 사용한다.
-2. **개별 화면 내 중복 `<style>` 블록 작성 금지**:
-   - 행 선택 하이라이트(`.tabulator-selected`), 인라인 편집 셀 테두리(`.cell-editable-blue`), MRD 리포트 내보내기 버튼(`.btn-export-format`), 분할 스플리터 레이아웃 등은 이미 공통 CSS에 완전 구현되어 있으므로 각 화면 템플릿에 로컬 `<style>` 블록을 중복 작성하지 않는다.
+2. **화면 전용 스타일은 화면 HTML 안에 작성**:
+   - 하나의 화면에서만 사용하는 레이아웃·크기·여백·색상 선택자(예: `.filter-d-ja030a`)는 해당 화면 템플릿의 `<style>` 블록에 둔다. 선택자는 반드시 화면 최상위 컨테이너 클래스(예: `.ja030a-container`)로 범위를 제한한다.
+   - 공통 컴포넌트의 기본 동작 또는 다른 화면에도 영향을 줄 수 있는 선택자를 화면 `<style>` 블록에서 재정의하지 않는다.
+3. **`style.css`는 공통 스타일 전용**:
+   - `style.css`에는 둘 이상의 화면·공통 프래그먼트·공통 JavaScript 컴포넌트에서 재사용될 가능성이 있는 스타일만 추가하거나 수정한다.
+   - 특정 화면의 DataWindow 배치, 화면 고유 ID·클래스, 단일 화면의 임시 보정 스타일은 `style.css`에 추가하지 않는다.
+4. **결과 표시용 input 잠금 표준**:
+   - 필터와 Tabulator 그리드 외부에서 조회·선택 결과만 표시하고 사용자가 수정하면 안 되는 input은 기본 클래스 `result-info-value`와 `readonly aria-readonly="true"`를 함께 사용한다. `disabled`는 값 전송·포커스·접근성 동작이 달라질 수 있으므로 이 용도로 기본 사용하지 않는다.
+   - 숫자 표시는 `result-info-value result-info-value-number`, 넓은 코드·명칭 표시는 `result-info-value result-info-value-wide`를 추가로 사용한다.
+   - 예시는 다음과 같다:
+     ```html
+     <input type="text" id="resultValue" class="result-info-value result-info-value-number"
+            readonly aria-readonly="true" />
+     ```
+   - 해당 값은 화면 스크립트가 `.value`로 설정할 수 있으며, 사용자의 키보드 입력·붙여넣기 등 직접 편집은 차단된다. 필터와 그리드 input의 편집 가능 여부는 각 컴포넌트 규격과 파워빌더 원본을 따른다.
 
 ---
 

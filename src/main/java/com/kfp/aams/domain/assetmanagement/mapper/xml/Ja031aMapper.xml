@@ -1,0 +1,151 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.kfp.aams.domain.assetmanagement.mapper.Ja031aMapper">
+
+    <!-- 1. W_JA031A 선물매매 거래 목록 조회 (d_ja031a1.srd SQL 100% 반영) -->
+    <select id="selectList" resultType="com.kfp.aams.domain.assetmanagement.dto.Ja031aDto">
+        SELECT kt.CORP_GR                       AS corp_gr
+             , kt.TR_YMD                        AS tr_ymd
+             , kt.FUND_CD                       AS fund_cd
+             , ia.FUND_NM                       AS xx_fund_cd
+             , ia.FUND_NM                       AS fund_nm
+             , kt.TR_CD                         AS tr_cd
+             , kt.SJ_CD                         AS sj_cd
+             , kj.SJ_NM                         AS xx_sj_cd
+             , kj.SJ_NM                         AS sj_nm
+             , kt.CHASU                         AS chasu
+             , kt.TR_SEQ_NO                     AS tr_seq_no
+             , kt.GYEY_SU                       AS gyey_su
+             , kt.GYEY_JISU                     AS gyey_jisu
+             , kt.TR_CO_CD                      AS tr_co_cd
+             , NVL(kj.UNIT_AEK, 1)              AS xx_unit_aek
+             , NVL(kj.UNIT_AEK, 1)              AS unit_aek
+             , kt.SUSU_TR_CO_CD                 AS susu_tr_co_cd
+             , m2.TR_CO_NM                      AS xx_susu_tr_co_cd
+             , m2.TR_CO_NM                      AS susu_tr_co_nm
+             , kt.GYEY_AEK                      AS gyey_aek
+             , ROUND(kt.GYEY_SU * kt.GYEY_JISU * NVL(kj.UNIT_AEK, 1)) AS yakjung_aek
+             , kt.GYEY_AEK - ROUND(kt.GYEY_SU * kt.GYEY_JISU * NVL(kj.UNIT_AEK, 1)) AS cha_aek
+             , 1                                AS p_visible
+          FROM SST1KT kt
+          LEFT OUTER JOIN SZM0IA ia
+            ON ia.CORP_GR = kt.CORP_GR
+           AND ia.FUND_CD = kt.FUND_CD
+          LEFT OUTER JOIN SSX0KJ kj
+            ON kj.CORP_GR = kt.CORP_GR
+           AND kj.SJ_CD   = kt.SJ_CD
+          LEFT OUTER JOIN SZX2MM m2
+            ON m2.CORP_GR  = kt.CORP_GR
+           AND m2.TR_CO_CD = kt.SUSU_TR_CO_CD
+         WHERE kt.CORP_GR = #{corpGr}
+           AND kt.TR_YMD  = #{trYmd}
+           AND kt.TR_CD   = #{trCd}
+         ORDER BY kt.SJ_CD, kt.FUND_CD
+    </select>
+
+    <!-- 2. 달력 하이라이트 일자 조회 (w_ja031a.srw dw_c::ue_getdate) -->
+    <select id="selectDates" resultType="java.lang.String">
+        SELECT DISTINCT TO_CHAR(t1.TR_YMD, 'YYYY-MM-DD') AS tr_ymd
+          FROM SST1KT t1
+         WHERE t1.CORP_GR = #{corpGr}
+           AND t1.TR_CD IN (
+               SELECT ta.TR_CD
+                 FROM SZX1PT ta
+                WHERE ta.OBJ_ID = 'W_JA031A'
+           )
+         ORDER BY tr_ymd
+    </select>
+
+    <!-- 3. 거래순번 최대값 채번 (w_ja031a.srw updatestart) -->
+    <select id="selectMaxTrSeqNo" resultType="java.lang.Long">
+        SELECT NVL(MAX(tr_seq_no), 1000)
+          FROM SST1KT
+         WHERE CORP_GR = #{corpGr}
+           AND TR_YMD  = #{trYmd}
+           AND TR_CD   = #{trCd}
+    </select>
+
+    <!-- 4. 선물종목 단위승수 조회 -->
+    <select id="selectUnitAek" resultType="java.lang.Double">
+        SELECT NVL(UNIT_AEK, 1)
+          FROM SSX0KJ
+         WHERE CORP_GR = #{corpGr}
+           AND SJ_CD   = #{sjCd}
+    </select>
+
+    <!-- 5. 만기거래생성 프로시저 호출 (KFP.SR_JA031A) -->
+    <select id="callSrJa031a" statementType="CALLABLE">
+        { CALL KFP.SR_JA031A(
+            #{corpGr, mode=IN, jdbcType=VARCHAR},
+            #{ymd, mode=IN, jdbcType=DATE},
+            #{pMsg, mode=OUT, jdbcType=VARCHAR}
+        ) }
+    </select>
+
+    <!-- 6. SST1KT 신규 등록 -->
+    <insert id="insertSst1kt">
+        INSERT INTO SST1KT (
+            CORP_GR
+          , TR_YMD
+          , FUND_CD
+          , TR_CD
+          , SJ_CD
+          , CHASU
+          , TR_SEQ_NO
+          , GYEY_SU
+          , GYEY_JISU
+          , TR_CO_CD
+          , SUSU_TR_CO_CD
+          , GYEY_AEK
+          , IP_USER
+          , CUTOFF_GB
+        ) VALUES (
+            #{corpGr}
+          , #{trYmd}
+          , #{fundCd}
+          , #{trCd}
+          , #{sjCd}
+          , NVL(#{chasu}, 1)
+          , #{trSeqNo}
+          , #{gyeySu, jdbcType=NUMERIC}
+          , #{gyeyJisu, jdbcType=NUMERIC}
+          , #{trCoCd, jdbcType=VARCHAR}
+          , #{susuTrCoCd, jdbcType=VARCHAR}
+          , #{gyeyAek, jdbcType=NUMERIC}
+          , #{ipUser, jdbcType=VARCHAR}
+          , #{cutoffGb, jdbcType=VARCHAR}
+        )
+    </insert>
+
+    <!-- 7. SST1KT 수정 -->
+    <update id="updateSst1kt">
+        UPDATE SST1KT
+           SET GYEY_SU       = #{gyeySu, jdbcType=NUMERIC}
+             , GYEY_JISU     = #{gyeyJisu, jdbcType=NUMERIC}
+             , GYEY_AEK      = #{gyeyAek, jdbcType=NUMERIC}
+             , SUSU_TR_CO_CD = #{susuTrCoCd, jdbcType=VARCHAR}
+             , IP_USER       = #{ipUser, jdbcType=VARCHAR}
+         WHERE CORP_GR       = #{corpGr}
+           AND TR_YMD        = #{trYmd}
+           AND FUND_CD       = NVL(#{originalFundCd}, #{fundCd})
+           AND TR_CD         = #{trCd}
+           AND SJ_CD         = NVL(#{originalSjCd}, #{sjCd})
+           AND CHASU         = NVL(#{chasu}, 1)
+           AND TR_SEQ_NO     = NVL(#{originalTrSeqNo}, #{trSeqNo})
+    </update>
+
+    <!-- 8. SST1KT 삭제 -->
+    <delete id="deleteSst1kt">
+        DELETE FROM SST1KT
+         WHERE CORP_GR   = #{corpGr}
+           AND TR_YMD    = #{trYmd}
+           AND FUND_CD   = #{fundCd}
+           AND TR_CD     = #{trCd}
+           AND SJ_CD     = #{sjCd}
+           AND CHASU     = NVL(#{chasu}, 1)
+           AND TR_SEQ_NO = #{trSeqNo}
+    </delete>
+
+</mapper>
+

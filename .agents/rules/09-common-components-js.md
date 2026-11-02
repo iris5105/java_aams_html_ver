@@ -20,6 +20,8 @@ trigger: always_on
 | `dc_xx_ymd` | `dc_xx_ymd.html` | 시작일자 ~ 종료일자 기간 필터 |
 | `dc_fund_ymd` | `dc_fund_ymd.html` | 펀드코드 검색 + 기준일자 필터 |
 
+**Exact-name rule (mandatory)**: When the PowerBuilder `dw_c` dataobject is `X`, first use the filter module with the same name, `templates/fragments/filter/X.html`, through its `filter` fragment. Do not create a screen-local filter or substitute another module when a same-named module exists. If no same-named module exists, confirm the closest compatible module against the PB column layout and add the mapping to this table before implementation.
+
 ### 1.2 동적 라벨 변경 표준
 화면별로 필터 라벨을 변경해야 하는 경우 아래 세 가지 방식 중 하나를 사용합니다:
 1. **타임리프 프래그먼트 파라미터 전달:**

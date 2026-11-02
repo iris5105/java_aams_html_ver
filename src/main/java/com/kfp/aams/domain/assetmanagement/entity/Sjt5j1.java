@@ -16,7 +16,7 @@ import java.time.LocalDate;
 
 /** SJT5J1 - 신주인수권 매매 내역. */
 @Entity
-@Table(name = "SJT5J1")
+@Table(name = "\"SJT5J1\"")
 @IdClass(Sjt5j1Id.class)
 @Getter
 @Setter

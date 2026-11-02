@@ -18,29 +18,122 @@
      * Dynamically retrieves DropDownDataWindow code/name options via REST API (/api/common/dddw)
      * or generates static options directly from add_data for 'dual' table (matching PowerBuilder f_dddwctl).
      *
+     * Automatically transforms target HTML <select> elements into 2-column custom dropdowns
+     * (.dddw-select-custom, .dddw-select-btn, .dddw-select-popup) when a target select element or selector is provided.
+     *
      * PowerBuilder Source Signature:
      *   f_dddwctl (THIS, dddw_id, corp_gr, add_data, iseq, swhere)
-     * Web Project Call Signatures:
+     * Web Call Signatures:
+     *   // 1. One-stop UI binding & data retrieval (파워빌더 1:1 드롭다운 컨트롤 변환):
+     *   f_dddwctl (targetSelectEl, dddwId, corpGr, addData, seq, addWhere, config)
+     *   f_dddwctl ('#filterDddw', 'dddw', corpGr, '', 1, "szx1pt.obj_id='W_...'")
+     *
+     *   // 2. Data-only Array retrieval (하위 호환성 100% 유지):
      *   f_dddwctl ('dddw | dual', gaa.corp_gr, "1,고객명순,,2,결산일순,", 1, "")
      *   f_dddwctl (dddwId, corpGr, addData, seq, addWhere)
      *   f_dddwctl (dddwId, seq, corpGr, addWhere, addOrderBy)
      *
-     * @param {string|Object} dddwId DropDownDataWindow ID (e.g. 'dddw | dual', 'CORP_GR', 'series_g1') or PB THIS
-     * @param {string|number} [param2] corp_gr or seq
-     * @param {string} [param3] add_data (e.g. "1,고객명순,,2,결산일순," or "%,전체,") or corp_gr
+     * @param {HTMLElement|string|Object} arg1 DropDownDataWindow ID or target <select> Element / selector
+     * @param {string|number|Object} [param2] dddwId (if arg1 is target) or corp_gr or seq or config
+     * @param {string} [param3] add_data or corp_gr
      * @param {number|string} [param4] seq or addWhere
      * @param {string} [param5] addWhere or addOrderBy
+     * @param {string} [param6] addWhere (when shifted)
+     * @param {Object} [param7] config (when shifted)
      * @returns {Promise<Array<{code: string, name: string}>>}
      */
-    function f_dddwctl(dddwId, param2, param3, param4, param5) {
-        // 0. 파워빌더 첫 번째 인자(THIS/dw)가 전달된 경우 인자 쉬프트 (호환성 보장)
-        if (dddwId != null && typeof dddwId !== 'string' && typeof param2 === 'string') {
-            return f_dddwctl.apply(this, Array.prototype.slice.call(arguments, 1));
+    function f_dddwctl(arg1, param2, param3, param4, param5, param6, param7) {
+        let targetSelect = null;
+        let config = null;
+
+        // 0. 타겟 select 엘리먼트 자동 감지
+        const isElement = arg1 && (arg1.nodeType === 1 || (typeof HTMLElement !== 'undefined' && arg1 instanceof HTMLElement));
+        const isSelectSelector = typeof arg1 === 'string' && (arg1.startsWith('#') || arg1.startsWith('.')) && typeof document !== 'undefined';
+        const isSelectId = typeof arg1 === 'string' && typeof document !== 'undefined' && document.getElementById(arg1) && document.getElementById(arg1).tagName === 'SELECT';
+
+        if (isElement) {
+            targetSelect = arg1;
+        } else if (isSelectSelector) {
+            const el = document.querySelector(arg1);
+            if (el && el.tagName === 'SELECT') {
+                targetSelect = el;
+            }
+        } else if (isSelectId) {
+            if (typeof param2 === 'string' || (param2 && typeof param2 === 'object')) {
+                targetSelect = document.getElementById(arg1);
+            }
         }
 
-        // 1. 파워빌더 소스: dddw_ID에서 ls_dddw_id 분리 (' | ' 기준)
-        // IF PosA (dddw_ID, ' | ')>0 THEN ls_dddw_id = MidA (dddw_ID, PosA (dddw_ID, ' | ') + 3)
-        let actualDddwId = (dddwId || "").toString().trim();
+        let actualDddwId = "";
+        let actualCorpGr = "";
+        let add_data = "";
+        let targetSeq = 1;
+        let actualWhere = "";
+        let actualOrderBy = "";
+
+        // 1. 파라미터 매핑 및 쉬프트
+        if (targetSelect) {
+            // f_dddwctl(targetSelect, dddwId, corpGr, addData, seq, addWhere, config)
+            if (param2 && typeof param2 === 'object' && !Array.isArray(param2)) {
+                config = Object.assign({}, param2);
+                actualDddwId = (config.dddwId || config.id || "").toString().trim();
+                actualCorpGr = config.corpGr || "";
+                add_data = config.addData || "";
+                targetSeq = config.seq || 1;
+                actualWhere = config.addWhere || "";
+                actualOrderBy = config.addOrderBy || "";
+            } else {
+                actualDddwId = (param2 || "").toString().trim();
+                actualCorpGr = (typeof param3 === 'string' && !param3.includes(',')) ? param3 : (param3 || "");
+                add_data = param4 || "";
+                targetSeq = (param5 != null && !isNaN(Number(param5))) ? parseInt(param5, 10) : 1;
+                actualWhere = param6 || "";
+                config = (param7 && typeof param7 === 'object') ? param7 : {};
+            }
+        } else {
+            // 기존 데이터 전용 시그니처
+            actualDddwId = (arg1 || "").toString().trim();
+
+            // config 객체가 파라미터 중 전달되었는지 확인 ({ target: selectEl, ... })
+            const allArgs = [param7, param6, param5, param4, param3, param2];
+            const foundConfig = allArgs.find(a => a && typeof a === 'object' && !Array.isArray(a));
+            if (foundConfig && (foundConfig.target || foundConfig.select || foundConfig.selectId)) {
+                config = foundConfig;
+                const cand = config.target || config.select || config.selectId;
+                if (cand && (cand.nodeType === 1 || (typeof HTMLElement !== 'undefined' && cand instanceof HTMLElement))) {
+                    targetSelect = cand;
+                } else if (typeof cand === 'string' && typeof document !== 'undefined') {
+                    targetSelect = document.querySelector(cand) || document.getElementById(cand);
+                }
+            }
+
+            // 시그니처 1: f_dddwctl(dddwId, seq, corpGr, addWhere, addOrderBy)
+            if (typeof param2 === 'number' || (typeof param2 === 'string' && /^\d{1,2}$/.test(param2.trim()) && (param4 == null || isNaN(Number(param4))))) {
+                targetSeq = parseInt(param2, 10);
+                actualCorpGr = (param3 && !param3.includes(',')) ? param3 : "";
+                actualWhere = param4 || "";
+                actualOrderBy = param5 || "";
+            } 
+            // 시그니처 2 (PB 1:1 매핑): f_dddwctl(dddwId, corpGr, add_data, seq, addWhere)
+            // e.g. f_dddwctl ('dddw | dual', gaa.corp_gr, "1,고객명순,,2,결산일순,", 1, "")
+            else {
+                actualCorpGr = param2 || "";
+                add_data = param3 || "";
+                targetSeq = (param4 != null && !isNaN(Number(param4))) ? parseInt(param4, 10) : 1;
+
+                if (param5) {
+                    const isDirectCorpGrOnly = /^\s*corp_gr\s*=\s*'[^']*'\s*$/i.test(param5.trim());
+                    if (isDirectCorpGrOnly) {
+                        const cookieAdmin = /(?:^|;\s*)adminYn=Y/i.test(document.cookie) || /(?:^|;\s*)role=ADMIN/i.test(document.cookie);
+                        if (!cookieAdmin) actualWhere = param5;
+                    } else {
+                        actualWhere = param5;
+                    }
+                }
+            }
+        }
+
+        // 2. dddw_ID에서 ls_dddw_id 분리 (' | ' 기준)
         let ls_dddw_id = actualDddwId;
         if (actualDddwId.indexOf(' | ') > -1) {
             ls_dddw_id = actualDddwId.split(' | ')[1].trim();
@@ -49,49 +142,13 @@
         } else if (/^(fr_|to_|xx_)/i.test(actualDddwId)) {
             ls_dddw_id = actualDddwId.substring(3);
         }
-
-        // 파라미터 매핑
-        let actualCorpGr = "";
-        let add_data = "";
-        let targetSeq = 1;
-        let actualWhere = "";
-        let actualOrderBy = "";
-
-        // 시그니처 1: f_dddwctl(dddwId, seq, corpGr, addWhere, addOrderBy)
-        if (typeof param2 === 'number' || (typeof param2 === 'string' && /^\d{1,2}$/.test(param2.trim()) && (param4 == null || isNaN(Number(param4))))) {
-            targetSeq = parseInt(param2, 10);
-            actualCorpGr = (param3 && !param3.includes(',')) ? param3 : "";
-            actualWhere = param4 || "";
-            actualOrderBy = param5 || "";
-        } 
-        // 시그니처 2 (PB 1:1 매핑): f_dddwctl(dddwId, corpGr, add_data, seq, addWhere)
-        // e.g. f_dddwctl ('dddw | dual', gaa.corp_gr, "1,고객명순,,2,결산일순,", 1, "")
-        else {
-            actualCorpGr = param2 || "";
-            add_data = param3 || "";
-            targetSeq = (param4 != null && !isNaN(Number(param4))) ? parseInt(param4, 10) : 1;
-
-            if (param5) {
-                const isDirectCorpGrOnly = /^\s*corp_gr\s*=\s*'[^']*'\s*$/i.test(param5.trim());
-                if (isDirectCorpGrOnly) {
-                    const cookieAdmin = /(?:^|;\s*)adminYn=Y/i.test(document.cookie) || /(?:^|;\s*)role=ADMIN/i.test(document.cookie);
-                    if (!cookieAdmin) actualWhere = param5;
-                } else {
-                    actualWhere = param5;
-                }
-            }
-        }
+        if (!ls_dddw_id) ls_dddw_id = 'dddw';
 
         if (targetSeq == null || isNaN(targetSeq)) {
             targetSeq = 1;
         }
 
-        // 2. 파워빌더 소스: IF NOT F_NULL (add_data) THEN ... STEP 3 데이터 행 생성
-        //    lAdd = F_GET_ARRAY (add_data, ',', la_data)
-        //    FOR ll = 1 TO lAdd STEP 3
-        //       ldwc.SetItem (lR, 1, la_data [ll])
-        //       ldwc.SetItem (lR, 2, la_data [ll + 1])
-        //       ldwc.SetItem (lR, 3, la_data [ll + 2])
+        // 3. 파워빌더 소스: IF NOT F_NULL (add_data) THEN ... STEP 3 데이터 행 생성
         let addDataItems = [];
         if (add_data && typeof add_data === 'string' && add_data.includes(',')) {
             let la_data = add_data.split(',').map(s => s.trim());
@@ -119,16 +176,33 @@
             }
         }
 
-        // 3. 파워빌더 소스: IF ls_dddw_id<>'dual' THEN ... (dual인 경우 DB WDDDWCTL 조회 없이 add_data만 반환)
+        // 4. 결과 리스트에 타겟 드롭다운 UI 자동 생성 헬퍼
+        function finalizeResult(list) {
+            if (targetSelect && typeof createSelectComponent === 'function') {
+                const componentConfig = Object.assign({
+                    codeTitle: (config && (config.codeTitle || config.codeHeader)) || "코드",
+                    nameTitle: (config && (config.nameTitle || config.nameHeader)) || "명칭",
+                    defaultVal: (config && config.defaultVal != null) ? config.defaultVal : targetSelect.value,
+                    onSelect: (config && config.onSelect) || null
+                }, config);
+                const wrapper = createSelectComponent(targetSelect, list, componentConfig);
+                list.target = targetSelect;
+                list.wrapper = wrapper;
+                list.selectValue = targetSelect.value;
+            }
+            return list;
+        }
+
+        // 5. 파워빌더 소스: IF ls_dddw_id<>'dual' THEN ... (dual인 경우 DB WDDDWCTL 조회 없이 add_data만 반환)
         if (ls_dddw_id.toLowerCase() === 'dual') {
             if (addDataItems.length > 0) {
                 let def = addDataItems.find(it => it.isDefault) || addDataItems[0];
                 addDataItems.defaultVal = def ? def.code : "";
             }
-            return Promise.resolve(addDataItems);
+            return Promise.resolve(finalizeResult(addDataItems));
         }
 
-        // 4. ls_dddw_id <> 'dual' 인 경우 DB WDDDWCTL 조회
+        // 6. ls_dddw_id <> 'dual' 인 경우 DB WDDDWCTL 조회
         let url = `/api/common/dddw?dddwId=${encodeURIComponent(ls_dddw_id || 'corp_gr')}&seq=${encodeURIComponent(targetSeq)}`;
         if (actualCorpGr) url += `&corpGr=${encodeURIComponent(actualCorpGr)}`;
         if (actualWhere) url += `&addWhere=${encodeURIComponent(actualWhere)}`;
@@ -165,11 +239,12 @@
                         normalizedList.unshift(addDataItems[i]);
                     }
                 }
-                return normalizedList;
+                return finalizeResult(normalizedList);
             })
             .catch(err => {
                 console.warn(`[f_dddwctl] Error loading DDDW (${ls_dddw_id}):`, err);
-                return addDataItems.length > 0 ? addDataItems : [];
+                const fallback = addDataItems.length > 0 ? addDataItems : [];
+                return finalizeResult(fallback);
             });
     }
 
@@ -206,39 +281,55 @@
     };
 
     /**
-     * Dynamic DDDW Dropdown Options Loader Helper
-     * Loads DDDW data from server and populates a target HTML <select> element.
+     * Explicit one-stop DropDownDataWindow UI Binder
      *
-     * @param {string} selectId DOM Element ID for the <select> element
+     * @param {HTMLElement|string} targetSelect DOM Element or Selector for <select>
+     * @param {string} dddwId DDDW Identifier
+     * @param {string} [corpGr=""] Company Group code
+     * @param {string} [addData=""] Static add_data CSV string
+     * @param {number|string} [seq=1] Sequence number
+     * @param {string} [addWhere=""] Dynamic WHERE clause
+     * @param {Object} [config={}] Custom configuration (codeTitle, nameTitle, defaultVal, onSelect)
+     * @returns {Promise<Array<{code: string, name: string}>>}
+     */
+    f_dddwctl.bind = function (targetSelect, dddwId, corpGr, addData, seq, addWhere, config) {
+        return f_dddwctl(targetSelect, dddwId, corpGr, addData, seq, addWhere, config);
+    };
+
+    /**
+     * Dynamic DDDW Dropdown Options Loader Helper
+     * Loads DDDW data from server and automatically transforms target <select> into a 2-column dropdown.
+     *
+     * @param {string|HTMLElement} selectId DOM Element ID or Element for the <select> element
      * @param {string} dddwId DDDW Identifier
      * @param {number|string} [seq=1] Sequence number
      * @param {string} [addWhere=""] Dynamic WHERE clause
      * @param {string} [addOrderBy=""] Dynamic ORDER BY clause
      * @param {string} [defaultVal=""] Default selected code value
+     * @param {Object} [config={}] Extra config
      */
-    f_dddwctl.loadOptions = function (selectId, dddwId, seq, addWhere, addOrderBy, defaultVal) {
-        const selectEl = document.getElementById(selectId);
+    f_dddwctl.loadOptions = function (selectId, dddwId, seq, addWhere, addOrderBy, defaultVal, config) {
+        const selectEl = (typeof selectId === 'string')
+            ? (document.getElementById(selectId) || (typeof document !== 'undefined' ? document.querySelector(selectId) : null))
+            : selectId;
         if (!selectEl) return Promise.resolve([]);
 
         let actualDefault = defaultVal;
+        let actualWhere = addWhere || "";
+        let actualSeq = seq;
         if (typeof seq !== 'number' && !(typeof seq === 'string' && /^\d+$/.test(seq))) {
             actualDefault = addOrderBy;
+            actualWhere = seq || "";
+            actualSeq = 1;
         }
 
-        return f_dddwctl(dddwId, seq, addWhere, addOrderBy).then(list => {
-            if (!list || list.length === 0) return list;
-            let html = '';
-            list.forEach(item => {
-                const itemCode = (item.code != null ? item.code : (item.SEBU_CD != null ? item.SEBU_CD : item.cd));
-                const itemName = (item.name != null ? item.name : (item.SEBU_CD_NM != null ? item.SEBU_CD_NM : item.dscr));
-                const isSelected = (actualDefault && String(itemCode) === String(actualDefault)) ? 'selected' : '';
-                const escapedCode = global.escapeHtml ? global.escapeHtml(itemCode) : itemCode;
-                const escapedName = global.escapeHtml ? global.escapeHtml(itemName) : itemName;
-                html += `<option value="${escapedCode}" ${isSelected}>${escapedName}</option>`;
-            });
-            selectEl.innerHTML = html;
-            return list;
-        });
+        const compConfig = Object.assign({
+            defaultVal: actualDefault,
+            codeTitle: (config && config.codeTitle) || "코드",
+            nameTitle: (config && config.nameTitle) || "명칭"
+        }, config);
+
+        return f_dddwctl(selectEl, dddwId, '', '', actualSeq, actualWhere, compConfig);
     };
 
     /**

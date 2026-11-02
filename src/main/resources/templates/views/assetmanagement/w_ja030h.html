@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<div th:fragment="mainView" class="view-container layout-single layout-mobile-stack-container ja030h-container"
+     th:attr="data-corp-gr=${corpGr},data-work-date=${ymd}">
+    <style>
+        .ja030h-container .ja030h-guide { color: #475569; font-size: 12px; }
+    </style>
+    <div class="view-toolbar">
+        <div class="toolbar-left"><div th:replace="~{fragments/tab_header :: toolbarButtons}"></div></div>
+        <div th:replace="~{fragments/tab_header :: toolbarBreadcrumb}"></div>
+    </div>
+
+    <!-- d_ja030h.srd: 매도일자, 매도코드, 관리번호. -->
+    <div class="filter-bar">
+        <div class="filter-left">
+            <div th:replace="~{fragments/filter/dc_ymd :: filter(label='매도일자')}"></div>
+            <div class="filter-item"><label for="filterDddw">매도코드</label><select id="filterDddw" name="dddw" class="filter-select"></select></div>
+            <div class="filter-item filter-code-search-item">
+                <label for="filterFundCd">관리번호</label>
+                <div class="code-search-input-wrapper">
+                    <input id="filterFundCd" name="fundCd" class="filter-input code-search-input" autocomplete="off" />
+                    <button id="btnFilterFundSearch" type="button" class="btn-code-search" title="관리번호 검색"><i class="fa-solid fa-magnifying-glass"></i></button>
+                </div>
+                <span id="textFundName" class="code-search-name"></span>
+            </div>
+            <span class="ja030h-guide">전부매도는 매도금액 또는 매도액면을 더블클릭합니다.</span>
+        </div>
+    </div>
+
+    <section class="grid-section" aria-label="주식 매도 거래 목록">
+        <div class="grid-table-wrapper"><div id="detail-grid" class="tabulator-aams-grid"></div></div>
+    </section>
+
+    <script th:inline="javascript">
+        (function () {
+            const script = document.currentScript;
+            const pane = script ? (script.closest('.tab-pane') || script.closest('.view-container')) : null;
+            if (!pane || pane.dataset.ja030hInitialized === 'true') return;
+            pane.dataset.ja030hInitialized = 'true';
+
+            const api = '/api/assetmanagement/ja030h';
+            const initialYmd = /*[[${ymd}]]*/ '';
+            const field = id => pane.querySelector('#' + id);
+            const text = value => String(value == null ? '' : value).trim();
+            const number = value => Number(value || 0);
+            const amount = value => typeof formatNumber === 'function' ? formatNumber(value, 0) : number(value).toLocaleString('ko-KR');
+            const ymd = value => { const raw = text(value).replace(/\./g, '-'); return /^\d{8}$/.test(raw) ? raw.slice(0, 4) + '-' + raw.slice(4, 6) + '-' + raw.slice(6, 8) : raw.slice(0, 10); };
+            const corpGr = () => typeof resolveCorpGr === 'function' ? resolveCorpGr(pane) : pane.dataset.corpGr;
+            const canEdit = () => ymd(field('filterYmd').value) >= ymd(pane.dataset.workDate);
+            const message = (value, type) => typeof showToast === 'function' ? showToast(value, type || 'info') : window.alert(value);
+            const json = async (url, options) => { const response = await fetch(url, options); const body = await response.json().catch(() => ({})); if (!response.ok || body.success === false) throw new Error(body.message || '처리 중 오류가 발생했습니다.'); return body; };
+            let grid;
+            let fundSearch;
+            let deletedList = [];
+            let saving = false;
+
+            function recalculate(row, fieldName) {
+                const data = row.getData();
+                const aekm = number(data.aekm);
+                const trAek = number(data.trAek);
+                const jungsanAek = number(data.jungsanAek);
+                const update = {isUpdated: !data.isNew};
+                if (fieldName === 'aekm') update.trAek = number(data.danga) * aekm / 10000;
+                if (fieldName === 'trAek') update.mijigubTax = trAek - jungsanAek;
+                if (fieldName === 'jungsanAek') update.mijigubTax = trAek - jungsanAek;
+                const actualTrAek = update.trAek == null ? trAek : update.trAek;
+                update.danga = aekm > 0 ? actualTrAek / aekm * 10000 : 0;
+                update.jungsanAek = actualTrAek - number(update.mijigubTax == null ? data.mijigubTax : update.mijigubTax);
+                row.update(update);
+            }
+
+            function sellAll(cell) {
+                if (!canEdit()) return;
+                const row = cell.getRow();
+                const data = row.getData();
+                row.update({aekm: number(data.bfilAekm), trAek: number(data.bfilSigaAek), mijigubTax: 0,
+                    jungsanAek: number(data.bfilSigaAek), danga: number(data.bfilAekm) > 0 ? number(data.bfilSigaAek) / number(data.bfilAekm) * 10000 : 0,
+                    isUpdated: !data.isNew});
+            }
+
+            function buildGrid() {
+                grid = new Tabulator(field('detail-grid'), {
+                    height: '100%', layout: 'fitDataFill', selectableRows: 1, editTriggerEvent: 'click',
+                    placeholder: '<span>조회된 주식 매도 거래가 없습니다.</span>',
+                    columnDefaults: {vertAlign: 'middle', headerHozAlign: 'center', headerSortTristate: true},
+                    columns: [
+                        {title: 'No.', formatter: 'rownum', width: 48, hozAlign: 'center', headerSort: false, resizable: false},
+                        {title: '관리번호', field: 'fundCd', width: 105, hozAlign: 'center', headerCssClass: 'col-hdr-green'},
+                        {title: '계좌명', field: 'xxFundCd', minWidth: 150},
+                        {title: '매도종목', field: 'jmCd', width: 110, hozAlign: 'center'},
+                        {title: '종목명', field: 'xxJmCd', minWidth: 170},
+                        {title: '보유액면', field: 'bfilAekm', width: 110, hozAlign: 'right', formatter: cell => amount(cell.getValue())},
+                        {title: '매도액면', field: 'aekm', width: 110, hozAlign: 'right', formatter: cell => amount(cell.getValue()), editor: 'number', editable: canEdit, cellClick: aamsCellEdit, cellDblClick: (_e, cell) => sellAll(cell), bottomCalc: 'sum', bottomCalcFormatter: cell => amount(cell.getValue())},
+                        {title: '매도금액', field: 'trAek', width: 120, hozAlign: 'right', formatter: cell => amount(cell.getValue()), editor: 'number', editable: canEdit, cellClick: aamsCellEdit, cellDblClick: (_e, cell) => sellAll(cell), bottomCalc: 'sum', bottomCalcFormatter: cell => amount(cell.getValue())},
+                        {title: '정산(출금)액', field: 'jungsanAek', width: 120, hozAlign: 'right', formatter: cell => amount(cell.getValue()), editor: 'number', editable: canEdit, cellClick: aamsCellEdit},
+                        {title: '매도단가', field: 'danga', width: 105, hozAlign: 'right', formatter: cell => amount(cell.getValue())},
+                        {title: '제세금', field: 'mijigubTax', width: 100, hozAlign: 'right', formatter: cell => amount(cell.getValue())},
+                        {title: 'KSD종목코드', field: 'ksdJmCd', width: 120, hozAlign: 'center'},
+                        {title: '매매손익', field: 'mmSonik', width: 105, hozAlign: 'right', formatter: cell => amount(cell.getValue())}
+                    ]
+                });
+                grid.on('cellEdited', cell => recalculate(cell.getRow(), cell.getField()));
+                if (typeof setupTabulatorRowSelection === 'function') setupTabulatorRowSelection(grid);
+                if (window.AamsResponsive && typeof window.AamsResponsive.bindGridResize === 'function') window.AamsResponsive.bindGridResize(pane, [grid]);
+            }
+
+            async function retrieve() {
+                const selectedYmd = ymd(field('filterYmd').value);
+                const trCd = text(field('filterDddw').value);
+                if (!selectedYmd || !trCd) return message('매도일자와 매도코드를 선택하세요.', 'warning');
+                const rows = await json(api + '/list?' + new URLSearchParams({corpGr: corpGr(), ymd: selectedYmd, trCd: trCd, fundCd: text(field('filterFundCd').value)}));
+                await grid.setData((Array.isArray(rows) ? rows : []).map(row => Object.assign({}, row, {
+                    originalFundCd: row.fundCd, originalJmCd: row.jmCd, isNew: row.seqNo == null, isUpdated: false
+                })));
+                deletedList = [];
+            }
+
+            async function remove() {
+                const row = grid.getSelectedRows()[0];
+                if (!row) return message('삭제할 행을 선택하세요.', 'warning');
+                if (!canEdit()) return message('기준일 이전 거래는 수정할 수 없습니다.', 'warning');
+                const data = row.getData();
+                if (!data.isNew) deletedList.push(Object.assign({}, data));
+                await row.delete();
+            }
+
+            async function save() {
+                if (saving || !canEdit()) return !canEdit() && message('기준일 이전 거래는 수정할 수 없습니다.', 'warning');
+                const items = grid.getData().filter(row => row.isNew || row.isUpdated);
+                if (!items.length && !deletedList.length) return message('변경된 자료가 없습니다.', 'info');
+                saving = true;
+                try {
+                    const result = await json(api + '/save?' + new URLSearchParams({corpGr: corpGr()}), {method: 'POST', headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({trYmd: ymd(field('filterYmd').value), trCd: field('filterDddw').value, items: items, deletedList: deletedList})});
+                    message(result.message || '저장되었습니다.', 'success'); await retrieve();
+                } catch (error) { message(error.message || '저장하지 못했습니다.', 'error'); } finally { saving = false; }
+            }
+
+            async function initDddw() {
+                await initFilterDddw(pane, {selectId: 'filterDddw', dddwId: 'dddw', corpGr: corpGr(), seq: 1,
+                    addWhere: "szx1pt.obj_id='W_JA030H'", defaultVal: field('filterDddw').value || 'K30', codeTitle: '코드', nameTitle: '매도코드명'});
+            }
+
+            function initCalendar() { if (typeof window.initFilterCalendar === 'function') window.initFilterCalendar(pane, {initialYmd: field('filterYmd').value || initialYmd}); }
+
+            async function start() {
+                buildGrid();
+                fundSearch = DynamicCodeSearch.bind({pane: pane, inputEl: field('filterFundCd'), btnEl: field('btnFilterFundSearch'), textEl: field('textFundName'), columnNm: 'fund_cd', seq: 1, getCorpGr: corpGr});
+                await initDddw(); initCalendar();
+                pane.onSearch = () => retrieve().catch(error => message(error.message, 'error'));
+                pane.onInput = () => message('관리번호를 선택한 후 조회하면 보유 종목이 자동으로 생성됩니다.', 'info');
+                pane.onDelete = remove; pane.onSave = save;
+                pane.onExcel = () => grid.download('xlsx', '주식_매도거래_등록.xlsx', {sheetName: '주식매도거래'});
+                pane.onRefresh = async () => { deletedList = []; field('filterYmd').value = initialYmd; field('filterFundCd').value = ''; field('textFundName').textContent = ''; await initDddw(); initCalendar(); await grid.clearData(); };
+                pane.onCorpGrChange = async value => { pane.dataset.corpGr = value || ''; deletedList = []; await initDddw(); await grid.clearData(); };
+            }
+            if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, {once: true}); else start();
+        })();
+    </script>
+</div>
+</html>

@@ -128,3 +128,26 @@ For a normal `SELECT` that returns one flat DTO, use `resultType`. A `statementT
     ) }
 </select>
 ```
+
+---
+
+## 6. MyBatis XML 줄바꿈 및 들여쓰기 표준
+
+1. **XML 요소 단위**: `<select>`, `<insert>`, `<update>`, `<delete>`, `<resultMap>`과 그 하위 `<result>` 요소는 각각 한 줄에 작성한다. 여러 `<result>` 요소를 한 줄에 연결하지 않는다.
+2. **SELECT 컬럼 단위**: `SELECT`의 첫 컬럼과 이후 컬럼을 각각 한 줄에 작성한다. 이후 컬럼은 쉼표를 줄 앞에 두고 정렬한다. 한 줄에 여러 컬럼·별칭을 나열하지 않는다.
+3. **절과 조건 단위**: `FROM`, 각 `JOIN`, `ON`, `WHERE`, `ORDER BY`는 줄을 분리한다. JOIN 조건과 WHERE 조건은 `AND`마다 줄을 분리해 테이블 조인 관계와 바인드 조건을 바로 확인할 수 있게 한다.
+4. **계산식 단위**: `CASE`, 긴 산술식, 서브쿼리는 내부 조건·분기를 줄바꿈하고, 원본 PowerBuilder SQL의 별칭과 테이블명을 유지한다.
+
+```xml
+<select id="selectList" resultType="com.kfp.aams.domain.example.dto.ExampleDto">
+    SELECT t1.CORP_GR
+         , t1.TR_YMD
+         , ia.FUND_NM AS xx_fund_cd
+      FROM SJT0TG t1
+      JOIN SZM0IA ia
+        ON ia.CORP_GR = t1.CORP_GR
+       AND ia.FUND_CD = t1.FUND_CD
+     WHERE t1.CORP_GR = #{corpGr}
+       AND t1.TR_YMD = #{trYmd}
+</select>
+```

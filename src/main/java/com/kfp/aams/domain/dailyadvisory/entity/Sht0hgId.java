@@ -5,11 +5,17 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.io.Serializable;
+import java.math.BigDecimal;
+import java.time.LocalDate;
 
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 public class Sht0hgId implements Serializable {
     private String corpGr;
+    private LocalDate trYmd;
+    private String trCd;
+    private String fundCd;
     private String jmCd;
+    private BigDecimal seqNo;
 }

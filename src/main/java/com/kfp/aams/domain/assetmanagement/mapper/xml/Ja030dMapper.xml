@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.kfp.aams.domain.assetmanagement.mapper.Ja030dMapper">
+    <!-- d_ja030d.srd retrieve SQL. -->
+    <select id="selectList" resultType="com.kfp.aams.domain.assetmanagement.dto.Ja030dDto">
+        SELECT cg.CORP_GR
+             , cg.TR_YMD
+             , cg.TR_CD
+             , cg.FUND_CD
+             , cg.JM_CD
+             , cg.SEQ_NO
+             , cg.TR_CO_CD
+             , cg.AEKM
+             , cg.DANGA
+             , cg.DANGA * 10000 AS com_danga
+             , cg.TR_AEK
+             , cg.SUSU
+             , cg.SODUK_TAX
+             , cg.JUMIN_TAX
+             , cg.IJA_TAX
+             , cg.SUDO_YMD
+             , cg.MK_SUIK_RT
+             , cg.JAJUN_GB
+             , cg.CHUI_AEK
+             , mm.TR_CO_NM AS xx_tr_co_cd
+             , cj.CJ_FNM AS xx_jm_cd
+             , ia.FUND_NM AS xx_fund_cd
+             , cg.DANGA_GB
+             , cg.JAJUN_SAYU
+             , cg.MK_SUIK_RT * 100 AS com_mk_suik_rt
+             , cm.BFIL_AEKM AS boyu_aekm
+             , cg.BUY_DATE
+             , cg.IJA_AEKM
+             , cg.CRE_USER
+             , 1 AS p_visible
+          FROM SCT0CG cg
+          LEFT JOIN SCM0CM cm
+            ON cm.CORP_GR = cg.CORP_GR
+           AND cm.YMD = cg.TR_YMD
+           AND cm.FUND_CD = cg.FUND_CD
+           AND cm.JM_CD = cg.JM_CD
+           AND cm.BUY_DATE = cg.BUY_DATE
+          LEFT JOIN SCM0CJ cj
+            ON cj.CORP_GR = cg.CORP_GR
+           AND cj.JM_CD = cg.JM_CD
+          LEFT JOIN SZX2MM mm
+            ON mm.CORP_GR = cg.CORP_GR
+           AND mm.TR_CO_CD = cg.TR_CO_CD
+          JOIN SZM0IA ia
+            ON ia.CORP_GR = cg.CORP_GR
+           AND ia.FUND_CD = cg.FUND_CD
+         WHERE cg.CORP_GR = #{corpGr}
+           AND cg.TR_YMD = #{trYmd}
+           AND cg.TR_CD = #{trCd}
+         ORDER BY cg.FUND_CD, cg.JM_CD, cg.SEQ_NO
+    </select>
+</mapper>

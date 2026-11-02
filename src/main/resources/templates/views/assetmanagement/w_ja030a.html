@@ -2,6 +2,106 @@
 <html xmlns:th="http://www.thymeleaf.org">
 <div th:fragment="mainView" class="view-container layout-single layout-mobile-stack-container ja030a-container"
      th:attr="data-corp-gr=${corpGr},data-work-date=${ymd}">
+    <style>
+        .ja030a-container .filter-d-ja030a {
+            display: grid;
+            grid-template-columns: auto auto minmax(16px, 1fr) auto;
+            align-items: center;
+            justify-content: stretch;
+            gap: 6px 16px;
+            margin: 8px 12px 4px;
+            padding: 8px 30px;
+            border: 1px solid #22c55e;
+            background: #f8fafc;
+        }
+
+        .ja030a-container .filter-d-ja030a > .filter-item { margin: 0; }
+
+        .ja030a-container .filter-d-ja030a > .ja030a-filter-ymd {
+            grid-column: 1;
+            grid-row: 1;
+            margin: 0;
+        }
+
+        .ja030a-container .filter-d-ja030a > .ja030a-filter-ymd .filter-item { margin: 0; }
+
+        .ja030a-container .filter-d-ja030a > .filter-item:nth-child(1) { grid-column: 1; grid-row: 1; }
+        .ja030a-container .filter-d-ja030a > .filter-item:nth-child(2) { grid-column: 2; grid-row: 1; }
+        .ja030a-container .filter-d-ja030a > .filter-item:nth-child(3) { grid-column: 4; grid-row: 1; }
+        .ja030a-container .filter-d-ja030a > .filter-item:nth-child(4) { grid-column: 1; grid-row: 2; }
+        .ja030a-container .filter-d-ja030a > .filter-item:nth-child(5) { grid-column: 2; grid-row: 2; }
+        .ja030a-container .filter-d-ja030a > .filter-item:nth-child(6) { grid-column: 3; grid-row: 2; }
+        .ja030a-container .filter-d-ja030a > .filter-item:nth-child(7) { grid-column: 4; grid-row: 2; }
+        .ja030a-container .filter-d-ja030a > .filter-item:nth-child(8) { grid-column: 5; grid-row: 2; }
+
+        .ja030a-container .filter-d-ja030a .aams-calendar-input {
+            width: 110px;
+            padding: 4px 8px;
+            font-size: 13px;
+            text-align: center;
+            border: 1px solid #cbd5e1;
+            border-radius: 4px 0 0 4px;
+            cursor: pointer;
+            background: #ffffff;
+        }
+
+        .ja030a-container .filter-d-ja030a .btn-calendar {
+            padding: 5px 10px;
+            border: 1px solid #3b82f6;
+            border-left: 0;
+            border-radius: 0 4px 4px 0;
+            background-color: #3b82f6;
+            color: #ffffff;
+        }
+
+        .ja030a-container .filter-d-ja030a #filterTrCd { width: 210px; }
+        .ja030a-container .filter-d-ja030a #filterDancGb { width: 100px; }
+
+        .ja030a-container .filter-d-ja030a #filterKrakYmd,
+        .ja030a-container .filter-d-ja030a #filterChengYmd,
+        .ja030a-container .filter-d-ja030a #filterBalhGa,
+        .ja030a-container .filter-d-ja030a #textBalhName,
+        .ja030a-container .filter-d-ja030a #textJmName {
+            height: 26px;
+            box-sizing: border-box;
+            border: 1px solid #cbd5e1;
+            background: #d0d2d5;
+            color: #1e293b;
+        }
+
+        .ja030a-container .filter-d-ja030a #filterKrakYmd,
+        .ja030a-container .filter-d-ja030a #filterChengYmd,
+        .ja030a-container .filter-d-ja030a #filterBalhGa { width: 92px; }
+
+        .ja030a-container .filter-d-ja030a #filterKrakYmd:disabled,
+        .ja030a-container .filter-d-ja030a #filterChengYmd:disabled,
+        .ja030a-container .filter-d-ja030a #filterBalhGa:disabled {
+            cursor: not-allowed;
+            opacity: 1;
+        }
+
+        .ja030a-container .filter-d-ja030a #textBalhName,
+        .ja030a-container .filter-d-ja030a #textJmName {
+            display: inline-flex;
+            align-items: center;
+            width: 180px;
+            overflow: hidden;
+            padding: 2px 6px;
+            font-weight: 400;
+            text-overflow: ellipsis;
+        }
+
+        @media (max-width: 1200px) {
+            .ja030a-container .filter-d-ja030a {
+                display: flex;
+                align-items: center;
+                justify-content: flex-start;
+                flex-wrap: wrap;
+                margin: 6px 8px 4px;
+                padding: 8px 10px;
+            }
+        }
+    </style>
     <div class="view-toolbar">
         <div class="toolbar-left"><div th:replace="~{fragments/tab_header :: toolbarButtons}"></div></div>
         <div th:replace="~{fragments/tab_header :: toolbarBreadcrumb}"></div>
@@ -9,12 +109,8 @@
 
     <!-- d_ja030a.srd(dw_c): 영업일자·거래코드·발행처·시장구분·종목코드 -->
     <div class="filter-bar filter-d-ja030a">
-        <div class="filter-item">
-            <label for="filterYmd">영업일자</label>
-            <div class="aams-calendar-wrapper">
-                <input type="text" id="filterYmd" name="ymd" class="t-input aams-calendar-input" th:value="${ymd}" readonly autocomplete="off" />
-                <button type="button" class="t-btn btn-calendar" title="달력 열기" onclick="AamsCalendar.toggle('filterYmd', event)"><i class="fa-regular fa-calendar-days"></i></button>
-            </div>
+        <div class="ja030a-filter-ymd">
+            <div th:replace="~{fragments/filter/dc_ymd :: filter(label='영업일자')}"></div>
         </div>
         <div class="filter-item">
             <label for="filterTrCd">거래코드</label>
@@ -22,7 +118,8 @@
         </div>
         <div class="filter-item">
             <label for="filterKrakYmd">권리락일</label>
-            <input type="text" id="filterKrakYmd" name="krakYmd" class="filter-input" readonly aria-readonly="true" />
+            <input type="text" id="filterKrakYmd" name="krakYmd" class="result-info-value"
+                   readonly disabled aria-readonly="true" />
         </div>
         <div class="filter-item filter-code-search-item">
             <label for="filterBalhCo">발행처</label>
@@ -46,11 +143,13 @@
         </div>
         <div class="filter-item">
             <label for="filterChengYmd">청약일자</label>
-            <input type="text" id="filterChengYmd" name="chengYmd" class="filter-input" readonly aria-readonly="true" />
+            <input type="text" id="filterChengYmd" name="chengYmd" class="result-info-value"
+                   readonly disabled aria-readonly="true"/>
         </div>
         <div class="filter-item">
             <label for="filterBalhGa">발행가</label>
-            <input type="text" id="filterBalhGa" name="balhGa" class="filter-input input-number" readonly aria-readonly="true" />
+            <input type="text" id="filterBalhGa" name="balhGa" class="result-info-value"
+                   readonly disabled aria-readonly="true"/>
         </div>
     </div>
 
@@ -70,6 +169,14 @@
 
             const api = '/api/assetmanagement/ja030a';
             const field = id => pane.querySelector('#' + id);
+            ['filterKrakYmd', 'filterChengYmd', 'filterBalhGa'].forEach(id => {
+                const input = field(id);
+                if (!input) return;
+                input.readOnly = true;
+                input.disabled = true;
+                input.setAttribute('aria-readonly', 'true');
+                input.setAttribute('aria-disabled', 'true');
+            });
             const initialYmd = /*[[${ymd}]]*/ '';
             let grid;
             let balhSearch;
@@ -93,6 +200,13 @@
                 const raw = formatYmd(value);
                 return /^\d{4}-\d{2}-\d{2}$/.test(raw) ? raw : '';
             };
+            const filterYmd = format => {
+                if (typeof window.getFilterYmd === 'function') {
+                    return window.getFilterYmd(pane, format || 'YYYY-MM-DD');
+                }
+                const value = toIsoYmd(field('filterYmd').value);
+                return format === 'YYYYMMDD' ? value.replace(/-/g, '') : value;
+            };
             const compactYmd = value => toIsoYmd(value).replace(/-/g, '');
             const showMessage = (message, type) => {
                 if (typeof showToast === 'function') showToast(message, type || 'info');
@@ -106,14 +220,14 @@
             };
             const filterValue = () => ({
                 corpGr: resolveCorpGr(pane),
-                ymd: toIsoYmd(field('filterYmd').value),
+                ymd: filterYmd(),
                 trCd: safeText(field('filterTrCd').value),
                 balhCo: safeText(field('filterBalhCo').value),
                 jmCd: safeText(field('filterJmCd').value)
             });
             const canUseFilter = filter => !!(filter.corpGr && filter.ymd && filter.trCd && filter.balhCo && filter.jmCd);
             const isPastWorkDate = () => {
-                const selected = compactYmd(field('filterYmd').value);
+                const selected = filterYmd('YYYYMMDD');
                 const workDate = compactYmd(pane.dataset.workDate);
                 return !!(selected && workDate && selected < workDate);
             };
@@ -154,7 +268,7 @@
                 dddwLoading = true;
                 try {
                     const currentTrCd = safeText(field('filterTrCd').value);
-                    const selectedYmd = toIsoYmd(field('filterYmd').value);
+                    const selectedYmd = filterYmd();
                     const corpGr = resolveCorpGr(pane);
                     const historicalWhere = isPastWorkDate()
                         ? "szx1pt.obj_id='W_JA030A' and szx0gc.tr_cd in (select tr_cd from sjt5j1 where corp_gr='" + sqlQuote(corpGr) + "' and tr_ymd='" + sqlQuote(selectedYmd) + "')"
@@ -349,7 +463,7 @@
                     pane: pane, inputEl: field('filterBalhCo'), btnEl: field('btnFilterBalhSearch'), textEl: field('textBalhName'),
                     columnNm: 'balh_co', seq: 1, getCorpGr: corp,
                     addWhere: () => isPastWorkDate()
-                        ? "balh_co in (select balh_co from sjt5j1 where corp_gr='" + sqlQuote(corp()) + "' and tr_ymd='" + sqlQuote(toIsoYmd(field('filterYmd').value)) + "' and tr_cd='" + sqlQuote(field('filterTrCd').value) + "')"
+                        ? "balh_co in (select balh_co from sjt5j1 where corp_gr='" + sqlQuote(corp()) + "' and tr_ymd='" + sqlQuote(filterYmd()) + "' and tr_cd='" + sqlQuote(field('filterTrCd').value) + "')"
                         : '',
                     onSelect: (_code, name) => { field('textBalhName').textContent = name || ''; clearCodeSelection(jmSearch, 'filterJmCd', 'textJmName'); setReadOnlyValues(null); }
                 });
@@ -357,7 +471,7 @@
                     pane: pane, inputEl: field('filterJmCd'), btnEl: field('btnFilterJmSearch'), textEl: field('textJmName'),
                     columnNm: 'jm_cd', seq: 1, getCorpGr: corp,
                     addWhere: () => isPastWorkDate()
-                        ? "jm_cd in (select jm_cd from sjt5j1 where corp_gr='" + sqlQuote(corp()) + "' and tr_ymd='" + sqlQuote(toIsoYmd(field('filterYmd').value)) + "' and tr_cd='" + sqlQuote(field('filterTrCd').value) + "')"
+                        ? "jm_cd in (select jm_cd from sjt5j1 where corp_gr='" + sqlQuote(corp()) + "' and tr_ymd='" + sqlQuote(filterYmd()) + "' and tr_cd='" + sqlQuote(field('filterTrCd').value) + "')"
                         : "danc_gb='" + sqlQuote(field('filterDancGb').value) + "' and balh_co='" + sqlQuote(field('filterBalhCo').value) + "'",
                     onSelect: (_code, name, rowData) => { field('textJmName').textContent = name || ''; setReadOnlyValues(rowData); }
                 });

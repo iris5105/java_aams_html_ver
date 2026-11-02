@@ -130,22 +130,10 @@
                 }
 
                 if (typeof window.f_dddwctl === 'function') {
-                    window.f_dddwctl('dddw | corp_gr', globalCorpGr, '', 1, '').then(function (options) {
-                        if (options && options.length > 0) {
-                            dddwSelect.innerHTML = '';
-                            options.forEach(function (opt) {
-                                var optEl = document.createElement('option');
-                                var code = opt.code || opt.cd || '';
-                                var name = opt.name || opt.nm || opt.dscr || code;
-                                optEl.value = code;
-                                optEl.textContent = name;
-                                dddwSelect.appendChild(optEl);
-                            });
-
-                            if (globalCorpGr) {
-                                dddwSelect.value = globalCorpGr;
-                            }
-                        }
+                    window.f_dddwctl(dddwSelect, 'dddw | corp_gr', globalCorpGr, '', 1, '', {
+                        defaultVal: globalCorpGr,
+                        codeTitle: '코드',
+                        nameTitle: '회사명'
                     }).catch(function (e) {
                         console.warn('[w_run] f_dddwctl load error:', e);
                     });

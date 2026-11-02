@@ -79,6 +79,10 @@ public class Sct0cg {
 
     @Column(name = "IJA_AEKM", precision = 18, scale = 4)
     private BigDecimal ijaAekm;
+    @Column(name = "SODUK_TAX", precision = 18, scale = 0) private BigDecimal sodukTax;
+    @Column(name = "JUMIN_TAX", precision = 18, scale = 0) private BigDecimal juminTax;
+    @Column(name = "IJA_TAX", precision = 18, scale = 0) private BigDecimal ijaTax;
+    @Column(name = "CRE_USER", length = 20) private String creUser;
 
     // W_JA021E rights-exercise columns; shared with the existing bond-trade entity.
     @Column(name = "IJA_BAED_GB", length = 1)

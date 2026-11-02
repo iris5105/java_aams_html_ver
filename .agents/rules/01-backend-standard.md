@@ -22,6 +22,8 @@ trigger: always_on
 
 1. **단일 테이블 단순 조회 및 CUD(등록/수정/삭제) -> Spring Data JPA / EntityManager**:
    - **엔티티 구성**: 단일 테이블은 `@Entity` 클래스로 정의하며, 복합 기본키 테이블은 `@IdClass` 또는 `@EmbeddedId`를 적용한다.
+   - **PowerBuilder table-name authority**: For an Oracle table referenced by a PowerBuilder `.srd`, `.srw`, or DB source, copy its table name exactly as written in that source. For compact legacy names without underscores (for example, `SJT5J1`, `SHT0HG`), declare the JPA table name as a quoted Oracle identifier: `@Table(name = "\"SJT5J1\"")`. This prevents Hibernate's physical naming strategy from changing it to `sjt5_j1` or `sht0_hg`.
+   - **Verification requirement**: Before adding or changing an entity, compare `@Table` and every `@Column(name = ...)` value with the PowerBuilder source. Check Hibernate SQL once for table-name conversion; never infer an underscore from a Java class name.
    - **단일 테이블 단순 조회**: Spring Data JPA의 리포지토리 메서드(`findById`, `findByCorpGrAndYmd` 등) 또는 JPA `em.find(Entity.class, id)`를 사용한다. 동적 검색 조건이 필요한 경우 `JPAQueryFactory` (QueryDSL)를 활용한다.
    - **CUD(등록/수정/삭제) 표준 패턴**:
      - **등록 (Create)**: 엔티티 객체 생성 후 `em.persist(entity)` 또는 `repository.save(entity)` 호출.

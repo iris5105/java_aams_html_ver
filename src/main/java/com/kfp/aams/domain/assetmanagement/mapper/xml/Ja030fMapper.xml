@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.kfp.aams.domain.assetmanagement.mapper.Ja030fMapper">
+    <select id="selectList" resultType="com.kfp.aams.domain.assetmanagement.dto.Ja030fDto">
+        SELECT t1.CORP_GR
+             , t1.FUND_CD
+             , t1.SEQ_NO
+             , t1.AEKM
+             , t1.TR_AEK
+             , CASE WHEN t1.AEKM &gt; 0 THEN t1.TR_AEK / t1.AEKM * 10000
+                    ELSE 0
+               END AS danga
+             , t1.TR_YMD
+             , t1.TR_CD
+             , t1.JM_CD AS hj_cd
+             , hj.HJ_NM AS xx_hj_cd
+             , t1.TR_CO_CD
+             , t1.MK_SUIK_RT
+             , t1.SANGHW_AEK
+             , t1.SUSU_GA
+             , t1.TAX_OFFER_GB
+             , ia.FUND_NM AS xx_fund_cd
+             , t1.JAJUN_GB
+             , t1.SUNG_COST
+             , t1.AUTO_PER
+             , t1.SUSU_09900
+             , t1.SUNSU_IJA
+             , 1 AS p_visible
+          FROM SHT0HG t1
+          LEFT JOIN SZM0IA ia
+            ON ia.CORP_GR = t1.CORP_GR
+           AND ia.FUND_CD = t1.FUND_CD
+          JOIN SHM0HJ hj
+            ON hj.CORP_GR = t1.CORP_GR
+           AND hj.JM_CD = t1.JM_CD
+         WHERE t1.CORP_GR = #{corpGr}
+           AND t1.TR_YMD = #{trYmd}
+           AND t1.TR_CD = 'J32'
+         ORDER BY t1.FUND_CD
+    </select>
+</mapper>

@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.kfp.aams.domain.assetmanagement.mapper.Ja030hMapper">
+    <!-- d_ja030h1.srd retrieve SQL. PowerBuilder table and aliases are preserved. -->
+    <select id="selectList" resultType="com.kfp.aams.domain.assetmanagement.dto.Ja030hDto">
+        SELECT t1.CORP_GR
+             , t1.TR_YMD
+             , t1.TR_CD
+             , t1.FUND_CD
+             , t1.JM_CD
+             , t1.SEQ_NO
+             , t1.AEKM
+             , t1.TR_AEK
+             , t1.TR_AEK - NVL(t1.MIJIGUB_TAX, 0) AS jungsan_aek
+             , t1.MIJIGUB_TAX
+             , t1.TR_CO_CD
+             , t1.MK_SUIK_RT
+             , t1.SUSU_GA
+             , t1.TAX_OFFER_GB
+             , t1.JAJUN_GB
+             , ia.FUND_NM AS xx_fund_cd
+             , hm.BFIL_AEKM AS bfil_aekm
+             , hm.BFIL_SIGA_AEK AS bfil_siga_aek
+             , hj.KSD_JM_CD AS ksd_jm_cd
+             , hj.HJ_NM AS xx_jm_cd
+             , t1.MM_SONIK AS mm_sonik
+             , CASE WHEN t1.AEKM &gt; 0 THEN t1.TR_AEK / t1.AEKM * 10000
+                    ELSE 0
+               END AS danga
+             , 1 AS p_visible
+          FROM SHT0HG t1
+          JOIN SZM0IA ia
+            ON ia.CORP_GR = t1.CORP_GR
+           AND ia.FUND_CD = t1.FUND_CD
+          JOIN SHM0HM hm
+            ON hm.CORP_GR = t1.CORP_GR
+           AND hm.YMD = t1.TR_YMD
+           AND hm.FUND_CD = t1.FUND_CD
+           AND hm.JM_CD = t1.JM_CD
+          JOIN SHM0HJ hj
+            ON hj.CORP_GR = t1.CORP_GR
+           AND hj.JM_CD = t1.JM_CD
+         WHERE t1.CORP_GR = #{corpGr}
+           AND t1.TR_YMD = #{trYmd}
+           AND t1.TR_CD = #{trCd}
+           AND t1.FUND_CD LIKE #{fundCd}
+         ORDER BY t1.FUND_CD, t1.JM_CD
+    </select>
+
+    <!-- d_ja030h1.srd retrieveend: selected fund's opening holdings become initial rows. -->
+    <select id="selectInitialHoldings" resultType="com.kfp.aams.domain.assetmanagement.dto.Ja030hDto">
+        SELECT hm.CORP_GR
+             , #{trYmd} AS tr_ymd
+             , #{trCd} AS tr_cd
+             , hm.FUND_CD
+             , ia.FUND_NM AS xx_fund_cd
+             , hm.JM_CD
+             , hj.HJ_NM AS xx_jm_cd
+             , hj.KSD_JM_CD AS ksd_jm_cd
+             , ia.MG_CD AS tr_co_cd
+             , hm.BFIL_AEKM AS bfil_aekm
+             , hm.BFIL_SIGA_AEK AS bfil_siga_aek
+             , hm.BFIL_AEKM AS aekm
+             , hm.BFIL_SIGA_AEK AS tr_aek
+             , 0 AS mijigub_tax
+             , CASE WHEN hm.BFIL_AEKM &gt; 0 THEN hm.BFIL_SIGA_AEK / hm.BFIL_AEKM * 10000
+                    ELSE 0
+               END AS danga
+             , 1 AS p_visible
+          FROM SHM0HM hm
+          JOIN SZM0IA ia
+            ON ia.CORP_GR = hm.CORP_GR
+           AND ia.FUND_CD = hm.FUND_CD
+          JOIN SHM0HJ hj
+            ON hj.CORP_GR = hm.CORP_GR
+           AND hj.JM_CD = hm.JM_CD
+         WHERE hm.CORP_GR = #{corpGr}
+           AND hm.YMD = #{trYmd}
+           AND hm.FUND_CD = #{fundCd}
+           AND NVL(hm.BFIL_AEKM, 0) &gt; 0
+         ORDER BY hm.JM_CD
+    </select>
+</mapper>

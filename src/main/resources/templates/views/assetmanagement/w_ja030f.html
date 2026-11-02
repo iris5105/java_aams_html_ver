@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<div th:fragment="mainView" class="view-container layout-single layout-mobile-stack-container"
+     th:attr="data-corp-gr=${corpGr},data-work-date=${ymd}">
+    <div class="view-toolbar">
+        <div class="toolbar-left"><div th:replace="~{fragments/tab_header :: toolbarButtons}"></div></div>
+        <div th:replace="~{fragments/tab_header :: toolbarBreadcrumb}"></div>
+    </div>
+
+    <div class="filter-bar">
+        <div class="filter-left">
+            <div th:replace="~{fragments/filter/dc_ymd :: filter(label='매매일자')}"></div>
+        </div>
+    </div>
+
+    <section class="grid-section" aria-label="현금 매입거래 목록">
+        <div class="grid-table-wrapper"><div id="detail-grid" class="tabulator-aams-grid"></div></div>
+    </section>
+
+    <script th:inline="javascript">
+        (function () {
+            const script = document.currentScript;
+            const pane = script ? (script.closest('.tab-pane') || script.closest('.view-container')) : null;
+            if (!pane || pane.dataset.ja030fInitialized === 'true') return;
+            pane.dataset.ja030fInitialized = 'true';
+
+            const api = '/api/assetmanagement/ja030f';
+            const initialYmd = /*[[${ymd}]]*/ '';
+            const field = id => pane.querySelector('#' + id);
+            const text = value => String(value == null ? '' : value).trim();
+            const ymd = value => {
+                const raw = text(value).replace(/\./g, '-');
+                return /^\d{8}$/.test(raw) ? raw.slice(0, 4) + '-' + raw.slice(4, 6) + '-' + raw.slice(6, 8) : raw.slice(0, 10);
+            };
+            const number = value => Number(value || 0);
+            const amount = value => typeof formatNumber === 'function' ? formatNumber(value, 0) : number(value).toLocaleString('ko-KR');
+            const message = (value, type) => typeof showToast === 'function' ? showToast(value, type || 'info') : window.alert(value);
+            const corpGr = () => typeof resolveCorpGr === 'function' ? resolveCorpGr(pane) : pane.dataset.corpGr;
+            const canEdit = () => ymd(field('filterYmd').value) >= ymd(pane.dataset.workDate);
+            const json = async (url, options) => {
+                const response = await fetch(url, options);
+                const body = await response.json().catch(() => ({}));
+                if (!response.ok || body.success === false) throw new Error(body.message || '처리 중 오류가 발생했습니다.');
+                return body;
+            };
+            let grid;
+            let deletedList = [];
+            let saving = false;
+
+            function markEdited(cell) {
+                const row = cell.getRow();
+                const data = row.getData();
+                const update = data.isNew ? {} : {isUpdated: true};
+                if (['aekm', 'danga'].includes(cell.getField())) {
+                    update.trAek = number(data.aekm) * number(data.danga) / 10000;
+                }
+                row.update(update);
+            }
+
+            function openCodeSearch(cell, columnNm, codeField, nameField) {
+                if (!canEdit() || !window.DynamicCodeSearch || typeof window.DynamicCodeSearch.openModal !== 'function') return;
+                const row = cell.getRow();
+                window.DynamicCodeSearch.openModal({
+                    columnNm: columnNm,
+                    seq: 1,
+                    corpGr: corpGr(),
+                    initialKeyword: text(row.getData()[codeField]),
+                    onSelect: (code, name) => row.update({[codeField]: code, [nameField]: name || '', isUpdated: !row.getData().isNew})
+                });
+            }
+
+            function buildGrid() {
+                grid = new Tabulator(field('detail-grid'), {
+                    height: '100%', layout: 'fitDataFill', selectableRows: 1, editTriggerEvent: 'click',
+                    placeholder: '<span>조회된 현금 매입거래가 없습니다.</span>',
+                    columnDefaults: {vertAlign: 'middle', headerHozAlign: 'center', headerSortTristate: true},
+                    columns: [
+                        {title: 'No.', formatter: 'rownum', width: 48, hozAlign: 'center', headerSort: false, resizable: false},
+                        {title: '관리번호', field: 'fundCd', width: 105, hozAlign: 'center', editor: 'input', editable: canEdit, cellClick: aamsCellEdit},
+                        {title: '', field: 'fundSearch', width: 34, headerSort: false, resizable: false, hozAlign: 'center', formatter: () => '<i class="fa-solid fa-magnifying-glass"></i>', cellClick: (_event, cell) => openCodeSearch(cell, 'fund_cd', 'fundCd', 'xxFundCd')},
+                        {title: '계좌명', field: 'xxFundCd', minWidth: 180},
+                        {title: '매입종목', field: 'hjCd', width: 115, hozAlign: 'center', editor: 'input', editable: canEdit, cellClick: aamsCellEdit},
+                        {title: '', field: 'hjSearch', width: 34, headerSort: false, resizable: false, hozAlign: 'center', formatter: () => '<i class="fa-solid fa-magnifying-glass"></i>', cellClick: (_event, cell) => openCodeSearch(cell, 'hj_cd', 'hjCd', 'xxHjCd')},
+                        {title: '종목명', field: 'xxHjCd', minWidth: 170},
+                        {title: '매입액면', field: 'aekm', width: 120, hozAlign: 'right', formatter: cell => amount(cell.getValue()), editor: 'number', editable: canEdit, cellClick: aamsCellEdit, bottomCalc: 'sum', bottomCalcFormatter: cell => amount(cell.getValue())},
+                        {title: '매입단가', field: 'danga', width: 120, hozAlign: 'right', formatter: cell => amount(cell.getValue()), editor: 'number', editable: canEdit, cellClick: aamsCellEdit},
+                        {title: '매입금액', field: 'trAek', width: 130, hozAlign: 'right', formatter: cell => amount(cell.getValue()), bottomCalc: 'sum', bottomCalcFormatter: cell => amount(cell.getValue())}
+                    ]
+                });
+                grid.on('cellEdited', markEdited);
+                if (typeof setupTabulatorRowSelection === 'function') setupTabulatorRowSelection(grid);
+                if (window.AamsResponsive && typeof window.AamsResponsive.bindGridResize === 'function') {
+                    window.AamsResponsive.bindGridResize(pane, [grid]);
+                }
+            }
+
+            async function retrieve() {
+                const selectedYmd = ymd(field('filterYmd').value);
+                if (!selectedYmd) return message('매매일자를 선택하세요.', 'warning');
+                const rows = await json(api + '/list?' + new URLSearchParams({corpGr: corpGr(), ymd: selectedYmd}));
+                await grid.setData((Array.isArray(rows) ? rows : []).map(row => Object.assign({}, row, {
+                    originalFundCd: row.fundCd, originalHjCd: row.hjCd, isNew: false, isUpdated: false
+                })));
+                deletedList = [];
+            }
+
+            async function insert() {
+                if (!canEdit()) return message('기준일 이전 거래는 수정할 수 없습니다.', 'warning');
+                const row = await grid.addRow({corpGr: corpGr(), trYmd: ymd(field('filterYmd').value), trCd: 'J32', aekm: 0, danga: 0, trAek: 0, pVisible: 1, isNew: true, isUpdated: false}, true);
+                grid.deselectRow(); row.select(); row.getCell('fundCd').edit();
+            }
+
+            async function remove() {
+                const row = grid.getSelectedRows()[0];
+                if (!row) return message('삭제할 행을 선택하세요.', 'warning');
+                if (!canEdit()) return message('기준일 이전 거래는 수정할 수 없습니다.', 'warning');
+                const data = row.getData();
+                if (!data.isNew) deletedList.push(Object.assign({}, data));
+                await row.delete();
+            }
+
+            async function save() {
+                if (saving) return;
+                if (!canEdit()) return message('기준일 이전 거래는 수정할 수 없습니다.', 'warning');
+                const items = grid.getData().filter(row => row.isNew || row.isUpdated);
+                if (!items.length && !deletedList.length) return message('변경된 자료가 없습니다.', 'info');
+                saving = true;
+                try {
+                    const result = await json(api + '/save?' + new URLSearchParams({corpGr: corpGr()}), {
+                        method: 'POST', headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({trYmd: ymd(field('filterYmd').value), items: items, deletedList: deletedList})
+                    });
+                    message(result.message || '저장되었습니다.', 'success');
+                    await retrieve();
+                } catch (error) {
+                    message(error.message || '저장하지 못했습니다.', 'error');
+                } finally { saving = false; }
+            }
+
+            function initCalendar() {
+                if (typeof window.initFilterCalendar !== 'function') return;
+                window.initFilterCalendar(pane, {initialYmd: field('filterYmd').value || initialYmd});
+            }
+
+            async function start() {
+                buildGrid();
+                initCalendar();
+                pane.onSearch = () => retrieve().catch(error => message(error.message, 'error'));
+                pane.onInput = insert;
+                pane.onDelete = remove;
+                pane.onSave = save;
+                pane.onExcel = () => grid.download('xlsx', '현금_매입거래_등록.xlsx', {sheetName: '현금매입거래'});
+                pane.onRefresh = async () => { deletedList = []; field('filterYmd').value = initialYmd; initCalendar(); await retrieve(); };
+                pane.onCorpGrChange = async value => { pane.dataset.corpGr = value || ''; deletedList = []; initCalendar(); await retrieve(); };
+            }
+            if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, {once: true}); else start();
+        })();
+    </script>
+</div>
+</html>
