@@ -117,6 +117,17 @@
                     }
                 });
 
+                // 보고서 전용 화면: 조회/초기화/인쇄/엑셀만 제공한다.
+                // ButtonRole 권한 적용 후에도 이 화면에서 지원하지 않는 CUD 버튼이 재노출되지 않도록 한다.
+                const applyToolbarPolicy = function () {
+                    ['.btn-input', '.btn-copy', '.btn-delete', '.btn-save'].forEach(function (selector) {
+                        const button = pane.querySelector(selector);
+                        if (button) button.style.setProperty('display', 'none', 'important');
+                    });
+                };
+                applyToolbarPolicy();
+                pane.addEventListener('buttonAuthApplied', applyToolbarPolicy);
+
                 pane.onSearch = search;
                 pane.onExcel = function () { if (reportViewer) reportViewer.exportFormat('excel'); };
                 pane.onPrint = function () { if (reportViewer) reportViewer.openNewWindow(); };
