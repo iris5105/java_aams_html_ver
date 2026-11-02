@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<div class="view-container layout-single layout-mobile-stack-container" th:fragment="mainView"
+     th:attr="data-work-date=${workDate},data-corp-gr=${corpGr}">
+    <div class="view-toolbar">
+        <div class="toolbar-left">
+            <div th:replace="~{fragments/tab_header :: toolbarButtons}"></div>
+        </div>
+        <div th:replace="~{fragments/tab_header :: toolbarBreadcrumb}"></div>
+    </div>
+    <div class="filter-bar">
+        <div class="filter-left">
+            <div th:replace="~{fragments/filter/dc_ftymd :: filter(label='권리출력구간')}"></div>
+        </div>
+    </div>
+    <div class="report-container-panel">
+        <div th:replace="~{fragments/report/report_viewer :: reportViewerBottomPane(reportTitle='권리현황보고(구간)', defaultStatus='조건을 선택한 후 조회하십시오')}"></div>
+    </div>
+
+    <script th:inline="javascript">
+        (function () {
+            const script = document.currentScript;
+            const pane = script ? (script.closest('.tab-pane') || script.closest('.view-container')) : null;
+            if (!pane) return;
+
+            let isInitialized = false;
+            let initialFYmd = /*[[${fYmd}]]*/ '';
+            let initialTYmd = /*[[${tYmd}]]*/ '';
+            let dateRequestId = 0;
+            let updatingWorkDate = false;
+            let reportViewer = null;
+            const fromInput = pane.querySelector('#filterFYmd');
+            const toInput = pane.querySelector('#filterTYmd');
+
+            function minusOneMonth(ymdStr) {
+                const clean = (ymdStr || '').replace(/[.\-]/g, '');
+                if (!/^\d{8}$/.test(clean)) return ymdStr || '';
+                const year = Number(clean.slice(0, 4));
+                const month = Number(clean.slice(4, 6));
+                const day = Number(clean.slice(6, 8));
+                let targetYear = year;
+                let targetMonth = month - 1;
+                if (targetMonth < 1) {
+                    targetMonth = 12;
+                    targetYear -= 1;
+                }
+                const lastDayOfTargetMonth = new Date(targetYear, targetMonth, 0).getDate();
+                const targetDay = Math.min(day, lastDayOfTargetMonth);
+                const mm = String(targetMonth).padStart(2, '0');
+                const dd = String(targetDay).padStart(2, '0');
+                return targetYear + '-' + mm + '-' + dd;
+            }
+
+            function initDates(fYmd, tYmd) {
+                if (!fYmd || !tYmd) return;
+                AamsCalendar.initRange('filterFYmd', 'filterTYmd', {
+                    pane: pane, initialFYmd: fYmd, initialTYmd: tYmd, preserveSameDay: true
+                });
+            }
+
+            function reportDate(value) {
+                const clean = (value || '').replace(/[.\-]/g, '');
+                if (!/^\d{8}$/.test(clean)) return '';
+                const year = Number(clean.slice(0, 4));
+                const month = Number(clean.slice(4, 6));
+                const day = Number(clean.slice(6, 8));
+                const date = new Date(year, month - 1, day);
+                if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) return '';
+                return clean.slice(0, 4) + '.' + clean.slice(4, 6) + '.' + clean.slice(6, 8);
+            }
+
+            function search() {
+                if (updatingWorkDate) {
+                    showToast('회사 기준일자를 확인 중입니다. 잠시 후 조회하십시오.', 'info');
+                    return;
+                }
+                const corpGr = resolveCorpGr(pane);
+                const frYmd = reportDate(fromInput ? fromInput.value : '');
+                const toYmd = reportDate(toInput ? toInput.value : '');
+                if (!corpGr) {
+                    showToast('회사그룹을 확인하십시오.', 'warning');
+                    return;
+                }
+                if (!frYmd || !toYmd || frYmd > toYmd) {
+                    showToast('권리출력구간 시작일과 종료일을 올바르게 선택하십시오.', 'warning');
+                    return;
+                }
+                const data = {
+                    corpGr: corpGr,
+                    params: {
+                        fymd: frYmd,
+                        tymd: toYmd
+                    }
+                };
+                if (reportViewer) {
+                    reportViewer.loadPreview(data, null, true);
+                }
+            }
+
+            function startInit() {
+                if (isInitialized) return;
+                isInitialized = true;
+                if (!initialFYmd && initialTYmd) {
+                    initialFYmd = minusOneMonth(initialTYmd);
+                }
+                initDates(initialFYmd, initialTYmd);
+
+                reportViewer = AamsReport.bindViewer(pane, {
+                    reportFile: 'rd_ja020g.mrd',
+                    defaultStatus: '조건을 선택한 후 조회하십시오',
+                    getCorpGr: function (data) { return data ? data.corpGr : resolveCorpGr(pane); },
+                    buildParams: function (data) { return data.params; },
+                    getTitle: function () { return '권리현황보고(구간)'; },
+                    getStatus: function (data) { return '권리출력구간: ' + data.params.fymd + ' ~ ' + data.params.tymd; },
+                    getDownloadName: function (data) {
+                        return '권리현황보고(구간)_' + data.params.fymd + '_' + data.params.tymd;
+                    }
+                });
+
+                pane.onSearch = search;
+                pane.onExcel = function () { if (reportViewer) reportViewer.exportFormat('excel'); };
+                pane.onPrint = function () { if (reportViewer) reportViewer.openNewWindow(); };
+                pane.onClear = pane.onRefresh = function () {
+                    if (reportViewer) reportViewer.clear();
+                    initDates(initialFYmd, initialTYmd);
+                    showToast('화면이 초기화되었습니다.', 'info');
+                };
+                pane.onCorpGrChange = async function (newCorpGr) {
+                    const requestId = ++dateRequestId;
+                    updatingWorkDate = true;
+                    try {
+                        const response = await fetch('/api/common/workdate?' + new URLSearchParams({corpGr: newCorpGr}));
+                        if (!response.ok) throw new Error('작업일자 조회 실패');
+                        const data = await response.json();
+                        if (requestId !== dateRequestId) return;
+                        if (!data.workDate) throw new Error('작업일자 없음');
+                        initialTYmd = data.workDate;
+                        initialFYmd = minusOneMonth(initialTYmd);
+                        initDates(initialFYmd, initialTYmd);
+                    } catch (error) {
+                        if (requestId === dateRequestId) showToast('회사 기준일자를 가져오지 못했습니다.', 'error');
+                    } finally {
+                        if (requestId === dateRequestId) updatingWorkDate = false;
+                    }
+                };
+            }
+
+            if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', startInit, {once: true});
+            else startInit();
+        })();
+    </script>
+</div>
+</html>
+

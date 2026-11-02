@@ -57,7 +57,7 @@ AAMS는 MDI 탭 구조로 동작하므로, 개별 업무 화면 HTML은 완전�
 ```html
 <div class="layout-split-h" id="splitHorizontalContainer">
     <!-- 좌측 패널 (예: 마스터 그리드) -->
-    <div class="split-pane split-left" style="width: 50%;">
+    <div class="split-pane pane-left" style="width: 50%;">
         <div class="panel-header">마스터 목록</div>
         <div class="panel-body">
             <div id="gridMaster" class="tabulator-custom-grid"></div>
@@ -65,10 +65,10 @@ AAMS는 MDI 탭 구조로 동작하므로, 개별 업무 화면 HTML은 완전�
     </div>
 
     <!-- 스플리터 드래그 바 -->
-    <div class="gutter-h"></div>
+    <div class="split-gutter-h"></div>
 
     <!-- 우측 패널 (예: 상세 그리드 또는 리포트) -->
-    <div class="split-pane split-right" style="width: 50%;">
+    <div class="split-pane pane-right" style="width: 50%;">
         <div class="panel-header">상세 내역</div>
         <div class="panel-body">
             <div id="gridDetail" class="tabulator-custom-grid"></div>
@@ -81,29 +81,44 @@ AAMS는 MDI 탭 구조로 동작하므로, 개별 업무 화면 HTML은 완전�
 ```html
 <div class="layout-split-v" id="splitVerticalContainer">
     <!-- 상단 패널 -->
-    <div class="split-pane split-top" style="height: 55%;">
+    <div class="split-pane pane-top" style="height: 55%;">
         <div id="gridTop" class="tabulator-custom-grid"></div>
     </div>
 
     <!-- 상하 스플리터 드래그 바 -->
-    <div class="gutter-v"></div>
+    <div class="split-gutter-v"></div>
 
     <!-- 하단 패널 -->
-    <div class="split-pane split-bottom" style="height: 45%;">
+    <div class="split-pane pane-bottom" style="height: 45%;">
         <div id="gridBottom" class="tabulator-custom-grid"></div>
     </div>
 </div>
 ```
 
-### 2.3 자바스크립트 스플리터 초기화 표준 (`AamsSplitter.init(rootEl)`)
+### 2.3 패널 및 거터 클래스 계약 (CSS / AamsSplitter 공통 규격)
+
+> [!IMPORTANT]
+> 공통 CSS(`layout-split-h.css`, `layout-split-v.css`)와 `AamsSplitter`는 아래의 **정확한 클래스명**으로 직접 자식 패널과 거터를 찾습니다. 별칭을 새로 만들거나 과거 예제의 클래스명을 사용하면 스플리터 초기화, 드래그, 모바일 세로 전개 규칙이 적용되지 않습니다.
+
+| 분할 방향 | 좌표 패널 클래스 | 거터 클래스 | 금지하는 과거/임의 클래스 |
+| :--- | :--- | :--- | :--- |
+| 좌우 (`.layout-split-h`) | 좌측 `.pane-left`, 우측 `.pane-right` | `.split-gutter-h` | `.split-left`, `.split-right`, `.gutter-h` |
+| 상하 (`.layout-split-v`) | 상단 `.pane-top`, 하단 `.pane-bottom` | `.split-gutter-v` | `.split-top`, `.split-bottom`, `.gutter-v` |
+
+- 모든 패널에는 의미를 명확히 하기 위해 `split-pane`를 함께 부여합니다. 예: `class="split-pane pane-left"`.
+- 패널과 거터는 분할 컨테이너의 **직접 자식**이어야 하며 순서는 `첫 패널 → 거터 → 두 번째 패널`을 유지합니다.
+- 중첩 분할도 동일합니다. 외부 좌우 분할은 `.pane-left/.pane-right`, 내부 상하 분할은 `.pane-top/.pane-bottom`만 사용합니다.
+- 구현·리뷰 전 `AamsSplitter.init(pane)` 호출과 위 클래스 계약을 함께 확인합니다. CSS를 화면별로 복제하거나 전역 선택자에 별칭을 추가하지 않습니다.
+
+### 2.4 자바스크립트 스플리터 초기화 표준 (`AamsSplitter.init(rootEl)`)
 
 > [!CAUTION]
 > **존재하지 않는 `AamsSplitter.create(...)` 임의 호출 엄격 금지 (TypeError 방어)**  
 > `aams_splitter.js` 모듈에는 `create(...)` 함수가 존재하지 않으며, 단일 표준 진입점인 **`AamsSplitter.init(rootEl)`**만을 지원합니다.  
 > 임의의 `AamsSplitter.create({ container, direction, ... })`를 호출하면 `Uncaught TypeError: window.AamsSplitter.create is not a function` 런타임 오류가 발생합니다.
 
-스플리터 드래그 종료 시 `aams_splitter.js` 내부 엔진(`onMouseUp`)에서 자동으로 `AamsSplitter.redrawGrids(container)`를 호출하여 패널 내 모든 Tabulator 그리드의 가상 렌더링 뷰포트를 자동 재계산합니다.  
-따라서 개별 화면 스크립트에서는 다음과 같이 최상위 `pane`을 전달하여 1줄로 초기화합니다:
+스플리터 드래그 종료 시 `aams_splitter.js` 내부 엔진(`onMouseUp`)에서 패널 내 Tabulator 그리드를 재계산합니다. 단, Tabulator가 `tableBuilt` 되기 전이거나 탭이 숨겨진 상태에서는 redraw를 실행하지 않도록 `safeRedraw` 가드와 활성화 이벤트를 함께 사용합니다. Splitter는 그리드 DOM이 생성된 뒤, 화면당 한 번만 초기화합니다.
+따라서 개별 화면 스크립트에서는 다음과 같이 최상위 `pane`을 전달하여 초기화합니다:
 
 ```javascript
 // 스플리터 초기화 표준 (AamsSplitter.init 단일 진입점 호출)
@@ -162,6 +177,12 @@ function initSplitter() {
    * **패턴 B: 상단 마스터 1개 + 하단 좌우 디테일 2개 (예: `w_ja032a`)**:
      * 원본 구조: 상단 `dw_list` + 하단에 세로 스플릿바로 분할된 `dw_port`(하단 좌)와 `dw_detail`(하단 우).
      * 웹 표준 마크업: 외부 **`.layout-split-v`** (상: `.pane-top`, 하: `.pane-bottom`) 내부에, 하단 패널(`.pane-bottom`)이 **`.layout-split-h`** (좌: `.pane-left`, 우: `.pane-right`)를 포함하는 중첩 구조.
+
+### 3.1 모바일 중첩 Split 높이 표준
+
+- `width <= 876px`에서는 `.layout-mobile-stack`이 있는 상하/좌우 Split을 세로 순차 배치하고, 각 그리드 pane은 공통 CSS에서 최소 290px을 확보합니다.
+- 내부 `.layout-split-v`가 외부 좌측 pane 또는 외부 상단 pane에 놓이는 경우에도 부모의 고정 290px/`overflow:hidden`을 해제하여 내부 두 pane이 모두 표시되도록 합니다.
+- 화면 템플릿에는 이 예외를 위한 개별 `height`/`overflow` CSS를 추가하지 않고 `layout-split-h.css`, `layout-split-v.css`의 중첩 규칙을 사용합니다.
 
 ---
 

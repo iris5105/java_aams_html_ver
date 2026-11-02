@@ -79,4 +79,24 @@ public class Sct0cg {
 
     @Column(name = "IJA_AEKM", precision = 18, scale = 4)
     private BigDecimal ijaAekm;
+
+    // W_JA021E rights-exercise columns; shared with the existing bond-trade entity.
+    @Column(name = "IJA_BAED_GB", length = 1)
+    private String ijaBaedGb;
+    @Column(name = "KOSCOM_CD", length = 12)
+    private String koscomCd;
+    @Column(name = "JUSIC_JUSU", precision = 18, scale = 0)
+    private BigDecimal jusicJusu;
+    @Column(name = "JUSIC_AEK", precision = 18, scale = 0)
+    private BigDecimal jusicAek;
+    @Column(name = "JUSIC_DANGA", precision = 18, scale = 0)
+    private BigDecimal jusicDanga;
+    @Column(name = "DANC_GB", length = 1)
+    private String dancGb;
+    @Column(name = "MIJIGUB_TAX", precision = 18, scale = 0)
+    private BigDecimal mijigubTax;
+    @Column(name = "CHG_JM_CD", length = 12)
+    private String chgJmCd;
+    @Column(name = "LOCK_END")
+    private LocalDate lockEnd;
 }

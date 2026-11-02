@@ -21,6 +21,24 @@ public class Ja030cQueryDslRepository {
 
     private final EntityManager em;
 
+    /** Shared SCT0CG persistence operations for rights-exercise screens. */
+    public Sct0cg findForUpdate(Sct0cgId id) {
+        return em.find(Sct0cg.class, id, jakarta.persistence.LockModeType.PESSIMISTIC_WRITE);
+    }
+
+    public void persist(Sct0cg entity) { em.persist(entity); }
+
+    public void remove(Sct0cg entity) { em.remove(entity); }
+
+    public void lockCompany(String corpGr) {
+        em.find(com.kfp.aams.home.entity.Szx0aa.class, corpGr, jakarta.persistence.LockModeType.PESSIMISTIC_WRITE);
+    }
+
+    public List<LocalDate> findDates(String corpGr, String trCd) {
+        return em.createQuery("SELECT DISTINCT c.trYmd FROM Sct0cg c WHERE c.corpGr = :corpGr AND c.trCd = :trCd ORDER BY c.trYmd", LocalDate.class)
+                .setParameter("corpGr", corpGr).setParameter("trCd", trCd).getResultList();
+    }
+
     /**
      * PowerBuilder ue_insertstart & itemchanged 채번 로직:
      * SELECT NVL(MAX(seq_no), 0) + 1 FROM SCT0CG WHERE corp_gr = :corp_gr AND tr_cd = :tr_cd AND TRUNC(tr_ymd) = :tr_ymd

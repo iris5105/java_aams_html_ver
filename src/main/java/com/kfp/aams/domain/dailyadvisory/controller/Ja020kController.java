@@ -86,14 +86,13 @@ public class Ja020kController {
             @RequestParam(value = "format", defaultValue = "pdf") String format,
             @RequestHeader(value = "User-Agent", required = false) String userAgent) {
         try {
-            boolean isMobile = (format != null && format.toLowerCase().contains("htm"))
-                    || (userAgent != null && (userAgent.toLowerCase().contains("mobile") || userAgent.toLowerCase().contains("android") || userAgent.toLowerCase().contains("iphone") || userAgent.toLowerCase().contains("ipad")));
-            String effectiveFormat = isMobile ? "html" : "pdf";
+            boolean isHtml = (format != null && format.toLowerCase().contains("htm"));
+            String effectiveFormat = isHtml ? "html" : "pdf";
 
             RdReportService.ExportResult exportResult = rdReportService.generateJa020kReport(
                     corpGr, seriesGb, ymd, effectiveFormat);
 
-            if (isMobile) {
+            if (isHtml) {
                 return ResponseEntity.ok()
                         .contentType(MediaType.valueOf("text/html; charset=UTF-8"))
                         .body(exportResult.getData());

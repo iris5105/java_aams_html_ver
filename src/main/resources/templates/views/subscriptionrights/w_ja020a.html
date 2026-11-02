@@ -1,8 +1,539 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
-<div class="view-container layout-mobile-stack-container" th:fragment="mainView"
+<div class="view-container ja020a-container layout-mobile-stack-container" th:fragment="mainView"
      th:attr="data-work-date=${workDate}"
      style="display: flex; flex-direction: column; height: 100%; width: 100%; overflow: hidden; background-color: #ffffff; position: relative;">
+
+    <style>
+        /* W_JA990D와 동일한 서브 탭 표시 규격 */
+        .ja020a-container > .sub-tab-bar {
+            display: flex;
+            flex: 0 0 auto;
+            gap: 4px;
+            padding: 6px 12px 0;
+            background: #f8fafc;
+            border-bottom: 1px solid #cbd5e1;
+            overflow-x: auto;
+        }
+
+        .ja020a-container > .sub-tab-bar > .sub-tab-btn {
+            display: inline-flex;
+            flex-shrink: 0;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 16px;
+            border: 1px solid transparent;
+            border-bottom: none;
+            border-radius: 4px 4px 0 0;
+            background: #e2e8f0;
+            font-weight: 600;
+            font-size: 13px;
+            color: #64748b;
+            white-space: nowrap;
+            cursor: pointer;
+        }
+
+        .ja020a-container > .sub-tab-bar > .sub-tab-btn.active {
+            background: #ffffff;
+            border-color: #cbd5e1;
+            color: #2563eb;
+        }
+
+        .ja020a-container > .sub-tab-bar > .sub-tab-btn:focus-visible {
+            outline: 2px solid #2563eb;
+            outline-offset: -3px;
+        }
+
+        /* 모바일에서만 탭1 상세 폼을 중앙 모달로 표시한다. */
+        .ja020a-mobile-detail-backdrop {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.65);
+            backdrop-filter: blur(2px);
+            z-index: 10400 !important;
+        }
+
+        .ja020a-mobile-detail-actions {
+            display: none;
+            align-items: center;
+            gap: 4px;
+            margin-left: auto;
+        }
+
+        .ja020a-mobile-detail-actions button {
+            height: 26px;
+            padding: 0 8px;
+            border: 1px solid #cbd5e1;
+            border-radius: 4px;
+            background: #ffffff;
+            color: #334155;
+            cursor: pointer;
+            font-size: 11px;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .ja020a-mobile-detail-actions button:hover {
+            background: #eff6ff;
+            color: #2563eb;
+        }
+
+        /* 청약구분/관리번호는 상세 패널 폭이 줄어들면 관리번호 묶음이 다음 줄로 이동한다. */
+        .ja020a-t1-basic-meta-row {
+            flex-wrap: wrap !important;
+            row-gap: 8px !important;
+        }
+
+        .ja020a-t1-cygb-field {
+            flex: 1 1 280px !important;
+            min-width: 240px !important;
+        }
+
+        .ja020a-t1-jcjoin-field {
+            flex: 1 1 220px !important;
+            min-width: 220px !important;
+        }
+
+        .ja020a-t1-jcjoin-field #t1JcJoin {
+            max-width: 100%;
+        }
+
+        @media (min-width: 877px) {
+            .ja020a-container #paneTab1 > .layout-split-h > .pane-right {
+                container: ja020a-detail / inline-size;
+                border: 1px solid #cbd5e1;
+                border-radius: 6px;
+                box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
+            }
+
+            .ja020a-container #paneTab1 .pane-right > .panel-header {
+                flex-shrink: 0;
+                min-height: 36px;
+                padding: 8px 14px;
+                background: #f1f5f9;
+                border-bottom: 1px solid #dbe3ec;
+            }
+
+            .ja020a-container #paneTab1 .pane-right > .panel-body {
+                min-width: 0;
+                padding: 16px !important;
+                scrollbar-gutter: stable;
+                box-sizing: border-box;
+            }
+
+            .ja020a-container #formT1 {
+                gap: 10px !important;
+                min-width: 0;
+            }
+
+            .ja020a-container #formT1 > div:not(.ja020a-t1-basic-meta-row) {
+                display: grid !important;
+                grid-template-columns: 100px minmax(0, 1fr);
+                align-items: start !important;
+                gap: 8px !important;
+            }
+
+            .ja020a-container #formT1 .form-label {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                width: 100px !important;
+                min-width: 100px !important;
+                min-height: 30px;
+                font-weight: 600 !important;
+                border-radius: 4px !important;
+                white-space: nowrap;
+                box-sizing: border-box;
+            }
+
+            .ja020a-container #formT1 input:not([type="radio"]):not([type="hidden"]),
+            .ja020a-container #formT1 textarea {
+                min-width: 0;
+                max-width: 100%;
+                border-radius: 4px !important;
+                box-sizing: border-box;
+            }
+
+            .ja020a-container #formT1 input:not([type="radio"]):not([type="hidden"]) {
+                height: 30px !important;
+            }
+
+            .ja020a-container #formT1 input[readonly] {
+                background: #eef2f6 !important;
+                color: #475569;
+                border-color: #dbe3ec !important;
+            }
+
+            .ja020a-container #formT1 input:focus-visible,
+            .ja020a-container #formT1 textarea:focus-visible {
+                outline: 2px solid #93c5fd;
+                outline-offset: 1px;
+            }
+
+            .ja020a-container #formT1 .btn-grid-addon {
+                flex-shrink: 0;
+                width: 28px !important;
+                height: 30px !important;
+                border-radius: 4px !important;
+                color: #2563eb;
+            }
+
+            .ja020a-container #formT1 > div > div {
+                min-width: 0;
+                max-width: 100%;
+            }
+
+            .ja020a-container #formT1 > div:has(> .btn-search) {
+                grid-template-columns: 100px 90px 28px minmax(0, 240px);
+            }
+
+            .ja020a-container #formT1 > div:has(> #t1CyJmCd, > #t1SjJmCd) {
+                grid-template-columns: 100px 140px 28px minmax(0, 220px);
+            }
+
+            .ja020a-container #formT1 > div:has(> #t1JmNm) {
+                grid-template-columns: 100px minmax(0, 260px) 28px 75px;
+            }
+
+            .ja020a-container #formT1 > div:has(> .btn-search) > input {
+                width: 100% !important;
+            }
+
+            .ja020a-container #formT1 .ja020a-t1-basic-meta-row > div {
+                min-width: 0 !important;
+            }
+
+            .ja020a-container #formT1 .ja020a-t1-cygb-field > div {
+                border: 0 !important;
+                gap: 10px !important;
+                padding: 4px 0 !important;
+                flex-wrap: wrap;
+            }
+
+            .ja020a-container #formT1 .ja020a-t1-cygb-field label {
+                white-space: nowrap;
+            }
+
+            .ja020a-container #formT1 .ja020a-t1-date-range {
+                flex-wrap: wrap;
+                max-width: 320px;
+            }
+
+            .ja020a-container #formT1 .ja020a-t1-date-range input {
+                flex: 0 1 130px !important;
+                width: 130px !important;
+            }
+
+            /* 태블릿 또는 Split 조절로 상세 패널이 좁아지면 결과 이름만 다음 행에 표시한다. */
+            @container ja020a-detail (max-width: 480px) {
+                .ja020a-container #formT1 > div:has(> .btn-search, > #t1JmNm, > #t1CyJmCd, > #t1SjJmCd) {
+                    grid-template-columns: 100px minmax(0, 1fr) 28px;
+                }
+
+                .ja020a-container #formT1 > div:has(> .btn-search) > input:last-child {
+                    grid-column: 2 / -1;
+                    max-width: 240px;
+                }
+            }
+        }
+
+        @media (max-width: 876px) {
+            /* 탭1은 DETAIL을 모달로 전환하므로 마스터 그리드가 화면 전체 높이를 사용한다. */
+            #paneTab1 {
+                flex: 1 1 auto !important;
+                height: 100% !important;
+                min-height: 0 !important;
+                overflow: hidden !important;
+            }
+
+            #paneTab1 > .layout-split-h {
+                flex: 1 1 auto !important;
+                height: 100% !important;
+                min-height: 0 !important;
+                max-height: none !important;
+                padding: 4px !important;
+                gap: 0 !important;
+                overflow: hidden !important;
+            }
+
+            #paneTab1 > .layout-split-h > .pane-left.master-section {
+                flex: 1 1 auto !important;
+                width: 100% !important;
+                max-width: 100% !important;
+                height: 100% !important;
+                min-height: 0 !important;
+                max-height: none !important;
+                overflow: hidden !important;
+            }
+
+            #paneTab1 > .layout-split-h > .pane-left.master-section > .panel-body,
+            #paneTab1 > .layout-split-h > .pane-left.master-section > .panel-body > #gridT1 {
+                flex: 1 1 auto !important;
+                height: 100% !important;
+                min-height: 0 !important;
+            }
+
+            #paneTab1 > .layout-split-h > .split-gutter-h {
+                display: none !important;
+            }
+
+            #paneTab1 > .layout-split-h > .pane-right {
+                display: none !important;
+            }
+
+            #paneTab1 > .layout-split-h > .pane-right.ja020a-mobile-detail-open {
+                display: flex !important;
+                position: fixed !important;
+                top: 50% !important;
+                left: 50% !important;
+                transform: translate(-50%, -50%) !important;
+                width: min(94vw, 560px) !important;
+                height: 90vh !important;
+                max-height: 90vh !important;
+                z-index: 10500 !important;
+                background: #ffffff !important;
+                border: 1px solid #cbd5e1 !important;
+                border-radius: 8px !important;
+                box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.4), 0 8px 10px -6px rgba(0, 0, 0, 0.2) !important;
+                overflow: hidden !important;
+                flex-direction: column !important;
+            }
+
+            #paneTab1 > .layout-split-h > .pane-right.ja020a-mobile-detail-open .panel-header {
+                flex-shrink: 0 !important;
+                padding: 8px 12px !important;
+                background: #f1f5f9 !important;
+                border-bottom: 1px solid #cbd5e1 !important;
+            }
+
+            #paneTab1 > .layout-split-h > .pane-right.ja020a-mobile-detail-open .panel-body {
+                flex: 1 1 auto !important;
+                width: 100% !important;
+                min-width: 0 !important;
+                min-height: 0 !important;
+                max-height: calc(90vh - 46px) !important;
+                overflow-y: auto !important;
+                overflow-x: hidden !important;
+                scrollbar-gutter: stable;
+                box-sizing: border-box;
+                padding: 12px 14px !important;
+            }
+
+            /* 스크롤바를 제외한 실제 폼 폭 안에서 입력란과 검색 버튼을 배치한다. */
+            .ja020a-mobile-detail-open #formT1 {
+                --ja020a-label-width: clamp(84px, 22vw, 100px);
+                width: 100%;
+                min-width: 0;
+                gap: 12px !important;
+                box-sizing: border-box;
+            }
+
+            .ja020a-mobile-detail-open #formT1 > div:not(.ja020a-t1-basic-meta-row) {
+                display: grid !important;
+                grid-template-columns: var(--ja020a-label-width) minmax(0, 1fr);
+                gap: 8px !important;
+                min-width: 0;
+            }
+
+            .ja020a-mobile-detail-open #formT1 > div:has(> .btn-search) {
+                grid-template-columns: var(--ja020a-label-width) minmax(0, 1fr) 28px;
+            }
+
+            .ja020a-mobile-detail-open #formT1 > div:has(> .btn-search) > input:last-child {
+                grid-column: 2 / -1;
+                width: 100% !important;
+            }
+
+            .ja020a-mobile-detail-open #formT1 > div:has(> #t1JmNm) {
+                grid-template-columns: var(--ja020a-label-width) minmax(0, 1fr) 28px 64px;
+                column-gap: 6px !important;
+            }
+
+            .ja020a-mobile-detail-open #formT1 > div:has(> #t1JmNm) > #t1BalhCo {
+                grid-column: 4;
+                grid-row: 1;
+            }
+
+            .ja020a-mobile-detail-open #formT1 > div:has(> #t1JgTrCoCd, > #t1CyJmCd, > #t1SjJmCd) {
+                grid-template-columns: var(--ja020a-label-width) minmax(0, 1fr) 28px minmax(0, 1fr);
+                column-gap: 6px !important;
+            }
+
+            .ja020a-mobile-detail-open #formT1 > div:has(> #t1JgTrCoCd, > #t1CyJmCd, > #t1SjJmCd) > input:last-child {
+                grid-column: 4;
+                grid-row: 1;
+            }
+
+            /* 코드 입력란과 검색 버튼의 열 너비는 유지하고 결과 이름만 다음 줄로 옮긴다. */
+            .ja020a-mobile-detail-open #formT1 > div:has(> #t1CyJmCd, > #t1SjJmCd) > input:last-child {
+                grid-column: 2 / -1;
+                grid-row: 2;
+            }
+
+            .ja020a-mobile-detail-open #formT1 > div:has(> #t1TotGAek) > .form-label {
+                white-space: nowrap;
+            }
+
+            .ja020a-mobile-detail-open #formT1 > div > div,
+            .ja020a-mobile-detail-open #formT1 .form-label,
+            .ja020a-mobile-detail-open #formT1 input:not([type="radio"]):not([type="hidden"]),
+            .ja020a-mobile-detail-open #formT1 textarea {
+                min-width: 0 !important;
+                max-width: 100%;
+                box-sizing: border-box;
+            }
+
+            .ja020a-mobile-detail-open #formT1 .btn-grid-addon {
+                flex-shrink: 0;
+                height: 30px !important;
+                border-radius: 5px !important;
+            }
+
+            .ja020a-mobile-detail-open #formT1 .ja020a-t1-basic-meta-row {
+                flex-direction: column;
+                align-items: stretch !important;
+                gap: 12px !important;
+            }
+
+            .ja020a-mobile-detail-open #formT1 .ja020a-t1-basic-meta-row > div {
+                display: grid !important;
+                grid-template-columns: var(--ja020a-label-width) minmax(0, 1fr);
+                flex: none !important;
+                gap: 8px !important;
+                min-width: 0 !important;
+                max-width: 100%;
+            }
+
+            .ja020a-mobile-detail-open #formT1 .form-label {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                width: var(--ja020a-label-width) !important;
+                min-height: 30px;
+                font-weight: 600 !important;
+                border-radius: 5px !important;
+            }
+
+            .ja020a-mobile-detail-open #formT1 input:not([type="radio"]):not([type="hidden"]),
+            .ja020a-mobile-detail-open #formT1 textarea {
+                width: 100% !important;
+                border-radius: 5px !important;
+            }
+
+            .ja020a-mobile-detail-open #formT1 input:not([type="radio"]):not([type="hidden"]) {
+                height: 30px !important;
+            }
+
+            .ja020a-mobile-detail-open #formT1 input[readonly] {
+                background: #eef2f6 !important;
+                color: #475569;
+                border-color: #dbe3ec !important;
+            }
+
+            .ja020a-mobile-detail-open #formT1 > div > div:not(.ja020a-t1-cygb-field):not(.ja020a-t1-jcjoin-field) {
+                width: 100% !important;
+            }
+
+            .ja020a-mobile-detail-open #formT1 .ja020a-t1-cygb-field > div {
+                flex-wrap: wrap;
+                min-width: 0;
+                gap: 6px 10px !important;
+                border: 0 !important;
+                padding: 4px 0 !important;
+            }
+
+            .ja020a-mobile-detail-open #formT1 input:focus-visible,
+            .ja020a-mobile-detail-open #formT1 textarea:focus-visible {
+                outline: 2px solid #93c5fd;
+                outline-offset: 1px;
+            }
+
+            .ja020a-mobile-detail-open #formT1 .ja020a-t1-cygb-field label {
+                white-space: nowrap;
+            }
+
+            .ja020a-mobile-detail-open #formT1 .ja020a-t1-date-range {
+                flex-wrap: wrap;
+            }
+
+            .ja020a-mobile-detail-open #formT1 .ja020a-t1-date-range input {
+                flex: 1 1 110px !important;
+            }
+
+            .ja020a-mobile-detail-open #formT1 .ja020a-t1-rates {
+                display: grid !important;
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                gap: 8px;
+                min-width: 0;
+            }
+
+            .ja020a-mobile-detail-open #formT1 .ja020a-t1-rates > div {
+                min-width: 0;
+                gap: 4px !important;
+            }
+
+            .ja020a-mobile-detail-open #formT1 .ja020a-t1-rates .form-label {
+                flex: 0 0 64px;
+                width: 64px !important;
+                padding: 4px !important;
+                white-space: nowrap;
+            }
+
+            .ja020a-mobile-detail-open #formT1 .ja020a-t1-rates > div > div {
+                flex: 1;
+                min-width: 0;
+            }
+
+            .ja020a-mobile-detail-open #formT1 .ja020a-t1-rates span {
+                flex-shrink: 0;
+            }
+
+            #paneTab1 > .layout-split-h > .pane-right.ja020a-mobile-detail-open .ja020a-mobile-detail-actions {
+                display: inline-flex !important;
+            }
+
+            /* 탭3도 리포트 DETAIL은 모바일 모달로 사용하고 마스터 그리드만 화면 전체에 표시한다. */
+            #paneTab3 {
+                flex: 1 1 auto !important;
+                height: 100% !important;
+                min-height: 0 !important;
+                overflow: hidden !important;
+            }
+
+            #paneTab3 > .layout-split-v {
+                flex: 1 1 auto !important;
+                height: 100% !important;
+                min-height: 0 !important;
+                max-height: none !important;
+                gap: 0 !important;
+                padding: 4px !important;
+                overflow: hidden !important;
+            }
+
+            #paneTab3 > .layout-split-v > .pane-top.master-section {
+                flex: 1 1 auto !important;
+                width: 100% !important;
+                height: 100% !important;
+                min-height: 0 !important;
+                max-height: none !important;
+                overflow: hidden !important;
+            }
+
+            #paneTab3 > .layout-split-v > .pane-top.master-section > .panel-body,
+            #paneTab3 > .layout-split-v > .pane-top.master-section > .panel-body > #gridT5 {
+                flex: 1 1 auto !important;
+                height: 100% !important;
+                min-height: 0 !important;
+            }
+
+            #paneTab3 > .layout-split-v > .split-gutter-v,
+            #paneTab3 > .layout-split-v > .pane-bottom.report-card {
+                display: none !important;
+            }
+        }
+    </style>
 
     <!-- 1. 상단 공통 툴바 (Row 1) -->
     <div class="view-toolbar">
@@ -13,20 +544,19 @@
     </div>
 
     <!-- 2. 서브 탭 네비게이션 바 -->
-    <div class="sub-tab-bar" style="display: flex; gap: 4px; padding: 6px 14px 0 14px; background: #f8fafc; border-bottom: 1px solid #cbd5e1; flex-shrink: 0;">
-        <button type="button" class="sub-tab-btn active" id="tabBtn1" data-tab="t1"
-                style="padding: 7px 18px; border: 1px solid #cbd5e1; border-bottom: none; border-radius: 4px 4px 0 0; background: #fff; font-weight: 600; font-size: 13px; color: #2563eb; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
+    <div class="sub-tab-bar" aria-label="공모청약 업무 탭">
+        <button type="button" class="sub-tab-btn active" id="tabBtn1" data-tab="t1" aria-pressed="true" aria-controls="paneTab1">
             <i class="fa-solid fa-list-check"></i> 기본정보
         </button>
-        <button type="button" class="sub-tab-btn" id="tabBtn2" data-tab="t4"
-                style="padding: 7px 18px; border: 1px solid #cbd5e1; border-bottom: none; border-radius: 4px 4px 0 0; background: #f1f5f9; font-weight: 500; font-size: 13px; color: #475569; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
+        <button type="button" class="sub-tab-btn" id="tabBtn2" data-tab="t4" aria-pressed="false" aria-controls="paneTab2">
             <i class="fa-solid fa-user-check"></i> 배정등록(청약주수)
         </button>
-        <button type="button" class="sub-tab-btn" id="tabBtn3" data-tab="t5"
-                style="padding: 7px 18px; border: 1px solid #cbd5e1; border-bottom: none; border-radius: 4px 4px 0 0; background: #f1f5f9; font-weight: 500; font-size: 13px; color: #475569; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
+        <button type="button" class="sub-tab-btn" id="tabBtn3" data-tab="t5" aria-pressed="false" aria-controls="paneTab3">
             <i class="fa-solid fa-file-invoice"></i> 수요예측참여총괄표
         </button>
     </div>
+
+    <div id="ja020aMobileDetailBackdrop" class="ja020a-mobile-detail-backdrop" aria-hidden="true"></div>
 
     <!-- 3. 메인 콘텐츠 영역 (탭별 컨테이너) -->
     <div class="tab-content-wrapper" style="flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; position: relative;">
@@ -50,14 +580,19 @@
                 <div class="pane-right detail-section" style="display: flex; flex-direction: column; min-width: 0; min-height: 0; background: #ffffff; overflow: hidden;">
                     <div class="panel-header">
                         <span class="panel-title"><i class="fa-solid fa-pen-to-square"></i> 공모종목 상세정보</span>
+                        <div class="ja020a-mobile-detail-actions" aria-label="모바일 상세 기능">
+                            <button type="button" id="btnT1MobileRefresh" title="상세 새로고침"><i class="fa-solid fa-rotate-right"></i> 새로고침</button>
+                            <button type="button" id="btnT1MobileSave" title="상세 저장"><i class="fa-solid fa-floppy-disk"></i> 저장</button>
+                            <button type="button" id="btnT1MobileClose" title="상세 닫기"><i class="fa-solid fa-xmark"></i></button>
+                        </div>
                     </div>
                     <div class="panel-body" style="flex: 1; overflow-y: auto; padding: 14px 18px;">
                         <form id="formT1" onsubmit="return false;" style="display: flex; flex-direction: column; gap: 10px;">
                             <input type="hidden" id="t1CorpGr" name="corpGr" th:value="${corpGr}" />
                             
                             <!-- 청약구분 / 관리번호 -->
-                            <div style="display: flex; gap: 12px; align-items: center;">
-                                <div style="flex: 1; display: flex; align-items: center; gap: 8px;">
+                            <div class="ja020a-t1-basic-meta-row" style="display: flex; gap: 12px; align-items: center;">
+                                <div class="ja020a-t1-cygb-field" style="flex: 1; display: flex; align-items: center; gap: 8px;">
                                     <label class="form-label" style="width: 100px; min-width: 100px; font-weight: 600; color: #334155; font-size: 12px; background: #f1f5f9; padding: 4px 8px; border: 1px solid #cbd5e1; border-radius: 3px; text-align: center;">청약구분</label>
                                     <div style="display: flex; border : 1px solid; padding: 4px 4px; gap: 4px; align-items: center; font-size: 13px;">
                                         <label style="display: inline-flex; align-items: center; gap: 4px; cursor: pointer;">
@@ -68,7 +603,7 @@
                                         </label>
                                     </div>
                                 </div>
-                                <div style="flex: 1; display: flex; align-items: center; gap: 8px;">
+                                <div class="ja020a-t1-jcjoin-field" style="flex: 1; display: flex; align-items: center; gap: 8px;">
                                     <label class="form-label" style="width: 90px; min-width: 90px; font-weight: 200; color: #334155; font-size: 12px; background: #f1f5f9; padding: 4px 8px; border: 1px solid #cbd5e1; border-radius: 3px; text-align: center;">관리번호</label>
                                     <input type="text" id="t1JcJoin" name="jcJoin" class="form-input" readonly placeholder="" style="width: 120px; height: 26px; border: 1px solid #cbd5e1; border-radius: 3px; padding: 0 8px; background: #d0d2d5; font-size: 12px;" />
                                 </div>
@@ -102,7 +637,7 @@
                             <!-- 수요예측일 (시작일자 ~ 마감일자) -->
                             <div style="display: flex; align-items: center; gap: 8px;">
                                 <label class="form-label" style="width: 100px; min-width: 100px; font-weight: 600; color: #334155; font-size: 12px; background: #f1f5f9; padding: 4px 8px; border: 1px solid #cbd5e1; border-radius: 3px; text-align: center;">수요예측일</label>
-                                <div style="display: flex; align-items: center; gap: 4px; flex: 1;">
+                                <div class="ja020a-t1-date-range" style="display: flex; align-items: center; gap: 4px; flex: 1;">
                                     <input type="text" id="t1StartYmd" name="startYmd" class="form-input" placeholder="시작일자" style="flex: 1; height: 26px; border: 1px solid #cbd5e1; border-radius: 3px; padding: 0 6px; font-size: 12px;" />
                                     <span>~</span>
                                     <input type="text" id="t1EndYmd" name="endYmd" class="form-input" placeholder="마감일자" style="flex: 1; height: 26px; border: 1px solid #cbd5e1; border-radius: 3px; padding: 0 6px; font-size: 12px; color: #dc2626;" />
@@ -174,6 +709,7 @@
                                 <input type="text" id="t1XxSjJmCd" name="xxSjJmCd" class="form-input" placeholder="" readonly style="flex: 1; height: 26px; border: 1px solid #cbd5e1; border-radius: 3px; padding: 0 8px; font-size: 12px; background: #d0d2d5;" />
                             </div>
 
+                            <section class="ja020a-t1-rates" aria-label="수수료율 및 증거금율" style="display: contents;">
                             <!-- 수수료율 -->
                             <div style="display: flex; align-items: center; gap: 8px;">
                                 <label class="form-label" style="width: 100px; min-width: 100px; font-weight: 600; color: #334155; font-size: 12px; background: #f1f5f9; padding: 4px 8px; border: 1px solid #cbd5e1; border-radius: 3px; text-align: center;">수수료율</label>
@@ -191,6 +727,8 @@
                                     <span style="font-size: 12px; color: #64748b;">(%)</span>
                                 </div>
                             </div>
+
+                            </section>
 
                             <!-- 특이사항 (비고) -->
                             <div style="display: flex; align-items: flex-start; gap: 8px;">
@@ -327,6 +865,68 @@
                 return "";
             }
 
+            function isMobileView() {
+                var width = (pane && pane.clientWidth > 0) ? pane.clientWidth : window.innerWidth;
+                return width <= 876 || (window.matchMedia && window.matchMedia("(max-width: 876px)").matches);
+            }
+
+            function getT1DetailPane() {
+                return pane.querySelector("#paneTab1 > .layout-split-h > .pane-right");
+            }
+
+            function openT1MobileDetail() {
+                if (!isMobileView()) return;
+                var detailPane = getT1DetailPane();
+                var backdrop = pane.querySelector("#ja020aMobileDetailBackdrop");
+                if (detailPane) detailPane.classList.add("ja020a-mobile-detail-open");
+                if (backdrop) {
+                    backdrop.style.display = "block";
+                    backdrop.setAttribute("aria-hidden", "false");
+                }
+            }
+
+            function closeT1MobileDetail() {
+                var detailPane = getT1DetailPane();
+                var backdrop = pane.querySelector("#ja020aMobileDetailBackdrop");
+                if (detailPane) detailPane.classList.remove("ja020a-mobile-detail-open");
+                if (backdrop) {
+                    backdrop.style.display = "none";
+                    backdrop.setAttribute("aria-hidden", "true");
+                }
+            }
+
+            function refreshT1MobileDetail() {
+                if (!selectedT1RowData && !currentJcJoin) {
+                    if (typeof showToast === "function") showToast("먼저 마스터 행을 선택해주세요.", "warning");
+                    return;
+                }
+                var refreshResult = loadT1Data();
+                if (refreshResult && typeof refreshResult.then === "function") {
+                    refreshResult.then(function (list) {
+                        if (list && typeof showToast === "function") {
+                            showToast("상세 정보가 새로고침되었습니다.", "info");
+                        }
+                    });
+                }
+            }
+
+            function initT1MobileDetailActions() {
+                var btnRefresh = pane.querySelector("#btnT1MobileRefresh");
+                var btnSave = pane.querySelector("#btnT1MobileSave");
+                var btnClose = pane.querySelector("#btnT1MobileClose");
+                var backdrop = pane.querySelector("#ja020aMobileDetailBackdrop");
+                if (btnRefresh) btnRefresh.addEventListener("click", refreshT1MobileDetail);
+                if (btnSave) btnSave.addEventListener("click", saveT1Data);
+                if (btnClose) btnClose.addEventListener("click", closeT1MobileDetail);
+                if (backdrop) backdrop.addEventListener("click", closeT1MobileDetail);
+                window.addEventListener("resize", function () {
+                    if (!isMobileView()) closeT1MobileDetail();
+                });
+                document.addEventListener("keydown", function (event) {
+                    if (event.key === "Escape" && isMobileView()) closeT1MobileDetail();
+                });
+            }
+
             // [탭2] 청약금 납입일이 현재 일자(작업일자)보다 큰 경우 수정 가능 여부 판별 (d_ja020a_t4a.srd & u_ja020a_t4 ue_protect)
             function isT4aEditable(data) {
                 if (!data) return false;
@@ -344,14 +944,14 @@
                 if (activeTabId === tabId) return;
                 activeTabId = tabId;
 
+                if (tabId !== "t1") closeT1MobileDetail();
+
                 // 버튼 스타일 변경
                 var tabBtns = pane.querySelectorAll(".sub-tab-btn");
                 tabBtns.forEach(function (btn) {
                     var isCurrent = btn.getAttribute("data-tab") === tabId;
                     btn.classList.toggle("active", isCurrent);
-                    btn.style.background = isCurrent ? "#fff" : "#f1f5f9";
-                    btn.style.fontWeight = isCurrent ? "600" : "500";
-                    btn.style.color = isCurrent ? "#2563eb" : "#475569";
+                    btn.setAttribute("aria-pressed", String(isCurrent));
                 });
 
                 // 패널 표시 전환
@@ -387,7 +987,7 @@
             }
 
             function selectRowByJcJoin(grid, jcJoin) {
-                if (!grid || !jcJoin) return;
+                if (!grid || !jcJoin) return null;
                 var rows = grid.getRows();
                 for (var i = 0; i < rows.length; i++) {
                     var d = rows[i].getData();
@@ -395,9 +995,10 @@
                         grid.deselectRow();
                         rows[i].select();
                         rows[i].scrollTo();
-                        break;
+                        return rows[i];
                     }
                 }
+                return null;
             }
 
             // [2. 탭1: 기본정보 그리드 및 폼]
@@ -477,7 +1078,12 @@
                 }
                 gridT1.on("rowClick", function (e, row) {
                     bindT1Form(row ? row.getData() : null);
+                    if (row && e && e.isTrusted !== false && isMobileView()) {
+                        openT1MobileDetail();
+                    }
                 });
+
+                initT1MobileDetailActions();
 
                 // 총공모금액 실시간 계산 이벤트 바인딩
                 var inputJusu = pane.querySelector("#t1TotGJusu");
@@ -669,21 +1275,26 @@
 
             function loadT1Data() {
                 var corpGr = (typeof resolveCorpGr === "function") ? resolveCorpGr(pane) : "";
-                fetch("/api/subscriptionrights/ja020a/t1/list?corpGr=" + encodeURIComponent(corpGr))
+                return fetch("/api/subscriptionrights/ja020a/t1/list?corpGr=" + encodeURIComponent(corpGr))
                     .then(function (res) { return res.json(); })
                     .then(function (list) {
                         if (gridT1) {
-                            gridT1.setData(list || []);
-                            if (list && list.length > 0) {
+                            var setDataResult = gridT1.setData(list || []);
+                            return Promise.resolve(setDataResult).then(function () {
                                 if (currentJcJoin) {
-                                    selectRowByJcJoin(gridT1, currentJcJoin);
+                                    var selectedRow = selectRowByJcJoin(gridT1, currentJcJoin);
+                                    // 외부에서 row.select()한 경우에도 폼을 서버 원본으로 명시적으로 복원한다.
+                                    if (selectedRow) bindT1Form(selectedRow.getData());
                                 }
-                            }
+                                return list || [];
+                            });
                         }
+                        return list || [];
                     })
                     .catch(function (err) {
                         console.error("T1 Load error:", err);
                         if (typeof showToast === "function") showToast("기본정보 목록 조회 중 오류가 발생했습니다.", "error");
+                        return null;
                     });
             }
 

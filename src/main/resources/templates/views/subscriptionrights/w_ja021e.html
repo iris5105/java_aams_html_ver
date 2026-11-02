@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<div class="view-container layout-mobile-stack-container ja021e-container" th:fragment="mainView"
+     th:attr="data-work-date=${workDate},data-corp-gr=${corpGr}">
+    <style>
+        .ja021e-container .result-info-bar {
+            --aams-fields-row-gap: 4px;
+            --aams-fields-column-gap: 28px;
+            --aams-field-inner-gap: 6px;
+            --aams-field-label-width: 78px;
+            --aams-field-control-width: 110px;
+            height: auto;
+            min-height: 38px;
+            padding: 3px 12px;
+            border: 1px solid #cbd5e1;
+            background: #ffffff;
+            box-sizing: border-box;
+        }
+
+        .ja021e-container .result-info-item {
+            white-space: nowrap;
+        }
+
+        .ja021e-container .result-info-item > label {
+            color: #334155;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .ja021e-container .result-info-value {
+            display: inline-block;
+            width: 90px;
+            padding: 3px 8px;
+            border: 1px solid #cbd5e1;
+            border-radius: 3px;
+            background: #d0d2d5;
+            color: #1e293b;
+            font-family: inherit;
+            font-size: 12px;
+            line-height: 18px;
+            text-align: center;
+            box-sizing: border-box;
+            cursor: default;
+        }
+
+        .ja021e-container .result-info-value-number { text-align: right; }
+        .ja021e-container .result-info-value-wide { width: 110px; }
+        .ja021e-container .result-info-label-emphasis { color: #dc2626 !important; }
+
+        .ja021e-container > .ja021e-master-info-section {
+            flex: 0 0 auto !important;
+            height: auto;
+            min-height: 42px;
+            padding: 0 12px 4px !important;
+        }
+
+        .ja021e-container .ja021e-master-info-section .grid-table-wrapper {
+            flex: 0 0 auto;
+            width: 100%;
+            height: auto;
+            min-height: 38px;
+            overflow: visible;
+        }
+
+        @media (max-width: 876px) {
+            .ja021e-container .ja021e-master-info-section {
+                flex: 0 0 auto !important;
+                min-height: 0 !important;
+                padding-bottom: 4px !important;
+            }
+
+            .ja021e-container .ja021e-master-info-section .grid-table-wrapper {
+                flex: 0 0 auto;
+                height: auto;
+                min-height: 0;
+            }
+
+            .ja021e-container .ja021e-master-info-section .result-info-bar {
+                --aams-fields-row-gap: 6px;
+                --aams-fields-column-gap: 12px;
+                height: auto;
+                min-height: 0;
+                padding: 7px 10px;
+                overflow-x: hidden;
+            }
+
+            .ja021e-container .ja021e-master-info-section .result-info-item {
+                white-space: nowrap;
+            }
+
+            .ja021e-container .ja021e-master-info-section .result-info-item > label {
+                width: 100%;
+                text-align: right;
+            }
+
+            .ja021e-container .ja021e-master-info-section .result-info-value {
+                width: 90px;
+                min-width: 90px;
+            }
+
+            .ja021e-container .ja021e-master-info-section .result-info-value-wide {
+                width: 110px;
+                min-width: 110px;
+            }
+        }
+    </style>
+    <div class="view-toolbar">
+        <div class="toolbar-left"><div th:replace="~{fragments/tab_header :: toolbarButtons}"></div></div>
+        <div th:replace="~{fragments/tab_header :: toolbarBreadcrumb}"></div>
+    </div>
+    <div class="filter-bar">
+        <div class="filter-left">
+            <div th:replace="~{fragments/filter/dc_ymd_dddw :: filter(labelYmd='권리일자',labelDddw='거래코드')}"></div>
+            <div class="filter-item filter-code-search-item">
+                <label for="filterCjCd">채권종목</label>
+                <div class="code-search-input-wrapper">
+                    <input id="filterCjCd" name="cjCd" class="filter-input code-search-input" maxlength="12" autocomplete="off" aria-label="채권종목 코드" />
+                    <button type="button" id="btnCjSearch" class="btn-code-search" title="채권종목 검색"><i class="fa-solid fa-magnifying-glass"></i></button>
+                </div>
+                <span id="textCjName" class="code-search-name"></span>
+            </div>
+            <div class="filter-item">
+                <label for="filterIjaGb">이자방법</label>
+                <select id="filterIjaGb" name="ijaBaedGb" class="filter-select"></select>
+            </div>
+            <div class="filter-item">
+                <label for="filterDancGb">KOSCOM코드</label>
+                <select id="filterDancGb" name="dancGb" class="filter-select"></select>
+            </div>
+            <div class="filter-item filter-code-search-item">
+                <div class="code-search-input-wrapper">
+                    <input id="filterKoscomCd" name="koscomCd" class="filter-input code-search-input" maxlength="12" autocomplete="off" aria-label="KOSCOM 코드" />
+                    <button type="button" id="btnKoscomSearch" class="btn-code-search" title="KOSCOM코드 검색"><i class="fa-solid fa-magnifying-glass"></i></button>
+                </div>
+                <span id="textKoscomName" class="code-search-name"></span>
+            </div>
+        </div>
+    </div>
+    <div class="grid-section ja021e-master-info-section">
+        <div class="grid-table-wrapper">
+            <div id="ja021e-master-info" class="result-info-bar aams-responsive-fields aams-fields-aligned" aria-live="polite">
+                <div class="result-info-item aams-responsive-field"><label for="ja021e-chg-ga">행사가격</label><input type="text" id="ja021e-chg-ga" class="result-info-value result-info-value-number" readonly aria-readonly="true"></div>
+                <div class="result-info-item aams-responsive-field"><label for="ja021e-chg-start-il">전환시작일</label><input type="text" id="ja021e-chg-start-il" class="result-info-value" readonly aria-readonly="true"></div>
+                <div class="result-info-item aams-responsive-field"><label for="ja021e-chg-jm-cd">전환종목코드</label><input type="text" id="ja021e-chg-jm-cd" class="result-info-value result-info-value-wide" readonly aria-readonly="true"></div>
+                <div class="result-info-item aams-responsive-field"><label for="ja021e-lock-end" class="result-info-label-emphasis">매도제한일</label><input type="text" id="ja021e-lock-end" class="result-info-value" readonly aria-readonly="true"></div>
+            </div>
+        </div>
+    </div>
+    <div class="grid-section" style="flex:1 1 auto;padding:0 12px 10px;min-height:0;">
+        <div class="panel-header" style="display:flex;align-items:center;justify-content:flex-end;min-height:28px;padding:2px 4px;background:#f8fafc;border:1px solid #cbd5e1;border-bottom:0;flex-shrink:0;">
+            <div class="panel-actions">
+                <div th:replace="~{fragments/tab_header :: detailNav(targetGrid='#gridDetail', fileName='채권특이채권리행사', buttons='0010011001')}"></div>
+            </div>
+        </div>
+        <div class="panel-body" style="flex:1;min-height:0;position:relative;">
+            <div id="gridDetail" class="tabulator-aams-grid" style="height:100%;"></div>
+        </div>
+    </div>
+    <script th:inline="javascript">
+        (function () {
+            const script = document.currentScript;
+            const pane = script ? (script.closest('.tab-pane') || script.closest('.view-container')) : null;
+            if (!pane) return;
+            const api = '/api/subscriptionrights/ja021e';
+            const field = id => pane.querySelector('#' + id);
+            let initialYmd = /*[[${initialYmd}]]*/ '';
+            let gridDetail, bondSearch, koscomSearch;
+            let isInitialized = false, loading = false, saving = false, updatingCell = false;
+            let codeRequest = 0, dataRequest = 0, dateRequest = 0, codesLoading = false;
+            let loadedFilter = null, loadedData = null;
+            let dddwOptionsMap = {trade: [], interest: [], danc: [], chg_stock_gb: []};
+            const dirty = new Map(), deleted = new Map();
+            const totals = ['comAekm', 'aekm', 'jusicJusu', 'jusicAek'];
+
+            async function fetchJson(url, options) {
+                const response = await fetch(url, options);
+                const data = await response.json();
+                if (!response.ok || data.success === false) throw new Error(data.message || '처리 중 오류가 발생했습니다.');
+                return data;
+            }
+            const sqlQuote = value => String(value || '').replace(/'/g, "''");
+            const isoDate = value => parseValidDate(value) || '';
+            const number = value => Number(value || 0);
+            const rowKey = row => row.fundCd + '|' + (row.seqNo == null ? 'new' : row.seqNo);
+
+            function filters() {
+                return {corpGr: resolveCorpGr(pane), trYmd: isoDate(field('filterYmd').value),
+                    trCd: field('filterDddw').value, cjCd: field('filterCjCd').value.trim() || '%',
+                    koscomCd: field('filterKoscomCd').value.trim(), ijaBaedGb: field('filterIjaGb').value,
+                    dancGb: field('filterDancGb').value};
+            }
+            function sameFilterContext() {
+                if (!loadedFilter) return false;
+                const current = filters();
+                return ['corpGr', 'trYmd', 'trCd', 'cjCd', 'koscomCd', 'ijaBaedGb', 'dancGb']
+                    .every(name => String(current[name] || '') === String(loadedFilter[name] || ''));
+            }
+            function syncTradeControls() {
+                const isF55 = field('filterDddw').value === 'F55';
+                field('filterDancGb').disabled = !isF55;
+                field('filterDancGb').classList.toggle('filter-disabled', !isF55);
+            }
+
+            function calendar(ymd, dates) {
+                AamsCalendar.init('filterYmd', {pane: pane, initialYmd: ymd,
+                    highlightDates: dates || [], historyTitle: '권리행사 내역 존재'});
+            }
+            async function updateDates() {
+                const request = ++dateRequest;
+                const trCd = field('filterDddw').value;
+                if (!trCd) { calendar(field('filterYmd').value, []); return; }
+                try {
+                    const dates = await fetchJson(api + '/dates?' + new URLSearchParams({corpGr: resolveCorpGr(pane), trCd: trCd}));
+                    if (request === dateRequest) calendar(field('filterYmd').value, dates);
+                } catch (error) {
+                    if (request === dateRequest) showToast('달력의 권리행사 일자를 불러오지 못했습니다.', 'error');
+                }
+            }
+
+            async function populate(selectId, options) {
+                field(selectId).innerHTML = '';
+                await initFilterDddw(pane, {selectId: selectId, defaultOptions: options, defaultVal: options[0] ? options[0].code : ''});
+            }
+            async function loadDanc(corpGr, request) {
+                const trCd = field('filterDddw').value;
+                const result = await f_dddwctl.retrieveMultiple({
+                    danc: ['danc_gb', corpGr, '', 1, "szx0gd.tr_cd='" + sqlQuote(trCd) + "'"]
+                });
+                if (request !== codeRequest) return;
+                dddwOptionsMap.danc = result.danc || [];
+                await populate('filterDancGb', dddwOptionsMap.danc);
+                syncTradeControls();
+            }
+            async function ue_dddw_retrieve(corpGr) {
+                const request = ++codeRequest;
+                codesLoading = true;
+                try {
+                    const result = await f_dddwctl.retrieveMultiple({
+                        trade: ['dddw', corpGr, '', 1, "szx1pt.obj_id='W_JA021E'"],
+                        interest: ['ija_baedang_gb', corpGr, '', 1, ''],
+                        chg_stock_gb: ['chg_stock_gb', corpGr, '', 1, '']
+                    });
+                    if (request !== codeRequest) return;
+                    Object.assign(dddwOptionsMap, result);
+                    await populate('filterDddw', dddwOptionsMap.trade || []);
+                    await populate('filterIjaGb', dddwOptionsMap.interest || []);
+                    await loadDanc(corpGr, request);
+                    if (request === codeRequest) await updateDates();
+                } catch (error) {
+                    if (request === codeRequest) showToast('권리행사 코드 목록을 불러오지 못했습니다.', 'error');
+                } finally { if (request === codeRequest) codesLoading = false; }
+            }
+
+            function canEdit(cell, receipt) {
+                const row = cell.getRow().getData();
+                return !row.isSummaryRow && !saving && !loading && loadedFilter && loadedData && loadedData.canManage
+                    && sameFilterContext() && (!receipt || !number(row.suryProtect));
+            }
+            function updateTotals() {
+                const summary = gridDetail.getRows().find(row => row.getData().isSummaryRow);
+                if (!summary) return;
+                const values = {isSummaryRow: true};
+                const rows = gridDetail.getData().filter(row => !row.isSummaryRow);
+                totals.forEach(name => values[name] = rows.reduce((sum, row) => sum + number(row[name]), 0));
+                summary.update(values);
+            }
+            function edited(cell) {
+                if (updatingCell) return;
+                const row = cell.getRow(), data = row.getData(), name = cell.getField();
+                if (data.isSummaryRow) return;
+                updatingCell = true;
+                try {
+                    if (['aekm', 'jusicJusu', 'jusicAek', 'aek'].includes(name)) {
+                        const value = number(cell.getValue());
+                        if (!Number.isSafeInteger(value) || value < 0 || (name === 'aekm' && (value === 0 || value > number(data.comAekm) * 10000))) {
+                            cell.setValue(cell.getOldValue());
+                            showToast(name === 'aekm' ? '행사액면은 보유액면 이내의 양수로 입력하십시오.' : '0 이상의 정수를 입력하십시오.', 'warning');
+                            return;
+                        }
+                    }
+                    if (name === 'aekm' && number(loadedData.bond.chgGa)) {
+                        const shares = Math.trunc(number(data.aekm) / number(loadedData.bond.chgGa));
+                        row.update({jusicJusu: shares, jusicAek: shares * number(loadedData.closePrice), jusicDanga: number(loadedData.closePrice)});
+                    }
+                    if (name === 'suryChk') {
+                        if (data.suryChk === '1' && !number(data.aek)) {
+                            cell.setValue('0'); showToast('단주대금을 먼저 입력하십시오.', 'warning'); return;
+                        }
+                        row.update({suryYmd: data.suryChk === '1' ? loadedData.systemDate : null});
+                    }
+                    if (name === 'aek' && !number(data.aek)) row.update({suryChk: '0', suryYmd: null});
+                    dirty.set(rowKey(data), data);
+                    updateTotals();
+                } finally { updatingCell = false; }
+            }
+            function numeric(title, name, width, edit, receipt) {
+                return {title: title, field: name, width: width, hozAlign: 'right', headerHozAlign: 'center',
+                    formatter: cell => formatNumber(cell.getValue(), 0), editor: edit ? 'input' : false,
+                    editable: cell => edit && canEdit(cell, receipt), cellClick: aamsCellEdit};
+            }
+            function renderMaster(data) {
+                const value = data || {};
+                field('ja021e-chg-ga').value = value.chgGa == null ? '' : formatNumber(value.chgGa, 0);
+                field('ja021e-chg-start-il').value = value.chgStartIl ? formatDateDot(value.chgStartIl) : '';
+                field('ja021e-chg-jm-cd').value = value.chgJmCd || '';
+                field('ja021e-lock-end').value = value.lockEnd ? formatDateDot(value.lockEnd) : '';
+            }
+            function buildGrids() {
+                gridDetail = new Tabulator(field('gridDetail'), {height: '100%', layout: 'fitDataFill',
+                    selectableRows: 1, selectableRowsCheck: row => !row.getData().isSummaryRow, editTriggerEvent: 'click',
+                    columnDefaults: {headerSort: true, headerHozAlign: 'center'},
+                    rowFormatter: row => { if (row.getData().isSummaryRow) row.getElement().classList.add('aams-summary-row'); },
+                    columns: [
+                        {title: 'No.', width: 40, hozAlign: 'center', headerSort: false, formatter: cell => cell.getRow().getData().isSummaryRow ? '' : cell.getRow().getPosition()},
+                        {title: '펀드번호', field: 'fundCd', width: 88, hozAlign: 'center', headerCssClass: 'col-hdr-green'},
+                        {title: '펀드명', field: 'xxFundCd', width: 176},
+                        {title: '채권종목', field: 'jmCd', width: 112, hozAlign: 'center'},
+                        numeric('액면(만원)', 'comAekm', 108, false),
+                        numeric('행사액면', 'aekm', 106, true),
+                        numeric('전환주수<br>(행사가격)', 'jusicJusu', 100, true),
+                        numeric('청구금액<br>(전일종가)', 'jusicAek', 120, true),
+                        {title: 'V', field: 'suryChk', width: 36, hozAlign: 'center', formatter: 'tickCross',
+                            formatterParams: {trueValue: '1', crossElement: ''}, editor: 'tickCross',
+                            editorParams: {trueValue: '1', falseValue: '0'}, editable: cell => canEdit(cell, true), cellClick: aamsCellEdit},
+                        {title: '수령일자', field: 'suryYmd', width: 76, hozAlign: 'center', formatter: cell => cell.getValue() ? formatDateDot(cell.getValue()) : ''},
+                        numeric('단주대금', 'aek', 108, true, true),
+                        {title: '전환(교환)종목', field: 'chgJmCd', width: 118, hozAlign: 'center'},
+                        {title: '매도제한일', field: 'lockEnd', width: 90, hozAlign: 'center', headerCssClass: 'col-hdr-red',
+                            formatter: cell => cell.getValue() ? formatDateDot(cell.getValue()) : '',
+                            editor: aamsDateEditor, editable: cell => canEdit(cell), cellClick: aamsCellEdit},
+                        {title: '', width: 36, hozAlign: 'center', headerSort: false, formatter: cell => cell.getRow().getData().isSummaryRow ? '' : '<button type="button" class="btn-grid-addon btn-cal" title="매도제한일 달력"><i class="fa-regular fa-calendar-days"></i></button>',
+                            cellClick: (event, cell) => {
+                                event.stopPropagation(); if (!canEdit(cell)) return;
+                                const target = cell.getRow().getCell('lockEnd');
+                                AamsCalendar.pickDate(target.getValue(), value => { target.setValue(value); edited(target); }, event.target, {pane: pane, format: 'dash'});
+                            }}
+                    ]});
+                gridDetail.on('cellEdited', edited);
+                setupTabulatorRowSelection(gridDetail);
+                if (window.AamsResponsive) AamsResponsive.bindGridResize(pane, [gridDetail]);
+            }
+
+            async function loadData(context) {
+                if (saving) { showToast('저장 중입니다.', 'info'); return; }
+                const filter = context || filters();
+                if (codesLoading || !filter.corpGr || !filter.trYmd || !filter.trCd) {
+                    showToast('회사·권리일자·거래코드를 확인하십시오.', 'warning'); return;
+                }
+                const request = ++dataRequest;
+                loading = true;
+                try {
+                    const data = await fetchJson(api + '/data?' + new URLSearchParams(filter));
+                    if (request !== dataRequest) return;
+                    loadedFilter = Object.assign({}, filter); loadedData = data;
+                    const rows = data.rows || [];
+                    const summary = {isSummaryRow: true};
+                    totals.forEach(name => summary[name] = rows.reduce((sum, row) => sum + number(row[name]), 0));
+                    renderMaster(data.bond);
+                    await gridDetail.setData(rows.length ? rows.concat(summary) : []);
+                    dirty.clear(); deleted.clear();
+                    if (!rows.length) showToast('자료가 없습니다.', 'info');
+                } catch (error) { if (request === dataRequest) showToast(error.message, 'error'); }
+                finally { if (request === dataRequest) loading = false; }
+            }
+            async function save() {
+                if (saving || loading) return;
+                if (!loadedFilter || !loadedData || !loadedData.canManage || !sameFilterContext()) {
+                    showToast('변경된 조회조건으로 다시 조회한 후 저장하십시오.', 'warning'); return;
+                }
+                const rows = Array.from(dirty.values()).map(row => Object.assign({}, row, {rowStatus: row.isNew ? 'C' : 'U'}))
+                    .concat(Array.from(deleted.values()).map(row => Object.assign({}, row, {rowStatus: 'D'})));
+                if (!rows.length) { showToast('변경된 자료가 없습니다.', 'info'); return; }
+                saving = true;
+                let saved = false;
+                try {
+                    const result = await fetchJson(api + '/save', {method: 'POST', headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({filter: loadedFilter, rows: rows})});
+                    dirty.clear(); deleted.clear(); saved = true; showToast(result.message, 'success');
+                } catch (error) { showToast(error.message, 'error'); }
+                finally { saving = false; }
+                if (saved) { await loadData(loadedFilter); await updateDates(); }
+            }
+
+            async function startInit() {
+                if (isInitialized) return;
+                isInitialized = true;
+                buildGrids(); calendar(initialYmd, []);
+                bondSearch = DynamicCodeSearch.bind({pane: pane, inputEl: field('filterCjCd'), btnEl: field('btnCjSearch'),
+                    textEl: field('textCjName'), columnNm: 'cj_cd', seq: 1, getCorpGr: () => resolveCorpGr(pane),
+                    addWhere: "t1.bond_attr='6' and t1.bond_cd in ('7','S','T','5','6','N','P')",
+                    // 검색 조건의 JMCD(코드)는 입력란에만 보관하고, 이름 영역에는 종목명만 표시한다.
+                    onSelect: (_code, name) => {
+                        const nameEl = field('textCjName');
+                        if (nameEl) nameEl.textContent = name || '';
+                    }});
+                koscomSearch = DynamicCodeSearch.bind({pane: pane, inputEl: field('filterKoscomCd'), btnEl: field('btnKoscomSearch'),
+                    textEl: field('textKoscomName'), columnNm: 'koscom_cd', seq: 1, getCorpGr: () => resolveCorpGr(pane),
+                    addWhere: () => "danc_gb='" + sqlQuote(field('filterDancGb').value) + "'" +
+                        (field('filterDddw').value === 'F55' ? '' : " and balh_co in (select balh_co from scm0cj where corp_gr='" + sqlQuote(resolveCorpGr(pane)) + "' and bond_attr='6')"),
+                    // 검색 코드는 입력란에만 보관하고 이름 영역에는 KOSCOM 명칭만 표시한다.
+                    onSelect: (_code, name) => {
+                        const nameEl = field('textKoscomName');
+                        if (nameEl) nameEl.textContent = name || '';
+                    }});
+                field('filterDddw').addEventListener('change', async () => {
+                    const request = ++codeRequest; codesLoading = true;
+                    bondSearch.clear(); koscomSearch.clear();
+                    try { await loadDanc(resolveCorpGr(pane), request); await updateDates(); }
+                    catch (error) { showToast('KOSCOM구분을 불러오지 못했습니다.', 'error'); }
+                    finally { if (request === codeRequest) codesLoading = false; }
+                });
+                field('filterDancGb').addEventListener('change', () => koscomSearch.clear());
+                [field('filterCjCd'), field('filterKoscomCd')].forEach(input => input.addEventListener('blur', () => {
+                    input.value = input.value.trim().toUpperCase();
+                }));
+                pane.onSearch = () => loadData(); pane.onSave = save;
+                pane.onInput = pane.onCopy = () => showToast('보유계좌는 조회 시 생성됩니다.', 'info');
+                const deleteSelectedRow = async () => {
+                    const row = gridDetail.getSelectedRows()[0];
+                    if (!row || !canEdit(row.getCells()[0], true)) { showToast('삭제할 수 있는 행을 선택하십시오.', 'warning'); return; }
+                    const data = row.getData(); dirty.delete(rowKey(data));
+                    if (!data.isNew) deleted.set(rowKey(data), data);
+                    await row.delete();
+                    if (!gridDetail.getData().some(data => !data.isSummaryRow)) await gridDetail.clearData();
+                    else updateTotals();
+                };
+                pane.onDelete = pane.onDetailDelete = deleteSelectedRow;
+                pane.onExcel = () => gridDetail.download('xlsx', '채권_특이채_권리행사.xlsx', {sheetName: '권리행사'});
+                pane.onDetailExcel = pane.onExcel;
+                const applyPbToolbar = () => ['.btn-input', '.btn-copy', '.btn-delete', '.btn-print'].forEach(selector => {
+                    const button = pane.querySelector(selector);
+                    if (button) button.style.setProperty('display', 'none', 'important');
+                });
+                applyPbToolbar();
+                pane.addEventListener('buttonAuthApplied', applyPbToolbar);
+                pane.onClear = pane.onRefresh = async () => {
+                    if (saving) { showToast('저장 완료 후 새로고침하십시오.', 'info'); return; }
+                    ++dataRequest; loading = false; dirty.clear(); deleted.clear(); loadedFilter = null; loadedData = null;
+                    renderMaster(null);
+                    await gridDetail.clearData();
+                    calendar(initialYmd, []); bondSearch.clear(); koscomSearch.clear();
+                    await ue_dddw_retrieve(resolveCorpGr(pane));
+                    showToast('화면이 초기화되었습니다.', 'info');
+                };
+                pane.onCorpGrChange = async corpGr => {
+                    ++dataRequest; loading = false;
+                    bondSearch.clear(); koscomSearch.clear();
+                    try {
+                        const data = await fetchJson('/api/common/workdate?' + new URLSearchParams({corpGr: corpGr}));
+                        if (corpGr !== resolveCorpGr(pane)) return;
+                        initialYmd = data.workDate; calendar(initialYmd, []);
+                        await ue_dddw_retrieve(corpGr);
+                    } catch (error) { showToast('회사 기준일자를 불러오지 못했습니다.', 'error'); }
+                };
+                await ue_dddw_retrieve(resolveCorpGr(pane));
+                // PB has no eb_direct_retrieve=true: no initial business-data search.
+            }
+            if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', startInit, {once: true});
+            else startInit();
+        })();
+    </script>
+</div>
+</html>

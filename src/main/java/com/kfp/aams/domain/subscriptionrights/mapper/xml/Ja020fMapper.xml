@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.kfp.aams.domain.subscriptionrights.mapper.Ja020fMapper">
+
+    <resultMap id="ja020fResultMap" type="com.kfp.aams.domain.subscriptionrights.dto.Ja020fDto">
+        <result property="corpGr"      column="corp_gr"/>
+        <result property="corpNm"      column="corp_nm"/>
+        <result property="fundCd"      column="fund_cd"/>
+        <result property="fundNm"      column="fund_nm"/>
+        <result property="xxFundCd"    column="fund_nm"/>
+        <result property="koscomCd"    column="koscom_cd"/>
+        <result property="jmCd"        column="jm_cd"/>
+        <result property="jjNm"        column="jj_nm"/>
+        <result property="balhCo"      column="balh_co"/>
+        <result property="jmSort"      column="jm_sort"/>
+        <result property="gyulMm"      column="gyul_mm"/>
+        <result property="jmType"      column="jm_type"/>
+        <result property="bigo"        column="bigo"/>
+        <result property="jusu"        column="jusu"/>
+        <result property="aek"         column="aek"/>
+        <result property="gongsJusu"   column="gongs_jusu"/>
+        <result property="gongsAek"    column="gongs_aek"/>
+        <result property="pyungaAek"   column="pyunga_aek"/>
+        <result property="sonik"       column="sonik"/>
+        <result property="daySonik"    column="day_sonik"/>
+        <result property="bjonga"      column="bjonga"/>
+        <result property="joinga"      column="JOINGA"/>
+        <result property="miAek"       column="mi_aek"/>
+        <result property="aekm"        column="aekm"/>
+        <result property="danga"       column="danga"/>
+        <result property="lockJusu"    column="lock_jusu"/>
+        <result property="gbjonga"     column="gbjonga"/>
+        <result property="gjonga"      column="gjonga"/>
+        <result property="gaek"        column="gaek"/>
+        <result property="gsonik"      column="gsonik"/>
+        <result property="gpyungaAek"  column="gpyunga_aek"/>
+        <result property="dayGsonik"   column="day_gsonik"/>
+        <result property="ventureEnd"  column="venture_end"/>
+        <result property="jan"         column="jan"/>
+        <result property="fontColor"   column="font_color"/>
+    </resultMap>
+
+    <!-- KFP.SR_JA020F 프로시저 호출 (d_ja020f1.srd) -->
+    <select id="callSrJa020f" statementType="CALLABLE">
+        { CALL KFP.SR_JA020F(
+            #{corpGr, mode=IN, jdbcType=VARCHAR},
+            #{corpGr2, mode=IN, jdbcType=VARCHAR},
+            #{ymd, mode=IN, jdbcType=VARCHAR},
+            #{balhCo, mode=IN, jdbcType=VARCHAR},
+            #{rSet, mode=OUT, jdbcType=CURSOR, javaType=java.sql.ResultSet, resultMap=ja020fResultMap}
+        ) }
+    </select>
+
+</mapper>
+

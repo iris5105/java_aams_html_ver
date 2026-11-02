@@ -117,14 +117,13 @@ public class Ja020k1Controller {
             String cookieCorpGr = (cookieCorpGr1 != null && !cookieCorpGr1.isBlank()) ? cookieCorpGr1 : cookieCorpGr2;
             corpGr = resolveCorpGr(corpGr, cookieCorpGr, principal);
 
-            boolean isMobile = (format != null && format.toLowerCase().contains("htm"))
-                    || (userAgent != null && (userAgent.toLowerCase().contains("mobile") || userAgent.toLowerCase().contains("android") || userAgent.toLowerCase().contains("iphone") || userAgent.toLowerCase().contains("ipad")));
-            String effectiveFormat = isMobile ? "html" : "pdf";
+            boolean isHtml = (format != null && format.toLowerCase().contains("htm"));
+            String effectiveFormat = isHtml ? "html" : "pdf";
 
             RdReportService.ExportResult exportResult = ja020k1Service.generateReport(
                     corpGr, fundCd, fundNm, ymd, gugan, effectiveFormat);
 
-            if (isMobile) {
+            if (isHtml) {
                 return ResponseEntity.ok()
                         .contentType(MediaType.valueOf("text/html; charset=UTF-8"))
                         .body(exportResult.getData());

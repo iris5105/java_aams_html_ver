@@ -9,6 +9,36 @@ class TabManager {
         this.activeTabKey = null;
         this.activeTopPgmNo = null;
         this.isRestoring = false;
+        this.breadcrumbMedia = window.matchMedia('(max-width: 876px)');
+        this.breadcrumbMedia.addEventListener('change', () => {
+            document.querySelectorAll('.breadcrumb[data-breadcrumb-full]').forEach(el => this.renderBreadcrumb(el));
+        });
+    }
+
+    updateBreadcrumb(pane, tab) {
+        const breadcrumb = pane.querySelector('.breadcrumb');
+        if (!breadcrumb) return;
+        const original = breadcrumb.querySelector('.breadcrumb-text');
+        const fullPath = String(tab.breadcrumb || breadcrumb.dataset.breadcrumbFull || (original ? original.textContent : '') || tab.title || '').trim();
+        let current = fullPath.split('>').pop().trim();
+        const screenId = String(tab.pgmId || pane.getAttribute('data-pgm-id') || '').trim();
+        if (screenId && !current.toLowerCase().includes('[' + screenId.toLowerCase() + ']')) current += ' [' + screenId + ']';
+
+        const icon = document.createElement('i');
+        icon.className = 'fa-solid fa-house';
+        const text = document.createElement('span');
+        text.className = 'breadcrumb-text';
+        breadcrumb.dataset.breadcrumbFull = fullPath;
+        breadcrumb.dataset.breadcrumbCurrent = current.trim();
+        breadcrumb.title = fullPath;
+        breadcrumb.replaceChildren(icon, text);
+        this.renderBreadcrumb(breadcrumb);
+    }
+
+    renderBreadcrumb(breadcrumb) {
+        const text = breadcrumb.querySelector('.breadcrumb-text');
+        if (text) text.textContent = this.breadcrumbMedia.matches
+            ? breadcrumb.dataset.breadcrumbCurrent : breadcrumb.dataset.breadcrumbFull;
     }
 
     init() {
@@ -234,13 +264,7 @@ class TabManager {
                 .then(html => {
                     pane.innerHTML = html;
 
-                    // Update FULLPGM2 Breadcrumb inside loaded view pane if available
-                    if (tabObj.breadcrumb) {
-                        const breadcrumbEl = pane.querySelector(".breadcrumb");
-                        if (breadcrumbEl) {
-                            breadcrumbEl.innerHTML = `<i class="fa-solid fa-house"></i> <span>${tabObj.breadcrumb}</span>`;
-                        }
-                    }
+                    this.updateBreadcrumb(pane, tabObj);
 
                     // 태블릿-S/모바일(<= 876px) 환경에서 액션 버튼 텍스트가 숨겨질 때를 대비하여 버튼의 title 속성 자동 동기화 (DDDW 드롭다운 제외)
                     pane.querySelectorAll("button:not(.dddw-select-btn)").forEach(btn => {

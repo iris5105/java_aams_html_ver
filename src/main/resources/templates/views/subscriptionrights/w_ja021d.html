@@ -9,12 +9,31 @@
         <div th:replace="~{fragments/tab_header :: toolbarBreadcrumb}"></div>
     </div>
     <div class="filter-bar">
-        <div th:replace="~{fragments/filter/d_ja021d :: filter}"></div>
+        <div class="filter-left">
+            <div th:replace="~{fragments/filter/dc_ftymd :: filter(label='공시일')}"></div>
+            <div class="filter-item">
+                <label for="filterDddw">출력구분</label>
+                <select id="filterDddw" name="rptGb" class="filter-select">
+                    <option th:each="type : ${reportTypes}" th:value="${type.code}"
+                            th:text="${type.name}" th:attr="data-gb=${type.gb},data-tr-cd=${type.trCd}"></option>
+                </select>
+            </div>
+            <div class="filter-item filter-code-search-item">
+                <label for="filterBalhCo">발행기관</label>
+                <div class="code-search-input-wrapper">
+                    <input type="text" id="filterBalhCo" name="balhCo" class="filter-input code-search-input"
+                           value="%" maxlength="5" autocomplete="off" aria-label="발행기관 코드" />
+                    <button type="button" id="btnBalhSearch" class="btn-code-search" title="발행기관 검색">
+                        <i class="fa-solid fa-magnifying-glass"></i>
+                    </button>
+                </div>
+                <span id="textBalhName" class="code-search-name">전발행기관</span>
+            </div>
+        </div>
     </div>
     <div class="report-container-panel">
         <div th:replace="~{fragments/report/report_viewer :: reportViewerBottomPane(reportTitle='배당 명세표', defaultStatus='조건을 선택한 후 조회하십시오')}"></div>
     </div>
-    <div th:replace="~{fragments/report/report_viewer :: reportMobileModal(modalId='ja021dMobileModal', modalTitle='배당 명세표')}"></div>
 
     <script th:inline="javascript">
         (function () {
@@ -83,8 +102,7 @@
                     params: {gb: type.gb, tr_cd: type.trCd, title: type.name + ' 명세표',
                         fr_ymd: frYmd, to_ymd: toYmd, balh_co: balhCo}
                 };
-                if (AamsReport.isMobileView(pane)) reportViewer.openMobile(data);
-                else reportViewer.loadPreview(data, null, true);
+                reportViewer.loadPreview(data, null, true);
             }
 
             function startInit() {
@@ -103,7 +121,7 @@
                     allCode: '%', allName: '전발행기관'
                 });
                 reportViewer = AamsReport.bindViewer(pane, {
-                    reportFile: 'rd_ja021d.mrd', modalId: 'ja021dMobileModal',
+                    reportFile: 'rd_ja021d.mrd',
                     defaultStatus: '조건을 선택한 후 조회하십시오',
                     getCorpGr: function (data) { return data ? data.corpGr : resolveCorpGr(pane); },
                     buildParams: function (data) { return data.params; },
@@ -117,7 +135,6 @@
                 pane.onExcel = function () { reportViewer.exportFormat('excel'); };
                 pane.onPrint = function () { reportViewer.openNewWindow(); };
                 pane.onClear = pane.onRefresh = function () {
-                    reportViewer.closeMobile();
                     reportViewer.clear();
                     initDates(initialYmd);
                     initReportTypes();

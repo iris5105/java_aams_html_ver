@@ -2,6 +2,17 @@
 trigger: always_on
 ---
 
+## `fundCd` 컬럼 헤더 명칭 표준
+
+- Tabulator 컬럼의 `field`가 정확히 `fundCd`인 경우 헤더 `title`은 항상 **`펀드번호`**로 지정한다.
+- `fundCd`를 `펀드코드`, `펀드`, `관리번호` 등 다른 표현으로 표시하지 않는다.
+- 기본 작성 예시:
+
+  ```javascript
+  { title: "펀드번호", field: "fundCd", hozAlign: "center" }
+  ```
+- `xxFundCd` 명칭 컬럼과 `fundNm` 펀드명 컬럼에는 이 규칙을 적용하지 않는다.
+
 # 04. Tabulator 그리드 기초 및 컬럼 구성 개발 표준 가이드
 
 본 문서는 파워빌더 DataWindow(.srd)를 웹 Tabulator 그리드로 변환할 때 필수적으로 준수해야 하는 컬럼 구성, 정렬, 원클릭 인라인 편집, 드롭다운(List Editor), 그리고 그리드 테두리 표준 규격입니다.

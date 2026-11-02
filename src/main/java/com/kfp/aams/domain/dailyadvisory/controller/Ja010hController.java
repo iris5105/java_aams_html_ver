@@ -129,14 +129,13 @@ public class Ja010hController {
         String corpGr = resolveCorpGr(paramCorpGr, cookieCorpGr, principal);
         LocalDate ymd = parseLocalDate(ymdStr);
 
-        boolean isMobile = (format != null && format.toLowerCase().contains("htm"))
-                || (userAgent != null && (userAgent.toLowerCase().contains("mobile") || userAgent.toLowerCase().contains("android") || userAgent.toLowerCase().contains("iphone") || userAgent.toLowerCase().contains("ipad")));
-        String effectiveFormat = isMobile ? "html" : "pdf";
+        boolean isHtml = (format != null && format.toLowerCase().contains("htm"));
+        String effectiveFormat = isHtml ? "html" : "pdf";
 
         try {
             LocalDate fallbackDate = LocalDate.parse(workDateService.getWorkDateOrDefault(corpGr));
             RdReportService.ExportResult res = ja010hService.exportReport(corpGr, ymd != null ? ymd : fallbackDate, fundCd, effectiveFormat);
-            if (isMobile) {
+            if (isHtml) {
                 return ResponseEntity.ok()
                         .contentType(MediaType.valueOf("text/html; charset=UTF-8"))
                         .body(res.getData());

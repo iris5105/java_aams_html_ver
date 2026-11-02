@@ -152,16 +152,16 @@ trigger: always_on
    - 드롭다운 오픈 시 상단에 고정된 `[코드 | 명칭]` 헤더 행과 함께 정렬된 2열 테이블 팝업이 표출됩니다.
    - 클릭 즉시 값이 반영되고 `change` 이벤트가 버블링되어 하위 필터나 그리드 연동이 매끄럽게 동작합니다.
 
-### 2.5 파워빌더 `ue_dddw_retrieve` 이벤트의 웹 변환 표준 규격 (`f_dddwctl.retrieveMultiple` & `dddwOptionsMap` 패턴)
+### 2.5 파워빌더 `ue_dddw_retrieve` 이벤트의 웹 변환 표준 규격 (`f_dddwctl` & `dddwOptionsMap` 패턴)
 
 > [!IMPORTANT]
-> **파워빌더 DataWindow의 `ue_dddw_retrieve` 이벤트는 반드시 `f_dddwctl.retrieveMultiple` 및 `dddwOptionsMap` 단일 객체 패턴으로 100% 표준화**  
+> **파워빌더 DataWindow의 `ue_dddw_retrieve` 이벤트는 `f_dddwctl`과 `dddwOptionsMap`으로 표준화**
 > 1. 화면 내에서 사용되는 모든 그리드 DDDW 옵션 데이터는 전역 변수나 개별 배열로 분산시키지 않고 **단일 `dddwOptionsMap` 객체**로 통합 관리합니다.  
-> 2. 개별 `f_dddwctl`을 따로 비동기 호출하거나 하드코딩하지 않고, 반드시 **`ue_dddw_retrieve(corpGr)` 함수를 선언하여 `f_dddwctl.retrieveMultiple({...})`로 일괄 병렬 수신**합니다.  
+> 2. DDDW가 여러 개이면 **`f_dddwctl.retrieveMultiple({...})`로 일괄 병렬 수신**하고, 단일 DDDW이면 `f_dddwctl(dddwId, ...)` 직접 호출을 허용합니다. 어느 경우에도 **`ue_dddw_retrieve(corpGr)` 함수에서 호출을 감싸고** 결과를 동일한 `dddwOptionsMap` 형식으로 정규화합니다.
 > 3. 파워빌더 `F_DDDWCTL (THIS, dddw_id, corp_gr, add_data, iseq, swhere)`의 인자를 1:1 배열 형태로 전달합니다 (`[dddwId, corpGr, addData, seq, addWhere]`).  
-> 4. 수신 완료 시 `dddwOptionsMap`에 할당한 후 `grid.redraw(true)`를 호출하여 그리드 셀 레이블을 최신으로 자동 갱신합니다.  
+> 4. 수신 완료 시 `dddwOptionsMap`에 할당하고, Tabulator의 `tableBuilt` 완료 후에만 `grid.redraw(true)`를 호출하여 그리드 셀 레이블을 갱신합니다. 아직 빌드되지 않았거나 숨겨진 탭이면 `safeRedraw`/탭 활성화 이벤트에서 처리합니다.
 > 5. 그리드 컬럼 설정에서는 표준 헬퍼 함수인 **`getDddwLabel(dddwKey, codeVal)`**과 **`getDddwOptions(dddwKey)`**를 사용하여 `formatter`와 `editorParams.valuesLookup`을 일관되게 바인딩합니다.  
-> 6. 상단 공통 툴바의 회사그룹 변경 이벤트(`pane.onCorpGrChange(newCorpGr)`) 시 반드시 `ue_dddw_retrieve(newCorpGr)`를 호출하여 변경된 회사그룹의 DDDW 목록으로 즉시 재조회합니다.
+> 6. PB의 회사그룹 변경 이벤트가 DDDW 재조회에 해당하는 화면만 `pane.onCorpGrChange(newCorpGr)`에서 `ue_dddw_retrieve(newCorpGr)`를 호출한다. 회사그룹과 무관한 정적 옵션은 불필요하게 재조회하지 않는다.
 
 #### 표준 구현 코드 스니펫
 ```javascript
@@ -190,14 +190,40 @@ function ue_dddw_retrieve(corpGr) {
                 dddwOptionsMap[k] = results[k] || [];
             });
 
-            // 그리드 셀 레이블 즉시 리프레시
-            if (gridMaster) gridMaster.redraw(true);
-            if (gridDetail) gridDetail.redraw(true);
+            // tableBuilt 이후에만 그리드 셀 레이블 리프레시
+            safeRedraw(gridMaster);
+            safeRedraw(gridDetail);
         }).catch(err => {
             console.warn("[ue_dddw_retrieve] DDDW 로드 실패:", err);
         });
     }
 }
+
+function safeRedraw(grid) {
+    if (!grid || typeof grid.redraw !== 'function') return;
+    if (grid._aamsTableBuilt !== true) {
+        grid._aamsRedrawPending = true;
+        return;
+    }
+    if (grid.element && grid.element.offsetParent === null) {
+        grid._aamsRedrawPending = true;
+        return;
+    }
+    grid.redraw(true);
+    grid._aamsRedrawPending = false;
+}
+
+function markTableBuilt(grid) {
+    if (!grid || typeof grid.on !== 'function') return;
+    grid.on('tableBuilt', function () {
+        grid._aamsTableBuilt = true;
+        safeRedraw(grid);
+    });
+}
+
+// new Tabulator(...) 직후 각 그리드에 한 번씩 등록한다.
+markTableBuilt(gridMaster);
+markTableBuilt(gridDetail);
 
 // 3. Tabulator formatter 전용 라벨 조회 헬퍼
 function getDddwLabel(dddwKey, codeVal) {

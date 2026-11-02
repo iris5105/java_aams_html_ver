@@ -1313,6 +1313,112 @@ body.header-compact-mode.sidebar-backdrop-open::after {
     background-color: #fff;
 }
 
+/*
+ * 비테이블 입력 영역 공통 반응형 레이아웃
+ * - viewport가 아니라 부모 pane의 실제 가용 너비를 기준으로 항목 단위 줄바꿈
+ * - label/control은 줄바꿈 과정에서 축소하지 않음
+ * - FORM: aams-responsive-form > .form-row
+ * - 일반 영역: aams-responsive-fields > .aams-responsive-field
+ * - 고정 정렬형: 위 컨테이너에 aams-fields-aligned 추가
+ */
+.aams-responsive-fields,
+.aams-responsive-form {
+    --aams-fields-row-gap: 6px;
+    --aams-fields-column-gap: 12px;
+    --aams-field-inner-gap: 6px;
+    --aams-field-label-width: 78px;
+    --aams-field-control-width: 110px;
+    --aams-field-width: calc(var(--aams-field-label-width) + var(--aams-field-control-width) + var(--aams-field-inner-gap));
+    display: flex;
+    flex-flow: row wrap;
+    align-items: center;
+    align-content: flex-start;
+    gap: var(--aams-fields-row-gap) var(--aams-fields-column-gap);
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    box-sizing: border-box;
+}
+
+.aams-responsive-field,
+.aams-responsive-form > .form-row {
+    flex: 0 0 auto;
+    min-width: max-content;
+    box-sizing: border-box;
+}
+
+.aams-responsive-fields:not(.aams-fields-aligned) > .aams-responsive-field,
+.aams-responsive-form:not(.aams-fields-aligned) > .form-row {
+    display: inline-flex;
+    flex-flow: row nowrap;
+    align-items: center;
+    gap: var(--aams-field-inner-gap);
+}
+
+.aams-responsive-field > label,
+.aams-responsive-form > .form-row > label,
+.aams-responsive-form > .form-row > .form-label {
+    flex: 0 0 auto;
+    margin: 0;
+    white-space: nowrap;
+}
+
+.aams-responsive-fields.aams-fields-aligned > .aams-responsive-field,
+.aams-responsive-form.aams-fields-aligned > .form-row {
+    display: grid;
+    grid-template-columns: var(--aams-field-label-width) var(--aams-field-control-width);
+    column-gap: var(--aams-field-inner-gap);
+    align-items: center;
+    flex: 0 0 var(--aams-field-width);
+    width: var(--aams-field-width);
+    min-width: var(--aams-field-width);
+    white-space: nowrap;
+}
+
+.aams-responsive-fields.aams-fields-aligned > .aams-responsive-field > label,
+.aams-responsive-form.aams-fields-aligned > .form-row > label,
+.aams-responsive-form.aams-fields-aligned > .form-row > .form-label {
+    width: var(--aams-field-label-width);
+    min-width: var(--aams-field-label-width);
+    margin: 0;
+    text-align: right;
+    white-space: nowrap;
+    box-sizing: border-box;
+}
+
+.aams-responsive-field > input,
+.aams-responsive-field > select,
+.aams-responsive-field > textarea,
+.aams-responsive-field > button,
+.aams-responsive-field > .aams-field-control,
+.aams-responsive-field > .aams-field-controls,
+.aams-responsive-field > .aams-calendar-wrapper,
+.aams-responsive-field > .range-calendar-wrapper,
+.aams-responsive-field > .dddw-select-custom,
+.aams-responsive-field > .code-search-wrapper,
+.aams-responsive-form > .form-row > input,
+.aams-responsive-form > .form-row > select,
+.aams-responsive-form > .form-row > textarea,
+.aams-responsive-form > .form-row > button,
+.aams-responsive-form > .form-row > .aams-field-control,
+.aams-responsive-form > .form-row > .aams-field-controls,
+.aams-responsive-form > .form-row > .aams-calendar-wrapper,
+.aams-responsive-form > .form-row > .range-calendar-wrapper,
+.aams-responsive-form > .form-row > .dddw-select-custom,
+.aams-responsive-form > .form-row > .code-search-wrapper {
+    flex: 0 0 auto;
+    min-width: 0;
+    box-sizing: border-box;
+}
+
+.aams-responsive-field > .aams-field-controls,
+.aams-responsive-form > .form-row > .aams-field-controls {
+    display: inline-flex;
+    flex-flow: row nowrap;
+    align-items: center;
+    gap: var(--aams-field-inner-gap);
+}
+
 .filter-bar {
     background-color: #f1f5f9;
     border-bottom: 1px solid #cbd5e1;
@@ -1333,7 +1439,30 @@ body.header-compact-mode.sidebar-backdrop-open::after {
     align-items: center;
     gap: 16px;
     flex-wrap: wrap;
+    min-width: 0;
 }
+
+/* 라벨과 컨트롤은 한 묶음으로 줄바꿈하고 컨트롤의 지정 너비는 유지한다. */
+.filter-bar .filter-item {
+    flex: 0 0 auto !important;
+    flex-wrap: nowrap !important;
+    width: auto !important;
+}
+
+.filter-bar .filter-item > label,
+.filter-bar .filter-item > input,
+.filter-bar .filter-item > select,
+.filter-bar .filter-item > button,
+.filter-bar .filter-item > .aams-calendar-wrapper,
+.filter-bar .filter-item > .range-calendar-wrapper,
+.filter-bar .filter-item > .dddw-select-custom,
+.filter-bar .filter-item > .code-search-wrapper,
+.filter-bar .filter-item .aams-calendar-wrapper > *,
+.filter-bar .filter-item .range-calendar-wrapper > * {
+    flex: 0 0 auto !important;
+}
+
+.filter-bar .filter-item > label { white-space: nowrap; }
 
 .filter-bar .filter-actions,
 .filter-bar .filter-group-right {
@@ -1341,6 +1470,69 @@ body.header-compact-mode.sidebar-backdrop-open::after {
     align-items: center;
     gap: 6px;
     margin-left: auto;
+}
+
+.ja021f-tab-nav {
+    display: flex;
+    gap: 2px;
+    padding: 4px 12px 0;
+    flex: 0 0 auto;
+    overflow-x: auto;
+    background: #f1f5f9;
+    border-bottom: 1px solid #cbd5e1;
+}
+
+.ja021f-tab {
+    flex: 0 0 auto;
+    padding: 7px 14px;
+    border: 1px solid transparent;
+    border-bottom: 0;
+    border-radius: 5px 5px 0 0;
+    background: #e2e8f0;
+    color: #64748b;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.ja021f-tab.active {
+    border-color: #cbd5e1;
+    background: #fff;
+    color: #1e293b;
+}
+
+.ja021f-tab-content {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.ja021f-tab-pane {
+    display: none;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+}
+
+.ja021f-tab-pane.active {
+    display: block;
+}
+
+@media (max-width: 876px) {
+    .ja021f-tab-nav {
+        padding-left: 6px;
+        padding-right: 6px;
+    }
+
+    .ja021f-tab {
+        padding: 6px 9px;
+        font-size: 11px;
+    }
+
+    .ja021f-tab-content {
+        overflow-y: auto;
+    }
+
 }
 
 /* When a filter-bar is nested inside an outer filter-bar / From-To Date + DDDW Filter */
@@ -1357,6 +1549,9 @@ body.header-compact-mode.sidebar-backdrop-open::after {
     max-width: 100% !important;
     gap: 8px 16px !important;
 }
+
+/* 중첩 프래그먼트의 항목을 상위 flex 레이아웃에서 각각 줄바꿈한다. */
+.filter-bar .filter-bar { display: contents !important; }
 
 /* 필터바 전용 액션 버튼 (.btn-run-action: 원장생성, 에러메세지CLEAR 등) */
 .btn-run-action {
@@ -2574,13 +2769,12 @@ body.header-compact-mode.sidebar-backdrop-open::after {
         padding: 8px;
     }
 
-    /* ==========================================================================
-       모바일 환경(<= 876px) 상단 필터바 세로형(Vertical Stack) 배치
-       ========================================================================== */
+    /* 모바일에서도 컨트롤 크기는 유지하고 필터 항목 단위로 줄바꿈한다. */
     .filter-bar {
         display: flex !important;
-        flex-direction: column !important;
-        align-items: stretch !important;
+        flex-direction: row !important;
+        flex-wrap: wrap !important;
+        align-items: center !important;
         gap: 8px !important;
         padding: 8px 10px !important;
         min-height: auto !important;
@@ -2589,102 +2783,36 @@ body.header-compact-mode.sidebar-backdrop-open::after {
     .filter-bar .filter-left,
     .filter-bar .filter-group-left {
         width: 100% !important;
+        min-width: 0;
         display: flex !important;
         flex-direction: row !important;
         flex-wrap: wrap !important;
         align-items: center !important;
-        gap: 6px !important;
+        gap: 8px 12px !important;
     }
 
-    /* 중첩된 필터 프래그먼트 (dc_ymd, dc_ftymd_dddw 등 모든 filter-dc-*) 세로 정렬 및 전폭 점유 */
     .filter-bar .filter-bar,
     .filter-bar .filter-left > .filter-bar,
     .filter-bar [class*="filter-dc-"] {
-        width: 100% !important;
-        max-width: 100% !important;
-        flex: 0 0 100% !important;
-        display: flex !important;
-        flex-direction: column !important;
-        align-items: stretch !important;
-        gap: 8px !important;
-        padding: 0 !important;
+        display: contents !important;
     }
 
-    /* 개별 필터 항목(라벨 + 컨트롤) 1행 단위 세로 나열 */
     .filter-bar .filter-item {
         display: flex !important;
         flex-direction: row !important;
         align-items: center !important;
-        width: 100% !important;
-        max-width: 100% !important;
         gap: 8px !important;
-        flex-shrink: 0 !important;
     }
 
-    /* 라벨 좌측 고정 너비로 세로 정렬선 일치 및 텍스트 우측 정렬 */
     .filter-bar .filter-item > label,
     .filter-bar .filter-item label {
-        min-width: 65px !important;
-        max-width: 85px !important;
-        text-align: right !important;
         margin-bottom: 0 !important;
-        flex-shrink: 0 !important;
-        font-size: 12px !important;
-        color: #334155 !important;
         white-space: nowrap !important;
     }
 
-    /* 날짜 인풋 및 달력 래퍼 가용 너비 채움 */
-    .filter-bar .filter-item .aams-calendar-wrapper,
-    .filter-bar .filter-item input.filter-input.input-date,
-    .filter-bar .filter-item input.filter-input {
-        flex: 1 1 auto !important;
-        width: auto !important;
-        max-width: 100% !important;
-    }
-
-    /* 기간 선택 날짜 래퍼 (2개 인풋 + 달력 버튼) */
-    .filter-bar .filter-item .range-calendar-wrapper {
-        display: inline-flex !important;
-        align-items: center !important;
-        flex: 1 1 auto !important;
-        width: auto !important;
-        max-width: 100% !important;
-        gap: 4px !important;
-    }
-
-    .filter-bar .filter-item .range-calendar-input {
-        flex: 1 1 0 !important;
-        min-width: 70px !important;
-        width: auto !important;
-    }
-
-    /* DDDW 및 셀렉트박스 가용 너비 채움 */
-    .filter-bar .filter-item .dddw-select-custom,
-    .filter-bar .filter-item select.filter-select {
-        flex: 1 1 auto !important;
-        width: 100% !important;
-        max-width: 100% !important;
-        min-width: 0 !important;
-    }
-
-    .tab-content-container .filter-item .dddw-select-btn {
-        width: 100% !important;
-        max-width: 100% !important;
-    }
-
-    /* 다이나믹 코드 검색 래퍼 */
-    .filter-bar .filter-item .code-search-wrapper,
-    .filter-bar .filter-code-search-item {
-        flex: 1 1 auto !important;
-        width: auto !important;
-        max-width: 100% !important;
-    }
-
-    /* 필터바 내 보조 액션 버튼 컨테이너: 가로 일렬(Row) 나열 및 가로 초과 시 줄바꿈 */
+    /* 보조 액션도 항목 폭을 유지한 채 다음 줄로 이동할 수 있다. */
     .filter-bar .filter-actions,
     .filter-bar .filter-group-right {
-        width: 100% !important;
         margin-left: 0 !important;
         display: flex !important;
         flex-direction: row !important;
@@ -2824,9 +2952,6 @@ body.header-compact-mode.sidebar-backdrop-open::after {
     .tab-content-container .dddw-select-custom button,
     .tab-content-container .filter-item .dddw-select-btn {
         font-size: 12px !important;
-        min-width: 140px !important;
-        max-width: 220px !important;
-        width: auto !important;
         height: 26px !important;
         padding: 3px 8px !important;
         display: inline-flex !important;
@@ -3013,8 +3138,29 @@ body.header-compact-mode.sidebar-backdrop-open::after {
     }
 
     .view-toolbar .breadcrumb {
-        display: none !important;
+        display: flex !important;
+        flex: 0 0 100%;
+        width: 100%;
+        max-width: 100%;
+        margin-left: 0;
+        align-items: flex-start;
+        white-space: normal;
+        overflow: visible;
+        line-height: 1.5;
     }
+
+    .view-toolbar .breadcrumb > i {
+        margin-top: 3px;
+    }
+
+    .view-toolbar .breadcrumb .breadcrumb-text {
+        flex: 1 1 auto;
+        white-space: normal;
+        overflow: visible;
+        text-overflow: clip;
+        overflow-wrap: anywhere;
+    }
+
 
     .tabulator-aams-grid, .tabulator-dw-grid {
         min-height: 200px;
@@ -3082,6 +3228,28 @@ body.header-compact-mode.sidebar-backdrop-open::after {
     color: #0f172a;
     white-space: nowrap;
     margin-left: 4px;
+}
+
+/* W_JA020C d_ja020c.srd의 종목 코드/명칭/표준종목코드 한 줄 배치 */
+.filter-d-ja020c .ja020c-stock-name {
+    display: inline-flex;
+    align-items: center;
+    width: 160px;
+    height: 26px;
+    margin-left: 0;
+    box-sizing: border-box;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    background: #d0d2d5;
+    font-weight: 400;
+}
+
+.filter-d-ja020c .ja020c-standard-code {
+    width: 130px;
+    height: 26px;
+    box-sizing: border-box;
+    text-align: center;
+    background: #d0d2d5;
 }
 
 /* Modal Popup Window */

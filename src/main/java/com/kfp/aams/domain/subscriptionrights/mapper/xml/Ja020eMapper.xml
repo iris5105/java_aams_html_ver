@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.kfp.aams.domain.subscriptionrights.mapper.Ja020eMapper">
+
+    <!-- 미수령 권리내역 조회 (d_ja020e1.srd 원본 SQL 100% 보존) -->
+    <select id="selectList" resultType="com.kfp.aams.domain.subscriptionrights.dto.Ja020eDto">
+        SELECT DISTINCT jb.BALH_NM        AS balhNm
+             , gc.TR_NM                   AS trNm
+             , gs.TR_YMD                  AS trYmd
+             , gs.KRAK_YMD                AS krakYmd
+             , gs.BAEJ_GIJUN_YMD          AS baejGijunYmd
+             , gs.CHENG_YMD               AS chengYmd
+             , gs.SURY_YMD                AS suryYmd
+          FROM sjv9gs gs
+             , szx0gc gc
+             , sjx0jb jb
+         WHERE gs.corp_gr = #{corpGr}
+           AND gs.balh_co LIKE #{balhCo}
+           AND (gs.krak_ymd IS NULL OR gs.krak_ymd = NVL(#{krakYmd, jdbcType=DATE}, gs.krak_ymd))
+           AND (gs.cheng_ymd IS NULL OR gs.cheng_ymd = NVL(#{chengYmd, jdbcType=DATE}, gs.cheng_ymd))
+           AND gc.tr_cd   = gs.tr_cd
+           AND jb.balh_co = gs.balh_co
+         ORDER BY jb.BALH_NM ASC, gs.TR_YMD DESC
+    </select>
+
+</mapper>
+

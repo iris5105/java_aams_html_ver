@@ -476,7 +476,7 @@ window.AamsCalendar = (function() {
             const inst = instances[inputId];
             if (!inst) return;
 
-            const popover = targetPopover || (inst.pane ? (inst.pane.querySelector('.calendar-popover') || this.getElement(inst.popoverId, inst.pane)) : document.getElementById(inst.popoverId));
+            const popover = targetPopover || this.getElement(inst.popoverId, inst.pane) || (inst.pane ? inst.pane.querySelector('.calendar-popover') : document.getElementById(inst.popoverId));
             if (!popover) return;
 
             const titleEl = popover.querySelector('.calendar-title') || this.getElement(inst.titleId, inst.pane);
@@ -581,7 +581,7 @@ window.AamsCalendar = (function() {
                 mSpan.onclick = (function(monthIdx) {
                     return function(e) {
                         e.stopPropagation();
-                        AamsCalendar.selectMonth(inputId, monthIdx);
+                        AamsCalendar.selectMonth(inputId, monthIdx, e);
                     };
                 })(m);
                 monthsGridEl.appendChild(mSpan);

@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.kfp.aams.domain.subscriptionrights.mapper.Ja021fMapper">
+    <select id="selectChangeMaster" resultType="com.kfp.aams.domain.subscriptionrights.dto.Ja021fMasterDto">
+        SELECT cur.tr_ymd AS "trYmd"
+             , cur.tr_cd AS "trCd"
+             , cur.balh_co AS "balhCo"
+             , cur.jeungj_mth AS "jeungjMth"
+             , cur.baej_mth AS "baejMth"
+             , cur.balh_ga AS "balhGa"
+             , cur.woos_balh_ga AS "woosBalhGa"
+             , cur.jekyng_rt AS "jekyngRt"
+             , cur.woos_jekyng_rt AS "woosJekyngRt"
+             , cur.baed_gisan_ymd AS "baedGisanYmd"
+             , cur.cheng_ymd AS "chengYmd"
+             , cur.krak_ymd AS "krakYmd"
+             , cur.baej_gijun_ymd AS "baejGijunYmd"
+             , cur.jukm_nabib_ymd AS "jukmNabibYmd"
+             , cur.sinj_jaew AS "sinjJaew"
+             , cur.ilban_balh_jusu AS "ilbanBalhJusu"
+             , cur.woos_balh_jusu AS "woosBalhJusu"
+             , f_balh_nm('', cur.balh_co) AS "xxBalhCo"
+             , prev.baej_mth AS "jkBaejMth"
+             , prev.balh_ga AS "jkBalhGa"
+             , prev.jekyng_rt AS "jkJekyngRt"
+             , NULL AS "closeYmd"
+          FROM sjt0jk cur
+          LEFT JOIN sjt0jk prev
+            ON prev.balh_co = cur.balh_co
+           AND prev.tr_cd = CASE WHEN #{trCd} = 'G32' THEN 'G31' ELSE 'G35' END
+         WHERE cur.tr_cd = #{trCd}
+         ORDER BY cur.tr_ymd DESC
+    </select>
+</mapper>

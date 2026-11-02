@@ -1,0 +1,1260 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<div th:fragment="mainView" class="view-container layout-mobile-stack-container ja021h-container"
+     th:attr="data-corp-gr=${corpGr},data-work-date=${workDate},data-initial-ymd=${initialYmd}">
+
+    <!-- 1. 상단 공통 툴바 (Row 1) -->
+    <div class="view-toolbar">
+        <div class="toolbar-left">
+            <div th:replace="~{fragments/tab_header :: toolbarButtons}"></div>
+        </div>
+        <div th:replace="~{fragments/tab_header :: toolbarBreadcrumb}"></div>
+    </div>
+
+    <!-- 2. 서브 탭 네비게이션 -->
+    <div class="ja021h-tabs" role="tablist" aria-label="상장공시 구분">
+        <button type="button" role="tab" id="ja021h-tab-t1" aria-controls="ja021h-pane-t1" aria-selected="true" data-tab="t1" class="active">신주상장(G51)</button>
+        <button type="button" role="tab" id="ja021h-tab-t2" aria-controls="ja021h-pane-t2" aria-selected="false" data-tab="t2">분할(합병)신주상장(G54)</button>
+        <button type="button" role="tab" id="ja021h-tab-t3" aria-controls="ja021h-pane-t3" aria-selected="false" data-tab="t3">신주인수권상장(G55)</button>
+        <button type="button" role="tab" id="ja021h-tab-t4" aria-controls="ja021h-pane-t4" aria-selected="false" data-tab="t4">코드변경(G53)</button>
+    </div>
+
+    <!-- 3. 탭별 마스터-디테일 상하 분할 영역 -->
+    <div class="ja021h-content">
+        <!-- [TAB 1] 신주상장(G51) -->
+        <div id="ja021h-pane-t1" class="ja021h-page active" data-page="t1" role="tabpanel" aria-labelledby="ja021h-tab-t1">
+            <div class="layout-split-v layout-mobile-stack" data-split-key="JA021H_T1_V" data-default-ratio="55:45">
+                <section class="split-pane pane-top">
+                    <div class="pane-header"><span class="panel-title">신주상장 공시 목록</span></div>
+                    <div class="pane-body"><div id="ja021h-master-t1" class="tabulator-aams-grid"></div></div>
+                </section>
+                <div class="split-gutter-v" title="드래그하여 상하 비율 조절"></div>
+                <section class="split-pane pane-bottom">
+                    <div class="sub-grid-header">
+                        <span class="panel-title">펀드별 상세</span>
+                        <div th:replace="~{fragments/tab_header :: detailNav(targetGrid='#ja021h-detail-t1', fileName='펀드별상세_신주상장_G51', buttons='0010001001')}"></div>
+                    </div>
+                    <div class="pane-body"><div id="ja021h-detail-t1" class="tabulator-aams-grid"></div></div>
+                </section>
+            </div>
+        </div>
+
+        <!-- [TAB 2] 분할(합병)신주상장(G54) -->
+        <div id="ja021h-pane-t2" class="ja021h-page" data-page="t2" role="tabpanel" aria-labelledby="ja021h-tab-t2">
+            <div class="layout-split-v layout-mobile-stack" data-split-key="JA021H_T2_V" data-default-ratio="55:45">
+                <section class="split-pane pane-top">
+                    <div class="pane-header"><span class="panel-title">분할(합병)신주상장 공시 목록</span></div>
+                    <div class="pane-body"><div id="ja021h-master-t2" class="tabulator-aams-grid"></div></div>
+                </section>
+                <div class="split-gutter-v" title="드래그하여 상하 비율 조절"></div>
+                <section class="split-pane pane-bottom">
+                    <div class="sub-grid-header">
+                        <span class="panel-title">펀드별 상세</span>
+                        <div th:replace="~{fragments/tab_header :: detailNav(targetGrid='#ja021h-detail-t2', fileName='펀드별상세_분할신주상장_G54', buttons='0010001001')}"></div>
+                    </div>
+                    <div class="pane-body"><div id="ja021h-detail-t2" class="tabulator-aams-grid"></div></div>
+                </section>
+            </div>
+        </div>
+
+        <!-- [TAB 3] 신주인수권상장(G55) -->
+        <div id="ja021h-pane-t3" class="ja021h-page" data-page="t3" role="tabpanel" aria-labelledby="ja021h-tab-t3">
+            <div class="layout-split-v layout-mobile-stack" data-split-key="JA021H_T3_V" data-default-ratio="55:45">
+                <section class="split-pane pane-top">
+                    <div class="pane-header"><span class="panel-title">신주인수권상장 공시 목록</span></div>
+                    <div class="pane-body"><div id="ja021h-master-t3" class="tabulator-aams-grid"></div></div>
+                </section>
+                <div class="split-gutter-v" title="드래그하여 상하 비율 조절"></div>
+                <section class="split-pane pane-bottom">
+                    <div class="sub-grid-header">
+                        <span class="panel-title">펀드별 상세</span>
+                        <div th:replace="~{fragments/tab_header :: detailNav(targetGrid='#ja021h-detail-t3', fileName='펀드별상세_신주인수권상장_G55', buttons='0010001001')}"></div>
+                    </div>
+                    <div class="pane-body"><div id="ja021h-detail-t3" class="tabulator-aams-grid"></div></div>
+                </section>
+            </div>
+        </div>
+
+        <!-- [TAB 4] 코드변경(G53) -->
+        <div id="ja021h-pane-t4" class="ja021h-page" data-page="t4" role="tabpanel" aria-labelledby="ja021h-tab-t4">
+            <div class="layout-split-v layout-mobile-stack" data-split-key="JA021H_T4_V" data-default-ratio="55:45">
+                <section class="split-pane pane-top">
+                    <div class="pane-header"><span class="panel-title">코드변경 공시 목록</span></div>
+                    <div class="pane-body"><div id="ja021h-master-t4" class="tabulator-aams-grid"></div></div>
+                </section>
+                <div class="split-gutter-v" title="드래그하여 상하 비율 조절"></div>
+                <section class="split-pane pane-bottom">
+                    <div class="sub-grid-header">
+                        <span class="panel-title">펀드별 상세</span>
+                        <div th:replace="~{fragments/tab_header :: detailNav(targetGrid='#ja021h-detail-t4', fileName='펀드별상세_코드변경_G53', buttons='0010001001')}"></div>
+                    </div>
+                    <div class="pane-body"><div id="ja021h-detail-t4" class="tabulator-aams-grid"></div></div>
+                </section>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        .ja021h-container{display:flex;flex-direction:column;height:100%;min-height:0;overflow:hidden;padding-bottom:5px;background:#fff;box-sizing:border-box}
+        .ja021h-tabs{display:flex;flex:0 0 auto;gap:3px;overflow-x:auto;padding:4px 8px 0;border-bottom:1px solid #cbd5e1;background:#f8fafc}
+        .ja021h-tabs>button{flex:0 0 auto;white-space:nowrap;padding:7px 12px;border:1px solid #cbd5e1;border-bottom:0;border-radius:4px 4px 0 0;background:#e2e8f0;color:#52667f;font-size:12px;cursor:pointer}
+        .ja021h-tabs>button.active{background:#fff;color:#1749c9;font-weight:600}
+        .ja021h-content{flex:1;min-height:0;padding:6px 8px 0;overflow:hidden}
+        .ja021h-page{display:none;height:100%;min-height:0}
+        .ja021h-page.active{display:flex}
+        .ja021h-page>.layout-split-v{display:flex;flex-direction:column;width:100%;height:100%;min-height:0;padding:0}
+        .ja021h-page .split-pane{display:flex;flex-direction:column;height:50%;min-height:0;overflow:hidden}
+        .ja021h-page .pane-body{flex:1;min-height:0;padding:0;overflow:hidden}
+        .ja021h-page .tabulator-aams-grid{height:100%;min-height:0}
+        @media(max-width:876px){
+            .ja021h-tabs>button{padding:6px 8px;font-size:11px}
+            .ja021h-content{padding:4px 5px 0}
+        }
+    </style>
+
+    <script th:inline="javascript">
+        (function () {
+            const currentScript = document.currentScript;
+            const view = currentScript ? currentScript.closest('.view-container') : null;
+            const pane = currentScript ? (currentScript.closest('.tab-pane') || view) : null;
+            if (!pane || !view) return;
+
+            let isInitialized = false;
+            const api = '/api/subscriptionrights/ja021h';
+            const tabCodes = { t1: 'G51', t2: 'G54', t3: 'G55', t4: 'G53' };
+            const ymdFields = ['trYmd', 'closeYmd', 'hwakjYmd', 'krakYmd', 'baejGijunYmd', 'chengYmd'];
+            const states = {};
+            const builds = {};
+            let dddwPromise = null;
+            let xlsxLoadPromise = null;
+
+            const dddwOptionsMap = {
+                fr_danc_gb: [],
+                to_danc_gb: []
+            };
+            pane._dddwOptionsMap = dddwOptionsMap;
+
+            function notify(message, type) {
+                if (typeof window.showToast === 'function') {
+                    window.showToast(message, type || 'info');
+                } else {
+                    window.alert(message);
+                }
+            }
+
+            function ensureXlsxLibrary() {
+                if (window.XLSX) return Promise.resolve(window.XLSX);
+                if (xlsxLoadPromise) return xlsxLoadPromise;
+                if (window.__aamsXlsxLoadPromise) {
+                    xlsxLoadPromise = window.__aamsXlsxLoadPromise;
+                    return xlsxLoadPromise;
+                }
+
+                xlsxLoadPromise = new Promise(function (resolve, reject) {
+                    const src = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
+                    let script = document.querySelector('script[data-aams-xlsx-library="true"]');
+                    let timer = null;
+                    let appendScript = false;
+
+                    function cleanup() {
+                        if (timer) window.clearTimeout(timer);
+                        if (!script) return;
+                        script.removeEventListener('load', loaded);
+                        script.removeEventListener('error', failed);
+                    }
+
+                    function loaded() {
+                        cleanup();
+                        if (window.XLSX) resolve(window.XLSX);
+                        else reject(new Error('SheetJS 전역 객체를 확인할 수 없습니다.'));
+                    }
+
+                    function failed() {
+                        cleanup();
+                        reject(new Error('SheetJS 라이브러리를 불러오지 못했습니다.'));
+                    }
+
+                    if (!script) {
+                        script = document.createElement('script');
+                        script.src = src;
+                        script.async = true;
+                        script.dataset.aamsXlsxLibrary = 'true';
+                        appendScript = true;
+                    }
+
+                    script.addEventListener('load', loaded, { once: true });
+                    script.addEventListener('error', failed, { once: true });
+                    if (appendScript) document.head.appendChild(script);
+                    timer = window.setTimeout(function () {
+                        if (window.XLSX) loaded();
+                        else failed();
+                    }, 15000);
+                }).catch(function (error) {
+                    const failedScript = document.querySelector('script[data-aams-xlsx-library="true"]');
+                    if (failedScript && !window.XLSX) failedScript.remove();
+                    xlsxLoadPromise = null;
+                    window.__aamsXlsxLoadPromise = null;
+                    throw error;
+                });
+
+                window.__aamsXlsxLoadPromise = xlsxLoadPromise;
+                return xlsxLoadPromise;
+            }
+
+            function downloadGridXlsx(grid, fileName, sheetName) {
+                if (!grid) return Promise.resolve();
+                return ensureXlsxLibrary().then(function () {
+                    grid.download('xlsx', fileName, { sheetName: sheetName });
+                }).catch(function (error) {
+                    console.error('[JA021H] Excel download error:', error);
+                    notify('엑셀 저장에 필요한 라이브러리를 불러오지 못했습니다.', 'error');
+                });
+            }
+
+            function getCorpGr() {
+                if (typeof window.resolveCorpGr === 'function') {
+                    const resolved = window.resolveCorpGr(pane);
+                    if (resolved) return resolved;
+                }
+                return view.dataset.corpGr || '';
+            }
+
+            function normalizeYmdDigits(val) {
+                if (val == null || val === '') return '';
+                return String(val).replace(/\D/g, '').slice(0, 8);
+            }
+
+            function getWorkDateDigits() {
+                return normalizeYmdDigits(view.dataset.workDate);
+            }
+
+            function getWorkDateDash() {
+                const d = getWorkDateDigits();
+                return d.length === 8 ? (d.slice(0, 4) + '-' + d.slice(4, 6) + '-' + d.slice(6, 8)) : (view.dataset.workDate || '');
+            }
+
+            function formatDateCell(val) {
+                if (val == null || val === '') return '';
+                if (typeof window.formatDateVal === 'function') {
+                    const formatted = window.formatDateVal(val);
+                    return formatted === '-' ? '' : formatted;
+                }
+                const d = normalizeYmdDigits(val);
+                return d.length === 8 ? (d.slice(0, 4) + '-' + d.slice(4, 6) + '-' + d.slice(6, 8)) : String(val);
+            }
+
+            function getDddwLabel(dddwKey, codeVal) {
+                if (codeVal == null || codeVal === '') return '';
+                if (window.f_dddwctl && typeof window.f_dddwctl.getLabel === 'function') {
+                    return window.f_dddwctl.getLabel(dddwOptionsMap, dddwKey, codeVal);
+                }
+                const list = dddwOptionsMap[dddwKey] || [];
+                const found = list.find(function (item) {
+                    const c = item.code != null ? item.code : (item.cd != null ? item.cd : item.value);
+                    return String(c).trim() === String(codeVal).trim();
+                });
+                return found ? (found.name || found.dscr || found.label || String(codeVal)) : String(codeVal);
+            }
+
+            function getDddwOptions(dddwKey) {
+                if (window.f_dddwctl && typeof window.f_dddwctl.getOptions === 'function') {
+                    return window.f_dddwctl.getOptions(dddwOptionsMap, dddwKey);
+                }
+                return (dddwOptionsMap[dddwKey] || []).map(function (item) {
+                    const code = item.code != null ? item.code : (item.cd != null ? item.cd : item.value);
+                    const name = item.name != null ? item.name : (item.dscr != null ? item.dscr : item.label);
+                    return { value: code, label: name || code, code: code, name: name || code };
+                });
+            }
+
+            function ue_dddw_retrieve(corpGr) {
+                const targetCorpGr = corpGr || getCorpGr();
+                if (!window.f_dddwctl) return Promise.resolve(dddwOptionsMap);
+
+                const whereFr = "sebu_cd in (select danc_gb from szx0gd where tr_cd in ('G00','G51','G53'))";
+                const whereTo = "sebu_cd in ('A','B','C','D','G')";
+
+                if (typeof window.f_dddwctl.retrieveMultiple === 'function') {
+                    dddwPromise = window.f_dddwctl.retrieveMultiple({
+                        fr_danc_gb: ['fr_danc_gb', targetCorpGr, '', 2, whereFr],
+                        to_danc_gb: ['to_danc_gb', targetCorpGr, '', 2, whereTo]
+                    }).then(function (results) {
+                        dddwOptionsMap.fr_danc_gb = (results && results.fr_danc_gb) ? results.fr_danc_gb : [];
+                        dddwOptionsMap.to_danc_gb = (results && results.to_danc_gb) ? results.to_danc_gb : [];
+                        Object.keys(states).forEach(function (t) {
+                            if (states[t] && states[t].master) safeRedraw(states[t].master);
+                        });
+                        return dddwOptionsMap;
+                    }).catch(function (err) {
+                        console.warn('[JA021H] ue_dddw_retrieve error:', err);
+                        return dddwOptionsMap;
+                    });
+                    return dddwPromise;
+                }
+
+                dddwPromise = Promise.all([
+                    window.f_dddwctl('fr_danc_gb', targetCorpGr, '', 2, whereFr),
+                    window.f_dddwctl('to_danc_gb', targetCorpGr, '', 2, whereTo)
+                ]).then(function (res) {
+                    dddwOptionsMap.fr_danc_gb = res[0] || [];
+                    dddwOptionsMap.to_danc_gb = res[1] || [];
+                    return dddwOptionsMap;
+                }).catch(function () {
+                    return dddwOptionsMap;
+                });
+                return dddwPromise;
+            }
+
+            function isRowEditable(rowData) {
+                if (!rowData || rowData.isSummaryRow || rowData.isDeleted) return false;
+                if (rowData.isNew) return true;
+                if (Number(rowData.pVisible) === 0) return false;
+                const rowYmd = normalizeYmdDigits(rowData.trYmd);
+                const workYmd = getWorkDateDigits();
+                return !rowYmd || !workYmd || rowYmd >= workYmd;
+            }
+
+            function isEditable(cell) {
+                if (!cell || typeof cell.getRow !== 'function') return false;
+                return isRowEditable(cell.getRow().getData());
+            }
+
+            function isG00Editable(cell) {
+                if (!isEditable(cell)) return false;
+                const d = cell.getRow().getData() || {};
+                if (d.oldJmCd && d.newJmCd && String(d.oldJmCd).trim() !== String(d.newJmCd).trim()) {
+                    return false;
+                }
+                return true;
+            }
+
+            function markRowUpdated(row, patch) {
+                if (!row) return;
+                const d = row.getData() || {};
+                const next = Object.assign({}, patch || {});
+                if (!d.isNew) {
+                    next.isUpdated = true;
+                    next.rowStatus = 'U';
+                } else {
+                    next.rowStatus = 'C';
+                }
+                row.update(next);
+            }
+
+            function syncT1G00AndTrCd(row) {
+                if (!row) return;
+                const d = row.getData() || {};
+                const oldKos = String(d.oldKoscomCd || '').trim();
+                const newKos = String(d.newKoscomCd || '').trim();
+                if (d.oldJmCd && d.newJmCd && String(d.oldJmCd).trim() !== String(d.newJmCd).trim() && String(d.g00) === '1') {
+                    markRowUpdated(row, { g00: '0', trCd: (oldKos.slice(0, 5) === newKos.slice(0, 5) ? 'G51' : 'G53') });
+                }
+            }
+
+            function markTableBuilt(grid) {
+                if (!grid) return;
+                grid._aamsBuilt = false;
+                grid.on('tableBuilt', function () {
+                    grid._aamsBuilt = true;
+                });
+            }
+
+            function safeRedraw(grid) {
+                if (!grid || !grid._aamsBuilt || !grid.element) return;
+                if (!grid.element.offsetParent && grid.element.clientWidth === 0) return;
+                try {
+                    grid.redraw(true);
+                } catch (e) {
+                    // ignore redraw on hidden container
+                }
+            }
+
+            function getColorSpan(text, color) {
+                if (text === null || text === undefined || text === '') return '';
+                const safe = typeof window.escapeHtml === 'function' ? window.escapeHtml(String(text)) : String(text);
+                if (!color) return safe;
+                return '<span class="cell-text-' + color + '">' + safe + '</span>';
+            }
+
+            function noCol() {
+                return {
+                    title: 'No.',
+                    formatter: 'rownum',
+                    width: 42,
+                    hozAlign: 'center',
+                    headerHozAlign: 'center',
+                    headerSort: false,
+                    frozen: true
+                };
+            }
+
+            function textCol(title, field, width, editable, align, color) {
+                const isDate = ymdFields.includes(field);
+                const col = {
+                    title: title,
+                    field: field,
+                    width: width,
+                    headerSort: true,
+                    headerHozAlign: 'center',
+                    hozAlign: align || 'center',
+                    editor: editable ? (isDate ? (window.aamsDateEditor || 'input') : 'input') : false,
+                    editable: editable ? isEditable : false,
+                    formatter: function (cell) {
+                        const raw = cell.getValue();
+                        const text = isDate ? formatDateCell(raw) : (raw == null ? '' : String(raw));
+                        return getColorSpan(text, color);
+                    }
+                };
+                if (color) {
+                    col.headerCssClass = 'col-hdr-' + color;
+                }
+                if (editable && typeof window.aamsCellEdit === 'function') {
+                    col.cellClick = window.aamsCellEdit;
+                }
+                return col;
+            }
+
+            function numberCol(title, field, width, editable, color) {
+                const col = {
+                    title: title,
+                    field: field,
+                    width: width,
+                    headerSort: true,
+                    headerHozAlign: 'center',
+                    hozAlign: 'right',
+                    editor: editable ? 'number' : false,
+                    editable: editable ? isEditable : false,
+                    formatter: function (cell) {
+                        const val = cell.getValue();
+                        if (val === null || val === undefined || val === '') return '';
+                        const num = Number(val);
+                        const str = Number.isNaN(num)
+                            ? String(val)
+                            : (typeof window.formatNumber === 'function'
+                                ? window.formatNumber(num, undefined, '')
+                                : num.toLocaleString('ko-KR', { maximumFractionDigits: 7 }));
+                        return getColorSpan(str, color);
+                    }
+                };
+                if (color) {
+                    col.headerCssClass = 'col-hdr-' + color;
+                }
+                if (editable && typeof window.aamsCellEdit === 'function') {
+                    col.cellClick = window.aamsCellEdit;
+                }
+                return col;
+            }
+
+            function dancCol(title, field, dddwKey, editable) {
+                const col = {
+                    title: title,
+                    field: field,
+                    width: 110,
+                    headerSort: true,
+                    headerHozAlign: 'center',
+                    hozAlign: 'center',
+                    editor: editable ? 'list' : false,
+                    editable: editable ? isEditable : false,
+                    formatter: function (cell) {
+                        return getDddwLabel(dddwKey, cell.getValue());
+                    }
+                };
+                if (editable) {
+                    col.editorParams = function () {
+                        return {
+                            values: getDddwOptions(dddwKey),
+                            itemFormatter: (window.f_dddwctl && typeof window.f_dddwctl.get2ColItemFormatter === 'function')
+                                ? window.f_dddwctl.get2ColItemFormatter('구분', '시장명')
+                                : undefined
+                        };
+                    };
+                    if (typeof window.aamsCellEdit === 'function') {
+                        col.cellClick = window.aamsCellEdit;
+                    }
+                }
+                return col;
+            }
+
+            function pddCol(field, title, targetField, tab) {
+                return {
+                    title: '',
+                    field: field,
+                    width: 36,
+                    minWidth: 36,
+                    maxWidth: 36,
+                    headerSort: false,
+                    resizable: false,
+                    hozAlign: 'center',
+                    formatter: function (cell) {
+                        const rowData = cell.getRow().getData();
+                        if (rowData && rowData.isSummaryRow) return '';
+                        const disabled = !isEditable(cell);
+                        return '<button type="button" class="btn-grid-addon btn-cal' + (disabled ? ' disabled' : '') + '"' + (disabled ? ' disabled' : '') + ' title="' + title + '"><i class="fa-regular fa-calendar-days"></i></button>';
+                    },
+                    cellClick: function (e, cell) {
+                        e.stopPropagation();
+                        if (!isEditable(cell)) return;
+                        const row = cell.getRow();
+                        const data = row.getData() || {};
+                        if (window.AamsCalendar && typeof window.AamsCalendar.openDatePicker === 'function') {
+                            window.AamsCalendar.openDatePicker({
+                                anchorEl: cell.getElement(),
+                                initialYmd: data[targetField] || getWorkDateDash(),
+                                format: 'dash',
+                                onSelect: function (selectedYmd) {
+                                    if (targetField === 'trYmd') {
+                                        const selDigits = normalizeYmdDigits(selectedYmd);
+                                        const workDigits = getWorkDateDigits();
+                                        if (selDigits && workDigits && selDigits < workDigits) {
+                                            notify('상장일자가 작업일보다 같거나 커야 합니다.', 'warning');
+                                            return;
+                                        }
+                                    }
+                                    const patch = {};
+                                    patch[targetField] = selectedYmd;
+                                    markRowUpdated(row, patch);
+                                    if (targetField === 'trYmd') {
+                                        loadDetail(tab, row.getData(), true).catch(function (err) {
+                                            notify(err.message, 'error');
+                                        });
+                                    }
+                                }
+                            });
+                        } else {
+                            const targetCell = row.getCell(targetField);
+                            if (targetCell && typeof targetCell.edit === 'function') targetCell.edit();
+                        }
+                    }
+                };
+            }
+
+            function resolveCodeSearchConfig(tab, targetField, rowData) {
+                const balhCo = String((rowData && rowData.balhCo) || '').replace(/'/g, "''");
+                if (tab === 't3') {
+                    if (targetField === 'balhCo') {
+                        return { columnNm: 'balh_co', seq: 4, addWhere: '' };
+                    }
+                    if (targetField === 'jmCd') {
+                        return { columnNm: 'jm_cd', seq: 13, addWhere: balhCo ? ("balh_co = '" + balhCo + "'") : '' };
+                    }
+                    if (targetField === 'sjKoscomCd') {
+                        return { columnNm: 'koscom_cd', seq: 1, addWhere: '' };
+                    }
+                    if (targetField === 'sjJmCd') {
+                        return { columnNm: 'jm_cd', seq: 1, addWhere: '' };
+                    }
+                } else {
+                    if (targetField === 'balhCo') {
+                        return { columnNm: 'balh_co', seq: 1, addWhere: '' };
+                    }
+                    if (targetField === 'oldKoscomCd') {
+                        return { columnNm: 'koscom_cd', seq: 1, addWhere: balhCo ? ("balh_co='" + balhCo + "'") : '' };
+                    }
+                    if (targetField === 'newKoscomCd') {
+                        return { columnNm: 'koscom_cd', seq: 1, addWhere: '' };
+                    }
+                }
+                return { columnNm: targetField, seq: 1, addWhere: '' };
+            }
+
+            function applyCodeSearchResult(tab, targetField, row, code, name, rawItem) {
+                if (!row || code == null) return;
+                const patch = {};
+                patch[targetField] = code;
+                const raw = rawItem || {};
+
+                if (targetField === 'balhCo') {
+                    patch.balhNm = name || '';
+                } else if (targetField === 'oldKoscomCd') {
+                    patch.oldJmNm = name || '';
+                    if (raw.jm_cd || raw.JM_CD || raw.col_2) patch.oldJmCd = raw.jm_cd || raw.JM_CD || raw.col_2;
+                    if (raw.danc_gb || raw.DANC_GB) patch.oldDancGb = raw.danc_gb || raw.DANC_GB;
+                } else if (targetField === 'newKoscomCd') {
+                    patch.newJmNm = name || '';
+                    if (raw.jm_cd || raw.JM_CD || raw.col_2) patch.newJmCd = raw.jm_cd || raw.JM_CD || raw.col_2;
+                    if (raw.danc_gb || raw.DANC_GB) patch.newDancGb = raw.danc_gb || raw.DANC_GB;
+                } else if (targetField === 'jmCd') {
+                    patch.jmNm = name || '';
+                } else if (targetField === 'sjKoscomCd') {
+                    patch.koscomNm = name || '';
+                    if (raw.jm_cd || raw.JM_CD || raw.col_2) patch.sjJmCd = raw.jm_cd || raw.JM_CD || raw.col_2;
+                } else if (targetField === 'sjJmCd') {
+                    patch.sjJmCd = code;
+                    if (name) patch.koscomNm = name;
+                }
+
+                markRowUpdated(row, patch);
+                if (tab === 't1') syncT1G00AndTrCd(row);
+                if (targetField === 'oldKoscomCd' || targetField === 'jmCd' || targetField === 'sjJmCd') {
+                    loadDetail(tab, row.getData(), true).catch(function (err) {
+                        notify(err.message, 'error');
+                    });
+                }
+            }
+
+            function pxxCol(field, targetField, title, tab) {
+                return {
+                    title: '',
+                    field: field,
+                    width: 36,
+                    minWidth: 36,
+                    maxWidth: 36,
+                    headerSort: false,
+                    resizable: false,
+                    hozAlign: 'center',
+                    formatter: function (cell) {
+                        const rowData = cell.getRow().getData();
+                        if (rowData && rowData.isSummaryRow) return '';
+                        const disabled = !isEditable(cell);
+                        return '<button type="button" class="btn-grid-addon btn-search' + (disabled ? ' disabled' : '') + '"' + (disabled ? ' disabled' : '') + ' title="' + title + '"><i class="fa-solid fa-magnifying-glass"></i></button>';
+                    },
+                    cellClick: function (e, cell) {
+                        e.stopPropagation();
+                        if (!isEditable(cell)) return;
+                        if (!window.DynamicCodeSearch || typeof window.DynamicCodeSearch.openModal !== 'function') {
+                            notify('코드 검색 기능을 불러오지 못했습니다.', 'error');
+                            return;
+                        }
+                        const row = cell.getRow();
+                        const current = row.getData() || {};
+                        const cfg = resolveCodeSearchConfig(tab, targetField, current);
+                        window.DynamicCodeSearch.openModal({
+                            columnNm: cfg.columnNm,
+                            seq: cfg.seq,
+                            corpGr: getCorpGr(),
+                            addWhere: cfg.addWhere,
+                            initialKeyword: current[targetField] || '',
+                            onSelect: function (code, name, rawItem) {
+                                applyCodeSearchResult(tab, targetField, row, code, name, rawItem);
+                            }
+                        });
+                    }
+                };
+            }
+
+            function checkboxCol() {
+                return {
+                    title: '소속변경<br>분개만처리',
+                    field: 'g00',
+                    width: 100,
+                    headerSort: false,
+                    hozAlign: 'center',
+                    headerHozAlign: 'center',
+                    formatter: function (cell) {
+                        const checked = String(cell.getValue()) === '1' || cell.getValue() === true;
+                        const disabled = !isG00Editable(cell);
+                        return '<input type="checkbox"' + (checked ? ' checked' : '') + (disabled ? ' disabled' : '') + ' aria-label="소속변경 분개만처리">';
+                    },
+                    cellClick: function (e, cell) {
+                        if (!isG00Editable(cell)) return;
+                        const row = cell.getRow();
+                        const d = row.getData() || {};
+                        const isCurrentlyChecked = String(cell.getValue()) === '1' || cell.getValue() === true;
+                        const nextVal = (e.target && e.target.type === 'checkbox') ? (e.target.checked ? '1' : '0') : (isCurrentlyChecked ? '0' : '1');
+                        let nextTrCd = 'G51';
+                        if (nextVal === '1') {
+                            nextTrCd = 'G00';
+                        } else {
+                            const oldKos = String(d.oldKoscomCd || '').trim();
+                            const newKos = String(d.newKoscomCd || '').trim();
+                            nextTrCd = (oldKos.slice(0, 5) === newKos.slice(0, 5)) ? 'G51' : 'G53';
+                        }
+                        markRowUpdated(row, { g00: nextVal, trCd: nextTrCd });
+                    }
+                };
+            }
+
+            function masterColumns(tab) {
+                if (tab === 't2') {
+                    return [
+                        noCol(),
+                        textCol('상장일자', 'trYmd', 110, true, 'center', 'blue'),
+                        pddCol('p_dd_trYmd', '상장일자 선택', 'trYmd', tab),
+                        textCol('발행기관', 'balhCo', 90, true, 'center'),
+                        pxxCol('p_xx_balhCo', 'balhCo', '발행기관 검색', tab),
+                        textCol('발행기관명', 'balhNm', 180, false, 'left'),
+                        textCol('상장전<br>KOSCOM', 'oldKoscomCd', 120, true, 'center', 'green'),
+                        pxxCol('p_xx_oldKoscomCd', 'oldKoscomCd', '상장전 KOSCOM 검색', tab),
+                        dancCol('상장전<br>시장구분', 'oldDancGb', 'fr_danc_gb', false),
+                        textCol('상장전종목', 'oldJmCd', 130, false, 'center'),
+                        textCol('상장전종목명', 'oldJmNm', 180, false, 'left'),
+                        textCol('상장후<br>KOSCOM', 'newKoscomCd', 120, true, 'center', 'green'),
+                        pxxCol('p_xx_newKoscomCd', 'newKoscomCd', '상장후 KOSCOM 검색', tab),
+                        dancCol('상장후<br>시장구분', 'newDancGb', 'to_danc_gb', false),
+                        textCol('상장후종목', 'newJmCd', 130, false, 'center'),
+                        textCol('상장후종목명', 'newJmNm', 180, false, 'left'),
+                        numberCol('분할공시종가<br>(종가 * 분할비율)', 'jonga', 150, true, 'blue')
+                    ];
+                }
+                if (tab === 't3') {
+                    return [
+                        noCol(),
+                        textCol('신주인수권<br>상장일자', 'trYmd', 110, true, 'center', 'blue'),
+                        pddCol('p_dd_trYmd', '상장일자 선택', 'trYmd', tab),
+                        textCol('발행기관', 'balhCo', 90, true, 'center'),
+                        pxxCol('p_xx_balhCo', 'balhCo', '발행기관 검색', tab),
+                        textCol('발행기관명', 'balhNm', 180, false, 'left'),
+                        textCol('신주인수권', 'jmCd', 130, true, 'center'),
+                        pxxCol('p_xx_jmCd', 'jmCd', '신주인수권 검색', tab),
+                        textCol('신주인수권명', 'jmNm', 180, false, 'left'),
+                        textCol('신주인수권<br>상장폐지일', 'closeYmd', 110, true, 'center'),
+                        pddCol('p_dd_closeYmd', '상장폐지일 선택', 'closeYmd', tab),
+                        numberCol('유상증자<br>발행가액', 'balhGa', 120, false),
+                        textCol('KOSCOM', 'sjKoscomCd', 120, true, 'center'),
+                        pxxCol('p_xx_sjKoscomCd', 'sjKoscomCd', 'KOSCOM 검색', tab),
+                        textCol('상장종목명', 'koscomNm', 180, false, 'left'),
+                        textCol('상장종목코드', 'sjJmCd', 130, false, 'center'),
+                        pxxCol('p_xx_sjJmCd', 'sjJmCd', '상장종목 검색', tab),
+                        numberCol('확정발행가', 'hwakjBalhGa', 120, true),
+                        textCol('발행가액<br>확정일자', 'hwakjYmd', 110, true, 'center'),
+                        pddCol('p_dd_hwakjYmd', '확정일자 선택', 'hwakjYmd', tab),
+                        textCol('권리락일', 'krakYmd', 110, false, 'center'),
+                        textCol('배정기준일', 'baejGijunYmd', 110, false, 'center'),
+                        textCol('청약일자', 'chengYmd', 110, false, 'center')
+                    ];
+                }
+                if (tab === 't4') {
+                    return [
+                        noCol(),
+                        textCol('변경일자', 'trYmd', 110, true, 'center', 'blue'),
+                        pddCol('p_dd_trYmd', '변경일자 선택', 'trYmd', tab),
+                        textCol('발행기관', 'balhCo', 90, true, 'center'),
+                        pxxCol('p_xx_balhCo', 'balhCo', '발행기관 검색', tab),
+                        textCol('발행기관명', 'balhNm', 180, false, 'left'),
+                        textCol('변경전<br>KOSCOM', 'oldKoscomCd', 120, true, 'center', 'green'),
+                        pxxCol('p_xx_oldKoscomCd', 'oldKoscomCd', '변경전 KOSCOM 검색', tab),
+                        dancCol('변경전<br>시장구분', 'oldDancGb', 'fr_danc_gb', false),
+                        textCol('변경전종목', 'oldJmCd', 130, false, 'center'),
+                        textCol('변경전<br>종목명', 'oldJmNm', 180, false, 'left'),
+                        textCol('변경후<br>KOSCOM', 'newKoscomCd', 120, true, 'center', 'green'),
+                        pxxCol('p_xx_newKoscomCd', 'newKoscomCd', '변경후 KOSCOM 검색', tab),
+                        dancCol('변경후<br>시장구분', 'newDancGb', 'to_danc_gb', false),
+                        textCol('변경후종목', 'newJmCd', 130, false, 'center'),
+                        textCol('변경후<br>종목명', 'newJmNm', 180, false, 'left')
+                    ];
+                }
+                return [
+                    noCol(),
+                    textCol('상장일자', 'trYmd', 110, true, 'center', 'blue'),
+                    pddCol('p_dd_trYmd', '상장일자 선택', 'trYmd', tab),
+                    textCol('발행기관', 'balhCo', 90, true, 'center'),
+                    pxxCol('p_xx_balhCo', 'balhCo', '발행기관 검색', tab),
+                    textCol('발행기관명', 'balhNm', 180, false, 'left'),
+                    textCol('상장전<br>KOSCOM', 'oldKoscomCd', 120, true, 'center', 'green'),
+                    pxxCol('p_xx_oldKoscomCd', 'oldKoscomCd', '상장전 KOSCOM 검색', tab),
+                    dancCol('상장전<br>시장구분', 'oldDancGb', 'fr_danc_gb', true),
+                    textCol('상장전종목', 'oldJmCd', 130, false, 'center'),
+                    textCol('상장전종목명', 'oldJmNm', 180, false, 'left'),
+                    textCol('상장후<br>KOSCOM', 'newKoscomCd', 120, true, 'center', 'green'),
+                    pxxCol('p_xx_newKoscomCd', 'newKoscomCd', '상장후 KOSCOM 검색', tab),
+                    dancCol('상장후<br>시장구분', 'newDancGb', 'to_danc_gb', true),
+                    textCol('상장후종목', 'newJmCd', 130, false, 'center'),
+                    textCol('상장후종목명', 'newJmNm', 180, false, 'left'),
+                    checkboxCol()
+                ];
+            }
+
+            function detailColumns() {
+                return [
+                    noCol(),
+                    textCol('운용사', 'corpGr', 75, false, 'center'),
+                    textCol('회사명', 'companyName', 115, false, 'left'),
+                    textCol('펀드번호', 'fundCd', 95, false, 'center', 'green'),
+                    textCol('계좌명', 'fundNm', 170, false, 'left'),
+                    {
+                        title: '종목<br>유형',
+                        field: 'bsType',
+                        width: 85,
+                        headerSort: true,
+                        headerHozAlign: 'center',
+                        hozAlign: 'center',
+                        formatter: function (cell) {
+                            const v = cell.getValue();
+                            if (v === null || v === undefined || v === '') return '';
+                            return Number(v) === -1 ? '차입보유' : '';
+                        }
+                    },
+                    numberCol('보유주수', 'jusu', 100, false),
+                    numberCol('취득액', 'aek', 115, false),
+                    numberCol('당일공시<br>처리주수', 'gongsDwJusu', 110, false, 'muted'),
+                    numberCol('당일공시<br>처리금액', 'gongsDwChuiAek', 130, false, 'muted')
+                ];
+            }
+
+            function handleMasterCellEdited(tab, cell) {
+                const field = cell.getField();
+                const row = cell.getRow();
+                const data = row.getData() || {};
+
+                if (ymdFields.includes(field)) {
+                    if (typeof window.aamsValidateDateCell === 'function') {
+                        const valid = window.aamsValidateDateCell(cell);
+                        if (!valid) return;
+                    }
+                    if (field === 'trYmd') {
+                        const selDigits = normalizeYmdDigits(cell.getValue());
+                        const workDigits = getWorkDateDigits();
+                        if (selDigits && workDigits && selDigits < workDigits) {
+                            notify('상장일자가 작업일보다 같거나 커야 합니다.', 'warning');
+                            cell.setValue(cell.getOldValue() || getWorkDateDash(), true);
+                            return;
+                        }
+                    }
+                }
+
+                markRowUpdated(row);
+
+                if (['balhCo', 'oldKoscomCd', 'newKoscomCd', 'jmCd', 'sjKoscomCd'].includes(field)) {
+                    const codeVal = String(cell.getValue() || '').trim();
+                    if (!codeVal) {
+                        applyCodeSearchResult(tab, field, row, '', '', {});
+                        return;
+                    }
+                    const cfg = resolveCodeSearchConfig(tab, field, data);
+                    let url = '/api/common/code-search/get?columnNm=' + encodeURIComponent(cfg.columnNm)
+                        + '&seq=' + encodeURIComponent(cfg.seq)
+                        + '&corpGr=' + encodeURIComponent(getCorpGr())
+                        + '&code=' + encodeURIComponent(codeVal);
+                    if (cfg.addWhere) {
+                        url += '&addWhere=' + encodeURIComponent(cfg.addWhere);
+                    }
+                    fetch(url)
+                        .then(function (res) { return res.ok ? res.json() : null; })
+                        .then(function (resData) {
+                            if (resData && resData.code) {
+                                applyCodeSearchResult(tab, field, row, resData.code, resData.codeName || '', resData);
+                            } else if (window.DynamicCodeSearch && typeof window.DynamicCodeSearch.openModal === 'function') {
+                                window.DynamicCodeSearch.openModal({
+                                    columnNm: cfg.columnNm,
+                                    seq: cfg.seq,
+                                    corpGr: getCorpGr(),
+                                    addWhere: cfg.addWhere,
+                                    initialKeyword: codeVal,
+                                    onSelect: function (code, name, rawItem) {
+                                        applyCodeSearchResult(tab, field, row, code, name, rawItem);
+                                    }
+                                });
+                            }
+                        })
+                        .catch(function () {
+                            // ignore lookup failure
+                        });
+                }
+            }
+
+            async function request(path) {
+                const response = await fetch(api + path);
+                if (!response.ok) {
+                    throw new Error('조회에 실패했습니다.');
+                }
+                return response.json();
+            }
+
+            function getMasterDetailKey(data) {
+                if (!data) return '';
+                const jmCd = data.oldJmCd || data.jmCd || data.newJmCd || '';
+                const trYmd = normalizeYmdDigits(data.trYmd);
+                return jmCd && trYmd ? (jmCd + '_' + trYmd) : '';
+            }
+
+            async function loadDetail(tab, rowData, force) {
+                const state = states[tab];
+                if (!state || !state.detail) return;
+                const data = rowData || {};
+                state.selectedMaster = data;
+
+                if (data.isNew || data.isDeleted) {
+                    state.lastLoadedKey = null;
+                    await state.detail.clearData();
+                    return;
+                }
+
+                const jmCd = data.oldJmCd || data.jmCd || data.newJmCd;
+                const trYmd = normalizeYmdDigits(data.trYmd);
+                if (!jmCd || !trYmd) {
+                    state.lastLoadedKey = null;
+                    await state.detail.clearData();
+                    return;
+                }
+
+                const key = jmCd + '_' + trYmd;
+                if (!force && state.lastLoadedKey === key) return;
+                state.lastLoadedKey = key;
+
+                const seq = ++state.detailSeq;
+                const rows = await request('/detail?jmCd=' + encodeURIComponent(jmCd) + '&ymd=' + encodeURIComponent(trYmd));
+                if (seq !== state.detailSeq || !view.isConnected) return;
+                await state.detail.setData(rows || []);
+            }
+
+            function syncDetailFromRow(tab, row, rowData) {
+                const d = rowData || (row && typeof row.getData === 'function' ? row.getData() : null);
+                if (!d || d.isSummaryRow) return;
+                loadDetail(tab, d, false).catch(function (err) {
+                    notify(err.message, 'error');
+                });
+            }
+
+            function createDefaultNewRowData(tab) {
+                const base = {
+                    isNew: true,
+                    rowStatus: 'C',
+                    trYmd: getWorkDateDash(),
+                    trCd: tabCodes[tab] || 'G51',
+                    balhCo: '',
+                    balhNm: '',
+                    pVisible: 1
+                };
+                if (tab === 't3') {
+                    base.jmCd = '';
+                    base.jmNm = '';
+                    base.sjKoscomCd = '';
+                    base.sjJmCd = '';
+                    base.koscomNm = '';
+                } else {
+                    base.oldKoscomCd = '';
+                    base.oldDancGb = '';
+                    base.oldJmCd = '';
+                    base.oldJmNm = '';
+                    base.newKoscomCd = '';
+                    base.newDancGb = 'A';
+                    base.newJmCd = '';
+                    base.newJmNm = '';
+                    if (tab === 't1') base.g00 = '0';
+                }
+                return base;
+            }
+
+            async function addNewRow(tab, isAutoInitial) {
+                const state = states[tab];
+                if (!state || !state.master) return;
+                ++state.detailSeq;
+                state.lastLoadedKey = null;
+                await state.detail.clearData();
+                const rowData = createDefaultNewRowData(tab);
+                if (isAutoInitial) rowData._autoInitial = true;
+                const row = await state.master.addRow(rowData, true);
+                state.master.deselectRow();
+                if (row && typeof row.select === 'function') {
+                    row.select();
+                    state.selectedMaster = row.getData();
+                }
+            }
+
+            function syncToolbarButtons() {
+                const btnCopy = pane.querySelector('.view-toolbar .btn-copy, button[data-action="copy"]');
+                if (btnCopy) {
+                    btnCopy.disabled = true;
+                    btnCopy.classList.add('disabled');
+                    btnCopy.setAttribute('disabled', 'disabled');
+                }
+            }
+
+            async function load(tab) {
+                const state = states[tab];
+                if (!state) return;
+                const seq = ++state.masterSeq;
+                ++state.detailSeq;
+                state.lastLoadedKey = null;
+                state.selectedMaster = null;
+
+                const params = new URLSearchParams({ tab: tab, corpGr: getCorpGr() });
+                const rows = await request('/data?' + params.toString());
+                if (seq !== state.masterSeq || !view.isConnected) return;
+
+                await state.detail.clearData();
+                await state.master.setData(rows || []);
+
+                if (window.ButtonRole && typeof window.ButtonRole.setSearchState === 'function') {
+                    window.ButtonRole.setSearchState(pane, true);
+                }
+                syncToolbarButtons();
+
+                if (rows && rows.length > 0) {
+                    const firstRow = state.master.getRows()[0];
+                    if (firstRow) {
+                        firstRow.select();
+                        await loadDetail(tab, firstRow.getData(), true);
+                    }
+                } else {
+                    await addNewRow(tab, true);
+                }
+            }
+
+            async function build(tab) {
+                if (states[tab]) return states[tab];
+                if (builds[tab]) return builds[tab];
+
+                builds[tab] = (async function () {
+                    await (dddwPromise || ue_dddw_retrieve(getCorpGr()));
+
+                    const masterEl = view.querySelector('#ja021h-master-' + tab);
+                    const detailEl = view.querySelector('#ja021h-detail-' + tab);
+
+                    const master = new Tabulator(masterEl, {
+                        height: '100%',
+                        layout: 'fitDataFill',
+                        selectableRows: 1,
+                        editTriggerEvent: 'click',
+                        suppressRepeating: false,
+                        placeholder: '조회된 자료가 없습니다.',
+                        columnDefaults: { headerSort: true, headerHozAlign: 'center' },
+                        rowFormatter: function (row) {
+                            const d = row.getData();
+                            row.getElement().classList.toggle('row-deleted', !!(d && d.isDeleted));
+                        },
+                        columns: masterColumns(tab)
+                    });
+
+                    const detail = new Tabulator(detailEl, {
+                        height: '100%',
+                        layout: 'fitDataFill',
+                        selectableRows: 1,
+                        suppressRepeating: false,
+                        placeholder: '상세 자료가 없습니다.',
+                        columnDefaults: { headerSort: true, headerHozAlign: 'center' },
+                        columns: detailColumns()
+                    });
+
+                    markTableBuilt(master);
+                    markTableBuilt(detail);
+
+                    const state = {
+                        master: master,
+                        detail: detail,
+                        masterSeq: 0,
+                        detailSeq: 0,
+                        lastLoadedKey: null,
+                        selectedMaster: null
+                    };
+                    states[tab] = state;
+
+                    await Promise.all([
+                        new Promise(function (done) { master.on('tableBuilt', done); }),
+                        new Promise(function (done) { detail.on('tableBuilt', done); })
+                    ]);
+
+                    // 3중 행 선택 안전망 (Triple Fallback)
+                    if (typeof window.setupTabulatorRowSelection === 'function') {
+                        window.setupTabulatorRowSelection(master, function (row, data) {
+                            syncDetailFromRow(tab, row, data);
+                        });
+                        window.setupTabulatorRowSelection(detail);
+                    }
+
+                    master.on('rowClick', function (_e, row) {
+                        syncDetailFromRow(tab, row, row.getData());
+                    });
+
+                    master.on('rowSelectionChanged', function (data, rows) {
+                        if (rows && rows.length > 0) {
+                            syncDetailFromRow(tab, rows[0], data[0]);
+                        }
+                    });
+
+                    master.on('cellEdited', function (cell) {
+                        handleMasterCellEdited(tab, cell);
+                    });
+
+                    // 파워빌더 doubleclicked 이벤트: 00941 화면 연계 지원
+                    master.on('rowDblClick', function (_e, row) {
+                        const d = row ? row.getData() : null;
+                        if (d && d.trYmd && d.balhCo && window.tabManager && typeof window.tabManager.openTabByPgmNo === 'function') {
+                            window.tabManager.openTabByPgmNo('00941');
+                        }
+                    });
+
+                    const pageEl = view.querySelector('[data-page="' + tab + '"]');
+                    if (window.AamsSplitter && pageEl) {
+                        window.AamsSplitter.init(pageEl);
+                    }
+
+                    return state;
+                })();
+
+                return builds[tab];
+            }
+
+            function getCurrentTab() {
+                const active = view.querySelector('.ja021h-tabs button.active');
+                return active ? active.dataset.tab : 't1';
+            }
+
+            async function activate(tab) {
+                view.querySelectorAll('.ja021h-tabs [role="tab"]').forEach(function (button) {
+                    const isSelected = button.dataset.tab === tab;
+                    button.classList.toggle('active', isSelected);
+                    button.setAttribute('aria-selected', String(isSelected));
+                });
+                view.querySelectorAll('.ja021h-page').forEach(function (page) {
+                    page.classList.toggle('active', page.dataset.page === tab);
+                });
+
+                const state = await build(tab);
+                await load(tab);
+                requestAnimationFrame(function () {
+                    safeRedraw(state.master);
+                    safeRedraw(state.detail);
+                });
+            }
+
+            function bindToolbarContract() {
+                pane.onSearch = function () {
+                    const tab = getCurrentTab();
+                    activate(tab).catch(function (e) { notify(e.message, 'error'); });
+                };
+
+                pane.onRefresh = pane.onClear = function () {
+                    const tab = getCurrentTab();
+                    const state = states[tab];
+                    if (state) {
+                        state.lastLoadedKey = null;
+                        state.selectedMaster = null;
+                        if (state.master) state.master.clearData();
+                        if (state.detail) state.detail.clearData();
+                    }
+                    activate(tab).then(function () {
+                        notify('화면이 초기화되었습니다.', 'info');
+                    }).catch(function (e) {
+                        notify(e.message, 'error');
+                    });
+                };
+
+                const refreshBtn = pane.querySelector('.btn-refresh');
+                if (refreshBtn) {
+                    refreshBtn.onclick = function (e) {
+                        if (e) e.preventDefault();
+                        if (this.disabled || this.classList.contains('disabled')) return;
+                        pane.onRefresh();
+                    };
+                }
+
+                pane.onInput = function () {
+                    const tab = getCurrentTab();
+                    addNewRow(tab, false).catch(function (e) { notify(e.message, 'error'); });
+                };
+
+                pane.onCopy = function () {
+                    notify('이 화면은 복사 기능을 지원하지 않습니다.', 'info');
+                };
+
+                pane.onDelete = function () {
+                    const tab = getCurrentTab();
+                    const state = states[tab];
+                    if (!state || !state.master) return;
+                    const selectedRows = state.master.getSelectedRows();
+                    if (!selectedRows || selectedRows.length === 0) {
+                        notify('삭제할 행을 먼저 선택해 주세요.', 'warning');
+                        return;
+                    }
+                    const row = selectedRows[0];
+                    const data = row.getData() || {};
+                    const rowYmd = normalizeYmdDigits(data.trYmd);
+                    const workYmd = getWorkDateDigits();
+                    if (!data.isNew && rowYmd && workYmd && rowYmd < workYmd) {
+                        notify('상장일이 지난 자료는 삭제 할 수 없습니다.', 'warning');
+                        return;
+                    }
+                    if (!window.confirm('선택한 자료를 삭제하시겠습니까?')) return;
+
+                    ++state.detailSeq;
+                    state.lastLoadedKey = null;
+                    if (data.isNew) {
+                        row.delete();
+                    } else {
+                        row.update({ isDeleted: true, rowStatus: 'D' });
+                        const el = row.getElement();
+                        if (el) el.classList.add('row-deleted');
+                    }
+                    if (state.detail) state.detail.clearData();
+                };
+
+                pane.onSave = function () {
+                    const tab = getCurrentTab();
+                    const state = states[tab];
+                    if (!state || !state.master) return;
+                    if (typeof window.aamsValidateGridDates === 'function') {
+                        if (!window.aamsValidateGridDates(state.master, ymdFields)) return;
+                    }
+                    const dirtyRows = state.master.getData().filter(function (r) {
+                        return (r.isNew && r.isUpdated) || r.isUpdated || r.isDeleted;
+                    });
+                    if (dirtyRows.length === 0) {
+                        notify('저장할 변경 내용이 없습니다.', 'info');
+                        return;
+                    }
+                    notify('현재 조회된 상장공시 내역이 화면에 반영되었습니다.', 'info');
+                };
+
+                pane.onExcel = function () {
+                    const tab = getCurrentTab();
+                    const state = states[tab];
+                    if (state && state.master) {
+                        return downloadGridXlsx(
+                            state.master,
+                            '상장공시_' + (tabCodes[tab] || tab) + '_' + getWorkDateDigits() + '.xlsx',
+                            '상장공시_' + (tabCodes[tab] || tab)
+                        );
+                    }
+                };
+
+                pane.onDetailExcel = function () {
+                    const tab = getCurrentTab();
+                    const state = states[tab];
+                    if (state && state.detail) {
+                        return downloadGridXlsx(
+                            state.detail,
+                            '펀드별상세_' + (tabCodes[tab] || tab) + '_' + getWorkDateDigits() + '.xlsx',
+                            '펀드별상세'
+                        );
+                    }
+                };
+
+                pane.onCorpGrChange = function (newCorpGr) {
+                    if (newCorpGr) view.dataset.corpGr = newCorpGr;
+                    ue_dddw_retrieve(newCorpGr || getCorpGr()).then(function () {
+                        return activate(getCurrentTab());
+                    }).catch(function (e) {
+                        notify(e.message, 'error');
+                    });
+                };
+
+                pane.addEventListener('buttonSearchStateChanged', syncToolbarButtons);
+            }
+
+            function startInit() {
+                if (isInitialized) return;
+                isInitialized = true;
+
+                view.querySelectorAll('.ja021h-tabs [role="tab"]').forEach(function (button) {
+                    button.addEventListener('click', function () {
+                        activate(button.dataset.tab).catch(function (e) {
+                            notify(e.message, 'error');
+                        });
+                    });
+                });
+
+                bindToolbarContract();
+
+                if (window.AamsResponsive && typeof window.AamsResponsive.bindGridResize === 'function') {
+                    window.AamsResponsive.bindGridResize(pane, [
+                        function () { const s = states[getCurrentTab()]; return s ? s.master : null; },
+                        function () { const s = states[getCurrentTab()]; return s ? s.detail : null; }
+                    ]);
+                }
+
+                ue_dddw_retrieve(getCorpGr());
+                activate('t1').catch(function (e) {
+                    notify(e.message, 'error');
+                });
+            }
+
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', startInit, { once: true });
+            } else {
+                startInit();
+            }
+        })();
+    </script>
+</div>
+</html>

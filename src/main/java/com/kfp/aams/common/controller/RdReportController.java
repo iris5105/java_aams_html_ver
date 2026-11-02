@@ -237,6 +237,10 @@ public class RdReportController {
         if (format != null && isHtmlFormat(format)) {
             return "html";
         }
+        // 클라이언트 공통 설정으로 지정한 형식이 디바이스 감지보다 우선한다.
+        if (format != null && !format.isBlank()) {
+            return format;
+        }
         if (userAgent != null) {
             String ua = userAgent.toLowerCase();
             if (ua.contains("mobile") || ua.contains("android") || ua.contains("iphone") || ua.contains("ipad")) {

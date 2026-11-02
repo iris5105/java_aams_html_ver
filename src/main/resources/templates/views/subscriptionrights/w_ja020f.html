@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<div class="view-container layout-single ja020f-container layout-mobile-stack-container" th:fragment="mainView" data-pgm-id="W_JA020F"
+     th:attr="data-work-date=${workDate},data-corp-gr=${corpGr}"
+     style="display: flex; flex-direction: column; height: 100%; width: 100%; overflow: hidden; background-color: #ffffff; position: relative;">
+
+    <!-- 1. 상단 공통 툴바 -->
+    <div class="view-toolbar">
+        <div class="toolbar-left">
+            <div th:replace="~{fragments/tab_header :: toolbarButtons}"></div>
+        </div>
+        <div th:replace="~{fragments/tab_header :: toolbarBreadcrumb}"></div>
+    </div>
+
+    <!-- 2. 상단 필터바 (dw_c.dataobject = dc_xx_ymd, title = "보유일자@발행기관", seq = 3) -->
+    <div class="filter-bar">
+        <div class="filter-left">
+            <div th:replace="~{fragments/filter/dc_xx_ymd :: filter}"
+                 th:with="labelYmd='보유일자', labelXx='발행기관', columnNm='rcd', seq=3"></div>
+        </div>
+    </div>
+
+    <!-- 3. 메인 그리드 영역 (d_ja020f1.srd) -->
+    <div class="grid-section" style="flex: 1 1 auto; padding: 0 12px 10px; min-height: 0; display: flex; flex-direction: column;">
+        <div class="sub-grid-header" style="display: flex; align-items: center; justify-content: space-between; min-height: 28px; padding: 4px 10px; background: #f8fafc; border: 1px solid #cbd5e1; border-bottom: 0; flex-shrink: 0;">
+            <span class="sub-title" style="font-weight: 600; font-size: 13px; color: #1e293b;">
+                <i class="fa-solid fa-table-list" style="margin-right: 6px; color: #3b82f6;"></i>권리보유 원장현황 목록
+            </span>
+        </div>
+        <div class="grid-table-wrapper" style="flex: 1 1 auto; min-height: 290px; border: 1px solid #cbd5e1; position: relative; overflow: hidden;">
+            <div id="gridList" class="tabulator-aams-grid" style="height: 100%; width: 100%;"></div>
+        </div>
+    </div>
+
+    <!-- 4. 화면 전용 스크립트 -->
+    <script th:inline="javascript">
+        (function () {
+            const currentScript = document.currentScript;
+            const pane = currentScript ? (currentScript.closest('.tab-pane') || currentScript.closest('.view-container')) : null;
+            if (!pane) return;
+
+            const api = '/api/subscriptionrights/ja020f';
+            const field = id => pane.querySelector('#' + id);
+
+            let initialYmd = /*[[${initialYmd}]]*/ '';
+            let workDate = /*[[${workDate}]]*/ '';
+            const initialRcd = /*[[${initialRcd}]]*/ '%';
+            const initialRcdNm = /*[[${initialRcdNm}]]*/ '전체';
+            const directRetrieve = /*[[${directRetrieve}]]*/ false;
+
+            let isInitialized = false;
+            let dataRequest = 0;
+            let gridList = null;
+            let rcdSearch = null;
+
+            const toNumber = val => {
+                if (val == null || val === '') return 0;
+                const n = Number(String(val).replace(/,/g, ''));
+                return isNaN(n) ? 0 : n;
+            };
+
+            // PB font_color (255: 빨강 미처리, 13762560: 파랑 권리처리내역, 32768: 초록 펀드번호)
+            function wrapFontColor(text, rowData, defaultClass) {
+                const safe = text != null ? String(text) : '';
+                if (!rowData || rowData.isSummaryRow) return safe;
+                const fc = Number(rowData.fontColor || 0);
+                if (fc === 255) {
+                    return `<span class="cell-text-red">${safe}</span>`;
+                }
+                if (fc === 13762560) {
+                    return `<span class="cell-text-blue">${safe}</span>`;
+                }
+                if (defaultClass) {
+                    return `<span class="${defaultClass}">${safe}</span>`;
+                }
+                return safe;
+            }
+
+            // 합계 행 동적 재계산 (d_ja020f1.srd summary band: jusu, aek, pyunga_aek, sonik)
+            function recalcSummaryRow() {
+                if (!gridList) return;
+                const rows = gridList.getRows();
+                const normalRows = rows.filter(r => {
+                    const d = r.getData();
+                    return d && !d.isSummaryRow && !d.isGroupHeader;
+                });
+                const summaryRow = rows.find(r => {
+                    const d = r.getData();
+                    return d && d.isSummaryRow;
+                });
+
+                if (normalRows.length === 0) {
+                    if (summaryRow) summaryRow.delete();
+                    return;
+                }
+
+                let totalJusu = 0;
+                let totalAek = 0;
+                let totalPyungaAek = 0;
+                let totalSonik = 0;
+
+                normalRows.forEach(r => {
+                    const d = r.getData();
+                    totalJusu += toNumber(d.jusu);
+                    totalAek += toNumber(d.aek);
+                    totalPyungaAek += toNumber(d.pyungaAek);
+                    totalSonik += toNumber(d.sonik);
+                });
+
+                const summaryData = {
+                    isSummaryRow: true,
+                    fundNm: '합계',
+                    xxFundCd: '합계',
+                    jusu: totalJusu,
+                    aek: totalAek,
+                    pyungaAek: totalPyungaAek,
+                    sonik: totalSonik
+                };
+
+                if (summaryRow) {
+                    summaryRow.update(summaryData);
+                } else {
+                    gridList.addRow(summaryData, false);
+                }
+            }
+
+            function initCalendar(ymdVal) {
+                if (typeof window.initFilterCalendar === 'function') {
+                    window.initFilterCalendar(pane, {
+                        initialYmd: ymdVal || initialYmd,
+                        onSelect: function () {
+                            // 규칙 08 준수: 필터 변경 시 자동 조회 금지
+                        }
+                    });
+                }
+            }
+
+            function bindCodeSearch() {
+                if (!window.DynamicCodeSearch || typeof window.DynamicCodeSearch.bind !== 'function') return;
+                rcdSearch = window.DynamicCodeSearch.bind({
+                    pane: pane,
+                    inputEl: field('filterXx'),
+                    btnEl: field('btnCodeSearchXx'),
+                    textEl: field('textXxName'),
+                    columnNm: 'rcd',
+                    seq: 3,
+                    getCorpGr: () => (typeof resolveCorpGr === 'function') ? resolveCorpGr(pane) : '',
+                    allCode: '%',
+                    allName: '전체'
+                });
+                if (field('filterXx')) field('filterXx').value = initialRcd || '%';
+                if (field('textXxName')) field('textXxName').textContent = initialRcdNm || '전체';
+            }
+
+            function initGrid() {
+                const el = field('gridList');
+                if (!el) return;
+
+                gridList = new Tabulator(el, {
+                    height: '100%',
+                    layout: 'fitDataFill',
+                    selectableRows: 1,
+                    selectableRowsCheck: row => {
+                        const d = row.getData();
+                        return d && !d.isSummaryRow && !d.isGroupHeader;
+                    },
+                    placeholder: '조회된 데이터가 없습니다.',
+                    rowFormatter: function (row) {
+                        const d = row.getData();
+                        if (!d) return;
+                        const el = row.getElement();
+                        if (d.isSummaryRow) {
+                            el.classList.add('aams-summary-row');
+                        } else if (d.isGroupHeader) {
+                            el.classList.add('aams-group-header-row');
+                            el.style.backgroundColor = '#f8fafc';
+                            el.style.fontWeight = '700';
+                            el.style.borderTop = '1px solid #cbd5e1';
+                        }
+                    },
+                    columns: [
+                        {
+                            title: 'No.',
+                            width: 52,
+                            hozAlign: 'center',
+                            headerHozAlign: 'center',
+                            headerSort: false,
+                            resizable: false,
+                            formatter: function (cell) {
+                                const d = cell.getRow().getData();
+                                if (!d || d.isSummaryRow || d.isGroupHeader) return '';
+                                return d._seqNo || cell.getRow().getPosition();
+                            }
+                        },
+                        {
+                            title: '운용사',
+                            field: 'corpGr',
+                            width: 80,
+                            hozAlign: 'center',
+                            headerHozAlign: 'center',
+                            formatter: function (cell) {
+                                const d = cell.getRow().getData();
+                                if (!d || d.isSummaryRow || d.isGroupHeader) return '';
+                                return wrapFontColor(d._displayCorpGr !== undefined ? d._displayCorpGr : (cell.getValue() || ''), d);
+                            }
+                        },
+                        {
+                            title: '관리번호',
+                            field: 'fundCd',
+                            width: 90,
+                            hozAlign: 'center',
+                            headerHozAlign: 'center',
+                            headerCssClass: 'col-hdr-green',
+                            formatter: function (cell) {
+                                const d = cell.getRow().getData();
+                                if (!d || d.isSummaryRow || d.isGroupHeader) return '';
+                                return wrapFontColor(cell.getValue() || '', d, 'cell-text-green');
+                            }
+                        },
+                        {
+                            title: '계좌명',
+                            field: 'fundNm',
+                            width: 200,
+                            hozAlign: 'left',
+                            headerHozAlign: 'center',
+                            formatter: function (cell) {
+                                const d = cell.getRow().getData();
+                                if (!d) return '';
+                                if (d.isSummaryRow) {
+                                    return '<div style="text-align: center; font-weight: bold; width: 100%;">합계</div>';
+                                }
+                                if (d.isGroupHeader) {
+                                    return `<span style="font-weight: 700; color: #0f172a; font-size: 13px;">${d.corpNm || d.fundNm || ''}</span>`;
+                                }
+                                return wrapFontColor(cell.getValue() || '', d);
+                            }
+                        },
+                        {
+                            title: '단축코드',
+                            field: 'koscomCd',
+                            width: 90,
+                            hozAlign: 'center',
+                            headerHozAlign: 'center',
+                            headerCssClass: 'col-hdr-blue',
+                            formatter: function (cell) {
+                                const d = cell.getRow().getData();
+                                if (!d || d.isSummaryRow || d.isGroupHeader) return '';
+                                return wrapFontColor(d._displayKoscomCd !== undefined ? d._displayKoscomCd : (cell.getValue() || ''), d);
+                            }
+                        },
+                        {
+                            title: '종목명',
+                            field: 'jjNm',
+                            width: 190,
+                            hozAlign: 'left',
+                            headerHozAlign: 'center',
+                            formatter: function (cell) {
+                                const d = cell.getRow().getData();
+                                if (!d || d.isSummaryRow || d.isGroupHeader) return '';
+                                return wrapFontColor(d._displayJjNm !== undefined ? d._displayJjNm : (cell.getValue() || ''), d);
+                            }
+                        },
+                        {
+                            title: '종목유형',
+                            field: 'jmType',
+                            width: 85,
+                            hozAlign: 'center',
+                            headerHozAlign: 'center',
+                            formatter: function (cell) {
+                                const d = cell.getRow().getData();
+                                if (!d || d.isSummaryRow || d.isGroupHeader) return '';
+                                return wrapFontColor(cell.getValue() || '', d);
+                            }
+                        },
+                        {
+                            title: '보유주수',
+                            field: 'jusu',
+                            width: 100,
+                            hozAlign: 'right',
+                            headerHozAlign: 'center',
+                            headerCssClass: 'col-hdr-blue',
+                            formatter: function (cell) {
+                                const d = cell.getRow().getData();
+                                if (!d || d.isGroupHeader) return '';
+                                const val = cell.getValue();
+                                const str = val != null && val !== ''
+                                    ? (typeof window.formatNumber === 'function' ? window.formatNumber(val, 0) : Number(val).toLocaleString())
+                                    : '0';
+                                if (d.isSummaryRow) return `<span class="font-bold">${str}</span>`;
+                                return wrapFontColor(str, d);
+                            }
+                        },
+                        {
+                            title: '취득액',
+                            field: 'aek',
+                            width: 120,
+                            hozAlign: 'right',
+                            headerHozAlign: 'center',
+                            formatter: function (cell) {
+                                const d = cell.getRow().getData();
+                                if (!d || d.isGroupHeader) return '';
+                                const val = cell.getValue();
+                                const str = val != null && val !== ''
+                                    ? (typeof window.formatNumber === 'function' ? window.formatNumber(val, 0) : Number(val).toLocaleString())
+                                    : '0';
+                                if (d.isSummaryRow) return `<span class="font-bold">${str}</span>`;
+                                return wrapFontColor(str, d);
+                            }
+                        },
+                        {
+                            title: '시가평가액',
+                            field: 'pyungaAek',
+                            width: 120,
+                            hozAlign: 'right',
+                            headerHozAlign: 'center',
+                            headerCssClass: 'col-hdr-blue',
+                            formatter: function (cell) {
+                                const d = cell.getRow().getData();
+                                if (!d || d.isGroupHeader) return '';
+                                const val = cell.getValue();
+                                const str = val != null && val !== ''
+                                    ? (typeof window.formatNumber === 'function' ? window.formatNumber(val, 0) : Number(val).toLocaleString())
+                                    : '0';
+                                if (d.isSummaryRow) return `<span class="font-bold">${str}</span>`;
+                                return wrapFontColor(str, d);
+                            }
+                        },
+                        {
+                            title: '평가손익',
+                            field: 'sonik',
+                            width: 110,
+                            hozAlign: 'right',
+                            headerHozAlign: 'center',
+                            headerCssClass: 'col-hdr-blue',
+                            formatter: function (cell) {
+                                const d = cell.getRow().getData();
+                                if (!d || d.isGroupHeader) return '';
+                                const val = cell.getValue();
+                                const str = val != null && val !== ''
+                                    ? (typeof window.formatNumber === 'function' ? window.formatNumber(val, 0) : Number(val).toLocaleString())
+                                    : '0';
+                                if (d.isSummaryRow) return `<span class="font-bold">${str}</span>`;
+                                return wrapFontColor(str, d);
+                            }
+                        },
+                        {
+                            title: '권리처리현황',
+                            field: 'bigo',
+                            minWidth: 200,
+                            hozAlign: 'left',
+                            headerHozAlign: 'center',
+                            formatter: function (cell) {
+                                const d = cell.getRow().getData();
+                                if (!d || d.isSummaryRow || d.isGroupHeader) return '';
+                                return wrapFontColor(cell.getValue() || '', d);
+                            }
+                        },
+                        {
+                            title: '공시<br>변동주수',
+                            field: 'gongsJusu',
+                            width: 100,
+                            hozAlign: 'right',
+                            headerHozAlign: 'center',
+                            formatter: function (cell) {
+                                const d = cell.getRow().getData();
+                                if (!d || d.isSummaryRow || d.isGroupHeader) return '';
+                                const val = cell.getValue();
+                                if (val == null || val === '') return '';
+                                return typeof window.formatNumber === 'function' ? window.formatNumber(val, 0) : Number(val).toLocaleString();
+                            }
+                        },
+                        {
+                            title: '공시<br>변동액',
+                            field: 'gongsAek',
+                            width: 110,
+                            hozAlign: 'right',
+                            headerHozAlign: 'center',
+                            formatter: function (cell) {
+                                const d = cell.getRow().getData();
+                                if (!d || d.isSummaryRow || d.isGroupHeader) return '';
+                                const val = cell.getValue();
+                                if (val == null || val === '') return '';
+                                return typeof window.formatNumber === 'function' ? window.formatNumber(val, 0) : Number(val).toLocaleString();
+                            }
+                        }
+                    ]
+                });
+
+                if (typeof setupTabulatorRowSelection === 'function') {
+                    setupTabulatorRowSelection(gridList);
+                }
+                if (window.AamsResponsive && typeof window.AamsResponsive.bindGridResize === 'function') {
+                    window.AamsResponsive.bindGridResize(pane, [gridList]);
+                }
+            }
+
+            async function loadData() {
+                const corpGr = (typeof resolveCorpGr === 'function') ? resolveCorpGr(pane) : '';
+                if (!corpGr) {
+                    if (typeof showToast === 'function') showToast('회사그룹 정보가 누락되었습니다.', 'warning');
+                    return;
+                }
+
+                let ymd = (typeof getFilterYmd === 'function') ? getFilterYmd(pane, 'YYYY-MM-DD') : (field('filterYmd') ? field('filterYmd').value : initialYmd);
+                if (!ymd) {
+                    if (typeof showToast === 'function') showToast('보유일자를 선택하십시오.', 'warning');
+                    return;
+                }
+
+                // PB w_ja020f.srw wue_retrieve: IF dw_c.object.ymd[1] > idt_workdate THEN dw_c.object.ymd[1] = idt_workdate
+                if (workDate && ymd > workDate) {
+                    ymd = workDate;
+                    if (field('filterYmd')) field('filterYmd').value = workDate;
+                }
+
+                const rcd = field('filterXx') ? (field('filterXx').value || '').trim() : '%';
+                if (!rcd) {
+                    if (typeof showToast === 'function') showToast('발행기관을 선택하십시오. 전체 조회는 %를 입력하십시오.', 'warning');
+                    return;
+                }
+
+                const reqId = ++dataRequest;
+                try {
+                    const res = await fetch(`${api}/list?` + new URLSearchParams({ corpGr: corpGr, ymd: ymd, rcd: rcd }));
+                    if (!res.ok) throw new Error('데이터 조회 중 오류가 발생했습니다.');
+                    const list = await res.json();
+                    if (reqId !== dataRequest) return;
+
+                    const rawList = Array.isArray(list) ? list : [];
+                    const rows = [];
+                    let currentCorpGr = null;
+                    let seq = 0;
+                    let prevCorpGr = null;
+                    let prevKoscomCd = null;
+                    let prevJjNm = null;
+
+                    rawList.forEach(item => {
+                        // 운용사(corpGr)가 바뀌면 파워빌더 group by corp_gr (header.1) 그룹 헤더 행 삽입
+                        if (item.corpGr !== currentCorpGr) {
+                            currentCorpGr = item.corpGr;
+                            rows.push({
+                                isGroupHeader: true,
+                                corpGr: item.corpGr,
+                                corpNm: item.corpNm,
+                                fundNm: item.corpNm || item.corpGr || ''
+                            });
+                            prevCorpGr = null;
+                            prevKoscomCd = null;
+                            prevJjNm = null;
+                        }
+
+                        seq++;
+                        // sparse(names="corp_gr koscom_cd jj_nm") 처리: 연속된 동일 값은 표출 생략
+                        rows.push(Object.assign({}, item, {
+                            _seqNo: seq,
+                            _displayCorpGr: (item.corpGr === prevCorpGr) ? '' : (item.corpGr || ''),
+                            _displayKoscomCd: (item.koscomCd === prevKoscomCd) ? '' : (item.koscomCd || ''),
+                            _displayJjNm: (item.jjNm === prevJjNm) ? '' : (item.jjNm || '')
+                        }));
+
+                        prevCorpGr = item.corpGr;
+                        prevKoscomCd = item.koscomCd;
+                        prevJjNm = item.jjNm;
+                    });
+
+                    await gridList.setData(rows);
+                    recalcSummaryRow();
+
+                    if (rows.length > 0) {
+                        const firstNormal = gridList.getRows().find(r => {
+                            const d = r.getData();
+                            return d && !d.isSummaryRow && !d.isGroupHeader;
+                        });
+                        if (firstNormal) firstNormal.select();
+                    } else if (typeof showToast === 'function') {
+                        showToast('조회된 데이터가 없습니다.', 'info');
+                    }
+                } catch (err) {
+                    if (reqId === dataRequest && typeof showToast === 'function') {
+                        showToast(err.message, 'error');
+                    }
+                }
+            }
+
+            function startInit() {
+                if (isInitialized) return;
+                isInitialized = true;
+
+                initGrid();
+                initCalendar(initialYmd);
+                bindCodeSearch();
+
+                // ib_managedata = false: 입력/복사/삭제/저장 버튼 숨김
+                const applyToolbarPolicy = () => ['.btn-input', '.btn-copy', '.btn-delete', '.btn-save', '.btn-print'].forEach(sel => {
+                    const btn = pane.querySelector(sel);
+                    if (btn) btn.style.setProperty('display', 'none', 'important');
+                });
+                applyToolbarPolicy();
+                pane.addEventListener('buttonAuthApplied', applyToolbarPolicy);
+
+                pane.onSearch = loadData;
+                pane.onExcel = pane.onDetailExcel = function () {
+                    if (gridList) {
+                        const ymdRaw = (typeof getFilterYmd === 'function') ? getFilterYmd(pane, 'YYYYMMDD') : '';
+                        gridList.download('xlsx', `권리보유_원장현황_${ymdRaw}.xlsx`, { sheetName: '권리보유원장현황' });
+                    }
+                };
+
+                pane.onClear = pane.onRefresh = async function () {
+                    ++dataRequest;
+                    if (gridList) await gridList.clearData();
+                    if (rcdSearch) rcdSearch.setValue('%');
+                    if (field('filterYmd')) field('filterYmd').value = initialYmd;
+                    initCalendar(initialYmd);
+                    if (typeof showToast === 'function') showToast('화면이 초기화되었습니다.', 'info');
+                };
+
+                pane.onCorpGrChange = async function (newCorpGr) {
+                    ++dataRequest;
+                    try {
+                        const res = await fetch('/api/common/workdate?' + new URLSearchParams({ corpGr: newCorpGr }));
+                        if (res.ok) {
+                            const d = await res.json();
+                            if (d && d.workDate) {
+                                initialYmd = d.workDate;
+                                workDate = d.workDate;
+                                if (field('filterYmd')) field('filterYmd').value = initialYmd;
+                                initCalendar(initialYmd);
+                            }
+                        }
+                    } catch (e) {
+                        console.warn('[w_ja020f] 작업일자 조회 실패:', e);
+                    }
+                };
+
+                // PB w_ja020f.srw wue_lastopen: 타 화면 점프 시 자동 1회 조회 (eb_direct_retrieve = TRUE)
+                if (directRetrieve) {
+                    setTimeout(loadData, 100);
+                }
+            }
+
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', startInit, { once: true });
+            } else {
+                startInit();
+            }
+        })();
+    </script>
+</div>
+</html>
+

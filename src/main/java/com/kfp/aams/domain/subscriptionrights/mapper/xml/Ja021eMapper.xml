@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.kfp.aams.domain.subscriptionrights.mapper.Ja021eMapper">
+    <!-- d_ja021e2.srd: preserve source query, changing bind parameters only. -->
+    <select id="selectDetails" resultType="com.kfp.aams.domain.subscriptionrights.dto.Ja021eDetailDto">
+WITH with_cg AS (
+     SELECT DISTINCT t1.fund_cd
+          , t1.jm_cd
+          , t1.aek
+          , t1.jan_aek
+          , t1.sanghw_ymd
+          , t2.sanghw_aek
+          , COUNT(*) OVER (PARTITION BY t1.corp_gr,t1.tr_ymd,t1.tr_cd,t1.fund_cd,t1.jm_cd,t1.seq_no)  AS cnt
+       FROM SCT1CG t1
+       LEFT OUTER JOIN sct1cg_tr t2  ON t2.corp_gr    = t1.corp_gr
+                                    AND t2.tr_ymd     = t1.tr_ymd
+                                    AND t2.fund_cd    = t1.fund_cd
+                                    AND t2.jm_cd      = t1.jm_cd
+                                    AND t2.tr_cd      = t1.tr_cd
+                                    AND t2.buy_date   = t1.buy_date
+                                    AND t2.aek_gb     = t1.aek_gb
+                                    AND t2.seq_no     = t1.seq_no
+                                    AND t2.sanghw_aek <![CDATA[>]]> 0
+      WHERE t1.corp_gr = #{corpGr}
+        AND t1.tr_ymd  = #{trYmd}
+        AND t1.tr_cd   = #{trCd}
+        AND t1.gwamok  = '12049'
+        AND t1.aek_gb  = '3'
+  )
+  SELECT cg.corp_gr                                                               AS corpGr
+       , cg.tr_ymd                                                                AS trYmd
+       , cg.tr_cd                                                                 AS trCd
+       , cg.fund_cd                                                               AS fundCd
+       , cg.jm_cd                                                                 AS jmCd
+       , cg.buy_date                                                               AS buyDate
+       , cg.seq_no                                                                AS seqNo
+       , cg.tr_co_cd                                                              AS trCoCd
+       , cg.ija_baed_gb                                                            AS ijaBaedGb
+       , cg.koscom_cd                                                              AS koscomCd
+       , cg.jusic_jusu                                                             AS jusicJusu
+       , cg.jusic_aek                                                              AS jusicAek
+       , cg.jusic_danga                                                            AS jusicDanga
+       , cg.danc_gb                                                                AS dancGb
+       , cg.mijigub_tax                                                            AS mijigubTax
+       , ia.fund_nm                                                                AS xxFundCd
+       , cg.aekm                                                                   AS aekm
+       , cg.danga                                                                   AS danga
+       , (NVL(cm.bfil_aekm,0) + NVL(cm.meib_aekm,0) - NVL(cm.medo_aekm,0)) / 10000  AS com_aekm
+       , cg.chg_jm_cd                                                              AS chgJmCd
+       , cg.lock_end                                                               AS lockEnd
+       , CASE WHEN t1.sanghw_ymd IS NOT NULL THEN '1'
+                                             ELSE '0' END                           AS suryChk
+       , t1.sanghw_ymd                                                              AS suryYmd
+       , t1.aek                                                                    AS aek
+       , CASE WHEN t1.sanghw_ymd <![CDATA[<]]> TRUNC(SYSDATE, 'dd') THEN 1
+              WHEN t1.cnt <![CDATA[>]]> 1                         THEN 1
+                                                      ELSE 0 END                    AS suryProtect
+       , 1                                                                          AS pVisible
+    FROM SCT0CG cg
+    LEFT OUTER JOIN with_cg t1  ON t1.fund_cd = cg.fund_cd
+                               AND t1.jm_cd   = cg.jm_cd
+       , SZM0IA ia
+       , SCM0CM cm
+   WHERE cg.corp_gr = #{corpGr}
+     AND cg.tr_ymd  = #{trYmd}
+     AND cg.jm_cd   LIKE #{cjCd}
+     AND cg.tr_cd   = #{trCd}
+     AND ia.corp_gr = cg.corp_gr
+     AND ia.fund_cd = cg.fund_cd
+     AND cm.corp_gr = cg.corp_gr
+     AND cm.ymd     = cg.tr_ymd
+     AND cm.fund_cd = cg.fund_cd
+     AND cm.jm_cd   = cg.jm_cd
+    </select>
+
+    
+    <!-- w_ja021e.srw dw_detail::ue_retrieve, initial per-account holdings. -->
+    <select id="selectHoldings" resultType="com.kfp.aams.domain.subscriptionrights.dto.Ja021eDetailDto">
+        WITH with_cg AS (
+            SELECT DISTINCT t1.fund_cd
+                 , t1.jm_cd
+                 , t1.aek
+                 , t1.jan_aek
+                 , t1.sanghw_ymd
+                 , t1.tr_co_cd
+                 , t2.sanghw_aek
+                 , COUNT(*) OVER (PARTITION BY t1.corp_gr,t1.tr_ymd,t1.tr_cd,t1.fund_cd,t1.jm_cd,t1.seq_no) AS cnt
+              FROM SCT1CG t1
+              LEFT OUTER JOIN sct1cg_tr t2 ON t2.corp_gr=t1.corp_gr 
+                                          AND t2.tr_ymd=t1.tr_ymd
+                                          AND t2.tr_cd=t1.tr_cd 
+                                          AND t2.fund_cd=t1.fund_cd
+                                          AND t2.jm_cd=t1.jm_cd
+                                          AND t2.buy_date=t1.buy_date
+                                          AND t2.aek_gb=t1.aek_gb
+                                          AND t2.seq_no=t1.seq_no
+                                          AND t2.sanghw_aek <![CDATA[>]]> 0
+             WHERE t1.corp_gr=#{corpGr}
+               AND t1.gwamok='12049'
+               AND t1.aek_gb='3'
+               AND t1.tr_ymd=#{trYmd}
+        )
+        SELECT t2.fund_cd AS fundCd
+             , t2.fund_nm AS xxFundCd
+             , t2.mg_cd AS trCoCd
+             , (NVL(t1.bfil_aekm,0)+NVL(t1.meib_aekm,0)-NVL(t1.medo_aekm,0))/10000 AS comAekm
+             , NVL(t1.bfil_chui_aek,0)+NVL(t1.meib_aek,0)-NVL(t1.medo_aek,0) AS holdingAek
+             , CASE WHEN t3.sanghw_ymd IS NOT NULL THEN '1' ELSE '0' END AS suryChk
+             , t3.sanghw_ymd AS suryYmd
+             , t3.aek AS aek
+             , CASE WHEN t3.sanghw_ymd <![CDATA[<]]> t1.ymd THEN 1 WHEN t3.cnt <![CDATA[>]]> 1 THEN 1 ELSE 0 END AS suryProtect
+          FROM SCM0CM t1
+          LEFT OUTER JOIN with_cg t3 ON t3.fund_cd=t1.fund_cd
+                                    AND t3.jm_cd=t1.jm_cd,
+               SZM0IA t2
+         WHERE t1.corp_gr=#{corpGr}
+           AND t1.jm_cd=#{cjCd}
+           AND t1.ymd=#{trYmd}
+           AND t2.corp_gr=t1.corp_gr
+           AND t2.fund_cd=t1.fund_cd
+         ORDER BY t2.fund_cd
+    </select>
+    <select id="selectSystemDate" resultType="java.time.LocalDate">
+        SELECT TRUNC(SYSDATE, 'dd')
+          FROM dual
+    </select>
+    <select id="selectClose" resultType="java.math.BigDecimal">
+        SELECT close
+          FROM sjt1tg
+         WHERE ymd=f_trade_ymd(#{workDate} - 1, '-')
+           AND koscom_cd=#{koscomCd}
+    </select>
+</mapper>

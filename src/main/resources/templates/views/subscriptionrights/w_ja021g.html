@@ -1,0 +1,996 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<div th:fragment="mainView" class="view-container layout-mobile-stack-container ja021g-container"
+     th:attr="data-work-date=${workDate},data-corp-gr=${corpGr}">
+    <div class="view-toolbar">
+        <div class="toolbar-left"><div th:replace="~{fragments/tab_header :: toolbarButtons}"></div></div>
+        <div th:replace="~{fragments/tab_header :: toolbarBreadcrumb}"></div>
+    </div>
+    <div class="ja021g-tabs" role="tablist" aria-label="합병·분할 공시 업무">
+        <button type="button" role="tab" id="ja021g-tab-t1" aria-controls="ja021g-pane-t1" aria-selected="true" data-tab="t1" class="active">합병(G40)</button>
+        <button type="button" role="tab" id="ja021g-tab-t2" aria-controls="ja021g-pane-t2" aria-selected="false" data-tab="t2">부분분할/합병(G43)</button>
+        <button type="button" role="tab" id="ja021g-tab-t3" aria-controls="ja021g-pane-t3" aria-selected="false" data-tab="t3">감자(G45)</button>
+        <button type="button" role="tab" id="ja021g-tab-t4" aria-controls="ja021g-pane-t4" aria-selected="false" data-tab="t4">유상소각(G47)</button>
+        <button type="button" role="tab" id="ja021g-tab-t5" aria-controls="ja021g-pane-t5" aria-selected="false" data-tab="t5">회사분할(G60)</button>
+        <button type="button" role="tab" id="ja021g-tab-t6" aria-controls="ja021g-pane-t6" aria-selected="false" data-tab="t6">액면분할/병합(G92)</button>
+        <button type="button" role="tab" id="ja021g-tab-t7" aria-controls="ja021g-pane-t7" aria-selected="false" data-tab="t7">이전/교환(G93)</button>
+    </div>
+    <div class="ja021g-content">
+        <div id="ja021g-pane-t1" class="ja021g-page active" role="tabpanel" aria-labelledby="ja021g-tab-t1">
+            <div class="layout-split-v layout-mobile-stack" data-split-key="JA021G_t1_V" data-default-ratio="50:50">
+                <section class="split-pane pane-top">
+                    <div class="pane-header"><span class="panel-title">합병(G40) 공시 목록</span></div>
+                    <div class="pane-body"><div id="ja021g-master-t1" class="tabulator-aams-grid"></div></div>
+                </section>
+                <div class="split-gutter-v" title="드래그하여 상하 비율 조절"></div>
+                <section class="split-pane pane-bottom">
+                    <div class="sub-grid-header">
+                        <span class="panel-title">펀드별 권리 상세</span>
+                        <div th:replace="~{fragments/tab_header :: detailNav(targetGrid='#ja021g-detail-t1',fileName='펀드별 권리 상세',buttons='excel,first,last')}"></div>
+                    </div>
+                    <div class="pane-body"><div id="ja021g-detail-t1" class="tabulator-aams-grid"></div></div>
+                </section>
+            </div>
+        </div>
+        <div id="ja021g-pane-t2" class="ja021g-page" role="tabpanel" aria-labelledby="ja021g-tab-t2">
+            <div class="layout-split-v layout-mobile-stack" data-split-key="JA021G_t2_V" data-default-ratio="50:50">
+                <section class="split-pane pane-top">
+                    <div class="pane-header"><span class="panel-title">부분분할/합병(G43) 공시 목록</span></div>
+                    <div class="pane-body"><div id="ja021g-master-t2" class="tabulator-aams-grid"></div></div>
+                </section>
+                <div class="split-gutter-v" title="드래그하여 상하 비율 조절"></div>
+                <section class="split-pane pane-bottom">
+                    <div class="sub-grid-header">
+                        <span class="panel-title">펀드별 권리 상세</span>
+                        <div th:replace="~{fragments/tab_header :: detailNav(targetGrid='#ja021g-detail-t2',fileName='펀드별 권리 상세',buttons='excel,first,last')}"></div>
+                    </div>
+                    <div class="pane-body"><div id="ja021g-detail-t2" class="tabulator-aams-grid"></div></div>
+                </section>
+            </div>
+        </div>
+        <div id="ja021g-pane-t3" class="ja021g-page" role="tabpanel" aria-labelledby="ja021g-tab-t3">
+            <div class="layout-split-v layout-mobile-stack" data-split-key="JA021G_t3_V" data-default-ratio="50:50">
+                <section class="split-pane pane-top">
+                    <div class="pane-header"><span class="panel-title">감자(G45) 공시 목록</span></div>
+                    <div class="pane-body"><div id="ja021g-master-t3" class="tabulator-aams-grid"></div></div>
+                </section>
+                <div class="split-gutter-v" title="드래그하여 상하 비율 조절"></div>
+                <section class="split-pane pane-bottom">
+                    <div class="sub-grid-header">
+                        <span class="panel-title">펀드별 권리 상세</span>
+                        <div th:replace="~{fragments/tab_header :: detailNav(targetGrid='#ja021g-detail-t3',fileName='펀드별 권리 상세',buttons='excel,first,last')}"></div>
+                    </div>
+                    <div class="pane-body"><div id="ja021g-detail-t3" class="tabulator-aams-grid"></div></div>
+                </section>
+            </div>
+        </div>
+        <div id="ja021g-pane-t4" class="ja021g-page" role="tabpanel" aria-labelledby="ja021g-tab-t4">
+            <div class="layout-split-v layout-mobile-stack" data-split-key="JA021G_t4_V" data-default-ratio="50:50">
+                <section class="split-pane pane-top">
+                    <div class="pane-header"><span class="panel-title">유상소각(G47) 공시 목록</span></div>
+                    <div class="pane-body"><div id="ja021g-master-t4" class="tabulator-aams-grid"></div></div>
+                </section>
+                <div class="split-gutter-v" title="드래그하여 상하 비율 조절"></div>
+                <section class="split-pane pane-bottom">
+                    <div class="sub-grid-header">
+                        <span class="panel-title">펀드별 권리 상세</span>
+                        <div th:replace="~{fragments/tab_header :: detailNav(targetGrid='#ja021g-detail-t4',fileName='펀드별 권리 상세',buttons='excel,first,last')}"></div>
+                    </div>
+                    <div class="pane-body"><div id="ja021g-detail-t4" class="tabulator-aams-grid"></div></div>
+                </section>
+            </div>
+        </div>
+        <div id="ja021g-pane-t5" class="ja021g-page" role="tabpanel" aria-labelledby="ja021g-tab-t5">
+            <div class="layout-split-v layout-mobile-stack" data-split-key="JA021G_t5_V" data-default-ratio="50:50">
+                <section class="split-pane pane-top">
+                    <div class="pane-header"><span class="panel-title">회사분할(G60) 공시 목록</span></div>
+                    <div class="pane-body"><div id="ja021g-master-t5" class="tabulator-aams-grid"></div></div>
+                </section>
+                <div class="split-gutter-v" title="드래그하여 상하 비율 조절"></div>
+                <section class="split-pane pane-bottom">
+                    <div class="sub-grid-header">
+                        <span class="panel-title">펀드별 권리 상세</span>
+                        <div th:replace="~{fragments/tab_header :: detailNav(targetGrid='#ja021g-detail-t5',fileName='펀드별 권리 상세',buttons='excel,first,last')}"></div>
+                    </div>
+                    <div class="pane-body"><div id="ja021g-detail-t5" class="tabulator-aams-grid"></div></div>
+                </section>
+            </div>
+        </div>
+        <div id="ja021g-pane-t6" class="ja021g-page" role="tabpanel" aria-labelledby="ja021g-tab-t6">
+            <div class="layout-split-v layout-mobile-stack" data-split-key="JA021G_t6_V" data-default-ratio="50:50">
+                <section class="split-pane pane-top">
+                    <div class="pane-header"><span class="panel-title">액면분할/병합(G92) 공시 목록</span></div>
+                    <div class="pane-body"><div id="ja021g-master-t6" class="tabulator-aams-grid"></div></div>
+                </section>
+                <div class="split-gutter-v" title="드래그하여 상하 비율 조절"></div>
+                <section class="split-pane pane-bottom">
+                    <div class="sub-grid-header">
+                        <span class="panel-title">펀드별 권리 상세</span>
+                        <div th:replace="~{fragments/tab_header :: detailNav(targetGrid='#ja021g-detail-t6',fileName='펀드별 권리 상세',buttons='excel,first,last')}"></div>
+                    </div>
+                    <div class="pane-body"><div id="ja021g-detail-t6" class="tabulator-aams-grid"></div></div>
+                </section>
+            </div>
+        </div>
+        <div id="ja021g-pane-t7" class="ja021g-page" role="tabpanel" aria-labelledby="ja021g-tab-t7">
+            <div class="layout-split-v layout-mobile-stack" data-split-key="JA021G_t7_V" data-default-ratio="50:50">
+                <section class="split-pane pane-top">
+                    <div class="pane-header"><span class="panel-title">이전/교환(G93) 공시 목록</span></div>
+                    <div class="pane-body"><div id="ja021g-master-t7" class="tabulator-aams-grid"></div></div>
+                </section>
+                <div class="split-gutter-v" title="드래그하여 상하 비율 조절"></div>
+                <section class="split-pane pane-bottom">
+                    <div class="sub-grid-header">
+                        <span class="panel-title">펀드별 권리 상세</span>
+                        <div th:replace="~{fragments/tab_header :: detailNav(targetGrid='#ja021g-detail-t7',fileName='펀드별 권리 상세',buttons='excel,first,last')}"></div>
+                    </div>
+                    <div class="pane-body"><div id="ja021g-detail-t7" class="tabulator-aams-grid"></div></div>
+                </section>
+            </div>
+        </div>
+    </div>
+    <style>
+        .ja021g-container{display:flex;flex-direction:column;height:100%;min-height:0;overflow:hidden;padding-bottom:5px;box-sizing:border-box}
+        .ja021g-container .ja021g-tabs{display:flex;flex:0 0 auto;gap:3px;overflow-x:auto;padding:4px 8px 0;border-bottom:1px solid #cbd5e1}
+        .ja021g-tabs>button{flex:0 0 auto;white-space:nowrap;padding:7px 11px;border:1px solid #cbd5e1;border-bottom:0;border-radius:4px 4px 0 0;background:#e2e8f0;color:#52667f;font-size:12px;cursor:pointer}
+        .ja021g-tabs>button.active{background:#fff;color:#1749c9;font-weight:600}
+        .ja021g-content{flex:1;min-height:0;padding:6px 8px 0;overflow:hidden}
+        .ja021g-page{display:none;height:100%;min-height:0}
+        .ja021g-page.active{display:flex}
+        .ja021g-page>.layout-split-v{display:flex;flex-direction:column;width:100%;height:100%;min-height:0;padding:0}
+        .ja021g-page .split-pane{display:flex;flex-direction:column;height:50%;min-height:0;overflow:hidden}
+        .ja021g-page .pane-body{flex:1;min-height:0;padding:0;overflow:hidden}
+        .ja021g-page .tabulator-aams-grid{height:100%;min-height:0}
+        .ja021g-container .row-deleted{opacity:.55;text-decoration:line-through}
+        .ja021g-container .cell-text-blue{color:#2563ff}.ja021g-container .cell-text-green{color:#008050}.ja021g-container .cell-text-muted{color:#808080}
+        @media(max-width:876px){
+            .ja021g-container.layout-mobile-stack-container{padding-bottom:5px!important;overflow:hidden!important}
+            .ja021g-container.layout-mobile-stack-container::after{display:none}
+            .ja021g-tabs>button{padding:6px 8px;font-size:11px}
+            .ja021g-content{padding:4px 5px 0}
+        }
+    </style>
+    <script th:inline="javascript">
+    (function () {
+        const script = document.currentScript;
+        const view = script.closest('.view-container');
+        const pane = script.closest('.tab-pane') || view;
+        let isInitialized = false;
+        function startInit() {
+            if (isInitialized) return;
+            isInitialized = true;
+            // DataWindow별 표시 순서, 제목, 타입, 색상, 편집 가능 여부.
+            const metadata = {
+                "t1": [
+                    {
+                        "field": "trYmd",
+                        "title": "합병일자",
+                        "width": 95,
+                        "color": "",
+                        "type": "LocalDate",
+                        "editable": true
+                    },
+                    {
+                        "field": "piHabCo",
+                        "title": "합병 대상",
+                        "width": 95,
+                        "color": "",
+                        "type": "String",
+                        "editable": true
+                    },
+                    {
+                        "field": "xxPiHabCo",
+                        "title": "합병대상 회사명",
+                        "width": 180,
+                        "color": "",
+                        "type": "String",
+                        "editable": false
+                    },
+                    {
+                        "field": "habCo",
+                        "title": "합병후 상장사",
+                        "width": 95,
+                        "color": "blue",
+                        "type": "String",
+                        "editable": true
+                    },
+                    {
+                        "field": "xxHabCo",
+                        "title": "합병 후 상장회사명",
+                        "width": 180,
+                        "color": "blue",
+                        "type": "String",
+                        "editable": false
+                    },
+                    {
+                        "field": "habIlbanRt",
+                        "title": "합병 후 상장비율(보)",
+                        "width": 154,
+                        "color": "blue",
+                        "type": "BigDecimal",
+                        "editable": true
+                    },
+                    {
+                        "field": "habWoosRt",
+                        "title": "합병 후 상장비율(우)",
+                        "width": 155,
+                        "color": "blue",
+                        "type": "BigDecimal",
+                        "editable": true
+                    },
+                    {
+                        "field": "habIlbanAek",
+                        "title": "합병사 교부금(보)",
+                        "width": 149,
+                        "color": "",
+                        "type": "BigDecimal",
+                        "editable": true
+                    },
+                    {
+                        "field": "habWoosAek",
+                        "title": "합병사 교부금(우)",
+                        "width": 149,
+                        "color": "",
+                        "type": "BigDecimal",
+                        "editable": true
+                    }
+                ],
+                "t2": [
+                    {
+                        "field": "trYmd",
+                        "title": "분할일자",
+                        "width": 95,
+                        "color": "",
+                        "type": "LocalDate",
+                        "editable": true
+                    },
+                    {
+                        "field": "piHabCo",
+                        "title": "분할 대상",
+                        "width": 95,
+                        "color": "",
+                        "type": "String",
+                        "editable": true
+                    },
+                    {
+                        "field": "xxPiHabCo",
+                        "title": "분할대상 회사명",
+                        "width": 180,
+                        "color": "",
+                        "type": "String",
+                        "editable": false
+                    },
+                    {
+                        "field": "gamIlbanRt",
+                        "title": "분할대상 감자비율(보)",
+                        "width": 149,
+                        "color": "",
+                        "type": "BigDecimal",
+                        "editable": true
+                    },
+                    {
+                        "field": "gamWoosRt",
+                        "title": "분할대상 감자비율(우)",
+                        "width": 150,
+                        "color": "",
+                        "type": "BigDecimal",
+                        "editable": true
+                    },
+                    {
+                        "field": "habCo",
+                        "title": "분할후 상장사",
+                        "width": 95,
+                        "color": "blue",
+                        "type": "String",
+                        "editable": true
+                    },
+                    {
+                        "field": "xxHabCo",
+                        "title": "분할 후 상장회사명",
+                        "width": 180,
+                        "color": "blue",
+                        "type": "String",
+                        "editable": false
+                    },
+                    {
+                        "field": "habIlbanRt",
+                        "title": "분할 후 상장비율(보)",
+                        "width": 155,
+                        "color": "blue",
+                        "type": "BigDecimal",
+                        "editable": true
+                    },
+                    {
+                        "field": "habWoosRt",
+                        "title": "분할 후 상장비율(우)",
+                        "width": 155,
+                        "color": "blue",
+                        "type": "BigDecimal",
+                        "editable": true
+                    }
+                ],
+                "t3": [
+                    {
+                        "field": "trYmd",
+                        "title": "감자일자",
+                        "width": 116,
+                        "color": "",
+                        "type": "LocalDate",
+                        "editable": true
+                    },
+                    {
+                        "field": "habCo",
+                        "title": "감자 대상",
+                        "width": 95,
+                        "color": "blue",
+                        "type": "String",
+                        "editable": true
+                    },
+                    {
+                        "field": "xxHabCo",
+                        "title": "감자대상 회사명",
+                        "width": 180,
+                        "color": "blue",
+                        "type": "String",
+                        "editable": false
+                    },
+                    {
+                        "field": "habIlbanRt",
+                        "title": "감자비율 (보)",
+                        "width": 154,
+                        "color": "blue",
+                        "type": "BigDecimal",
+                        "editable": true
+                    },
+                    {
+                        "field": "habWoosRt",
+                        "title": "감자비율 (우)",
+                        "width": 153,
+                        "color": "blue",
+                        "type": "BigDecimal",
+                        "editable": true
+                    },
+                    {
+                        "field": "habIlbanAek",
+                        "title": "감자상환금 (보)",
+                        "width": 148,
+                        "color": "",
+                        "type": "BigDecimal",
+                        "editable": true
+                    },
+                    {
+                        "field": "habWoosAek",
+                        "title": "감자상환금 (우)",
+                        "width": 153,
+                        "color": "",
+                        "type": "BigDecimal",
+                        "editable": true
+                    }
+                ],
+                "t4": [
+                    {
+                        "field": "trYmd",
+                        "title": "유상소각일",
+                        "width": 116,
+                        "color": "",
+                        "type": "LocalDate",
+                        "editable": true
+                    },
+                    {
+                        "field": "habCo",
+                        "title": "소각 대상",
+                        "width": 95,
+                        "color": "blue",
+                        "type": "String",
+                        "editable": true
+                    },
+                    {
+                        "field": "xxHabCo",
+                        "title": "소각 회사명",
+                        "width": 180,
+                        "color": "blue",
+                        "type": "String",
+                        "editable": false
+                    },
+                    {
+                        "field": "habIlbanRt",
+                        "title": "소각비율 (보)",
+                        "width": 153,
+                        "color": "blue",
+                        "type": "BigDecimal",
+                        "editable": true
+                    },
+                    {
+                        "field": "habWoosRt",
+                        "title": "소각비율 (우)",
+                        "width": 152,
+                        "color": "blue",
+                        "type": "BigDecimal",
+                        "editable": true
+                    },
+                    {
+                        "field": "habIlbanAek",
+                        "title": "소각단가 (보)",
+                        "width": 150,
+                        "color": "",
+                        "type": "BigDecimal",
+                        "editable": true
+                    },
+                    {
+                        "field": "habWoosAek",
+                        "title": "소각단가 (우)",
+                        "width": 149,
+                        "color": "",
+                        "type": "BigDecimal",
+                        "editable": true
+                    }
+                ],
+                "t5": [
+                    {
+                        "field": "trYmd",
+                        "title": "분할일자",
+                        "width": 95,
+                        "color": "",
+                        "type": "LocalDate",
+                        "editable": true
+                    },
+                    {
+                        "field": "piHabCo",
+                        "title": "분할 대상",
+                        "width": 95,
+                        "color": "",
+                        "type": "String",
+                        "editable": true
+                    },
+                    {
+                        "field": "xxPiHabCo",
+                        "title": "분할대상 회사명",
+                        "width": 180,
+                        "color": "",
+                        "type": "String",
+                        "editable": false
+                    },
+                    {
+                        "field": "habIlbanRt",
+                        "title": "분할대상 비율(보)",
+                        "width": 149,
+                        "color": "",
+                        "type": "BigDecimal",
+                        "editable": true
+                    },
+                    {
+                        "field": "habWoosRt",
+                        "title": "분할대상 비율(우)",
+                        "width": 148,
+                        "color": "",
+                        "type": "BigDecimal",
+                        "editable": true
+                    },
+                    {
+                        "field": "habCo",
+                        "title": "분할후 상장사",
+                        "width": 95,
+                        "color": "blue",
+                        "type": "String",
+                        "editable": true
+                    },
+                    {
+                        "field": "xxHabCo",
+                        "title": "분할 후 상장회사명",
+                        "width": 180,
+                        "color": "blue",
+                        "type": "String",
+                        "editable": false
+                    },
+                    {
+                        "field": "piHabIlbanRt",
+                        "title": "분할후상장사 비율(보)",
+                        "width": 149,
+                        "color": "blue",
+                        "type": "BigDecimal",
+                        "editable": true
+                    },
+                    {
+                        "field": "piHabWoosRt",
+                        "title": "분할후상장사 비율(우)",
+                        "width": 145,
+                        "color": "blue",
+                        "type": "BigDecimal",
+                        "editable": true
+                    }
+                ],
+                "t6": [
+                    {
+                        "field": "trYmd",
+                        "title": "액면분할 (병합)일",
+                        "width": 116,
+                        "color": "",
+                        "type": "LocalDate",
+                        "editable": true
+                    },
+                    {
+                        "field": "habCo",
+                        "title": "대상 회사",
+                        "width": 95,
+                        "color": "blue",
+                        "type": "String",
+                        "editable": true
+                    },
+                    {
+                        "field": "xxHabCo",
+                        "title": "액면분할(병합) 회사명",
+                        "width": 180,
+                        "color": "blue",
+                        "type": "String",
+                        "editable": false
+                    },
+                    {
+                        "field": "habIlbanRt",
+                        "title": "액면분할(병합) 비율(보)",
+                        "width": 149,
+                        "color": "blue",
+                        "type": "BigDecimal",
+                        "editable": true
+                    },
+                    {
+                        "field": "habWoosRt",
+                        "title": "액면분할(병합) 비율(우)",
+                        "width": 150,
+                        "color": "blue",
+                        "type": "BigDecimal",
+                        "editable": true
+                    }
+                ],
+                "t7": [
+                    {
+                        "field": "trYmd",
+                        "title": "이전(교환) 일자",
+                        "width": 95,
+                        "color": "blue",
+                        "type": "LocalDate",
+                        "editable": true
+                    },
+                    {
+                        "field": "piHabCo",
+                        "title": "대상 회사",
+                        "width": 95,
+                        "color": "",
+                        "type": "String",
+                        "editable": true
+                    },
+                    {
+                        "field": "xxPiHabCo",
+                        "title": "이전(교환) 대상회사명",
+                        "width": 180,
+                        "color": "",
+                        "type": "String",
+                        "editable": false
+                    },
+                    {
+                        "field": "habIlbanRt",
+                        "title": "이전(교환) 감자비율(보)",
+                        "width": 150,
+                        "color": "",
+                        "type": "BigDecimal",
+                        "editable": true
+                    },
+                    {
+                        "field": "habWoosRt",
+                        "title": "이전(교환) 감자비율(우)",
+                        "width": 148,
+                        "color": "",
+                        "type": "BigDecimal",
+                        "editable": true
+                    },
+                    {
+                        "field": "habCo",
+                        "title": "이전(교환) 회사",
+                        "width": 95,
+                        "color": "blue",
+                        "type": "String",
+                        "editable": true
+                    },
+                    {
+                        "field": "xxHabCo",
+                        "title": "이전(교환) 할 회사명",
+                        "width": 180,
+                        "color": "blue",
+                        "type": "String",
+                        "editable": false
+                    },
+                    {
+                        "field": "piHabIlbanRt",
+                        "title": "이전(교환) 비율(보)",
+                        "width": 145,
+                        "color": "blue",
+                        "type": "BigDecimal",
+                        "editable": true
+                    },
+                    {
+                        "field": "piHabWoosRt",
+                        "title": "이전(교환) 비율(우)",
+                        "width": 147,
+                        "color": "",
+                        "type": "BigDecimal",
+                        "editable": true
+                    }
+                ],
+                "detail": [
+                    {
+                        "field": "corpGr",
+                        "title": "운용사",
+                        "width": 110,
+                        "color": "",
+                        "type": "String",
+                        "editable": false
+                    },
+                    {
+                        "field": "fundCd",
+                        "title": "펀드번호",
+                        "width": 101,
+                        "color": "green",
+                        "type": "String",
+                        "editable": false
+                    },
+                    {
+                        "field": "fundNm",
+                        "title": "계좌명",
+                        "width": 180,
+                        "color": "",
+                        "type": "String",
+                        "editable": false
+                    },
+                    {
+                        "field": "oldJmCd",
+                        "title": "권리락종목",
+                        "width": 120,
+                        "color": "",
+                        "type": "String",
+                        "editable": false
+                    },
+                    {
+                        "field": "newJmCd",
+                        "title": "신규상장종목",
+                        "width": 132,
+                        "color": "",
+                        "type": "String",
+                        "editable": false
+                    },
+                    {
+                        "field": "boyuJusu",
+                        "title": "권리락 주식수",
+                        "width": 105,
+                        "color": "",
+                        "type": "BigDecimal",
+                        "editable": false
+                    },
+                    {
+                        "field": "chuiAek",
+                        "title": "권리락 취득액",
+                        "width": 132,
+                        "color": "",
+                        "type": "BigDecimal",
+                        "editable": false
+                    },
+                    {
+                        "field": "habPer",
+                        "title": "대상비율 (%)",
+                        "width": 105,
+                        "color": "",
+                        "type": "BigDecimal",
+                        "editable": false
+                    },
+                    {
+                        "field": "habJusu",
+                        "title": "대상주식수",
+                        "width": 105,
+                        "color": "blue",
+                        "type": "BigDecimal",
+                        "editable": true
+                    },
+                    {
+                        "field": "habChuiAek",
+                        "title": "대상취득액",
+                        "width": 132,
+                        "color": "blue",
+                        "type": "BigDecimal",
+                        "editable": false
+                    },
+                    {
+                        "field": "habGyoubAek",
+                        "title": "교부금",
+                        "width": 148,
+                        "color": "",
+                        "type": "BigDecimal",
+                        "editable": false
+                    },
+                    {
+                        "field": "gamPer",
+                        "title": "감자비율 (%)",
+                        "width": 134,
+                        "color": "",
+                        "type": "BigDecimal",
+                        "editable": false
+                    },
+                    {
+                        "field": "gamJusu",
+                        "title": "감자주수",
+                        "width": 105,
+                        "color": "",
+                        "type": "BigDecimal",
+                        "editable": false
+                    },
+                    {
+                        "field": "jusuSuryYmd",
+                        "title": "주식 수령일자",
+                        "width": 95,
+                        "color": "muted",
+                        "type": "LocalDate",
+                        "editable": false
+                    },
+                    {
+                        "field": "suryJusu",
+                        "title": "수령 주식수",
+                        "width": 107,
+                        "color": "muted",
+                        "type": "BigDecimal",
+                        "editable": false
+                    },
+                    {
+                        "field": "aekSuryYmd",
+                        "title": "금액 수령일자",
+                        "width": 95,
+                        "color": "muted",
+                        "type": "LocalDate",
+                        "editable": false
+                    },
+                    {
+                        "field": "suryAek",
+                        "title": "수령 금액",
+                        "width": 105,
+                        "color": "muted",
+                        "type": "BigDecimal",
+                        "editable": false
+                    }
+                ]
+            };
+            const codes = {"t1":"G40","t2":"G43","t3":"G45","t4":"G47","t5":"G60","t6":"G92","t7":"G93"};
+            const api = '/api/subscriptionrights/ja021g';
+            const states = {};
+            let active = 't1', saving = false;
+            const ymd = value => {
+                const digits = String(value || '').replace(/\D/g, '').slice(0, 8);
+                return digits.length === 8 ? digits.slice(0,4)+'-'+digits.slice(4,6)+'-'+digits.slice(6,8) : '';
+            };
+            const workDate = ymd(view.dataset.workDate);
+            const notify = (message, type='warning') => typeof showToast === 'function' ? showToast(message,type) : alert(message);
+            const fail = error => notify(error.message || '처리 중 오류가 발생했습니다.', 'error');
+            const keyOf = d => JSON.stringify([d.corpGr,d.trYmd,d.trCd,d.habCo,d.piHabCo,d.fundCd,d.oldJmCd,d.newJmCd,d.typeTrench,d.bsType]);
+            const editable = d => !saving && !d.isDeleted && (d.isNew || ymd(d.original?.trYmd || d.trYmd) >= workDate);
+            async function request(url, options) {
+                const response = await fetch(api + url, options);
+                if (!response.ok) {
+                    let message = '조회 또는 저장에 실패했습니다. ('+response.status+')';
+                    try { const result = await response.json(); message = result.message || result.detail || message; } catch (_) {}
+                    throw new Error(message);
+                }
+                const result=await response.json();
+                if(result && result.success===false)throw new Error(result.message || '처리에 실패했습니다.');
+                return result;
+            }
+            function dirty(state) {
+                return state.master.getData().some(d => (d.isNew && d.isUpdated) || d.isUpdated || d.isDeleted)
+                    || Array.from(state.details.values()).some(rows => rows.some(d => d.isUpdated));
+            }
+            function mark(row, patch={}) {
+                return row.update({...patch,isUpdated:true});
+            }
+            function control(target, tab) {
+                const search = target !== 'trYmd';
+                return {title:'',field:(search?'p_xx_':'p_dd_')+target,width:36,headerSort:false,hozAlign:'center',
+                    formatter:cell => {
+                        const button=document.createElement('button');
+                        button.type='button'; button.className='btn-grid-addon';
+                        button.disabled=!editable(cell.getData());
+                        button.title=search?'발행기관 검색':'날짜 선택';
+                        const icon=document.createElement('i');
+                        icon.className=search?'fa-solid fa-magnifying-glass':'fa-regular fa-calendar-days';
+                        button.appendChild(icon); return button;
+                    },
+                    cellClick:(event,cell)=>{
+                        event.stopPropagation();
+                        if(!editable(cell.getData())) return;
+                        const row=cell.getRow(), data=row.getData();
+                        if(search) {
+                            DynamicCodeSearch.openModal({columnNm:'balh_co',seq:1,initialKeyword:data[target]||'',
+                                onSelect:(code,name)=>{
+                                    const patch={[target]:code,[target==='habCo'?'xxHabCo':'xxPiHabCo']:name||''};
+                                    if(['t3','t4','t6'].includes(tab)) {patch.piHabCo=code;patch.xxPiHabCo=name||'';}
+                                    else if(target==='piHabCo'&&!data.habCo) {patch.habCo=code;patch.xxHabCo=name||'';}
+                                    mark(row,patch);
+                                }});
+                        } else {
+                            AamsCalendar.openDatePicker({anchorEl:cell.getElement(),initialYmd:data.trYmd,format:'dash',
+                                onSelect:value=>mark(row,{trYmd:ymd(value)})});
+                        }
+                    }};
+            }
+            function columns(tab, detail) {
+                const columns=[{title:'No.',width:48,headerSort:false,hozAlign:'center',formatter:cell=>cell.getRow().getPosition()}];
+                metadata[detail?'detail':tab].forEach(meta=>{
+                    const col={title:meta.title,field:meta.field,width:meta.width,headerSort:true,
+                        hozAlign:meta.type==='BigDecimal'?'right':meta.field.startsWith('xx')||meta.field==='fundNm'?'left':'center'};
+                    if(meta.color){col.headerCssClass='col-hdr-'+meta.color;col.cssClass='cell-text-'+meta.color;}
+                    if(meta.type==='LocalDate') col.formatter=cell=>formatDateVal(cell.getValue());
+                    else if(meta.type==='BigDecimal') {
+                        const sevenDecimalRatioFields = new Set([
+                            'habIlbanRt', 'gamIlbanRt', 'piHabIlbanRt'
+                        ]);
+                        col.formatter = sevenDecimalRatioFields.has(meta.field)
+                            ? cell => {
+                                const value = cell.getValue();
+                                if (value === null || value === undefined || value === '') return '';
+                                const number = Number(value);
+                                if (Number.isNaN(number)) return value;
+                                // PB 비율 표시: 최대 7자리, 끝의 불필요한 0은 표시하지 않는다.
+                                return number.toLocaleString('ko-KR', {
+                                    minimumFractionDigits: 0,
+                                    maximumFractionDigits: 7
+                                });
+                            }
+                            : window.aamsNumberFormatter;
+                    }
+                    if(meta.editable) {
+                        col.editor=meta.type==='LocalDate'?window.aamsDateEditor:meta.type==='BigDecimal'?'number':'input';
+                        col.editable=cell=>detail?!saving:editable(cell.getData());
+                        if(meta.type==='BigDecimal') col.editorParams={step:meta.field==='habJusu'?1:'any'};
+                        col.cellClick=window.aamsCellEdit;
+                    }
+                    // 발행기관은 검색 결과의 코드와 이름을 함께 반영한다.
+                    if(!detail&&['habCo','piHabCo'].includes(meta.field)){col.editor=false;}
+                    columns.push(col);
+                    if(!detail&&['trYmd','habCo','piHabCo'].includes(meta.field))columns.push(control(meta.field,tab));
+                });
+                return columns;
+            }
+            function build(tab) {
+                const state={details:new Map(),seq:0,detailSeq:0,selected:null,ready:null};
+                states[tab]=state;
+                const promises=[];
+                ['master','detail'].forEach(kind=>{
+                    const el=view.querySelector('#ja021g-'+kind+'-'+tab);
+                    const grid=new Tabulator(el,{height:'100%',layout:'fitData',selectableRows:1,
+                        placeholder:'조회된 자료가 없습니다.',columns:columns(tab,kind==='detail'),
+                        rowFormatter:row=>row.getElement().classList.toggle('row-deleted',!!row.getData().isDeleted)});
+                    state[kind]=grid;
+                    promises.push(new Promise(resolve=>grid.on('tableBuilt',resolve)));
+                    grid.on('cellEdited',cell=>{
+                        const row=cell.getRow(), data=row.getData();
+                        mark(row);
+                        if(kind==='detail' && state.selected) {
+                            const group=keyOf(state.selected);
+                            const rows=state.details.get(group)||[];
+                            const index=rows.findIndex(d=>keyOf(d)===keyOf(data));
+                            if(index>=0)rows[index]={...data,isUpdated:true};
+                            state.details.set(group,rows);
+                        }
+                        if(kind==='master'&&tab==='t7'&&!cell.getField().startsWith('pi')) {
+                            mark(row,{piHabIlbanRt:1-Number(data.habIlbanRt||0),piHabWoosRt:1-Number(data.habWoosRt||0)});
+                        }
+                    });
+                });
+                state.master.on('rowClick',(_event,row)=>{row.select();loadDetail(tab,row.getData()).catch(fail);});
+                state.ready=Promise.all(promises).then(()=>{
+                    if(window.AamsSplitter) AamsSplitter.init(view.querySelector('#ja021g-pane-'+tab));
+                });
+                return state;
+            }
+            async function loadDetail(tab, data) {
+                const state=states[tab];
+                const seq=++state.detailSeq;
+                if(data.isNew||data.isDeleted) {state.selected=data;await state.detail.clearData();return;}
+                // 저장 전에는 DB에 존재하는 원래 키로 상세를 조회한다.
+                data={...data,...data.original};
+                state.selected=data;
+                const key=keyOf(data);
+                if(state.details.has(key)){await state.detail.setData(state.details.get(key));return;}
+                const params=new URLSearchParams({tab,trYmd:ymd(data.trYmd),habCo:data.habCo,piHabCo:data.piHabCo});
+                const rows=await request('/detail?'+params);
+                if(seq!==state.detailSeq||!view.isConnected)return;
+                state.details.set(key,rows);
+                await state.detail.setData(rows);
+            }
+            async function retrieve(tab) {
+                const state=states[tab];
+                await state.ready;
+                const seq=++state.seq;
+                ++state.detailSeq;
+                const rows=await request('/data?'+new URLSearchParams({tab}));
+                if(seq!==state.seq||!view.isConnected)return;
+                state.details.clear();state.selected=null;
+                await state.detail.clearData();
+                await state.master.setData(rows);
+                if(window.ButtonRole?.setSearchState)ButtonRole.setSearchState(pane,true);
+                syncButtons();
+                if(rows.length){const row=state.master.getRows()[0];row.select();await loadDetail(tab,row.getData());}
+                else await addRow(tab);
+            }
+            async function addRow(tab) {
+                const state=states[tab];await state.ready;
+                ++state.detailSeq;
+                await state.detail.clearData();
+                const row=await state.master.addRow({trYmd:workDate,trCd:codes[tab],isNew:true},true);
+                state.master.deselectRow();row.select();state.selected=row.getData();
+            }
+            async function activate(tab) {
+                active=tab;
+                view.querySelectorAll('[role=tab]').forEach(button=>{
+                    const selected=button.dataset.tab===tab;
+                    button.classList.toggle('active',selected);button.setAttribute('aria-selected',String(selected));
+                });
+                view.querySelectorAll('.ja021g-page').forEach(el=>el.classList.toggle('active',el.id==='ja021g-pane-'+tab));
+                const state=states[tab]||build(tab);
+                await state.ready;
+                if(!view.isConnected)return;
+                state.master.redraw(true);state.detail.redraw(true);
+                if(!dirty(state))await retrieve(tab);
+                syncButtons();
+            }
+            function syncButtons() {
+                const button=pane.querySelector('.btn-copy');
+                if(button){button.disabled=true;button.classList.add('disabled');}
+            }
+            view.querySelectorAll('[role=tab]').forEach(button=>button.addEventListener('click',()=>{
+                if(!saving)activate(button.dataset.tab).catch(fail);
+            }));
+            const reload=()=> {
+                if(saving)return;
+                const tab=active,state=states[tab];
+                if(!state)return;
+                if(dirty(state)&&!confirm('변경 내용을 취소하고 다시 조회하시겠습니까?'))return;
+                retrieve(tab).catch(fail);
+            };
+            pane.onSearch=reload;pane.onRefresh=reload;pane.onClear=reload;
+            const refresh=pane.querySelector('.btn-refresh');
+            if(refresh)refresh.onclick=()=>{if(!saving&&!refresh.disabled)reload();};
+            pane.onInput=()=>{if(!saving)addRow(active).catch(fail);};
+            pane.onCopy=()=>notify('이 화면은 공시 복사를 지원하지 않습니다.');
+            pane.onDelete=()=>{
+                const state=states[active],row=state.master.getSelectedRows()[0];
+                if(!row)return notify('삭제할 공시를 선택해 주세요.');
+                if(!editable(row.getData()))return notify('업무일 이전 공시는 삭제할 수 없습니다.');
+                if(!confirm('선택한 공시를 삭제하시겠습니까?'))return;
+                ++state.detailSeq;
+                if(row.getData().isNew)row.delete();else mark(row,{isDeleted:true});
+                state.detail.clearData();
+            };
+            pane.onSave=async()=>{
+                if(saving)return;
+                const tab=active,state=states[tab];
+                const master=state.master.getData().filter(d=>d.isUpdated||d.isDeleted);
+                const detail=Array.from(state.details.values()).flat().filter(d=>d.isUpdated);
+                if(!master.length&&!detail.length)return notify('저장할 변경 내용이 없습니다.','info');
+                const headers={'Content-Type':'application/json'};
+                const token=document.querySelector('meta[name="_csrf"]')?.content;
+                const header=document.querySelector('meta[name="_csrf_header"]')?.content;
+                if(token&&header)headers[header]=token;
+                saving=true;
+                try {
+                    await request('/save?'+new URLSearchParams({corpGr:view.dataset.corpGr}),{
+                        method:'POST',headers,body:JSON.stringify({tab,master,detail})});
+                    notify('저장되었습니다.','success');
+                    await retrieve(tab);
+                } catch(error){fail(error);}finally{saving=false;syncButtons();}
+            };
+            pane.onExcel=()=>states[active].master.download('xlsx','합병분할공시_'+codes[active]+'.xlsx');
+            pane.onDetailExcel=()=>states[active].detail.download('xlsx','펀드별권리상세_'+codes[active]+'.xlsx');
+            pane.addEventListener('buttonSearchStateChanged',syncButtons);
+            activate('t1').catch(fail);
+        }
+        if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',startInit,{once:true});
+        else startInit();
+    })();
+    </script>
+</div>
+</html>
+

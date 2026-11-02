@@ -11,13 +11,14 @@
 
     var AamsReport = {
         DEFAULT_ZOOM: 120,
+        PREVIEW_FORMAT: 'html',
 
         /**
          * 가변 파라미터 기반 범용 RD 리포트 미리보기 URL 생성
          * @param {string} mrdName - 대상 MRD 파일명 (예: "rd_ja010q.mrd")
          * @param {Object} [params] - 가변 Key-Value 파라미터 객체 { fund_cd: '...', ymd: '...' }
          * @param {Object} [options] - 옵션 { corpGr, downloadName, zoom, timestamp: true }
-         * @returns {string} 완성된 미리보기 URL (120% 줌 해시 포함)
+         * @returns {string} 공통 PREVIEW_FORMAT을 적용한 미리보기 URL
          */
         buildPreviewUrl: function(mrdName, params, options) {
             options = options || {};
@@ -41,16 +42,15 @@
             if (options.downloadName) qs.push('downloadName=' + encodeURIComponent(options.downloadName));
             if (options.timestamp !== false) qs.push('t=' + new Date().getTime());
 
-            // 모바일 환경(너비 <= 876px 또는 모바일 디바이스)일 때 M2soft HTML5 뷰어 모드(format=html) 자동 적용
-            var isMobile = (options.isMobile !== undefined) ? options.isMobile : this.isMobileView(options.rootPane);
-            var reqFormat = options.format || (isMobile ? 'html' : 'pdf');
+            // PC pane, 새 창, 모바일 모달 모두 HTML 보고서를 기본 미리보기로 사용한다.
+            var reqFormat = this.PREVIEW_FORMAT;
             if (reqFormat) qs.push('format=' + encodeURIComponent(reqFormat));
 
             if (params && typeof params === 'object') {
                 for (var k in params) {
                     if (params.hasOwnProperty(k) && params[k] !== undefined && params[k] !== null) {
                         var kLower = k.trim().toLowerCase();
-                        if (kLower === 'corpgr' || kLower === 'corp_gr') {
+                        if (kLower === 'corpgr' || kLower === 'corp_gr' || kLower === 'format') {
                             continue; // 이미 위에서 단일 corpGr로 추가함
                         }
                         qs.push(encodeURIComponent(k) + '=' + encodeURIComponent(params[k]));
@@ -109,7 +109,7 @@
         },
 
         /**
-         * 리포트 미리보기 URL에 표준 PDF 파라미터(기본 zoom=120, toolbar, navpanes)를 부착
+         * 모든 미리보기 URL에 공통 형식을 적용하고 PDF인 경우에만 배율을 부착한다.
          * @param {string} url - 원본 리포트 URL
          * @param {number|string} [zoom] - 지정 확대 배율 (기본값: DEFAULT_ZOOM = 120)
          * @returns {string} 해시 파라미터가 포함된 최종 뷰어 URL
@@ -117,8 +117,16 @@
         formatPreviewUrl: function(url, zoom) {
             if (!url || url === 'about:blank') return url || '';
             var cleanUrl = url.split('#')[0];
-            // HTML 포맷 미리보기의 경우 PDF 전용 해시 파라미터 제외
-            if (/format=html/i.test(cleanUrl) || /format=htm/i.test(cleanUrl)) {
+            var queryIndex = cleanUrl.indexOf('?');
+            var baseUrl = queryIndex === -1 ? cleanUrl : cleanUrl.substring(0, queryIndex);
+            var query = new URLSearchParams(queryIndex === -1 ? '' : cleanUrl.substring(queryIndex + 1));
+            // 화면에서 전달한 형식과 무관하게 PC/모바일/새 창에 동일한 정책을 적용한다.
+            Array.from(query.keys()).forEach(function(key) {
+                if (key.toLowerCase() === 'format') query.delete(key);
+            });
+            query.set('format', this.PREVIEW_FORMAT);
+            cleanUrl = baseUrl + '?' + query.toString();
+            if (/^html?5?$/i.test(this.PREVIEW_FORMAT)) {
                 return cleanUrl;
             }
             if (zoom === 'fit' || zoom === 'page-fit' || zoom === 'Fit') {
@@ -325,7 +333,7 @@
                 var url = (typeof config.buildPreviewUrl === 'function')
                     ? config.buildPreviewUrl(selectedData, params)
                     : AamsReport.buildPreviewUrl(mrd, params, { corpGr: resolveCorp(), zoom: config.zoom });
-                if (url) window.open(url, '_blank');
+                if (url) window.open(AamsReport.formatPreviewUrl(url, config.zoom), '_blank');
             }
 
             function openModal(data, title) {
@@ -350,7 +358,6 @@
                             corpGr: resolveCorp(),
                             zoom: modalZoom,
                             isMobile: true,
-                            format: 'html',
                             rootPane: root
                         });
                     showLoading(true);
@@ -365,7 +372,12 @@
             }
 
             // Export buttons binding
-            var exportBtns = root.querySelectorAll('.btn-export-format, .export-btn, [data-format]');
+            var exportSelector = '.btn-export-format, .export-btn, [data-format]';
+            var exportBtns = new Set(root.querySelectorAll(exportSelector));
+            // 모달이 화면 바깥에 배치되어 있어도 현재 뷰어의 다운로드 액션에 연결한다.
+            if (modalEl) {
+                modalEl.querySelectorAll(exportSelector).forEach(function(btn) { exportBtns.add(btn); });
+            }
             exportBtns.forEach(function(btn) {
                 btn.addEventListener('click', function(e) {
                     e.preventDefault();

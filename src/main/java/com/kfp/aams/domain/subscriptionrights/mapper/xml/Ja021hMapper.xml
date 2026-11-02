@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.kfp.aams.domain.subscriptionrights.mapper.Ja021hMapper">
+ <resultMap id="master" type="com.kfp.aams.domain.subscriptionrights.dto.Ja021hMasterDto">
+  <result column="TR_YMD" property="trYmd"/><result column="TR_CD" property="trCd"/><result column="BALH_CO" property="balhCo"/>
+  <result column="OLD_JM_CD" property="oldJmCd"/><result column="OLD_DANC_GB" property="oldDancGb"/><result column="OLD_KOSCOM_CD" property="oldKoscomCd"/>
+  <result column="NEW_JM_CD" property="newJmCd"/><result column="NEW_DANC_GB" property="newDancGb"/><result column="NEW_KOSCOM_CD" property="newKoscomCd"/>
+  <result column="JM_CD" property="jmCd"/><result column="SJ_KOSCOM_CD" property="sjKoscomCd"/><result column="SJ_JM_CD" property="sjJmCd"/>
+  <result column="BALH_NM" property="balhNm"/><result column="OLD_JM_NM" property="oldJmNm"/><result column="NEW_JM_NM" property="newJmNm"/>
+  <result column="JM_NM" property="jmNm"/><result column="KOSCOM_NM" property="koscomNm"/><result column="G00" property="g00"/>
+  <result column="CLOSE_YMD" property="closeYmd"/><result column="HWAKJ_YMD" property="hwakjYmd"/><result column="KRAK_YMD" property="krakYmd"/><result column="BAEJ_GIJUN_YMD" property="baejGijunYmd"/><result column="CHENG_YMD" property="chengYmd"/>
+  <result column="BALH_GA" property="balhGa"/><result column="HWAKJ_BALH_GA" property="hwakjBalhGa"/><result column="JONGA" property="jonga"/><result column="P_VISIBLE" property="pVisible"/>
+ </resultMap>
+ <resultMap id="detail" type="com.kfp.aams.domain.subscriptionrights.dto.Ja021hDetailDto">
+  <result column="CORP_GR" property="corpGr"/><result column="COMPANY_NAME" property="companyName"/><result column="FUND_CD" property="fundCd"/><result column="FUND_NM" property="fundNm"/><result column="BS_TYPE" property="bsType"/><result column="JUSU" property="jusu"/><result column="AEK" property="aek"/><result column="GONGS_DW_JUSU" property="gongsDwJusu"/><result column="GONGS_DW_CHUI_AEK" property="gongsDwChuiAek"/>
+ </resultMap>
+ <select id="selectMaster" resultMap="master">
+ <choose>
+  <when test="tab == 't3'">
+   SELECT t1.TR_YMD,t1.TR_CD,t1.BALH_CO,NULL,NULL,NULL,NULL,NULL,NULL,jb.BALH_NM,NULL,NULL,NULL,
+          t1.JM_CD,t1.SJ_KOSCOM_CD,t1.SJ_JM_CD,j1.JJ_NM JM_NM,j2.JJ_NM KOSCOM_NM,
+          t1.CLOSE_YMD,t1.HWAKJ_YMD,t1.KRAK_YMD,t1.BAEJ_GIJUN_YMD,t1.CHENG_YMD,t1.BALH_GA,t1.HWAKJ_BALH_GA,
+          CASE WHEN t1.TR_YMD &gt;= #{workDate} THEN 1 ELSE 0 END P_VISIBLE
+     FROM SJT0JL t1 LEFT JOIN SJX0JB jb ON jb.BALH_CO=t1.BALH_CO
+          LEFT JOIN SJM0JJ j1 ON j1.JM_CD=t1.JM_CD LEFT JOIN SJM0JJ j2 ON j2.JM_CD=t1.SJ_JM_CD
+    WHERE t1.TR_CD='G55'
+  </when>
+  <otherwise>
+   SELECT t1.TR_YMD,t1.TR_CD,t1.BALH_CO,t1.OLD_JM_CD,t1.OLD_DANC_GB,t1.OLD_KOSCOM_CD,t1.NEW_JM_CD,t1.NEW_DANC_GB,t1.NEW_KOSCOM_CD,
+          jb.BALH_NM,j1.JJ_FNM OLD_JM_NM,j2.JJ_FNM NEW_JM_NM,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,
+          t1.JONGA,CASE WHEN t1.TR_CD='G00' THEN '1' ELSE '0' END G00,
+          CASE WHEN t1.TR_YMD &gt;= #{workDate} THEN 1 ELSE 0 END P_VISIBLE
+     FROM SJT0SK t1 LEFT JOIN SJX0JB jb ON jb.BALH_CO=t1.BALH_CO
+          LEFT JOIN SJM0JJ j1 ON j1.JM_CD=t1.OLD_JM_CD LEFT JOIN SJM0JJ j2 ON j2.JM_CD=t1.NEW_JM_CD
+    WHERE <choose><when test="tab == 't1'">t1.TR_CD IN ('G00','G51','G53')</when><when test="tab == 't2'">t1.TR_CD='G54'</when><otherwise>t1.TR_CD='G53'</otherwise></choose>
+  </otherwise>
+ </choose>
+ ORDER BY TR_YMD DESC,BALH_CO
+ </select>
+ <!-- SR_JA021H는 VARCHAR 입력 3개와 REF_CURSOR OUT 1개를 받는 프로시저다. -->
+ <select id="selectDetail" resultMap="detail">
+  SELECT /*+ FULL (SZX0AA) INDEX (SJM0JM SJM0JM_IDX) */
+         t1.CORP_GR, aa.COMPANY_NAME, t1.FUND_CD, ia.FUND_NM, t1.BS_TYPE,
+         NVL(t1.BFIL_BOYU_JUSU,0) + NVL(t1.UP_JUSU,0) - NVL(t1.DW_JUSU,0) + NVL(t1.GONGS_UP_JUSU,0) AS JUSU,
+         NVL(t1.BFIL_CHUI_AEK,0) + NVL(t1.UP_CHUI_AEK,0) - NVL(t1.DW_CHUI_AEK,0) + NVL(t1.GONGS_UP_CHUI_AEK,0) AS AEK,
+         t1.GONGS_DW_JUSU, t1.GONGS_DW_CHUI_AEK
+    FROM SZX0AA aa, SJM0JM t1, SZM0IA ia
+   WHERE aa.CORP_GR LIKE #{corpGr}
+     AND t1.CORP_GR = aa.CORP_GR
+     AND t1.YMD = #{ymd}
+     AND t1.JM_CD = #{jmCd}
+     AND NVL(t1.BFIL_BOYU_JUSU,0) + NVL(t1.GONGS_UP_JUSU,0) <![CDATA[>]]> 0
+     AND ia.CORP_GR = t1.CORP_GR
+     AND ia.FUND_CD = t1.FUND_CD
+     AND NVL(ia.HAEJI_YMD, TO_DATE(#{ymd},'yyyymmdd') + 1) <![CDATA[>]]> TO_DATE(#{ymd},'yyyymmdd')
+   ORDER BY 8, t1.CORP_GR, t1.FUND_CD, t1.BS_TYPE
+ </select>
+</mapper>

@@ -10,6 +10,8 @@ trigger: always_on
 
 ## 1. 반응형 브레이크포인트 규격 (Responsive Breakpoint Standard)
 
+공통 필터는 모든 해상도에서 라벨과 INPUT/DDDW/달력 컨트롤의 지정 크기를 유지한다. 공간이 부족하면 `.filter-item` 묶음 단위로 다음 줄에 배치하며, 모바일이라고 항목이나 컨트롤을 `width:100%`로 늘리지 않는다. 중첩 필터 프래그먼트는 공통 CSS의 `display:contents`를 통해 개별 항목이 상위 flex 레이아웃에서 줄바꿈된다. 화면별 명시적인 별도 배치(안내 문구 전용 행 등)는 화면 전용 CSS로 관리한다.
+
 AAMS는 데스크톱 고해상도 모니터뿐만 아니라 현장 태블릿 및 모바일 기기에서의 원활한 조회를 위해 아래 2대 표준 브레이크포인트를 기준으로 동작합니다.
 
 ### 1.1 표준 브레이크포인트 정의
@@ -36,7 +38,7 @@ AAMS는 데스크톱 고해상도 모니터뿐만 아니라 현장 태블릿 및
         height: auto !important;
         flex: none !important;
     }
-    .layout-split-h > .gutter-h {
+    .layout-split-h > .split-gutter-h {
         display: none !important; /* 모바일에서는 스플리터 숨김 */
     }
 }
@@ -52,10 +54,21 @@ AAMS는 데스크톱 고해상도 모니터뿐만 아니라 현장 태블릿 및
    - 화면 최상위 `.view-container`에 반드시 `.layout-mobile-stack-container`를 부여한다.
    - 모바일에서 `height: 100% !important; overflow-y: auto !important; -webkit-overflow-scrolling: touch !important; padding-bottom: 24px !important;`가 적용되어 화면 전체가 세로로 시원하게 스크롤된다.
 3. **각 그리드 최소 높이(`290px`) 보장 (Zero-Squished-Grid 원칙)**:
-   - 상단/좌측 마스터 그리드 및 하단/우측의 모든 서브/상세 그리드는 모바일에서 개별적으로 **최소 `290px` 이상의 높이**(`flex: 0 0 290px !important; height: 290px !important; min-height: 290px !important;`)를 보장받는다.
+   - 상단/좌측 마스터 그리드 및 하단/우측의 모든 서브/상세 그리드는 모바일에서 기본적으로 **최소 `290px` 이상의 높이**(`flex: 0 0 290px !important; height: 290px !important; min-height: 290px !important;`)를 보장받는다. 단, 두 pane이 모두 Tabulator인 단순 2분할은 가용 높이 50:50 규칙을 우선 적용한다.
    - 이를 통해 그리드 헤더 및 가로 스크롤바를 제외하고도 **최소 6~8건 이상의 데이터 행이 온전히 표출**되어 사용자가 한눈에 여러 데이터를 편안하게 조회할 수 있다.
 4. **중첩 분할(Nested Split) 세로 순차 전개**:
    - `.layout-split-h` 내부에 `.layout-split-v`가 중첩된 구조라도, 모바일 환경에서는 스플릿바(`split-gutter-h`, `split-gutter-v`)가 숨겨지고 자식 그리드들이 위에서 아래로 순차 배치된다.
+
+### 3.1 단순 Master·Detail과 복합 Split의 높이 규칙
+
+- 단순 상하 Master·Detail 화면은 `.layout-split-v.layout-mobile-stack`을 사용한다. 공통 CSS가 상단과 하단 pane을 각각 `290px`로 고정해 DETAIL 그리드가 헤더만 남거나 0px로 축소되지 않도록 한다.
+- 단순 DETAIL pane 내부의 `.pane-body`, `.grid-table-wrapper`, `.tabulator-aams-grid`, `.tabulator`는 부모 높이를 100%로 채우며, `min-height: 0`과 `overflow: hidden`을 유지한다.
+- Split이 없는 단일 화면은 최하단 여백을 5px로 제한한다. 상하/좌우 두 pane이 모두 Tabulator이면 각 pane을 가용 높이의 50%로 나눈다.
+- 두 pane 중 하나만 Tabulator이면 해당 그리드 pane은 약 10개 행이 보이는 360px을 확보하고, 반대 pane은 고정 높이를 두지 않고 내용 높이에 맞춰 확장한다.
+- Master 그리드 + 입력 폼 DETAIL 조합은 모바일에서 DETAIL pane을 숨기고 선택 행 클릭 시 중앙 모달로 표시한다. 모달에는 닫기와 함께 DETAIL 새로고침·저장 액션을 제공하며, 데스크톱의 Split 동작은 유지한다.
+- `.split-lr-container`, `.special-note-box`, `.io-grid-box`, 중첩 `.layout-split-h`/`.layout-split-v`가 포함된 복합 pane은 단순 규칙에서 제외하고 기존 nested 전용 규칙으로 세로 순차 배치한다.
+- 중첩 Split이 상단 pane 또는 좌측 pane에 있는 경우에도 해당 부모 pane의 290px 고정을 해제하고, 내부 자식 pane을 각각 290px로 세로 배치한다. 부모의 `overflow:hidden` 때문에 두 번째 그리드가 잘리지 않도록 한다.
+- 화면 템플릿에서 모바일 전용 `height: ... !important`를 반복 선언하지 않는다. 공통 규칙을 수정해야 할 때는 `layout-split-v.css`와 본 절의 예외 조건을 함께 갱신한다.
 
 ---
 

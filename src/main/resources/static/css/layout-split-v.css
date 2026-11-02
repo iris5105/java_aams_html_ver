@@ -333,6 +333,24 @@
         flex: 1 1 50% !important;
     }
 
+    /* 단순 Master-Detail 화면의 모바일 DETAIL 최소 높이 보장.
+       중첩 Split/메모/입출금 복합 패널은 아래의 전용 규칙을 적용한다. */
+    .layout-split-v.layout-mobile-stack > .pane-bottom:not(:has(.split-lr-container, .special-note-box, .io-grid-box, .layout-split-h, .layout-split-v)),
+    .layout-split-v.layout-mobile-stack > .split-bottom-section:not(:has(.split-lr-container, .special-note-box, .io-grid-box, .layout-split-h, .layout-split-v)) {
+        display: flex !important;
+        flex-direction: column !important;
+        flex: 0 0 290px !important;
+        width: 100% !important;
+        height: 290px !important;
+        min-height: 290px !important;
+        max-height: 290px !important;
+        overflow: hidden !important;
+        background: #ffffff !important;
+        border: 1px solid #cbd5e1 !important;
+        border-radius: 6px !important;
+        box-sizing: border-box !important;
+    }
+
     /* 6-B. 복합 서브패널(좌하/우하 다중 그리드, 특이사항 메모 박스 등 4개 섹션)을 포함한 레이아웃: 높이 고정을 해제하여 전 항목 세로 순차 표출 및 스크롤 보장 */
     .layout-split-v.layout-mobile-stack,
     .layout-split-v:has(.split-lr-container),
@@ -380,6 +398,20 @@
     }
 
     /* 하위 2분할(좌: 이력 / 우: 종목 상세 또는 특이사항+입출금) 세로 순차 전개 - 최소 290px 높이 확보 */
+    /* Nested horizontal/vertical splits in the top pane must expand on mobile. */
+    .layout-split-v.layout-mobile-stack > .pane-top:has(> .layout-split-h, > .layout-split-v),
+    .layout-split-v.layout-mobile-stack > .split-top-section:has(> .layout-split-h, > .layout-split-v) {
+        flex: 0 0 auto !important;
+        height: auto !important;
+        min-height: 590px !important;
+        max-height: none !important;
+        overflow: visible !important;
+        background: transparent !important;
+        border: none !important;
+        gap: 12px !important;
+        padding: 0 !important;
+    }
+
     .layout-split-v .split-panel.panel-left {
         display: flex !important;
         flex-direction: column !important;
@@ -508,6 +540,47 @@
 
     .layout-split-v .io-grid-box .tabulator .tabulator-tableholder {
         min-height: 0 !important;
+    }
+
+    /* 모바일 상하 Split: 양쪽 pane이 모두 Tabulator이면 가용 높이를 50:50으로 나눈다. */
+    .layout-split-v.layout-mobile-stack:has(> .pane-top .tabulator-aams-grid, > .pane-top .tabulator-dw-grid):has(> .pane-bottom .tabulator-aams-grid, > .pane-bottom .tabulator-dw-grid):not(:has(> .pane-top > .layout-split-h, > .pane-top > .layout-split-v, > .pane-bottom > .layout-split-h, > .pane-bottom > .layout-split-v)) {
+        flex: 1 1 auto !important;
+        height: 100% !important;
+        min-height: 0 !important;
+        max-height: none !important;
+        overflow: hidden !important;
+        gap: 6px !important;
+    }
+
+    .layout-split-v.layout-mobile-stack:has(> .pane-top .tabulator-aams-grid, > .pane-top .tabulator-dw-grid):has(> .pane-bottom .tabulator-aams-grid, > .pane-bottom .tabulator-dw-grid):not(:has(> .pane-top > .layout-split-h, > .pane-top > .layout-split-v, > .pane-bottom > .layout-split-h, > .pane-bottom > .layout-split-v)) > .pane-top,
+    .layout-split-v.layout-mobile-stack:has(> .pane-top .tabulator-aams-grid, > .pane-top .tabulator-dw-grid):has(> .pane-bottom .tabulator-aams-grid, > .pane-bottom .tabulator-dw-grid):not(:has(> .pane-top > .layout-split-h, > .pane-top > .layout-split-v, > .pane-bottom > .layout-split-h, > .pane-bottom > .layout-split-v)) > .pane-bottom {
+        flex: 1 1 50% !important;
+        width: 100% !important;
+        height: auto !important;
+        min-height: 0 !important;
+        max-height: none !important;
+        overflow: hidden !important;
+    }
+
+    /* 한쪽만 Tabulator인 경우 그리드는 10행 높이(360px), 반대 pane은 내용 높이만 사용한다. */
+    .layout-split-v.layout-mobile-stack:has(> .pane-top .tabulator-aams-grid, > .pane-top .tabulator-dw-grid):not(:has(> .pane-bottom .tabulator-aams-grid, > .pane-bottom .tabulator-dw-grid)):not(:has(> .pane-top > .layout-split-h, > .pane-top > .layout-split-v, > .pane-bottom > .layout-split-h, > .pane-bottom > .layout-split-v)) > .pane-top,
+    .layout-split-v.layout-mobile-stack:not(:has(> .pane-top .tabulator-aams-grid, > .pane-top .tabulator-dw-grid)):has(> .pane-bottom .tabulator-aams-grid, > .pane-bottom .tabulator-dw-grid):not(:has(> .pane-top > .layout-split-h, > .pane-top > .layout-split-v, > .pane-bottom > .layout-split-h, > .pane-bottom > .layout-split-v)) > .pane-bottom {
+        flex: 0 0 360px !important;
+        width: 100% !important;
+        height: 360px !important;
+        min-height: 360px !important;
+        max-height: 360px !important;
+        overflow: hidden !important;
+    }
+
+    .layout-split-v.layout-mobile-stack:has(> .pane-top .tabulator-aams-grid, > .pane-top .tabulator-dw-grid):not(:has(> .pane-bottom .tabulator-aams-grid, > .pane-bottom .tabulator-dw-grid)):not(:has(> .pane-top > .layout-split-h, > .pane-top > .layout-split-v, > .pane-bottom > .layout-split-h, > .pane-bottom > .layout-split-v)) > .pane-bottom,
+    .layout-split-v.layout-mobile-stack:not(:has(> .pane-top .tabulator-aams-grid, > .pane-top .tabulator-dw-grid)):has(> .pane-bottom .tabulator-aams-grid, > .pane-bottom .tabulator-dw-grid):not(:has(> .pane-top > .layout-split-h, > .pane-top > .layout-split-v, > .pane-bottom > .layout-split-h, > .pane-bottom > .layout-split-v)) > .pane-top {
+        flex: 0 0 auto !important;
+        width: 100% !important;
+        height: auto !important;
+        min-height: min-content !important;
+        max-height: none !important;
+        overflow: visible !important;
     }
 }
 

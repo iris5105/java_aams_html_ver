@@ -1192,13 +1192,41 @@ window.setupModalBackdrop = setupModalBackdrop;
 /**
  * Logout Handler
  */
-function handleLogout() {
-    fetch('/api/auth/logout', { method: 'POST' })
-        .then(() => {
+let isLogoutInProgress = false;
+
+function handleLogout(redirectUrl) {
+    if (isLogoutInProgress) return;
+    isLogoutInProgress = true;
+
+    if (headerTimerInterval) {
+        clearInterval(headerTimerInterval);
+        headerTimerInterval = null;
+    }
+    if (tokenCountdownInterval) {
+        clearInterval(tokenCountdownInterval);
+        tokenCountdownInterval = null;
+    }
+
+    const targetUrl = redirectUrl || '/login';
+    const finalizeLogout = () => {
+        try {
             localStorage.clear();
             sessionStorage.clear();
-            window.location.href = '/login';
-        });
+        } finally {
+            // 로그아웃 API 응답 지연/네트워크 오류와 관계없이 로그인 화면으로 이동한다.
+            window.location.replace(targetUrl);
+        }
+    };
+
+    fetch('/api/auth/logout', {
+        method: 'POST',
+        credentials: 'same-origin',
+        keepalive: true
+    })
+        .catch(err => {
+            console.warn('Logout request failed; continuing with local logout:', err);
+        })
+        .finally(finalizeLogout);
 }
 
 /**
@@ -1418,21 +1446,24 @@ function startTokenMonitor() {
     headerTimerInterval = setInterval(() => {
         if (currentRemainingSeconds > 0) {
             currentRemainingSeconds--;
-            updateHeaderTimerDisplay();
-            if (isExtendModalOpen) {
-                updateCountdownDisplay();
-            }
+        }
 
-            // 만료 5분(300초) 이하 도달 시 딱 1회만 서버 실제 토큰 상태 최종 검증 및 연장 모달 오픈
-            if (currentRemainingSeconds <= 300 && !hasChecked5MinWarning) {
-                hasChecked5MinWarning = true;
-                checkTokenStatus();
-            }
+        updateHeaderTimerDisplay();
+        if (isExtendModalOpen) updateCountdownDisplay();
 
-            if (currentRemainingSeconds <= 0) {
-                if (isExtendModalOpen) closeTokenExtendModal();
-                handleLogout();
-            }
+        // 만료 5분(300초) 이하 도달 시 서버의 실제 토큰 상태를 최종 검증한다.
+        if (currentRemainingSeconds > 0 && currentRemainingSeconds <= 300 && !hasChecked5MinWarning) {
+            hasChecked5MinWarning = true;
+            checkTokenStatus();
+        }
+
+        // currentRemainingSeconds가 이미 0인 상태로 시작하거나, 마지막 tick에서 0이 된 경우 모두 처리한다.
+        if (currentRemainingSeconds <= 0) {
+            currentRemainingSeconds = 0;
+            clearInterval(headerTimerInterval);
+            headerTimerInterval = null;
+            closeTokenExtendModal();
+            handleLogout('/login?expired=true');
         }
     }, 1000);
 }
@@ -1444,7 +1475,7 @@ function checkTokenStatus() {
                 if (isExtendModalOpen) {
                     closeTokenExtendModal();
                 }
-                handleLogout();
+                handleLogout('/login?expired=true');
                 return;
             }
 
@@ -1482,17 +1513,11 @@ function openTokenExtendModal() {
 
     updateCountdownDisplay();
     updateHeaderTimerDisplay();
-    if (tokenCountdownInterval) clearInterval(tokenCountdownInterval);
-    tokenCountdownInterval = setInterval(() => {
-        currentRemainingSeconds--;
-        if (currentRemainingSeconds <= 0) {
-            clearInterval(tokenCountdownInterval);
-            closeTokenExtendModal();
-            handleLogout();
-            return;
-        }
-        updateCountdownDisplay();
-    }, 1000);
+    // 남은 시간은 headerTimerInterval 하나만 감소시킨다. 모달에서 별도 타이머를 두면 시간이 이중 차감된다.
+    if (tokenCountdownInterval) {
+        clearInterval(tokenCountdownInterval);
+        tokenCountdownInterval = null;
+    }
 }
 
 function updateCountdownDisplay() {
@@ -1552,15 +1577,25 @@ function extendAccessToken() {
     fetch('/api/auth/extend-token', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
         body: JSON.stringify({ password: password })
     })
-    .then(res => res.json())
+    .then(res => {
+        if (res.status === 401) {
+            forceSessionLogout();
+            return null;
+        }
+        return res.json();
+    })
     .then(data => {
+        if (!data) return;
         if (btn) {
             btn.disabled = false;
             btn.innerHTML = '<i class="fa-solid fa-hourglass-half"></i> 1시간 연장하기';
         }
-        if (data && data.success) {
+        if (data.status === 'EXPIRED' || data.expired) {
+            forceSessionLogout();
+        } else if (data && data.success) {
             closeTokenExtendModal();
             currentRemainingSeconds = data.remainingSeconds || 3600;
             startTokenMonitor();
@@ -1577,6 +1612,11 @@ function extendAccessToken() {
         console.error('Token extension error:', err);
         showExtendTokenError('토큰 연장 요청 중 오류가 발생했습니다.');
     });
+}
+
+function forceSessionLogout() {
+    closeTokenExtendModal();
+    handleLogout('/login?expired=true');
 }
 
 // Window resize listener to automatically redraw Tabulator instances and update sidebar menu mode (Debounced)
@@ -3713,430 +3753,7 @@ window.sanitizeGridData = function(grid, dataList, extraAllowedFields) {
     };
 })();
 
-/**
- * ============================================================================
- * AAMS Crownix MRD Report Viewer & Export Module (Dual Fallback Safety Net)
- * ----------------------------------------------------------------------------
- * aams_report.js와 완전 동기화된 안전망 엔진.
- * 서버 배포 시 브라우저 캐시 지연 또는 스크립트 로드 순서 문제 시에도
- * 어디서나 reportViewer 및 AamsReport가 100% 정상 참조되도록 보장합니다.
- * ============================================================================
- */
-(function(window) {
-    'use strict';
-    if (window.AamsReport && typeof window.AamsReport.bindViewer === 'function') {
-        return;
-    }
-
-    var AamsReport = {
-        DEFAULT_ZOOM: 120,
-
-        buildPreviewUrl: function(mrdName, params, options) {
-            options = options || {};
-            var qs = ['mrdName=' + encodeURIComponent(mrdName)];
-
-            // 회사그룹(corpGr) 단일값 정제 및 중복 방어
-            var effectiveCorpGr = options.corpGr;
-            if (!effectiveCorpGr && params && typeof params === 'object') {
-                effectiveCorpGr = params.corpGr || params.corp_gr;
-            }
-            if (effectiveCorpGr) {
-                effectiveCorpGr = String(effectiveCorpGr).trim();
-                if (effectiveCorpGr.indexOf(',') !== -1) {
-                    effectiveCorpGr = effectiveCorpGr.split(',')[0].trim();
-                }
-                if (effectiveCorpGr) {
-                    qs.push('corpGr=' + encodeURIComponent(effectiveCorpGr));
-                }
-            }
-
-            if (options.downloadName) qs.push('downloadName=' + encodeURIComponent(options.downloadName));
-            if (options.timestamp !== false) qs.push('t=' + new Date().getTime());
-
-            // 모바일 환경(너비 <= 876px 또는 모바일 디바이스)일 때 M2soft HTML5 뷰어 모드(format=html) 자동 적용
-            var isMobile = (options.isMobile !== undefined) ? options.isMobile : this.isMobileView(options.rootPane);
-            var reqFormat = options.format || (isMobile ? 'html' : 'pdf');
-            if (reqFormat) qs.push('format=' + encodeURIComponent(reqFormat));
-
-            if (params && typeof params === 'object') {
-                for (var k in params) {
-                    if (params.hasOwnProperty(k) && params[k] !== undefined && params[k] !== null) {
-                        var kLower = k.trim().toLowerCase();
-                        if (kLower === 'corpgr' || kLower === 'corp_gr') {
-                            continue; // 이미 위에서 단일 corpGr로 추가함
-                        }
-                        qs.push(encodeURIComponent(k) + '=' + encodeURIComponent(params[k]));
-                    }
-                }
-            }
-
-            var rawUrl = '/api/common/rd/preview?' + qs.join('&');
-            return this.formatPreviewUrl(rawUrl, options.zoom);
-        },
-
-        buildExportUrl: function(mrdName, params, format, options) {
-            options = options || {};
-            var qs = ['mrdName=' + encodeURIComponent(mrdName)];
-            qs.push('format=' + encodeURIComponent(format || 'pdf'));
-
-            // 회사그룹(corpGr) 단일값 정제 및 중복 방어
-            var effectiveCorpGr = options.corpGr;
-            if (!effectiveCorpGr && params && typeof params === 'object') {
-                effectiveCorpGr = params.corpGr || params.corp_gr;
-            }
-            if (effectiveCorpGr) {
-                effectiveCorpGr = String(effectiveCorpGr).trim();
-                if (effectiveCorpGr.indexOf(',') !== -1) {
-                    effectiveCorpGr = effectiveCorpGr.split(',')[0].trim();
-                }
-                if (effectiveCorpGr) {
-                    qs.push('corpGr=' + encodeURIComponent(effectiveCorpGr));
-                }
-            }
-
-            if (options.downloadName) qs.push('downloadName=' + encodeURIComponent(options.downloadName));
-            qs.push('t=' + new Date().getTime());
-
-            if (params && typeof params === 'object') {
-                for (var k in params) {
-                    if (params.hasOwnProperty(k) && params[k] !== undefined && params[k] !== null) {
-                        var kLower = k.trim().toLowerCase();
-                        if (kLower === 'corpgr' || kLower === 'corp_gr') {
-                            continue; // 이미 위에서 단일 corpGr로 추가함
-                        }
-                        qs.push(encodeURIComponent(k) + '=' + encodeURIComponent(params[k]));
-                    }
-                }
-            }
-
-            return '/api/common/rd/export?' + qs.join('&');
-        },
-
-        formatPreviewUrl: function(url, zoom) {
-            if (!url || url === 'about:blank') return url || '';
-            var cleanUrl = url.split('#')[0];
-            // HTML 포맷 미리보기의 경우 PDF 전용 해시 파라미터 제외
-            if (/format=html/i.test(cleanUrl) || /format=htm/i.test(cleanUrl)) {
-                return cleanUrl;
-            }
-            if (zoom === 'fit' || zoom === 'page-fit' || zoom === 'Fit') {
-                return cleanUrl + '#toolbar=1&navpanes=0&view=Fit';
-            }
-            if (zoom === 'width' || zoom === 'page-width' || zoom === 'FitH') {
-                return cleanUrl + '#toolbar=1&navpanes=0&view=FitH';
-            }
-            var targetZoom = (zoom !== undefined && zoom !== null) ? zoom : this.DEFAULT_ZOOM;
-            return cleanUrl + '#toolbar=1&navpanes=0&zoom=' + encodeURIComponent(targetZoom);
-        },
-
-        isMobileView: function(rootPane) {
-            var root = rootPane || (window.currentPane || document);
-            var right = (root && root.querySelector) ? (root.querySelector('.split-right') || root.querySelector('.report-card') || root.querySelector('.pane-right')) : null;
-            if (right && window.getComputedStyle(right).display === 'none') {
-                return true;
-            }
-            var width = (root && root.clientWidth > 0) ? root.clientWidth : window.innerWidth;
-            return width <= 876;
-        },
-
-        setFrameSrc: function(frameEl, url, zoom) {
-            if (!frameEl) return;
-            if (!url || url === 'about:blank') {
-                frameEl.src = 'about:blank';
-                return;
-            }
-            frameEl.src = this.formatPreviewUrl(url, zoom);
-        },
-
-        bindViewer: function(rootPane, config) {
-            config = config || {};
-            var root = rootPane || document;
-            var iframe = root.querySelector(config.iframeSelector || '#report-frame, .report-frame');
-            var loadingEl = root.querySelector(config.loadingSelector || '#preview-loading, .report-loading');
-            var statusEl = root.querySelector(config.statusSelector || '#preview-status, .preview-status');
-            var modalEl = root.querySelector(config.modalSelector || (config.modalId ? ('#' + config.modalId) : null) || '.report-modal-backdrop')
-                       || document.querySelector(config.modalSelector || (config.modalId ? ('#' + config.modalId) : null) || '.report-modal-backdrop');
-            var modalIframe = modalEl ? modalEl.querySelector('iframe') : null;
-            var modalLoadingEl = modalEl ? modalEl.querySelector('.report-loading, [id*="loading"]') : null;
-            var modalTitleEl = modalEl ? modalEl.querySelector('.modal-title, .report-modal-title') : null;
-            var btnOpenNewWindow = root.querySelector('#btnOpenNewWindow, .btn-open-new-window');
-            var btnCloseModal = modalEl ? modalEl.querySelector('.btn-close-modal, .btn-close-report-modal, [id*="Close"]') : null;
-            
-            var selectedData = null;
-            var lastLoadedKey = null;
-
-            function resolveMrd(data) {
-                if (typeof config.mrdName === 'function') return config.mrdName(data);
-                if (config.mrdName) return config.mrdName;
-                if (typeof config.reportFile === 'function') return config.reportFile(data);
-                return config.reportFile || '';
-            }
-
-            function resolveParams(data) {
-                if (typeof config.getParams === 'function') return config.getParams(data);
-                if (typeof config.buildParams === 'function') return config.buildParams(data);
-                return data || {};
-            }
-
-            function resolveCorp() {
-                var c = '';
-                if (typeof config.getCorpGr === 'function') c = config.getCorpGr(selectedData);
-                else if (typeof window.resolveCorpGr === 'function') c = window.resolveCorpGr(root);
-                if (c) {
-                    c = String(c).trim();
-                    if (c.indexOf(',') !== -1) c = c.split(',')[0].trim();
-                }
-                return c;
-            }
-
-            function resolveDataKey(data) {
-                if (!data) return '';
-                var corp = resolveCorp();
-                var ymd = (typeof config.getYmd === 'function') ? config.getYmd() : (typeof window.resolveFilterYmd === 'function' ? window.resolveFilterYmd(root) : '');
-                var id = data.fundCd || data.fund_cd || data.id || data.mainKey || data.code || '';
-                if (id) {
-                    return corp + '_' + ymd + '_' + id;
-                }
-                try {
-                    return corp + '_' + ymd + '_' + JSON.stringify(resolveParams(data));
-                } catch (e) {
-                    return String(data);
-                }
-            }
-
-            function showLoading(show) {
-                if (loadingEl) loadingEl.style.display = show ? 'block' : 'none';
-                if (modalLoadingEl) modalLoadingEl.style.display = show ? 'block' : 'none';
-            }
-
-            function updateStatus(text) {
-                if (statusEl) statusEl.textContent = text || '';
-                if (typeof config.onStatusChange === 'function') config.onStatusChange(selectedData, text);
-            }
-
-            function load(data, statusText, isForce) {
-                if (!data) return;
-                selectedData = data;
-                
-                var dataKey = resolveDataKey(data);
-                var isAlreadyLoaded = (lastLoadedKey === dataKey) && iframe && iframe.src && iframe.src !== 'about:blank' && !iframe.src.endsWith('about:blank');
-
-                if (statusText) {
-                    updateStatus(statusText);
-                } else if (typeof config.getStatus === 'function') {
-                    updateStatus(config.getStatus(data, resolveParams(data)));
-                }
-                if (typeof config.getTitle === 'function') {
-                    var titleEl = root.querySelector('#preview-header-title, .preview-header-title');
-                    if (titleEl) {
-                        var titleVal = config.getTitle(data);
-                        var iconClass = config.iconClass || 'fa-solid fa-file-invoice';
-                        titleEl.innerHTML = '<i class="' + iconClass + '" style="margin-right: 4px;"></i> ' + titleVal;
-                    }
-                }
-
-                if (isAlreadyLoaded && !isForce) {
-                    return;
-                }
-                lastLoadedKey = dataKey;
-
-                if (typeof config.onBeforePreview === 'function') {
-                    config.onBeforePreview(data);
-                }
-
-                var mrd = resolveMrd(data);
-                var params = resolveParams(data);
-                var isMobile = AamsReport.isMobileView(root);
-                var previewUrl = (typeof config.buildPreviewUrl === 'function')
-                    ? config.buildPreviewUrl(data, params)
-                    : (mrd ? AamsReport.buildPreviewUrl(mrd, params, {
-                        corpGr: resolveCorp(),
-                        zoom: config.zoom,
-                        isMobile: isMobile,
-                        rootPane: root
-                    }) : null);
-                if (!previewUrl) return;
-                
-                showLoading(true);
-                if (iframe) {
-                    iframe.onload = function() { showLoading(false); };
-                    AamsReport.setFrameSrc(iframe, previewUrl, config.zoom);
-                }
-                if (modalIframe && modalEl && modalEl.style.display !== 'none') {
-                    modalIframe.onload = function() { showLoading(false); };
-                    AamsReport.setFrameSrc(modalIframe, previewUrl, config.zoom);
-                }
-            }
-
-            function clear() {
-                selectedData = null;
-                lastLoadedKey = null;
-                updateStatus(config.defaultStatus || '선택된 항목 없음');
-                if (iframe) AamsReport.setFrameSrc(iframe, 'about:blank');
-                if (modalIframe) AamsReport.setFrameSrc(modalIframe, 'about:blank');
-                showLoading(false);
-            }
-
-            function exportReport(format) {
-                if (!selectedData) {
-                    if (typeof window.showToast === 'function') window.showToast('내보낼 항목을 먼저 선택해주세요.', 'warning');
-                    else alert('내보낼 항목을 먼저 선택해주세요.');
-                    return;
-                }
-                if (typeof config.beforeAction === 'function' && config.beforeAction(selectedData, 'export') === false) return;
-                var mrd = resolveMrd(selectedData);
-                var params = resolveParams(selectedData);
-                var dlName = typeof config.getDownloadName === 'function' ? config.getDownloadName(selectedData, format) : null;
-                var url = (typeof config.buildExportUrl === 'function')
-                    ? config.buildExportUrl(selectedData, format, params)
-                    : AamsReport.buildExportUrl(mrd, params, format, {
-                        corpGr: resolveCorp(),
-                        downloadName: dlName
-                    });
-                if (url) window.location.href = url;
-            }
-
-            function openNewWindow() {
-                if (!selectedData) {
-                    if (typeof window.showToast === 'function') window.showToast('조회할 항목을 먼저 선택해주세요.', 'warning');
-                    else alert('조회할 항목을 먼저 선택해주세요.');
-                    return;
-                }
-                if (typeof config.beforeAction === 'function' && config.beforeAction(selectedData, 'newWindow') === false) return;
-                var mrd = resolveMrd(selectedData);
-                var params = resolveParams(selectedData);
-                var url = (typeof config.buildPreviewUrl === 'function')
-                    ? config.buildPreviewUrl(selectedData, params)
-                    : AamsReport.buildPreviewUrl(mrd, params, { corpGr: resolveCorp(), zoom: config.zoom });
-                if (url) window.open(url, '_blank');
-            }
-
-            function openModal(data, title) {
-                if (!modalEl) {
-                    modalEl = root.querySelector(config.modalSelector || (config.modalId ? ('#' + config.modalId) : null) || '.report-modal-backdrop')
-                           || document.querySelector(config.modalSelector || (config.modalId ? ('#' + config.modalId) : null) || '.report-modal-backdrop');
-                }
-                if (!modalEl) return;
-                selectedData = data || selectedData;
-                if (!title && typeof config.getTitle === 'function' && selectedData) {
-                    title = config.getTitle(selectedData);
-                }
-                if (modalTitleEl && title) modalTitleEl.textContent = title;
-                modalEl.style.display = 'flex';
-                if (modalIframe && selectedData) {
-                    var mrd = resolveMrd(selectedData);
-                    var params = resolveParams(selectedData);
-                    var modalZoom = (config.mobileZoom !== undefined) ? config.mobileZoom : (config.zoom !== undefined ? config.zoom : AamsReport.DEFAULT_ZOOM);
-                    var url = (typeof config.buildPreviewUrl === 'function')
-                        ? config.buildPreviewUrl(selectedData, params)
-                        : AamsReport.buildPreviewUrl(mrd, params, {
-                            corpGr: resolveCorp(),
-                            zoom: modalZoom,
-                            isMobile: true,
-                            format: 'html',
-                            rootPane: root
-                        });
-                    showLoading(true);
-                    modalIframe.onload = function() { showLoading(false); };
-                    AamsReport.setFrameSrc(modalIframe, url, modalZoom);
-                }
-            }
-
-            function closeModal() {
-                if (modalEl) modalEl.style.display = 'none';
-                if (modalIframe) AamsReport.setFrameSrc(modalIframe, 'about:blank');
-            }
-
-            var exportBtns = root.querySelectorAll('.btn-export-format, .export-btn, [data-format]');
-            exportBtns.forEach(function(btn) {
-                btn.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    var fmt = btn.getAttribute('data-format');
-                    if (fmt) exportReport(fmt);
-                });
-            });
-
-            if (btnOpenNewWindow) {
-                btnOpenNewWindow.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    openNewWindow();
-                });
-            }
-
-            if (btnCloseModal) {
-                btnCloseModal.addEventListener('click', closeModal);
-            }
-            if (modalEl && typeof window.setupModalBackdrop === 'function') {
-                window.setupModalBackdrop(modalEl, closeModal);
-            }
-
-            var lastIsMobile = AamsReport.isMobileView(root);
-            var autoResizeTimer = null;
-
-            function smartResizeHandler() {
-                if (root && root !== document && !document.contains(root)) {
-                    window.removeEventListener('resize', debouncedResize);
-                    return;
-                }
-                if (root && root.classList && root.classList.contains('tab-pane') && !root.classList.contains('active')) {
-                    return;
-                }
-
-                var targetGrid = (typeof config.grid === 'function') ? config.grid() : (config.grid || (typeof config.getGrid === 'function' ? config.getGrid() : null));
-                if (targetGrid && typeof targetGrid.redraw === 'function') {
-                    targetGrid.redraw();
-                }
-
-                var currentIsMobile = AamsReport.isMobileView(root);
-                if (lastIsMobile !== currentIsMobile) {
-                    lastIsMobile = currentIsMobile;
-                    if (!currentIsMobile) {
-                        closeModal();
-                        if (selectedData && iframe) {
-                            load(selectedData, null, true);
-                        }
-                    }
-                }
-            }
-
-            function debouncedResize() {
-                clearTimeout(autoResizeTimer);
-                autoResizeTimer = setTimeout(smartResizeHandler, 120);
-            }
-
-            window.addEventListener('resize', debouncedResize);
-
-            var viewerInstance = {
-                load: load,
-                loadPreview: load,
-                clear: clear,
-                openModal: openModal,
-                openMobile: openModal,
-                closeModal: closeModal,
-                closeMobile: closeModal,
-                openNewWindow: openNewWindow,
-                exportReport: exportReport,
-                exportFormat: exportReport,
-                syncResize: smartResizeHandler,
-                getSelectedData: function() { return selectedData; },
-                setSelectedData: function(d) { selectedData = d; },
-                destroy: function() {
-                    window.removeEventListener('resize', debouncedResize);
-                    clear();
-                }
-            };
-
-            if (root && typeof root === 'object') {
-                root._aamsReportViewer = viewerInstance;
-            }
-
-            return viewerInstance;
-        }
-    };
-
-    window.AamsReport = AamsReport;
-
-})(window);
+// 리포트 뷰어와 미리보기 형식 정책은 aams_report.js에서 단일 관리한다.
 
 /**
  * ============================================================================

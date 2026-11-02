@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<div class="view-container layout-mobile-stack-container ja021f-container" th:fragment="mainView"
+     th:attr="data-work-date=${workDate},data-corp-gr=${corpGr}"
+     style="display:flex;flex-direction:column;height:100%;width:100%;overflow:hidden;background:#fff;">
+    <div class="view-toolbar">
+        <div class="toolbar-left"><div th:replace="~{fragments/tab_header :: toolbarButtons}"></div></div>
+        <div th:replace="~{fragments/tab_header :: toolbarBreadcrumb}"></div>
+    </div>
+
+    <div class="ja021f-tab-nav" role="tablist" aria-label="증자 업무 구분">
+        <button type="button" class="ja021f-tab active" role="tab" aria-selected="true" data-tab="t1">유상증자(G31)</button>
+        <button type="button" class="ja021f-tab" role="tab" aria-selected="false" data-tab="t2">유상비율/발행가변경</button>
+        <button type="button" class="ja021f-tab" role="tab" aria-selected="false" data-tab="t3">무상증자(G35)</button>
+        <button type="button" class="ja021f-tab" role="tab" aria-selected="false" data-tab="t4">무상비율변경</button>
+    </div>
+
+    <div class="ja021f-tab-content">
+        <div th:each="tab : ${ {'t1','t2','t3','t4'} }" class="ja021f-tab-pane" th:id="|ja021f-pane-${tab}|"
+             th:classappend="${tab == 't1'} ? ' active' : ''" role="tabpanel">
+            <!-- 모바일 DETAIL은 공통 layout-split-v 규칙으로 최소 높이를 보장한다. -->
+            <div class="layout-split-v split-body layout-mobile-stack" th:attr="data-split-key=|JA021F_${tab}_V|" data-default-ratio="55:45" style="width:100%;height:100%;min-height:0;display:flex;flex-direction:column;">
+                <section class="split-pane pane-top" style="height:55%;display:flex;flex-direction:column;min-height:0;overflow:hidden;">
+                    <div class="pane-header"><span class="panel-title" th:text="${tab == 't1' ? '유상증자 공시 목록' : tab == 't2' ? '유상비율/발행가 변경 목록' : tab == 't3' ? '무상증자 공시 목록' : '무상비율 변경 목록'}"></span></div>
+                    <div class="pane-body"><div th:id="|ja021f-master-${tab}|" class="tabulator-aams-grid" style="height:100%;"></div></div>
+                </section>
+                <div class="split-gutter-v" title="드래그하여 상하 비율 조절" aria-hidden="true"></div>
+                <section class="split-pane pane-bottom" style="height:45%;display:flex;flex-direction:column;min-height:0;overflow:hidden;">
+                    <div class="sub-grid-header">
+                        <span class="panel-title">펀드별 상세</span>
+                        <div class="sub-grid-actions"
+                             th:with="detailButtons=${(tab == 't2' or tab == 't4') ? '0010001001' : '0010011001'}">
+                            <div th:replace="~{fragments/tab_header :: detailNav(targetGrid=${'#ja021f-detail-' + tab}, fileName='증자 상세', buttons=${detailButtons})}"></div>
+                        </div>
+                    </div>
+                    <div class="pane-body"><div th:id="|ja021f-detail-${tab}|" class="tabulator-aams-grid" style="height:100%;"></div></div>
+                </section>
+            </div>
+        </div>
+    </div>
+
+    <script th:inline="javascript">
+        (function () {
+            const script = document.currentScript;
+            const pane = script && (script.closest('.tab-pane') || script.closest('.view-container'));
+            if (!pane) return;
+            let isInitialized = false;
+
+            function startInit() {
+            if (isInitialized) return;
+            isInitialized = true;
+            const tabs = Array.from(pane.querySelectorAll('.ja021f-tab'));
+            const panes = Array.from(pane.querySelectorAll('.ja021f-tab-pane'));
+            const grids = {};
+            const tabIds = ['t1', 't2', 't3', 't4'];
+            const api = '/api/subscriptionrights/ja021f';
+            const corpGr = pane.dataset.corpGr || '';
+            const workDate = /*[[${workDate}]]*/ '';
+            const requestSeq = {};
+            let builtGridCount = 0;
+            let splitterInitialized = false;
+            const noColumn = {title:'No.', width:48, hozAlign:'center', headerSort:false, formatter:cell => cell.getRow().getPosition()};
+            const masterColumnsByTab = {
+                t1: [noColumn,
+                    {title:'유상증자일<br>(권리락일)', field:'trYmd', width:125, hozAlign:'center'},
+                    {title:'발행 기관', field:'balhCo', width:90, hozAlign:'center'},
+                    {title:'발행기관명', field:'xxBalhCo', width:150},
+                    {title:'배정방법', field:'baejMth', width:95, hozAlign:'center'},
+                    {title:'보통주 발행가', field:'balhGa', width:105, hozAlign:'right'},
+                    {title:'유상증자 보통주비율', field:'jekyngRt', width:130, hozAlign:'right'},
+                    {title:'우선주 발행가', field:'woosBalhGa', width:105, hozAlign:'right'},
+                    {title:'유상증자 우선주비율', field:'woosJekyngRt', width:130, hozAlign:'right'},
+                    {title:'청약일자', field:'chengYmd', width:105, hozAlign:'center'},
+                    {title:'청약금 납입일', field:'jukmNabibYmd', width:115, hozAlign:'center'},
+                    {title:'배당기산일', field:'baedGisanYmd', width:105, hozAlign:'center'},
+                    {title:'유상증자 배정기준일', field:'baejGijunYmd', width:130, hozAlign:'center'},
+                    {title:'유상발행 주식수(보)', field:'ilbanBalhJusu', width:125, hozAlign:'right'},
+                    {title:'유상발행 주식수(우)', field:'woosBalhJusu', width:125, hozAlign:'right'}],
+                t2: [noColumn,
+                    {title:'유상증자 변경일자', field:'trYmd', width:125, hozAlign:'center'},
+                    {title:'발행 기관', field:'balhCo', width:90, hozAlign:'center'},
+                    {title:'발행기관명', field:'xxBalhCo', width:150},
+                    {title:'배정방법', field:'baejMth', width:95, hozAlign:'center'},
+                    {title:'보통주 발행가', field:'balhGa', width:105, hozAlign:'right'},
+                    {title:'유상증자 보통주비율', field:'jekyngRt', width:130, hozAlign:'right'},
+                    {title:'우선주 발행가', field:'woosBalhGa', width:105, hozAlign:'right'},
+                    {title:'유상증자 우선주비율', field:'woosJekyngRt', width:130, hozAlign:'right'},
+                    {title:'청약일자', field:'chengYmd', width:105, hozAlign:'center'},
+                    {title:'청약금 납입일', field:'jukmNabibYmd', width:115, hozAlign:'center'},
+                    {title:'유상발행 주식수(보)', field:'ilbanBalhJusu', width:125, hozAlign:'right'},
+                    {title:'유상발행 주식수(우)', field:'woosBalhJusu', width:125, hozAlign:'right'},
+                    {title:'유상증자 권리락일', field:'krakYmd', width:125, hozAlign:'center'},
+                    {title:'변경전 배정방법', field:'jkBaejMth', width:110, hozAlign:'center'},
+                    {title:'변경전 보통주', field:'jkBalhGa', width:105, hozAlign:'right'},
+                    {title:'변경전 보통주비율', field:'jkJekyngRt', width:125, hozAlign:'right'},
+                    {title:'신주인수권 상장폐지일', field:'closeYmd', width:140, hozAlign:'center'}],
+                t3: [noColumn,
+                    {title:'무상증자일<br>(권리락일)', field:'trYmd', width:125, hozAlign:'center'},
+                    {title:'발행 기관', field:'balhCo', width:90, hozAlign:'center'},
+                    {title:'발행기관명', field:'xxBalhCo', width:150},
+                    {title:'배정방법', field:'baejMth', width:95, hozAlign:'center'},
+                    {title:'무상증자 보통주비율', field:'jekyngRt', width:130, hozAlign:'right'},
+                    {title:'무상증자 우선주비율', field:'woosJekyngRt', width:130, hozAlign:'right'},
+                    {title:'배당기산일', field:'baedGisanYmd', width:105, hozAlign:'center'},
+                    {title:'액면', field:'balhGa', width:90, hozAlign:'right'},
+                    {title:'신주재원', field:'sinjJaew', width:95, hozAlign:'center'},
+                    {title:'배정기준일', field:'baejGijunYmd', width:105, hozAlign:'center'},
+                    {title:'무상발행 주식수(보)', field:'ilbanBalhJusu', width:125, hozAlign:'right'},
+                    {title:'무상발행 주식수(우)', field:'woosBalhJusu', width:125, hozAlign:'right'}],
+                t4: [noColumn,
+                    {title:'무상증자 변경일자', field:'trYmd', width:125, hozAlign:'center'},
+                    {title:'발행 기관', field:'balhCo', width:90, hozAlign:'center'},
+                    {title:'발행기관명', field:'xxBalhCo', width:150},
+                    {title:'배정방법', field:'baejMth', width:95, hozAlign:'center'},
+                    {title:'무상증자 보통주비율', field:'jekyngRt', width:130, hozAlign:'right'},
+                    {title:'무상증자 우선주비율', field:'woosJekyngRt', width:130, hozAlign:'right'},
+                    {title:'무상증자 권리락일', field:'krakYmd', width:125, hozAlign:'center'},
+                    {title:'무상발행 주식수(보)', field:'ilbanBalhJusu', width:125, hozAlign:'right'},
+                    {title:'무상발행 주식수(우)', field:'woosBalhJusu', width:125, hozAlign:'right'},
+                    {title:'변경전 배정방법', field:'jkBaejMth', width:110, hozAlign:'center'},
+                    {title:'액면', field:'jkBalhGa', width:90, hozAlign:'right'},
+                    {title:'변경전 무상증자비율', field:'jkJekyngRt', width:130, hozAlign:'right'}]
+            };
+            const detailColumnsByTab = {
+                t1: [noColumn, {title:'운용사', field:'corpGr', width:90}, {title:'관리번호', field:'fundCd', width:100, hozAlign:'center'}, {title:'계좌명', field:'fundNm', width:180}, {title:'권리락주수', field:'krakJusu', width:105, hozAlign:'right'}, {title:'권리락 취득액', field:'krakChuiAek', width:115, hozAlign:'right'}, {title:'유상증자 배정주수', field:'baejJusu', width:125, hozAlign:'right'}, {title:'유상 발행가', field:'balhGa', width:105, hozAlign:'right'}, {title:'유상증자 취득가액', field:'chuiAek', width:130, hozAlign:'right'}, {title:'청약주수', field:'chengJusu', width:105, hozAlign:'right'}, {title:'수령일자', field:'suryYmd', width:105, hozAlign:'center'}, {title:'수령주수', field:'suryJusu', width:105, hozAlign:'right'}],
+                t2: [noColumn, {title:'운용사', field:'corpGr', width:90}, {title:'관리번호', field:'fundCd', width:100, hozAlign:'center'}, {title:'계좌명', field:'fundNm', width:180}, {title:'권리락주수', field:'krakJusu', width:105, hozAlign:'right'}, {title:'권리락 취득액', field:'krakChuiAek', width:115, hozAlign:'right'}, {title:'변경후 주식수', field:'baejJusu', width:115, hozAlign:'right'}, {title:'변경후 발행가', field:'balhGa', width:115, hozAlign:'right'}, {title:'변경후 유상취득액', field:'chuiAek', width:135, hozAlign:'right'}, {title:'변경전 주식수', field:'chgBfJusu', width:115, hozAlign:'right'}, {title:'변경전비율', field:'chgBfRt', width:105, hozAlign:'right'}, {title:'변경전 발행가', field:'chgBfBalhGa', width:115, hozAlign:'right'}, {title:'변경전 유상취득액', field:'chgChuiAek', width:135, hozAlign:'right'}, {title:'변경전 적용일', field:'chgBfYmd', width:115, hozAlign:'center'}, {title:'수령일자', field:'suryYmd', width:105, hozAlign:'center'}, {title:'수령주수', field:'suryJusu', width:105, hozAlign:'right'}],
+                t3: [noColumn, {title:'운용사', field:'corpGr', width:90}, {title:'관리번호', field:'fundCd', width:100, hozAlign:'center'}, {title:'계좌명', field:'fundNm', width:180}, {title:'권리락주수', field:'krakJusu', width:105, hozAlign:'right'}, {title:'권리락 취득액', field:'krakChuiAek', width:115, hozAlign:'right'}, {title:'무상증자 배정주수', field:'baejJusu', width:125, hozAlign:'right'}, {title:'무상증자 취득가액', field:'chuiAek', width:135, hozAlign:'right'}, {title:'수령일자', field:'suryYmd', width:105, hozAlign:'center'}, {title:'수령주수', field:'suryJusu', width:105, hozAlign:'right'}],
+                t4: [noColumn, {title:'운용사', field:'corpGr', width:90}, {title:'관리번호', field:'fundCd', width:100, hozAlign:'center'}, {title:'계좌명', field:'fundNm', width:180}, {title:'권리락주수', field:'krakJusu', width:105, hozAlign:'right'}, {title:'권리락 취득액', field:'krakChuiAek', width:115, hozAlign:'right'}, {title:'변경후 주식수', field:'baejJusu', width:115, hozAlign:'right'}, {title:'변경후 유상취득액', field:'chuiAek', width:135, hozAlign:'right'}, {title:'변경전 주식수', field:'chgBfJusu', width:115, hozAlign:'right'}, {title:'변경전비율', field:'chgBfRt', width:105, hozAlign:'right'}, {title:'변경전 무상취득액', field:'chgChuiAek', width:135, hozAlign:'right'}, {title:'변경전 적용일', field:'chgBfYmd', width:115, hozAlign:'center'}, {title:'수령일자', field:'suryYmd', width:105, hozAlign:'center'}, {title:'수령주수', field:'suryJusu', width:105, hozAlign:'right'}]
+            };
+
+            // 날짜 컬럼은 다른 화면과 동일하게 공통 포맷터/날짜 편집기를 사용한다.
+            // API의 LocalDate(yyyy-MM-dd), 구형 YYYYMMDD, Timestamp 입력을 모두 안전하게 처리한다.
+            const ymdFields = new Set([
+                'ymd', 'trYmd', 'baedGisanYmd', 'chengYmd', 'krakYmd',
+                'baejGijunYmd', 'jukmNabibYmd', 'closeYmd', 'gosiJekyngYmd',
+                'chgBfYmd', 'suryYmd', 'haejiYmd'
+            ]);
+            function formatYmdCell(value) {
+                if (value === null || value === undefined || value === '') return '';
+                return typeof formatDateVal === 'function' ? formatDateVal(value) : dateValue(value);
+            }
+            function applyYmdColumns(columns) {
+                return columns.map(column => {
+                    if (!column.field || !ymdFields.has(column.field)) return column;
+                    return {
+                        ...column,
+                        formatter: cell => formatYmdCell(cell.getValue()),
+                        editor: window.aamsDateEditor || 'input',
+                        editable: cell => cell.getRow().getData().isNew === true,
+                        cellClick: window.aamsCellEdit || undefined
+                    };
+                });
+            }
+
+            // PowerBuilder DataWindow color synchronization (header + data cell):
+            // 16711680=blue, 255=red, 32768=green, 8421504=muted gray.
+            const pbColorClasses = {
+                blue: {header: 'col-hdr-blue', cell: 'cell-text-blue'},
+                red: {header: 'col-hdr-red', cell: 'cell-text-red'},
+                green: {header: 'col-hdr-green', cell: 'cell-text-green'},
+                muted: {header: 'col-hdr-muted', cell: 'cell-text-muted'}
+            };
+            const pbColorRules = {
+                master: {
+                    t1: {
+                        balhCo: {header: 'blue'}, xxBalhCo: {header: 'blue'},
+                        balhGa: {header: 'blue', cell: 'blue'},
+                        jekyngRt: {header: 'blue', cell: 'blue'},
+                        chengYmd: {header: 'blue', cell: 'blue'},
+                        jukmNabibYmd: {header: 'blue', cell: 'blue'}
+                    },
+                    t2: {
+                        trYmd: {header: 'blue', cell: 'blue'},
+                        balhGa: {header: 'blue', cell: 'blue'},
+                        jekyngRt: {header: 'blue', cell: 'blue'},
+                        chengYmd: {header: 'blue', cell: 'blue'},
+                        jukmNabibYmd: {header: 'blue', cell: 'blue'},
+                        closeYmd: {header: 'red', cell: 'red'}
+                    },
+                    t3: {
+                        balhCo: {header: 'blue'}, xxBalhCo: {header: 'blue'},
+                        jekyngRt: {header: 'blue', cell: 'blue'},
+                        woosJekyngRt: {header: 'blue', cell: 'blue'}
+                    },
+                    t4: {
+                        balhCo: {header: 'blue'}, xxBalhCo: {header: 'blue'},
+                        jekyngRt: {header: 'blue', cell: 'blue'},
+                        woosJekyngRt: {header: 'blue', cell: 'blue'}
+                    }
+                },
+                detail: {
+                    t1: {
+                        fundCd: {header: 'green', cell: 'green'},
+                        baejJusu: {header: 'blue', cell: 'blue'},
+                        balhGa: {header: 'blue', cell: 'blue'},
+                        chuiAek: {header: 'blue', cell: 'blue'},
+                        suryYmd: {header: 'muted', cell: 'muted'},
+                        suryJusu: {header: 'muted', cell: 'muted'},
+                        chengJusu: {header: 'muted', cell: 'muted'}
+                    },
+                    t2: {
+                        fundCd: {header: 'green', cell: 'green'},
+                        baejJusu: {header: 'blue', cell: 'blue'},
+                        balhGa: {header: 'blue', cell: 'blue'},
+                        chuiAek: {header: 'blue', cell: 'blue'},
+                        suryYmd: {header: 'muted', cell: 'muted'},
+                        suryJusu: {header: 'muted', cell: 'muted'}
+                    },
+                    t3: {
+                        fundCd: {header: 'green', cell: 'green'},
+                        baejJusu: {header: 'blue', cell: 'blue'},
+                        chuiAek: {header: 'blue', cell: 'blue'},
+                        suryYmd: {header: 'muted', cell: 'muted'},
+                        suryJusu: {header: 'muted', cell: 'muted'}
+                    },
+                    t4: {
+                        fundCd: {header: 'green', cell: 'green'},
+                        baejJusu: {header: 'blue', cell: 'blue'},
+                        chuiAek: {header: 'blue', cell: 'blue'},
+                        suryYmd: {header: 'muted', cell: 'muted'},
+                        suryJusu: {header: 'muted', cell: 'muted'}
+                    }
+                }
+            };
+            function applyPbColors(tabId, columns, group) {
+                const rules = pbColorRules[group]?.[tabId] || {};
+                return columns.map(column => {
+                    const rule = rules[column.field];
+                    if (!rule) return column;
+                    const colored = {...column};
+                    if (rule.header) colored.headerCssClass = pbColorClasses[rule.header].header;
+                    if (rule.cell) colored.cssClass = pbColorClasses[rule.cell].cell;
+                    return colored;
+                });
+            }
+
+            // PowerBuilder P_XX controls are rendered as dedicated grid button columns.
+            const pbControlRules = {
+                master: {
+                    t1: [
+                        {after: 'trYmd', field: 'p_dd_tr_ymd', type: 'date', target: 'trYmd'},
+                        {after: 'chengYmd', field: 'p_dd_cheng_ymd', type: 'date', target: 'chengYmd'},
+                        {after: 'jukmNabibYmd', field: 'p_dd_jukm_nabib_ymd', type: 'date', target: 'jukmNabibYmd'},
+                        {after: 'baedGisanYmd', field: 'p_dd_baed_gisan_ymd', type: 'date', target: 'baedGisanYmd'},
+                        {after: 'balhCo', field: 'p_xx_balh_co', type: 'search'}
+                    ],
+                    t2: [
+                        {after: 'trYmd', field: 'p_dd_tr_ymd', type: 'date', target: 'trYmd'},
+                        {after: 'chengYmd', field: 'p_dd_cheng_ymd', type: 'date', target: 'chengYmd'},
+                        {after: 'jukmNabibYmd', field: 'p_dd_jukm_nabib_ymd', type: 'date', target: 'jukmNabibYmd'},
+                        {after: 'closeYmd', field: 'p_dd_close_ymd', type: 'date', target: 'closeYmd'},
+                        {after: 'balhCo', field: 'p_xx_balh_co', type: 'search'}
+                    ],
+                    t3: [
+                        {after: 'trYmd', field: 'p_dd_tr_ymd', type: 'date', target: 'trYmd'},
+                        {after: 'baedGisanYmd', field: 'p_dd_baed_gisan_ymd', type: 'date', target: 'baedGisanYmd'},
+                        {after: 'balhCo', field: 'p_xx_balh_co', type: 'search'}
+                    ],
+                    t4: [
+                        {after: 'trYmd', field: 'p_dd_tr_ymd', type: 'date', target: 'trYmd'},
+                        {after: 'krakYmd', field: 'p_dd_krak_ymd', type: 'date', target: 'krakYmd'},
+                        {after: 'balhCo', field: 'p_xx_balh_co', type: 'search'}
+                    ]
+                },
+                detail: {
+                    t2: [
+                        {after: 'chgBfYmd', field: 'p_dd_chg_bf_ymd', type: 'date', target: 'chgBfYmd'},
+                        {after: 'suryYmd', field: 'p_dd_sury_ymd', type: 'date', target: 'suryYmd'}
+                    ],
+                    t4: [
+                        {after: 'chgBfYmd', field: 'p_dd_chg_bf_ymd', type: 'date', target: 'chgBfYmd'},
+                        {after: 'suryYmd', field: 'p_dd_sury_ymd', type: 'date', target: 'suryYmd'}
+                    ]
+                }
+            };
+            function isPbControlDisabled(cell) {
+                const value = cell.getRow().getData().pVisible;
+                return value !== undefined && value !== null && String(value) !== '' && String(value) !== '1';
+            }
+            function createPbControlColumn(control) {
+                const isSearch = control.type === 'search';
+                return {
+                    title: '', field: control.field, width: 32, minWidth: 32, maxWidth: 32,
+                    hozAlign: 'center', headerSort: false, resizable: false,
+                    formatter: cell => {
+                        const disabled = isPbControlDisabled(cell);
+                        const icon = isSearch ? 'fa-solid fa-magnifying-glass' : 'fa-regular fa-calendar-days';
+                        const style = disabled ? ' disabled' : '';
+                        return `<button type="button" class="btn-grid-addon ${isSearch ? 'btn-search' : 'btn-cal'}${style}" title="${isSearch ? '발행기관 검색' : '날짜 선택'}"><i class="${icon}"></i></button>`;
+                    },
+                    cellClick: function (event, cell) {
+                        event.stopPropagation();
+                        if (isPbControlDisabled(cell)) return;
+                        const row = cell.getRow();
+                        const data = row.getData();
+                        if (isSearch) {
+                            if (window.DynamicCodeSearch && typeof window.DynamicCodeSearch.openModal === 'function') {
+                                window.DynamicCodeSearch.openModal({
+                                    columnNm: 'balh_co', seq: 1, initialKeyword: data.balhCo || '',
+                                    onSelect: (code, name) => row.update({balhCo: code, xxBalhCo: name || code})
+                                });
+                            }
+                            return;
+                        }
+                        if (window.AamsCalendar && typeof window.AamsCalendar.openDatePicker === 'function') {
+                            window.AamsCalendar.openDatePicker({
+                                anchorEl: cell.getElement(), initialYmd: data[control.target] || '', format: 'dash',
+                                onSelect: selectedYmd => row.update({[control.target]: selectedYmd})
+                            });
+                        }
+                    }
+                };
+            }
+            function applyPbControls(tabId, columns, group) {
+                const rules = pbControlRules[group]?.[tabId] || [];
+                const output = [];
+                columns.forEach(column => {
+                    output.push(column);
+                    rules.filter(rule => rule.after === column.field).forEach(rule => output.push(createPbControlColumn(rule)));
+                });
+                return output;
+            }
+
+            function buildGrid(id, columns) {
+                const el = pane.querySelector('#' + id);
+                if (!el || typeof Tabulator === 'undefined') return null;
+                return new Tabulator(el, {
+                    height:'100%', layout:'fitDataFill', placeholder:'조회된 자료가 없습니다.', suppressRepeating:false,
+                    columnDefaults:{headerSort:true, headerHozAlign:'center'}, columns:columns, data:[],
+                    tableBuilt:function () {
+                        this._aamsBuilt = true;
+                        builtGridCount++;
+                        if (builtGridCount === tabIds.length * 2) initSplitter();
+                    }
+                });
+            }
+            function initSplitter() {
+                if (splitterInitialized) return;
+                if (builtGridCount < tabIds.length * 2) return;
+                if (window.AamsSplitter && typeof window.AamsSplitter.init === 'function') {
+                    splitterInitialized = true;
+                    window.AamsSplitter.init(pane);
+                }
+            }
+            function safeRedraw(table) {
+                if (!table || !table._aamsBuilt) return;
+                table.redraw(true);
+            }
+            function dateValue(value) {
+                if (!value) return '';
+                const text = String(value);
+                const match = text.match(/\d{4}-\d{2}-\d{2}/);
+                return match ? match[0] : text.slice(0, 10);
+            }
+            function getActiveTabId() {
+                const activeTab = tabs.find(tab => tab.classList.contains('active')) || tabs[0];
+                return activeTab ? activeTab.dataset.tab : tabIds[0];
+            }
+            function notify(message, type) {
+                if (typeof showToast === 'function') {
+                    showToast(message, type || 'info');
+                } else {
+                    console.info('[JA021F]', message);
+                }
+            }
+            function clearTabData(tabId) {
+                const current = grids[tabId];
+                if (!current) return;
+                requestSeq[tabId] = (requestSeq[tabId] || 0) + 1;
+                if (current.master) current.master.clearData();
+                if (current.detail) current.detail.clearData();
+            }
+            function addMasterRow(tabId, rowData) {
+                const current = grids[tabId];
+                if (!current || !current.master) return;
+                const result = current.master.addRow(rowData, true);
+                if (result && typeof result.then === 'function') {
+                    result.then(row => {
+                        current.master.deselectRow();
+                        row.select();
+                        try { row.scrollTo(); } catch (e) { /* no-op */ }
+                    });
+                }
+            }
+            function ensureInitialT4Row() {
+                const current = grids.t4;
+                if (!current || !current.master || !current.master._aamsBuilt || typeof current.master.getData !== 'function') return;
+                const hasInitialRow = current.master.getData().some(row => row && row._ja021fInitialRow === true);
+                if (hasInitialRow) return;
+                addMasterRow('t4', {
+                    isNew: true,
+                    _ja021fInitialRow: true,
+                    rowStatus: 'C',
+                    trYmd: dateValue(workDate),
+                    trCd: 'G36',
+                    balhCo: '',
+                    xxBalhCo: '',
+                    jeungjMth: '2',
+                    baejMth: '',
+                    pVisible: 1
+                });
+            }
+            function applyNewRowEditors(tabId, columns) {
+                if (tabId !== 't4') return columns;
+                return columns.map(column => {
+                    if (!column.field || String(column.field).indexOf('p_') === 0) return column;
+                    return {
+                        ...column,
+                        editor: column.editor || 'input',
+                        editable: cell => cell.getRow().getData().isNew === true
+                    };
+                });
+            }
+            function syncTabActionButtons(tabId, restoreState) {
+                const disableCrud = tabId === 't2' || tabId === 't4';
+                const buttons = pane.querySelectorAll('.view-toolbar .btn-input, .view-toolbar .btn-copy, .view-toolbar .btn-delete');
+                if (!disableCrud && restoreState && window.ButtonRole && typeof window.ButtonRole.setSearchState === 'function') {
+                    // 탭 전환 시 권한/조회 상태를 공통 모듈 기준으로 복원한다.
+                    window.ButtonRole.setSearchState(pane, !!pane.isSearched);
+                }
+                buttons.forEach(button => {
+                    if (disableCrud) {
+                        button.disabled = true;
+                        button.classList.add('disabled');
+                        button.setAttribute('aria-disabled', 'true');
+                    }
+                });
+            }
+            function activate(tabId) {
+                tabs.forEach(tab => {
+                    const active = tab.dataset.tab === tabId;
+                    tab.classList.toggle('active', active);
+                    tab.setAttribute('aria-selected', String(active));
+                });
+                panes.forEach(view => view.classList.toggle('active', view.id === 'ja021f-pane-' + tabId));
+                syncTabActionButtons(tabId, true);
+                if (grids[tabId]) {
+                    safeRedraw(grids[tabId].master);
+                    safeRedraw(grids[tabId].detail);
+                    retrieveTab(tabId);
+                }
+            }
+            function retrieveTab(tabId) {
+                const current = grids[tabId];
+                if (!current) return;
+                const seq = (requestSeq[tabId] || 0) + 1;
+                requestSeq[tabId] = seq;
+                const params = new URLSearchParams({tab: tabId, corpGr: corpGr, workDate: dateValue(workDate)});
+                fetch(api + '/data?' + params.toString())
+                    .then(response => response.ok ? response.json() : Promise.reject(new Error('조회에 실패했습니다.')))
+                    .then(data => {
+                        if (requestSeq[tabId] !== seq) return;
+                        if (current.master) current.master.replaceData(data.master || []);
+                        if (current.detail) current.detail.replaceData(data.detail || []);
+                        if (tabId === 't4') ensureInitialT4Row();
+                        safeRedraw(current.master);
+                        safeRedraw(current.detail);
+                    })
+                    .catch(error => console.error('[JA021F] 탭 조회 실패:', error));
+            }
+            function retrieveDetail(tabId, rowData) {
+                const current = grids[tabId];
+                if (!current || !rowData) return;
+                const detailMth = rowData.jeungjMth || (tabId === 't1' ? '1' : tabId === 't3' ? '2' : '');
+                const params = new URLSearchParams({
+                    corpGr: corpGr,
+                    ymd: dateValue(rowData.trYmd),
+                    balhCo: rowData.balhCo || '',
+                    jeungjMth: detailMth
+                });
+                fetch(api + '/detail?' + params.toString())
+                    .then(response => response.ok ? response.json() : Promise.reject(new Error('상세 조회에 실패했습니다.')))
+                    .then(data => {
+                        if (current.detail) current.detail.replaceData(data || []);
+                        safeRedraw(current.detail);
+                    })
+                    .catch(error => console.error('[JA021F] 상세 조회 실패:', error));
+            }
+            tabIds.forEach(tabId => {
+                grids[tabId] = {
+                    master: buildGrid('ja021f-master-' + tabId, applyNewRowEditors(tabId, applyPbControls(tabId, applyYmdColumns(applyPbColors(tabId, masterColumnsByTab[tabId], 'master')), 'master'))),
+                    detail: buildGrid('ja021f-detail-' + tabId, applyPbControls(tabId, applyYmdColumns(applyPbColors(tabId, detailColumnsByTab[tabId], 'detail')), 'detail'))
+                };
+                if (grids[tabId].master) {
+                    grids[tabId].master.on('rowClick', function (_event, row) {
+                        retrieveDetail(tabId, row.getData());
+                    });
+                    if (tabId === 't4') {
+                        grids[tabId].master.on('tableBuilt', ensureInitialT4Row);
+                    }
+                }
+            });
+            ensureInitialT4Row();
+            tabs.forEach(tab => tab.addEventListener('click', () => activate(tab.dataset.tab)));
+            pane.addEventListener('buttonSearchStateChanged', () => syncTabActionButtons(getActiveTabId(), false));
+            pane.onSearch = () => activate((tabs.find(tab => tab.classList.contains('active')) || tabs[0]).dataset.tab);
+            pane.onClear = () => clearTabData(getActiveTabId());
+            pane.onRefresh = () => {
+                const tabId = getActiveTabId();
+                clearTabData(tabId);
+                retrieveTab(tabId);
+            };
+            // 공통 새로고침 함수는 화면 내 모든 Tabulator를 초기화할 수 있으므로,
+            // 이 화면에서는 버튼 이벤트만 화면 전용 핸들러로 교체해 현재 탭만 새로고침한다.
+            const refreshButton = pane.querySelector('.btn-refresh');
+            if (refreshButton) {
+                refreshButton.onclick = function (event) {
+                    if (event) event.preventDefault();
+                    if (this.disabled || this.classList.contains('disabled')) return;
+                    if (window.WorkDateSyncManager && typeof window.WorkDateSyncManager.clearTabNoticeForPane === 'function') {
+                        window.WorkDateSyncManager.clearTabNoticeForPane(pane);
+                    }
+                    pane.onRefresh(this);
+                };
+            }
+            pane.onInput = () => {
+                const tabId = getActiveTabId();
+                if (tabId !== 't1' && tabId !== 't3') {
+                    notify('현재 탭은 입력할 수 없는 조회 화면입니다.', 'warning');
+                    return;
+                }
+                addMasterRow(tabId, {
+                    isNew: true,
+                    rowStatus: 'C',
+                    trYmd: dateValue(workDate),
+                    trCd: tabId === 't1' ? 'G31' : 'G35',
+                    balhCo: '',
+                    xxBalhCo: '',
+                    pVisible: 1
+                });
+                notify('현재 탭의 입력 행을 추가했습니다.', 'info');
+            };
+            pane.onCopy = () => {
+                const tabId = getActiveTabId();
+                const current = grids[tabId];
+                const selectedRows = current && current.master && current.master.getSelectedRows
+                    ? current.master.getSelectedRows() : [];
+                if (!selectedRows.length) {
+                    notify('복사할 현재 탭의 행을 먼저 선택해 주세요.', 'warning');
+                    return;
+                }
+                const copiedData = {...selectedRows[0].getData(), isNew: true, rowStatus: 'C', isDeleted: false, pVisible: 1};
+                addMasterRow(tabId, copiedData);
+                notify('현재 탭의 선택 행을 복사했습니다.', 'info');
+            };
+            pane.onDelete = () => {
+                const tabId = getActiveTabId();
+                const current = grids[tabId];
+                const selectedRows = current && current.master && current.master.getSelectedRows
+                    ? current.master.getSelectedRows() : [];
+                if (!selectedRows.length) {
+                    notify('삭제할 현재 탭의 행을 먼저 선택해 주세요.', 'warning');
+                    return;
+                }
+                if (typeof window.confirm === 'function' && !window.confirm('현재 탭에서 선택한 행을 삭제하시겠습니까?')) return;
+                Promise.all(selectedRows.map(row => {
+                    const data = row.getData ? row.getData() : {};
+                    if (data.isNew) return row.delete();
+                    return Promise.resolve(row.update({isDeleted: true, rowStatus: 'D'})).then(() => {
+                        const element = row.getElement && row.getElement();
+                        if (element) element.classList.add('row-deleted');
+                    });
+                })).then(() => {
+                    if (current.detail) current.detail.clearData();
+                    notify('현재 탭의 선택 행을 삭제 표시했습니다. 저장 버튼으로 반영할 수 있습니다.', 'info');
+                });
+            };
+            pane.onSave = () => {
+                const tabId = getActiveTabId();
+                const current = grids[tabId];
+                const dirtyRows = current && current.master && current.master.getData
+                    ? current.master.getData().filter(row => row.isNew || row.isDeleted || row.rowStatus) : [];
+                if (dirtyRows.length) {
+                    notify('W_JA021F는 현재 조회 API만 제공되어 저장할 수 없습니다. 변경 내용은 화면에만 반영됩니다.', 'warning');
+                } else {
+                    notify('현재 탭에 저장할 변경 내용이 없습니다.', 'info');
+                }
+            };
+            pane.onExcel = () => {
+                const tabId = getActiveTabId();
+                const current = grids[tabId];
+                if (!current || !current.master || typeof current.master.download !== 'function') return;
+                current.master.download('xlsx', 'W_JA021F_' + tabId.toUpperCase() + '.xlsx', {
+                    sheetName: tabId.toUpperCase() + '_MASTER'
+                });
+            };
+            pane.onDetailExcel = () => {
+                const tabId = getActiveTabId();
+                const current = grids[tabId];
+                if (!current || !current.detail || typeof current.detail.download !== 'function') return;
+                current.detail.download('xlsx', 'W_JA021F_' + tabId.toUpperCase() + '_DETAIL.xlsx', {
+                    sheetName: tabId.toUpperCase() + '_DETAIL'
+                });
+            };
+            initSplitter();
+            activate('t1');
+            }
+
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', startInit, {once: true});
+            } else {
+                startInit();
+            }
+        })();
+    </script>
+</div>
+</html>

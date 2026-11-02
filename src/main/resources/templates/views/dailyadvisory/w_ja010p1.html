@@ -142,9 +142,10 @@
                 var corpGr = resolveCorpGr(pane);
                 var ymd = getFilterYmd(pane);
 
-                return "/api/daily/ja010p1/preview?corpGr=" + encodeURIComponent(corpGr) +
+                var rawUrl = "/api/daily/ja010p1/preview?corpGr=" + encodeURIComponent(corpGr) +
                     "&ymd=" + encodeURIComponent(ymd) +
                     "&t=" + new Date().getTime();
+                return window.AamsReport.formatPreviewUrl(rawUrl);
             }
 
             function loadReport() {

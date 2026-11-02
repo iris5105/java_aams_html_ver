@@ -59,9 +59,6 @@
         </div>
     </div>
 
-    <!-- 모바일 전용 리포트 모달 (공통 프래그먼트) -->
-    <div th:replace="~{fragments/report/report_viewer :: reportMobileModal(modalId='ja020pMobileModal', modalTitle='채권비율보고')}"></div>
-
     <!-- 4. 화면 전용 스크립트 격리 블록 -->
     <script th:inline="javascript">
         (function () {
@@ -71,10 +68,6 @@
             if (!pane) return;
 
             let isInitialized = false;
-
-            function isMobile() {
-                return window.innerWidth <= 876;
-            }
 
             // [1. 기준일자 달력 컴포넌트 초기화]
             function initCalendar() {
@@ -118,25 +111,17 @@
                 var spinner = pane.querySelector("#preview-loading");
                 var statusEl = pane.querySelector("#preview-status");
                 var reportFrame = pane.querySelector("#report-frame");
-                var reportMobileFrame = pane.querySelector("#reportMobileFrame");
-                var mobileModal = pane.querySelector("#ja020pMobileModal");
 
                 if (spinner) spinner.style.display = "flex";
                 if (statusEl) statusEl.textContent = "기준일자: " + ymd;
 
                 var previewUrl = buildPreviewUrl();
 
-                if (isMobile()) {
-                    if (reportMobileFrame) reportMobileFrame.src = previewUrl;
-                    if (mobileModal) mobileModal.style.display = "flex";
-                    if (spinner) spinner.style.display = "none";
-                } else {
-                    if (reportFrame) {
-                        reportFrame.onload = function () {
-                            if (spinner) spinner.style.display = "none";
-                        };
-                        reportFrame.src = previewUrl;
-                    }
+                if (reportFrame) {
+                    reportFrame.onload = function () {
+                        if (spinner) spinner.style.display = "none";
+                    };
+                    reportFrame.src = previewUrl;
                 }
             }
 
@@ -225,14 +210,6 @@
                     });
                 }
 
-                // 모바일 모달 닫기 바인딩
-                var modalCloseBtn = pane.querySelector(".btn-report-modal-close");
-                var mobileModal = pane.querySelector("#ja020pMobileModal");
-                if (modalCloseBtn && mobileModal) {
-                    modalCloseBtn.addEventListener("click", function () {
-                        mobileModal.style.display = "none";
-                    });
-                }
             }
 
             // [MDI 단일 진입점 실행]

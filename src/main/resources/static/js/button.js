@@ -36,6 +36,33 @@ function onToolbarInput(btn) {
     const pane = getActiveTabPane(btn);
     if (!pane) return;
 
+    // 화면 내부 탭이 있으면 현재 활성 탭의 MASTER Tabulator에 신규 행을 추가한다.
+    // 탭이 없는 화면은 기존 pane.onInput/onInsert 및 자동 탐색 로직을 그대로 사용한다.
+    const internalTabs = pane.querySelectorAll('[role="tab"][data-tab]');
+    if (internalTabs.length) {
+        const activePage = pane.querySelector('[role="tabpanel"].active, .ja021h-page.active, .tab-page.active') || pane.querySelector('.tab-pane.active');
+        const gridEl = activePage && (activePage.querySelector('.master-grid, .tabulator-aams-grid[id*="master"]') || activePage.querySelector('.tabulator-aams-grid'));
+        const tableList = gridEl && typeof Tabulator !== 'undefined' && typeof Tabulator.findTable === 'function' ? Tabulator.findTable(gridEl) : [];
+        const table = Array.isArray(tableList) ? tableList[0] : tableList;
+        if (table && typeof table.addRow === 'function') {
+            const newRowData = Object.assign({isNew: true}, typeof pane.getNewRowData === 'function' ? (pane.getNewRowData() || {}) : {});
+            table.addRow(newRowData, true).then(function(newRow) {
+                table.deselectRow(); newRow.select();
+                // 신규행을 상단에 추가한 뒤 No. 표시용 필드를 1부터 다시 정렬한다.
+                table.getRows().forEach(function(row, index) {
+                    const data = row.getData();
+                    const patch = {};
+                    if (Object.prototype.hasOwnProperty.call(data, 'no')) patch.no = index + 1;
+                    if (Object.prototype.hasOwnProperty.call(data, 'fseq')) patch.fseq = index + 1;
+                    if (Object.keys(patch).length) row.update(patch);
+                });
+                try { newRow.scrollTo(); } catch (e) {}
+                pane.dispatchEvent(new CustomEvent('masterRowInserted', {bubbles: true, detail: {row: newRow, data: newRow.getData(), tab: activePage && activePage.dataset ? activePage.dataset.page || activePage.dataset.tab : null}}));
+            }).catch(function(err) { console.warn('Tabulator tab insert warning:', err); });
+            return;
+        }
+    }
+
     // 1. Check pane-scoped custom onInput / onInsert handler
     if (typeof pane.onInput === 'function') {
         pane.onInput(btn);
@@ -906,21 +933,104 @@ function getNavFileName(btn) {
     return group.getAttribute('data-file-name') || btn.getAttribute('data-file-name') || '상세목록';
 }
 
+function getSelectedGridRowData(grid) {
+    if (!grid) return null;
+    if (typeof grid.getSelectedData === 'function') {
+        const selectedData = grid.getSelectedData();
+        if (Array.isArray(selectedData) && selectedData.length > 0) return selectedData[0];
+    }
+    if (typeof grid.getSelectedRows === 'function') {
+        const selectedRows = grid.getSelectedRows();
+        if (Array.isArray(selectedRows) && selectedRows.length > 0 && typeof selectedRows[0].getData === 'function') {
+            return selectedRows[0].getData();
+        }
+    }
+    return null;
+}
+
+function getGridNavKeySuffix(btn, pane, detailGrid) {
+    if (!pane || typeof Tabulator === 'undefined' || typeof Tabulator.findTable !== 'function') return '';
+
+    const gridElements = Array.from(pane.querySelectorAll('.tabulator-aams-grid, .tabulator-dw-grid'));
+    let selectedData = null;
+
+    for (const gridElement of gridElements) {
+        const found = Tabulator.findTable(gridElement);
+        const grid = Array.isArray(found) ? found[0] : found;
+        if (!grid || grid === detailGrid) continue;
+        selectedData = getSelectedGridRowData(grid);
+        if (selectedData) break;
+    }
+
+    if (!selectedData) selectedData = getSelectedGridRowData(detailGrid);
+    if (!selectedData || typeof selectedData !== 'object') return '';
+
+    const preferredOrder = ['fundcd', 'jmcd', 'oldjmcd', 'newjmcd'];
+    const codeEntries = Object.keys(selectedData).filter(function (key) {
+        const normalized = String(key).replace(/[_-]/g, '').toLowerCase();
+        if (normalized === 'corpgr' || normalized === 'corpgroup') return false;
+        return normalized.endsWith('cd') || normalized === 'rcd';
+    }).map(function (key) {
+        const normalized = String(key).replace(/[_-]/g, '').toLowerCase();
+        return { key: key, normalized: normalized, value: selectedData[key] };
+    }).filter(function (entry) {
+        return entry.value !== null && entry.value !== undefined && String(entry.value).trim() !== '' && String(entry.value).trim() !== '%';
+    }).sort(function (a, b) {
+        const ai = preferredOrder.indexOf(a.normalized);
+        const bi = preferredOrder.indexOf(b.normalized);
+        const ar = ai < 0 ? preferredOrder.length : ai;
+        const br = bi < 0 ? preferredOrder.length : bi;
+        return ar === br ? a.key.localeCompare(b.key) : ar - br;
+    });
+
+    const usedValues = new Set();
+    const parts = [];
+    for (const entry of codeEntries) {
+        const rawValue = String(entry.value).trim();
+        if (usedValues.has(rawValue)) continue;
+        usedValues.add(rawValue);
+        const safeKey = String(entry.key).replace(/[^a-zA-Z0-9_-]/g, '');
+        const safeValue = rawValue.replace(/[\\/:*?"<>|\s]/g, '_').slice(0, 40);
+        if (safeValue) parts.push((safeKey ? safeKey + '-' : '') + safeValue);
+        if (parts.length >= 4) break;
+    }
+
+    return parts.join('_').slice(0, 140);
+}
+
 function onGridNavExcel(btn) {
-    const pane = (typeof getActiveTabPane === 'function') ? getActiveTabPane(btn) : null;
+    if (btn && (btn.disabled || btn.classList.contains('disabled'))) return;
+    const pane = (typeof getActiveTabPane === 'function')
+        ? getActiveTabPane(btn)
+        : (btn ? (btn.closest('.tab-pane') || btn.closest('.view-container')) : null);
+    if (!pane) return;
+
     if (pane && typeof pane.onDetailExcel === 'function') {
         pane.onDetailExcel(btn);
         return;
     }
+
     const grid = getGridFromNavBtn(btn);
-    if (!grid) {
-        console.warn('[onGridNavExcel] 대상 그리드를 찾을 수 없습니다.');
+    if (grid && typeof grid.download === 'function') {
+        const fileName = getNavFileName(btn);
+        const safeFileName = String(fileName || '상세목록').trim().replace(/[\\/:*?"<>|]/g, '_') || '상세목록';
+        const keySuffix = getGridNavKeySuffix(btn, pane, grid);
+        const ymd = (typeof getFilterYmd === 'function') ? getFilterYmd(pane, 'YYYYMMDD') : '';
+        const downloadName = safeFileName + (keySuffix ? '_' + keySuffix : '') + (ymd ? '_' + ymd : '');
+        try {
+            grid.download('xlsx', downloadName + '.xlsx');
+        } catch (e) {
+            grid.download('csv', downloadName + '.csv');
+        }
         return;
     }
-    const fileName = getNavFileName(btn);
-    const ymd = (typeof getFilterYmd === 'function') ? getFilterYmd(pane, 'YYYYMMDD') : '';
-    const fullFileName = fileName + (ymd ? '_' + ymd : '') + '.xlsx';
-    grid.download('xlsx', fullFileName, { sheetName: fileName });
+
+    if (typeof window.onDetailExcel === 'function' && window.onDetailExcel !== onGridNavExcel) {
+        window.onDetailExcel(btn);
+        return;
+    }
+
+    console.warn('[onGridNavExcel] 대상 DETAIL 그리드를 찾을 수 없습니다.');
 }
 
 function onGridNavAdd(btn) {

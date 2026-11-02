@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.kfp.aams.domain.assetmanagement.mapper.Ja030aMapper">
+    <!-- d_ja030a1.srd retrieve SQL: SJT5J1 + SZM0IA. -->
+    <select id="selectList" resultType="com.kfp.aams.domain.assetmanagement.dto.Ja030aDto">
+        SELECT t1.CORP_GR       AS corpGr
+             , t1.TR_YMD        AS trYmd
+             , t1.TR_CD         AS trCd
+             , t1.FUND_CD       AS fundCd
+             , ia.FUND_NM       AS fundNm
+             , t1.JM_CD         AS jmCd
+             , t1.KRAK_YMD      AS krakYmd
+             , t1.BALH_CO       AS balhCo
+             , t1.BALH_GA       AS balhGa
+             , t1.TR_JUSU       AS trJusu
+             , t1.TR_DANGA      AS trDanga
+             , t1.TR_AEK        AS trAek
+             , t1.SUSU          AS susu
+             , t1.GYUL_AEK      AS gyulAek
+             , t1.TR_CO_CD      AS trCoCd
+             , t1.CHENG_YMD     AS chengYmd
+             , t1.TYPE_TRENCH   AS typeTrench
+             , t1.BS_TYPE       AS bsType
+             , 1                AS pVisible
+          FROM SJT5J1 t1
+          JOIN SZM0IA ia
+            ON ia.CORP_GR = t1.CORP_GR
+           AND ia.FUND_CD = t1.FUND_CD
+         WHERE t1.CORP_GR = #{corpGr}
+           AND t1.TR_YMD  = #{trYmd}
+           AND t1.TR_CD   = #{trCd}
+           AND t1.JM_CD   = #{jmCd}
+         ORDER BY t1.TR_YMD ASC, t1.TR_CD ASC, t1.FUND_CD ASC
+    </select>
+</mapper>

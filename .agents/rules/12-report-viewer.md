@@ -10,6 +10,8 @@ trigger: always_on
 
 ## 1. MRD 리포트 아키텍처 개요 (Architecture Overview)
 
+미리보기 형식은 `aams_report.js`의 `AamsReport.PREVIEW_FORMAT` 한 곳에서 관리한다(현재 `html`). PC pane, 모바일 모달, 새 창 모두 같은 형식을 사용한다. 화면 전용 API URL도 `AamsReport.formatPreviewUrl(url, zoom)`을 거치며, 화면이나 모바일 분기에 `format=html/pdf`를 하드코딩하지 않는다. 서버는 전달된 format을 우선 적용하고 User-Agent로 덮어쓰지 않는다. PDF/Excel/Word/PPT/HWP 다운로드는 미리보기 형식과 별도로 선택된 내보내기 형식을 사용한다. `common.js`에는 리포트 엔진을 중복 정의하지 않는다.
+
 ```
 [클라이언트 웹 브라우저]
    │  1) AamsReport.bindViewer() 호출
@@ -48,7 +50,7 @@ HTML 템플릿 작성 시 리포트 뷰어 컨테이너를 직접 마크업하�
 
 ```html
 <!-- 우측 또는 하단 리포트 패널 -->
-<div class="split-pane split-right" id="reportPanel">
+<div class="split-pane pane-right" id="reportPanel">
     <div th:replace="~{fragments/report/report_viewer :: reportViewer(
         title='펀드 운용보고서',
         modalId='fundReportMobileModal'
@@ -70,7 +72,7 @@ HTML 템플릿 작성 시 리포트 뷰어 컨테이너를 직접 마크업하�
 ## 4. 자바스크립트 일체형 제어 엔진 (`AamsReport.bindViewer`)
 
 개별 화면 스크립트에서 5종 내보내기 버튼 이벤트, 새 창 열기, 모바일 모달 팝업 제어, iframe 로딩 스피너 등을 중복 코딩하는 행위(Zero-Garbage Code 위반)를 절대 금지합니다.  
-공통 스크립트 [common.js](file:///d:/work/java_aams_html_ver/src/main/resources/static/js/common.js)의 `AamsReport.bindViewer(currentPane, config)` 1개로 일괄 바인딩합니다.
+공통 스크립트 `src/main/resources/static/js/aams_report.js`의 `AamsReport.bindViewer(currentPane, config)` 1개로 일괄 바인딩합니다.
 
 ### 4.1 일체형 바인딩 표준 예시
 ```javascript

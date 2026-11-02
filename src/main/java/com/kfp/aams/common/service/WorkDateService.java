@@ -22,6 +22,8 @@ public class WorkDateService {
 
     /**
      * 회사그룹별 기준 작업일자 조회 (YYYY-MM-DD)
+     * 2402는 JUNYONG_YMD(없으면 HYUN_YMD), 그 외 회사는 HYUN_YMD를 사용한다.
+     * 로그인, 회사 전환, 화면 기본일자 및 공통 작업일자 API에 동일하게 적용된다.
      */
     public String getWorkDate(String corpGr) {
         if (corpGr == null || corpGr.isBlank()) {

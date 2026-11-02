@@ -185,6 +185,21 @@
         width: 100%;
     }
 
+    /* Split이 없는 단일 화면은 PC와 같은 하단 여백만 남긴다. */
+    .layout-mobile-stack-container:not(.proposal-container):not(:has(.layout-split-h, .layout-split-v)) {
+        padding-bottom: 5px !important;
+    }
+
+    .layout-mobile-stack-container:not(.proposal-container):not(:has(.layout-split-h, .layout-split-v))::after {
+        display: none;
+    }
+
+    .layout-mobile-stack-container:not(.proposal-container):not(:has(.layout-split-h, .layout-split-v)) > .grid-section,
+    .layout-mobile-stack-container:not(.proposal-container):not(:has(.layout-split-h, .layout-split-v)) > .single-panel-layout,
+    .layout-mobile-stack-container:not(.proposal-container):not(:has(.layout-split-h, .layout-split-v)) > .report-container-panel {
+        padding-bottom: 0 !important;
+    }
+
     .layout-split-h {
         flex-direction: column !important;
         flex: 1 1 0 !important;
@@ -308,6 +323,22 @@
         box-sizing: border-box !important;
     }
 
+    /* 좌측 패널 안에 상하 Split이 중첩된 화면(w_ja032d 등)은
+       좌측 패널 자체도 세로 순차 콘텐츠 높이를 사용한다. */
+    .layout-split-h.layout-mobile-stack > .pane-left:has(> .layout-split-v),
+    .layout-split-h.layout-mobile-stack > .left-pane:has(> .layout-split-v),
+    .layout-split-h.layout-mobile-stack > .master-section:has(> .layout-split-v) {
+        flex: 0 0 auto !important;
+        height: auto !important;
+        min-height: 0 !important;
+        max-height: none !important;
+        overflow: visible !important;
+        background: transparent !important;
+        border: none !important;
+        padding: 0 !important;
+        gap: 12px !important;
+    }
+
     .layout-split-h.layout-mobile-stack > .pane-right,
     .layout-split-h.layout-mobile-stack > .right-pane,
     .layout-split-h.layout-mobile-stack > .detail-section,
@@ -339,6 +370,9 @@
     }
 
     /* 6-C-3. 중첩 분할: .pane-right 또는 .detail-section 내부에 .layout-split-v가 존재하는 경우 세로 순차 전개 (w_ja032e_put 등) */
+    .layout-split-h.layout-mobile-stack > .pane-left > .layout-split-v,
+    .layout-split-h.layout-mobile-stack > .left-pane > .layout-split-v,
+    .layout-split-h.layout-mobile-stack > .master-section > .layout-split-v,
     .layout-split-h.layout-mobile-stack > .pane-right > .layout-split-v,
     .layout-split-h.layout-mobile-stack > .detail-section > .layout-split-v {
         display: flex !important;
@@ -353,11 +387,20 @@
         box-sizing: border-box !important;
     }
 
+    .layout-split-h.layout-mobile-stack > .pane-left > .layout-split-v > .split-gutter-v,
+    .layout-split-h.layout-mobile-stack > .left-pane > .layout-split-v > .split-gutter-v,
+    .layout-split-h.layout-mobile-stack > .master-section > .layout-split-v > .split-gutter-v,
     .layout-split-h.layout-mobile-stack > .pane-right > .layout-split-v > .split-gutter-v,
     .layout-split-h.layout-mobile-stack > .detail-section > .layout-split-v > .split-gutter-v {
         display: none !important;
     }
 
+    .layout-split-h.layout-mobile-stack > .pane-left > .layout-split-v > .pane-top,
+    .layout-split-h.layout-mobile-stack > .pane-left > .layout-split-v > .pane-bottom,
+    .layout-split-h.layout-mobile-stack > .left-pane > .layout-split-v > .pane-top,
+    .layout-split-h.layout-mobile-stack > .left-pane > .layout-split-v > .pane-bottom,
+    .layout-split-h.layout-mobile-stack > .master-section > .layout-split-v > .pane-top,
+    .layout-split-h.layout-mobile-stack > .master-section > .layout-split-v > .pane-bottom,
     .layout-split-h.layout-mobile-stack > .pane-right > .layout-split-v > .pane-top,
     .layout-split-h.layout-mobile-stack > .pane-right > .layout-split-v > .pane-bottom,
     .layout-split-h.layout-mobile-stack > .detail-section > .layout-split-v > .pane-top,
@@ -376,6 +419,12 @@
         box-sizing: border-box !important;
     }
 
+    .layout-split-h.layout-mobile-stack > .pane-left > .layout-split-v > .pane-top .pane-body,
+    .layout-split-h.layout-mobile-stack > .pane-left > .layout-split-v > .pane-bottom .pane-body,
+    .layout-split-h.layout-mobile-stack > .left-pane > .layout-split-v > .pane-top .pane-body,
+    .layout-split-h.layout-mobile-stack > .left-pane > .layout-split-v > .pane-bottom .pane-body,
+    .layout-split-h.layout-mobile-stack > .master-section > .layout-split-v > .pane-top .pane-body,
+    .layout-split-h.layout-mobile-stack > .master-section > .layout-split-v > .pane-bottom .pane-body,
     .layout-split-h.layout-mobile-stack > .pane-right > .layout-split-v > .pane-top .pane-body,
     .layout-split-h.layout-mobile-stack > .pane-right > .layout-split-v > .pane-bottom .pane-body,
     .layout-split-h.layout-mobile-stack > .detail-section > .layout-split-v > .pane-top .pane-body,
@@ -392,6 +441,47 @@
     .layout-split-h.layout-mobile-stack .tabulator {
         height: 100% !important;
         min-height: 0 !important;
+    }
+
+    /* 모바일 좌우 Split: 양쪽이 모두 Tabulator이면 가용 높이를 50:50으로 나눈다. */
+    .layout-split-h.layout-mobile-stack:has(> :is(.pane-left, .left-pane, .master-section) .tabulator-aams-grid, > :is(.pane-left, .left-pane, .master-section) .tabulator-dw-grid):has(> :is(.pane-right, .right-pane, .detail-section) .tabulator-aams-grid, > :is(.pane-right, .right-pane, .detail-section) .tabulator-dw-grid):not(:has(> :is(.pane-left, .left-pane, .master-section) > .layout-split-h, > :is(.pane-left, .left-pane, .master-section) > .layout-split-v, > :is(.pane-right, .right-pane, .detail-section) > .layout-split-h, > :is(.pane-right, .right-pane, .detail-section) > .layout-split-v)) {
+        flex: 1 1 auto !important;
+        height: 100% !important;
+        min-height: 0 !important;
+        max-height: none !important;
+        overflow: hidden !important;
+        gap: 6px !important;
+    }
+
+    .layout-split-h.layout-mobile-stack:has(> :is(.pane-left, .left-pane, .master-section) .tabulator-aams-grid, > :is(.pane-left, .left-pane, .master-section) .tabulator-dw-grid):has(> :is(.pane-right, .right-pane, .detail-section) .tabulator-aams-grid, > :is(.pane-right, .right-pane, .detail-section) .tabulator-dw-grid):not(:has(> :is(.pane-left, .left-pane, .master-section) > .layout-split-h, > :is(.pane-left, .left-pane, .master-section) > .layout-split-v, > :is(.pane-right, .right-pane, .detail-section) > .layout-split-h, > :is(.pane-right, .right-pane, .detail-section) > .layout-split-v)) > :is(.pane-left, .left-pane, .master-section),
+    .layout-split-h.layout-mobile-stack:has(> :is(.pane-left, .left-pane, .master-section) .tabulator-aams-grid, > :is(.pane-left, .left-pane, .master-section) .tabulator-dw-grid):has(> :is(.pane-right, .right-pane, .detail-section) .tabulator-aams-grid, > :is(.pane-right, .right-pane, .detail-section) .tabulator-dw-grid):not(:has(> :is(.pane-left, .left-pane, .master-section) > .layout-split-h, > :is(.pane-left, .left-pane, .master-section) > .layout-split-v, > :is(.pane-right, .right-pane, .detail-section) > .layout-split-h, > :is(.pane-right, .right-pane, .detail-section) > .layout-split-v)) > :is(.pane-right, .right-pane, .detail-section) {
+        flex: 1 1 50% !important;
+        width: 100% !important;
+        height: auto !important;
+        min-height: 0 !important;
+        max-height: none !important;
+        overflow: hidden !important;
+    }
+
+    /* 한쪽만 Tabulator인 경우 그리드는 10행 높이, 나머지 pane은 내용 높이만 사용한다. */
+    .layout-split-h.layout-mobile-stack:has(> :is(.pane-left, .left-pane, .master-section) .tabulator-aams-grid, > :is(.pane-left, .left-pane, .master-section) .tabulator-dw-grid):not(:has(> :is(.pane-right, .right-pane, .detail-section) .tabulator-aams-grid, > :is(.pane-right, .right-pane, .detail-section) .tabulator-dw-grid)):not(:has(> :is(.pane-left, .left-pane, .master-section) > .layout-split-h, > :is(.pane-left, .left-pane, .master-section) > .layout-split-v, > :is(.pane-right, .right-pane, .detail-section) > .layout-split-h, > :is(.pane-right, .right-pane, .detail-section) > .layout-split-v, .report-card, .report-viewer, iframe)) > :is(.pane-left, .left-pane, .master-section),
+    .layout-split-h.layout-mobile-stack:not(:has(> :is(.pane-left, .left-pane, .master-section) .tabulator-aams-grid, > :is(.pane-left, .left-pane, .master-section) .tabulator-dw-grid)):has(> :is(.pane-right, .right-pane, .detail-section) .tabulator-aams-grid, > :is(.pane-right, .right-pane, .detail-section) .tabulator-dw-grid):not(:has(> :is(.pane-left, .left-pane, .master-section) > .layout-split-h, > :is(.pane-left, .left-pane, .master-section) > .layout-split-v, > :is(.pane-right, .right-pane, .detail-section) > .layout-split-h, > :is(.pane-right, .right-pane, .detail-section) > .layout-split-v, .report-card, .report-viewer, iframe)) > :is(.pane-right, .right-pane, .detail-section) {
+        flex: 0 0 360px !important;
+        width: 100% !important;
+        height: 360px !important;
+        min-height: 360px !important;
+        max-height: 360px !important;
+        overflow: hidden !important;
+    }
+
+    .layout-split-h.layout-mobile-stack:has(> :is(.pane-left, .left-pane, .master-section) .tabulator-aams-grid, > :is(.pane-left, .left-pane, .master-section) .tabulator-dw-grid):not(:has(> :is(.pane-right, .right-pane, .detail-section) .tabulator-aams-grid, > :is(.pane-right, .right-pane, .detail-section) .tabulator-dw-grid)):not(:has(> :is(.pane-left, .left-pane, .master-section) > .layout-split-h, > :is(.pane-left, .left-pane, .master-section) > .layout-split-v, > :is(.pane-right, .right-pane, .detail-section) > .layout-split-h, > :is(.pane-right, .right-pane, .detail-section) > .layout-split-v, .report-card, .report-viewer, iframe)) > :is(.pane-right, .right-pane, .detail-section),
+    .layout-split-h.layout-mobile-stack:not(:has(> :is(.pane-left, .left-pane, .master-section) .tabulator-aams-grid, > :is(.pane-left, .left-pane, .master-section) .tabulator-dw-grid)):has(> :is(.pane-right, .right-pane, .detail-section) .tabulator-aams-grid, > :is(.pane-right, .right-pane, .detail-section) .tabulator-dw-grid):not(:has(> :is(.pane-left, .left-pane, .master-section) > .layout-split-h, > :is(.pane-left, .left-pane, .master-section) > .layout-split-v, > :is(.pane-right, .right-pane, .detail-section) > .layout-split-h, > :is(.pane-right, .right-pane, .detail-section) > .layout-split-v, .report-card, .report-viewer, iframe)) > :is(.pane-left, .left-pane, .master-section) {
+        flex: 0 0 auto !important;
+        width: 100% !important;
+        height: auto !important;
+        min-height: min-content !important;
+        max-height: none !important;
+        overflow: visible !important;
     }
 
     /* 6-C-1. 모바일 메모 스택 카드 */
