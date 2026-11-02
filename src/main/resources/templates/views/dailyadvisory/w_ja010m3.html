@@ -191,29 +191,13 @@
                 if (!selectEl) return Promise.resolve();
                 const corpGr = resolveCorpGr(pane);
 
-                if (typeof window.f_dddwctl === 'function') {
-                    // 웹 프로젝트 변환 f_dddwctl 호출을 통해 dual 데이터 생성
-                    return window.f_dddwctl('dddw | dual', corpGr, "1,고객명순,,2,결산일순,", 1, "").then(list => {
-                        // 2-Column DDDW 드롭다운 위젯 적용 (개발지침 Rule 7: 코드, 코드명 2칸 분할)
-                        if (typeof window.f_dddwctl.get2ColItemFormatter === 'function') {
-                            window.f_dddwctl.get2ColItemFormatter(selectEl, list, {
-                                codeTitle: "구분",
-                                nameTitle: "정렬순서",
-                                defaultVal: selectEl.value || (list && list[0] ? list[0].code : "1"),
-                                onSelect: function(code, name) {
-                                    selectEl.value = code;
-                                }
-                            });
-                        } else {
-                            selectEl.innerHTML = list.map(item => `<option value="${item.code}">${item.code} : ${item.name}</option>`).join("");
-                            selectEl.value = (list && list[0] ? list[0].code : "1");
-                        }
-                        return list;
-                    }).catch(err => {
-                        console.error("[initFilterDddw] f_dddwctl load error:", err);
-                    });
-                }
-                return Promise.resolve();
+                return window.f_dddwctl(selectEl, 'dddw | dual', corpGr, "1,고객명순,,2,결산일순,", 1, "", {
+                    codeTitle: "구분",
+                    nameTitle: "정렬순서",
+                    defaultVal: selectEl.value || "1"
+                }).catch(err => {
+                    console.error("[initFilterDddw] f_dddwctl load error:", err);
+                });
             }
 
             // Date Formatter Helper: common.js의 formatDateVal / formatDateDot 사용

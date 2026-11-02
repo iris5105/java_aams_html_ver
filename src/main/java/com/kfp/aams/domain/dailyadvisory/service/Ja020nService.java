@@ -55,9 +55,9 @@ public class Ja020nService {
     }
 
     /**
-     * 기준 작업일자 조회 (공통 WorkDateService 위임)
+     * 기준 작업일자 조회 (공통 WorkDateService 위임 - 2402는 JUNYONG_YMD)
      */
     public String getWorkDate(String corpGr) {
-        return workDateService.getWorkDate(corpGr);
+        return workDateService.getWorkDateFor2402Junyong(corpGr);
     }
 }

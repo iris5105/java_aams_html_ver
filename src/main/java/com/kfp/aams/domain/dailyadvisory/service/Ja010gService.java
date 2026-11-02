@@ -59,6 +59,6 @@ public class Ja010gService {
 
     @Transactional(readOnly = true)
     public String getWorkDate(String corpGr) {
-        return workDateService.getWorkDate(corpGr);
+        return workDateService.getWorkDateFor2402Junyong(corpGr);
     }
 }

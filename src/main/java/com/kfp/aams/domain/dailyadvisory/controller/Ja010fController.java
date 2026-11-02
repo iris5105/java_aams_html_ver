@@ -52,7 +52,7 @@ public class Ja010fController {
         String fullpgm2 = (menuDto != null) ? menuDto.getFullpgm2() : "사무관리 > 자문일일 > 일일작업";
         List<String> trDates = (corpGr != null && !corpGr.isBlank()) ? ja010fService.getDates(corpGr) : Collections.emptyList();
         String ymd = (paramYmd != null && !paramYmd.isBlank()) ? paramYmd
-                : workDateService.getWorkDateOrDefault(corpGr);
+                : workDateService.getWorkDateFor2402JunyongOrDefault(corpGr);
 
         model.addAttribute("fullpgm2", fullpgm2);
         model.addAttribute("corpGr", corpGr);

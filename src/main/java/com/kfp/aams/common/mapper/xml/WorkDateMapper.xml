@@ -3,9 +3,15 @@
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.kfp.aams.common.mapper.WorkDateMapper">
 
-    <!-- 공통 작업일자: 2402는 JUNYONG_YMD, 나머지 회사는 HYUN_YMD 사용.
-         JUNYONG_YMD가 없으면 전영업일 조회와 동일하게 HYUN_YMD로 대체한다. -->
+    <!-- 공통 작업일자: 각 회사의 HYUN_YMD (파워빌더 idt_workdate 기본 명세) -->
     <select id="selectWorkDate" resultType="java.lang.String">
+        SELECT TO_CHAR(hyun_ymd, 'YYYY-MM-DD')
+          FROM SZX0AA
+         WHERE corp_gr = #{corpGr}
+    </select>
+
+    <!-- PB wue_lastopen에서 corp_gr='2402'인 경우 JUNYONG_YMD, 그 외 회사는 HYUN_YMD를 사용하는 화면 전용 -->
+    <select id="selectWorkDateFor2402Junyong" resultType="java.lang.String">
         SELECT TO_CHAR(CASE WHEN corp_gr = '2402'
                             THEN NVL(junyong_ymd, hyun_ymd)
                             ELSE hyun_ymd

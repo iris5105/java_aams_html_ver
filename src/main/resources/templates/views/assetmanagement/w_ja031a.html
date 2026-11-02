@@ -28,9 +28,6 @@
             <span class="sub-title" style="font-weight: 600; font-size: 13px; color: #1e293b;">
                 <i class="fa-solid fa-arrow-trend-up" style="margin-right: 6px; color: #3b82f6;"></i>선물매매 거래 목록
             </span>
-            <div class="panel-actions">
-                <div th:replace="~{fragments/tab_header :: detailNav(targetGrid='#gridList', fileName='선물매매_거래목록', buttons='0010000001')}"></div>
-            </div>
         </div>
         <div class="grid-table-wrapper" style="flex: 1 1 auto; min-height: 290px; border: 1px solid #cbd5e1; position: relative; overflow: hidden;">
             <div id="gridList" class="tabulator-aams-grid" style="height: 100%; width: 100%;"></div>
@@ -96,63 +93,15 @@
             function canEditCell(cell) {
                 if (!cell) return false;
                 const rowData = cell.getRow().getData();
-                if (!rowData || rowData.isSummaryRow) return false;
+                if (!rowData) return false;
                 if (!isManageableDate()) return false;
                 if (rowData.isNew) return true;
                 return Number(rowData.pVisible ?? 1) === 1;
             }
 
-            // 합계 행 동적 재계산 (규칙 06 준수: Data Summary Row 패턴)
-            function recalcSummaryRow() {
-                if (!gridList) return;
-                const rows = gridList.getRows();
-                const normalRows = rows.filter(r => {
-                    const d = r.getData();
-                    return d && !d.isSummaryRow && !d.isDeleted;
-                });
-                const summaryRow = rows.find(r => {
-                    const d = r.getData();
-                    return d && d.isSummaryRow;
-                });
-
-                if (normalRows.length === 0) {
-                    if (summaryRow) summaryRow.delete();
-                    return;
-                }
-
-                let totalGyeySu = 0;
-                let totalGyeyAek = 0;
-                let totalYakjungAek = 0;
-                let totalChaAek = 0;
-
-                normalRows.forEach(r => {
-                    const d = r.getData();
-                    totalGyeySu += toNumber(d.gyeySu);
-                    totalGyeyAek += toNumber(d.gyeyAek);
-                    totalYakjungAek += toNumber(d.yakjungAek);
-                    totalChaAek += toNumber(d.chaAek);
-                });
-
-                const summaryData = {
-                    isSummaryRow: true,
-                    xxFundCd: '합계',
-                    fundNm: '합계',
-                    gyeySu: totalGyeySu,
-                    gyeyAek: totalGyeyAek,
-                    yakjungAek: totalYakjungAek,
-                    chaAek: totalChaAek
-                };
-
-                if (summaryRow) {
-                    summaryRow.update(summaryData);
-                } else {
-                    gridList.addRow(summaryData, false);
-                }
-            }
-
             function markRowUpdated(row) {
                 const d = row.getData();
-                if (!d || d.isSummaryRow) return;
+                if (!d) return;
                 if (!d.isNew) {
                     d.isUpdated = true;
                     d.rowStatus = 'U';
@@ -164,7 +113,7 @@
             // 계산식 compute_3 (약정금액) 및 compute_6 (차액) 실시간 재계산
             function recalcRowCalculatedFields(row) {
                 const d = row.getData();
-                if (!d || d.isSummaryRow) return;
+                if (!d) return;
 
                 const su = toNumber(d.gyeySu);
                 const jisu = toNumber(d.gyeyJisu);
@@ -184,8 +133,8 @@
             // 1. 선물종목 검색 모달 (dw_list::ue_setcodesearch 'sj_cd')
             function openSjCdModal(row) {
                 const data = row.getData();
-                if (!data || data.isSummaryRow) return;
-                const trCd = field('filterDddw') ? field('filterDddw').value : 'S10';
+                if (!data) return;
+                const trCd = (field('filterDddw') && field('filterDddw').value) ? field('filterDddw').value : 'S10';
 
                 // PB: SELECT sebu_cd_efnm FROM szx0gr WHERE gr_cd = 'B4' AND sebu_cd = :trCd
                 // sj_gb='...' 조건 매핑
@@ -206,7 +155,6 @@
                             });
                             markRowUpdated(row);
                             recalcRowCalculatedFields(row);
-                            recalcSummaryRow();
                         }
                     });
                 }
@@ -215,7 +163,7 @@
             // 2. 관리번호(펀드) 검색 모달 (dw_list::ue_setcodesearch 'fund_cd')
             function openFundCdModal(row) {
                 const data = row.getData();
-                if (!data || data.isSummaryRow) return;
+                if (!data) return;
                 if (window.DynamicCodeSearch && typeof window.DynamicCodeSearch.openModal === 'function') {
                     window.DynamicCodeSearch.openModal({
                         columnNm: 'fund_cd',
@@ -237,7 +185,7 @@
             // 3. 수수료매매처 검색 모달 (dw_list::ue_setcodesearch 'susu_tr_co_cd')
             function openSusuTrCoCdModal(row) {
                 const data = row.getData();
-                if (!data || data.isSummaryRow) return;
+                if (!data) return;
                 const corpGr = (typeof resolveCorpGr === 'function') ? resolveCorpGr(pane) : initialCorpGr;
                 const addWhere = `used='1' and tr_co_cd in (select tr_co_cd from ssm0ss where corp_gr='${corpGr}')`;
 
@@ -264,10 +212,10 @@
             function onSjCdEdited(cell) {
                 const row = cell.getRow();
                 const d = row.getData();
-                if (!d || d.isSummaryRow) return;
+                if (!d) return;
 
                 const val = String(cell.getValue() || '').trim();
-                const trCd = field('filterDddw') ? field('filterDddw').value : 'S10';
+                const trCd = (field('filterDddw') && field('filterDddw').value) ? field('filterDddw').value : 'S10';
 
                 if (val && val.length >= 4) {
                     const ch4 = val.charAt(3);
@@ -291,7 +239,6 @@
                             if (res && res.unitAek != null) {
                                 row.update({ xxUnitAek: res.unitAek, unitAek: res.unitAek });
                                 recalcRowCalculatedFields(row);
-                                recalcSummaryRow();
                             }
                         })
                         .catch(() => {});
@@ -302,13 +249,12 @@
                 if (updatingCell) return;
                 const row = cell.getRow();
                 const d = row.getData();
-                if (!d || d.isSummaryRow) return;
+                if (!d) return;
 
                 updatingCell = true;
                 try {
                     markRowUpdated(row);
                     recalcRowCalculatedFields(row);
-                    recalcSummaryRow();
                 } finally {
                     updatingCell = false;
                 }
@@ -322,15 +268,8 @@
                     height: '100%',
                     layout: 'fitDataFill',
                     selectableRows: 1,
-                    selectableRowsCheck: row => !row.getData().isSummaryRow,
                     editTriggerEvent: 'click',
                     placeholder: '조회된 데이터가 없습니다.',
-                    rowFormatter: function (row) {
-                        const d = row.getData();
-                        if (d && d.isSummaryRow) {
-                            row.getElement().classList.add('aams-summary-row');
-                        }
-                    },
                     columns: [
                         {
                             title: 'No.',
@@ -340,8 +279,6 @@
                             headerSort: false,
                             resizable: false,
                             formatter: function (cell) {
-                                const d = cell.getRow().getData();
-                                if (d && d.isSummaryRow) return '';
                                 return cell.getRow().getPosition();
                             }
                         },
@@ -356,8 +293,6 @@
                             editable: canEditCell,
                             cellClick: typeof aamsCellEdit === 'function' ? aamsCellEdit : undefined,
                             formatter: function (cell) {
-                                const d = cell.getRow().getData();
-                                if (d && d.isSummaryRow) return '';
                                 return cell.getValue() || '';
                             },
                             cellEdited: onSjCdEdited
@@ -372,8 +307,6 @@
                             headerSort: false,
                             resizable: false,
                             formatter: function (cell) {
-                                const d = cell.getRow().getData();
-                                if (d && d.isSummaryRow) return '';
                                 const disClass = canEditCell(cell) ? '' : 'disabled';
                                 return `<button type="button" class="btn-grid-addon btn-search ${disClass}" title="선물종목 검색"><i class="fa-solid fa-magnifying-glass"></i></button>`;
                             },
@@ -381,7 +314,7 @@
                                 e.stopPropagation();
                                 const row = cell.getRow();
                                 const d = row.getData();
-                                if (!d || d.isSummaryRow) return;
+                                if (!d) return;
                                 if (!canEditCell(cell)) {
                                     gridList.deselectRow();
                                     row.select();
@@ -397,8 +330,6 @@
                             hozAlign: 'left',
                             headerHozAlign: 'center',
                             formatter: function (cell) {
-                                const d = cell.getRow().getData();
-                                if (d && d.isSummaryRow) return '';
                                 return cell.getValue() || '';
                             }
                         },
@@ -413,8 +344,6 @@
                             editable: canEditCell,
                             cellClick: typeof aamsCellEdit === 'function' ? aamsCellEdit : undefined,
                             formatter: function (cell) {
-                                const d = cell.getRow().getData();
-                                if (d && d.isSummaryRow) return '';
                                 const val = cell.getValue() || '';
                                 return `<span class="cell-text-green">${val}</span>`;
                             },
@@ -433,8 +362,6 @@
                             headerSort: false,
                             resizable: false,
                             formatter: function (cell) {
-                                const d = cell.getRow().getData();
-                                if (d && d.isSummaryRow) return '';
                                 const disClass = canEditCell(cell) ? '' : 'disabled';
                                 return `<button type="button" class="btn-grid-addon btn-search ${disClass}" title="관리번호 검색"><i class="fa-solid fa-magnifying-glass"></i></button>`;
                             },
@@ -442,7 +369,7 @@
                                 e.stopPropagation();
                                 const row = cell.getRow();
                                 const d = row.getData();
-                                if (!d || d.isSummaryRow) return;
+                                if (!d) return;
                                 if (!canEditCell(cell)) {
                                     gridList.deselectRow();
                                     row.select();
@@ -458,10 +385,6 @@
                             hozAlign: 'left',
                             headerHozAlign: 'center',
                             formatter: function (cell) {
-                                const d = cell.getRow().getData();
-                                if (d && d.isSummaryRow) {
-                                    return '<div style="text-align: center; font-weight: bold; width: 100%;">합계</div>';
-                                }
                                 return cell.getValue() || '';
                             }
                         },
@@ -481,7 +404,6 @@
                                 const str = val != null && val !== ''
                                     ? (typeof window.formatNumber === 'function' ? window.formatNumber(val, 0) : Number(val).toLocaleString())
                                     : '0';
-                                if (d && d.isSummaryRow) return `<span class="font-bold">${str}</span>`;
                                 return str;
                             },
                             cellEdited: onAmountEdited
@@ -497,8 +419,6 @@
                             editable: canEditCell,
                             cellClick: typeof aamsCellEdit === 'function' ? aamsCellEdit : undefined,
                             formatter: function (cell) {
-                                const d = cell.getRow().getData();
-                                if (d && d.isSummaryRow) return '';
                                 const val = cell.getValue();
                                 if (val == null || val === '') return '0.00';
                                 return Number(val).toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 3 });
@@ -521,7 +441,6 @@
                                 const str = val != null && val !== ''
                                     ? (typeof window.formatNumber === 'function' ? window.formatNumber(val, 0) : Number(val).toLocaleString())
                                     : '0';
-                                if (d && d.isSummaryRow) return `<span class="font-bold">${str}</span>`;
                                 return str;
                             },
                             cellEdited: onAmountEdited
@@ -538,7 +457,6 @@
                                 const str = val != null && val !== ''
                                     ? (typeof window.formatNumber === 'function' ? window.formatNumber(val, 0) : Number(val).toLocaleString())
                                     : '0';
-                                if (d && d.isSummaryRow) return `<span class="font-bold">${str}</span>`;
                                 return str;
                             }
                         },
@@ -554,7 +472,6 @@
                                 const str = val != null && val !== ''
                                     ? (typeof window.formatNumber === 'function' ? window.formatNumber(val, 0) : Number(val).toLocaleString())
                                     : '0';
-                                if (d && d.isSummaryRow) return `<span class="font-bold">${str}</span>`;
                                 return str;
                             }
                         },
@@ -569,8 +486,6 @@
                             editable: canEditCell,
                             cellClick: typeof aamsCellEdit === 'function' ? aamsCellEdit : undefined,
                             formatter: function (cell) {
-                                const d = cell.getRow().getData();
-                                if (d && d.isSummaryRow) return '';
                                 return cell.getValue() || '';
                             },
                             cellEdited: function (cell) {
@@ -588,8 +503,6 @@
                             headerSort: false,
                             resizable: false,
                             formatter: function (cell) {
-                                const d = cell.getRow().getData();
-                                if (d && d.isSummaryRow) return '';
                                 const disClass = canEditCell(cell) ? '' : 'disabled';
                                 return `<button type="button" class="btn-grid-addon btn-search ${disClass}" title="수수료매매처 검색"><i class="fa-solid fa-magnifying-glass"></i></button>`;
                             },
@@ -597,7 +510,7 @@
                                 e.stopPropagation();
                                 const row = cell.getRow();
                                 const d = row.getData();
-                                if (!d || d.isSummaryRow) return;
+                                if (!d) return;
                                 if (!canEditCell(cell)) {
                                     gridList.deselectRow();
                                     row.select();
@@ -613,8 +526,6 @@
                             hozAlign: 'left',
                             headerHozAlign: 'center',
                             formatter: function (cell) {
-                                const d = cell.getRow().getData();
-                                if (d && d.isSummaryRow) return '';
                                 return cell.getValue() || '';
                             }
                         },
@@ -625,8 +536,6 @@
                             hozAlign: 'center',
                             headerHozAlign: 'center',
                             formatter: function (cell) {
-                                const d = cell.getRow().getData();
-                                if (d && d.isSummaryRow) return '';
                                 return cell.getValue() || '';
                             }
                         }
@@ -649,7 +558,7 @@
                 }
                 const corpGr = (typeof resolveCorpGr === 'function') ? resolveCorpGr(pane) : initialCorpGr;
                 const ymd = toDashYmd(field('filterYmd') ? field('filterYmd').value : initialYmd);
-                const trCd = field('filterDddw') ? field('filterDddw').value : 'S10';
+                const trCd = (field('filterDddw') && field('filterDddw').value) ? field('filterDddw').value : 'S10';
 
                 if (!corpGr || !ymd || !trCd) {
                     if (typeof showToast === 'function') showToast('영업일자와 매매구분을 확인하십시오.', 'warning');
@@ -674,11 +583,10 @@
                     }));
 
                     await gridList.setData(rows);
-                    recalcSummaryRow();
 
                     if (rows.length > 0) {
-                        const firstNormal = gridList.getRows().find(r => r.getData() && !r.getData().isSummaryRow);
-                        if (firstNormal) firstNormal.select();
+                        const firstRow = gridList.getRows()[0];
+                        if (firstRow) firstRow.select();
                     } else if (typeof showToast === 'function') {
                         showToast('조회된 데이터가 없습니다.', 'info');
                     }
@@ -701,7 +609,7 @@
 
                 const corpGr = (typeof resolveCorpGr === 'function') ? resolveCorpGr(pane) : initialCorpGr;
                 const ymd = toDashYmd(field('filterYmd') ? field('filterYmd').value : initialYmd);
-                const trCd = field('filterDddw') ? field('filterDddw').value : 'S10';
+                const trCd = (field('filterDddw') && field('filterDddw').value) ? field('filterDddw').value : 'S10';
 
                 // 이전 선택 행이 있으면 주요 필드 상속 (PB ue_insertstart)
                 const selectedRows = gridList.getSelectedRows();
@@ -713,19 +621,19 @@
                     trYmd: ymd,
                     trCd: trCd,
                     chasu: 1,
-                    sjCd: (lastRowData && !lastRowData.isSummaryRow) ? (lastRowData.sjCd || '') : '',
-                    xxSjCd: (lastRowData && !lastRowData.isSummaryRow) ? (lastRowData.xxSjCd || '') : '',
-                    fundCd: (lastRowData && !lastRowData.isSummaryRow) ? (lastRowData.fundCd || '') : '',
-                    xxFundCd: (lastRowData && !lastRowData.isSummaryRow) ? (lastRowData.xxFundCd || '') : '',
-                    xxUnitAek: (lastRowData && !lastRowData.isSummaryRow) ? (lastRowData.xxUnitAek || 1) : 1,
+                    sjCd: lastRowData ? (lastRowData.sjCd || '') : '',
+                    xxSjCd: lastRowData ? (lastRowData.xxSjCd || '') : '',
+                    fundCd: lastRowData ? (lastRowData.fundCd || '') : '',
+                    xxFundCd: lastRowData ? (lastRowData.xxFundCd || '') : '',
+                    xxUnitAek: lastRowData ? (lastRowData.xxUnitAek || 1) : 1,
                     gyeySu: 0,
-                    gyeyJisu: (lastRowData && !lastRowData.isSummaryRow) ? (lastRowData.gyeyJisu || 0) : 0,
+                    gyeyJisu: lastRowData ? (lastRowData.gyeyJisu || 0) : 0,
                     gyeyAek: 0,
                     yakjungAek: 0,
                     chaAek: 0,
-                    susuTrCoCd: (lastRowData && !lastRowData.isSummaryRow) ? (lastRowData.susuTrCoCd || '') : '',
-                    xxSusuTrCoCd: (lastRowData && !lastRowData.isSummaryRow) ? (lastRowData.xxSusuTrCoCd || '') : '',
-                    xxMgCd: (lastRowData && !lastRowData.isSummaryRow) ? (lastRowData.xxMgCd || '') : '',
+                    susuTrCoCd: lastRowData ? (lastRowData.susuTrCoCd || '') : '',
+                    xxSusuTrCoCd: lastRowData ? (lastRowData.xxSusuTrCoCd || '') : '',
+                    xxMgCd: lastRowData ? (lastRowData.xxMgCd || '') : '',
                     pVisible: 1,
                     isNew: true,
                     isUpdated: false,
@@ -733,14 +641,7 @@
                     rowStatus: 'C'
                 };
 
-                const summaryRow = gridList.getRows().find(r => r.getData() && r.getData().isSummaryRow);
-                let addedRow;
-                if (summaryRow) {
-                    addedRow = await gridList.addRow(newRowData, true, summaryRow);
-                } else {
-                    addedRow = await gridList.addRow(newRowData, false);
-                }
-                recalcSummaryRow();
+                const addedRow = await gridList.addRow(newRowData, false);
 
                 if (addedRow) {
                     gridList.deselectRow();
@@ -774,7 +675,7 @@
                 }
                 const selectedRows = gridList.getSelectedRows();
                 const row = selectedRows && selectedRows[0];
-                if (!row || row.getData().isSummaryRow) {
+                if (!row) {
                     if (typeof showToast === 'function') showToast('삭제할 행을 선택하십시오.', 'warning');
                     return;
                 }
@@ -785,7 +686,6 @@
                     deletedList.push(Object.assign({}, d));
                 }
                 await row.delete();
-                recalcSummaryRow();
             }
 
             // 저장 실행 (w_ja031a.srw updatestart)
@@ -798,11 +698,11 @@
 
                 const corpGr = (typeof resolveCorpGr === 'function') ? resolveCorpGr(pane) : initialCorpGr;
                 const ymd = toDashYmd(field('filterYmd') ? field('filterYmd').value : initialYmd);
-                const trCd = field('filterDddw') ? field('filterDddw').value : 'S10';
+                const trCd = (field('filterDddw') && field('filterDddw').value) ? field('filterDddw').value : 'S10';
 
                 const changedRows = [];
                 gridList.getData().forEach(d => {
-                    if (!d || d.isSummaryRow) return;
+                    if (!d) return;
                     if (d.isNew || d.isUpdated || d.isDeleted) {
                         changedRows.push(d);
                     }
@@ -946,12 +846,14 @@
 
                 initGrid();
 
-                // 달력 컴포넌트 초기화
+                // 달력 컴포넌트 초기화 (AamsCalendar 표준 시그니처: init(inputId, options))
                 if (window.AamsCalendar && typeof window.AamsCalendar.init === 'function') {
-                    window.AamsCalendar.init({
-                        inputId: 'filterYmd',
-                        parent: pane,
-                        initialDate: initialYmd,
+                    window.AamsCalendar.init('filterYmd', {
+                        pane: pane,
+                        initialYmd: initialYmd,
+                        datesApiUrl: api + '/dates',
+                        corpGr: (typeof resolveCorpGr === 'function') ? resolveCorpGr(pane) : initialCorpGr,
+                        historyTitle: '선물거래일',
                         onSelect: function (dateStr) {
                             updateExpiryButtonState();
                             refreshDddwSelect();
@@ -1008,9 +910,6 @@
                     await refreshDddwSelect();
                     await updateHighlightDates();
                 };
-
-                // 초기 직접 조회 (규칙 08 준수: 툴바 조회 트리거)
-                loadData();
             }
 
             if (document.readyState === 'loading') {

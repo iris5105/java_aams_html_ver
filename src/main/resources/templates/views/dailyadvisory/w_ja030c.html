@@ -97,29 +97,12 @@
                     // Populate filter dddw dropdown
                     const filterDddwSelect = pane ? pane.querySelector("#filterDddw") : document.getElementById("filterDddw");
                     if (filterDddwSelect && dddwOptionsMap.filter_dddw) {
-                        const curVal = filterDddwSelect.value;
-                        filterDddwSelect.innerHTML = '';
-                        dddwOptionsMap.filter_dddw.forEach(item => {
-                            const opt = document.createElement("option");
-                            opt.value = item.code;
-                            opt.textContent = item.name ? `${item.code}: ${item.name}` : item.code;
-                            filterDddwSelect.appendChild(opt);
+                        const defaultOpt = filterDddwSelect.value || /*[[${dddw}]]*/ "J15";
+                        window.f_dddwctl(filterDddwSelect, 'dddw', targetCorp, '', 1, "szx1pt.obj_id='W_JA030C'", {
+                            codeTitle: "코드",
+                            nameTitle: "거래구분명",
+                            defaultVal: defaultOpt
                         });
-
-                        // Set default 'J15' (dw_c.object.dddw[1] = 'J15' in w_ja030c.srw)
-                        const defaultOpt = curVal || /*[[${dddw}]]*/ "J15";
-                        if ([...filterDddwSelect.options].some(o => o.value === defaultOpt)) {
-                            filterDddwSelect.value = defaultOpt;
-                        }
-
-                        // Transform into 2-Column DDDW Filter Dropdown (Development Guide Rule 6 - Unified Formatter)
-                        if (window.f_dddwctl && typeof window.f_dddwctl.get2ColItemFormatter === 'function') {
-                            window.f_dddwctl.get2ColItemFormatter(filterDddwSelect, dddwOptionsMap.filter_dddw, {
-                                codeTitle: "코드",
-                                nameTitle: "거래구분명",
-                                defaultVal: defaultOpt
-                            });
-                        }
                     }
 
                     if (gridJa030c) {

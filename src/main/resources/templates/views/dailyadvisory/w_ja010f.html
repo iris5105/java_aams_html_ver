@@ -114,36 +114,19 @@
                 if (!dddwSelect) return Promise.resolve();
 
                 if (typeof window.f_dddwctl === "function") {
-                    return window.f_dddwctl('tr_co_cd', corpGr, '%,전체,', 1, "tr_gb='1'").then(options => {
+                    return window.f_dddwctl(dddwSelect, 'tr_co_cd', corpGr, '%,전체,', 1, "tr_gb='1'", {
+                        codeTitle: "코드",
+                        nameTitle: "증권사명",
+                        defaultVal: "%"
+                    }).then(options => {
                         brokerOptionsMap = {};
-                        if (options && options.length > 0) {
-                            dddwSelect.innerHTML = '';
-                            options.forEach(opt => {
-                                const code = (opt.code != null ? opt.code : (opt.cd || '')).toString().trim();
-                                const name = (opt.name != null ? opt.name : (opt.dscr || code)).toString().trim();
-                                if (code && code !== "%") {
-                                    brokerOptionsMap[code] = name;
-                                }
-                                const optionEl = document.createElement("option");
-                                optionEl.value = code;
-                                optionEl.textContent = name ? `${code}: ${name}` : code;
-                                dddwSelect.appendChild(optionEl);
-                            });
-
-                            dddwSelect.value = "%";
-
-                            // Transform to 2-column sticky dropdown widget using Guideline 7
-                            if (typeof window.f_dddwctl.get2ColItemFormatter === 'function') {
-                                window.f_dddwctl.get2ColItemFormatter(dddwSelect, options, {
-                                    codeTitle: "코드",
-                                    nameTitle: "증권사명",
-                                    defaultVal: "%",
-                                    onSelect: function(val) {
-                                        dddwSelect.value = val;
-                                    }
-                                });
+                        (options || []).forEach(opt => {
+                            const code = (opt.code != null ? opt.code : (opt.cd || '')).toString().trim();
+                            const name = (opt.name != null ? opt.name : (opt.dscr || code)).toString().trim();
+                            if (code && code !== "%") {
+                                brokerOptionsMap[code] = name;
                             }
-                        }
+                        });
 
                         if (gridJa010f) {
                             gridJa010f.redraw(true);

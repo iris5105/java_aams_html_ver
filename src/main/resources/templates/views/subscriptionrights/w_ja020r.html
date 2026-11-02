@@ -117,31 +117,16 @@
         currentRetrievedDw = initialDddw || 'd_ja020r2c';
 
         if (typeof window.f_dddwctl === 'function') {
-            return window.f_dddwctl('dddw | dual', '', 'd_ja020r2c,채권취득액,,d_ja020r2h,현금(전단채)취득액,,d_ja020r2j,주식취득액,', 1, '')
-                .then(function (list) {
-                    if (typeof window.f_dddwctl.get2ColItemFormatter === 'function') {
-                        window.f_dddwctl.get2ColItemFormatter(selectEl, list, {
-                            codeTitle: "코드",
-                            nameTitle: "유가증권구분",
-                            defaultVal: initialDddw || "d_ja020r2c",
-                            onSelect: function (code, name) {
-                                selectEl.value = code;
-                                // 개발지침 규칙 19번: 필터 변경 시 자동조회 및 기존 데이터 변경 절대 금지
-                                // 상단 [조회] 버튼을 클릭하기 전까지 master-grid 및 detailgrid의 기존 조회 상태를 온전히 유지함
-                            }
-                        });
-                    } else {
-                        selectEl.innerHTML = (list || []).map(function (item) {
-                            return '<option value="' + item.code + '">' + item.code + ' : ' + item.name + '</option>';
-                        }).join("");
-                        selectEl.value = initialDddw || "d_ja020r2c";
-                    }
-                    updateDetailTitle(currentRetrievedDw);
-                    return list;
-                })
-                .catch(function (err) {
-                    console.error("DDDW 초기화 오류:", err);
-                });
+            return window.f_dddwctl(selectEl, 'dddw | dual', '', 'd_ja020r2c,채권취득액,,d_ja020r2h,현금(전단채)취득액,,d_ja020r2j,주식취득액,', 1, '', {
+                codeTitle: "코드",
+                nameTitle: "유가증권구분",
+                defaultVal: initialDddw || "d_ja020r2c"
+            }).then(function (list) {
+                updateDetailTitle(currentRetrievedDw);
+                return list;
+            }).catch(function (err) {
+                console.error("DDDW 초기화 오류:", err);
+            });
         }
         return Promise.resolve();
     }

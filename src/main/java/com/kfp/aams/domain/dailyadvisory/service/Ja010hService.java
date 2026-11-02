@@ -113,10 +113,10 @@ public class Ja010hService {
     }
 
     /**
-     * 회사그룹별 기준일자 조회 (공통 WorkDateService 위임)
+     * 회사그룹별 기준일자 조회 (공통 WorkDateService 위임 - 2402는 JUNYONG_YMD)
      */
     public String getWorkDate(String corpGr) {
-        return workDateService.getWorkDate(corpGr);
+        return workDateService.getWorkDateFor2402Junyong(corpGr);
     }
 
     /**

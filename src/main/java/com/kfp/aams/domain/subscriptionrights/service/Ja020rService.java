@@ -24,11 +24,11 @@ public class Ja020rService {
     private final WorkDateService workDateService;
 
     /**
-     * 회사그룹별 기준 작업일자 조회
+     * 회사그룹별 기준 작업일자 조회 (2402는 JUNYONG_YMD)
      */
     @Transactional(readOnly = true)
     public String getWorkDate(String corpGr) {
-        return workDateService.getWorkDateOrDefault(corpGr);
+        return workDateService.getWorkDateFor2402JunyongOrDefault(corpGr);
     }
 
     /**

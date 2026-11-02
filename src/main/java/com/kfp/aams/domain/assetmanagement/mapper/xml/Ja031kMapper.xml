@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.kfp.aams.domain.assetmanagement.mapper.Ja031kMapper">
+
+    <!-- 입금거래 목록 조회 (d_ja031k.srd 100% 원본 보존) -->
+    <select id="selectList" resultType="com.kfp.aams.domain.assetmanagement.dto.Ja031kDto">
+        SELECT hs.CORP_GR
+             , hs.TR_YMD
+             , hs.FUND_CD
+             , hs.TR_CO_CD
+             , hs.HWANIB_AEK
+             , hs.TR_CD
+             , hs.BIGO
+             , ia.FUND_NM AS xx_fund_cd
+             , 1 AS P_VISIBLE
+          FROM SKT0HS hs
+             , SZM0IA ia
+         WHERE hs.CORP_GR = #{corpGr}
+           AND hs.TR_YMD  = #{trYmd}
+           AND hs.TR_CD   = #{trCd}
+           AND ia.CORP_GR = hs.CORP_GR
+           AND ia.FUND_CD = hs.FUND_CD
+         ORDER BY hs.FUND_CD ASC
+    </select>
+
+    <!-- 달력 거래 존재일 조회 (w_ja031k.srw dw_c::ue_getdate) -->
+    <select id="selectHighlightDates" resultType="java.lang.String">
+        SELECT DISTINCT TO_CHAR(t1.TR_YMD, 'YYYY-MM-DD') AS tr_ymd
+          FROM SKT0HS t1
+         WHERE t1.CORP_GR = #{corpGr}
+           AND t1.TR_CD IN (SELECT tr_cd
+                              FROM SZX1PT
+                             WHERE obj_id = 'W_JA031K')
+         ORDER BY tr_ymd ASC
+    </select>
+
+    <!-- 펀드 및 수탁사 정보 조회 -->
+    <select id="selectFundInfo" resultType="java.util.Map">
+        SELECT ia.FUND_NM AS fund_nm
+             , ia.MG_CD   AS mg_cd
+             , (SELECT CD_NM
+                  FROM SZX2MM
+                 WHERE CORP_GR = ia.CORP_GR
+                   AND CL_CD   = '3000'
+                   AND CD      = ia.MG_CD) AS xx_mg_cd
+          FROM SZM0IA ia
+         WHERE ia.CORP_GR = #{corpGr}
+           AND ia.FUND_CD = #{fundCd}
+    </select>
+
+    <!-- 존재 여부 확인 -->
+    <select id="existsSkt0hs" resultType="int">
+        SELECT COUNT(*)
+          FROM SKT0HS
+         WHERE CORP_GR = #{corpGr}
+           AND TR_YMD  = #{trYmd}
+           AND FUND_CD = #{fundCd}
+           AND TR_CD   = #{trCd}
+    </select>
+
+    <!-- 입금거래 등록 -->
+    <insert id="insertSkt0hs">
+        INSERT INTO SKT0HS (
+            CORP_GR
+          , TR_YMD
+          , FUND_CD
+          , TR_CD
+          , TR_CO_CD
+          , HWANIB_AEK
+          , BIGO
+        ) VALUES (
+            #{corpGr}
+          , #{trYmd}
+          , #{fundCd}
+          , #{trCd}
+          , #{trCoCd, jdbcType=VARCHAR}
+          , NVL(#{hwanibAek, jdbcType=NUMERIC}, 0)
+          , #{bigo, jdbcType=VARCHAR}
+        )
+    </insert>
+
+    <!-- 입금거래 수정 -->
+    <update id="updateSkt0hs">
+        UPDATE SKT0HS
+           SET HWANIB_AEK = NVL(#{hwanibAek, jdbcType=NUMERIC}, 0)
+             , BIGO       = #{bigo, jdbcType=VARCHAR}
+             <if test="trCoCd != null and trCoCd != ''">
+             , TR_CO_CD   = #{trCoCd}
+             </if>
+         WHERE CORP_GR    = #{corpGr}
+           AND TR_YMD     = #{trYmd}
+           AND FUND_CD    = COALESCE(#{originalFundCd}, #{fundCd})
+           AND TR_CD      = #{trCd}
+    </update>
+
+    <!-- 입금거래 삭제 -->
+    <delete id="deleteSkt0hs">
+        DELETE FROM SKT0HS
+         WHERE CORP_GR = #{corpGr}
+           AND TR_YMD  = #{trYmd}
+           AND FUND_CD = #{fundCd}
+           AND TR_CD   = #{trCd}
+    </delete>
+
+</mapper>
+

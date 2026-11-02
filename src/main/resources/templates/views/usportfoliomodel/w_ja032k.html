@@ -133,51 +133,17 @@
                 var corpGr = (typeof resolveCorpGr === 'function') ? resolveCorpGr(currentPane) : '';
                 if (!corpGr) return Promise.resolve();
 
-                var dddwUrl = '/api/common/dddw?dddwId=mg_cd&seq=1&corpGr=' + encodeURIComponent(corpGr);
-                return fetch(dddwUrl)
-                    .then(function (res) { return res.json(); })
-                    .then(function (list) {
-                        dddwOptionsMap.mg_cd = list || [];
-                        var options = [{ code: '%', name: '전체' }];
-                        if (Array.isArray(list)) {
-                            list.forEach(function (item) {
-                                if (item.code) {
-                                    options.push({
-                                        code: item.code,
-                                        name: item.name || item.code
-                                    });
-                                }
-                            });
-                        }
-
-                        // 2열 커스텀 컴포넌트 변환 (Zero-Native-Select 원칙)
-                        if (window.f_dddwctl && typeof window.f_dddwctl.get2ColItemFormatter === 'function') {
-                            window.f_dddwctl.get2ColItemFormatter(selectEl, options, {
-                                codeTitle: "코드",
-                                nameTitle: "증권사명",
-                                defaultVal: "%",
-                                onSelect: function (code, name) {
-                                    selectEl.value = code;
-                                    // 규칙 08 준수: 필터 변경 시 자동 조회는 실행하지 않음
-                                }
-                            });
-                        } else {
-                            selectEl.innerHTML = '';
-                            options.forEach(function (opt) {
-                                var optEl = document.createElement('option');
-                                optEl.value = opt.code;
-                                optEl.textContent = opt.name;
-                                selectEl.appendChild(optEl);
-                            });
-                        }
-
-                        if (grid) {
-                            grid.redraw(true);
-                        }
-                    })
-                    .catch(function (err) {
-                        console.warn('[w_ja032k initFilterBrokerDddw] Error fetching broker list:', err);
-                    });
+                return window.f_dddwctl(selectEl, 'mg_cd', corpGr, '%,전체,', 1, '', {
+                    codeTitle: "코드",
+                    nameTitle: "증권사명",
+                    defaultVal: "%"
+                }).then(function (list) {
+                    dddwOptionsMap.mg_cd = list || [];
+                    if (grid) grid.redraw(true);
+                    return list;
+                }).catch(function (err) {
+                    console.warn('[w_ja032k initFilterBrokerDddw] Error fetching broker list:', err);
+                });
             }
 
             // [초기화 2] 달력 컴포넌트

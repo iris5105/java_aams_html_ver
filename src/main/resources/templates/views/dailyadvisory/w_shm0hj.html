@@ -102,30 +102,13 @@
 
                     // 1. Populate Filter select (#filterDddw)
                     const dddwSelect = pane ? pane.querySelector("#filterDddw") : document.getElementById("filterDddw");
-                    if (dddwSelect && dddwOptionsMap.filter_dddw.length > 0) {
-                        const prevVal = dddwSelect.value;
-                        dddwSelect.innerHTML = dddwOptionsMap.filter_dddw.map(item => {
-                            const code = (item.code != null ? item.code : (item.SEBU_CD != null ? item.SEBU_CD : item.cd)) || '';
-                            const name = (item.name != null ? item.name : (item.SEBU_CD_NM != null ? item.SEBU_CD_NM : item.dscr)) || code;
-                            const displayText = (code && code !== "%") ? `${code} : ${name}` : (name || code);
-                            return `<option value="${code}">${displayText}</option>`;
-                        }).join("");
-
-                        // 현금종류 기본값: 전체(%) 설정
-                        if (prevVal && dddwOptionsMap.filter_dddw.some(x => (x.code || x.cd || x.SEBU_CD) === prevVal)) {
-                            dddwSelect.value = prevVal;
-                        } else {
-                            dddwSelect.value = "%";
-                        }
-
-                        // 2-Column DDDW 드롭다운 위젯 적용 (개발지침 Rule 7: 코드, 이름 순 2열 분할 표출)
-                        if (typeof window.f_dddwctl === 'function' && typeof window.f_dddwctl.get2ColItemFormatter === 'function') {
-                            window.f_dddwctl.get2ColItemFormatter(dddwSelect, dddwOptionsMap.filter_dddw, {
-                                codeTitle: "코드",
-                                nameTitle: "현금종류명",
-                                defaultVal: dddwSelect.value || "%"
-                            });
-                        }
+                    if (dddwSelect && dddwOptionsMap.filter_dddw) {
+                        const prevVal = dddwSelect.value || "%";
+                        window.f_dddwctl(dddwSelect, 'dddw | dual', '', '%,전체,,1,수시,,2,정기,', 1, '', {
+                            codeTitle: "코드",
+                            nameTitle: "현금종류명",
+                            defaultVal: prevVal
+                        });
                     }
 
                     if (gridMaster) {
