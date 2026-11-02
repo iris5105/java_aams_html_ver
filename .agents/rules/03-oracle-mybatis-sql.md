@@ -71,3 +71,60 @@ MyBatis `statementType="CALLABLE"` 매핑 또는 JDBC CallableStatement를 사�
     ) }
 </select>
 ```
+
+---
+
+## 5. MyBatis Result Mapping Standard (`resultType`, alias, `resultMap`)
+
+### 5.1 Default: `resultType` and snake_case auto mapping
+
+- The project uses `mybatis.configuration.map-underscore-to-camel-case=true` in `application.properties`.
+- Use `resultType` for a simple one-to-one query result. `CORP_GR`, `TR_YMD`, and `P_VISIBLE` map to DTO properties `corpGr`, `trYmd`, and `pVisible` automatically.
+- Do not add a `resultMap` only to translate snake_case column names to camelCase DTO fields. Preserve original PowerBuilder SQL column names when source-query preservation is required.
+
+```xml
+<select id="selectList" resultType="com.kfp.aams.domain.example.dto.ExampleDto">
+    SELECT t1.CORP_GR,
+           t1.TR_YMD,
+           t1.P_VISIBLE
+      FROM EXAMPLE_TABLE t1
+</select>
+```
+
+### 5.2 SQL alias policy
+
+- When the source PowerBuilder SQL (`.srd`/`.srw`/procedure source) defines an alias, preserve that alias first. Do not rename it solely to match a Java camelCase property.
+- Use an `AS` alias for calculated columns, duplicate join-column names, or columns whose business meaning differs from the DTO property.
+- For an `xx_` display-name column, use the DTO naming convention as a snake_case alias. Example: `ia.FUND_NM AS xx_fund_cd` maps to `xxFundCd`.
+- Do not add aliases to every simple column solely for casing conversion; use aliases only when they clarify or disambiguate the mapping.
+
+```xml
+SELECT ia.FUND_NM AS xx_fund_cd,
+       NVL(t1.BFIL_AEK, 0) + NVL(t1.UP_AEK, 0) AS holding_aek
+  FROM ...
+```
+
+### 5.3 `resultMap` exception policy
+
+Use `resultMap` only when automatic mapping cannot express the result correctly:
+
+1. Nested `association` or `collection` mapping.
+2. Oracle `REF_CURSOR` OUT parameter mapping.
+3. Mapping one result column to more than one DTO property.
+4. A dedicated `TypeHandler` is required.
+5. Duplicate result-column names make automatic mapping ambiguous.
+
+For a normal `SELECT` that returns one flat DTO, use `resultType`. A `statementType="CALLABLE"` call with only scalar OUT parameters does not need either `resultType` or `resultMap`.
+
+```xml
+<resultMap id="fundCursorMap" type="com.kfp.aams.domain.example.dto.FundDto">
+    <result column="fund_nm" property="fundNm"/>
+    <result column="fund_nm" property="xxFundCd"/>
+</resultMap>
+
+<select id="callFundCursor" statementType="CALLABLE">
+    { CALL GET_FUND_CURSOR(
+        #{rSet, mode=OUT, jdbcType=CURSOR, javaType=java.sql.ResultSet, resultMap=fundCursorMap}
+    ) }
+</select>
+```
