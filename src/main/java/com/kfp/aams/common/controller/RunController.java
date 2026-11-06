@@ -14,7 +14,6 @@ import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -54,16 +53,8 @@ public class RunController {
                 ? paramYmd
                 : workDateService.getWorkDateOrDefault(corpGr);
 
-        LocalDate toDate;
-        try {
-            toDate = LocalDate.parse(workDate.replace(".", "-"));
-        } catch (Exception e) {
-            toDate = LocalDate.now();
-        }
-        LocalDate fromDate = toDate.minusMonths(3);
-
-        String initialFrom = (paramFYmd != null && !paramFYmd.isBlank()) ? paramFYmd : fromDate.toString();
-        String initialTo = (paramTYmd != null && !paramTYmd.isBlank()) ? paramTYmd : toDate.toString();
+        String initialFrom = (paramFYmd != null && !paramFYmd.isBlank()) ? paramFYmd : workDate;
+        String initialTo = (paramTYmd != null && !paramTYmd.isBlank()) ? paramTYmd : workDate;
 
         String fYmdDot = (initialFrom != null) ? initialFrom.replace("-", ".") : "";
         String tYmdDot = (initialTo != null) ? initialTo.replace("-", ".") : "";

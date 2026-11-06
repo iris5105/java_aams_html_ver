@@ -246,8 +246,6 @@ public class AuthController {
         return ResponseEntity.ok(LoginResponseDto.builder()
                 .success(true)
                 .message("로그인 성공")
-                .accessToken(accessToken)
-                .refreshToken(refreshToken)
                 .userId(userDto.getUserId())
                 .userNm(userDto.getUserNm())
                 .corpGr(userDto.getCorpGr())

@@ -29,6 +29,22 @@ public interface Ja032dMapper {
                                           @Param("dt") String dt);
 
     /**
+     * d_ja032d2 API 요청 상세 건별 목록 건수 조회
+     */
+    int countDetailList(@Param("company") String company,
+                        @Param("url") String url,
+                        @Param("dt") String dt);
+
+    /**
+     * d_ja032d2 API 요청 상세 건별 목록 페이지 조회
+     */
+    List<Ja032dDetailDto> selectDetailPage(@Param("company") String company,
+                                           @Param("url") String url,
+                                           @Param("dt") String dt,
+                                           @Param("offset") int offset,
+                                           @Param("pageSize") int pageSize);
+
+    /**
      * d_ja032d3 (API 처리상태 요약) 조회
      */
     Ja032dStatusDto selectStatus(@Param("apiKey") String apiKey);

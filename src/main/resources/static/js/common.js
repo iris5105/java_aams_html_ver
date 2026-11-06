@@ -1167,6 +1167,7 @@ let isLogoutInProgress = false;
 function handleLogout(redirectUrl) {
     if (isLogoutInProgress) return;
     isLogoutInProgress = true;
+    showSessionVerificationOverlay();
 
     if (headerTimerInterval) {
         clearInterval(headerTimerInterval);
@@ -1310,9 +1311,19 @@ function selectCompany(corpGr, companyName) {
         if (found) companyName = found.companyName;
     }
 
+    // Company switching is an authenticated state-changing request. Add the CSRF
+    // token explicitly so this request remains valid even before/without a shared
+    // fetch interceptor update being loaded from the browser cache.
+    const switchHeaders = { 'Content-Type': 'application/json' };
+    const csrfToken = (typeof getCookie === 'function') ? getCookie('XSRF-TOKEN') : '';
+    if (csrfToken) {
+        switchHeaders['X-XSRF-TOKEN'] = csrfToken;
+    }
+
     fetch('/api/auth/switch-company', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: switchHeaders,
+        credentials: 'same-origin',
         body: JSON.stringify({ corpGr: corpGr, corpNm: companyName, companyName: companyName })
     })
     .then(res => res.json())
@@ -1361,6 +1372,44 @@ function selectCompany(corpGr, companyName) {
             }
 
             // 4. 페이지 새로고침으로 변경된 회사 및 영업일자 즉시 반영
+            // Keep a stale company query parameter from overriding the newly issued
+            // company cookies and access token after the full-page refresh.
+            const switchedCorpGr = String(data.corpGr || corpGr || '').trim();
+            if (switchedCorpGr) {
+                try {
+                    const storedTabs = sessionStorage.getItem('AAMS_MDI_TABS_STATE');
+                    if (storedTabs) {
+                        const tabState = JSON.parse(storedTabs);
+                        if (tabState && Array.isArray(tabState.openTabs)) {
+                            tabState.openTabs.forEach(function(tab) {
+                                if (!tab || !tab.url) return;
+
+                                const tabUrl = new URL(tab.url, window.location.origin);
+                                const hasCorpGrParam = ['corpGr', 'corp_gr', 'savedCorpGr', 'userCorpGr']
+                                    .some(function(name) { return tabUrl.searchParams.has(name); });
+                                if (!hasCorpGrParam) return;
+
+                                ['corpGr', 'corp_gr', 'savedCorpGr', 'userCorpGr']
+                                    .forEach(function(name) { tabUrl.searchParams.delete(name); });
+                                tabUrl.searchParams.set('corpGr', switchedCorpGr);
+                                tab.url = tabUrl.pathname + tabUrl.search + tabUrl.hash;
+                            });
+                            sessionStorage.setItem('AAMS_MDI_TABS_STATE', JSON.stringify(tabState));
+                        }
+                    }
+                } catch (e) {
+                    console.warn('[selectCompany] MDI tab corpGr sync warning:', e);
+                }
+
+                const refreshUrl = new URL(window.location.href);
+                ['corpGr', 'corp_gr', 'savedCorpGr', 'userCorpGr']
+                    .forEach(function(name) { refreshUrl.searchParams.delete(name); });
+                refreshUrl.searchParams.set('corpGr', switchedCorpGr);
+                window.location.replace(refreshUrl.toString());
+                return;
+            }
+
+            // Fallback when the server does not return a company code.
             window.location.reload();
         } else {
             alert(data.message || '회사 변경에 실패했습니다.');
@@ -1379,6 +1428,52 @@ let tokenCountdownInterval = null;
 let currentRemainingSeconds = 0;
 let isExtendModalOpen = false;
 let hasChecked5MinWarning = false;
+let isResumeTokenCheckInProgress = false;
+let sessionVerificationRequired = false;
+
+function isLoginScreen() {
+    const path = window.location.pathname;
+    return path.includes('/login') || path.includes('/w_login_aams');
+}
+
+function showSessionVerificationOverlay() {
+    if (isLoginScreen() || !document.body) return;
+
+    let overlay = document.getElementById('aamsSessionVerificationOverlay');
+    if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.id = 'aamsSessionVerificationOverlay';
+        overlay.setAttribute('role', 'status');
+        overlay.setAttribute('aria-live', 'assertive');
+        overlay.textContent = '세션을 확인하고 있습니다.';
+        Object.assign(overlay.style, {
+            position: 'fixed',
+            inset: '0',
+            zIndex: '2147483647',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: '#0f172a',
+            color: '#ffffff',
+            fontSize: '16px',
+            fontWeight: '600'
+        });
+        document.body.appendChild(overlay);
+    } else {
+        overlay.style.display = 'flex';
+    }
+}
+
+function hideSessionVerificationOverlay() {
+    const overlay = document.getElementById('aamsSessionVerificationOverlay');
+    if (overlay) overlay.style.display = 'none';
+}
+
+function requireSessionVerification() {
+    if (isLoginScreen()) return;
+    sessionVerificationRequired = true;
+    showSessionVerificationOverlay();
+}
 
 function formatMMSS(sec) {
     if (sec <= 0) return '00:00';
@@ -1438,19 +1533,25 @@ function startTokenMonitor() {
     }, 1000);
 }
 
-function checkTokenStatus() {
-    safeFetchJson('/api/auth/token-status')
+function checkTokenStatus(options) {
+    const config = options || {};
+    return safeFetchJson('/api/auth/token-status')
         .then(data => {
             if (!data || !data.success || data.expired) {
                 if (isExtendModalOpen) {
                     closeTokenExtendModal();
                 }
                 handleLogout('/login?expired=true');
-                return;
+                return false;
             }
 
             currentRemainingSeconds = data.remainingSeconds || 0;
             updateHeaderTimerDisplay();
+
+            if (config.releaseView) {
+                sessionVerificationRequired = false;
+                hideSessionVerificationOverlay();
+            }
 
             // Warning threshold: 5 minutes (300 seconds) before expiration
             if (currentRemainingSeconds <= 300 && currentRemainingSeconds > 0) {
@@ -1462,8 +1563,41 @@ function checkTokenStatus() {
                     closeTokenExtendModal();
                 }
             }
+            return true;
         });
 }
+
+function verifySessionAfterResume() {
+    if (isLoginScreen() || isLogoutInProgress || isResumeTokenCheckInProgress) return;
+
+    isResumeTokenCheckInProgress = true;
+    requireSessionVerification();
+    checkTokenStatus({ releaseView: true })
+        .finally(() => {
+            isResumeTokenCheckInProgress = false;
+        });
+}
+
+// Timers can be suspended while the workstation is locked. Hide the previous
+// screen before resuming and validate the server-side token on every return.
+document.addEventListener('visibilitychange', function() {
+    if (isLoginScreen()) return;
+    if (document.hidden) {
+        requireSessionVerification();
+    } else if (sessionVerificationRequired) {
+        verifySessionAfterResume();
+    }
+});
+
+window.addEventListener('focus', function() {
+    if (sessionVerificationRequired) verifySessionAfterResume();
+});
+window.addEventListener('pageshow', function(event) {
+    if (event.persisted) {
+        requireSessionVerification();
+        verifySessionAfterResume();
+    }
+});
 
 function openTokenExtendModal() {
     const modal = document.getElementById('tokenExtendModal');

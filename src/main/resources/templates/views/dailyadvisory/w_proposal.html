@@ -262,7 +262,7 @@
             <div class="right-section comment-section">
                 <div class="comment-grid-header">
                     <span class="grid-title">■ 댓글현황</span>
-                    <div th:replace="~{fragments/tab_header :: detailNav(targetGrid='#grid-proposal-comment', fileName='댓글현황', buttons='0010011001')}"></div>
+                    <div th:replace="~{fragments/grid/detail_nav :: detailNav(targetGrid='#grid-proposal-comment', fileName='댓글현황', buttons='0010011001')}"></div>
                 </div>
                 <div class="grid-table-wrapper">
                     <div id="grid-proposal-comment" class="tabulator-aams-grid"></div>
@@ -303,24 +303,7 @@
                     if (lsUserNm && lsUserNm.trim()) return lsUserNm.trim();
                 } catch(e) {}
 
-                // 4. Try parsing JWT accessToken from cookie or localStorage
-                const token = getCookieVal("accessToken") || (function() {
-                    try { return localStorage.getItem("accessToken"); } catch(e) { return ""; }
-                })();
-                if (token && token.includes('.')) {
-                    try {
-                        const base64Url = token.split('.')[1];
-                        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-                        const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
-                            return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-                        }).join(''));
-                        const obj = JSON.parse(jsonPayload);
-                        if (obj.userNm) return obj.userNm;
-                        if (obj.name) return obj.name;
-                    } catch(e) {}
-                }
-
-                // 5. Fallback to DOM top header user name element (e.g. "김태현 님")
+                // 4. Fallback to DOM top header user name element (e.g. "김태현 님")
                 const userEl = document.querySelector(".user-info .user-name");
                 if (userEl && userEl.textContent) {
                     const txt = userEl.textContent.replace(/님|\s+/g, "").trim();

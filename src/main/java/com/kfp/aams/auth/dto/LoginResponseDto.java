@@ -14,8 +14,6 @@ import lombok.Setter;
 public class LoginResponseDto {
     private boolean success;
     private String message;
-    private String accessToken;
-    private String refreshToken;
     private String userId;
     private String corpGr;
     private String userNm;

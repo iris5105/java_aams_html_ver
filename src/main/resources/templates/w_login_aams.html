@@ -285,9 +285,10 @@
             .then(res => res.json())
             .then(data => {
                 if (data.success) {
-                    // Store tokens in localStorage
-                    localStorage.setItem('accessToken', data.accessToken);
-                    localStorage.setItem('refreshToken', data.refreshToken);
+                    // Authentication tokens are managed only by HttpOnly cookies.
+                    // Remove legacy copies that may remain from a previous login.
+                    localStorage.removeItem('accessToken');
+                    localStorage.removeItem('refreshToken');
                     localStorage.setItem('userId', data.userId);
                     localStorage.setItem('userNm', data.userNm || '');
                     localStorage.setItem('corpGr', data.corpGr);

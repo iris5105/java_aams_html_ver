@@ -52,6 +52,38 @@ public class Ja032dService {
     }
 
     /**
+     * 2-1. API 요청 상세 건별 목록 페이지 조회 (Tabulator 원격 페이지네이션)
+     */
+    public Map<String, Object> getDetailPage(String company, String url, String dt, Integer page, Integer size) {
+        Map<String, Object> result = new HashMap<>();
+        if (company == null || url == null || dt == null) {
+            result.put("data", Collections.emptyList());
+            result.put("last_page", 1);
+            return result;
+        }
+
+        int pageSize = (size != null && size > 0) ? Math.min(size, 50) : 50;
+        int currentPage = (page != null && page > 0) ? page : 1;
+        String safeCompany = company.trim();
+        String safeUrl = url.trim();
+        String safeDt = dt.trim();
+        int totalCount = ja032dMapper.countDetailList(safeCompany, safeUrl, safeDt);
+        int lastPage = Math.max(1, (int) Math.ceil((double) totalCount / pageSize));
+
+        if (currentPage > lastPage) {
+            currentPage = lastPage;
+        }
+
+        List<Ja032dDetailDto> list = totalCount > 0
+                ? ja032dMapper.selectDetailPage(safeCompany, safeUrl, safeDt, (currentPage - 1) * pageSize, pageSize)
+                : Collections.emptyList();
+
+        result.put("data", list);
+        result.put("last_page", lastPage);
+        return result;
+    }
+
+    /**
      * 3. API 처리상태 요약 조회 (d_ja032d3)
      */
     public Ja032dStatusDto getStatus(String apiKey) {

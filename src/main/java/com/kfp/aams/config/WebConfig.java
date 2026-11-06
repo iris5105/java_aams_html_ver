@@ -14,6 +14,7 @@ import org.springframework.http.converter.json.MappingJackson2HttpMessageConvert
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 import com.kfp.aams.security.interceptor.ViewAccessInterceptor;
+import com.kfp.aams.security.CompanyGroupAuthorizationInterceptor;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 
 import java.nio.charset.StandardCharsets;
@@ -30,9 +31,14 @@ import java.util.List;
 public class WebConfig implements WebMvcConfigurer {
 
     private final ViewAccessInterceptor viewAccessInterceptor;
+    private final CompanyGroupAuthorizationInterceptor companyGroupAuthorizationInterceptor;
 
-    public WebConfig(ViewAccessInterceptor viewAccessInterceptor) {
+    public WebConfig(
+            ViewAccessInterceptor viewAccessInterceptor,
+            CompanyGroupAuthorizationInterceptor companyGroupAuthorizationInterceptor
+    ) {
         this.viewAccessInterceptor = viewAccessInterceptor;
+        this.companyGroupAuthorizationInterceptor = companyGroupAuthorizationInterceptor;
     }
 
     @Override
@@ -40,6 +46,8 @@ public class WebConfig implements WebMvcConfigurer {
         registry.addInterceptor(viewAccessInterceptor)
                 .addPathPatterns("/views/**", "/api/**")
                 .excludePathPatterns("/views/common/**", "/api/common/security-config");
+        registry.addInterceptor(companyGroupAuthorizationInterceptor)
+                .addPathPatterns("/api/**");
     }
 
     @Bean

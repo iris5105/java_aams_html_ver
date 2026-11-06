@@ -510,8 +510,92 @@
 
             var originalFetch = window.fetch;
 
+            function isBusinessReadApi(url) {
+                if (!url || url.origin !== window.location.origin || url.pathname.indexOf('/api/') !== 0) {
+                    return false;
+                }
+
+                // Browser navigation or a file/preview response cannot be handled by fetch POST.
+                // Only data-reading API calls are converted.
+                return url.pathname !== '/api/common/security-config'
+                    && !/(?:\/(?:preview|export|download)(?:[-/]|$)|\/clear-cache$)/.test(url.pathname);
+            }
+
+            function convertReadApiToPost(resource, init) {
+                // Existing screens call data APIs mostly with a URL string. Keep Request objects
+                // untouched because their body/credentials can only be safely cloned asynchronously.
+                if (typeof resource !== 'string') {
+                    return resource;
+                }
+
+                var method = String(init.method || 'GET').toUpperCase();
+                if (method !== 'GET') {
+                    return resource;
+                }
+
+                var requestUrl;
+                try {
+                    requestUrl = new URL(resource, window.location.origin);
+                } catch (e) {
+                    return resource;
+                }
+
+                if (!isBusinessReadApi(requestUrl)) {
+                    return resource;
+                }
+
+                var headers = new Headers(init.headers || {});
+                headers.set('Content-Type', 'application/x-www-form-urlencoded;charset=UTF-8');
+                headers.set('X-Aams-Read-Post', 'true');
+
+                init.method = 'POST';
+                init.headers = headers;
+                init.body = requestUrl.searchParams.toString();
+
+                // The query values are sent in the POST form body, not in the URL.
+                return requestUrl.pathname + requestUrl.hash;
+            }
+
+            function getCookieValue(name) {
+                var escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                var match = document.cookie.match(new RegExp('(?:^|;\\s*)' + escapedName + '=([^;]*)'));
+                return match ? decodeURIComponent(match[1]) : '';
+            }
+
+            function addCsrfHeader(resource, init) {
+                var url = (typeof resource === 'string') ? resource : (resource && resource.url ? resource.url : '');
+                if (!url || url.indexOf('/api/') === -1) {
+                    return;
+                }
+
+                var csrfToken = getCookieValue('XSRF-TOKEN');
+                if (!csrfToken) {
+                    return;
+                }
+
+                if (init.headers instanceof Headers) {
+                    if (!init.headers.has('X-XSRF-TOKEN')) {
+                        init.headers.set('X-XSRF-TOKEN', csrfToken);
+                    }
+                } else if (Array.isArray(init.headers)) {
+                    var hasCsrfHeader = init.headers.some(function (header) {
+                        return header[0].toLowerCase() === 'x-xsrf-token';
+                    });
+                    if (!hasCsrfHeader) {
+                        init.headers.push(['X-XSRF-TOKEN', csrfToken]);
+                    }
+                } else {
+                    init.headers = init.headers || {};
+                    if (!init.headers['X-XSRF-TOKEN'] && !init.headers['x-xsrf-token']) {
+                        init.headers['X-XSRF-TOKEN'] = csrfToken;
+                    }
+                }
+            }
+
             window.fetch = async function (resource, init) {
-                init = init || {};
+                init = Object.assign({}, init || {});
+                resource = convertReadApiToPost(resource, init);
+                addCsrfHeader(resource, init);
 
                 // AJAX/Fetch 요청 식별 헤더 주입 (주소창 직접 호출 차단 인터셉터와 연동)
                 if (init.headers instanceof Headers) {

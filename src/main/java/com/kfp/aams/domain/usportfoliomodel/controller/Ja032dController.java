@@ -111,6 +111,27 @@ public class Ja032dController {
     }
 
     /**
+     * 2-1. 상세 API 요청 건별 목록 페이지 조회 (Tabulator 원격 페이지네이션)
+     */
+    @GetMapping("/api/usportfoliomodel/ja032d/detail-page")
+    @ResponseBody
+    public Map<String, Object> getDetailPage(@RequestParam(name = "company") String company,
+                                             @RequestParam(name = "url") String url,
+                                             @RequestParam(name = "dt") String dt,
+                                             @RequestParam(name = "page", required = false) Integer page,
+                                             @RequestParam(name = "size", required = false) Integer size) {
+        try {
+            return ja032dService.getDetailPage(company, url, dt, page, size);
+        } catch (Exception e) {
+            log.error("상세 건별 목록 페이지 조회 실패 company={}, url={}, dt={}, page={}: {}", company, url, dt, page, e.getMessage(), e);
+            Map<String, Object> errorMap = new HashMap<>();
+            errorMap.put("data", Collections.emptyList());
+            errorMap.put("last_page", 1);
+            return errorMap;
+        }
+    }
+
+    /**
      * 3. API 처리상태 요약 조회 (d_ja032d3)
      */
     @GetMapping("/api/usportfoliomodel/ja032d/status")

@@ -154,7 +154,15 @@
                 <div class="pane-bottom" style="height: 40%; display: flex; flex-direction: column; min-height: 150px;">
                     <!-- 서브 컨트롤 바 (우측 끝에 엑셀 및 네비게이션 버튼 배치: 공통 detailNav 연동 - 파워빌더 dw_detail 규격 0010001001) -->
                     <div style="display: flex; justify-content: flex-end; align-items: center; padding: 2px 6px; background-color: #f1f5f9; border-bottom: 1px solid #cbd5e1;">
-                        <div th:replace="~{fragments/tab_header :: detailNav(targetGrid='#gridDetail', fileName='API요청상세', buttons='0010001001')}"></div>
+                        <div th:replace="~{fragments/grid/detail_nav :: detailNav(targetGrid='#gridDetail', fileName='API요청상세', buttons='0010001001')}"></div>
+                        <div style="display: flex; align-items: center; gap: 3px; margin-left: 8px; padding-left: 8px; border-left: 1px solid #cbd5e1;">
+                            <button type="button" class="btn-grid-nav" id="btnDetailPageFirst" title="첫 페이지"><i class="fa-solid fa-backward-step"></i></button>
+                            <button type="button" class="btn-grid-nav" id="btnDetailPagePrev" title="이전 페이지"><i class="fa-solid fa-chevron-left"></i></button>
+                            <input type="number" id="inputDetailPage" min="1" step="1" value="0" aria-label="상세 목록 페이지" style="width: 42px; height: 24px; text-align: center; border: 1px solid #94a3b8; border-radius: 3px; font-size: 12px;" />
+                            <span id="textDetailPageTotal" style="min-width: 30px; font-size: 12px; color: #1e293b; text-align: center;">/ 0</span>
+                            <button type="button" class="btn-grid-nav" id="btnDetailPageNext" title="다음 페이지"><i class="fa-solid fa-chevron-right"></i></button>
+                            <button type="button" class="btn-grid-nav" id="btnDetailPageLast" title="마지막 페이지"><i class="fa-solid fa-forward-step"></i></button>
+                        </div>
                     </div>
                     <div class="panel-body" style="flex: 1; min-height: 0; padding: 0;">
                         <div id="gridDetail" class="tabulator-aams-grid"></div>
@@ -205,7 +213,7 @@
             </div>
 
             <!-- 우측 하단: 수신자료 컬럼별 상세 데이터 그리드 (dw_data - 잔여 공간 전체 차지) -->
-            <div style="flex: 1; min-height: 0; display: flex; flex-direction: column;">
+            <div class="grid-stack-card" style="flex: 1; min-height: 0; display: flex; flex-direction: column;">
                 <div class="panel-body" style="flex: 1; min-height: 0; padding: 0;">
                     <div id="gridData" class="tabulator-aams-grid"></div>
                 </div>
@@ -236,9 +244,13 @@
 
             var curPageIndex = 1;
             var totalPageCount = 0;
+            var detailPageIndex = 0;
+            var detailTotalPageCount = 0;
+            var detailPager = null;
 
             // [로딩 화면 제어 헬퍼]
-            function showLoading(show, message) {
+            function showLoading(show, message, enabled) {
+                if (show && !enabled) return;
                 var overlay = pane.querySelector('#ja032dLoadingOverlay');
                 var desc = pane.querySelector('#ja032dLoadingDesc');
                 if (!overlay) return;
@@ -248,6 +260,12 @@
                 } else {
                     overlay.classList.add('d-none');
                 }
+            }
+
+            function requiresDetailLoadingOverlay(masterData) {
+                if (!masterData) return false;
+                var requestCount = Number(String(masterData.reqCnt == null ? '' : masterData.reqCnt).replace(/[^0-9.-]/g, ''));
+                return Number.isFinite(requestCount) && requestCount >= 3000;
             }
 
             // [초기화 1] 달력 컴포넌트 (dc_ymd 연동)
@@ -432,14 +450,15 @@
             }
 
             // [조회 1] 마스터 목록 조회
-            function loadMasterList() {
+            function loadMasterList(showOverlay) {
+                showOverlay = showOverlay === true;
                 var ymd = (typeof window.getFilterYmd === 'function') ? window.getFilterYmd(pane, 'YYYYMMDD') : '';
                 if (!ymd) {
                     if (typeof window.showToast === 'function') window.showToast("조회일자를 선택해주세요.", "warning");
                     return;
                 }
 
-                showLoading(true, "API 요청 요약 현황을 조회하고 있습니다...");
+                showLoading(true, "API 요청 요약 현황을 조회하고 있습니다...", showOverlay);
 
                 var url = "/api/usportfoliomodel/ja032d/master-list?ymd=" + encodeURIComponent(ymd);
                 fetch(url)
@@ -449,6 +468,9 @@
                         lastLoadedDetailKey = null;
                         currentMasterRow = null;
                         currentDetailRow = null;
+                        detailPageIndex = 0;
+                        detailTotalPageCount = 0;
+                        updateDetailPagingUI();
 
                         if (gridDetail && gridDetail.initialized) {
                             try { gridDetail.clearData(); } catch (e) {}
@@ -460,7 +482,7 @@
 
                         if (gridMaster) {
                             gridMaster.setData(list || []).then(function () {
-                                showLoading(false);
+                                showLoading(false, null, showOverlay);
                                 var rows = gridMaster.getRows();
                                 if (rows && rows.length > 0) {
                                     rows[0].select();
@@ -468,41 +490,56 @@
                                 }
                             });
                         } else {
-                            showLoading(false);
+                            showLoading(false, null, showOverlay);
                         }
                     })
                     .catch(function (err) {
-                        showLoading(false);
+                        showLoading(false, null, showOverlay);
                         console.error("마스터 목록 조회 실패:", err);
                         if (typeof window.showToast === 'function') window.showToast("마스터 목록 조회 중 오류가 발생했습니다.", "error");
                     });
             }
 
             // [조회 2] 상세 건별 목록 조회 (로딩 화면 적용!)
-            function loadDetailList(masterData) {
+            function loadDetailList(masterData, page) {
                 if (!masterData) return;
+                if (detailPager) {
+                    detailPager.reset();
+                    return detailPager.load(page || 1);
+                }
                 var company = masterData.company || "";
                 var targetUrl = masterData.url || "";
                 var dt = masterData.dt || "";
+                var requestedPage = (page && page > 0) ? page : 1;
+                var showDetailOverlay = requiresDetailLoadingOverlay(masterData);
 
                 // 대용량 데이터 로딩 오버레이 띄우기
-                showLoading(true, "API 요청 건별 상세 내역을 조회하고 있습니다...");
+                showLoading(true, "3,000건 이상 요청의 상세 내역을 조회하고 있습니다...", showDetailOverlay);
 
-                var url = "/api/usportfoliomodel/ja032d/detail-list?company=" + encodeURIComponent(company) +
+                var url = "/api/usportfoliomodel/ja032d/detail-page?company=" + encodeURIComponent(company) +
                     "&url=" + encodeURIComponent(targetUrl) +
-                    "&dt=" + encodeURIComponent(dt);
+                    "&dt=" + encodeURIComponent(dt) +
+                    "&page=" + encodeURIComponent(requestedPage) +
+                    "&size=50";
 
                 fetch(url)
-                    .then(function (res) { return res.json(); })
-                    .then(function (list) {
+                    .then(function (res) {
+                        if (!res.ok) throw new Error("detail-page request failed");
+                        return res.json();
+                    })
+                    .then(function (result) {
+                        var list = (result && Array.isArray(result.data)) ? result.data : [];
+                        detailTotalPageCount = (result && Number(result.last_page) > 0) ? Number(result.last_page) : 0;
+                        detailPageIndex = detailTotalPageCount > 0 ? Math.min(requestedPage, detailTotalPageCount) : 0;
                         lastLoadedDetailKey = null;
                         currentDetailRow = null;
                         if (gridData) gridData.clearData();
                         clearStatusForm();
+                        updateDetailPagingUI();
 
                         if (gridDetail) {
                             gridDetail.setData(list || []).then(function () {
-                                showLoading(false); // 로딩 해제
+                                showLoading(false, null, showDetailOverlay); // 로딩 해제
                                 var rows = gridDetail.getRows();
                                 if (rows && rows.length > 0) {
                                     rows[0].select();
@@ -510,11 +547,11 @@
                                 }
                             });
                         } else {
-                            showLoading(false);
+                            showLoading(false, null, showDetailOverlay);
                         }
                     })
                     .catch(function (err) {
-                        showLoading(false); // 로딩 해제
+                        showLoading(false, null, showDetailOverlay); // 로딩 해제
                         console.error("상세 목록 조회 실패:", err);
                         if (typeof window.showToast === 'function') window.showToast("상세 목록 조회 중 오류가 발생했습니다.", "error");
                     });
@@ -603,6 +640,33 @@
                 if (btnLast) btnLast.disabled = (cur >= total || total === 0);
             }
 
+            function updateDetailPagingUI() {
+                var inputPage = pane.querySelector('#inputDetailPage');
+                var textTotal = pane.querySelector('#textDetailPageTotal');
+                var btnFirst = pane.querySelector('#btnDetailPageFirst');
+                var btnPrev = pane.querySelector('#btnDetailPagePrev');
+                var btnNext = pane.querySelector('#btnDetailPageNext');
+                var btnLast = pane.querySelector('#btnDetailPageLast');
+                var hasPage = detailTotalPageCount > 0;
+
+                if (inputPage) {
+                    inputPage.value = hasPage ? detailPageIndex : 0;
+                    inputPage.max = hasPage ? detailTotalPageCount : 0;
+                    inputPage.disabled = !hasPage;
+                }
+                if (textTotal) textTotal.textContent = "/ " + detailTotalPageCount;
+                if (btnFirst) btnFirst.disabled = !hasPage || detailPageIndex <= 1;
+                if (btnPrev) btnPrev.disabled = !hasPage || detailPageIndex <= 1;
+                if (btnNext) btnNext.disabled = !hasPage || detailPageIndex >= detailTotalPageCount;
+                if (btnLast) btnLast.disabled = !hasPage || detailPageIndex >= detailTotalPageCount;
+            }
+
+            function moveDetailPage(page) {
+                if (!currentMasterRow || detailTotalPageCount <= 0) return;
+                var targetPage = Math.max(1, Math.min(page, detailTotalPageCount));
+                if (targetPage !== detailPageIndex) loadDetailList(currentMasterRow, targetPage);
+            }
+
             function clearStatusForm() {
                 var elCreatedAt = pane.querySelector('#statusCreatedAt');
                 var elApiKey = pane.querySelector('#statusApiKey');
@@ -661,6 +725,83 @@
                 }
 
                 // (2) dw_detail 서브 버튼 (엑셀 및 행 탐색)
+                var btnDetailPageFirst = pane.querySelector('#btnDetailPageFirst');
+                if (btnDetailPageFirst) btnDetailPageFirst.onclick = function () { moveDetailPage(1); };
+                var btnDetailPagePrev = pane.querySelector('#btnDetailPagePrev');
+                if (btnDetailPagePrev) btnDetailPagePrev.onclick = function () { moveDetailPage(detailPageIndex - 1); };
+                var btnDetailPageNext = pane.querySelector('#btnDetailPageNext');
+                if (btnDetailPageNext) btnDetailPageNext.onclick = function () { moveDetailPage(detailPageIndex + 1); };
+                var btnDetailPageLast = pane.querySelector('#btnDetailPageLast');
+                if (btnDetailPageLast) btnDetailPageLast.onclick = function () { moveDetailPage(detailTotalPageCount); };
+                var inputDetailPage = pane.querySelector('#inputDetailPage');
+                if (inputDetailPage) {
+                    inputDetailPage.onchange = function () {
+                        var page = Number(inputDetailPage.value);
+                        if (!Number.isInteger(page) || page < 1 || page > detailTotalPageCount) {
+                            updateDetailPagingUI();
+                            return;
+                        }
+                        moveDetailPage(page);
+                    };
+                    inputDetailPage.onkeydown = function (event) {
+                        if (event.key === "Enter") {
+                            event.preventDefault();
+                            inputDetailPage.onchange();
+                        }
+                    };
+                }
+
+                if (window.AamsDetailPaging && typeof window.AamsDetailPaging.create === 'function') {
+                    detailPager = window.AamsDetailPaging.create({
+                        pane: pane,
+                        pageSize: 50,
+                        loadPage: function (page, pageSize) {
+                            if (!currentMasterRow) return { data: [], lastPage: 0 };
+                            var url = "/api/usportfoliomodel/ja032d/detail-page?company=" + encodeURIComponent(currentMasterRow.company || "") +
+                                "&url=" + encodeURIComponent(currentMasterRow.url || "") +
+                                "&dt=" + encodeURIComponent(currentMasterRow.dt || "") +
+                                "&page=" + encodeURIComponent(page) +
+                                "&size=" + encodeURIComponent(pageSize);
+                            return fetch(url)
+                                .then(function (res) {
+                                    if (!res.ok) throw new Error("detail-page request failed");
+                                    return res.json();
+                                })
+                                .then(function (result) {
+                                    return {
+                                        data: Array.isArray(result && result.data) ? result.data : [],
+                                        lastPage: Number(result && result.last_page) || 0
+                                    };
+                                });
+                        },
+                        onLoading: function (loading) {
+                            showLoading(
+                                loading,
+                                "3,000건 이상 요청의 상세 내역을 조회하고 있습니다...",
+                                requiresDetailLoadingOverlay(currentMasterRow)
+                            );
+                        },
+                        onLoaded: function (list) {
+                            lastLoadedDetailKey = null;
+                            currentDetailRow = null;
+                            if (gridData) gridData.clearData();
+                            clearStatusForm();
+                            if (!gridDetail) return null;
+                            return gridDetail.setData(list).then(function () {
+                                var rows = gridDetail.getRows();
+                                if (rows && rows.length > 0) {
+                                    rows[0].select();
+                                    syncDetailToStatusAndData(rows[0], rows[0].getData());
+                                }
+                            });
+                        },
+                        onError: function (err) {
+                            console.error("상세 목록 조회 실패:", err);
+                            if (typeof window.showToast === 'function') window.showToast("상세 목록 조회 중 오류가 발생했습니다.", "error");
+                        }
+                    });
+                }
+
                 var btnDetailExcel = pane.querySelector('#btnDetailExcel');
                 if (btnDetailExcel) {
                     btnDetailExcel.onclick = function () {
@@ -810,7 +951,7 @@
             // [초기화 4] 상단 공통 툴바 표준 계약 바인딩
             function initToolbar() {
                 pane.onSearch = function () {
-                    loadMasterList();
+                    loadMasterList(true);
                 };
 
                 pane.onRefresh = function () {
@@ -828,6 +969,9 @@
                     lastLoadedDetailKey = null;
                     currentMasterRow = null;
                     currentDetailRow = null;
+                    detailPageIndex = 0;
+                    detailTotalPageCount = 0;
+                    updateDetailPagingUI();
                     clearStatusForm();
 
                     if (typeof window.showToast === 'function') window.showToast("화면이 초기화되었습니다.", "info");
@@ -860,11 +1004,12 @@
                 initCalendar();
                 initGrids();
                 initActionButtons();
+                updateDetailPagingUI();
                 initToolbar();
                 initSplitters();
 
                 // eb_direct_retrieve = true (파워빌더 원본 명세: 화면 진입 시 초기 1회 자동 조회)
-                loadMasterList();
+                loadMasterList(true);
             }
 
             if (document.readyState === "loading") {

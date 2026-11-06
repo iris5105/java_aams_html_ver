@@ -180,12 +180,13 @@
 
                                     if (!isMobile) {
                                         // 파워빌더 ue_activate 명세: dw_list.uf_find ("corp_gr='" + gaa.corp_gr + "'")
-                                        // 현재 접속한 회사그룹(corpGr)과 일치하는 행을 우선 탐색하여 자동 포커스/선택, 없으면 첫 행 선택
+                                        // 현재 SESSION 회사그룹과 일치하는 첫 행을 자동 포커스/선택하고, 없으면 첫 행을 선택한다.
                                         var targetRow = rows[0];
-                                        if (corpGr) {
+                                        var sessionCorpGr = String(corpGr || serverCorpGr || '').trim();
+                                        if (sessionCorpGr) {
                                             for (var i = 0; i < rows.length; i++) {
                                                 var rData = rows[i].getData();
-                                                if (rData && rData.corpGr === corpGr) {
+                                                if (rData && String(rData.corpGr || '').trim() === sessionCorpGr) {
                                                     targetRow = rows[i];
                                                     break;
                                                 }
@@ -193,6 +194,9 @@
                                         }
                                         grid.deselectRow();
                                         targetRow.select();
+                                        if (typeof targetRow.scrollTo === 'function') {
+                                            targetRow.scrollTo('center', false);
+                                        }
                                         syncDetail(targetRow, targetRow.getData(), false);
                                     } else {
                                         grid.deselectRow();

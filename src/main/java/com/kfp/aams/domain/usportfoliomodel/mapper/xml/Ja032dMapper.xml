@@ -60,6 +60,72 @@
                 , t1.CREATED_AT DESC
     </select>
 
+    <select id="countDetailList" resultType="int">
+        SELECT COUNT(*)
+          FROM API_Q t1
+         WHERE F_API_KEY(t1.TABLENAME, t1.SUBTABLE, t1.API_KEY) = 'Y'
+           AND t1.COMPANY                                       = #{company}
+           AND t1.URL                                           = #{url}
+           AND TO_CHAR(t1.CREATED_AT, 'yyyymmddHH24')           = #{dt}
+    </select>
+
+    <select id="selectDetailPage" resultType="com.kfp.aams.domain.usportfoliomodel.dto.Ja032dDetailDto">
+        SELECT company
+             , url
+             , headers
+             , queryparams
+             , tablename
+             , subtable
+             , request
+             , status
+             , statustext
+             , msg_cd
+             , msg1
+             , errcode
+             , api_key
+             , key_value
+             , sub_key_value
+             , corp_gr
+             , tr_ymd
+             , key1
+             , key2
+             , num1
+          FROM (
+                SELECT t1.COMPANY                                                            AS company
+                     , SUBSTR (t1.URL, INSTR (t1.URL,'/',-1) + 1)                            AS url
+                     , t1.HEADERS                                                            AS headers
+                     , t1.QUERYPARAMS                                                        AS queryparams
+                     , t1.TABLENAME                                                          AS tablename
+                     , t1.SUBTABLE                                                           AS subtable
+                     , t1.REQUEST                                                            AS request
+                     , t1.STATUS                                                             AS status
+                     , t1.STATUSTEXT                                                         AS statustext
+                     , t1.MSG_CD                                                             AS msg_cd
+                     , t1.MSG1                                                               AS msg1
+                     , t1.ERRCODE                                                            AS errcode
+                     , t1.API_KEY                                                            AS api_key
+                     , t1.KEY_VALUE                                                          AS key_value
+                     , t1.SUB_KEY_VALUE                                                      AS sub_key_value
+                     , t1.CORP_GR                                                            AS corp_gr
+                     , TO_CHAR(t1.TR_YMD, 'YYYY-MM-DD')                                     AS tr_ymd
+                     , CASE WHEN t1.TABLENAME = 'API_KSE_INFO' THEN t1.MSG1 ELSE t1.KEY1 END AS key1
+                     , t1.KEY2                                                               AS key2
+                     , t1.NUM1                                                               AS num1
+                     , ROW_NUMBER() OVER (
+                           ORDER BY t1.HEADERS
+                                  , t1.CREATED_AT DESC
+                       )                                                                      AS row_num
+                  FROM API_Q t1
+                 WHERE F_API_KEY(t1.TABLENAME, t1.SUBTABLE, t1.API_KEY) = 'Y'
+                   AND t1.COMPANY                                       = #{company}
+                   AND t1.URL                                           = #{url}
+                   AND TO_CHAR(t1.CREATED_AT, 'yyyymmddHH24')           = #{dt}
+          )
+         WHERE row_num > #{offset}
+           AND row_num &lt;= #{offset} + #{pageSize}
+         ORDER BY row_num
+    </select>
+
     <!-- 3. API 처리상태 요약 조회 (d_ja032d3.srd) -->
     <select id="selectStatus" resultType="com.kfp.aams.domain.usportfoliomodel.dto.Ja032dStatusDto">
         SELECT t1.API_KEY                                  AS api_key

@@ -69,6 +69,9 @@
             var grid = null;
             var isInitialized = false;
             var isRunning = false;
+            // Server resolves the active company from the current session cookies/token
+            // before this fragment is rendered. Keep it as the first DDDW default.
+            var initialCorpGr = /*[[${corpGr}]]*/ '';
 
             // 작업회사(corpGr)는 common.js의 전역 헬퍼 함수(resolveCorpGr / getFilterCorpGr) 사용
 
@@ -123,7 +126,13 @@
                 var dddwSelect = pane.querySelector('#filterDddw');
                 if (!dddwSelect) return;
 
-                var globalCorpGr = (typeof g_corp_gr !== 'undefined' && g_corp_gr) ? g_corp_gr : '';
+                var globalCorpGr = initialCorpGr || '';
+                if (!globalCorpGr && typeof resolveCorpGr === 'function') {
+                    globalCorpGr = resolveCorpGr(pane) || '';
+                }
+                if (!globalCorpGr && typeof g_corp_gr !== 'undefined' && g_corp_gr) {
+                    globalCorpGr = g_corp_gr;
+                }
                 if (!globalCorpGr) {
                     var mainSelect = document.querySelector('#corpGrSelect');
                     if (mainSelect && mainSelect.value) globalCorpGr = mainSelect.value;
@@ -253,10 +262,33 @@
                 return new Date(y, m, d);
             }
 
+            function getSelectedRunCompany() {
+                var corpSelect = pane.querySelector('#filterDddw');
+                var corpGr = corpSelect && corpSelect.value ? corpSelect.value.trim() : '';
+                var selectedOption = corpSelect && corpSelect.selectedIndex >= 0
+                    ? corpSelect.options[corpSelect.selectedIndex]
+                    : null;
+                var companyName = selectedOption && selectedOption.textContent
+                    ? selectedOption.textContent.trim()
+                    : '';
+                var codePrefix = corpGr ? corpGr + ' :' : '';
+
+                if (codePrefix && companyName.indexOf(codePrefix) === 0) {
+                    companyName = companyName.substring(codePrefix.length).trim();
+                }
+                if (!companyName) companyName = corpGr;
+
+                return {
+                    corpGr: corpGr,
+                    companyName: companyName
+                };
+            }
+
             async function executeRun() {
                 if (isRunning) return;
 
-                var corpGr = resolveCorpGr(pane);
+                var selectedCompany = getSelectedRunCompany();
+                var corpGr = selectedCompany.corpGr;
                 var fymdStr = getFilterFymd(pane, 'YYYYMMDD');
                 var tymdStr = getFilterTymd(pane, 'YYYYMMDD');
 
@@ -270,7 +302,9 @@
                     return;
                 }
 
-                if (!confirm("원장생성 작업을 실행하시겠습니까?\n작업회사: " + corpGr + "\n작업구간: " + fymdStr + " ~ " + tymdStr)) {
+                if (!confirm("원장생성 작업을 실행하시겠습니까?\n\n회사코드: " + corpGr
+                    + "\n회사명: " + selectedCompany.companyName
+                    + "\n실행 날짜 구간: " + fymdStr + " ~ " + tymdStr)) {
                     return;
                 }
 
@@ -392,7 +426,8 @@
                 // AAMS Range Calendar 초기화
                 if (window.AamsCalendar && typeof window.AamsCalendar.initRange === 'function') {
                     window.AamsCalendar.initRange('filterFYmd', 'filterTYmd', {
-                        pane: pane
+                        pane: pane,
+                        preserveSameDay: true
                     });
                 }
 
