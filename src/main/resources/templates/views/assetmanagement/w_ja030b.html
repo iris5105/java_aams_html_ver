@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<div class="view-container layout-single ja030b-container layout-mobile-stack-container" th:fragment="mainView" data-pgm-id="W_JA030B"
+     th:attr="data-corp-gr=${corpGr},data-pgm-no=${pgmNo}"
+     style="display:flex; flex-direction:column; height:100%; width:100%; overflow:hidden; background:#fff; position:relative;">
+
+    <!-- 1. Top Action Toolbar & Breadcrumb -->
+    <div class="view-toolbar">
+        <div class="toolbar-left"><div th:replace="~{fragments/tab_header :: toolbarButtons}"></div></div>
+        <div th:replace="~{fragments/tab_header :: toolbarBreadcrumb}"></div>
+    </div>
+
+    <!-- 2. Filter Bar (From-To Date + DDDW, PB dc_ftymd_dddw) -->
+    <div class="filter-bar">
+        <div class="filter-left">
+            <th:block th:replace="~{fragments/filter/dc_ftymd_dddw :: filter(labelFYmd='매매구간', labelDddw='출력유형')}"></th:block>
+        </div>
+    </div>
+
+    <!-- 3. Report Preview Viewer Panel (Crownix MRD Fullscreen Panel) -->
+    <div class="report-container-panel" style="flex:1; min-height:0; display:flex; flex-direction:column; padding:0 10px 10px;">
+        <div th:replace="~{fragments/report/report_viewer :: reportViewerBottomPane(reportTitle='매매처별 매매집계표', defaultStatus='조회 대기 중')}"></div>
+    </div>
+
+    <!-- 4. Mobile Modal Viewer (Responsive width <= 876px) -->
+    <div th:replace="~{fragments/report/report_viewer :: reportMobileModal(modalId='ja030bMobileModal', modalTitle='매매처별 매매집계표')}"></div>
+
+    <script th:inline="javascript">
+        (function () {
+            const script = document.currentScript;
+            const pane = script ? (script.closest('.tab-pane') || script.closest('.view-container')) : null;
+            if (!pane) return;
+
+            const initialCorpGr = /*[[${corpGr}]]*/ '';
+            const initialFymd = /*[[${fymd}]]*/ '';
+            const initialTymd = /*[[${tymd}]]*/ '';
+            const initialDddw = /*[[${dddw}]]*/ '1';
+            const initialPgmNo = /*[[${pgmNo}]]*/ '';
+
+            let reportViewer = null;
+            let isInitialized = false;
+
+            function field(id) { return pane.querySelector('#' + id); }
+            function corpGr() { return (typeof resolveCorpGr === 'function' ? resolveCorpGr(pane) : '') || initialCorpGr; }
+
+            function getOutputType() {
+                const select = field('filterDddw') || pane.querySelector('select[name="dddw"]');
+                return (select && select.value) ? String(select.value).trim() : '1';
+            }
+
+            function getOutputName(type) {
+                const targetType = type || getOutputType();
+                return targetType === '2' ? '증권사별' : '계좌별';
+            }
+
+            async function initDddw() {
+                const select = field('filterDddw') || pane.querySelector('select[name="dddw"]');
+                if (!select) return;
+
+                // 네이티브 change 이벤트 등록 (f_dddwctl 실패 시 또는 dispatchEvent 발생 시 안전망)
+                select.onchange = function () {
+                    loadReport(this.value);
+                };
+
+                // PB: f_dddwctl (THIS, 'dddw | dual', '', "1,계좌별,,2,증권사별,", 1, '')
+                if (typeof window.f_dddwctl === 'function') {
+                    await window.f_dddwctl(select, 'dddw | dual', corpGr(), '1,계좌별,,2,증권사별,', 1, '', {
+                        codeTitle: '코드',
+                        nameTitle: '출력유형',
+                        defaultVal: initialDddw || '1',
+                        onSelect: function (code, name) {
+                            loadReport(code);
+                        }
+                    });
+                } else {
+                    select.innerHTML = '<option value="1">계좌별</option><option value="2">증권사별</option>';
+                    select.value = initialDddw || '1';
+                }
+            }
+
+            function loadReport(selectedType) {
+                if (!reportViewer || typeof reportViewer.load !== 'function') return;
+
+                const fymd = (typeof getFilterFYmd === 'function') ? getFilterFYmd(pane, 'YYYY.MM.DD') : '';
+                const tymd = (typeof getFilterTYmd === 'function') ? getFilterTYmd(pane, 'YYYY.MM.DD') : '';
+
+                if (!fymd || !tymd) {
+                    if (typeof showToast === 'function') showToast('매매구간을 선택하세요.', 'warning');
+                    return;
+                }
+
+                const outputType = (selectedType != null && selectedType !== '') ? String(selectedType).trim() : getOutputType();
+                const outputName = getOutputName(outputType);
+                const mrdName = (outputType === '2') ? 'rd_ja030b_mg.mrd' : 'rd_ja030b.mrd';
+
+                // 고유 식별자(id)와 강제 로드 플래그(isForce=true)를 넘겨 aams_report.js의 캐시 차단 원천 방지
+                reportViewer.load({
+                    id: outputType + '_' + fymd + '_' + tymd,
+                    outputType: outputType,
+                    mrdName: mrdName,
+                    fymd: fymd,
+                    tymd: tymd
+                }, '조회완료 (' + outputName + ')', true);
+
+                // 버튼 권한 상태 갱신: 조회 완료 상태로 전환 (상단 공통 버튼 활성화)
+                if (window.ButtonRole && typeof window.ButtonRole.setSearchState === 'function') {
+                    window.ButtonRole.setSearchState(pane, true);
+                }
+            }
+
+            function initViewer() {
+                const reportEngine = window.AamsReport;
+                if (!reportEngine || typeof reportEngine.bindViewer !== 'function') return;
+
+                reportViewer = reportEngine.bindViewer(pane, {
+                    reportFile: function (data) {
+                        if (data && data.mrdName) return data.mrdName;
+                        const type = (data && data.outputType) ? String(data.outputType).trim() : getOutputType();
+                        return (type === '2') ? 'rd_ja030b_mg.mrd' : 'rd_ja030b.mrd';
+                    },
+                    modalId: 'ja030bMobileModal',
+                    zoom: 120,
+                    getCorpGr: function () {
+                        return corpGr();
+                    },
+                    buildParams: function (data) {
+                        const type = (data && data.outputType) ? String(data.outputType).trim() : getOutputType();
+                        return {
+                            fymd: (data && data.fymd) ? data.fymd : ((typeof getFilterFYmd === 'function') ? getFilterFYmd(pane, 'YYYY.MM.DD') : initialFymd),
+                            tymd: (data && data.tymd) ? data.tymd : ((typeof getFilterTYmd === 'function') ? getFilterTYmd(pane, 'YYYY.MM.DD') : initialTymd),
+                            outputType: type,
+                            corp_gr: corpGr()
+                        };
+                    },
+                    getTitle: function (data) {
+                        const type = (data && data.outputType) ? String(data.outputType).trim() : getOutputType();
+                        const name = getOutputName(type);
+                        return '매매처별 매매집계표 (' + name + ')';
+                    },
+                    getStatus: function (data) {
+                        const f = (data && data.fymd) ? data.fymd : ((typeof getFilterFYmd === 'function') ? getFilterFYmd(pane) : initialFymd);
+                        const t = (data && data.tymd) ? data.tymd : ((typeof getFilterTYmd === 'function') ? getFilterTYmd(pane) : initialTymd);
+                        const type = (data && data.outputType) ? String(data.outputType).trim() : getOutputType();
+                        const name = getOutputName(type);
+                        return '매매구간: ' + f + ' ~ ' + t + ' (' + name + ')';
+                    },
+                    getDownloadName: function (data, format) {
+                        const f = (typeof getFilterFYmd === 'function') ? getFilterFYmd(pane, 'YYYYMMDD') : '';
+                        const t = (typeof getFilterTYmd === 'function') ? getFilterTYmd(pane, 'YYYYMMDD') : '';
+                        const type = (data && data.outputType) ? String(data.outputType).trim() : getOutputType();
+                        const name = getOutputName(type);
+                        return f + '_' + t + '_매매처별매매집계표_' + name;
+                    }
+                });
+            }
+
+            async function init() {
+                if (isInitialized) return;
+                isInitialized = true;
+
+                // 1. 기간 선택 날짜 필터 기본값 보정
+                const fInput = field('filterFYmd');
+                const tInput = field('filterTYmd');
+                if (fInput && !fInput.value) fInput.value = initialFymd;
+                if (tInput && !tInput.value) tInput.value = initialTymd;
+
+                // 2. 출력유형 드롭다운 초기화
+                await initDddw();
+
+                // 3. 리포트 뷰어 바인딩
+                initViewer();
+
+                // 4. 상단 공통 버튼 권한 엔진(ButtonRole) 적용
+                if (window.ButtonRole && typeof window.ButtonRole.apply === 'function') {
+                    const targetPgmNo = initialPgmNo || (pane ? pane.getAttribute('data-pgm-no') : null);
+                    window.ButtonRole.apply(pane, targetPgmNo);
+                }
+
+                // 5. 상단 공통 툴바 표준 계약 바인딩 (Rule 08)
+                pane.onSearch = loadReport;
+                pane.onRetrieve = loadReport;
+                pane.onExcel = function () {
+                    if (reportViewer && typeof reportViewer.exportReport === 'function') {
+                        reportViewer.exportReport('excel');
+                    }
+                };
+                pane.onPrint = function () {
+                    if (reportViewer && typeof reportViewer.exportReport === 'function') {
+                        reportViewer.exportReport('pdf');
+                    }
+                };
+                pane.onRefresh = async function () {
+                    if (fInput) fInput.value = initialFymd;
+                    if (tInput) tInput.value = initialTymd;
+                    await initDddw();
+                    if (window.ButtonRole && typeof window.ButtonRole.setSearchState === 'function') {
+                        window.ButtonRole.setSearchState(pane, false);
+                    }
+                    loadReport();
+                };
+                pane.onCorpGrChange = function (newCorpGr) {
+                    const targetCorp = newCorpGr || corpGr();
+                    fetch('/api/common/workdate?corpGr=' + encodeURIComponent(targetCorp))
+                        .then(function (res) { return res.json(); })
+                        .then(function (data) {
+                            if (data && data.workDate) {
+                                if (fInput) fInput.value = data.workDate;
+                                if (tInput) tInput.value = data.workDate;
+                            }
+                            loadReport();
+                        })
+                        .catch(function (err) {
+                            console.warn('[W_JA030B] workdate fetch error:', err);
+                            loadReport();
+                        });
+                };
+
+                // 6. PB: eb_direct_retrieve = true (화면 진입 시 자동 조회)
+                loadReport();
+            }
+
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', init, { once: true });
+            } else {
+                init();
+            }
+        })();
+    </script>
+</div>
+</html>
+
