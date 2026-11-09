@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.kfp.aams.domain.assetmanagement.mapper.Ja031bMapper">
+
+    <!-- PB d_ja031b1: 선물/옵션 최종결제 수수료 매핑 목록 조회 -->
+    <select id="selectList" resultType="com.kfp.aams.domain.assetmanagement.dto.Ja031bDto">
+        SELECT t1.CORP_GR
+             , t1.GR_CD
+             , t1.SEBU_CD      AS tr_co_cd
+             , t2.TR_CO_NM     AS xx_tr_co_cd
+             , t1.SEBU_CD_NM   AS susu_tr_co_cd
+             , t3.TR_CO_NM     AS xx_susu_tr_co_cd
+             , t1.SEBU_CD_EFNM AS susu_tr_co_cd1
+             , t4.TR_CO_NM     AS xx_susu_tr_co_cd1
+             , 1               AS p_visible
+          FROM SZX1GR t1
+          LEFT OUTER JOIN SZX2MM t3
+            ON t3.CORP_GR  = #{corpGr}
+           AND t3.TR_CO_CD = t1.SEBU_CD_NM
+          LEFT OUTER JOIN SZX2MM t4
+            ON t4.CORP_GR  = #{corpGr}
+           AND t4.TR_CO_CD = t1.SEBU_CD_EFNM
+          JOIN SZX2MM t2
+            ON t2.CORP_GR  = t1.CORP_GR
+           AND t2.TR_CO_CD = t1.SEBU_CD
+         WHERE t1.CORP_GR  = #{corpGr}
+           AND t1.GR_CD    = 'PP'
+         ORDER BY t1.SEBU_CD
+    </select>
+
+    <!-- PB w_ja031b::wue_retrieve: 이번달 선물/옵션 거래 발생 매매처 목록 조회 (누락 매매처 자동 병합용) -->
+    <select id="selectActiveTradeCompanies" resultType="com.kfp.aams.domain.assetmanagement.dto.Ja031bDto">
+        SELECT DISTINCT t1.TR_CO_CD AS tr_co_cd
+             , mm.TR_CO_NM          AS xx_tr_co_cd
+             , 'PP'                 AS gr_cd
+             , 1                    AS p_visible
+          FROM SSM0KM t1
+          JOIN SZX0AA t2
+            ON t2.CORP_GR  = t1.CORP_GR
+           AND t2.HYUN_YMD = t1.YMD
+          JOIN SSX0KJ t3
+            ON t3.CORP_GR  = t1.CORP_GR
+           AND t3.SJ_CD    = t1.SJ_CD
+           AND t3.LSY_YMD  BETWEEN TRUNC(t2.HYUN_YMD, 'MM') AND LAST_DAY(t2.HYUN_YMD)
+          JOIN SZX2MM mm
+            ON mm.CORP_GR  = t1.CORP_GR
+           AND mm.TR_CO_CD = t1.TR_CO_CD
+         WHERE t1.CORP_GR  = #{corpGr}
+         ORDER BY t1.TR_CO_CD
+    </select>
+
+    <select id="existsRow" resultType="int">
+        SELECT COUNT(*)
+          FROM SZX1GR
+         WHERE CORP_GR = #{corpGr}
+           AND GR_CD   = #{grCd}
+           AND SEBU_CD = #{sebuCd}
+    </select>
+
+    <insert id="insert">
+        INSERT INTO SZX1GR (
+            CORP_GR
+          , GR_CD
+          , SEBU_CD
+          , SEBU_CD_NM
+          , SEBU_CD_EFNM
+        ) VALUES (
+            #{corpGr}
+          , NVL(#{grCd}, 'PP')
+          , #{trCoCd}
+          , #{susuTrCoCd, jdbcType=VARCHAR}
+          , #{susuTrCoCd1, jdbcType=VARCHAR}
+        )
+    </insert>
+
+    <update id="update">
+        UPDATE SZX1GR
+           SET SEBU_CD_NM   = #{susuTrCoCd, jdbcType=VARCHAR}
+             , SEBU_CD_EFNM = #{susuTrCoCd1, jdbcType=VARCHAR}
+         WHERE CORP_GR      = #{corpGr}
+           AND GR_CD        = NVL(#{grCd}, 'PP')
+           AND SEBU_CD      = #{trCoCd}
+    </update>
+
+    <delete id="delete">
+        DELETE FROM SZX1GR
+         WHERE CORP_GR = #{corpGr}
+           AND GR_CD   = NVL(#{grCd}, 'PP')
+           AND SEBU_CD = #{trCoCd}
+    </delete>
+
+</mapper>
+

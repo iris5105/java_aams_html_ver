@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<div class="view-container layout-single layout-mobile-stack-container" th:fragment="mainView" data-pgm-id="W_JA031B"
+     th:attr="data-corp-gr=${corpGr},data-pgm-no=${pgmNo}"
+     style="display:flex; flex-direction:column; height:100%; width:100%; overflow:hidden; background:#fff; position:relative;">
+
+    <!-- 1. Top Action Toolbar & Breadcrumb -->
+    <div class="view-toolbar">
+        <div class="toolbar-left"><div th:replace="~{fragments/tab_header :: toolbarButtons}"></div></div>
+        <div th:replace="~{fragments/tab_header :: toolbarBreadcrumb}"></div>
+    </div>
+
+    <!-- 2. Filter Bar (No date/type filter in PB dw_c, informational help text only) -->
+    <div class="filter-bar">
+        <div class="filter-left">
+            <span class="filter-help-text" style="font-size:12px; color:#475569; font-weight:500;">
+                <i class="fa-solid fa-circle-info" style="color:#0284c7; margin-right:4px;"></i>
+                선물/옵션 최종결제 수수료 매매처를 관리합니다.
+            </span>
+        </div>
+    </div>
+
+    <!-- 3. Grid Section -->
+    <div class="grid-section" style="flex:1; min-height:0; padding:0 10px 10px;">
+        <div id="gridJa031b" class="tabulator-aams-grid" style="height:100%; width:100%;"></div>
+    </div>
+
+    <script th:inline="javascript">
+        (function () {
+            const script = document.currentScript;
+            const pane = script ? (script.closest('.tab-pane') || script.closest('.view-container')) : null;
+            if (!pane) return;
+
+            const api = '/api/assetmanagement/ja031b';
+            const initialCorpGr = /*[[${corpGr}]]*/ '';
+            const initialPgmNo = /*[[${pgmNo}]]*/ '';
+            let grid = null;
+            let loading = false;
+            let saving = false;
+            let deletedRows = [];
+
+            function field(id) { return pane.querySelector('#' + id); }
+            function corpGr() { return (typeof resolveCorpGr === 'function' ? resolveCorpGr(pane) : '') || initialCorpGr; }
+            function message(text, type) { if (typeof showToast === 'function') showToast(text, type || 'info'); }
+
+            function markRowUpdated(row) {
+                const data = row.getData();
+                if (!data.isNew) {
+                    row.update({ isUpdated: true, rowStatus: 'U' });
+                }
+            }
+
+            function searchBtnFormatter(cell) {
+                return '<button type="button" class="btn-grid-addon btn-search" title="코드검색"><i class="fa-solid fa-magnifying-glass"></i></button>';
+            }
+
+            // --- 돋보기 모달 연동 ---
+            // 1. 매매처 검색 모달 (tr_co_cd)
+            function openTrCoCdModal(e, cell) {
+                if (e) e.stopPropagation();
+                const row = cell.getRow();
+                const data = row.getData();
+                if (!data) return;
+                // 기존 등록 행은 매매처(PK) 수정 제한
+                if (!data.isNew) return;
+
+                if (window.DynamicCodeSearch && typeof window.DynamicCodeSearch.openModal === 'function') {
+                    window.DynamicCodeSearch.openModal({
+                        columnNm: 'tr_co_cd',
+                        seq: 1,
+                        corpGr: corpGr(),
+                        initialKeyword: data.trCoCd || '',
+                        onSelect: function (code, name, rowData) {
+                            row.update({
+                                trCoCd: code,
+                                xxTrCoCd: name,
+                                trCoNm: name
+                            });
+                            markRowUpdated(row);
+                        }
+                    });
+                }
+            }
+
+            // 2. 선물최종결제수수료 매매처 검색 모달 (susu_tr_co_cd)
+            function openSusuTrCoCdModal(e, cell) {
+                if (e) e.stopPropagation();
+                const row = cell.getRow();
+                const data = row.getData();
+                if (!data) return;
+
+                const addWhere = "used='1' and tr_co_cd in (select tr_co_cd from ssm0ss where corp_gr='" + corpGr() + "')";
+
+                if (window.DynamicCodeSearch && typeof window.DynamicCodeSearch.openModal === 'function') {
+                    window.DynamicCodeSearch.openModal({
+                        columnNm: 'tr_co_cd',
+                        seq: 1,
+                        corpGr: corpGr(),
+                        addWhere: addWhere,
+                        initialKeyword: data.susuTrCoCd || '',
+                        onSelect: function (code, name, rowData) {
+                            row.update({
+                                susuTrCoCd: code,
+                                xxSusuTrCoCd: name,
+                                susuTrCoNm: name
+                            });
+                            markRowUpdated(row);
+                        }
+                    });
+                }
+            }
+
+            // 3. 옵션최종결제수수료 매매처 검색 모달 (susu_tr_co_cd1)
+            function openSusuTrCoCd1Modal(e, cell) {
+                if (e) e.stopPropagation();
+                const row = cell.getRow();
+                const data = row.getData();
+                if (!data) return;
+
+                const addWhere = "used='1' and tr_co_cd in (select tr_co_cd from ssm0ss where corp_gr='" + corpGr() + "')";
+
+                if (window.DynamicCodeSearch && typeof window.DynamicCodeSearch.openModal === 'function') {
+                    window.DynamicCodeSearch.openModal({
+                        columnNm: 'tr_co_cd',
+                        seq: 1,
+                        corpGr: corpGr(),
+                        addWhere: addWhere,
+                        initialKeyword: data.susuTrCoCd1 || '',
+                        onSelect: function (code, name, rowData) {
+                            row.update({
+                                susuTrCoCd1: code,
+                                xxSusuTrCoCd1: name,
+                                susuTrCoNm1: name
+                            });
+                            markRowUpdated(row);
+                        }
+                    });
+                }
+            }
+
+            // 셀 직접 입력 후 코드 검증 및 명칭 자동 매핑 (PB itemchanged)
+            async function fetchTradeName(code, addWhere) {
+                if (!code || !code.trim()) return '';
+                try {
+                    let url = '/api/common/codes/tr_co_cd?corpGr=' + encodeURIComponent(corpGr()) + '&keyword=' + encodeURIComponent(code.trim());
+                    if (addWhere) url += '&addWhere=' + encodeURIComponent(addWhere);
+                    const res = await fetch(url);
+                    if (res.ok) {
+                        const list = await res.json();
+                        if (list && list.length > 0) {
+                            const match = list.find(function(item) {
+                                return String(item.code || item.trCoCd || '').trim() === code.trim();
+                            });
+                            return match ? (match.name || match.trCoNm || '') : '';
+                        }
+                    }
+                } catch (e) {
+                    console.warn('[W_JA031B] fetchTradeName failed:', e);
+                }
+                return '';
+            }
+
+            function initGrid() {
+                const element = field('gridJa031b');
+                if (!element) return;
+
+                grid = new Tabulator(element, {
+                    height: '100%',
+                    layout: 'fitDataFill',
+                    selectableRows: 1,
+                    editTriggerEvent: 'click',
+                    placeholder: '조회된 데이터가 없습니다.',
+                    columns: [
+                        { title: 'No.', formatter: 'rownum', width: 55, hozAlign: 'center', headerSort: false },
+                        {
+                            title: '매매처',
+                            field: 'trCoCd',
+                            width: 100,
+                            hozAlign: 'center',
+                            editor: 'input',
+                            editable: function (cell) {
+                                const d = cell.getRow().getData();
+                                return !!d.isNew;
+                            },
+                            cellClick: aamsCellEdit
+                        },
+                        {
+                            title: '',
+                            field: 'p_xx_tr_co_cd',
+                            width: 35,
+                            hozAlign: 'center',
+                            headerSort: false,
+                            resizable: false,
+                            formatter: function (cell) {
+                                const d = cell.getRow().getData();
+                                return d && d.isNew ? searchBtnFormatter(cell) : '';
+                            },
+                            cellClick: openTrCoCdModal
+                        },
+                        {
+                            title: '매매처명',
+                            field: 'xxTrCoCd',
+                            width: 220,
+                            hozAlign: 'left',
+                            editor: false
+                        },
+                        {
+                            title: '선물최종결제수수료',
+                            field: 'susuTrCoCd',
+                            width: 140,
+                            hozAlign: 'center',
+                            editor: 'input',
+                            cellClick: aamsCellEdit
+                        },
+                        {
+                            title: '',
+                            field: 'p_xx_susu_tr_co_cd',
+                            width: 35,
+                            hozAlign: 'center',
+                            headerSort: false,
+                            resizable: false,
+                            formatter: searchBtnFormatter,
+                            cellClick: openSusuTrCoCdModal
+                        },
+                        {
+                            title: '선물최종결제수수료명',
+                            field: 'xxSusuTrCoCd',
+                            width: 220,
+                            hozAlign: 'left',
+                            editor: false
+                        },
+                        {
+                            title: '옵션최종결제수수료',
+                            field: 'susuTrCoCd1',
+                            width: 140,
+                            hozAlign: 'center',
+                            editor: 'input',
+                            cellClick: aamsCellEdit
+                        },
+                        {
+                            title: '',
+                            field: 'p_xx_susu_tr_co_cd1',
+                            width: 35,
+                            hozAlign: 'center',
+                            headerSort: false,
+                            resizable: false,
+                            formatter: searchBtnFormatter,
+                            cellClick: openSusuTrCoCd1Modal
+                        },
+                        {
+                            title: '옵션최종결제수수료명',
+                            field: 'xxSusuTrCoCd1',
+                            width: 220,
+                            hozAlign: 'left',
+                            editor: false
+                        }
+                    ]
+                });
+
+                grid.on('cellEdited', async function (cell) {
+                    const fieldName = cell.getField();
+                    const row = cell.getRow();
+                    const val = String(cell.getValue() || '').trim();
+
+                    if (fieldName === 'trCoCd') {
+                        const nm = await fetchTradeName(val, null);
+                        row.update({ xxTrCoCd: nm, trCoNm: nm });
+                    } else if (fieldName === 'susuTrCoCd') {
+                        const addWhere = "used='1' and tr_co_cd in (select tr_co_cd from ssm0ss where corp_gr='" + corpGr() + "')";
+                        const nm = await fetchTradeName(val, addWhere);
+                        row.update({ xxSusuTrCoCd: nm, susuTrCoNm: nm });
+                    } else if (fieldName === 'susuTrCoCd1') {
+                        const addWhere = "used='1' and tr_co_cd in (select tr_co_cd from ssm0ss where corp_gr='" + corpGr() + "')";
+                        const nm = await fetchTradeName(val, addWhere);
+                        row.update({ xxSusuTrCoCd1: nm, susuTrCoNm1: nm });
+                    }
+                    markRowUpdated(row);
+                });
+            }
+
+            async function retrieve() {
+                if (!grid || loading) return;
+                loading = true;
+                try {
+                    const url = api + '/list?' + new URLSearchParams({ corpGr: corpGr() });
+                    const res = await fetch(url);
+                    if (!res.ok) throw new Error('데이터 조회에 실패했습니다.');
+                    const rows = await res.json();
+                    deletedRows = [];
+                    await grid.setData((rows || []).map(function (row) {
+                        return Object.assign(row, {
+                            isNew: !!row.isNew,
+                            isUpdated: false,
+                            isDeleted: false,
+                            rowStatus: row.isNew ? 'C' : ''
+                        });
+                    }));
+
+                    // 조회 완료 상태 반영 (ButtonRole: 권한 보유 버튼 활성화)
+                    if (window.ButtonRole && typeof window.ButtonRole.setSearchState === 'function') {
+                        window.ButtonRole.setSearchState(pane, true);
+                    }
+                } catch (error) {
+                    message(error.message, 'error');
+                } finally {
+                    loading = false;
+                }
+            }
+
+            async function addRow() {
+                if (!grid) return;
+                const newRowData = {
+                    corpGr: corpGr(),
+                    grCd: 'PP',
+                    trCoCd: '',
+                    xxTrCoCd: '',
+                    susuTrCoCd: '',
+                    xxSusuTrCoCd: '',
+                    susuTrCoCd1: '',
+                    xxSusuTrCoCd1: '',
+                    pVisible: 1,
+                    isNew: true,
+                    isUpdated: false,
+                    isDeleted: false,
+                    rowStatus: 'C'
+                };
+                const row = await grid.addRow(newRowData, false);
+                grid.deselectRow();
+                row.select();
+                setTimeout(function () {
+                    const cell = row.getCell('trCoCd');
+                    if (cell) cell.edit(true);
+                }, 30);
+            }
+
+            async function deleteRow() {
+                if (!grid) return;
+                const rows = grid.getSelectedRows();
+                if (!rows || rows.length === 0) {
+                    return message('삭제할 행을 선택하세요.', 'warning');
+                }
+                const row = rows[0];
+                const data = row.getData();
+                if (!data.isNew) {
+                    deletedRows.push(Object.assign({}, data, { isDeleted: true, rowStatus: 'D' }));
+                }
+                await row.delete();
+            }
+
+            async function save() {
+                if (!grid || saving) return;
+                const currentData = grid.getData();
+                const modifiedRows = currentData.filter(function (row) {
+                    return row.isNew || row.isUpdated;
+                });
+
+                if (modifiedRows.length === 0 && deletedRows.length === 0) {
+                    return message('저장할 변경사항이 없습니다.', 'info');
+                }
+
+                // 매매처 필수 검증
+                for (let i = 0; i < modifiedRows.length; i++) {
+                    const r = modifiedRows[i];
+                    if (!r.trCoCd || !r.trCoCd.trim()) {
+                        return message((i + 1) + '번째 행의 매매처를 입력하세요.', 'warning');
+                    }
+                }
+
+                saving = true;
+                try {
+                    const response = await fetch(api + '/save', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            corpGr: corpGr(),
+                            rows: modifiedRows,
+                            deletedRows: deletedRows
+                        })
+                    });
+                    const result = await response.json();
+                    if (!response.ok || !result.success) {
+                        throw new Error(result.message || '저장하지 못했습니다.');
+                    }
+                    message(result.message, 'success');
+                    await retrieve();
+                } catch (error) {
+                    message(error.message, 'error');
+                } finally {
+                    saving = false;
+                }
+            }
+
+            function exportExcel() {
+                if (grid) {
+                    grid.download('xlsx', '선물옵션_최종결제수수료등록.xlsx', { sheetName: 'W_JA031B' });
+                }
+            }
+
+            async function init() {
+                initGrid();
+
+                // 1. 상단 공통 툴바 버튼 권한 제어 엔진 (ButtonRole) 명시적 적용
+                if (window.ButtonRole && typeof window.ButtonRole.apply === 'function') {
+                    const targetPgmNo = initialPgmNo || (pane ? pane.getAttribute('data-pgm-no') : null);
+                    window.ButtonRole.apply(pane, targetPgmNo);
+                }
+
+                // 2. 상단 공통 툴바 표준 계약 바인딩 (Rule 08)
+                pane.onSearch = retrieve;
+                pane.onRetrieve = retrieve;
+                pane.onInput = addRow;
+                pane.onDelete = deleteRow;
+                pane.onSave = save;
+                pane.onExcel = pane.onDetailExcel = exportExcel;
+                pane.onRefresh = async function () {
+                    deletedRows = [];
+                    if (grid) await grid.clearData();
+                    if (window.ButtonRole && typeof window.ButtonRole.setSearchState === 'function') {
+                        window.ButtonRole.setSearchState(pane, false);
+                    }
+                    await retrieve();
+                };
+                pane.onCorpGrChange = async function () {
+                    deletedRows = [];
+                    if (grid) await grid.clearData();
+                    if (window.ButtonRole && typeof window.ButtonRole.setSearchState === 'function') {
+                        window.ButtonRole.setSearchState(pane, false);
+                    }
+                    await retrieve();
+                };
+
+                // 3. PB: eb_direct_retrieve = true (화면 진입 시 자동 조회)
+                await retrieve();
+            }
+
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', init, { once: true });
+            } else {
+                init();
+            }
+        })();
+    </script>
+</div>
+</html>
