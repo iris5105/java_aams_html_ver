@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<div class="view-container layout-single ja031e-container layout-mobile-stack-container" th:fragment="mainView" data-pgm-id="W_JA031E"
+     th:attr="data-corp-gr=${corpGr},data-pgm-no=${pgmNo},data-fymd=${fymd},data-tymd=${tymd}"
+     style="display:flex; flex-direction:column; height:100%; width:100%; overflow:hidden; background:#fff; position:relative;">
+
+    <!-- 1. Top Action Toolbar & Breadcrumb -->
+    <div class="view-toolbar">
+        <div class="toolbar-left"><div th:replace="~{fragments/tab_header :: toolbarButtons}"></div></div>
+        <div th:replace="~{fragments/tab_header :: toolbarBreadcrumb}"></div>
+    </div>
+
+    <!-- 2. Filter Bar (From-To Date: dc_ftymd, PB dw_c) -->
+    <div class="filter-bar">
+        <div class="filter-left">
+            <th:block th:replace="~{fragments/filter/dc_ftymd :: filter(label='영업일자구간')}"></th:block>
+        </div>
+    </div>
+
+    <!-- 3. Report Preview Viewer Panel (Crownix MRD Fullscreen Panel) -->
+    <div class="report-container-panel" style="flex:1; min-height:0; display:flex; flex-direction:column; padding:0 10px 10px;">
+        <div th:replace="~{fragments/report/report_viewer :: reportViewerBottomPane(reportTitle='타사수익증권 매매내역', defaultStatus='조회 대기 중')}"></div>
+    </div>
+
+    <!-- 4. Mobile Modal Viewer (Responsive width <= 876px) -->
+    <div th:replace="~{fragments/report/report_viewer :: reportMobileModal(modalId='ja031eMobileModal', modalTitle='타사수익증권 매매내역')}"></div>
+
+    <script>
+        (function () {
+            const script = document.currentScript;
+            const pane = script ? (script.closest('.tab-pane') || script.closest('.view-container')) : null;
+            if (!pane) return;
+
+            const initialCorpGr = pane.getAttribute('data-corp-gr') || '';
+            const initialFymd = pane.getAttribute('data-fymd') || '';
+            const initialTymd = pane.getAttribute('data-tymd') || '';
+            const initialPgmNo = pane.getAttribute('data-pgm-no') || '';
+
+            let reportViewer = null;
+            let isInitialized = false;
+
+            function field(id) { return pane.querySelector('#' + id); }
+            function corpGr() { return (typeof resolveCorpGr === 'function' ? resolveCorpGr(pane) : '') || initialCorpGr; }
+
+            function loadReport() {
+                if (!reportViewer || typeof reportViewer.load !== 'function') return;
+
+                const fymd = (typeof getFilterFYmd === 'function') ? getFilterFYmd(pane, 'YYYY.MM.DD') : '';
+                const tymd = (typeof getFilterTYmd === 'function') ? getFilterTYmd(pane, 'YYYY.MM.DD') : '';
+
+                if (!fymd || !tymd) {
+                    if (typeof showToast === 'function') showToast('영업일자구간을 선택하세요.', 'warning');
+                    return;
+                }
+
+                // 고유 식별자(id)와 강제 로드 플래그(isForce=true)를 넘겨 aams_report.js 캐시 차단 방어
+                reportViewer.load({
+                    id: fymd + '_' + tymd + '_' + corpGr(),
+                    fymd: fymd,
+                    tymd: tymd
+                }, '조회완료', true);
+
+                // 버튼 권한 상태 갱신: 조회 완료 상태로 전환 (상단 공통 버튼 활성화)
+                if (window.ButtonRole && typeof window.ButtonRole.setSearchState === 'function') {
+                    window.ButtonRole.setSearchState(pane, true);
+                }
+            }
+
+            function initViewer() {
+                const reportEngine = window.AamsReport;
+                if (!reportEngine || typeof reportEngine.bindViewer !== 'function') return;
+
+                reportViewer = reportEngine.bindViewer(pane, {
+                    reportFile: 'rd_ja031e.mrd',
+                    modalId: 'ja031eMobileModal',
+                    zoom: 120,
+                    getCorpGr: function () {
+                        return corpGr();
+                    },
+                    buildParams: function (data) {
+                        return {
+                            fymd: (data && data.fymd) ? data.fymd : ((typeof getFilterFYmd === 'function') ? getFilterFYmd(pane, 'YYYY.MM.DD') : initialFymd),
+                            tymd: (data && data.tymd) ? data.tymd : ((typeof getFilterTYmd === 'function') ? getFilterTYmd(pane, 'YYYY.MM.DD') : initialTymd),
+                            corp_gr: corpGr()
+                        };
+                    },
+                    getTitle: function () {
+                        return '타사수익증권 매매내역';
+                    },
+                    getStatus: function (data) {
+                        const f = (data && data.fymd) ? data.fymd : ((typeof getFilterFYmd === 'function') ? getFilterFYmd(pane) : initialFymd);
+                        const t = (data && data.tymd) ? data.tymd : ((typeof getFilterTYmd === 'function') ? getFilterTYmd(pane) : initialTymd);
+                        return '영업일자구간: ' + f + ' ~ ' + t;
+                    },
+                    getDownloadName: function () {
+                        const f = (typeof getFilterFYmd === 'function') ? getFilterFYmd(pane, 'YYYYMMDD') : '';
+                        const t = (typeof getFilterTYmd === 'function') ? getFilterTYmd(pane, 'YYYYMMDD') : '';
+                        return f + '_' + t + '_타사수익증권매매내역';
+                    }
+                });
+            }
+
+            function init() {
+                if (isInitialized) return;
+                isInitialized = true;
+
+                // 1. 기간 선택 날짜 필터 기본값 보정
+                const fInput = field('filterFYmd');
+                const tInput = field('filterTYmd');
+                if (fInput && !fInput.value) fInput.value = initialFymd;
+                if (tInput && !tInput.value) tInput.value = initialTymd;
+
+                // 2. 리포트 뷰어 바인딩
+                initViewer();
+
+                // 3. 상단 공통 버튼 권한 엔진(ButtonRole) 적용
+                if (window.ButtonRole && typeof window.ButtonRole.apply === 'function') {
+                    const targetPgmNo = initialPgmNo || (pane ? pane.getAttribute('data-pgm-no') : null);
+                    window.ButtonRole.apply(pane, targetPgmNo);
+                }
+
+                // 4. 상단 공통 툴바 표준 계약 바인딩 (Rule 08)
+                pane.onSearch = loadReport;
+                pane.onRetrieve = loadReport;
+                pane.onExcel = function () {
+                    if (reportViewer && typeof reportViewer.exportReport === 'function') {
+                        reportViewer.exportReport('excel');
+                    }
+                };
+                pane.onPrint = function () {
+                    if (reportViewer && typeof reportViewer.exportReport === 'function') {
+                        reportViewer.exportReport('pdf');
+                    }
+                };
+                pane.onRefresh = function () {
+                    if (fInput) fInput.value = initialFymd;
+                    if (tInput) tInput.value = initialTymd;
+                    if (window.ButtonRole && typeof window.ButtonRole.setSearchState === 'function') {
+                        window.ButtonRole.setSearchState(pane, false);
+                    }
+                    loadReport();
+                };
+                pane.onCorpGrChange = function (newCorpGr) {
+                    const targetCorp = newCorpGr || corpGr();
+                    fetch('/api/common/workdate?corpGr=' + encodeURIComponent(targetCorp))
+                        .then(function (res) { return res.json(); })
+                        .then(function (data) {
+                            if (data && data.workDate) {
+                                const wDate = data.workDate.replace(/\./g, '-');
+                                const parts = wDate.split('-');
+                                if (parts.length === 3) {
+                                    if (fInput) fInput.value = parts[0] + '-' + parts[1] + '-01';
+                                    if (tInput) tInput.value = wDate;
+                                } else {
+                                    if (fInput) fInput.value = wDate;
+                                    if (tInput) tInput.value = wDate;
+                                }
+                            }
+                            loadReport();
+                        })
+                        .catch(function (err) {
+                            console.warn('[W_JA031E] workdate fetch error:', err);
+                            loadReport();
+                        });
+                };
+
+                // 5. PB: eb_direct_retrieve = true (화면 진입 시 자동 조회)
+                loadReport();
+            }
+
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', init, { once: true });
+            } else {
+                init();
+            }
+        })();
+    </script>
+</div>
+</html>
+
