@@ -57,24 +57,30 @@
                 const select = field('filterDddw') || pane.querySelector('select[name="dddw"]');
                 if (!select) return;
 
-                // 네이티브 change 이벤트 등록 (f_dddwctl 실패 시 또는 dispatchEvent 발생 시 안전망)
+                const options = [
+                    { code: '1', name: '계좌별' },
+                    { code: '2', name: '증권사별' }
+                ];
+
+                // 1. 네이티브 select option 명시적 구성
+                select.innerHTML = options.map(opt => `<option value="${opt.code}">${opt.name}</option>`).join('');
+                select.value = initialDddw || '1';
+
                 select.onchange = function () {
                     loadReport(this.value);
                 };
 
-                // PB: f_dddwctl (THIS, 'dddw | dual', '', "1,계좌별,,2,증권사별,", 1, '')
-                if (typeof window.f_dddwctl === 'function') {
-                    await window.f_dddwctl(select, 'dddw | dual', corpGr(), '1,계좌별,,2,증권사별,', 1, '', {
+                // 2. 2컬럼 커스텀 DDDW 컴포넌트 변환 (PowerBuilder 'dddw | dual' 1:1 매핑)
+                if (window.f_dddwctl && typeof window.f_dddwctl.create2ColSelect === 'function') {
+                    window.f_dddwctl.create2ColSelect(select, options, {
                         codeTitle: '코드',
                         nameTitle: '출력유형',
-                        defaultVal: initialDddw || '1',
+                        defaultVal: select.value || '1',
                         onSelect: function (code, name) {
+                            select.value = code;
                             loadReport(code);
                         }
                     });
-                } else {
-                    select.innerHTML = '<option value="1">계좌별</option><option value="2">증권사별</option>';
-                    select.value = initialDddw || '1';
                 }
             }
 

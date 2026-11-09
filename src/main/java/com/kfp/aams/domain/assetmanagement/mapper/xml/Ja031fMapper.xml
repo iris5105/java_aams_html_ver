@@ -52,7 +52,7 @@
            AND cj.JM_CD   = t1.JM_CD
          WHERE t1.CORP_GR = #{corpGr}
            AND t1.TR_YMD BETWEEN #{fymd} AND #{tymd}
-        <if test="fundCd != null and fundCd != '' and fundCd != '%'">
+        <if test='fundCd != null and fundCd != "" and !fundCd.equals("%")'>
            AND t1.FUND_CD = #{fundCd}
         </if>
          ORDER BY t1.FUND_CD, t1.TR_YMD, t1.JM_CD, t1.TR_CD

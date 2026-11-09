@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<div class="view-container layout-split-h ja031g-container layout-mobile-stack-container" th:fragment="mainView" data-pgm-id="W_JA031G"
+     th:attr="data-corp-gr=${corpGr},data-pgm-no=${pgmNo},data-fymd=${fymd},data-tymd=${tymd}"
+     style="display:flex; flex-direction:column; height:100%; width:100%; overflow:hidden; background:#fff; position:relative;">
+
+    <!-- 1. Top Action Toolbar & Breadcrumb -->
+    <div class="view-toolbar">
+        <div class="toolbar-left"><div th:replace="~{fragments/tab_header :: toolbarButtons}"></div></div>
+        <div th:replace="~{fragments/tab_header :: toolbarBreadcrumb}"></div>
+    </div>
+
+    <!-- 2. Filter Bar (PB dc_ftymd) -->
+    <div class="filter-bar">
+        <div class="filter-left">
+            <th:block th:replace="~{fragments/filter/dc_ftymd :: filter(label='매매구간')}"></th:block>
+        </div>
+    </div>
+
+    <!-- 3. Main Split Container (Master: Funds List / Detail: Cash & Short-Term Trading Details) -->
+    <div class="split-horizontal-container layout-split-h layout-mobile-stack" style="flex:1; min-height:0; display:flex; flex-direction:row; padding:0 10px 10px; overflow:hidden;">
+        
+        <!-- Left Panel: Master Grid (d_ja031g.srd) -->
+        <div class="split-pane split-pane-left master-grid-pane" id="ja031gMasterPane" style="width:330px; min-width:260px; max-width:480px; display:flex; flex-direction:column; height:100%; min-height:0;">
+            <div class="pane-header" style="height:32px; display:flex; align-items:center; padding:0 8px; border:1px solid #cbd5e1; border-bottom:none; background:#f8fafc; font-weight:600; color:#1e293b; font-size:12px;">
+                <i class="fa-solid fa-list-check me-1 text-primary"></i> 펀드 목록
+            </div>
+            <div class="pane-body" style="flex:1; min-height:0; border:1px solid #cbd5e1;">
+                <div id="ja031gMasterGrid" class="tabulator-aams-grid" style="height:100%; width:100%;"></div>
+            </div>
+        </div>
+
+        <!-- Split Gutter (Horizontal Splitter) -->
+        <div class="split-gutter-h" role="separator" aria-orientation="vertical" style="width:6px; cursor:col-resize; background:#e2e8f0; border-left:1px solid #cbd5e1; border-right:1px solid #cbd5e1;"></div>
+
+        <!-- Right Panel: Detail Grid (d_ja031g1.srd) -->
+        <div class="split-pane split-pane-right detail-grid-pane" id="ja031gDetailPane" style="flex:1; min-width:0; display:flex; flex-direction:column; height:100%; min-height:0;">
+            <div class="pane-header" style="height:32px; display:flex; align-items:center; justify-content:space-between; padding:0 8px; border:1px solid #cbd5e1; border-bottom:none; background:#f8fafc; font-weight:600; color:#1e293b; font-size:12px;">
+                <div>
+                    <i class="fa-solid fa-money-bill-transfer me-1 text-primary"></i> 현금/단기금융 매매내역
+                    <span id="ja031gSelectedFundLabel" style="font-weight:400; color:#64748b; margin-left:8px;">[선택: 전체]</span>
+                </div>
+                <div style="font-weight:400; font-size:11px; color:#64748b;">
+                    <span style="color:#2563eb; font-weight:bold; margin-right:8px;"><i class="fa-solid fa-circle text-primary" style="font-size:8px;"></i> 매입(J)</span>
+                    <span style="color:#dc2626; font-weight:bold;"><i class="fa-solid fa-circle text-danger" style="font-size:8px;"></i> 매도(K)</span>
+                </div>
+            </div>
+            <div class="pane-body" style="flex:1; min-height:0; border:1px solid #cbd5e1;">
+                <div id="ja031gDetailGrid" class="tabulator-aams-grid" style="height:100%; width:100%;"></div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        (function () {
+            const script = document.currentScript;
+            const pane = script ? (script.closest('.tab-pane') || script.closest('.view-container')) : null;
+            if (!pane) return;
+
+            const initialCorpGr = pane.getAttribute('data-corp-gr') || '';
+            const initialFymd = pane.getAttribute('data-fymd') || '';
+            const initialTymd = pane.getAttribute('data-tymd') || '';
+            const initialPgmNo = pane.getAttribute('data-pgm-no') || '';
+
+            let gridMaster = null;
+            let gridDetail = null;
+            let isInitialized = false;
+            let currentSelectedFundCd = '%';
+            let currentSelectedFundNm = '전체';
+            let lastLoadedMasterKey = null;
+
+            function field(id) { return pane.querySelector('#' + id); }
+            function corpGr() { return (typeof resolveCorpGr === 'function' ? resolveCorpGr(pane) : '') || initialCorpGr; }
+
+            function getFYmd() {
+                return (typeof getFilterFYmd === 'function') ? getFilterFYmd(pane, 'YYYY-MM-DD') : initialFymd;
+            }
+
+            function getTYmd() {
+                return (typeof getFilterTYmd === 'function') ? getFilterTYmd(pane, 'YYYY-MM-DD') : initialTymd;
+            }
+
+            function num(val) {
+                if (val == null || val === '') return 0;
+                var n = Number(String(val).replace(/,/g, ''));
+                return isNaN(n) ? 0 : n;
+            }
+
+            function fmtNum(val) {
+                if (val == null || val === '') return '0';
+                var n = num(val);
+                return n.toLocaleString('ko-KR');
+            }
+
+            // ==========================================
+            // 1. Master Grid (d_ja031g.srd)
+            // ==========================================
+            function initMasterGrid() {
+                var el = field('ja031gMasterGrid');
+                if (!el || gridMaster) return;
+
+                gridMaster = new Tabulator(el, {
+                    height: '100%',
+                    layout: 'fitColumns',
+                    selectableRows: 1,
+                    placeholder: '조회된 펀드가 없습니다.',
+                    columns: [
+                        {
+                            title: 'No.',
+                            field: 'fseq',
+                            width: 50,
+                            hozAlign: 'center',
+                            headerSort: false,
+                            formatter: function (cell) {
+                                return cell.getRow().getPosition();
+                            }
+                        },
+                        {
+                            title: '펀드번호', // Rule 04: fundCd 헤더는 항상 '펀드번호'
+                            field: 'fundCd',
+                            width: 100,
+                            hozAlign: 'center',
+                            headerSort: true
+                        },
+                        {
+                            title: '계좌명',
+                            field: 'fundNm',
+                            hozAlign: 'left',
+                            headerSort: true
+                        }
+                    ]
+                });
+
+                gridMaster.on('rowClick', function (e, row) {
+                    var data = row.getData();
+                    if (!data) return;
+                    selectMasterFund(data.fundCd, data.fundNm);
+                });
+            }
+
+            function selectMasterFund(fundCd, fundNm) {
+                currentSelectedFundCd = fundCd || '%';
+                currentSelectedFundNm = fundNm || '전체';
+
+                var label = field('ja031gSelectedFundLabel');
+                if (label) {
+                    label.textContent = '[선택: ' + currentSelectedFundNm + ' (' + currentSelectedFundCd + ')]';
+                }
+
+                loadDetailData(currentSelectedFundCd);
+            }
+
+            // ==========================================
+            // 2. Detail Grid (d_ja031g1.srd)
+            // ==========================================
+            function initDetailGrid() {
+                var el = field('ja031gDetailGrid');
+                if (!el || gridDetail) return;
+
+                gridDetail = new Tabulator(el, {
+                    height: '100%',
+                    layout: 'fitDataFill',
+                    selectableRows: 1,
+                    placeholder: '매매내역이 없습니다.',
+                    rowFormatter: function (row) {
+                        var data = row.getData();
+                        if (data && data.isSummaryRow) {
+                            row.getElement().classList.add('aams-summary-row');
+                        }
+                    },
+                    columns: [
+                        {
+                            title: 'No.',
+                            field: 'fseq',
+                            width: 50,
+                            hozAlign: 'center',
+                            headerSort: false,
+                            formatter: function (cell) {
+                                var row = cell.getRow().getData();
+                                if (row && row.isSummaryRow) return '';
+                                return cell.getRow().getPosition();
+                            }
+                        },
+                        {
+                            title: '펀드번호', // Rule 04 준수
+                            field: 'fundCd',
+                            width: 100,
+                            hozAlign: 'center',
+                            headerSort: true,
+                            formatter: function (cell) {
+                                var row = cell.getRow().getData();
+                                if (row && row.isSummaryRow) return '';
+                                return cell.getValue() || '';
+                            }
+                        },
+                        {
+                            title: '계좌명',
+                            field: 'fundNm',
+                            width: 170,
+                            hozAlign: 'left',
+                            headerSort: true,
+                            formatter: function (cell) {
+                                var row = cell.getRow().getData();
+                                if (row && row.isSummaryRow) return '';
+                                return cell.getValue() || '';
+                            }
+                        },
+                        {
+                            title: '매매일자',
+                            field: 'trYmd',
+                            width: 95,
+                            hozAlign: 'center',
+                            headerSort: true,
+                            formatter: function (cell) {
+                                var row = cell.getRow().getData();
+                                if (row && row.isSummaryRow) return '';
+                                return cell.getValue() || '';
+                            }
+                        },
+                        {
+                            title: '매매구분',
+                            field: 'trNm',
+                            width: 110,
+                            hozAlign: 'left',
+                            headerSort: true,
+                            formatter: function (cell) {
+                                var row = cell.getRow().getData();
+                                if (row && row.isSummaryRow) return '';
+                                var val = cell.getValue() || '';
+                                var color = row ? row.trColor : '';
+                                if (color === 'J') {
+                                    return '<span style="color:#2563eb; font-weight:600;">' + val + '</span>';
+                                } else if (color === 'K') {
+                                    return '<span style="color:#dc2626; font-weight:600;">' + val + '</span>';
+                                }
+                                return val;
+                            }
+                        },
+                        {
+                            title: '종목코드',
+                            field: 'jmCd',
+                            width: 95,
+                            hozAlign: 'center',
+                            headerSort: true,
+                            formatter: function (cell) {
+                                var row = cell.getRow().getData();
+                                if (row && row.isSummaryRow) return '';
+                                return cell.getValue() || '';
+                            }
+                        },
+                        {
+                            title: '종목명',
+                            field: 'hjNm',
+                            width: 190,
+                            hozAlign: 'left',
+                            headerSort: true,
+                            formatter: function (cell) {
+                                var row = cell.getRow().getData();
+                                if (row && row.isSummaryRow) {
+                                    return '<div style="text-align:center; font-weight:bold; width:100%;">합계</div>';
+                                }
+                                return cell.getValue() || '';
+                            }
+                        },
+                        {
+                            title: '매매액면',
+                            field: 'aekm',
+                            width: 120,
+                            hozAlign: 'right',
+                            headerSort: true,
+                            formatter: function (cell) {
+                                var row = cell.getRow().getData();
+                                var str = fmtNum(cell.getValue());
+                                if (row && row.isSummaryRow) {
+                                    return '<span class="cell-text-blue font-bold">' + str + '</span>';
+                                }
+                                return str;
+                            }
+                        },
+                        {
+                            title: '매매금액',
+                            field: 'trAek',
+                            width: 120,
+                            hozAlign: 'right',
+                            headerSort: true,
+                            formatter: function (cell) {
+                                var row = cell.getRow().getData();
+                                var str = fmtNum(cell.getValue());
+                                if (row && row.isSummaryRow) {
+                                    return '<span class="cell-text-blue font-bold">' + str + '</span>';
+                                }
+                                return str;
+                            }
+                        },
+                        {
+                            title: '수수료',
+                            field: 'susu',
+                            width: 95,
+                            hozAlign: 'right',
+                            headerSort: true,
+                            formatter: function (cell) {
+                                var row = cell.getRow().getData();
+                                var str = fmtNum(cell.getValue());
+                                if (row && row.isSummaryRow) {
+                                    return '<span class="cell-text-blue font-bold">' + str + '</span>';
+                                }
+                                return str;
+                            }
+                        },
+                        {
+                            title: '제세금',
+                            field: 'mijigubTax',
+                            width: 95,
+                            hozAlign: 'right',
+                            headerSort: true,
+                            formatter: function (cell) {
+                                var row = cell.getRow().getData();
+                                var str = fmtNum(cell.getValue());
+                                if (row && row.isSummaryRow) {
+                                    return '<span class="cell-text-blue font-bold">' + str + '</span>';
+                                }
+                                return str;
+                            }
+                        },
+                        {
+                            title: '정산금액',
+                            field: 'jungsanAek',
+                            width: 125,
+                            hozAlign: 'right',
+                            headerSort: true,
+                            formatter: function (cell) {
+                                var row = cell.getRow().getData();
+                                var str = fmtNum(cell.getValue());
+                                if (row && row.isSummaryRow) {
+                                    return '<span class="cell-text-blue font-bold">' + str + '</span>';
+                                }
+                                return str;
+                            }
+                        },
+                        {
+                            title: '매매손익',
+                            field: 'mmSonik',
+                            width: 110,
+                            hozAlign: 'right',
+                            headerSort: true,
+                            formatter: function (cell) {
+                                var row = cell.getRow().getData();
+                                var val = num(cell.getValue());
+                                var str = fmtNum(val);
+                                if (val > 0) {
+                                    str = '<span style="color:#2563eb; font-weight:' + (row && row.isSummaryRow ? 'bold' : 'normal') + ';">' + str + '</span>';
+                                } else if (val < 0) {
+                                    str = '<span style="color:#dc2626; font-weight:' + (row && row.isSummaryRow ? 'bold' : 'normal') + ';">' + str + '</span>';
+                                }
+                                return str;
+                            }
+                        },
+                        {
+                            title: '상환일자',
+                            field: 'sanghwYmd',
+                            width: 95,
+                            hozAlign: 'center',
+                            headerSort: true,
+                            formatter: function (cell) {
+                                var row = cell.getRow().getData();
+                                if (row && row.isSummaryRow) return '';
+                                return cell.getValue() || '';
+                            }
+                        },
+                        {
+                            title: '취득원가',
+                            field: 'chuiAek',
+                            width: 115,
+                            hozAlign: 'right',
+                            headerSort: true,
+                            formatter: function (cell) {
+                                var row = cell.getRow().getData();
+                                var str = fmtNum(cell.getValue());
+                                if (row && row.isSummaryRow) {
+                                    return '<span class="cell-text-blue font-bold">' + str + '</span>';
+                                }
+                                return str;
+                            }
+                        },
+                        {
+                            title: '수입이자',
+                            field: 'suipIja',
+                            width: 95,
+                            hozAlign: 'right',
+                            headerSort: true,
+                            formatter: function (cell) {
+                                var row = cell.getRow().getData();
+                                var str = fmtNum(cell.getValue());
+                                if (row && row.isSummaryRow) {
+                                    return '<span class="cell-text-blue font-bold">' + str + '</span>';
+                                }
+                                return str;
+                            }
+                        }
+                    ]
+                });
+            }
+
+            // ==========================================
+            // 3. Rule 06: Data Summary Row Recalculation
+            // ==========================================
+            function recalcSummaryRow() {
+                if (!gridDetail) return;
+                var rows = gridDetail.getRows();
+                var normalRows = rows.filter(function (r) {
+                    var d = r.getData();
+                    return d && !d.isSummaryRow;
+                });
+                var summaryRow = rows.find(function (r) {
+                    var d = r.getData();
+                    return d && d.isSummaryRow;
+                });
+
+                if (normalRows.length === 0) {
+                    if (summaryRow) summaryRow.delete();
+                    return;
+                }
+
+                var sumAekm = 0;
+                var sumTrAek = 0;
+                var sumSusu = 0;
+                var sumTax = 0;
+                var sumJungsan = 0;
+                var sumSonik = 0;
+                var sumChui = 0;
+                var sumIja = 0;
+
+                normalRows.forEach(function (r) {
+                    var d = r.getData();
+                    sumAekm += num(d.aekm);
+                    sumTrAek += num(d.trAek);
+                    sumSusu += num(d.susu);
+                    sumTax += num(d.mijigubTax);
+                    sumJungsan += num(d.jungsanAek);
+                    sumSonik += num(d.mmSonik);
+                    sumChui += num(d.chuiAek);
+                    sumIja += num(d.suipIja);
+                });
+
+                var summaryData = {
+                    isSummaryRow: true,
+                    hjNm: '합계',
+                    aekm: sumAekm,
+                    trAek: sumTrAek,
+                    susu: sumSusu,
+                    mijigubTax: sumTax,
+                    jungsanAek: sumJungsan,
+                    mmSonik: sumSonik,
+                    chuiAek: sumChui,
+                    suipIja: sumIja
+                };
+
+                if (summaryRow) {
+                    summaryRow.update(summaryData);
+                } else {
+                    gridDetail.addRow(summaryData, false);
+                }
+            }
+
+            // ==========================================
+            // 4. Data Loading Logic
+            // ==========================================
+            function loadMasterData() {
+                if (!gridMaster) return;
+
+                var fymd = getFYmd();
+                var tymd = getTYmd();
+                var targetCorp = corpGr();
+
+                if (!fymd || !tymd) {
+                    if (typeof showToast === 'function') showToast('매매구간을 선택하세요.', 'warning');
+                    return;
+                }
+
+                var url = '/api/assetmanagement/ja031g/funds?corpGr=' + encodeURIComponent(targetCorp) +
+                          '&fYmd=' + encodeURIComponent(fymd) +
+                          '&tYmd=' + encodeURIComponent(tymd);
+
+                fetch(url)
+                    .then(function (res) { return res.json(); })
+                    .then(function (list) {
+                        gridMaster.setData(list || []).then(function () {
+                            // 데이터 로드 완료 후 1행(전체) 자동 포커스
+                            var rows = gridMaster.getRows();
+                            if (rows && rows.length > 0) {
+                                rows[0].select();
+                                var firstData = rows[0].getData();
+                                selectMasterFund(firstData.fundCd, firstData.fundNm);
+                            } else {
+                                if (gridDetail) gridDetail.clearData();
+                            }
+
+                            if (window.ButtonRole && typeof window.ButtonRole.setSearchState === 'function') {
+                                window.ButtonRole.setSearchState(pane, true);
+                            }
+                        });
+                    })
+                    .catch(function (err) {
+                        console.error('[W_JA031G] master fetch error:', err);
+                        if (typeof showToast === 'function') showToast('펀드 목록 조회 중 오류가 발생했습니다.', 'error');
+                    });
+            }
+
+            function loadDetailData(fundCd) {
+                if (!gridDetail) return;
+
+                var fymd = getFYmd();
+                var tymd = getTYmd();
+                var targetCorp = corpGr();
+                var targetFund = fundCd || currentSelectedFundCd || '%';
+
+                var currentKey = targetCorp + '_' + fymd + '_' + tymd + '_' + targetFund;
+                if (lastLoadedMasterKey === currentKey) return;
+                lastLoadedMasterKey = currentKey;
+
+                var url = '/api/assetmanagement/ja031g/details?corpGr=' + encodeURIComponent(targetCorp) +
+                          '&fYmd=' + encodeURIComponent(fymd) +
+                          '&tYmd=' + encodeURIComponent(tymd) +
+                          '&fundCd=' + encodeURIComponent(targetFund);
+
+                fetch(url)
+                    .then(function (res) { return res.json(); })
+                    .then(function (list) {
+                        var rawList = Array.isArray(list) ? list : [];
+                        gridDetail.setData(rawList).then(function () {
+                            recalcSummaryRow();
+                        });
+                    })
+                    .catch(function (err) {
+                        console.error('[W_JA031G] detail fetch error:', err);
+                        if (typeof showToast === 'function') showToast('매매내역 조회 중 오류가 발생했습니다.', 'error');
+                    });
+            }
+
+            // ==========================================
+            // 5. Lifecycle & Standard Contract (Rule 08)
+            // ==========================================
+            function init() {
+                if (isInitialized) return;
+                isInitialized = true;
+
+                initMasterGrid();
+                initDetailGrid();
+
+                // 상단 공통 버튼 권한 엔진(ButtonRole) 적용
+                if (window.ButtonRole && typeof window.ButtonRole.apply === 'function') {
+                    var targetPgmNo = initialPgmNo || (pane ? pane.getAttribute('data-pgm-no') : null);
+                    window.ButtonRole.apply(pane, targetPgmNo);
+                }
+
+                // 상단 공통 툴바 표준 계약 바인딩
+                pane.onSearch = function () {
+                    lastLoadedMasterKey = null;
+                    loadMasterData();
+                };
+
+                // PB: cb_xls 클릭 로직 - 디테일 그리드 엑셀 저장
+                pane.onExcel = function () {
+                    if (!gridDetail) return;
+                    var f = (typeof getFilterFYmd === 'function') ? getFilterFYmd(pane, 'YYYYMMDD') : '';
+                    var t = (typeof getFilterTYmd === 'function') ? getFilterTYmd(pane, 'YYYYMMDD') : '';
+                    var fileName = (f === t) ? (f + '현금매매내역.xlsx') : (f + '-' + t + '현금매매내역.xlsx');
+                    gridDetail.download('xlsx', fileName, { sheetName: '현금매매내역' });
+                };
+
+                pane.onRefresh = function () {
+                    if (gridMaster) gridMaster.clearData();
+                    if (gridDetail) gridDetail.clearData();
+                    lastLoadedMasterKey = null;
+                    currentSelectedFundCd = '%';
+                    currentSelectedFundNm = '전체';
+                    var label = field('ja031gSelectedFundLabel');
+                    if (label) label.textContent = '[선택: 전체]';
+
+                    if (window.ButtonRole && typeof window.ButtonRole.setSearchState === 'function') {
+                        window.ButtonRole.setSearchState(pane, false);
+                    }
+                    if (typeof showToast === 'function') showToast('화면이 초기화되었습니다.', 'info');
+                };
+
+                pane.onCorpGrChange = function (newCorpGr) {
+                    var targetCorp = newCorpGr || corpGr();
+                    fetch('/api/common/workdate?corpGr=' + encodeURIComponent(targetCorp))
+                        .then(function (res) { return res.json(); })
+                        .then(function (data) {
+                            if (data && data.workDate) {
+                                var fInput = field('filterFYmd');
+                                var tInput = field('filterTYmd');
+                                if (fInput) fInput.value = data.workDate;
+                                if (tInput) tInput.value = data.workDate;
+                            }
+                            lastLoadedMasterKey = null;
+                            loadMasterData();
+                        })
+                        .catch(function (err) {
+                            console.warn('[W_JA031G] workdate fetch error:', err);
+                            lastLoadedMasterKey = null;
+                            loadMasterData();
+                        });
+                };
+
+                // 화면 초기 진입 시 자동 조회
+                loadMasterData();
+            }
+
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', init, { once: true });
+            } else {
+                init();
+            }
+        })();
+    </script>
+</div>
+</html>
+
