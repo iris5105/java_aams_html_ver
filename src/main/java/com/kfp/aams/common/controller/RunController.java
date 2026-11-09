@@ -4,7 +4,6 @@ import com.kfp.aams.common.dto.RunCheckResultDto;
 import com.kfp.aams.common.dto.RunExecuteRequestDto;
 import com.kfp.aams.common.dto.RunItemDto;
 import com.kfp.aams.common.service.RunService;
-import com.kfp.aams.common.service.WorkDateService;
 import com.kfp.aams.security.UserPrincipal;
 import jakarta.servlet.http.HttpSession;
 import lombok.extern.slf4j.Slf4j;
@@ -14,6 +13,9 @@ import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -22,12 +24,13 @@ import java.util.Map;
 @Controller
 public class RunController {
 
-    private final RunService runService;
-    private final WorkDateService workDateService;
+    private static final ZoneId KOREA_ZONE_ID = ZoneId.of("Asia/Seoul");
+    private static final DateTimeFormatter YMD_FORMATTER = DateTimeFormatter.ISO_LOCAL_DATE;
 
-    public RunController(RunService runService, WorkDateService workDateService) {
+    private final RunService runService;
+
+    public RunController(RunService runService) {
         this.runService = runService;
-        this.workDateService = workDateService;
     }
 
     @GetMapping({
@@ -48,20 +51,20 @@ public class RunController {
         String cookieCorpGr = (cookieCorpGr1 != null && !cookieCorpGr1.isBlank()) ? cookieCorpGr1 : cookieCorpGr2;
         String corpGr = resolveCorpGr(paramCorpGr, cookieCorpGr, principalObj);
 
-        // 파워빌더 w_run.srw 및 w_winpage.srw idt_workdate (SZX0AA.HYUN_YMD) 기준 주입
-        String workDate = (paramYmd != null && !paramYmd.isBlank())
-                ? paramYmd
-                : workDateService.getWorkDateOrDefault(corpGr);
+        // W_RUN 기본 실행 기간은 서버의 현재 날짜를 사용한다.
+        // URL로 날짜를 명시한 경우에는 해당 값을 조회 조건으로 유지한다.
+        String today = LocalDate.now(KOREA_ZONE_ID).format(YMD_FORMATTER);
+        String selectedDate = (paramYmd != null && !paramYmd.isBlank()) ? paramYmd : today;
 
-        String initialFrom = (paramFYmd != null && !paramFYmd.isBlank()) ? paramFYmd : workDate;
-        String initialTo = (paramTYmd != null && !paramTYmd.isBlank()) ? paramTYmd : workDate;
+        String initialFrom = (paramFYmd != null && !paramFYmd.isBlank()) ? paramFYmd : selectedDate;
+        String initialTo = (paramTYmd != null && !paramTYmd.isBlank()) ? paramTYmd : selectedDate;
 
         String fYmdDot = (initialFrom != null) ? initialFrom.replace("-", ".") : "";
         String tYmdDot = (initialTo != null) ? initialTo.replace("-", ".") : "";
 
         model.addAttribute("corpGr", corpGr);
-        model.addAttribute("initialYmd", workDate);
-        model.addAttribute("workDate", workDate);
+        model.addAttribute("initialYmd", selectedDate);
+        model.addAttribute("workDate", selectedDate);
         model.addAttribute("fYmd", fYmdDot);
         model.addAttribute("tYmd", tYmdDot);
         model.addAttribute("fymd", fYmdDot);

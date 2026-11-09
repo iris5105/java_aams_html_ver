@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.kfp.aams.domain.assetmanagement.mapper.Ja031cMapper">
+
+    <select id="selectList" resultType="com.kfp.aams.domain.assetmanagement.dto.Ja031cDto">
+        SELECT wc.CORP_GR
+             , wc.FUND_CD
+             , ia.FUND_NM AS xx_fund_cd
+             , wc.TR_CO_CD
+             , wc.TR_SEQ_NO
+             , wc.TR_AEK
+             , wc.TR_YMD
+             , wc.TR_CD
+             , wc.TRUSTEE
+             , wc.CURRENCY
+             , wc.FCUR_TR_AEK
+          FROM SST0WC wc
+          JOIN SZM0IA ia
+            ON ia.CORP_GR = wc.CORP_GR
+           AND ia.FUND_CD = wc.FUND_CD
+         WHERE wc.CORP_GR = #{corpGr}
+           AND wc.TR_YMD = #{trYmd}
+           AND wc.TR_CD = #{trCd}
+           AND wc.CURRENCY = 'KRW'
+         ORDER BY wc.TR_YMD, wc.FUND_CD, wc.TR_CD, wc.TR_SEQ_NO
+    </select>
+
+    <select id="selectHighlightDates" resultType="java.lang.String">
+        SELECT DISTINCT TO_CHAR(t1.TR_YMD, 'YYYY-MM-DD')
+          FROM SST0WC t1
+         WHERE t1.CORP_GR = #{corpGr}
+           AND t1.CURRENCY = 'KRW'
+           AND t1.TR_CD IN (SELECT tr_cd FROM SZX1PT WHERE obj_id = 'W_JA031C')
+         ORDER BY 1
+    </select>
+
+    <select id="selectMaxSequence" resultType="int">
+        SELECT NVL(MAX(TR_SEQ_NO), 0)
+          FROM SST0WC
+         WHERE CORP_GR = #{corpGr}
+           AND TR_YMD = #{trYmd}
+           AND TR_CD = #{trCd}
+           AND CURRENCY = 'KRW'
+    </select>
+
+    <select id="existsRow" resultType="int">
+        SELECT COUNT(*)
+          FROM SST0WC
+         WHERE CORP_GR = #{corpGr}
+           AND TR_YMD = #{trYmd}
+           AND TR_CD = #{trCd}
+           AND FUND_CD = #{fundCd}
+           AND TR_SEQ_NO = #{trSeqNo}
+           AND CURRENCY = 'KRW'
+    </select>
+
+    <insert id="insert">
+        INSERT INTO SST0WC (
+            CORP_GR, FUND_CD, TR_CO_CD, TR_SEQ_NO, TR_AEK,
+            TR_YMD, TR_CD, TRUSTEE, CURRENCY, FCUR_TR_AEK
+        ) VALUES (
+            #{corpGr}, #{fundCd}, #{trCoCd, jdbcType=VARCHAR}, #{trSeqNo}, NVL(#{trAek, jdbcType=NUMERIC}, 0),
+            #{trYmd}, #{trCd}, 'KRW', 'KRW', NVL(#{fcurTrAek, jdbcType=NUMERIC}, 0)
+        )
+    </insert>
+
+    <update id="update">
+        UPDATE SST0WC
+           SET TR_AEK = NVL(#{trAek, jdbcType=NUMERIC}, 0)
+             , FCUR_TR_AEK = NVL(#{fcurTrAek, jdbcType=NUMERIC}, 0)
+             , TR_CO_CD = #{trCoCd, jdbcType=VARCHAR}
+         WHERE CORP_GR = #{corpGr}
+           AND TR_YMD = #{trYmd}
+           AND TR_CD = #{trCd}
+           AND FUND_CD = #{fundCd}
+           AND TR_SEQ_NO = #{trSeqNo}
+           AND CURRENCY = 'KRW'
+    </update>
+
+    <delete id="delete">
+        DELETE FROM SST0WC
+         WHERE CORP_GR = #{corpGr}
+           AND TR_YMD = #{trYmd}
+           AND TR_CD = #{trCd}
+           AND FUND_CD = #{fundCd}
+           AND TR_SEQ_NO = #{trSeqNo}
+           AND CURRENCY = 'KRW'
+    </delete>
+</mapper>

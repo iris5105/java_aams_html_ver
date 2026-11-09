@@ -72,6 +72,10 @@
             // Server resolves the active company from the current session cookies/token
             // before this fragment is rendered. Keep it as the first DDDW default.
             var initialCorpGr = /*[[${corpGr}]]*/ '';
+            // W_RUN's default period is supplied by the server as today's date.
+            var initialRunDate = /*[[${initialYmd}]]*/ '';
+            var initialFYmd = /*[[${fYmd}]]*/ '';
+            var initialTYmd = /*[[${tYmd}]]*/ '';
 
             // 작업회사(corpGr)는 common.js의 전역 헬퍼 함수(resolveCorpGr / getFilterCorpGr) 사용
 
@@ -86,14 +90,14 @@
                 return ymdStr.toString().replace(/-/g, '.');
             }
 
-            // 파워빌더 w_run 및 w_winpage의 idt_workdate (SZX0AA.HYUN_YMD) 기준 주입 (Zero-LocalDate-Now 원칙)
-            function initDefaultDates(targetWorkDate) {
+            // W_RUN의 기본 기간은 서버가 주입한 현재 날짜를 사용한다.
+            function initDefaultDates(targetDate) {
                 var fEl = pane.querySelector('#filterFYmd');
                 var tEl = pane.querySelector('#filterTYmd');
                 if (!fEl && !tEl) return;
 
                 var detectedCorpGr = (typeof resolveCorpGr === 'function') ? resolveCorpGr(pane) : '';
-                var workDate = targetWorkDate;
+                var workDate = targetDate;
 
                 if (!workDate && window.WorkDateSyncManager && typeof window.WorkDateSyncManager.getWorkDate === 'function') {
                     workDate = window.WorkDateSyncManager.getWorkDate(detectedCorpGr);
@@ -108,14 +112,14 @@
                 var formatted = formatYmdDot(workDate);
 
                 if (formatted) {
-                    if (fEl && (!fEl.value || targetWorkDate)) fEl.value = formatted;
-                    if (tEl && (!tEl.value || targetWorkDate)) tEl.value = formatted;
+                    if (fEl && (!fEl.value || targetDate)) fEl.value = formatted;
+                    if (tEl && (!tEl.value || targetDate)) tEl.value = formatted;
                 } else if (detectedCorpGr && typeof fetchCommonWorkDate === 'function') {
                     fetchCommonWorkDate(detectedCorpGr, function(fetchedDate) {
                         var fDate = formatYmdDot(fetchedDate);
                         if (fDate) {
-                            if (fEl && (!fEl.value || targetWorkDate)) fEl.value = fDate;
-                            if (tEl && (!tEl.value || targetWorkDate)) tEl.value = fDate;
+                            if (fEl && (!fEl.value || targetDate)) fEl.value = fDate;
+                            if (tEl && (!tEl.value || targetDate)) tEl.value = fDate;
                         }
                     });
                 }
@@ -434,6 +438,8 @@
                 if (window.AamsCalendar && typeof window.AamsCalendar.initRange === 'function') {
                     window.AamsCalendar.initRange('filterFYmd', 'filterTYmd', {
                         pane: pane,
+                        initialFYmd: initialFYmd,
+                        initialTYmd: initialTYmd,
                         preserveSameDay: true
                     });
                 }
@@ -459,28 +465,12 @@
                 pane.onCorpGrChange = function (newCorpGr) {
                     if (isRunning) return;
                     initDddw();
-                    var corp = newCorpGr || ((typeof resolveCorpGr === 'function') ? resolveCorpGr(pane) : '');
-                    if (corp && typeof fetchCommonWorkDate === 'function') {
-                        fetchCommonWorkDate(corp, function (fetchedDate) {
-                            if (fetchedDate) {
-                                initDefaultDates(fetchedDate);
-                            }
-                        });
-                    } else {
-                        initDefaultDates();
-                    }
+                    initDefaultDates(initialRunDate);
                 };
                 pane.onRefresh = function () {
                     if (isRunning) return;
                     if (grid) grid.clearData();
-                    var detectedCorpGr = (typeof resolveCorpGr === 'function') ? resolveCorpGr(pane) : '';
-                    if (detectedCorpGr && typeof fetchCommonWorkDate === 'function') {
-                        fetchCommonWorkDate(detectedCorpGr, function (fetchedDate) {
-                            initDefaultDates(fetchedDate);
-                        });
-                    } else {
-                        initDefaultDates();
-                    }
+                    initDefaultDates(initialRunDate);
                     if (typeof showToast === "function") {
                         showToast("화면이 초기화되었습니다.", "info");
                     }

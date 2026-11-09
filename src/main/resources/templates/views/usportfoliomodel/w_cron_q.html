@@ -101,6 +101,35 @@
         </div>
     </div>
 
+    <div id="cronStatusDetailModal" class="cron-status-detail-modal" hidden
+         role="dialog" aria-modal="true" aria-labelledby="cronStatusDetailTitle" aria-hidden="true">
+        <div class="cron-status-detail-modal-window">
+            <div class="cron-status-detail-modal-header">
+                <h3 id="cronStatusDetailTitle">
+                    <i class="fa-solid fa-clock-rotate-left"></i> 실행 이력 상세
+                </h3>
+                <button type="button" id="btnCloseCronStatusDetail" class="cron-status-detail-modal-icon-close"
+                        aria-label="실행 이력 상세 닫기">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <div class="cron-status-detail-modal-body">
+                <dl class="cron-status-detail-fields">
+                    <div><dt>CRON KEY</dt><dd id="cronStatusDetailCronKey">-</dd></div>
+                    <div><dt>실행일시</dt><dd id="cronStatusDetailRunTime">-</dd></div>
+                    <div><dt>실행결과</dt><dd id="cronStatusDetailRunStatus">-</dd></div>
+                </dl>
+                <section class="cron-status-detail-return-value">
+                    <h4>RETURN VALUE</h4>
+                    <pre id="cronStatusDetailOutParam" tabindex="0">-</pre>
+                </section>
+            </div>
+            <div class="cron-status-detail-modal-footer">
+                <button type="button" id="btnConfirmCronStatusDetail" class="btn btn-primary btn-sm">확인</button>
+            </div>
+        </div>
+    </div>
+
     <!-- 4. 화면 전용 스크립트 격리 블록 -->
     <script th:inline="javascript">
         (function () {
@@ -119,6 +148,51 @@
 
             const mleInParamEl = pane.querySelector('#mleInParam');
             const selectedCronKeyBadgeEl = pane.querySelector('#selectedCronKeyBadge');
+            const cronStatusDetailModalEl = pane.querySelector('#cronStatusDetailModal');
+            const cronStatusDetailCronKeyEl = pane.querySelector('#cronStatusDetailCronKey');
+            const cronStatusDetailRunTimeEl = pane.querySelector('#cronStatusDetailRunTime');
+            const cronStatusDetailRunStatusEl = pane.querySelector('#cronStatusDetailRunStatus');
+            const cronStatusDetailOutParamEl = pane.querySelector('#cronStatusDetailOutParam');
+
+            function getCronStatusDetailValue(value) {
+                return value === null || value === undefined || value === '' ? '-' : String(value);
+            }
+
+            function closeCronStatusDetail() {
+                if (!cronStatusDetailModalEl) return;
+                cronStatusDetailModalEl.hidden = true;
+                cronStatusDetailModalEl.classList.remove('show');
+                cronStatusDetailModalEl.setAttribute('aria-hidden', 'true');
+            }
+
+            function openCronStatusDetail(data) {
+                if (!cronStatusDetailModalEl || !data) return;
+
+                if (cronStatusDetailCronKeyEl) cronStatusDetailCronKeyEl.textContent = getCronStatusDetailValue(data.cronKey);
+                if (cronStatusDetailRunTimeEl) cronStatusDetailRunTimeEl.textContent = getCronStatusDetailValue(data.runTime);
+                if (cronStatusDetailRunStatusEl) cronStatusDetailRunStatusEl.textContent = getCronStatusDetailValue(data.runStatus);
+                if (cronStatusDetailOutParamEl) cronStatusDetailOutParamEl.textContent = getCronStatusDetailValue(data.outParam);
+
+                cronStatusDetailModalEl.hidden = false;
+                cronStatusDetailModalEl.classList.add('show');
+                cronStatusDetailModalEl.setAttribute('aria-hidden', 'false');
+
+                const closeButton = pane.querySelector('#btnCloseCronStatusDetail');
+                if (closeButton) closeButton.focus();
+            }
+
+            function initCronStatusDetailModal() {
+                if (!cronStatusDetailModalEl) return;
+
+                const closeButtons = pane.querySelectorAll('#btnCloseCronStatusDetail, #btnConfirmCronStatusDetail');
+                closeButtons.forEach(function (button) {
+                    button.addEventListener('click', closeCronStatusDetail);
+                });
+
+                if (typeof setupModalBackdrop === 'function') {
+                    setupModalBackdrop(cronStatusDetailModalEl, closeCronStatusDetail);
+                }
+            }
 
             // [함수 1] 현재 textarea에 작성된 내용을 활성 행 객체에 동기화
             function saveCurrentMleToRow() {
@@ -306,6 +380,12 @@
                     if (typeof setupTabulatorRowSelection === 'function') {
                         setupTabulatorRowSelection(gridCronStatus);
                     }
+
+                    gridCronStatus.on('rowDblClick', function (e, row) {
+                        if (!row) return;
+                        row.select();
+                        openCronStatusDetail(row.getData());
+                    });
                 }
             }
 
@@ -666,6 +746,7 @@
                 isInitialized = true;
 
                 initGrids();
+                initCronStatusDetailModal();
                 initEditorKeyEvents();
                 initSplitters();
                 initToolbar();

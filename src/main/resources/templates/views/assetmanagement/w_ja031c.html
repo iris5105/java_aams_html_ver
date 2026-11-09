@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<div class="view-container layout-single layout-mobile-stack-container" th:fragment="mainView" data-pgm-id="W_JA031C"
+     th:attr="data-corp-gr=${corpGr},data-work-date=${workDate}"
+     style="display:flex; flex-direction:column; height:100%; width:100%; overflow:hidden; background:#fff; position:relative;">
+
+    <div class="view-toolbar">
+        <div class="toolbar-left"><div th:replace="~{fragments/tab_header :: toolbarButtons}"></div></div>
+        <div th:replace="~{fragments/tab_header :: toolbarBreadcrumb}"></div>
+    </div>
+
+    <div class="filter-bar">
+        <div class="filter-left">
+            <div th:replace="~{fragments/filter/dc_ymd_dddw :: filter(labelYmd='영업일자', labelDddw='거래구분')}"></div>
+            <span class="filter-help-text">원화 증거금 거래내역을 관리합니다.</span>
+        </div>
+    </div>
+
+    <div class="grid-section" style="flex:1; min-height:0; padding:0 10px 10px;">
+        <div id="gridJa031c" class="tabulator-aams-grid" style="height:100%; width:100%;"></div>
+    </div>
+
+    <script th:inline="javascript">
+        (function () {
+            const script = document.currentScript;
+            const pane = script ? (script.closest('.tab-pane') || script.closest('.view-container')) : null;
+            if (!pane) return;
+
+            const api = '/api/assetmanagement/ja031c';
+            const initialCorpGr = /*[[${corpGr}]]*/ '';
+            const initialYmd = /*[[${ymd}]]*/ '';
+            const workDate = /*[[${workDate}]]*/ '';
+            const defaultTrCd = /*[[${dddw}]]*/ 'S30';
+            let grid = null;
+            let loading = false;
+            let saving = false;
+            let deletedRows = [];
+
+            function field(id) { return pane.querySelector('#' + id); }
+            function corpGr() { return (typeof resolveCorpGr === 'function' ? resolveCorpGr(pane) : '') || initialCorpGr; }
+            function toDash(value) {
+                const digits = String(value || '').replace(/[^0-9]/g, '');
+                return digits.length === 8 ? digits.substring(0, 4) + '-' + digits.substring(4, 6) + '-' + digits.substring(6, 8) : '';
+            }
+            function selectedYmd() { return toDash(field('filterYmd') ? field('filterYmd').value : initialYmd); }
+            function selectedTrCd() { return (field('filterDddw') && field('filterDddw').value) || ''; }
+            function manageable() { return selectedYmd() >= toDash(workDate); }
+            function message(text, type) { if (typeof showToast === 'function') showToast(text, type || 'info'); }
+            function markUpdated(row) {
+                const data = row.getData();
+                if (!data.isNew) row.update({ isUpdated: true, rowStatus: 'U' });
+            }
+
+            async function refreshTradeCodes() {
+                const select = field('filterDddw');
+                if (!select || !corpGr()) return;
+                const ymd = selectedYmd();
+                let addWhere = "szx1pt.obj_id='W_JA031C'";
+                if (ymd && ymd < toDash(workDate)) {
+                    addWhere += " and szx0gc.tr_cd in (select tr_cd from sst0wc where corp_gr='" + corpGr().replace(/'/g, "''")
+                        + "' and tr_ymd='" + ymd + "' and currency='KRW')";
+                }
+                const previous = select.value || defaultTrCd;
+                if (typeof window.f_dddwctl === 'function') {
+                    await window.f_dddwctl(select, 'dddw', corpGr(), '', 1, addWhere, {
+                        defaultVal: previous,
+                        codeTitle: '코드',
+                        nameTitle: '거래구분'
+                    });
+                }
+            }
+
+            function initGrid() {
+                const element = field('gridJa031c');
+                if (!element) return;
+                grid = new Tabulator(element, {
+                    height: '100%', layout: 'fitColumns', selectableRows: 1, editTriggerEvent: 'click',
+                    placeholder: '조회된 데이터가 없습니다.',
+                    columns: [
+                        { title: 'No.', formatter: 'rownum', width: 55, hozAlign: 'center', headerSort: false },
+                        {
+                            title: '관리번호', field: 'fundCd', width: 140, hozAlign: 'center', editor: 'input',
+                            editable: function (cell) { return manageable() && !!cell.getRow().getData().isNew; },
+                            cellClick: window.aamsCellEdit,
+                            cellEdited: function (cell) { cell.setValue((cell.getValue() || '').trim().toUpperCase(), true); markUpdated(cell.getRow()); }
+                        },
+                        {
+                            title: '', field: 'fundSearch', width: 38, hozAlign: 'center', headerSort: false,
+                            formatter: function (cell) {
+                                return manageable() && cell.getRow().getData().isNew
+                                    ? '<button type="button" class="btn-grid-addon btn-search" title="계좌 검색"><i class="fa-solid fa-magnifying-glass"></i></button>' : '';
+                            },
+                            cellClick: function (event, cell) {
+                                event.stopPropagation();
+                                const row = cell.getRow();
+                                if (!manageable() || !row.getData().isNew || !window.DynamicCodeSearch) return;
+                                window.DynamicCodeSearch.openModal({
+                                    columnNm: 'fund_cd', seq: 1, initialKeyword: row.getData().fundCd || '',
+                                    onSelect: function (code, name) { row.update({ fundCd: code, xxFundCd: name || '' }); markUpdated(row); }
+                                });
+                            }
+                        },
+                        { title: '계좌명', field: 'xxFundCd', minWidth: 210, hozAlign: 'left' },
+                        {
+                            title: '증거금액', field: 'trAek', width: 155, hozAlign: 'right', editor: 'input',
+                            editable: manageable, cellClick: window.aamsCellEdit,
+                            formatter: function (cell) { return Number(cell.getValue() || 0).toLocaleString('ko-KR'); },
+                            cellEdited: function (cell) {
+                                const value = Number(String(cell.getValue() || 0).replace(/,/g, ''));
+                                cell.setValue(Number.isFinite(value) ? value : 0, true); markUpdated(cell.getRow());
+                            }
+                        },
+                        { title: '기준통화금액', field: 'fcurTrAek', width: 155, hozAlign: 'right', formatter: function (cell) { return Number(cell.getValue() || 0).toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); } },
+                        { title: '순번', field: 'trSeqNo', width: 80, hozAlign: 'center' }
+                    ]
+                });
+                if (typeof setupTabulatorRowSelection === 'function') setupTabulatorRowSelection(grid);
+            }
+
+            async function retrieve() {
+                if (!grid || loading) return;
+                const ymd = selectedYmd();
+                const trCd = selectedTrCd();
+                if (!ymd || !trCd) return message('영업일자와 거래구분을 선택하세요.', 'warning');
+                loading = true;
+                try {
+                    const params = new URLSearchParams({ corpGr: corpGr(), ymd: ymd, trCd: trCd });
+                    const response = await fetch(api + '/list?' + params);
+                    if (!response.ok) throw new Error('거래내역을 조회하지 못했습니다.');
+                    const rows = await response.json();
+                    deletedRows = [];
+                    await grid.setData((rows || []).map(function (row) { return Object.assign(row, { isNew: false, isUpdated: false, rowStatus: '' }); }));
+                } catch (error) { message(error.message, 'error'); }
+                finally { loading = false; }
+            }
+
+            async function addRow() {
+                if (!grid || !manageable()) return message('과거 영업일자는 입력할 수 없습니다.', 'warning');
+                const ymd = selectedYmd(); const trCd = selectedTrCd();
+                if (!ymd || !trCd) return message('영업일자와 거래구분을 선택하세요.', 'warning');
+                try {
+                    const response = await fetch(api + '/next-sequence?' + new URLSearchParams({ corpGr: corpGr(), ymd: ymd, trCd: trCd }));
+                    if (!response.ok) throw new Error('순번을 조회하지 못했습니다.');
+                    const next = await response.json();
+                    const row = await grid.addRow({ corpGr: corpGr(), trYmd: ymd, trCd: trCd, trSeqNo: next.trSeqNo, trustee: 'KRW', currency: 'KRW', trAek: 0, fcurTrAek: 0, isNew: true, rowStatus: 'C' }, false);
+                    grid.deselectRow(); row.select();
+                    setTimeout(function () { const cell = row.getCell('fundCd'); if (cell) cell.edit(true); }, 30);
+                } catch (error) { message(error.message, 'error'); }
+            }
+
+            async function deleteRow() {
+                if (!grid || !manageable()) return message('과거 영업일자는 삭제할 수 없습니다.', 'warning');
+                const row = grid.getSelectedRows()[0];
+                if (!row) return message('삭제할 행을 선택하세요.', 'warning');
+                const data = row.getData();
+                if (!data.isNew) deletedRows.push(Object.assign({}, data, { isDeleted: true, rowStatus: 'D' }));
+                await row.delete();
+            }
+
+            async function save() {
+                if (!grid || saving || !manageable()) return message('과거 영업일자는 저장할 수 없습니다.', 'warning');
+                const rows = grid.getData().filter(function (row) { return row.isNew || row.isUpdated; });
+                if (!rows.length && !deletedRows.length) return message('저장할 변경사항이 없습니다.', 'info');
+                saving = true;
+                try {
+                    const response = await fetch(api + '/save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ corpGr: corpGr(), ymd: selectedYmd(), trCd: selectedTrCd(), rows: rows, deletedRows: deletedRows }) });
+                    const result = await response.json();
+                    if (!response.ok || !result.success) throw new Error(result.message || '저장하지 못했습니다.');
+                    message(result.message, 'success'); await retrieve(); await updateDates();
+                } catch (error) { message(error.message, 'error'); }
+                finally { saving = false; }
+            }
+
+            async function updateDates() {
+                try {
+                    const response = await fetch(api + '/dates?' + new URLSearchParams({ corpGr: corpGr() }));
+                    const dates = await response.json();
+                    if (window.AamsCalendar && typeof window.AamsCalendar.setHighlightDates === 'function') window.AamsCalendar.setHighlightDates('filterYmd', dates || []);
+                } catch (error) { console.warn('[W_JA031C] calendar dates:', error); }
+            }
+
+            async function init() {
+                initGrid();
+                if (window.AamsCalendar && typeof window.AamsCalendar.init === 'function') {
+                    window.AamsCalendar.init('filterYmd', { pane: pane, initialYmd: initialYmd, onSelect: refreshTradeCodes });
+                }
+                await refreshTradeCodes(); await updateDates();
+                pane.onSearch = retrieve; pane.onRetrieve = retrieve; pane.onInput = addRow; pane.onDelete = deleteRow; pane.onSave = save;
+                pane.onExcel = pane.onDetailExcel = function () { if (grid) grid.download('xlsx', '원화증거금거래등록.xlsx', { sheetName: 'W_JA031C' }); };
+                pane.onRefresh = async function () { deletedRows = []; if (grid) await grid.clearData(); if (field('filterYmd')) field('filterYmd').value = initialYmd; await refreshTradeCodes(); await updateDates(); };
+                pane.onCorpGrChange = async function () { deletedRows = []; if (grid) await grid.clearData(); await refreshTradeCodes(); await updateDates(); };
+            }
+            if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init, { once: true }); else init();
+        })();
+    </script>
+</div>
+</html>
