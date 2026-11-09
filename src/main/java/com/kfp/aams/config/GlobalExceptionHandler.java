@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.servlet.ModelAndView;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
+import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -129,6 +130,9 @@ public class GlobalExceptionHandler {
             body.put("message", ex.getMessage() != null ? ex.getMessage() : "서버 처리 중 오류가 발생했습니다.");
             body.put("path", uri);
             body.put("screen", ErrorLogHelper.extractScreenInfo(request));
+            if (isSqlException(ex)) {
+                body.put("errorType", "SQL");
+            }
 
             return ResponseEntity
                     .status(HttpStatus.INTERNAL_SERVER_ERROR)
@@ -143,5 +147,21 @@ public class GlobalExceptionHandler {
             mav.setViewName("error");
             return mav;
         }
+    }
+
+    private boolean isSqlException(Throwable throwable) {
+        Throwable current = throwable;
+        while (current != null) {
+            if (current instanceof SQLException) {
+                return true;
+            }
+
+            String message = current.getMessage();
+            if (message != null && message.matches("(?is).*\\b(?:ORA-\\d+|SQL(?:Exception|State|SyntaxErrorException)|JDBC|MyBatis)\\b.*")) {
+                return true;
+            }
+            current = current.getCause();
+        }
+        return false;
     }
 }

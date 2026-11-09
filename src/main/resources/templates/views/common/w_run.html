@@ -341,7 +341,10 @@
 
                             var resp = await fetch("/api/common/run/execute-step", {
                                 method: "POST",
-                                headers: { "Content-Type": "application/json" },
+                                headers: {
+                                    "Content-Type": "application/json",
+                                    "X-AAMS-Local-Sql-Error-Handling": "true"
+                                },
                                 body: JSON.stringify({
                                     corpGr: corpGr,
                                     ymd: ymdFormatted,

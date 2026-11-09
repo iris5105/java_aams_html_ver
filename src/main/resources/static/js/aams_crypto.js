@@ -592,6 +592,39 @@
                 }
             }
 
+            function inspectSqlErrorResponse(response) {
+                if (!response || !response.headers || response.headers.get('X-AAMS-Error-Type') !== 'SQL') {
+                    return;
+                }
+
+                response.clone().text()
+                    .then(async function(rawBody) {
+                        var payload = rawBody;
+                        try {
+                            var parsed = JSON.parse(rawBody);
+                            if (parsed && typeof parsed.encData === 'string') {
+                                payload = await AamsCrypto.decrypt(parsed.encData);
+                                parsed = JSON.parse(payload);
+                            }
+                            if (parsed && typeof parsed === 'object') {
+                                payload = parsed.outMsg || parsed.message || parsed.error || rawBody;
+                            }
+                        } catch (parseError) {
+                            // The original response is still returned untouched to the screen.
+                        }
+
+                        var message = String(payload || '데이터베이스 처리 중 오류가 발생했습니다.');
+                        if (typeof window.showErrorDialog === 'function') {
+                            window.showErrorDialog(message, { title: '데이터베이스 오류' });
+                        } else {
+                            console.error('[AamsCrypto] SQL error response:', message);
+                        }
+                    })
+                    .catch(function(inspectError) {
+                        console.warn('[AamsCrypto] SQL error response inspection failed:', inspectError);
+                    });
+            }
+
             window.fetch = async function (resource, init) {
                 init = Object.assign({}, init || {});
                 resource = convertReadApiToPost(resource, init);
@@ -616,7 +649,9 @@
 
                 // 암호화 비활성화 시 원본 fetch 수행
                 if (!AamsCrypto._enabled) {
-                    return originalFetch.call(this, resource, init);
+                    var plainResponse = await originalFetch.call(this, resource, init);
+                    inspectSqlErrorResponse(plainResponse);
+                    return plainResponse;
                 }
 
                 var url = (typeof resource === 'string') ? resource : (resource && resource.url ? resource.url : '');
@@ -697,6 +732,7 @@
                     return text;
                 };
 
+                inspectSqlErrorResponse(response);
                 return response;
             };
         }
