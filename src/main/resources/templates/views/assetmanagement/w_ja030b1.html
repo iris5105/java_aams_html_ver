@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<div class="view-container layout-split ja030b1-container layout-mobile-stack-container" th:fragment="mainView" data-pgm-id="W_JA030B1"
+     th:attr="data-corp-gr=${corpGr},data-fymd=${fymd},data-tymd=${tymd},data-pgm-no=${pgmNo}"
+     style="display: flex; flex-direction: column; height: 100%; width: 100%; overflow: hidden; background: #fff; position: relative;">
+
+    <!-- 1. Top Action Toolbar & Breadcrumb (Row 1) -->
+    <div class="view-toolbar">
+        <div class="toolbar-left"><div th:replace="~{fragments/tab_header :: toolbarButtons}"></div></div>
+        <div th:replace="~{fragments/tab_header :: toolbarBreadcrumb}"></div>
+    </div>
+
+    <!-- 2. Filter Bar (From-To Date, PB dw_c / dc_ftymd: 조회구간) -->
+    <div class="filter-bar">
+        <div class="filter-left">
+            <th:block th:replace="~{fragments/filter/dc_ftymd :: filter(label='조회구간')}"></th:block>
+        </div>
+    </div>
+
+    <!-- 3. Split Master-Detail Layout (Vertical Split: Left Fund Grid / Right Crownix MRD Report) -->
+    <div class="layout-split-h split-body" data-split-key="W_JA030B1" data-default-ratio="38:62" style="flex: 1; min-height: 0; display: flex; width: 100%; overflow: hidden;">
+        <!-- Left Master Panel: d_ja030b1 Grid -->
+        <div class="pane-left left-pane" style="display: flex; flex-direction: column; min-height: 0; overflow: hidden;">
+            <div class="pane-header">
+                <span><i class="fa-solid fa-list" style="margin-right: 6px;"></i> 계좌 목록</span>
+            </div>
+            <div class="pane-body" style="flex: 1; min-height: 0; padding: 0 4px 4px; overflow: hidden;">
+                <div id="grid-ja030b1-master" class="tabulator-aams-grid" style="height: 100%; width: 100%;"></div>
+            </div>
+        </div>
+
+        <!-- Right Detail Panel: Crownix Report Viewer (rd_ja030b1.mrd) -->
+        <div th:replace="~{fragments/report/report_viewer :: reportViewerPane(reportTitle='주식 계좌별 매매현황', defaultStatus='선택된 계좌 없음')}"></div>
+    </div>
+
+    <!-- 4. Mobile Modal Viewer (Responsive width <= 876px) -->
+    <div th:replace="~{fragments/report/report_viewer :: reportMobileModal(modalId='ja030b1MobileModal', modalTitle='주식 계좌별 매매현황')}"></div>
+
+    <script>
+        (function () {
+            const currentScript = document.currentScript;
+            const pane = currentScript ? (currentScript.closest('.tab-pane') || currentScript.closest('.view-container')) : null;
+            if (!pane) return;
+
+            const initialCorpGr = pane.getAttribute('data-corp-gr') || '';
+            const initialFymd = pane.getAttribute('data-fymd') || '';
+            const initialTymd = pane.getAttribute('data-tymd') || '';
+            const initialPgmNo = pane.getAttribute('data-pgm-no') || '00074';
+
+            let grid = null;
+            let reportViewer = null;
+            let isInitialized = false;
+            let lastLoadedMasterKey = null;
+            let currentSelectedRowData = null;
+
+            function field(id) { return pane.querySelector('#' + id); }
+            function corpGr() { return (typeof resolveCorpGr === 'function' ? resolveCorpGr(pane) : '') || initialCorpGr; }
+
+            function isMobileView() {
+                if (window.AamsReport && typeof window.AamsReport.isMobileView === 'function') {
+                    return window.AamsReport.isMobileView(pane);
+                }
+                const right = pane.querySelector('.right-pane') || pane.querySelector('.split-right') || pane.querySelector('.report-card');
+                if (right && window.getComputedStyle(right).display === 'none') return true;
+                return window.innerWidth <= 876;
+            }
+
+            function initGrid() {
+                const gridEl = pane.querySelector('#grid-ja030b1-master');
+                if (!gridEl) return;
+
+                // d_ja030b1.srd 메타데이터 반영 컬럼 정의
+                // Rule 04: field가 fundCd일 때 헤더 title은 반드시 '펀드번호'
+                grid = new Tabulator(gridEl, {
+                    height: "100%",
+                    layout: "fitColumns",
+                    selectableRows: 1,
+                    data: [],
+                    columnDefaults: {
+                        vertAlign: "middle"
+                    },
+                    columns: [
+                        {
+                            title: "No.",
+                            formatter: "rownum",
+                            width: 50,
+                            hozAlign: "center",
+                            headerHozAlign: "center"
+                        },
+                        {
+                            title: "펀드번호",
+                            field: "fundCd",
+                            width: 105,
+                            hozAlign: "center",
+                            headerHozAlign: "center",
+                            headerCssClass: "col-hdr-green",
+                            formatter: function (cell) {
+                                const val = cell.getValue() || '';
+                                return '<span class="cell-text-green font-bold">' + val + '</span>';
+                            }
+                        },
+                        {
+                            title: "계좌명",
+                            field: "fundNm",
+                            minWidth: 160,
+                            hozAlign: "left",
+                            headerHozAlign: "center"
+                        }
+                    ]
+                });
+
+                // 행 선택 이벤트 바인딩 (삼중 안전망)
+                if (typeof setupTabulatorRowSelection === 'function') {
+                    setupTabulatorRowSelection(grid, function (row, data) {
+                        syncDetail(row, data, false);
+                    }, { autoSelectFirst: false });
+                }
+
+                grid.on('rowClick', function (e, row) {
+                    const isRealClick = e && (e.isTrusted !== false);
+                    syncDetail(row, row ? row.getData() : null, isRealClick);
+                });
+
+                grid.on('rowSelectionChanged', function (data, rows) {
+                    if (rows && rows.length > 0 && !isMobileView()) {
+                        syncDetail(rows[0], rows[0].getData(), false);
+                    }
+                });
+            }
+
+            function initViewer() {
+                const reportEngine = window.AamsReport;
+                if (!reportEngine || typeof reportEngine.bindViewer !== 'function') return;
+
+                reportViewer = reportEngine.bindViewer(pane, {
+                    reportFile: 'rd_ja030b1.mrd',
+                    modalId: 'ja030b1MobileModal',
+                    zoom: 120,
+                    grid: function () { return grid; },
+                    getCorpGr: function () { return corpGr(); },
+                    buildParams: function (data) {
+                        return {
+                            fymd: (typeof getFilterFYmd === 'function') ? getFilterFYmd(pane, 'YYYY.MM.DD') : initialFymd,
+                            tymd: (typeof getFilterTYmd === 'function') ? getFilterTYmd(pane, 'YYYY.MM.DD') : initialTymd,
+                            fund_cd: data ? (data.fundCd || '') : '',
+                            corp_gr: corpGr()
+                        };
+                    },
+                    getTitle: function (data) {
+                        const code = data ? (data.fundCd || '') : '';
+                        const name = data ? (data.fundNm || '') : '';
+                        return (name ? name + ' ' : '') + (code ? '(' + code + ') ' : '') + '주식 계좌별 매매현황';
+                    },
+                    getStatus: function (data) {
+                        const f = (typeof getFilterFYmd === 'function') ? getFilterFYmd(pane) : initialFymd;
+                        const t = (typeof getFilterTYmd === 'function') ? getFilterTYmd(pane) : initialTymd;
+                        return '조회구간: ' + f + ' ~ ' + t;
+                    },
+                    getDownloadName: function (data, format) {
+                        const f = (typeof getFilterFYmd === 'function') ? getFilterFYmd(pane, 'YYYYMMDD') : '';
+                        const t = (typeof getFilterTYmd === 'function') ? getFilterTYmd(pane, 'YYYYMMDD') : '';
+                        const code = data ? (data.fundCd || '') : '';
+                        const safeNm = (data && data.fundNm) ? data.fundNm.trim().replace(new RegExp('[\\\\/:*?"<>|]', 'g'), "_") : "계좌";
+                        return f + '_' + t + '_주식계좌별매매현황_' + safeNm + '(' + code + ')';
+                    }
+                });
+            }
+
+            function syncDetail(row, masterRowData, isUserClick) {
+                if (!row) return;
+                if (!row.isSelected || !row.isSelected()) {
+                    if (grid && typeof grid.deselectRow === 'function') {
+                        grid.deselectRow();
+                    }
+                    row.select();
+                }
+
+                const el = (typeof row.getElement === 'function') ? row.getElement() : null;
+                if (el && !el.classList.contains('tabulator-selected')) {
+                    el.classList.add('tabulator-selected');
+                }
+
+                const data = masterRowData || (row.getData ? row.getData() : null);
+                if (!data || !data.fundCd) return;
+
+                currentSelectedRowData = data;
+
+                if (isMobileView()) {
+                    if (isUserClick && reportViewer) {
+                        reportViewer.openMobile(data);
+                    }
+                } else {
+                    const cCorp = corpGr();
+                    const f = (typeof getFilterFYmd === 'function') ? getFilterFYmd(pane) : initialFymd;
+                    const t = (typeof getFilterTYmd === 'function') ? getFilterTYmd(pane) : initialTymd;
+                    const currentKey = cCorp + '_' + f + '_' + t + '_' + data.fundCd;
+
+                    if (lastLoadedMasterKey === currentKey) return;
+                    lastLoadedMasterKey = currentKey;
+
+                    if (reportViewer && typeof reportViewer.loadPreview === 'function') {
+                        reportViewer.loadPreview(data, '조회완료 (' + (data.fundNm || data.fundCd) + ')', true);
+                    }
+                }
+            }
+
+            function loadFunds() {
+                const cCorp = corpGr();
+                const fymd = (typeof getFilterFYmd === 'function') ? getFilterFYmd(pane, 'YYYY-MM-DD') : initialFymd;
+                const tymd = (typeof getFilterTYmd === 'function') ? getFilterTYmd(pane, 'YYYY-MM-DD') : initialTymd;
+
+                if (!cCorp) {
+                    if (typeof showToast === 'function') showToast('회사그룹을 선택하세요.', 'warning');
+                    return;
+                }
+                if (!fymd || !tymd) {
+                    if (typeof showToast === 'function') showToast('조회구간을 선택하세요.', 'warning');
+                    return;
+                }
+
+                const url = '/api/assetmanagement/ja030b1/funds?corpGr=' + encodeURIComponent(cCorp)
+                    + '&fymd=' + encodeURIComponent(fymd)
+                    + '&tymd=' + encodeURIComponent(tymd);
+
+                fetch(url)
+                    .then(function (res) {
+                        if (!res.ok) throw new Error('조회 실패');
+                        return res.json();
+                    })
+                    .then(function (list) {
+                        const items = Array.isArray(list) ? list : [];
+                        lastLoadedMasterKey = null;
+                        currentSelectedRowData = null;
+
+                        if (grid) {
+                            grid.setData(items).then(function () {
+                                if (items.length > 0) {
+                                    if (!isMobileView()) {
+                                        const rows = grid.getRows();
+                                        if (rows && rows.length > 0) {
+                                            rows[0].select();
+                                            syncDetail(rows[0], rows[0].getData(), false);
+                                        }
+                                    }
+                                } else {
+                                    if (reportViewer && typeof reportViewer.clear === 'function') {
+                                        reportViewer.clear();
+                                    }
+                                }
+                            });
+                        }
+
+                        // 상단 공통 버튼 상태 갱신
+                        if (window.ButtonRole && typeof window.ButtonRole.setSearchState === 'function') {
+                            window.ButtonRole.setSearchState(pane, true);
+                        }
+                    })
+                    .catch(function (err) {
+                        console.error('[W_JA030B1] loadFunds error:', err);
+                        if (typeof showToast === 'function') showToast('계좌 목록 조회 중 오류가 발생했습니다.', 'error');
+                    });
+            }
+
+            async function init() {
+                if (isInitialized) return;
+                isInitialized = true;
+
+                // 1. 기간 선택 날짜 필터 기본값 설정
+                const fInput = field('filterFYmd');
+                const tInput = field('filterTYmd');
+                if (fInput && !fInput.value) fInput.value = initialFymd;
+                if (tInput && !tInput.value) tInput.value = initialTymd;
+
+                // 2. 그리드 초기화
+                initGrid();
+
+                // 3. 리포트 뷰어 바인딩
+                initViewer();
+
+                // 4. 상단 공통 버튼 권한 엔진(ButtonRole) 적용
+                if (window.ButtonRole && typeof window.ButtonRole.apply === 'function') {
+                    const targetPgmNo = initialPgmNo || (pane ? pane.getAttribute('data-pgm-no') : null);
+                    window.ButtonRole.apply(pane, targetPgmNo);
+                }
+
+                // 5. 상단 공통 툴바 표준 계약 바인딩 (Rule 08)
+                pane.onSearch = loadFunds;
+                pane.onRetrieve = loadFunds;
+                pane.onExcel = function () {
+                    if (reportViewer && currentSelectedRowData && typeof reportViewer.exportFormat === 'function') {
+                        reportViewer.exportFormat('excel');
+                    } else if (grid) {
+                        const f = (typeof getFilterFYmd === 'function') ? getFilterFYmd(pane, 'YYYYMMDD') : '';
+                        const t = (typeof getFilterTYmd === 'function') ? getFilterTYmd(pane, 'YYYYMMDD') : '';
+                        grid.download('xlsx', '주식계좌목록_' + f + '_' + t + '.xlsx', { sheetName: '계좌목록' });
+                    }
+                };
+                pane.onPrint = function () {
+                    if (reportViewer && typeof reportViewer.exportFormat === 'function') {
+                        reportViewer.exportFormat('pdf');
+                    }
+                };
+                pane.onRefresh = function () {
+                    if (grid) grid.clearData();
+                    if (reportViewer && typeof reportViewer.clear === 'function') reportViewer.clear();
+                    lastLoadedMasterKey = null;
+                    currentSelectedRowData = null;
+                    if (fInput) fInput.value = initialFymd;
+                    if (tInput) tInput.value = initialTymd;
+                    if (window.ButtonRole && typeof window.ButtonRole.setSearchState === 'function') {
+                        window.ButtonRole.setSearchState(pane, false);
+                    }
+                    loadFunds();
+                };
+                pane.onCorpGrChange = function (newCorpGr) {
+                    const targetCorp = newCorpGr || corpGr();
+                    fetch('/api/common/workdate?corpGr=' + encodeURIComponent(targetCorp))
+                        .then(function (res) { return res.json(); })
+                        .then(function (data) {
+                            if (data && data.workDate) {
+                                if (tInput) tInput.value = data.workDate;
+                                const clean = data.workDate.replace(/\D/g, '');
+                                if (clean.length === 8 && fInput) {
+                                    fInput.value = clean.substring(0, 4) + '-' + clean.substring(4, 6) + '-01';
+                                }
+                            }
+                            loadFunds();
+                        })
+                        .catch(function (err) {
+                            console.warn('[W_JA030B1] workdate fetch error:', err);
+                            loadFunds();
+                        });
+                };
+
+                // 6. PB: eb_direct_retrieve = true (화면 열릴 때 자동 조회)
+                loadFunds();
+            }
+
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', init, { once: true });
+            } else {
+                init();
+            }
+        })();
+    </script>
+</div>
+</html>
