@@ -3343,6 +3343,54 @@ function aamsCellEdit(e, cell) {
         // 1. 명시적 비활성화 옵션(suppressRepeating === false 등)이 있으면 정리 후 즉시 종료
         if (options && (options.suppressRepeating === false || options.suppressDuplicates === false || options.isMasterGrid === false)) {
             cleanupSuppressOptions(columns);
+    }
+
+    /**
+     * AAMS Tabulator 컬럼 고정 너비(Width) 보존 및 왜곡 방지 표준 (Zero-Stretch Standard)
+     * 파워빌더 DataWindow(.srd) 메타데이터와 100% 일치하도록 각 컬럼의 지정된 width를 엄격히 준수하고,
+     * 화면 해상도나 레이아웃 모드에 의해 특정 컬럼(예: 계좌명, 종목명 등)이 비정상적으로 과도하게 늘어나는 현상을 방지합니다.
+     */
+    function processColumnsFixedWidth(columns, options) {
+        if (!Array.isArray(columns) || columns.length === 0) return;
+
+        columns.forEach(col => {
+            if (!col) return;
+
+            // 중첩 컬럼 그룹(Group Header)이 있는 경우 재귀 처리
+            if (Array.isArray(col.columns) && col.columns.length > 0) {
+                processColumnsFixedWidth(col.columns, options);
+                return;
+            }
+
+            // 1. col.width가 명시적으로 지정된 경우 (숫자 또는 "120px" 등)
+            if (col.width !== undefined && col.width !== null && col.width !== "") {
+                // 어떤 레이아웃 모드에서도 잔여 가용 너비를 추가 배정받아 늘어나거나 줄어들지 않도록 고정
+                if (col.widthGrow === undefined) {
+                    col.widthGrow = 0;
+                }
+                if (col.widthShrink === undefined) {
+                    col.widthShrink = 0;
+                }
+            } else if (col.minWidth !== undefined && col.minWidth !== null && col.minWidth !== "") {
+                // 2. col.width는 없고 minWidth만 지정된 경우
+                // (개발자가 고정 폭 의도로 minWidth만 적은 경우, 폭이 없는 컬럼이 잔여 공간을 모두 흡수해 1000px+ 늘어나는 사태 방지)
+                col.width = col.minWidth;
+                if (col.widthGrow === undefined) {
+                    col.widthGrow = 0;
+                }
+                if (col.widthShrink === undefined) {
+                    col.widthShrink = 0;
+                }
+            } else {
+                // 3. col.width와 minWidth가 모두 누락된 주요 명칭/코드 계열 컬럼 기본 고정폭 보정
+                const fieldName = (col.field || "").toLowerCase();
+                if (fieldName === 'xxfundcd' || fieldName === 'fundnm' || fieldName === 'xxyjcd' || fieldName === 'xxkoscomcd' || fieldName === 'jmnm' || fieldName === 'xxjmnm') {
+                    col.width = 250;
+                    if (col.widthGrow === undefined) col.widthGrow = 0;
+                    if (col.widthShrink === undefined) col.widthShrink = 0;
+                }
+            }
+        });
             return;
         }
 
@@ -3365,6 +3413,54 @@ function aamsCellEdit(e, cell) {
             if (!targetScreen || !isMaster) {
                 // 화이트리스트 화면이 아니거나 디테일 그리드면 정리 후 종료
                 cleanupSuppressOptions(columns);
+    }
+
+    /**
+     * AAMS Tabulator 컬럼 고정 너비(Width) 보존 및 왜곡 방지 표준 (Zero-Stretch Standard)
+     * 파워빌더 DataWindow(.srd) 메타데이터와 100% 일치하도록 각 컬럼의 지정된 width를 엄격히 준수하고,
+     * 화면 해상도나 레이아웃 모드에 의해 특정 컬럼(예: 계좌명, 종목명 등)이 비정상적으로 과도하게 늘어나는 현상을 방지합니다.
+     */
+    function processColumnsFixedWidth(columns, options) {
+        if (!Array.isArray(columns) || columns.length === 0) return;
+
+        columns.forEach(col => {
+            if (!col) return;
+
+            // 중첩 컬럼 그룹(Group Header)이 있는 경우 재귀 처리
+            if (Array.isArray(col.columns) && col.columns.length > 0) {
+                processColumnsFixedWidth(col.columns, options);
+                return;
+            }
+
+            // 1. col.width가 명시적으로 지정된 경우 (숫자 또는 "120px" 등)
+            if (col.width !== undefined && col.width !== null && col.width !== "") {
+                // 어떤 레이아웃 모드에서도 잔여 가용 너비를 추가 배정받아 늘어나거나 줄어들지 않도록 고정
+                if (col.widthGrow === undefined) {
+                    col.widthGrow = 0;
+                }
+                if (col.widthShrink === undefined) {
+                    col.widthShrink = 0;
+                }
+            } else if (col.minWidth !== undefined && col.minWidth !== null && col.minWidth !== "") {
+                // 2. col.width는 없고 minWidth만 지정된 경우
+                // (개발자가 고정 폭 의도로 minWidth만 적은 경우, 폭이 없는 컬럼이 잔여 공간을 모두 흡수해 1000px+ 늘어나는 사태 방지)
+                col.width = col.minWidth;
+                if (col.widthGrow === undefined) {
+                    col.widthGrow = 0;
+                }
+                if (col.widthShrink === undefined) {
+                    col.widthShrink = 0;
+                }
+            } else {
+                // 3. col.width와 minWidth가 모두 누락된 주요 명칭/코드 계열 컬럼 기본 고정폭 보정
+                const fieldName = (col.field || "").toLowerCase();
+                if (fieldName === 'xxfundcd' || fieldName === 'fundnm' || fieldName === 'xxyjcd' || fieldName === 'xxkoscomcd' || fieldName === 'jmnm' || fieldName === 'xxjmnm') {
+                    col.width = 250;
+                    if (col.widthGrow === undefined) col.widthGrow = 0;
+                    if (col.widthShrink === undefined) col.widthShrink = 0;
+                }
+            }
+        });
                 return;
             }
 
@@ -3408,6 +3504,54 @@ function aamsCellEdit(e, cell) {
 
         if (suppressFields.length === 0) {
             cleanupSuppressOptions(columns);
+    }
+
+    /**
+     * AAMS Tabulator 컬럼 고정 너비(Width) 보존 및 왜곡 방지 표준 (Zero-Stretch Standard)
+     * 파워빌더 DataWindow(.srd) 메타데이터와 100% 일치하도록 각 컬럼의 지정된 width를 엄격히 준수하고,
+     * 화면 해상도나 레이아웃 모드에 의해 특정 컬럼(예: 계좌명, 종목명 등)이 비정상적으로 과도하게 늘어나는 현상을 방지합니다.
+     */
+    function processColumnsFixedWidth(columns, options) {
+        if (!Array.isArray(columns) || columns.length === 0) return;
+
+        columns.forEach(col => {
+            if (!col) return;
+
+            // 중첩 컬럼 그룹(Group Header)이 있는 경우 재귀 처리
+            if (Array.isArray(col.columns) && col.columns.length > 0) {
+                processColumnsFixedWidth(col.columns, options);
+                return;
+            }
+
+            // 1. col.width가 명시적으로 지정된 경우 (숫자 또는 "120px" 등)
+            if (col.width !== undefined && col.width !== null && col.width !== "") {
+                // 어떤 레이아웃 모드에서도 잔여 가용 너비를 추가 배정받아 늘어나거나 줄어들지 않도록 고정
+                if (col.widthGrow === undefined) {
+                    col.widthGrow = 0;
+                }
+                if (col.widthShrink === undefined) {
+                    col.widthShrink = 0;
+                }
+            } else if (col.minWidth !== undefined && col.minWidth !== null && col.minWidth !== "") {
+                // 2. col.width는 없고 minWidth만 지정된 경우
+                // (개발자가 고정 폭 의도로 minWidth만 적은 경우, 폭이 없는 컬럼이 잔여 공간을 모두 흡수해 1000px+ 늘어나는 사태 방지)
+                col.width = col.minWidth;
+                if (col.widthGrow === undefined) {
+                    col.widthGrow = 0;
+                }
+                if (col.widthShrink === undefined) {
+                    col.widthShrink = 0;
+                }
+            } else {
+                // 3. col.width와 minWidth가 모두 누락된 주요 명칭/코드 계열 컬럼 기본 고정폭 보정
+                const fieldName = (col.field || "").toLowerCase();
+                if (fieldName === 'xxfundcd' || fieldName === 'fundnm' || fieldName === 'xxyjcd' || fieldName === 'xxkoscomcd' || fieldName === 'jmnm' || fieldName === 'xxjmnm') {
+                    col.width = 250;
+                    if (col.widthGrow === undefined) col.widthGrow = 0;
+                    if (col.widthShrink === undefined) col.widthShrink = 0;
+                }
+            }
+        });
             return;
         }
 
@@ -3475,17 +3619,75 @@ function aamsCellEdit(e, cell) {
         cleanupSuppressOptions(columns);
     }
 
+    /**
+     * AAMS Tabulator 컬럼 고정 너비(Width) 보존 및 왜곡 방지 표준 (Zero-Stretch Standard)
+     * 파워빌더 DataWindow(.srd) 메타데이터와 100% 일치하도록 각 컬럼의 지정된 width를 엄격히 준수하고,
+     * 화면 해상도나 레이아웃 모드에 의해 특정 컬럼(예: 계좌명, 종목명 등)이 비정상적으로 과도하게 늘어나는 현상을 방지합니다.
+     */
+    function processColumnsFixedWidth(columns, options) {
+        if (!Array.isArray(columns) || columns.length === 0) return;
+
+        columns.forEach(col => {
+            if (!col) return;
+
+            // 중첩 컬럼 그룹(Group Header)이 있는 경우 재귀 처리
+            if (Array.isArray(col.columns) && col.columns.length > 0) {
+                processColumnsFixedWidth(col.columns, options);
+                return;
+            }
+
+            // 1. col.width가 명시적으로 지정된 경우 (숫자 또는 "120px" 등)
+            if (col.width !== undefined && col.width !== null && col.width !== "") {
+                // 어떤 레이아웃 모드에서도 잔여 가용 너비를 추가 배정받아 늘어나거나 줄어들지 않도록 고정
+                if (col.widthGrow === undefined) {
+                    col.widthGrow = 0;
+                }
+                if (col.widthShrink === undefined) {
+                    col.widthShrink = 0;
+                }
+            } else if (col.minWidth !== undefined && col.minWidth !== null && col.minWidth !== "") {
+                // 2. col.width는 없고 minWidth만 지정된 경우
+                // (개발자가 고정 폭 의도로 minWidth만 적은 경우, 폭이 없는 컬럼이 잔여 공간을 모두 흡수해 1000px+ 늘어나는 사태 방지)
+                col.width = col.minWidth;
+                if (col.widthGrow === undefined) {
+                    col.widthGrow = 0;
+                }
+                if (col.widthShrink === undefined) {
+                    col.widthShrink = 0;
+                }
+            } else {
+                // 3. col.width와 minWidth가 모두 누락된 주요 명칭/코드 계열 컬럼 기본 고정폭 보정
+                const fieldName = (col.field || "").toLowerCase();
+                if (fieldName === 'xxfundcd' || fieldName === 'fundnm' || fieldName === 'xxyjcd' || fieldName === 'xxkoscomcd' || fieldName === 'jmnm' || fieldName === 'xxjmnm') {
+                    col.width = 250;
+                    if (col.widthGrow === undefined) col.widthGrow = 0;
+                    if (col.widthShrink === undefined) col.widthShrink = 0;
+                }
+            }
+        });
+    }
+
     function applyPatch() {
         if (!window.Tabulator || window.Tabulator._isAamsPatched) return;
 
         const OriginalTabulator = window.Tabulator;
 
         function AamsTabulator(container, options = {}) {
+            // AAMS 파워빌더 DataWindow 기반 전역 레이아웃 표준: fitDataFill
+            // 파워빌더 DataWindow와 동일하게 각 컬럼의 지정된 width를 엄격히 준수하고,
+            // 우측 잔여 공간은 빈 행(Row Fill)으로 채워 특정 컬럼 왜곡을 원천 차단
+            if (!options.layout || options.layout === "fitColumns") {
+                if (!options.forceFitColumns) {
+                    options.layout = "fitDataFill";
+                }
+            }
+
             // Convert headerCssClass to cssClass and delete headerCssClass before passing to Tabulator
             if (options && options.columns) {
                 processColumnsHeaderCss(options.columns);
                 processColumnsListEditor(options.columns);
                 processColumnsSuppressRepeating(options.columns, options, container);
+                processColumnsFixedWidth(options.columns, options);
             }
 
             // Tabulator 생성자에 전달 전 커스텀 options 프로퍼티 정리
@@ -3493,6 +3695,7 @@ function aamsCellEdit(e, cell) {
                 delete options.suppressRepeatingColumns;
                 delete options.suppressDuplicateColumns;
                 delete options.isMasterGrid;
+                delete options.forceFitColumns;
                 if ('suppressRepeating' in options) delete options.suppressRepeating;
                 if ('suppressDuplicates' in options) delete options.suppressDuplicates;
             }
@@ -3516,13 +3719,14 @@ function aamsCellEdit(e, cell) {
             // Instantiate original Tabulator
             const table = new OriginalTabulator(container, options);
 
-            // Hook dynamic column APIs to process headerCssClass & listEditor & suppressRepeating
+            // Hook dynamic column APIs to process headerCssClass & listEditor & suppressRepeating & fixedWidth
             const origSetColumns = table.setColumns;
             table.setColumns = function(cols) {
                 if (cols) {
                     processColumnsHeaderCss(cols);
                     processColumnsListEditor(cols);
                     processColumnsSuppressRepeating(cols, options, container);
+                    processColumnsFixedWidth(cols, options);
                 }
                 return origSetColumns.apply(table, arguments);
             };
@@ -3532,6 +3736,7 @@ function aamsCellEdit(e, cell) {
                     processColumnsHeaderCss([col]);
                     processColumnsListEditor([col]);
                     processColumnsSuppressRepeating([col], options, container);
+                    processColumnsFixedWidth([col], options);
                 }
                 return origAddColumn.apply(table, arguments);
             };
@@ -3565,6 +3770,7 @@ function aamsCellEdit(e, cell) {
 
         // Set Tabulator global defaultOptions if available
         if (OriginalTabulator.defaultOptions) {
+            OriginalTabulator.defaultOptions.layout = "fitDataFill";
             if (!OriginalTabulator.defaultOptions.columnDefaults) {
                 OriginalTabulator.defaultOptions.columnDefaults = {};
             }

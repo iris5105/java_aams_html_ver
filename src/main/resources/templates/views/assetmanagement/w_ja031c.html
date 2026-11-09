@@ -74,12 +74,12 @@
                 const element = field('gridJa031c');
                 if (!element) return;
                 grid = new Tabulator(element, {
-                    height: '100%', layout: 'fitColumns', selectableRows: 1, editTriggerEvent: 'click',
+                    height: '100%', layout: 'fitDataFill', selectableRows: 1, editTriggerEvent: 'click',
                     placeholder: '조회된 데이터가 없습니다.',
                     columns: [
                         { title: 'No.', formatter: 'rownum', width: 55, hozAlign: 'center', headerSort: false },
                         {
-                            title: '관리번호', field: 'fundCd', width: 140, hozAlign: 'center', editor: 'input',
+                            title: '펀드번호', field: 'fundCd', width: 140, hozAlign: 'center', editor: 'input',
                             editable: function (cell) { return manageable() && !!cell.getRow().getData().isNew; },
                             cellClick: window.aamsCellEdit,
                             cellEdited: function (cell) { cell.setValue((cell.getValue() || '').trim().toUpperCase(), true); markUpdated(cell.getRow()); }
@@ -100,7 +100,7 @@
                                 });
                             }
                         },
-                        { title: '계좌명', field: 'xxFundCd', minWidth: 210, hozAlign: 'left' },
+                        { title: '계좌명', field: 'xxFundCd', width: 280, hozAlign: 'left' },
                         {
                             title: '증거금액', field: 'trAek', width: 155, hozAlign: 'right', editor: 'input',
                             editable: manageable, cellClick: window.aamsCellEdit,
@@ -110,8 +110,7 @@
                                 cell.setValue(Number.isFinite(value) ? value : 0, true); markUpdated(cell.getRow());
                             }
                         },
-                        { title: '기준통화금액', field: 'fcurTrAek', width: 155, hozAlign: 'right', formatter: function (cell) { return Number(cell.getValue() || 0).toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); } },
-                        { title: '순번', field: 'trSeqNo', width: 80, hozAlign: 'center' }
+                        { title: '기준통화금액', field: 'fcurTrAek', width: 155, hozAlign: 'right', formatter: function (cell) { return Number(cell.getValue() || 0).toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); } }
                     ]
                 });
                 if (typeof setupTabulatorRowSelection === 'function') setupTabulatorRowSelection(grid);
