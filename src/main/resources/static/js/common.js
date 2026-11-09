@@ -1141,6 +1141,138 @@ function showAlert(message, callback) {
 window.showAlert = showAlert;
 
 /**
+ * Common selectable error dialog.
+ * The dialog copies its complete message when the user presses Ctrl+C (or Cmd+C).
+ * @param {string} message Error message to display and copy
+ * @param {{title?: string}} [options] Dialog display options
+ * @returns {Promise<void>} Resolves when the dialog is closed
+ */
+function showErrorDialog(message, options) {
+    const errorText = String(message || '알 수 없는 오류가 발생했습니다.');
+    const dialog = getErrorDialogElements();
+    const title = options && options.title ? String(options.title) : '오류';
+
+    if (!dialog) {
+        window.alert(errorText);
+        return Promise.resolve();
+    }
+
+    if (typeof dialog.closeActive === 'function') {
+        dialog.closeActive();
+    }
+
+    dialog.title.textContent = title;
+    dialog.message.textContent = errorText;
+    dialog.root.hidden = false;
+
+    return new Promise(function(resolve) {
+        const previouslyFocused = document.activeElement;
+
+        function closeDialog() {
+            dialog.root.hidden = true;
+            dialog.close.removeEventListener('click', closeDialog);
+            document.removeEventListener('copy', copyAllErrorText, true);
+            document.removeEventListener('keydown', handleDialogKeydown, true);
+            dialog.closeActive = null;
+
+            if (previouslyFocused && typeof previouslyFocused.focus === 'function') {
+                previouslyFocused.focus();
+            }
+            resolve();
+        }
+
+        function copyAllErrorText(event) {
+            if (!event.clipboardData) return;
+            event.preventDefault();
+            event.clipboardData.setData('text/plain', errorText);
+        }
+
+        function handleDialogKeydown(event) {
+            if (event.key === 'Escape') {
+                event.preventDefault();
+                closeDialog();
+            }
+        }
+
+        dialog.closeActive = closeDialog;
+        dialog.close.addEventListener('click', closeDialog);
+        document.addEventListener('copy', copyAllErrorText, true);
+        document.addEventListener('keydown', handleDialogKeydown, true);
+        dialog.message.focus();
+    });
+}
+window.showErrorDialog = showErrorDialog;
+
+function getErrorDialogElements() {
+    let root = document.getElementById('aamsErrorDialog');
+    if (root) {
+        return {
+            root: root,
+            title: root.querySelector('.aams-error-dialog-title'),
+            message: root.querySelector('.aams-error-dialog-message'),
+            close: root.querySelector('.aams-error-dialog-close'),
+            get closeActive() { return root._aamsCloseActive || null; },
+            set closeActive(callback) { root._aamsCloseActive = callback; }
+        };
+    }
+
+    if (!document.body) return null;
+
+    root = document.createElement('div');
+    root.id = 'aamsErrorDialog';
+    root.className = 'aams-error-dialog';
+    root.hidden = true;
+    root.setAttribute('role', 'alertdialog');
+    root.setAttribute('aria-modal', 'true');
+    root.setAttribute('aria-labelledby', 'aamsErrorDialogTitle');
+    root.setAttribute('aria-describedby', 'aamsErrorDialogHint');
+
+    const windowEl = document.createElement('div');
+    windowEl.className = 'aams-error-dialog-window';
+    const header = document.createElement('div');
+    header.className = 'aams-error-dialog-header';
+    const title = document.createElement('span');
+    title.id = 'aamsErrorDialogTitle';
+    title.className = 'aams-error-dialog-title';
+    header.appendChild(title);
+
+    const body = document.createElement('div');
+    body.className = 'aams-error-dialog-body';
+    const hint = document.createElement('p');
+    hint.id = 'aamsErrorDialogHint';
+    hint.className = 'aams-error-dialog-hint';
+    hint.textContent = '오류 내용을 마우스로 선택할 수 있으며, Ctrl+C를 누르면 전체 오류 내용이 복사됩니다.';
+    const message = document.createElement('pre');
+    message.className = 'aams-error-dialog-message';
+    message.tabIndex = 0;
+    body.appendChild(hint);
+    body.appendChild(message);
+
+    const footer = document.createElement('div');
+    footer.className = 'aams-error-dialog-footer';
+    const close = document.createElement('button');
+    close.type = 'button';
+    close.className = 'aams-error-dialog-close';
+    close.textContent = '확인';
+    footer.appendChild(close);
+
+    windowEl.appendChild(header);
+    windowEl.appendChild(body);
+    windowEl.appendChild(footer);
+    root.appendChild(windowEl);
+    document.body.appendChild(root);
+
+    return {
+        root: root,
+        title: title,
+        message: message,
+        close: close,
+        get closeActive() { return root._aamsCloseActive || null; },
+        set closeActive(callback) { root._aamsCloseActive = callback; }
+    };
+}
+
+/**
  * Common Modal Backdrop & ESC Dismissal Setup Helper
  */
 function setupModalBackdrop(modalEl, closeCallback) {
