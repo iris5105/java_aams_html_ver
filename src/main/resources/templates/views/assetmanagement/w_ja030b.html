@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
 <div class="view-container layout-single ja030b-container layout-mobile-stack-container" th:fragment="mainView" data-pgm-id="W_JA030B"
-     th:attr="data-corp-gr=${corpGr},data-pgm-no=${pgmNo}"
+     th:attr="data-corp-gr=${corpGr},data-pgm-no=${pgmNo},data-fymd=${fymd},data-tymd=${tymd},data-dddw=${dddw}"
      style="display:flex; flex-direction:column; height:100%; width:100%; overflow:hidden; background:#fff; position:relative;">
 
     <!-- 1. Top Action Toolbar & Breadcrumb -->
@@ -25,17 +25,17 @@
     <!-- 4. Mobile Modal Viewer (Responsive width <= 876px) -->
     <div th:replace="~{fragments/report/report_viewer :: reportMobileModal(modalId='ja030bMobileModal', modalTitle='매매처별 매매집계표')}"></div>
 
-    <script th:inline="javascript">
+    <script>
         (function () {
             const script = document.currentScript;
             const pane = script ? (script.closest('.tab-pane') || script.closest('.view-container')) : null;
             if (!pane) return;
 
-            const initialCorpGr = /*[[${corpGr}]]*/ '';
-            const initialFymd = /*[[${fymd}]]*/ '';
-            const initialTymd = /*[[${tymd}]]*/ '';
-            const initialDddw = /*[[${dddw}]]*/ '1';
-            const initialPgmNo = /*[[${pgmNo}]]*/ '';
+            const initialCorpGr = pane.getAttribute('data-corp-gr') || '';
+            const initialFymd = pane.getAttribute('data-fymd') || '';
+            const initialTymd = pane.getAttribute('data-tymd') || '';
+            const initialDddw = pane.getAttribute('data-dddw') || '1';
+            const initialPgmNo = pane.getAttribute('data-pgm-no') || '';
 
             let reportViewer = null;
             let isInitialized = false;
@@ -228,4 +228,3 @@
     </script>
 </div>
 </html>
-

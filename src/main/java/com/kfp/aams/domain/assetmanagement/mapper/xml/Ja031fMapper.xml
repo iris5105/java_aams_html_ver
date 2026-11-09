@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.kfp.aams.domain.assetmanagement.mapper.Ja031fMapper">
+
+    <!-- 1. d_ja031f.srd: 펀드(계좌) 목록 조회 -->
+    <select id="selectFundList" resultType="com.kfp.aams.domain.assetmanagement.dto.Ja031fMasterDto">
+        SELECT DISTINCT t1.FUND_CD AS fundCd
+             , ia.FUND_NM          AS fundNm
+          FROM SCT0CG t1
+          JOIN SZM0IA ia
+            ON ia.CORP_GR = t1.CORP_GR
+           AND ia.FUND_CD = t1.FUND_CD
+         WHERE t1.CORP_GR = #{corpGr}
+           AND t1.TR_YMD BETWEEN #{fymd} AND #{tymd}
+         ORDER BY t1.FUND_CD ASC
+    </select>
+
+    <!-- 2. d_ja031f1.srd: 채권 매매내역 상세 조회 -->
+    <select id="selectDetailList" resultType="com.kfp.aams.domain.assetmanagement.dto.Ja031fDetailDto">
+        SELECT TO_CHAR(t1.TR_YMD, 'YYYY-MM-DD')                               AS trYmd
+             , t1.FUND_CD                                                     AS fundCd
+             , ia.FUND_NM                                                     AS fundNm
+             , t1.TR_CD                                                       AS trCd
+             , F_TR_NM(t1.TR_CD)                                              AS trNm
+             , CASE WHEN SUBSTR(t1.TR_CD, 1, 1) = 'J' THEN t1.AEKM END         AS meibAekm
+             , CASE WHEN SUBSTR(t1.TR_CD, 1, 1) = 'J' THEN t1.TR_AEK END       AS meibTrAek
+             , CASE WHEN SUBSTR(t1.TR_CD, 1, 1) <![CDATA[<>]]> 'J' THEN t1.AEKM END   AS medoAekm
+             , CASE WHEN SUBSTR(t1.TR_CD, 1, 1) <![CDATA[<>]]> 'J' THEN t1.TR_AEK END AS medoTrAek
+             , t1.SUSU                                                        AS susu
+             , t1.IJA_TAX                                                     AS ijaTax
+             , CASE WHEN SUBSTR(t1.TR_CD, 1, 1) = 'J'
+                    THEN t1.TR_AEK + NVL(t1.SUSU, 0) + NVL(t1.IJA_TAX, 0)
+                    ELSE t1.TR_AEK - NVL(t1.SUSU, 0) - NVL(t1.IJA_TAX, 0)
+               END                                                            AS gyulAek
+             , t1.JM_CD                                                       AS jmCd
+             , cj.CJ_NM                                                       AS cjNm
+             , t1.MK_SUIK_RT * 100                                            AS suikPer
+             , TO_CHAR(cj.BALH_YMD, 'YYYY-MM-DD')                             AS balhYmd
+             , TO_CHAR(cj.SANGHW_YMD, 'YYYY-MM-DD')                           AS sanghwYmd
+             , cj.PYOM_IYUL * 100                                             AS pyomPer
+             , t1.TR_CO_CD                                                    AS trCoCd
+             , F_TR_CO_NM(t1.CORP_GR, t1.TR_CO_CD)                           AS trCoNm
+             , TO_CHAR(t1.SUDO_YMD, 'YYYY-MM-DD')                             AS sudoYmd
+             , t1.MM_SONIK                                                    AS mmSonik
+             , SUBSTR(t1.TR_CD, 1, 1)                                         AS trColor
+          FROM SCT0CG t1
+          JOIN SZM0IA ia
+            ON ia.CORP_GR = t1.CORP_GR
+           AND ia.FUND_CD = t1.FUND_CD
+          JOIN SCM0CJ cj
+            ON cj.CORP_GR = t1.CORP_GR
+           AND cj.JM_CD   = t1.JM_CD
+         WHERE t1.CORP_GR = #{corpGr}
+           AND t1.TR_YMD BETWEEN #{fymd} AND #{tymd}
+        <if test="fundCd != null and fundCd != '' and fundCd != '%'">
+           AND t1.FUND_CD = #{fundCd}
+        </if>
+         ORDER BY t1.FUND_CD, t1.TR_YMD, t1.JM_CD, t1.TR_CD
+    </select>
+
+</mapper>
+
