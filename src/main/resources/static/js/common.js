@@ -2114,6 +2114,8 @@ window.fetchCommonWorkDate = fetchCommonWorkDate;
 window.WorkDateSyncManager = {
     syncPane: function(pane, corpGr) {
         if (!pane) return;
+        var pgmId = (pane.getAttribute('data-pgm-id') || pane.id || '').toUpperCase();
+        if (pgmId.includes('W_JA031H') || pgmId.includes('JA031H')) return;
         var ymdInput = pane.querySelector('#filterYmd') || pane.querySelector('input[name="ymd"]');
         var fymdInput = pane.querySelector('#filterFYmd, #filterFymd, input[name="fYmd"], input[name="fymd"]');
         var tymdInput = pane.querySelector('#filterTYmd, #filterTymd, input[name="tYmd"], input[name="tymd"]');
@@ -4219,6 +4221,8 @@ window.sanitizeGridData = function(grid, dataList, extraAllowedFields) {
          */
         syncPane: function(pane, corpGr) {
             if (!pane) return;
+            var pgmId = (pane.getAttribute('data-pgm-id') || pane.id || '').toUpperCase();
+            if (pgmId.includes('W_JA031H') || pgmId.includes('JA031H')) return;
             var targetCorp = corpGr || this.detectCorpGr(pane);
             var targetYmd = this.getWorkDate(targetCorp);
             if (!targetYmd) return;

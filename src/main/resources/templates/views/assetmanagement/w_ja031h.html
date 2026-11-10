@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
 <div class="view-container layout-single ja031h-container layout-mobile-stack-container" th:fragment="mainView" data-pgm-id="W_JA031H"
-     th:attr="data-corp-gr=${corpGr},data-pgm-no=${pgmNo},data-fymd=${fymd},data-tymd=${tymd}"
+     th:attr="data-corp-gr=${corpGr},data-pgm-no=${pgmNo},data-work-date=${workDate},data-fymd=${fymd},data-tymd=${tymd}"
      style="display:flex; flex-direction:column; height:100%; width:100%; overflow:hidden; background:#fff; position:relative;">
 
     <!-- 1. Top Action Toolbar & Breadcrumb -->
@@ -41,9 +41,12 @@
                 </select>
             </div>
 
-            <!-- 8종 전체 엑셀 일괄 다운로드 액션 버튼 (Rule 08 UX 일체화 원칙 준수) -->
-            <button type="button" class="t-btn btn-action" id="btnExportAllExcel" title="8개 보고서 엑셀 일괄 다운로드" style="margin-left: 4px;">
-                <i class="fa-solid fa-file-excel" style="color: #10b981; margin-right: 4px;"></i>전체 엑셀 다운로드
+            <!-- 8종 전체 엑셀 및 PDF 통합 다운로드 액션 버튼 (Rule 08 UX 일체화 원칙 준수) -->
+            <button type="button" class="t-btn btn-action" id="btnExportAllExcel" title="8개 보고서를 시트별로 통합한 단일 엑셀 파일 다운로드" style="margin-left: 4px;">
+                <i class="fa-solid fa-file-excel" style="color: #10b981; margin-right: 4px;"></i>전체 엑셀
+            </button>
+            <button type="button" class="t-btn btn-action" id="btnExportAllPdf" title="8개 보고서를 하나로 통합한 단일 PDF 파일 다운로드" style="margin-left: 4px;">
+                <i class="fa-solid fa-file-pdf" style="color: #ef4444; margin-right: 4px;"></i>전체 PDF
             </button>
         </div>
     </div>
@@ -63,9 +66,44 @@
             if (!pane) return;
 
             const initialCorpGr = pane.getAttribute('data-corp-gr') || '';
+            const initialWorkDate = pane.getAttribute('data-work-date') || '';
             const initialFymd = pane.getAttribute('data-fymd') || '';
             const initialTymd = pane.getAttribute('data-tymd') || '';
             const initialPgmNo = pane.getAttribute('data-pgm-no') || '';
+
+            // W_JA031H 전용 기준일자 계산기: tymd는 직전 월의 마지막 날짜, fymd는 tymd에서 1년 전 달의 1일
+            function calculateJa031hDates(baseDateStr) {
+                var clean = String(baseDateStr || '').replace(/[^0-9]/g, '');
+                var now = new Date();
+                var y = clean.length >= 4 ? parseInt(clean.substring(0, 4), 10) : now.getFullYear();
+                var m = clean.length >= 6 ? parseInt(clean.substring(4, 6), 10) : (now.getMonth() + 1);
+
+                // 1. tymd: 현재 작업일자 직전 월의 마지막 날짜
+                // new Date(y, m - 1, 0)은 JavaScript에서 (m - 1)월의 마지막 날짜(일수) 반환
+                var prevMonthEnd = new Date(y, m - 1, 0);
+                var ty = prevMonthEnd.getFullYear();
+                var tm = prevMonthEnd.getMonth() + 1;
+                var td = prevMonthEnd.getDate();
+
+                // 2. fymd: tymd에서 1년 전인 달의 1일
+                var fy = ty - 1;
+                var fm = tm;
+
+                var pad = function (n) { return (n < 10 ? '0' : '') + n; };
+                return {
+                    fymd: fy + '-' + pad(fm) + '-01',
+                    tymd: ty + '-' + pad(tm) + '-' + pad(td)
+                };
+            }
+
+            function applyDefaultDates(baseDateStr) {
+                var dates = calculateJa031hDates(baseDateStr || initialWorkDate || initialTymd || (typeof resolveFilterYmd === 'function' ? resolveFilterYmd(pane) : ''));
+                var fInput = field('filterFYmd');
+                var tInput = field('filterTYmd');
+                if (fInput) fInput.value = dates.fymd;
+                if (tInput) tInput.value = dates.tymd;
+                return dates;
+            }
 
             // 파워빌더 원본 w_ja031h 8종 서식 보고서 메타데이터 정의
             const REPORT_DEFS = {
@@ -207,7 +245,9 @@
                 });
             }
 
-            async function exportAllExcel() {
+            async function exportAllReports(format) {
+                const targetFormat = (format || 'excel').toLowerCase();
+                const isPdf = targetFormat === 'pdf';
                 const fymd = (typeof getFilterFYmd === 'function') ? getFilterFYmd(pane, 'YYYY.MM.DD') : '';
                 const tymd = (typeof getFilterTYmd === 'function') ? getFilterTYmd(pane, 'YYYY.MM.DD') : '';
 
@@ -216,63 +256,95 @@
                     return;
                 }
 
-                if (typeof showToast === 'function') {
-                    showToast('8종 보고서 엑셀 다운로드를 순차적으로 진행합니다...', 'info');
+                const btn = field(isPdf ? 'btnExportAllPdf' : 'btnExportAllExcel');
+                const origHtml = btn ? btn.innerHTML : '';
+                if (btn) {
+                    btn.disabled = true;
+                    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin" style="margin-right: 4px;"></i>' + (isPdf ? 'PDF 통합 중...' : '양식 통합 중...');
                 }
 
-                const keys = Object.keys(REPORT_DEFS);
-                for (let i = 0; i < keys.length; i++) {
-                    const key = keys[i];
-                    const def = REPORT_DEFS[key];
-                    const params = def.singleDate ? { ymd: tymd, corp_gr: corpGr() } : { fymd: fymd, tymd: tymd, corp_gr: corpGr() };
-                    const fileName = (getFilterFYmd(pane, 'YYYYMMDD') || '') + '_' + (getFilterTYmd(pane, 'YYYYMMDD') || '') + '_' + def.title;
+                try {
+                    const formatNm = isPdf ? 'PDF' : '엑셀';
+                    if (typeof showToast === 'function') {
+                        showToast('8종 보고서 양식 통합 ' + formatNm + ' 생성을 시작합니다. 잠시만 기다려주세요...', 'info');
+                    }
 
-                    const exportUrl = '/api/common/rd/export?mrdPath=' + encodeURIComponent(def.mrd) +
-                        '&format=excel&corpGr=' + encodeURIComponent(corpGr()) +
-                        '&downloadName=' + encodeURIComponent(fileName);
+                    const url = '/api/assetmanagement/ja031h/export-all?corpGr=' + encodeURIComponent(corpGr())
+                        + '&fymd=' + encodeURIComponent(fymd)
+                        + '&tymd=' + encodeURIComponent(tymd)
+                        + '&format=' + encodeURIComponent(targetFormat);
 
-                    const form = document.createElement('form');
-                    form.method = 'POST';
-                    form.action = exportUrl;
-                    form.target = '_blank';
-                    form.style.display = 'none';
+                    const res = await fetch(url, { method: 'GET', credentials: 'same-origin' });
+                    if (!res.ok) {
+                        const errText = await res.text().catch(function () { return ''; });
+                        throw new Error('서버 오류 (' + res.status + ')' + (errText ? ': ' + errText : ''));
+                    }
 
-                    Object.keys(params).forEach(function (p) {
-                        const input = document.createElement('input');
-                        input.type = 'hidden';
-                        input.name = p;
-                        input.value = params[p];
-                        form.appendChild(input);
-                    });
+                    const blob = await res.blob();
+                    const fClean = (typeof getFilterFYmd === 'function') ? getFilterFYmd(pane, 'YYYYMMDD') : '';
+                    const tClean = (typeof getFilterTYmd === 'function') ? getFilterTYmd(pane, 'YYYYMMDD') : '';
+                    const ext = isPdf ? '.pdf' : '.xlsx';
+                    const fileName = '운용현황(' + fClean + '_' + tClean + ')' + ext;
 
-                    document.body.appendChild(form);
-                    form.submit();
-                    setTimeout(function () { form.remove(); }, 2000);
+                    const blobUrl = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = blobUrl;
+                    a.download = fileName;
+                    document.body.appendChild(a);
+                    a.click();
+                    setTimeout(function () {
+                        a.remove();
+                        window.URL.revokeObjectURL(blobUrl);
+                    }, 1000);
 
-                    // 다중 다운로드 브라우저 차단 방지를 위한 지연 처리
-                    await new Promise(function (resolve) { setTimeout(resolve, 800); });
+                    if (typeof showToast === 'function') {
+                        showToast('보고서 양식이 완벽히 적용된 단일 ' + formatNm + ' 파일(' + fileName + ')이 다운로드되었습니다.', 'success');
+                    }
+                } catch (err) {
+                    console.error('[W_JA031H] exportAllReports error:', err);
+                    if (typeof showToast === 'function') {
+                        showToast('통합 다운로드 실패: ' + err.message, 'error');
+                    }
+                } finally {
+                    if (btn) {
+                        btn.disabled = false;
+                        btn.innerHTML = origHtml;
+                    }
                 }
+            }
 
-                if (typeof showToast === 'function') {
-                    showToast('전체 엑셀 다운로드가 요청되었습니다.', 'success');
-                }
+            function exportAllExcel() {
+                return exportAllReports('excel');
+            }
+
+            function exportAllPdf() {
+                return exportAllReports('pdf');
             }
 
             function init() {
                 if (isInitialized) return;
                 isInitialized = true;
 
-                const fInput = field('filterFYmd');
-                const tInput = field('filterTYmd');
-                if (fInput && !fInput.value) fInput.value = initialFymd;
-                if (tInput && !tInput.value) tInput.value = initialTymd;
+                // W_JA031H 전용 기준일자 세팅 (tymd: 작업일자 직전 월의 마지막 날짜, fymd: tymd에서 1년 전 달의 1일)
+                if (initialFymd && initialTymd) {
+                    const fInput = field('filterFYmd');
+                    const tInput = field('filterTYmd');
+                    if (fInput) fInput.value = initialFymd;
+                    if (tInput) tInput.value = initialTymd;
+                } else {
+                    applyDefaultDates(initialWorkDate);
+                }
 
                 initReportSelect();
                 initViewer();
 
-                const btnAll = field('btnExportAllExcel');
-                if (btnAll) {
-                    btnAll.onclick = exportAllExcel;
+                const btnExcel = field('btnExportAllExcel');
+                if (btnExcel) {
+                    btnExcel.onclick = exportAllExcel;
+                }
+                const btnPdf = field('btnExportAllPdf');
+                if (btnPdf) {
+                    btnPdf.onclick = exportAllPdf;
                 }
 
                 if (window.ButtonRole && typeof window.ButtonRole.apply === 'function') {
@@ -282,19 +354,12 @@
 
                 pane.onSearch = loadReport;
                 pane.onRetrieve = loadReport;
-                pane.onExcel = function () {
-                    if (reportViewer && typeof reportViewer.exportReport === 'function') {
-                        reportViewer.exportReport('excel');
-                    }
-                };
-                pane.onPrint = function () {
-                    if (reportViewer && typeof reportViewer.exportReport === 'function') {
-                        reportViewer.exportReport('pdf');
-                    }
-                };
+                // 상단 공통 툴바 [엑셀] 버튼 클릭 시에도 8종 통합 엑셀 다운로드 실행 (서식 100% 보존)
+                pane.onExcel = exportAllExcel;
+                // 상단 공통 툴바 [인쇄] 버튼 클릭 시에도 8종 통합 PDF 다운로드 실행 (서식 100% 보존)
+                pane.onPrint = exportAllPdf;
                 pane.onRefresh = function () {
-                    if (fInput) fInput.value = initialFymd;
-                    if (tInput) tInput.value = initialTymd;
+                    applyDefaultDates(initialWorkDate);
                     initReportSelect();
                     if (window.ButtonRole && typeof window.ButtonRole.setSearchState === 'function') {
                         window.ButtonRole.setSearchState(pane, false);
@@ -307,23 +372,7 @@
                         .then(function (res) { return res.json(); })
                         .then(function (data) {
                             if (data && data.workDate) {
-                                const wDate = data.workDate.replace(/\./g, '-');
-                                const parts = wDate.split('-');
-                                if (parts.length === 3) {
-                                    const y = parseInt(parts[0], 10);
-                                    const m = parseInt(parts[1], 10);
-                                    const d = parseInt(parts[2], 10);
-                                    const curFirst = new Date(y, m - 1, 1);
-                                    const prevEnd = new Date(curFirst.getTime() - 86400000);
-                                    const prevYear = new Date(y - 1, m - 1, 1);
-
-                                    const pad = function (n) { return (n < 10 ? '0' : '') + n; };
-                                    if (tInput) tInput.value = prevEnd.getFullYear() + '-' + pad(prevEnd.getMonth() + 1) + '-' + pad(prevEnd.getDate());
-                                    if (fInput) fInput.value = prevYear.getFullYear() + '-' + pad(prevYear.getMonth() + 1) + '-01';
-                                } else {
-                                    if (fInput) fInput.value = wDate;
-                                    if (tInput) tInput.value = wDate;
-                                }
+                                applyDefaultDates(data.workDate);
                             }
                             loadReport();
                         })
