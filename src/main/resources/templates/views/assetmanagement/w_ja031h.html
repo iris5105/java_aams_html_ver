@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<div class="view-container layout-single ja031h-container layout-mobile-stack-container" th:fragment="mainView" data-pgm-id="W_JA031H"
+     th:attr="data-corp-gr=${corpGr},data-pgm-no=${pgmNo},data-fymd=${fymd},data-tymd=${tymd}"
+     style="display:flex; flex-direction:column; height:100%; width:100%; overflow:hidden; background:#fff; position:relative;">
+
+    <!-- 1. Top Action Toolbar & Breadcrumb -->
+    <div class="view-toolbar">
+        <div class="toolbar-left"><div th:replace="~{fragments/tab_header :: toolbarButtons}"></div></div>
+        <div th:replace="~{fragments/tab_header :: toolbarBreadcrumb}"></div>
+    </div>
+
+    <!-- 2. Filter Bar (From-To Date + Report Type Selector, Rule 08) -->
+    <div class="filter-bar">
+        <div class="filter-left">
+            <!-- 조회일자 From-To 구간 필터 -->
+            <div class="filter-item" style="position: relative; display: flex; align-items: center; gap: 6px;">
+                <label for="filterFYmd">조회일자</label>
+                <div class="range-calendar-wrapper">
+                    <input type="text" id="filterFYmd" name="fYmd" class="filter-input range-calendar-input" th:value="${fymd != null ? fymd : ''}" readonly autocomplete="off" />
+                    <span class="range-calendar-separator">~</span>
+                    <input type="text" id="filterTYmd" name="tYmd" class="filter-input range-calendar-input" th:value="${tymd != null ? tymd : ''}" readonly autocomplete="off" />
+                    <button type="button" class="btn-range-calendar" title="기간 선택 달력" onclick="AamsCalendar.toggleRange('filterFYmd_filterTYmd', event)">
+                        <i class="fa-regular fa-calendar-days"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- 보고서유형 선택 2칸 드롭다운 -->
+            <div class="filter-item">
+                <label for="filterReportType">보고서유형</label>
+                <select id="filterReportType" name="reportType" class="filter-select">
+                    <option value="1">1 : 일임수익률</option>
+                    <option value="2">2 : 일임재산 설정(운용) 및 해지내역</option>
+                    <option value="3">3 : 일임자산 설정 현황</option>
+                    <option value="4">4 : 일임계좌 주식 매매거래내역</option>
+                    <option value="5">5 : 일임계좌 채권 매매거래내역</option>
+                    <option value="6">6 : 일임계좌 CD(CP) 매매거래내역</option>
+                    <option value="7">7 : 일임자산 회전율 내역</option>
+                    <option value="8">8 : 공모주 취득 및 배정내역</option>
+                </select>
+            </div>
+
+            <!-- 8종 전체 엑셀 일괄 다운로드 액션 버튼 (Rule 08 UX 일체화 원칙 준수) -->
+            <button type="button" class="t-btn btn-action" id="btnExportAllExcel" title="8개 보고서 엑셀 일괄 다운로드" style="margin-left: 4px;">
+                <i class="fa-solid fa-file-excel" style="color: #10b981; margin-right: 4px;"></i>전체 엑셀 다운로드
+            </button>
+        </div>
+    </div>
+
+    <!-- 3. Report Preview Viewer Panel (Crownix MRD Fullscreen Panel) -->
+    <div class="report-container-panel" style="flex:1; min-height:0; display:flex; flex-direction:column; padding:0 10px 10px;">
+        <div th:replace="~{fragments/report/report_viewer :: reportViewerBottomPane(reportTitle='운용현황 - 일임수익률', defaultStatus='조회 대기 중')}"></div>
+    </div>
+
+    <!-- 4. Mobile Modal Viewer (Responsive width <= 876px) -->
+    <div th:replace="~{fragments/report/report_viewer :: reportMobileModal(modalId='ja031hMobileModal', modalTitle='운용현황')}"></div>
+
+    <script>
+        (function () {
+            const script = document.currentScript;
+            const pane = script ? (script.closest('.tab-pane') || script.closest('.view-container')) : null;
+            if (!pane) return;
+
+            const initialCorpGr = pane.getAttribute('data-corp-gr') || '';
+            const initialFymd = pane.getAttribute('data-fymd') || '';
+            const initialTymd = pane.getAttribute('data-tymd') || '';
+            const initialPgmNo = pane.getAttribute('data-pgm-no') || '';
+
+            // 파워빌더 원본 w_ja031h 8종 서식 보고서 메타데이터 정의
+            const REPORT_DEFS = {
+                '1': { mrd: 'rd_ja031h_s1.mrd', title: '일임수익률', singleDate: true },
+                '2': { mrd: 'rd_ja031h_s2.mrd', title: '일임재산 설정(운용) 및 해지내역', singleDate: false },
+                '3': { mrd: 'rd_ja031h_s3.mrd', title: '일임자산 설정 현황', singleDate: false },
+                '4': { mrd: 'rd_ja031h_s4.mrd', title: '일임계좌 주식 매매거래내역', singleDate: false },
+                '5': { mrd: 'rd_ja031h_s5.mrd', title: '일임계좌 채권 매매거래내역', singleDate: false },
+                '6': { mrd: 'rd_ja031h_s6.mrd', title: '일임계좌 CD(CP) 매매거래내역', singleDate: false },
+                '7': { mrd: 'rd_ja031h_s7.mrd', title: '일임자산 회전율 내역', singleDate: false },
+                '8': { mrd: 'rd_ja031h_s8.mrd', title: '공모주 취득 및 배정내역', singleDate: false }
+            };
+
+            let reportViewer = null;
+            let isInitialized = false;
+
+            function field(id) { return pane.querySelector('#' + id); }
+            function corpGr() { return (typeof resolveCorpGr === 'function' ? resolveCorpGr(pane) : '') || initialCorpGr; }
+
+            function getSelectedReportType() {
+                const select = field('filterReportType') || pane.querySelector('select[name="reportType"]');
+                return (select && select.value) ? String(select.value).trim() : '1';
+            }
+
+            function getReportDef(type) {
+                const targetType = type || getSelectedReportType();
+                return REPORT_DEFS[targetType] || REPORT_DEFS['1'];
+            }
+
+            function initReportSelect() {
+                const select = field('filterReportType') || pane.querySelector('select[name="reportType"]');
+                if (!select) return;
+
+                const options = Object.keys(REPORT_DEFS).map(function (k) {
+                    return { code: k, name: REPORT_DEFS[k].title };
+                });
+
+                select.innerHTML = options.map(function (opt) {
+                    return '<option value="' + opt.code + '">' + opt.code + ' : ' + opt.name + '</option>';
+                }).join('');
+                select.value = '1';
+
+                select.onchange = function () {
+                    loadReport(this.value);
+                };
+
+                if (window.f_dddwctl && typeof window.f_dddwctl.create2ColSelect === 'function') {
+                    window.f_dddwctl.create2ColSelect(select, options, {
+                        codeTitle: '순번',
+                        nameTitle: '보고서유형',
+                        defaultVal: '1',
+                        onSelect: function (code, name) {
+                            select.value = code;
+                            loadReport(code);
+                        }
+                    });
+                }
+            }
+
+            function loadReport(selectedType) {
+                if (!reportViewer || typeof reportViewer.load !== 'function') return;
+
+                const fymd = (typeof getFilterFYmd === 'function') ? getFilterFYmd(pane, 'YYYY.MM.DD') : '';
+                const tymd = (typeof getFilterTYmd === 'function') ? getFilterTYmd(pane, 'YYYY.MM.DD') : '';
+
+                if (!fymd || !tymd) {
+                    if (typeof showToast === 'function') showToast('조회일자를 선택하세요.', 'warning');
+                    return;
+                }
+
+                const repType = selectedType || getSelectedReportType();
+                const def = getReportDef(repType);
+
+                reportViewer.load({
+                    id: repType + '_' + fymd + '_' + tymd + '_' + corpGr(),
+                    repType: repType,
+                    mrdName: def.mrd,
+                    repTitle: def.title,
+                    singleDate: def.singleDate,
+                    fymd: fymd,
+                    tymd: tymd
+                }, '조회완료 (' + def.title + ')', true);
+
+                if (window.ButtonRole && typeof window.ButtonRole.setSearchState === 'function') {
+                    window.ButtonRole.setSearchState(pane, true);
+                }
+            }
+
+            function initViewer() {
+                const reportEngine = window.AamsReport;
+                if (!reportEngine || typeof reportEngine.bindViewer !== 'function') return;
+
+                reportViewer = reportEngine.bindViewer(pane, {
+                    reportFile: function (data) {
+                        if (data && data.mrdName) return data.mrdName;
+                        const def = getReportDef(data && data.repType);
+                        return def.mrd;
+                    },
+                    modalId: 'ja031hMobileModal',
+                    zoom: 120,
+                    getCorpGr: function () {
+                        return corpGr();
+                    },
+                    buildParams: function (data) {
+                        const def = getReportDef(data && data.repType);
+                        const f = (data && data.fymd) ? data.fymd : ((typeof getFilterFYmd === 'function') ? getFilterFYmd(pane, 'YYYY.MM.DD') : initialFymd);
+                        const t = (data && data.tymd) ? data.tymd : ((typeof getFilterTYmd === 'function') ? getFilterTYmd(pane, 'YYYY.MM.DD') : initialTymd);
+
+                        if (def.singleDate) {
+                            return {
+                                ymd: t,
+                                corp_gr: corpGr()
+                            };
+                        } else {
+                            return {
+                                fymd: f,
+                                tymd: t,
+                                corp_gr: corpGr()
+                            };
+                        }
+                    },
+                    getTitle: function (data) {
+                        const def = getReportDef(data && data.repType);
+                        return '운용현황 - ' + def.title;
+                    },
+                    getStatus: function (data) {
+                        const def = getReportDef(data && data.repType);
+                        const f = (data && data.fymd) ? data.fymd : ((typeof getFilterFYmd === 'function') ? getFilterFYmd(pane) : initialFymd);
+                        const t = (data && data.tymd) ? data.tymd : ((typeof getFilterTYmd === 'function') ? getFilterTYmd(pane) : initialTymd);
+                        return '조회기간: ' + (def.singleDate ? t : (f + ' ~ ' + t)) + ' [' + def.title + ']';
+                    },
+                    getDownloadName: function (data, format) {
+                        const def = getReportDef(data && data.repType);
+                        const f = (typeof getFilterFYmd === 'function') ? getFilterFYmd(pane, 'YYYYMMDD') : '';
+                        const t = (typeof getFilterTYmd === 'function') ? getFilterTYmd(pane, 'YYYYMMDD') : '';
+                        const safeTitle = def.title.replace(/[\\/:*?"<>|]/g, '_');
+                        return f + '_' + t + '_' + safeTitle;
+                    }
+                });
+            }
+
+            async function exportAllExcel() {
+                const fymd = (typeof getFilterFYmd === 'function') ? getFilterFYmd(pane, 'YYYY.MM.DD') : '';
+                const tymd = (typeof getFilterTYmd === 'function') ? getFilterTYmd(pane, 'YYYY.MM.DD') : '';
+
+                if (!fymd || !tymd) {
+                    if (typeof showToast === 'function') showToast('조회일자를 선택하세요.', 'warning');
+                    return;
+                }
+
+                if (typeof showToast === 'function') {
+                    showToast('8종 보고서 엑셀 다운로드를 순차적으로 진행합니다...', 'info');
+                }
+
+                const keys = Object.keys(REPORT_DEFS);
+                for (let i = 0; i < keys.length; i++) {
+                    const key = keys[i];
+                    const def = REPORT_DEFS[key];
+                    const params = def.singleDate ? { ymd: tymd, corp_gr: corpGr() } : { fymd: fymd, tymd: tymd, corp_gr: corpGr() };
+                    const fileName = (getFilterFYmd(pane, 'YYYYMMDD') || '') + '_' + (getFilterTYmd(pane, 'YYYYMMDD') || '') + '_' + def.title;
+
+                    const exportUrl = '/api/common/rd/export?mrdPath=' + encodeURIComponent(def.mrd) +
+                        '&format=excel&corpGr=' + encodeURIComponent(corpGr()) +
+                        '&downloadName=' + encodeURIComponent(fileName);
+
+                    const form = document.createElement('form');
+                    form.method = 'POST';
+                    form.action = exportUrl;
+                    form.target = '_blank';
+                    form.style.display = 'none';
+
+                    Object.keys(params).forEach(function (p) {
+                        const input = document.createElement('input');
+                        input.type = 'hidden';
+                        input.name = p;
+                        input.value = params[p];
+                        form.appendChild(input);
+                    });
+
+                    document.body.appendChild(form);
+                    form.submit();
+                    setTimeout(function () { form.remove(); }, 2000);
+
+                    // 다중 다운로드 브라우저 차단 방지를 위한 지연 처리
+                    await new Promise(function (resolve) { setTimeout(resolve, 800); });
+                }
+
+                if (typeof showToast === 'function') {
+                    showToast('전체 엑셀 다운로드가 요청되었습니다.', 'success');
+                }
+            }
+
+            function init() {
+                if (isInitialized) return;
+                isInitialized = true;
+
+                const fInput = field('filterFYmd');
+                const tInput = field('filterTYmd');
+                if (fInput && !fInput.value) fInput.value = initialFymd;
+                if (tInput && !tInput.value) tInput.value = initialTymd;
+
+                initReportSelect();
+                initViewer();
+
+                const btnAll = field('btnExportAllExcel');
+                if (btnAll) {
+                    btnAll.onclick = exportAllExcel;
+                }
+
+                if (window.ButtonRole && typeof window.ButtonRole.apply === 'function') {
+                    const targetPgmNo = initialPgmNo || (pane ? pane.getAttribute('data-pgm-no') : null);
+                    window.ButtonRole.apply(pane, targetPgmNo);
+                }
+
+                pane.onSearch = loadReport;
+                pane.onRetrieve = loadReport;
+                pane.onExcel = function () {
+                    if (reportViewer && typeof reportViewer.exportReport === 'function') {
+                        reportViewer.exportReport('excel');
+                    }
+                };
+                pane.onPrint = function () {
+                    if (reportViewer && typeof reportViewer.exportReport === 'function') {
+                        reportViewer.exportReport('pdf');
+                    }
+                };
+                pane.onRefresh = function () {
+                    if (fInput) fInput.value = initialFymd;
+                    if (tInput) tInput.value = initialTymd;
+                    initReportSelect();
+                    if (window.ButtonRole && typeof window.ButtonRole.setSearchState === 'function') {
+                        window.ButtonRole.setSearchState(pane, false);
+                    }
+                    loadReport();
+                };
+                pane.onCorpGrChange = function (newCorpGr) {
+                    const targetCorp = newCorpGr || corpGr();
+                    fetch('/api/common/workdate?corpGr=' + encodeURIComponent(targetCorp))
+                        .then(function (res) { return res.json(); })
+                        .then(function (data) {
+                            if (data && data.workDate) {
+                                const wDate = data.workDate.replace(/\./g, '-');
+                                const parts = wDate.split('-');
+                                if (parts.length === 3) {
+                                    const y = parseInt(parts[0], 10);
+                                    const m = parseInt(parts[1], 10);
+                                    const d = parseInt(parts[2], 10);
+                                    const curFirst = new Date(y, m - 1, 1);
+                                    const prevEnd = new Date(curFirst.getTime() - 86400000);
+                                    const prevYear = new Date(y - 1, m - 1, 1);
+
+                                    const pad = function (n) { return (n < 10 ? '0' : '') + n; };
+                                    if (tInput) tInput.value = prevEnd.getFullYear() + '-' + pad(prevEnd.getMonth() + 1) + '-' + pad(prevEnd.getDate());
+                                    if (fInput) fInput.value = prevYear.getFullYear() + '-' + pad(prevYear.getMonth() + 1) + '-01';
+                                } else {
+                                    if (fInput) fInput.value = wDate;
+                                    if (tInput) tInput.value = wDate;
+                                }
+                            }
+                            loadReport();
+                        })
+                        .catch(function (err) {
+                            console.warn('[W_JA031H] workdate fetch error:', err);
+                            loadReport();
+                        });
+                };
+
+                // PB: eb_direct_retrieve = true (화면 진입 시 자동 조회)
+                loadReport();
+            }
+
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', init, { once: true });
+            } else {
+                init();
+            }
+        })();
+    </script>
+</div>
+</html>
+
