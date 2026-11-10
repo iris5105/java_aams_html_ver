@@ -203,39 +203,56 @@
                             {
                                 title: "등록<br>종목",
                                 field: "used",
-                                width: 75,
+                                width: 65,
                                 hozAlign: "center",
                                 headerHozAlign: "center",
                                 headerSort: true,
-                                editor: "list",
-                                editorParams: {
-                                    values: [
-                                        { label: "등록", value: 2 },
-                                        { label: "미등록", value: 1 }
-                                    ]
-                                },
-                                editable: function (cell) {
-                                    // 이미 등록된 종목은 임의 해제 방지
-                                    var val = cell.getValue();
-                                    return val !== 2;
-                                },
-                                cellClick: (typeof aamsCellEdit === 'function') ? aamsCellEdit : undefined,
                                 formatter: function (cell) {
                                     var val = cell.getValue();
-                                    if (val === 2) {
-                                        return '<span class="badge" style="background: #dbeafe; color: #1e40af; font-weight: 600; padding: 2px 6px; border-radius: 4px;">등록</span>';
-                                    }
-                                    return '<span class="badge" style="background: #f1f5f9; color: #64748b; font-weight: 500; padding: 2px 6px; border-radius: 4px;">미등록</span>';
+                                    var isChecked = (val === 2 || val === "2" || val === true);
+                                    var rowData = cell.getRow().getData();
+                                    // 기존에 이미 등록되어 있는 항목은 임의 해제 방지(disabled)
+                                    var isDisabled = (val === 2 && !rowData.isNew);
+                                    return '<input type="checkbox" '
+                                        + (isChecked ? 'checked ' : '')
+                                        + (isDisabled ? 'disabled ' : '')
+                                        + 'style="cursor: ' + (isDisabled ? 'not-allowed' : 'pointer') + '; width: 16px; height: 16px; pointer-events: none; vertical-align: middle;" />';
                                 },
-                                cellEdited: function (cell) {
+                                cellClick: function (e, cell) {
                                     var row = cell.getRow();
                                     var rowData = row.getData();
-                                    if (cell.getValue() === 2) {
+                                    var currentVal = cell.getValue();
+
+                                    // 이미 등록된 종목(신규 등록 대기 건 제외)은 임의 해제 방지 (파워빌더 protect 로직)
+                                    if (currentVal === 2 && !rowData.isNew) {
+                                        if (typeof showToast === 'function') {
+                                            showToast("이미 등록된 종목은 해제할 수 없습니다.", "warning");
+                                        }
+                                        return;
+                                    }
+
+                                    var nextChecked = (currentVal !== 2);
+                                    var nextVal = nextChecked ? 2 : 1;
+
+                                    cell.setValue(nextVal);
+
+                                    if (nextChecked) {
                                         rowData.isNew = true;
                                         rowData.isUpdated = true;
+                                        var corp = (typeof resolveCorpGr === 'function') ? resolveCorpGr(pane) : '';
+                                        rowData.corpGr = corp;
+                                        rowData.jmNm = rowData.enam || rowData.symb;
+                                        rowData.srsCd = rowData.symb;
+                                        rowData.jasanGb = '1';
+                                        if (!rowData.stockGb && rowData.exid) {
+                                            rowData.stockGb = (rowData.exid === 'NAS' || rowData.exid === 'XNAS') ? 'XNAS' : rowData.exid;
+                                        }
                                         if (typeof showToast === 'function') {
                                             showToast(rowData.symb + " 종목이 등록 대기 상태로 변경되었습니다. 상단 [저장] 시 최종 반영됩니다.", "info");
                                         }
+                                    } else {
+                                        rowData.isNew = false;
+                                        rowData.isUpdated = false;
                                     }
                                 }
                             },
