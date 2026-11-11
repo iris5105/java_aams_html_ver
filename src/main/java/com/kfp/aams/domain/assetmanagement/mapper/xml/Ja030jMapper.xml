@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.kfp.aams.domain.assetmanagement.mapper.Ja030jMapper">
+
+    <!-- 1. 채권 잔고/수익 상세 목록 조회 (d_ja030j1, d_ja030j5, d_ja030j6 통합) -->
+    <select id="selectJa030jList" resultType="com.kfp.aams.domain.assetmanagement.dto.Ja030jDto">
+        SELECT TO_CHAR(t1.YMD, 'YYYY-MM-DD')                                           AS ymd
+             , hj.JM_CD                                                                AS jm_cd
+             , hj.HJ_NM                                                                AS hj_nm
+             , TO_CHAR(hj.SANGHW_YMD, 'YYYY-MM-DD')                                    AS sanghw_ymd
+             , TO_CHAR(hj.AF_IJA_YMD, 'YYYY-MM-DD')                                    AS af_ija_ymd
+             , hj.PYOM_IYUL                                                            AS pyom_iyul
+             , ROUND(hj.PYOM_IYUL * 100, 4)                                            AS pyom_per
+             , t1.FUND_CD                                                              AS fund_cd
+             , ia.FUND_NM                                                              AS fund_nm
+             , (NVL(t1.bfil_aekm, 0) + NVL(t1.meib_aekm, 0) - NVL(t1.medo_aekm, 0)) / 10000 AS com_aekm
+             , (NVL(t1.bfil_chui_aek, 0) + NVL(t1.meib_aek, 0) + NVL(t1.anbun_aek, 0) - NVL(t1.medo_aek, 0)) AS com_chui_aek
+             , CASE WHEN hj.CASH_CD = '90' THEN t1.MEIB_AEK
+                    ELSE (NVL(t1.bfil_chui_aek, 0) + NVL(t1.meib_aek, 0) + NVL(t1.anbun_aek, 0) - NVL(t1.medo_aek, 0))
+               END                                                                     AS chui_aek
+             , t1.MISU_IJA                                                             AS misu_ija
+             , t1.DAY_IJA                                                              AS day_ija
+             , NVL(t1.bfil_sunsu_ija, 0) + NVL(t1.up_sunsu_ija, 0) - NVL(t1.dw_sunsu_ija, 0) AS sunsu_ija
+             , NVL(t1.dw_sunsu_ija, 0)                                                 AS dw_sunsu_ija
+             , t1.PYUNGA_AEK                                                           AS pyunga_aek
+             , t1.SIGA_AEK                                                             AS siga_aek
+             , t1.MEIB_AEK                                                             AS meib_aek
+             , hj.CASH_CD                                                              AS cash_cd
+             , ia.mg_cd                                                                AS mg_cd
+             , ia.TYPE_GB                                                              AS type_gb
+             , t1.YUHYO_RT                                                             AS yuhyo_rt
+             , hj.NOW_IJA_HOICHA                                                       AS now_ija_hoicha
+             , 2960685                                                                 AS fund_color
+          FROM SHM0HM t1
+          JOIN SHM0HJ hj
+            ON hj.CORP_GR = t1.CORP_GR
+           AND hj.JM_CD   = t1.JM_CD
+          JOIN SZM0IA ia
+            ON ia.CORP_GR = t1.CORP_GR
+           AND ia.FUND_CD = t1.FUND_CD
+         WHERE t1.CORP_GR = #{corpGr}
+           AND t1.YMD BETWEEN TO_DATE(REPLACE(#{fymd}, '-', ''), 'YYYYMMDD')
+                          AND TO_DATE(REPLACE(#{tymd}, '-', ''), 'YYYYMMDD')
+        <if test="gubun == '3' and cashCd != null and cashCd != '' and cashCd != '%'">
+           AND hj.CASH_CD LIKE #{cashCd}
+        </if>
+        <if test="gubun == '5' and hjCd != null and hjCd != ''">
+           AND hj.JM_CD = #{hjCd}
+        </if>
+        <if test="gubun == '6' and fundCd != null and fundCd != ''">
+           AND ia.FUND_CD = #{fundCd}
+        </if>
+        <choose>
+            <when test="gubun == '5'">
+         ORDER BY t1.YMD, hj.JM_CD, t1.FUND_CD
+            </when>
+            <when test="gubun == '6'">
+         ORDER BY t1.YMD, t1.FUND_CD, hj.JM_CD
+            </when>
+            <otherwise>
+         ORDER BY t1.YMD, hj.JM_CD, t1.FUND_CD
+            </otherwise>
+        </choose>
+    </select>
+
+    <!-- 2. 프로시저 SR_JA030J REF_CURSOR 결과 매핑 -->
+    <resultMap id="ja030jDetailResultMap" type="com.kfp.aams.domain.assetmanagement.dto.Ja030jDetailDto">
+        <result column="day_ija" property="hmDayIja"/>
+        <result column="misu_ija" property="hmMisuIja"/>
+        <result column="sung_cost" property="hmSungCost"/>
+        <result column="sung_tax" property="hmSungTax"/>
+        <result column="sunn_tax" property="hmSunnTax"/>
+        <result column="yesu_tax" property="hmYesuTax"/>
+        <result column="anbun_aek" property="hmAnbunAek"/>
+        <result column="pyunga_aek" property="hmPyungaAek"/>
+        <result column="siga_aek" property="hmSigaAek"/>
+        <result column="sanghw_aek" property="hmSanghwAek"/>
+        <result column="pyom_iyul" property="hjPyomIyul"/>
+        <result column="balh_ymd" property="hjBalhYmd"/>
+        <result column="sanghw_ymd" property="hjSanghwYmd"/>
+        <result column="af_ija_ymd" property="hjAfIjaYmd"/>
+        <result column="sunsu_ija" property="sunsuIja"/>
+        <result column="dw_sunsu_ija" property="dwSunsuIja"/>
+    </resultMap>
+
+    <!-- 3. 프로시저 SR_JA030J 호출 -->
+    <select id="callSrJa030j" statementType="CALLABLE">
+        { CALL KFP.SR_JA030J(
+            #{corpGr, mode=IN, jdbcType=VARCHAR},
+            #{ymd, mode=IN, jdbcType=VARCHAR},
+            #{fundCd, mode=IN, jdbcType=VARCHAR},
+            #{jmCd, mode=IN, jdbcType=VARCHAR},
+            #{rSet, mode=OUT, jdbcType=CURSOR, javaType=java.sql.ResultSet, resultMap=ja030jDetailResultMap}
+        ) }
+    </select>
+
+    <!-- 4. 채권 상세 직결 쿼리 (프로시저 SR_JA030J 로직 100% 동일 구현 Fallback) -->
+    <select id="selectJa030jDetail" resultType="com.kfp.aams.domain.assetmanagement.dto.Ja030jDetailDto">
+        SELECT t1.DAY_IJA                                                                              AS hmDayIja
+             , t1.MISU_IJA                                                                             AS hmMisuIja
+             , TRUNC(NVL(ig.GUGAN_IJA, 0) * (NVL(t1.BFIL_AEKM,0) + NVL(t1.MEIB_AEKM,0) - NVL(t1.MEDO_AEKM,0))) AS hmGuganIja
+             , t1.SUNG_COST                                                                            AS hmSungCost
+             , t1.SUNG_TAX                                                                             AS hmSungTax
+             , t1.SUNN_TAX                                                                             AS hmSunnTax
+             , t1.YESU_TAX                                                                             AS hmYesuTax
+             , NVL(t1.BFIL_AEKM,0) + NVL(t1.MEIB_AEKM,0) - NVL(t1.MEDO_AEKM,0)                         AS hmAekm
+             , NVL(t1.BFIL_CHUI_AEK,0) + NVL(t1.MEIB_AEK,0) - NVL(t1.MEDO_AEKM,0)                       AS hmChuiAek
+             , t1.ANBUN_AEK                                                                            AS hmAnbunAek
+             , t1.PYUNGA_AEK                                                                           AS hmPyungaAek
+             , t1.SIGA_AEK                                                                             AS hmSigaAek
+             , t1.SANGHW_AEK                                                                           AS hmSanghwAek
+             , t2.PYOM_IYUL                                                                            AS hjPyomIyul
+             , TO_CHAR(t2.BALH_YMD, 'YYYY-MM-DD')                                                      AS hjBalhYmd
+             , TO_CHAR(t2.SANGHW_YMD, 'YYYY-MM-DD')                                                    AS hjSanghwYmd
+             , TO_CHAR(t2.AF_IJA_YMD, 'YYYY-MM-DD')                                                    AS hjAfIjaYmd
+             , NVL(t1.BFIL_SUNSU_IJA,0) + NVL(t1.UP_SUNSU_IJA,0) - NVL(t1.DW_SUNSU_IJA,0)              AS sunsuIja
+             , NVL(t1.DW_SUNSU_IJA,0)                                                                  AS dwSunsuIja
+          FROM SHM0HM t1
+          JOIN SHM0HJ t2
+            ON t2.CORP_GR = t1.CORP_GR
+           AND t2.JM_CD   = t1.JM_CD
+          LEFT JOIN SHJ0IG ig
+            ON ig.CORP_GR = t1.CORP_GR
+           AND ig.JM_CD   = t1.JM_CD
+           AND TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD') BETWEEN ig.BF_IJA_YMD AND (ig.AF_IJA_YMD - 1)
+         WHERE t1.CORP_GR = #{corpGr}
+           AND t1.FUND_CD = #{fundCd}
+           AND t1.JM_CD   = #{jmCd}
+           AND t1.YMD     = TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
+    </select>
+
+</mapper>
+
