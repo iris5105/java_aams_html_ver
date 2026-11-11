@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<div class="view-container layout-single ja031h1-container layout-mobile-stack-container" th:fragment="mainView" data-pgm-id="W_JA031H1"
+     th:attr="data-corp-gr=${corpGr},data-pgm-no=${pgmNo},data-fymd=${fymd},data-tymd=${tymd}"
+     style="display:flex; flex-direction:column; height:100%; width:100%; overflow:hidden; background:#fff; position:relative;">
+
+    <!-- 1. Top Action Toolbar & Breadcrumb -->
+    <div class="view-toolbar">
+        <div class="toolbar-left"><div th:replace="~{fragments/tab_header :: toolbarButtons}"></div></div>
+        <div th:replace="~{fragments/tab_header :: toolbarBreadcrumb}"></div>
+    </div>
+
+    <!-- 2. Filter Bar (From-To Date + DDDW, PB dw_c: dc_ftymd_dddw) -->
+    <div class="filter-bar">
+        <div class="filter-left">
+            <th:block th:replace="~{fragments/filter/dc_ftymd_dddw :: filter(labelFYmd='조회기간', labelDddw='고유계좌')}"></th:block>
+        </div>
+    </div>
+
+    <!-- 3. Report Preview Viewer Panel (Crownix MRD Fullscreen Panel) -->
+    <div class="report-container-panel" style="flex:1; min-height:0; display:flex; flex-direction:column; padding:0 10px 10px;">
+        <div th:replace="~{fragments/report/report_viewer :: reportViewerBottomPane(reportTitle='고유계좌 운용현황', defaultStatus='조회 대기 중')}"></div>
+    </div>
+
+    <!-- 4. Mobile Modal Viewer (Responsive width <= 876px) -->
+    <div th:replace="~{fragments/report/report_viewer :: reportMobileModal(modalId='ja031h1MobileModal', modalTitle='고유계좌 운용현황')}"></div>
+
+    <script>
+        (function () {
+            const script = document.currentScript;
+            const pane = script ? (script.closest('.tab-pane') || script.closest('.view-container')) : null;
+            if (!pane) return;
+
+            const initialCorpGr = pane.getAttribute('data-corp-gr') || '';
+            const initialFymd = pane.getAttribute('data-fymd') || '';
+            const initialTymd = pane.getAttribute('data-tymd') || '';
+            const initialPgmNo = pane.getAttribute('data-pgm-no') || '';
+
+            let reportViewer = null;
+            let isInitialized = false;
+
+            function field(id) { return pane.querySelector('#' + id); }
+            function corpGr() { return (typeof resolveCorpGr === 'function' ? resolveCorpGr(pane) : '') || initialCorpGr; }
+
+            function getAccountCd() {
+                const select = field('filterDddw') || pane.querySelector('select[name="dddw"]');
+                return (select && select.value) ? String(select.value).trim() : '%';
+            }
+
+            async function initDddw() {
+                const select = field('filterDddw') || pane.querySelector('select[name="dddw"]');
+                if (!select) return;
+
+                // PowerBuilder: dw_c::ue_dddw_retrieve => f_dddwctl (THIS, 'dddw', gaa.corp_gr, "%,전체,", 10, "")
+                if (typeof window.f_dddwctl === 'function') {
+                    await window.f_dddwctl(select, 'dddw', corpGr(), '%,전체,', 10, '', {
+                        defaultVal: '%',
+                        codeTitle: '계좌번호',
+                        nameTitle: '고유계좌명'
+                    });
+                }
+            }
+
+            function loadReport() {
+                if (!reportViewer || typeof reportViewer.load !== 'function') return;
+
+                const fymd = (typeof getFilterFYmd === 'function') ? getFilterFYmd(pane, 'YYYY.MM.DD') : '';
+                const tymd = (typeof getFilterTYmd === 'function') ? getFilterTYmd(pane, 'YYYY.MM.DD') : '';
+                const fundCd = getAccountCd();
+
+                if (!fymd || !tymd) {
+                    if (typeof showToast === 'function') showToast('조회기간을 선택하세요.', 'warning');
+                    return;
+                }
+
+                // 고유 식별자(id)와 강제 로드 플래그(isForce=true)를 넘겨 aams_report.js 캐시 차단 방어
+                reportViewer.load({
+                    id: fymd + '_' + tymd + '_' + fundCd + '_' + corpGr(),
+                    fymd: fymd,
+                    tymd: tymd,
+                    fundCd: fundCd
+                }, '조회완료', true);
+
+                // 버튼 권한 상태 갱신: 조회 완료 상태로 전환 (상단 공통 버튼 활성화)
+                if (window.ButtonRole && typeof window.ButtonRole.setSearchState === 'function') {
+                    window.ButtonRole.setSearchState(pane, true);
+                }
+            }
+
+            function initViewer() {
+                const reportEngine = window.AamsReport;
+                if (!reportEngine || typeof reportEngine.bindViewer !== 'function') return;
+
+                reportViewer = reportEngine.bindViewer(pane, {
+                    reportFile: 'rd_ja031h1.mrd',
+                    modalId: 'ja031h1MobileModal',
+                    zoom: 120,
+                    getCorpGr: function () {
+                        return corpGr();
+                    },
+                    buildParams: function (data) {
+                        const fymd = (data && data.fymd) ? data.fymd : ((typeof getFilterFYmd === 'function') ? getFilterFYmd(pane, 'YYYY.MM.DD') : initialFymd);
+                        const tymd = (data && data.tymd) ? data.tymd : ((typeof getFilterTYmd === 'function') ? getFilterTYmd(pane, 'YYYY.MM.DD') : initialTymd);
+                        const fundCd = (data && data.fundCd) ? data.fundCd : getAccountCd();
+
+                        return {
+                            fund_cd: fundCd,
+                            fymd: fymd,
+                            tymd: tymd,
+                            corp_gr: corpGr()
+                        };
+                    },
+                    getTitle: function () {
+                        return '고유계좌 운용현황';
+                    },
+                    getStatus: function (data) {
+                        const f = (data && data.fymd) ? data.fymd : ((typeof getFilterFYmd === 'function') ? getFilterFYmd(pane) : initialFymd);
+                        const t = (data && data.tymd) ? data.tymd : ((typeof getFilterTYmd === 'function') ? getFilterTYmd(pane) : initialTymd);
+                        return '조회기간: ' + f + ' ~ ' + t;
+                    },
+                    getDownloadName: function () {
+                        const f = (typeof getFilterFYmd === 'function') ? getFilterFYmd(pane, 'YYYYMMDD') : '';
+                        const t = (typeof getFilterTYmd === 'function') ? getFilterTYmd(pane, 'YYYYMMDD') : '';
+                        return f + '_' + t + '_고유계좌운용현황';
+                    }
+                });
+            }
+
+            // --- 상단 공통 툴바 표준 계약 (Rule 08) ---
+            pane.onSearch = function () {
+                loadReport();
+            };
+
+            pane.onExcel = function () {
+                if (reportViewer && typeof reportViewer.exportFormat === 'function') {
+                    reportViewer.exportFormat('excel');
+                }
+            };
+
+            pane.onPrint = function () {
+                if (reportViewer && typeof reportViewer.print === 'function') {
+                    reportViewer.print();
+                }
+            };
+
+            pane.onRefresh = function () {
+                if (typeof showToast === 'function') showToast('화면이 초기화되었습니다.', 'info');
+                initDddw();
+                if (reportViewer && typeof reportViewer.clear === 'function') {
+                    reportViewer.clear();
+                }
+            };
+
+            pane.onCorpGrChange = function (newCorpGr) {
+                initDddw();
+            };
+
+            // 초기화 실행
+            async function init() {
+                if (isInitialized) return;
+                isInitialized = true;
+
+                initViewer();
+                await initDddw();
+
+                // 계정 변경 시 자동 리포트 갱신 연동
+                const select = field('filterDddw') || pane.querySelector('select[name="dddw"]');
+                if (select) {
+                    select.addEventListener('change', function () {
+                        loadReport();
+                    });
+                }
+            }
+
+            init();
+        })();
+    </script>
+</div>
+</html>
+
