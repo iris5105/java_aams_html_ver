@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.kfp.aams.domain.assetmanagement.mapper.Ja031jMapper">
+
+    <!-- 1. GA 테이블 자료 카운트 조회 -->
+    <select id="countGaData" resultType="int">
+        SELECT COUNT(*)
+          FROM GA t1
+         WHERE t1.CORP_GR = #{corpGr}
+           AND t1.YM      = #{ym}
+    </select>
+
+    <!-- 2. 금감원 보고서 자료생성 프로시저 호출 (KFP.SR_JA031J) -->
+    <select id="callSrJa031j" statementType="CALLABLE">
+        { CALL KFP.SR_JA031J(
+            #{corpGr, mode=IN, jdbcType=VARCHAR},
+            #{ym, mode=IN, jdbcType=VARCHAR}
+        ) }
+    </select>
+
+    <!-- 3. 금감원 보고서 데이터 목록 조회 (d_ja031j.srd SQL 100% 반영) -->
+    <select id="selectGaList" resultType="com.kfp.aams.domain.assetmanagement.dto.Ja031jDto">
+        SELECT t1.C_01  AS c01
+             , t1.C_02  AS c02
+             , t1.C_03  AS c03
+             , t1.C_04  AS c04
+             , t1.C_05  AS c05
+             , SUM(t1.N_01) AS n01
+             , SUM(t1.N_02) AS n02
+             , CASE WHEN t1.C_01 = 'GA191' THEN MAX(t1.N_03)
+                    ELSE SUM(t1.N_03)
+               END      AS n03
+             , SUM(t1.N_04) AS n04
+             , SUM(t1.N_05) AS n05
+             , SUM(t1.N_06) AS n06
+             , SUM(t1.N_07) AS n07
+             , SUM(t1.N_08) AS n08
+             , SUM(t1.N_09) AS n09
+             , SUM(t1.N_10) AS n10
+             , SUM(t1.N_11) AS n11
+             , SUM(t1.N_12) AS n12
+             , SUM(t1.N_13) AS n13
+             , SUM(t1.N_14) AS n14
+             , SUM(t1.N_15) AS n15
+             , SUM(t1.N_16) AS n16
+             , SUM(t1.N_17) AS n17
+             , SUM(t1.N_18) AS n18
+             , SUM(t1.N_19) AS n19
+             , SUM(t1.N_20) AS n20
+          FROM GA t1
+         WHERE t1.CORP_GR = #{corpGr}
+           AND t1.YM      = #{ym}
+         GROUP BY t1.C_01, t1.C_02, t1.C_03, t1.C_04, t1.C_05
+         ORDER BY t1.C_01, t1.C_02, t1.C_03
+    </select>
+
+    <!-- 4. 점검자료 데이터 목록 조회 (d_ja031j_ga191.srd SQL 100% 반영) -->
+    <select id="selectGa191List" resultType="com.kfp.aams.domain.assetmanagement.dto.Ja031jGa191Dto">
+        SELECT t1.FUND_CD AS fundCd
+             , ia.FUND_NM AS fundNm
+             , t1.C_01    AS c01
+             , t1.C_02    AS c02
+             , t1.C_03    AS c03
+             , t1.C_04    AS c04
+             , t1.C_05    AS c05
+             , t1.N_03    AS n03
+             , SUM(t1.N_01) AS n01
+             , SUM(t1.N_02) AS n02
+          FROM GA     t1
+          JOIN SZM0IA ia
+            ON ia.CORP_GR = t1.CORP_GR
+           AND ia.FUND_CD = t1.FUND_CD
+         WHERE t1.CORP_GR = #{corpGr}
+           AND t1.YM      = #{ym}
+           AND t1.C_01    = 'GA191'
+         GROUP BY t1.FUND_CD, ia.FUND_NM, t1.C_01, t1.C_02, t1.C_03, t1.C_04, t1.C_05, t1.N_03
+         ORDER BY t1.FUND_CD, t1.C_02, t1.N_03
+    </select>
+
+    <!-- 5. 회사명 조회 -->
+    <select id="selectCorpNm" resultType="java.lang.String">
+        SELECT NVL(t1.COMPANY_NAME, t1.CORP_GR)
+          FROM SZX0AA t1
+         WHERE t1.CORP_GR = #{corpGr}
+    </select>
+
+</mapper>
+

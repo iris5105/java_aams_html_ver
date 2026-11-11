@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<div class="view-container layout-single ja031j-container layout-mobile-stack-container" th:fragment="mainView" data-pgm-id="W_JA031J"
+     th:attr="data-corp-gr=${corpGr},data-pgm-no=${pgmNo},data-initial-ym=${initialYm}"
+     style="display:flex; flex-direction:column; height:100%; width:100%; overflow:hidden; background:#fff; position:relative;">
+
+    <!-- 1. Top Action Toolbar & Breadcrumb (Rule 08) -->
+    <div class="view-toolbar">
+        <div class="toolbar-left"><div th:replace="~{fragments/tab_header :: toolbarButtons}"></div></div>
+        <div th:replace="~{fragments/tab_header :: toolbarBreadcrumb}"></div>
+    </div>
+
+    <!-- 2. Filter Bar & Action Buttons (파워빌더 cb_xls, cb_ga191 인접 배치, Rule 08 UX 일체화 원칙) -->
+    <div class="filter-bar">
+        <div class="filter-left" style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+            <!-- 기준년월 필터 (PB dw_c: dc_dddw_ym의 ym) -->
+            <div class="filter-item" style="position:relative; display:flex; align-items:center; gap:6px;">
+                <label for="filterYm" style="font-size:12px; font-weight:600; color:#334155;">기준년월</label>
+                <div class="aams-calendar-wrapper" style="position:relative; display:inline-flex; align-items:center;">
+                    <input type="text" id="filterYm" name="ym" class="t-input aams-calendar-input"
+                           style="width:95px; padding:4px 8px; font-size:13px; text-align:center; border:1px solid #cbd5e1; border-radius:4px 0 0 4px; cursor:pointer; background:#ffffff;"
+                           th:value="${initialYm}" readonly autocomplete="off" />
+                    <button type="button" class="t-btn btn-calendar" title="달력 열기"
+                            style="padding:5px 10px; border-radius:0 4px 4px 0; border-left:none; background-color:#3b82f6; color:#ffffff; border:1px solid #3b82f6; cursor:pointer;"
+                            onclick="AamsCalendar.toggle('filterYm', event)">
+                        <i class="fa-regular fa-calendar-days"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- 파워빌더 화면 전용 액션 버튼 (cb_xls: 보고서엑셀저장, cb_ga191: 점검자료엑셀생성) -->
+            <div class="action-btn-group" style="display:inline-flex; align-items:center; gap:6px;">
+                <button type="button" class="t-btn btn-action" id="btnJa031jReportExcel" title="금감원 보고서 엑셀 저장 (cb_xls)" disabled
+                        style="padding:5px 12px; font-size:12px; font-weight:600; color:#ffffff; background-color:#10b981; border:1px solid #10b981; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; gap:5px; opacity:0.5;">
+                    <i class="fa-solid fa-file-excel"></i> 보고서엑셀저장
+                </button>
+                <button type="button" class="t-btn btn-action" id="btnJa031jGa191Excel" title="점검자료(GA191) 엑셀 생성 및 다운로드 (cb_ga191)" disabled
+                        style="padding:5px 12px; font-size:12px; font-weight:600; color:#ffffff; background-color:#6366f1; border:1px solid #6366f1; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; gap:5px; opacity:0.5;">
+                    <i class="fa-solid fa-file-shield"></i> 점검자료엑셀생성
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. Report Preview Viewer Panel (Crownix MRD Fullscreen Panel, Rule 12) -->
+    <div class="report-container-panel" style="flex:1; min-height:0; display:flex; flex-direction:column; padding:0 10px 10px;">
+        <div th:replace="~{fragments/report/report_viewer :: reportViewerBottomPane(reportTitle='금감원 보고서', defaultStatus='조회 대기 중')}"></div>
+    </div>
+
+    <!-- 4. Mobile Modal Viewer (Responsive width <= 876px, Rule 11) -->
+    <div th:replace="~{fragments/report/report_viewer :: reportMobileModal(modalId='ja031jMobileModal', modalTitle='금감원 보고서')}"></div>
+
+    <script>
+        (function () {
+            const script = document.currentScript;
+            const pane = script ? (script.closest('.tab-pane') || script.closest('.view-container')) : null;
+            if (!pane) return;
+
+            const initialCorpGr = pane.getAttribute('data-corp-gr') || '';
+            const initialYm = pane.getAttribute('data-initial-ym') || '';
+            const initialPgmNo = pane.getAttribute('data-pgm-no') || '';
+
+            // 파워빌더 wue_lastopen의 is_ym (직전 월 YYYYMM)
+            const isYmDigits = initialYm.replace(/[^0-9]/g, '');
+
+            let reportViewer = null;
+            let isInitialized = false;
+
+            function field(id) { return pane.querySelector('#' + id); }
+            function corpGr() { return (typeof resolveCorpGr === 'function' ? resolveCorpGr(pane) : '') || initialCorpGr; }
+
+            function getYmRaw() {
+                const input = field('filterYm');
+                return (input && input.value) ? input.value.trim() : initialYm;
+            }
+
+            function getYmDigits() {
+                return getYmRaw().replace(/[^0-9]/g, '');
+            }
+
+            function getYmFormatted() {
+                const digits = getYmDigits();
+                if (digits.length >= 6) {
+                    return digits.substring(0, 4) + '년 ' + digits.substring(4, 6) + '월';
+                }
+                return getYmRaw();
+            }
+
+            // 하단 엑셀 버튼 활성화/비활성화 제어 (PB: cb_xls.enabled = true, cb_ga191.enabled = true)
+            function setActionButtonsEnabled(enabled) {
+                const btnXls = field('btnJa031jReportExcel');
+                const btnGa191 = field('btnJa031jGa191Excel');
+                if (btnXls) {
+                    btnXls.disabled = !enabled;
+                    btnXls.style.opacity = enabled ? '1' : '0.5';
+                    btnXls.style.cursor = enabled ? 'pointer' : 'not-allowed';
+                }
+                if (btnGa191) {
+                    btnGa191.disabled = !enabled;
+                    btnGa191.style.opacity = enabled ? '1' : '0.5';
+                    btnGa191.style.cursor = enabled ? 'pointer' : 'not-allowed';
+                }
+            }
+
+            // 자료 존재 여부 확인 API (PB: SELECT COUNT(*) INTO :ll_ga FROM GA WHERE corp_gr = :gaa.CORP_GR AND ym = :ls_ym)
+            async function checkDataExists(ymDigits) {
+                try {
+                    const res = await fetch('/api/assetmanagement/ja031j/check-data?corpGr=' + encodeURIComponent(corpGr()) + '&ym=' + encodeURIComponent(ymDigits));
+                    if (res.ok) {
+                        const data = await res.json();
+                        return (data.count || 0);
+                    }
+                } catch (e) {
+                    console.warn('[W_JA031J] checkDataExists error:', e);
+                }
+                return 0;
+            }
+
+            // 자료생성 프로시저(SR_JA031J) 호출 API
+            async function executeGenerate(ymDigits) {
+                if (typeof showToast === 'function') showToast('자료 생성을 진행 중입니다. 잠시만 기다려주세요...', 'info');
+
+                try {
+                    const res = await fetch('/api/assetmanagement/ja031j/generate', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                            ...(window.AamsSecurity && window.AamsSecurity.getCsrfHeaders ? window.AamsSecurity.getCsrfHeaders() : {})
+                        },
+                        body: 'corpGr=' + encodeURIComponent(corpGr()) + '&ym=' + encodeURIComponent(ymDigits)
+                    });
+
+                    if (res.ok) {
+                        const result = await res.json();
+                        if (result.success) {
+                            if (typeof showToast === 'function') showToast(result.message || '자료 생성이 완료되었습니다.', 'success');
+                            return true;
+                        } else {
+                            if (typeof showToast === 'function') showToast(result.message || '자료 생성에 실패했습니다.', 'error');
+                        }
+                    } else {
+                        if (typeof showToast === 'function') showToast('서버 오류로 자료 생성에 실패했습니다.', 'error');
+                    }
+                } catch (e) {
+                    console.error('[W_JA031J] executeGenerate error:', e);
+                    if (typeof showToast === 'function') showToast('자료 생성 요청 중 통신 오류가 발생했습니다.', 'error');
+                }
+                return false;
+            }
+
+            /**
+             * 조회 실행: 파워빌더 ole_rd::ue_retrieve 흐름 100% 동일 구현
+             *
+             * PB Logic:
+             *   ls_ym = dw_c.object.ym [1]
+             *   IF ls_ym >= is_ym OR gaa.admin Then
+             *       SELECT COUNT(*) INTO :ll_ga FROM GA WHERE CORP_GR = :gaa.CORP_GR AND ym = :ls_ym ;
+             *       IF ll_ga > 0 Then
+             *           IF F_MESSAGEBOX ('I002','생성자료가 있습니다.~r~n다시 생성 하시겠습니까?')=2 THEN lb_cre = false
+             *       END IF
+             *       IF lb_cre Then
+             *           SQLCA.SP_CALL ('SR_JA031J ( ?, ? )')
+             *       END IF
+             *   End IF
+             *   UF_FILEOPEN ('RD_JA031J.mrd', 'ym[' + ls_ym + ']')
+             *   cb_xls.enabled = true
+             *   cb_ga191.enabled = true
+             */
+            async function retrieveReport() {
+                if (!reportViewer || typeof reportViewer.load !== 'function') return;
+
+                const ymDigits = getYmDigits();
+                if (!ymDigits || ymDigits.length < 6) {
+                    if (typeof showToast === 'function') showToast('기준년월을 선택하세요.', 'warning');
+                    return;
+                }
+
+                let shouldCreate = true;
+
+                // 1. 해당 년월이 직전 월(is_ym) 이상이거나 관리자일 때 자료 생성 검사 및 프로시저 호출
+                const isCurrentOrFuture = !isYmDigits || (ymDigits >= isYmDigits);
+                if (isCurrentOrFuture) {
+                    const count = await checkDataExists(ymDigits);
+                    if (count > 0) {
+                        // 이미 데이터가 있는 경우: 파워빌더 F_MESSAGEBOX('I002')와 동일
+                        const confirmRecreate = confirm('생성자료가 있습니다.\n다시 생성 하시겠습니까?');
+                        if (!confirmRecreate) {
+                            shouldCreate = false;
+                        }
+                    }
+
+                    if (shouldCreate) {
+                        const success = await executeGenerate(ymDigits);
+                        if (!success && count === 0) {
+                            // 생성 실패했고 기존 자료도 없으면 리포트 오픈 중단
+                            return;
+                        }
+                    }
+                }
+
+                // 2. MRD 리포트 오픈 (UF_FILEOPEN)
+                reportViewer.load({
+                    id: ymDigits + '_' + corpGr(),
+                    ym: ymDigits
+                }, '조회완료 (' + getYmFormatted() + ')', true);
+
+                // 3. 버튼 활성화 (cb_xls.enabled = true, cb_ga191.enabled = true)
+                setActionButtonsEnabled(true);
+
+                if (window.ButtonRole && typeof window.ButtonRole.setSearchState === 'function') {
+                    window.ButtonRole.setSearchState(pane, true);
+                }
+            }
+
+            // 일체형 리포트 제어 엔진 바인딩 (Rule 12)
+            function initViewer() {
+                const reportEngine = window.AamsReport;
+                if (!reportEngine || typeof reportEngine.bindViewer !== 'function') return;
+
+                reportViewer = reportEngine.bindViewer(pane, {
+                    reportFile: 'rd_ja031j.mrd',
+                    modalId: 'ja031jMobileModal',
+                    zoom: 120,
+                    getCorpGr: function () {
+                        return corpGr();
+                    },
+                    buildParams: function (data) {
+                        const ymDigits = (data && data.ym) ? data.ym : getYmDigits();
+                        return {
+                            ym: ymDigits,
+                            corp_gr: corpGr()
+                        };
+                    },
+                    getTitle: function () {
+                        return '금감원 보고서';
+                    },
+                    getStatus: function (data) {
+                        return '기준년월: ' + getYmFormatted();
+                    },
+                    getDownloadName: function () {
+                        return '금감원보고서_' + getYmDigits();
+                    }
+                });
+            }
+
+            function downloadFile(url, fileName) {
+                const a = document.createElement('a');
+                a.href = url;
+                if (fileName) a.download = fileName;
+                document.body.appendChild(a);
+                a.click();
+                setTimeout(function () {
+                    document.body.removeChild(a);
+                }, 100);
+            }
+
+            function downloadReportExcel() {
+                const ymDigits = getYmDigits();
+                if (!ymDigits || ymDigits.length < 6) {
+                    if (typeof showToast === 'function') showToast('기준년월을 선택하세요.', 'warning');
+                    return;
+                }
+                if (typeof showToast === 'function') showToast('금감원 보고서 엑셀 파일을 생성 중입니다. 잠시만 기다려주세요...', 'info');
+                const downloadUrl = '/api/assetmanagement/ja031j/export-excel?corpGr=' + encodeURIComponent(corpGr()) + '&ym=' + encodeURIComponent(ymDigits);
+                downloadFile(downloadUrl, '금감원보고서_' + ymDigits + '.xlsx');
+            }
+
+            function downloadGa191Excel() {
+                const ymDigits = getYmDigits();
+                if (!ymDigits || ymDigits.length < 6) {
+                    if (typeof showToast === 'function') showToast('기준년월을 선택하세요.', 'warning');
+                    return;
+                }
+                if (typeof showToast === 'function') showToast('점검자료(GA191) 엑셀 파일을 생성 중입니다. 잠시만 기다려주세요...', 'info');
+                const downloadUrl = '/api/assetmanagement/ja031j/export-ga191?corpGr=' + encodeURIComponent(corpGr()) + '&ym=' + encodeURIComponent(ymDigits);
+                downloadFile(downloadUrl, '금감원보고서_' + ymDigits + '(자료점검용).xlsx');
+            }
+
+            // --- 상단 공통 툴바 표준 계약 (Rule 08) ---
+            pane.onSearch = function () {
+                retrieveReport();
+            };
+
+            pane.onExcel = function () {
+                downloadReportExcel();
+            };
+
+            pane.onPrint = function () {
+                if (reportViewer && typeof reportViewer.print === 'function') {
+                    reportViewer.print();
+                }
+            };
+
+            pane.onRefresh = function () {
+                if (typeof showToast === 'function') showToast('화면이 초기화되었습니다.', 'info');
+                const ymInput = field('filterYm');
+                if (ymInput && initialYm) ymInput.value = initialYm;
+                setActionButtonsEnabled(false);
+                if (reportViewer && typeof reportViewer.clear === 'function') {
+                    reportViewer.clear();
+                }
+            };
+
+            pane.onCorpGrChange = function (newCorpGr) {
+                setActionButtonsEnabled(false);
+                if (reportViewer && typeof reportViewer.clear === 'function') {
+                    reportViewer.clear();
+                }
+            };
+
+            // 화면 전용 버튼 이벤트 바인딩 (cb_xls, cb_ga191)
+            function initActionButtons() {
+                // 1. 보고서엑셀저장 버튼 (PB cb_xls 원본 서식 엑셀 다운로드)
+                const btnXls = field('btnJa031jReportExcel');
+                if (btnXls) {
+                    btnXls.addEventListener('click', function () {
+                        if (btnXls.disabled) return;
+                        downloadReportExcel();
+                    });
+                }
+
+                // 2. 점검자료엑셀생성 버튼 (PB cb_ga191)
+                const btnGa191 = field('btnJa031jGa191Excel');
+                if (btnGa191) {
+                    btnGa191.addEventListener('click', function () {
+                        if (btnGa191.disabled) return;
+                        downloadGa191Excel();
+                    });
+                }
+            }
+
+            // 초기화 진입점
+            function init() {
+                if (isInitialized) return;
+                isInitialized = true;
+
+                initViewer();
+                initActionButtons();
+                setActionButtonsEnabled(false);
+            }
+
+            init();
+        })();
+    </script>
+</div>
+</html>
