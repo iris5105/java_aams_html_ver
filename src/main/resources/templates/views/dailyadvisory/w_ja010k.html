@@ -42,20 +42,7 @@
         <div class="pane-right detail-section">
             <div class="pane-header">
                 <span><i class="fa-solid fa-table-list" style="margin-right: 6px;"></i> 수요예측 참여 상세 (<span id="selected-fund-name" style="color: #2563eb;">선택된 펀드 없음</span>)</span>
-                <div style="display: flex; align-items: center; gap: 6px;">
-                    <!-- Detail Sub Action Buttons matching PowerBuilder UI -->
-                    <div class="btn-group-sub" style="display: inline-flex; gap: 3px;">
-                        <button type="button" id="btnDetailRefresh" class="btn-action btn-sub" title="상세 새로고침" style="padding: 2px 7px; font-size: 11px; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 3px; cursor: pointer;">
-                            <i class="fa-solid fa-rotate-right"></i>
-                        </button>
-                        <button type="button" id="btnDetailSave" class="btn-action btn-sub" title="상세저장" style="padding: 2px 7px; font-size: 11px; background: #2563eb; color: #fff; border: 1px solid #1d4ed8; border-radius: 3px; cursor: pointer;">
-                            <i class="fa-solid fa-floppy-disk"></i>
-                        </button>
-                        <button type="button" id="btnDetailExcel" class="btn-action btn-sub" title="엑셀다운로드" style="padding: 2px 7px; font-size: 11px; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 3px; cursor: pointer;">
-                            <i class="fa-solid fa-file-excel" style="color: #16a34a;"></i>
-                        </button>
-                    </div>
-                </div>
+                <div th:replace="~{fragments/grid/detail_nav :: detailNav(targetGrid='#ja010k-detail-grid', fileName='수요예측참여상세', buttons='0010011001')}"></div>
             </div>
             <div class="pane-body">
                 <div id="ja010k-detail-grid" class="tabulator-aams-grid" style="height: 100%;"></div>
@@ -471,38 +458,8 @@
                     kwInput.addEventListener("input", applyDetailFilter);
                 }
 
-                // Detail Sub Buttons
-                bindSubButtons();
-
                 // Initial Load
                 setTimeout(loadMasterGrid, 100);
-            }
-
-            function bindSubButtons() {
-                const btnRefresh = pane ? pane.querySelector("#btnDetailRefresh") : document.getElementById("btnDetailRefresh");
-                if (btnRefresh) {
-                    btnRefresh.addEventListener("click", function() {
-                        if (currentSelectedMaster) {
-                            const corpGr = resolveCorpGr(pane);
-                            const dates = getFilterDates();
-                            loadDetailGrid(corpGr, dates.fYmd, dates.tYmd, currentSelectedMaster.fundCd);
-                        }
-                    });
-                }
-
-                const btnSave = pane ? pane.querySelector("#btnDetailSave") : document.getElementById("btnDetailSave");
-                if (btnSave) {
-                    btnSave.addEventListener("click", save);
-                }
-
-                const btnExcel = pane ? pane.querySelector("#btnDetailExcel") : document.getElementById("btnDetailExcel");
-                if (btnExcel) {
-                    btnExcel.addEventListener("click", function() {
-                        if (gridDetail) {
-                            gridDetail.download("xlsx", `수요예측참여표_${currentSelectedMaster ? currentSelectedMaster.fundCd : ''}.xlsx`);
-                        }
-                    });
-                }
             }
 
             // Save Function (Rule 9)

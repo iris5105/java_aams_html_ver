@@ -40,7 +40,7 @@ public class Ja030jService {
 
     /**
      * 채권 상세 정보 조회 (파워빌더 dw_detail::ue_retrieve)
-     * 프로시저 KFP.SR_JA030J 호출 우선 -> 실패/오류 시 직결 SQL Fallback
+     * 직결 SQL 우선 조회 (프로시저 내 수식 컬럼 별칭 누락으로 인한 null 매핑 방어) -> 실패 시 프로시저 호출
      */
     public Ja030jDetailDto getJa030jDetail(String corpGr, String ymd, String fundCd, String jmCd) {
         String cleanYmd = ymd != null ? ymd.replaceAll("[^0-9]", "") : "";
@@ -48,6 +48,17 @@ public class Ja030jService {
         String cleanFundCd = fundCd != null ? fundCd.trim() : "";
         String cleanJmCd = jmCd != null ? jmCd.trim() : "";
 
+        // 1) 직결 SQL 우선 실행 (모든 컬럼 명시적 Alias 매핑으로 hmChuiAek, hmAekm 등 누락 원천 방어)
+        try {
+            Ja030jDetailDto detail = ja030jMapper.selectJa030jDetail(cleanCorpGr, cleanYmd, cleanFundCd, cleanJmCd);
+            if (detail != null) {
+                return detail;
+            }
+        } catch (Exception e) {
+            log.warn("[Ja030jService] selectJa030jDetail 직결 쿼리 실행 실패, 프로시저로 대체 시도합니다: {}", e.getMessage());
+        }
+
+        // 2) 프로시저 KFP.SR_JA030J 호출 Fallback
         try {
             Map<String, Object> params = new HashMap<>();
             params.put("corpGr", cleanCorpGr);
@@ -63,11 +74,10 @@ public class Ja030jService {
                 return list.get(0);
             }
         } catch (Exception e) {
-            log.warn("[Ja030jService] SR_JA030J 프로시저 호출 실패, 직결 쿼리로 대체 실행합니다. 원인: {}", e.getMessage());
+            log.warn("[Ja030jService] SR_JA030J 프로시저 호출 실패: {}", e.getMessage());
         }
 
-        // 프로시저 실패 또는 결과 없음 시 직결 SQL Fallback 실행
-        return ja030jMapper.selectJa030jDetail(cleanCorpGr, cleanYmd, cleanFundCd, cleanJmCd);
+        return null;
     }
 }
 

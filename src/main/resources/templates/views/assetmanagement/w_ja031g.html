@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
-<div class="view-container layout-split-h ja031g-container layout-mobile-stack-container" th:fragment="mainView" data-pgm-id="W_JA031G"
+<div class="view-container layout-split ja031g-container layout-mobile-stack-container" th:fragment="mainView" data-pgm-id="W_JA031G"
      th:attr="data-corp-gr=${corpGr},data-pgm-no=${pgmNo},data-fymd=${fymd},data-tymd=${tymd}"
      style="display:flex; flex-direction:column; height:100%; width:100%; overflow:hidden; background:#fff; position:relative;">
 
@@ -17,36 +17,36 @@
         </div>
     </div>
 
-    <!-- 3. Main Split Container (Master: Funds List / Detail: Cash & Short-Term Trading Details) -->
-    <div class="split-horizontal-container layout-split-h layout-mobile-stack" style="flex:1; min-height:0; display:flex; flex-direction:row; padding:0 10px 10px; overflow:hidden;">
+    <!-- 3. Split Master-Detail Layout (Vertical Split: Left Master Fund Grid / Right Detail Cash Trade Grid) -->
+    <div class="layout-split-h split-body layout-mobile-stack" data-split-key="W_JA031G" data-default-ratio="25:75" style="flex: 1; min-height: 0; display: flex; width: 100%; overflow: hidden;">
         
-        <!-- Left Panel: Master Grid (d_ja031g.srd) -->
-        <div class="split-pane split-pane-left master-grid-pane" id="ja031gMasterPane" style="width:330px; min-width:260px; max-width:480px; display:flex; flex-direction:column; height:100%; min-height:0;">
-            <div class="pane-header" style="height:32px; display:flex; align-items:center; padding:0 8px; border:1px solid #cbd5e1; border-bottom:none; background:#f8fafc; font-weight:600; color:#1e293b; font-size:12px;">
-                <i class="fa-solid fa-list-check me-1 text-primary"></i> 펀드 목록
+        <!-- Left Master Panel: d_ja031g Fund Grid -->
+        <div class="pane-left left-pane" id="ja031gMasterPane" style="display: flex; flex-direction: column; min-height: 0; overflow: hidden;">
+            <div class="pane-header">
+                <span><i class="fa-solid fa-list" style="margin-right: 6px;"></i> 계좌 목록</span>
             </div>
-            <div class="pane-body" style="flex:1; min-height:0; border:1px solid #cbd5e1;">
-                <div id="ja031gMasterGrid" class="tabulator-aams-grid" style="height:100%; width:100%;"></div>
+            <div class="pane-body" style="flex: 1; min-height: 0; padding: 0 4px 4px; overflow: hidden;">
+                <div id="ja031gMasterGrid" class="tabulator-aams-grid" style="height: 100%; width: 100%;"></div>
             </div>
         </div>
 
         <!-- Split Gutter (Horizontal Splitter) -->
-        <div class="split-gutter-h" role="separator" aria-orientation="vertical" style="width:6px; cursor:col-resize; background:#e2e8f0; border-left:1px solid #cbd5e1; border-right:1px solid #cbd5e1;"></div>
+        <div class="split-gutter-h" role="separator" aria-orientation="vertical"></div>
 
-        <!-- Right Panel: Detail Grid (d_ja031g1.srd) -->
-        <div class="split-pane split-pane-right detail-grid-pane" id="ja031gDetailPane" style="flex:1; min-width:0; display:flex; flex-direction:column; height:100%; min-height:0;">
-            <div class="pane-header" style="height:32px; display:flex; align-items:center; justify-content:space-between; padding:0 8px; border:1px solid #cbd5e1; border-bottom:none; background:#f8fafc; font-weight:600; color:#1e293b; font-size:12px;">
+        <!-- Right Detail Panel: d_ja031g1 Cash & Short-Term Trading Details Grid -->
+        <div class="pane-right detail-section" id="ja031gDetailPane" style="display: flex; flex-direction: column; min-height: 0; overflow: hidden;">
+            <div class="sub-grid-header" style="display: flex; align-items: center; justify-content: space-between;">
                 <div>
-                    <i class="fa-solid fa-money-bill-transfer me-1 text-primary"></i> 현금/단기금융 매매내역
-                    <span id="ja031gSelectedFundLabel" style="font-weight:400; color:#64748b; margin-left:8px;">[선택: 전체]</span>
+                    <span class="sub-title"><i class="fa-solid fa-money-bill-transfer" style="margin-right: 6px;"></i> 현금/단기금융 매매내역</span>
+                    <span id="ja031gSelectedFundLabel" class="small text-muted" style="margin-left: 8px;">[선택: 전체]</span>
                 </div>
-                <div style="font-weight:400; font-size:11px; color:#64748b;">
-                    <span style="color:#2563eb; font-weight:bold; margin-right:8px;"><i class="fa-solid fa-circle text-primary" style="font-size:8px;"></i> 매입(J)</span>
-                    <span style="color:#dc2626; font-weight:bold;"><i class="fa-solid fa-circle text-danger" style="font-size:8px;"></i> 매도(K)</span>
+                <div style="font-weight: 400; font-size: 11px; color: #64748b; display: inline-flex; align-items: center; gap: 8px;">
+                    <span style="color: #2563eb; font-weight: bold;"><i class="fa-solid fa-circle text-primary" style="font-size: 8px; margin-right: 3px;"></i> 매입(J)</span>
+                    <span style="color: #dc2626; font-weight: bold;"><i class="fa-solid fa-circle text-danger" style="font-size: 8px; margin-right: 3px;"></i> 매도(K)</span>
                 </div>
             </div>
-            <div class="pane-body" style="flex:1; min-height:0; border:1px solid #cbd5e1;">
-                <div id="ja031gDetailGrid" class="tabulator-aams-grid" style="height:100%; width:100%;"></div>
+            <div class="pane-body" style="flex: 1; min-height: 0; padding: 0 4px 4px; overflow: hidden;">
+                <div id="ja031gDetailGrid" class="tabulator-aams-grid" style="height: 100%; width: 100%;"></div>
             </div>
         </div>
 
@@ -117,7 +117,7 @@
                             }
                         },
                         {
-                            title: '펀드번호', // Rule 04: fundCd 헤더는 항상 '펀드번호'
+                            title: '관리번호',
                             field: 'fundCd',
                             width: 100,
                             hozAlign: 'center',
@@ -183,7 +183,7 @@
                             }
                         },
                         {
-                            title: '펀드번호', // Rule 04 준수
+                            title: '관리번호',
                             field: 'fundCd',
                             width: 100,
                             hozAlign: 'center',
@@ -547,6 +547,11 @@
 
                 initMasterGrid();
                 initDetailGrid();
+
+                // 스플리터 초기화 (규칙 10 AamsSplitter.init 단일 진입점)
+                if (window.AamsSplitter && typeof window.AamsSplitter.init === 'function') {
+                    window.AamsSplitter.init(pane);
+                }
 
                 // 상단 공통 버튼 권한 엔진(ButtonRole) 적용
                 if (window.ButtonRole && typeof window.ButtonRole.apply === 'function') {

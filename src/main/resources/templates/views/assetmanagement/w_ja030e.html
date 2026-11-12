@@ -1,0 +1,968 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<div class="view-container layout-split ja030e-container layout-mobile-stack-container" th:fragment="mainView" data-pgm-id="W_JA030E"
+     th:attr="data-corp-gr=${corpGr},data-corp-nm=${corpNm},data-company-name=${corpNm},data-pgm-no=${pgmNo},data-work-date=${workDate}"
+     style="display:flex; flex-direction:column; height:100%; width:100%; overflow:hidden; background:#fff; position:relative;">
+
+    <!-- W_JA030E 인쇄 및 리포트 프리뷰 전용 스타일 -->
+    <style>
+        /* 좌측 마스터 그리드 선택행 하이라이트 (이미지와 동일한 스카이블루) */
+        .ja030e-container .tabulator .tabulator-row.tabulator-selected {
+            background-color: #bae6fd !important;
+            color: #0f172a !important;
+        }
+        .ja030e-container .tabulator .tabulator-row.tabulator-selected .tabulator-cell {
+            background-color: #bae6fd !important;
+            color: #0f172a !important;
+        }
+
+        /* 우측 뷰포트 배경 (파워빌더 인쇄 미리보기 전형 그레이, 여백 최소화로 시트 100% 안착) */
+        .ja030e-report-viewport {
+            background-color: #e2e8f0;
+            flex: 1;
+            min-height: 0;
+            overflow-y: auto;
+            overflow-x: auto;
+            padding: 6px 10px 16px;
+            display: flex;
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        /* 중앙 리포트 용지 (우측 영역 100% 가득 채우는 반응형 인쇄 시트) */
+        .ja030e-report-sheet {
+            width: 100%;
+            max-width: 100%;
+            min-width: 760px;
+            background: #ffffff;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+            padding: 18px 22px;
+            color: #000000;
+            font-family: '맑은 고딕', 'Pretendard', -apple-system, sans-serif;
+            font-size: 11px;
+            box-sizing: border-box;
+            border: 1px solid #71717a;
+            margin: 0 auto;
+        }
+
+        /* 브라우저 인쇄 (@media print) */
+        @media print {
+            body * {
+                visibility: hidden !important;
+            }
+            .ja030e-report-sheet,
+            .ja030e-report-sheet * {
+                visibility: visible !important;
+            }
+            .ja030e-report-sheet {
+                position: absolute !important;
+                left: 0 !important;
+                top: 0 !important;
+                width: 100% !important;
+                min-width: 100% !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                box-shadow: none !important;
+                border: none !important;
+            }
+            @page {
+                size: A4 landscape;
+                margin: 8mm 10mm;
+            }
+        }
+    </style>
+
+    <!-- 1. Top Action Toolbar & Breadcrumb (Rule 08) -->
+    <div class="view-toolbar">
+        <div class="toolbar-left"><div th:replace="~{fragments/tab_header :: toolbarButtons}"></div></div>
+        <div th:replace="~{fragments/tab_header :: toolbarBreadcrumb}"></div>
+    </div>
+
+    <!-- 2. Filter Bar (영업일자: dc_ymd) -->
+    <div class="filter-bar">
+        <div class="filter-left" style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+            <div class="filter-item" style="position:relative; display:flex; align-items:center; gap:6px;">
+                <label for="filterYmd" style="font-size:12px; font-weight:600; color:#334155;">영업일자</label>
+                <div class="aams-calendar-wrapper" style="position:relative; display:inline-flex; align-items:center;">
+                    <input type="text" id="filterYmd" name="ymd" class="t-input aams-calendar-input"
+                           style="width:95px; padding:4px 8px; font-size:12px; text-align:center; border:1px solid #cbd5e1; border-radius:4px 0 0 4px; cursor:pointer;"
+                           th:value="${workDate}" readonly autocomplete="off" />
+                    <button type="button" class="t-btn btn-calendar" title="영업일자 달력 열기"
+                            style="padding:4px 8px; border-radius:0 4px 4px 0; border-left:none; background-color:#3b82f6; color:#ffffff; border:1px solid #3b82f6; cursor:pointer;"
+                            onclick="AamsCalendar.toggle('filterYmd', event)">
+                        <i class="fa-regular fa-calendar-days"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. Main Split Container (Horizontal Split: Left Master Grid / Right Report Preview) -->
+    <div class="layout-split-h split-body layout-mobile-stack" data-split-key="W_JA030E" data-default-ratio="32:68"
+         style="flex:1; min-height:0; display:flex; width:100%; overflow:hidden; padding:0 10px 10px;">
+
+        <!-- Left Pane: Master Grid (d_ja030e1: 종목 목록) -->
+        <div class="pane-left left-pane" style="flex:0 0 300px; width:300px; min-width:250px; display:flex; flex-direction:column; min-height:0; overflow:hidden; border:1px solid #94a3b8; border-radius:3px;">
+            <div class="pane-body" style="flex:1; min-height:0; position:relative; overflow:hidden; background:#fff;">
+                <div id="gridJa030eMaster" class="tabulator-aams-grid" style="height:100%; width:100%;"></div>
+            </div>
+        </div>
+
+        <!-- Right Pane: Report Preview Viewport (d_ja030e2: 채권 종목정보 및 보유현황) -->
+        <div class="pane-right ja030e-report-viewport" id="ja030eReportViewport" style="border:1px solid #94a3b8; border-radius:3px; margin-left:8px;">
+            
+            <!-- 상단 네비게이션 툴바: 공통 grid-nav-group 표준 스타일 적용 (엑셀 다운로드 및 페이지 이동 네비게이터) -->
+            <div style="width:100%; display:flex; justify-content:flex-end; align-items:center; margin-bottom:6px; box-sizing:border-box;">
+                <div class="grid-nav-group">
+                    <button type="button" class="btn-grid-nav nav-excel" id="btnDetailExcel" title="DETAIL 엑셀 다운로드">
+                        <i class="fa-regular fa-file-excel"></i>
+                    </button>
+                    <button type="button" class="btn-grid-nav nav-first" id="btnFirstPage" title="처음 페이지">
+                        <i class="fa-solid fa-backward-step"></i>
+                    </button>
+                    <button type="button" class="btn-grid-nav nav-prev" id="btnPrevPage" title="이전 페이지">
+                        <i class="fa-solid fa-caret-left"></i>
+                    </button>
+                    <button type="button" class="btn-grid-nav nav-next" id="btnNextPage" title="다음 페이지">
+                        <i class="fa-solid fa-caret-right"></i>
+                    </button>
+                    <button type="button" class="btn-grid-nav nav-last" id="btnLastPage" title="마지막 페이지">
+                        <i class="fa-solid fa-forward-step"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- 중앙 리포트 시트 (d_ja030e2 인쇄 양식) -->
+            <div class="ja030e-report-sheet" id="repSheet">
+                
+                <!-- 1) 헤더 (회사명 및 타이틀) -->
+                <div style="position:relative; margin-bottom:10px;">
+                    <div id="repCompanyName" style="position:absolute; left:0; top:0; font-size:12px; font-weight:bold; color:#000;"
+                         th:text="${corpNm != null && !#strings.isEmpty(corpNm) ? corpNm : '운용사명'}">운용사명</div>
+                    <div style="text-align:center; font-size:17px; font-weight:700; color:#000; letter-spacing:2px;">채권 종목정보 및 보유현황</div>
+                    <div id="repTitleDate" style="text-align:center; font-size:11px; color:#333; margin-top:3px;">( 2026.11.12 )</div>
+                </div>
+
+                <!-- 2) 종목 스펙 테두리 블록 (4열 구성) -->
+                <div style="border:1px solid #71717a; padding:10px 16px; font-size:11px; line-height:1.55; color:#000; box-sizing:border-box; width:100%; overflow:hidden;">
+                    
+                    <!-- 종목명 행 -->
+                    <div style="display:flex; align-items:center; margin-bottom:6px; font-size:11px;">
+                        <span style="width:65px; flex-shrink:0; white-space:nowrap;">종&nbsp;&nbsp;&nbsp;&nbsp;목&nbsp;:</span>
+                        <span id="repJmCd" style="font-weight:700; min-width:110px; margin-right:12px;">-</span>
+                        <span id="repCjNm" style="font-weight:700;">-</span>
+                    </div>
+
+                    <!-- 4열 스펙 그리드 (1~3열 최적 너비 확보, 4열 유연 확장으로 적용단가 안전 안착) -->
+                    <div style="display:grid; grid-template-columns: 135px 145px 155px minmax(270px, 1fr); gap:4px 16px; width:100%; box-sizing:border-box;">
+                        
+                        <!-- 열 1 (일자 정보) -->
+                        <div style="display:flex; flex-direction:column; gap:2px; min-width:0;">
+                            <div style="display:flex;"><span style="width:58px; flex-shrink:0;">발&nbsp;행&nbsp;일&nbsp;:</span><span id="repBalhYmd" style="white-space:nowrap;">-</span></div>
+                            <div style="display:flex;"><span style="width:58px; flex-shrink:0;">매&nbsp;출&nbsp;일&nbsp;:</span><span id="repMedoYmd" style="white-space:nowrap;">-</span></div>
+                            <div style="display:flex;"><span style="width:58px; flex-shrink:0;">만&nbsp;기&nbsp;일&nbsp;:</span><span id="repSanghwYmd" style="white-space:nowrap;">-</span></div>
+                            <div style="display:flex;"><span style="width:58px; flex-shrink:0;">선이자일&nbsp;:</span><span id="repSunmeIjaYmd" style="white-space:nowrap;">-</span></div>
+                            <div style="display:flex;"><span style="width:58px; flex-shrink:0;">전이자일&nbsp;:</span><span id="repBfIjaYmd" style="white-space:nowrap;">-</span></div>
+                            <div style="display:flex;"><span style="width:58px; flex-shrink:0;">후이자일&nbsp;:</span><span id="repAfIjaYmd" style="white-space:nowrap;">-</span></div>
+                            <div style="display:flex;"><span style="width:58px; flex-shrink:0;">부&nbsp;도&nbsp;일&nbsp;:</span><span id="repBudoYmd" style="white-space:nowrap;">-</span></div>
+                        </div>
+
+                        <!-- 열 2 (구분 정보) -->
+                        <div style="display:flex; flex-direction:column; gap:2px; min-width:0;">
+                            <div style="display:flex;"><span style="width:74px; flex-shrink:0;">상장구분&nbsp;:</span><span id="repSangjGb" style="white-space:nowrap;">-</span></div>
+                            <div style="display:flex;"><span style="width:74px; flex-shrink:0;">선&nbsp;후&nbsp;취&nbsp;:</span><span id="repSunhuGb" style="white-space:nowrap;">-</span></div>
+                            <div style="display:flex;"><span style="width:74px; flex-shrink:0;">채권구분&nbsp;:</span><span id="repBondAttr" style="white-space:nowrap;">-</span></div>
+                            <div style="display:flex;"><span style="width:74px; flex-shrink:0;">이자방법&nbsp;:</span><span id="repIjaJigubGb" style="white-space:nowrap;">-</span></div>
+                            <div style="display:flex;"><span style="width:74px; flex-shrink:0;">등록일자&nbsp;:</span><span id="repJmCreDt" style="white-space:nowrap;">-</span></div>
+                            <div style="display:flex;"><span style="width:74px; flex-shrink:0;">시가평가구분:</span><span id="repSigaGb" style="white-space:nowrap;">-</span></div>
+                        </div>
+
+                        <!-- 열 3 (이자 및 이율) -->
+                        <div style="display:flex; flex-direction:column; gap:2px; min-width:0;">
+                            <div style="display:flex;"><span style="width:82px; flex-shrink:0;">이자년수&nbsp;:</span><span id="repIjaYySu" style="white-space:nowrap;">-</span></div>
+                            <div style="display:flex;"><span style="width:82px; flex-shrink:0;">연&nbsp;지&nbsp;급&nbsp;:</span><span id="repYyIjaHoisu" style="white-space:nowrap;">-</span></div>
+                            <div style="display:flex;"><span style="width:82px; flex-shrink:0;">현&nbsp;구&nbsp;간&nbsp;:</span><span id="repNowGuganNo" style="white-space:nowrap;">-</span></div>
+                            <div style="display:flex;"><span style="width:82px; flex-shrink:0;">총&nbsp;지&nbsp;급&nbsp;:</span><span id="repTotIjaHoicha" style="white-space:nowrap;">-</span></div>
+                            <div style="display:flex;"><span style="width:82px; flex-shrink:0;">발행단위&nbsp;:</span><span id="repBalhGa" style="white-space:nowrap;">-</span></div>
+                            <div style="display:flex;"><span style="width:82px; flex-shrink:0;">후순위채권구분:</span><span id="repHusunwiGb" style="white-space:nowrap;">-</span></div>
+                            <div style="display:flex;"><span style="width:82px; flex-shrink:0;">표면이율(%)&nbsp;:</span><span id="repPyomIyul" style="white-space:nowrap;">-</span></div>
+                        </div>
+
+                        <!-- 열 4 (기관 및 평가사 표: 우측 안전 여백 확보) -->
+                        <div style="display:flex; flex-direction:column; gap:2px; min-width:0; padding-right:12px; box-sizing:border-box;">
+                            <div style="display:flex; align-items:baseline;"><span style="width:62px; flex-shrink:0;">채권 종류&nbsp;:</span><span id="repBondCd" style="white-space:normal; word-break:break-all;">-</span></div>
+                            <div style="display:flex; align-items:baseline;"><span style="width:62px; flex-shrink:0;">발행 기관&nbsp;:</span><span id="repBalhCo" style="white-space:normal; word-break:break-all;">-</span></div>
+                            <div style="display:flex; align-items:baseline;"><span style="width:62px; flex-shrink:0;">보증 기관&nbsp;:</span><span id="repBojngCo" style="white-space:normal; word-break:break-all;">-</span></div>
+
+                            <!-- 평가사 미니 테이블 -->
+                            <div style="margin-top:4px; width:100%; box-sizing:border-box;">
+                                <table style="width:100%; max-width:320px; border-collapse:collapse; font-size:10px; text-align:right; table-layout:fixed; box-sizing:border-box;">
+                                    <colgroup>
+                                        <col style="width:20%;">
+                                        <col style="width:22%;">
+                                        <col style="width:26%;">
+                                        <col style="width:32%;">
+                                    </colgroup>
+                                    <thead>
+                                        <tr style="border-bottom:1px solid #71717a;">
+                                            <th style="text-align:left; font-weight:normal; padding:1px 2px; white-space:nowrap;">평가사</th>
+                                            <th style="font-weight:normal; padding:1px 2px; white-space:nowrap;">적용등급</th>
+                                            <th style="font-weight:normal; padding:1px 2px; white-space:nowrap;">적용이율</th>
+                                            <th style="font-weight:normal; padding:1px 6px 1px 2px; white-space:nowrap;">적용단가</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td style="text-align:left; padding:1px 2px; white-space:nowrap;">KIS :</td>
+                                            <td id="repKisGrade" style="padding:1px 2px; white-space:nowrap;">-</td>
+                                            <td id="repKisSuikRt" style="padding:1px 2px; white-space:nowrap;">0.00</td>
+                                            <td id="repKisDanga" style="padding:1px 6px 1px 2px; white-space:nowrap;">0.00</td>
+                                        </tr>
+                                        <tr>
+                                            <td style="text-align:left; padding:1px 2px; white-space:nowrap;">KAP :</td>
+                                            <td id="repKapGrade" style="padding:1px 2px; white-space:nowrap;">-</td>
+                                            <td id="repKapSuikRt" style="padding:1px 2px; white-space:nowrap;">0.00</td>
+                                            <td id="repKapDanga" style="padding:1px 6px 1px 2px; white-space:nowrap;">0.00</td>
+                                        </tr>
+                                        <tr>
+                                            <td style="text-align:left; padding:1px 2px; white-space:nowrap;">NICE :</td>
+                                            <td id="repNiceGrade" style="padding:1px 2px; white-space:nowrap;">-</td>
+                                            <td id="repNiceSuikRt" style="padding:1px 2px; white-space:nowrap;">0.00</td>
+                                            <td id="repNiceDanga" style="padding:1px 6px 1px 2px; white-space:nowrap;">0.00</td>
+                                        </tr>
+                                        <tr style="border-top:1px dashed #a1a1aa; font-weight:bold;">
+                                            <td colspan="2" style="text-align:left; padding:1px 2px; white-space:nowrap;">평균(적용) :</td>
+                                            <td id="repJySuikRt" style="padding:1px 2px; white-space:nowrap;">0.00</td>
+                                            <td id="repJyDanga" style="padding:1px 6px 1px 2px; white-space:nowrap;">0.00</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+                <!-- 3) 하단 보유현황 표 (d_ja030e2 Data Table) -->
+                <div style="margin-top:10px;">
+                    <table style="width:100%; border-collapse:collapse; font-size:11px;">
+                        <thead style="border-top:2px solid #000; border-bottom:1px solid #71717a; background:#f4f4f5;">
+                            <tr>
+                                <th style="text-align:left; padding:2px 4px; width:15%; font-weight:bold;">관리번호</th>
+                                <th style="text-align:right; padding:2px 4px; width:14%; font-weight:bold;">액&nbsp;&nbsp;&nbsp;&nbsp;면</th>
+                                <th style="text-align:right; padding:2px 4px; width:14%; font-weight:bold;">선급비용</th>
+                                <th style="text-align:right; padding:2px 4px; width:14%; font-weight:bold;">하루이자</th>
+                                <th style="text-align:right; padding:2px 4px; width:14%; font-weight:bold;">미수이자</th>
+                                <th style="text-align:right; padding:2px 4px; width:14%; font-weight:bold;">구간이자</th>
+                                <th style="text-align:right; padding:2px 4px; width:15%; font-weight:bold;">하루손익안분</th>
+                            </tr>
+                            <tr>
+                                <th style="text-align:left; padding:2px 4px; font-weight:bold;">계좌명</th>
+                                <th style="text-align:right; padding:2px 4px; font-weight:bold;">취&nbsp;득&nbsp;가</th>
+                                <th style="text-align:right; padding:2px 4px; font-weight:bold;">p 선급비용</th>
+                                <th style="text-align:right; padding:2px 4px; font-weight:bold;">p 하루이자</th>
+                                <th style="text-align:right; padding:2px 4px; font-weight:bold;">p 미수이자</th>
+                                <th style="text-align:right; padding:2px 4px; font-weight:bold;">p 구간이자</th>
+                                <th style="text-align:right; padding:2px 4px; font-weight:bold;">누적손익안분</th>
+                            </tr>
+                        </thead>
+                        <tbody id="repDetailTbody">
+                            <!-- 펀드별 2행씩 동적 렌더링 -->
+                        </tbody>
+                        <tfoot id="repDetailTfoot">
+                            <!-- [종목계] 합계 행 (연보라 테마) -->
+                        </tfoot>
+                    </table>
+                </div>
+
+                <!-- 4) 최하단 푸터 바 (노란색/연노랑 바 & 회사명) -->
+                <div style="background-color:#fef08a; border-top:1px solid #ca8a04; border-bottom:1px solid #ca8a04; padding:3px 12px; margin-top:6px; display:flex; justify-content:flex-end; font-weight:bold; font-size:11px; color:#000;">
+                    <span id="repBottomCompany" th:text="${corpNm != null && !#strings.isEmpty(corpNm) ? corpNm : '운용사명'}">운용사명</span>
+                </div>
+
+                <!-- 5) 페이지 번호 표시 -->
+                <div style="text-align:center; margin-top:10px; font-size:11px; color:#333;">
+                    Page <span id="repCurrentPage">1</span> of <span id="repTotalPages">1</span>
+                </div>
+
+            </div>
+        </div>
+
+    </div>
+
+    <script th:inline="none">
+        (function () {
+            const script = document.currentScript;
+            const pane = script ? (script.closest('.tab-pane') || script.closest('.view-container')) : null;
+            if (!pane) return;
+
+            const initialCorpGr = pane.getAttribute('data-corp-gr') || '';
+            const initialWorkDate = pane.getAttribute('data-work-date') || '';
+
+            let gridMaster = null;
+            let masterDataList = [];
+            let currentSelectedIndex = -1;
+            let lastLoadedMasterKey = null;
+            let isInitialized = false;
+
+            // DETAIL 페이징 및 데이터 캐시 (현재 선택된 종목 기준)
+            let currentDetailHeader = null;
+            let currentDetailList = [];
+            let currentDetailServerCorpNm = '';
+            let detailCurrentPage = 1;
+            const DETAIL_PAGE_SIZE = 6; // 1페이지당 펀드 건수 (각 펀드당 2줄, 총 12줄)
+
+            function field(id) { return pane.querySelector('#' + id); }
+            function corpGr() { return (typeof resolveCorpGr === 'function' ? resolveCorpGr(pane) : '') || initialCorpGr; }
+
+            // 현재 작업 대상 기업 운용사명(corpNm) 확인
+            function getTargetCorpNm() {
+                let name = '';
+                if (typeof resolveCorpNm === 'function') {
+                    name = resolveCorpNm(pane);
+                }
+                if (!name || name === '자사적용') {
+                    const headerCorpEl = document.querySelector('.header-corp-name, .user-corp-name, #headerCorpNm, #corpSelect option:checked, .corp-selector select option:checked');
+                    if (headerCorpEl && headerCorpEl.textContent) {
+                        const t = headerCorpEl.textContent.trim();
+                        if (t && t !== '자사적용') name = t;
+                    }
+                }
+                if (!name || name === '자사적용') {
+                    name = (window.currentCompanyName || sessionStorage.getItem('corpNm') || sessionStorage.getItem('companyName') || localStorage.getItem('corpNm') || '').trim();
+                }
+                if (!name || name === '자사적용') {
+                    const paneNm = pane.getAttribute('data-corp-nm') || pane.getAttribute('data-company-name');
+                    if (paneNm && paneNm.trim() && paneNm.trim() !== '자사적용') name = paneNm.trim();
+                }
+                if (!name || name === '자사적용') {
+                    const match = document.cookie.match(/(?:^|;\s*)corpNm=([^;]*)/);
+                    if (match && match[1]) {
+                        try { name = decodeURIComponent(match[1]).trim(); } catch (e) {}
+                    }
+                }
+                return name || '';
+            }
+
+            // 리포트 상단 및 하단의 회사명 라벨 갱신
+            function updateCompanyLabels(serverCorpNm) {
+                const corpName = (serverCorpNm && serverCorpNm.trim()) ? serverCorpNm.trim() : getTargetCorpNm();
+                if (!corpName) return;
+                if (field('repCompanyName')) field('repCompanyName').textContent = corpName;
+                if (field('repBottomCompany')) field('repBottomCompany').textContent = corpName;
+            }
+
+            // 숫자 서식 유틸
+            function formatNum(val, dec) {
+                if (val === null || val === undefined || val === '') return '0';
+                const num = Number(val);
+                if (isNaN(num)) return '0';
+                if (dec !== undefined && dec > 0) {
+                    return num.toLocaleString('ko-KR', { minimumFractionDigits: dec, maximumFractionDigits: dec });
+                }
+                return num.toLocaleString('ko-KR');
+            }
+
+            // 날짜 서식 유틸 (YYYY.MM.DD)
+            function formatDate(val) {
+                if (!val) return '';
+                const str = String(val).trim().replace(/[^0-9]/g, '');
+                if (str.length >= 8) {
+                    return str.substring(0, 4) + '.' + str.substring(4, 6) + '.' + str.substring(6, 8);
+                }
+                return String(val).trim();
+            }
+
+            // 1. 좌측 마스터 그리드 초기화 (d_ja030e1)
+            function initMasterGrid() {
+                const el = field('gridJa030eMaster');
+                if (!el || gridMaster) return;
+
+                gridMaster = new Tabulator(el, {
+                    height: '100%',
+                    layout: 'fitColumns',
+                    selectableRows: 1,
+                    placeholder: '조회된 데이터가 없습니다.',
+                    columns: [
+                        {
+                            title: 'No.',
+                            width: 45,
+                            hozAlign: 'center',
+                            formatter: 'rownum',
+                            headerSort: false
+                        },
+                        {
+                            title: '종목',
+                            field: 'jmCd',
+                            width: 110,
+                            hozAlign: 'center',
+                            formatter: function (cell) {
+                                return '<span style="font-weight:600;">' + (cell.getValue() || '') + '</span>';
+                            }
+                        },
+                        {
+                            title: '종목명',
+                            field: 'cjNm',
+                            hozAlign: 'left',
+                            formatter: function (cell) {
+                                return cell.getValue() || '';
+                            }
+                        },
+                        {
+                            title: '',
+                            field: 'sigaYn',
+                            width: 35,
+                            hozAlign: 'center',
+                            formatter: function (cell) {
+                                const val = cell.getValue();
+                                return (val === 'Y') ? 'Y' : '';
+                            }
+                        }
+                    ]
+                });
+
+                // 행 클릭 시 해당 종목 리포트 렌더링
+                gridMaster.on('rowClick', function (e, row) {
+                    const rowData = row.getData();
+                    const index = masterDataList.findIndex(d => d.jmCd === rowData.jmCd);
+                    if (index >= 0) {
+                        selectMasterRowByIndex(index);
+                    }
+                });
+            }
+
+            // 인덱스 기반 마스터 행 선택 및 리포트 조회
+            function selectMasterRowByIndex(index) {
+                if (!masterDataList || masterDataList.length === 0) {
+                    currentSelectedIndex = -1;
+                    renderReport(null, []);
+                    return;
+                }
+
+                if (index < 0) index = 0;
+                if (index >= masterDataList.length) index = masterDataList.length - 1;
+
+                currentSelectedIndex = index;
+
+                const rowData = masterDataList[index];
+                if (gridMaster) {
+                    const rows = gridMaster.getRows();
+                    if (rows && rows[index]) {
+                        gridMaster.deselectRow();
+                        rows[index].select();
+                        rows[index].scrollTo();
+                    }
+                }
+
+                loadDetailReport(rowData.jmCd);
+            }
+
+            // DETAIL 총 페이지 수 계산 (한 종목에 대한 페이지 수)
+            function getTotalDetailPages() {
+                if (!currentDetailList || currentDetailList.length === 0) return 1;
+                return Math.max(1, Math.ceil(currentDetailList.length / DETAIL_PAGE_SIZE));
+            }
+
+            // DETAIL 내부 페이징 네비게이션 버튼 제어 (페이지 수가 넘어가는 경우에만 활성화)
+            function updateDetailNavButtons() {
+                const totalPages = getTotalDetailPages();
+                const curPage = detailCurrentPage;
+
+                const btnFirst = field('btnFirstPage');
+                const btnPrev = field('btnPrevPage');
+                const btnNext = field('btnNextPage');
+                const btnLast = field('btnLastPage');
+
+                // 총 페이지 수가 1 이하이면 화살표 버튼 모두 비활성화
+                if (totalPages <= 1) {
+                    if (btnFirst) btnFirst.disabled = true;
+                    if (btnPrev) btnPrev.disabled = true;
+                    if (btnNext) btnNext.disabled = true;
+                    if (btnLast) btnLast.disabled = true;
+                } else {
+                    // 총 페이지 수가 2 이상일 때만 활성화하여 앞/뒤 페이지 이동 제어
+                    if (btnFirst) btnFirst.disabled = (curPage <= 1);
+                    if (btnPrev) btnPrev.disabled = (curPage <= 1);
+                    if (btnNext) btnNext.disabled = (curPage >= totalPages);
+                    if (btnLast) btnLast.disabled = (curPage >= totalPages);
+                }
+
+                if (field('repCurrentPage')) field('repCurrentPage').textContent = curPage;
+                if (field('repTotalPages')) field('repTotalPages').textContent = totalPages;
+            }
+
+            // DETAIL 페이지 이동 핸들러
+            function goToDetailPage(targetPage) {
+                const totalPages = getTotalDetailPages();
+                let page = targetPage;
+                if (page < 1) page = 1;
+                if (page > totalPages) page = totalPages;
+
+                detailCurrentPage = page;
+                renderDetailTableRows();
+                updateDetailNavButtons();
+            }
+
+            // DETAIL 엑셀 다운로드 핸들러
+            function downloadDetailExcel() {
+                if (!currentDetailHeader && (!currentDetailList || currentDetailList.length === 0)) {
+                    if (typeof showToast === 'function') showToast('다운로드할 상세 데이터가 없습니다.', 'warning');
+                    return;
+                }
+
+                if (typeof XLSX === 'undefined') {
+                    if (typeof showToast === 'function') showToast('엑셀 라이브러리를 불러올 수 없습니다.', 'error');
+                    return;
+                }
+
+                const ymdInput = field('filterYmd');
+                const ymd = (ymdInput ? ymdInput.value : '').replace(/[^0-9]/g, '');
+                const h = currentDetailHeader || {};
+                const jmCd = h.jmCd || '';
+                const jmNm = h.cjNm || h.cjFnm || '';
+                const safeNm = (jmNm ? jmNm + '_' : '') + jmCd;
+                const fileName = (ymd ? ymd + '_' : '') + '채권상세보유_' + (safeNm ? safeNm : '상세') + '.xlsx';
+
+                const excelCorpNm = getTargetCorpNm() || (field('repCompanyName') ? field('repCompanyName').textContent.trim() : '') || '운용사';
+                const aoa = [];
+                aoa.push([excelCorpNm + ' 채권 종목정보 및 보유현황']);
+                aoa.push(['기준일자: ' + formatDate(ymd), '', '', '출력일시: ' + new Date().toLocaleString('ko-KR')]);
+                aoa.push([]);
+                aoa.push(['[ 종목 기본정보 ]']);
+                aoa.push(['종목코드', h.jmCd || '', '종목명', h.cjNm || h.cjFnm || '', '', '', '', '']);
+                aoa.push(['발행일자', formatDate(h.balhYmd), '상장구분', h.sangjGb || '', '이자년수', h.ijaYySu != null ? h.ijaYySu : '', '채권종류', (h.bondCd || '') + (h.codeNm3 ? ' ' + h.codeNm3 : '')]);
+                aoa.push(['매출일자', formatDate(h.medoYmd), '선후취구분', h.sunhuGb || '', '연지급회수', h.yyIjaHoisu != null ? h.yyIjaHoisu : '', '발행기관', (h.balhCo || '') + (h.codeNm5 ? ' ' + h.codeNm5 : '')]);
+                aoa.push(['만기일자', formatDate(h.sanghwYmd), '채권구분', h.bondAttr || '', '현구간', h.nowGuganNo != null ? h.nowGuganNo : '', '보증기관', (h.bojngCo || '') + (h.codeNm2 ? ' ' + h.codeNm2 : '')]);
+                aoa.push(['선이자일', formatDate(h.sunmeIjaYmd), '이자방법', h.ijaJigubGb || '', '총지급회차', h.totIjaHoicha != null ? h.totIjaHoicha : '', '표면이율(%)', h.pyomIyul != null ? Number(h.pyomIyul) : 0]);
+                aoa.push(['전이자일', formatDate(h.bfIjaYmd), '등록일자', formatDate(h.jmCreDt), '발행단위', h.balhGa != null ? h.balhGa : '', '후순위채권구분', h.husunwiGb || '']);
+                aoa.push(['후이자일', formatDate(h.afIjaYmd), '시가평가구분', h.sigaGb || '', '', '', '', '']);
+                aoa.push(['부도일자', formatDate(h.budoYmd), '', '', '', '', '', '']);
+                aoa.push([]);
+                aoa.push(['[ 평가사 단가정보 ]']);
+                aoa.push(['평가사', '적용등급', '적용이율(%)', '적용단가']);
+                aoa.push(['KIS', h.kisGrade || '-', Number(h.kisSuikRt || 0), Number(h.kisDanga || 0)]);
+                aoa.push(['KAP', h.kapGrade || '-', Number(h.kapSuikRt || 0), Number(h.kapDanga || 0)]);
+                aoa.push(['NICE', h.niceGrade || '-', Number(h.niceSuikRt || 0), Number(h.niceDanga || 0)]);
+                aoa.push(['평균(적용)', '', Number(h.jySuikRt || 0), Number(h.jyDanga || 0)]);
+                aoa.push([]);
+                aoa.push(['[ 펀드별 보유현황 ]']);
+                aoa.push(['관리번호', '계좌명', '액면', '취득가', '선급비용', 'p선급비용', '하루이자', 'p하루이자', '미수이자', 'p미수이자', '구간이자', 'p구간이자', '하루손익안분', '누적손익안분']);
+
+                let sumAekm = 0, sumChuiAek = 0;
+                let sumSungCost = 0, sumPrSungCost = 0;
+                let sumDayMisuIja = 0, sumDayPrIja = 0;
+                let sumMisuIja = 0, sumPrMisuIja = 0;
+                let sumGuganMisuIja = 0, sumGuganPrIja = 0;
+                let sumDayAnbunAek = 0, sumAnbunAek = 0;
+
+                currentDetailList.forEach(item => {
+                    const aekm = Number(item.aekm) || 0;
+                    const chuiAek = Number(item.chuiAek) || 0;
+                    const sungCost = Number(item.sungCost) || 0;
+                    const prSungCost = Number(item.prSungCost) || 0;
+                    const dayMisuIja = Number(item.dayMisuIja) || 0;
+                    const dayPrIja = Number(item.dayPrIja) || 0;
+                    const misuIja = Number(item.misuIja) || 0;
+                    const prMisuIja = Number(item.prMisuIja) || 0;
+                    const guganMisuIja = Number(item.guganMisuIja) || 0;
+                    const guganPrIja = Number(item.guganPrIja) || 0;
+                    const dayAnbunAek = Number(item.dayAnbunAek) || 0;
+                    const anbunAek = Number(item.anbunAek) || 0;
+
+                    sumAekm += aekm; sumChuiAek += chuiAek;
+                    sumSungCost += sungCost; sumPrSungCost += prSungCost;
+                    sumDayMisuIja += dayMisuIja; sumDayPrIja += dayPrIja;
+                    sumMisuIja += misuIja; sumPrMisuIja += prMisuIja;
+                    sumGuganMisuIja += guganMisuIja; sumGuganPrIja += guganPrIja;
+                    sumDayAnbunAek += dayAnbunAek; sumAnbunAek += anbunAek;
+
+                    aoa.push([
+                        item.fundCd || '',
+                        item.fundNm || '',
+                        aekm,
+                        chuiAek,
+                        sungCost,
+                        prSungCost,
+                        dayMisuIja,
+                        dayPrIja,
+                        misuIja,
+                        prMisuIja,
+                        guganMisuIja,
+                        guganPrIja,
+                        dayAnbunAek,
+                        anbunAek
+                    ]);
+                });
+
+                aoa.push([
+                    '[종목계]',
+                    '',
+                    sumAekm,
+                    sumChuiAek,
+                    sumSungCost,
+                    sumPrSungCost,
+                    sumDayMisuIja,
+                    sumDayPrIja,
+                    sumMisuIja,
+                    sumPrMisuIja,
+                    sumGuganMisuIja,
+                    sumGuganPrIja,
+                    sumDayAnbunAek,
+                    sumAnbunAek
+                ]);
+
+                const ws = XLSX.utils.aoa_to_sheet(aoa);
+                ws['!cols'] = [
+                    { wch: 14 }, { wch: 24 }, { wch: 16 }, { wch: 16 },
+                    { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 14 },
+                    { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 14 },
+                    { wch: 14 }, { wch: 14 }
+                ];
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, '채권보유상세');
+                XLSX.writeFile(wb, fileName);
+
+                if (typeof showToast === 'function') {
+                    showToast('DETAIL 엑셀 다운로드가 완료되었습니다.', 'success');
+                }
+            }
+
+            // 2. 우측 리포트 상세 데이터 조회 (d_ja030e2)
+            async function loadDetailReport(jmCd) {
+                if (!jmCd) {
+                    renderReport(null, []);
+                    return;
+                }
+
+                const ymdInput = field('filterYmd');
+                const ymd = (ymdInput ? ymdInput.value : '').replace(/[^0-9]/g, '');
+                const currentKey = corpGr() + '_' + ymd + '_' + jmCd;
+                if (lastLoadedMasterKey === currentKey) return;
+                lastLoadedMasterKey = currentKey;
+
+                try {
+                    const url = '/api/assetmanagement/ja030e/detail?corpGr=' + encodeURIComponent(corpGr())
+                        + '&jmCd=' + encodeURIComponent(jmCd)
+                        + '&ymd=' + encodeURIComponent(ymd);
+
+                    const res = await fetch(url);
+                    if (res.ok) {
+                        const data = await res.json();
+                        renderReport(data.header, data.list || [], data.corpNm);
+                    } else {
+                        renderReport(null, []);
+                    }
+                } catch (e) {
+                    console.error('[W_JA030E] loadDetailReport error:', e);
+                    renderReport(null, []);
+                }
+            }
+
+            // 3. 우측 리포트 시트 DOM 렌더링
+            function renderReport(header, list, serverCorpNm) {
+                currentDetailHeader = header;
+                currentDetailList = list || [];
+                currentDetailServerCorpNm = serverCorpNm || '';
+                detailCurrentPage = 1; // 새로운 종목 선택 또는 조회 시 1페이지부터 시작
+
+                const ymdInput = field('filterYmd');
+                const rawYmd = ymdInput ? ymdInput.value : '';
+                const formattedDate = formatDate(rawYmd);
+
+                if (field('repTitleDate')) {
+                    field('repTitleDate').textContent = '( ' + formattedDate + ' )';
+                }
+
+                // 회사명 설정 (현재 작업 대상 기업의 corpNm 동적 반영)
+                updateCompanyLabels(serverCorpNm);
+
+                // 종목 기본 정보 블록 렌더링
+                field('repJmCd').textContent = (header && header.jmCd) ? header.jmCd : '-';
+                field('repCjNm').textContent = (header && (header.cjNm || header.cjFnm)) ? (header.cjNm || header.cjFnm) : '-';
+
+                // 열 1 (일자)
+                field('repBalhYmd').textContent = formatDate(header && header.balhYmd);
+                field('repMedoYmd').textContent = formatDate(header && header.medoYmd);
+                field('repSanghwYmd').textContent = formatDate(header && header.sanghwYmd);
+                field('repSunmeIjaYmd').textContent = formatDate(header && header.sunmeIjaYmd);
+                field('repBfIjaYmd').textContent = formatDate(header && header.bfIjaYmd);
+                field('repAfIjaYmd').textContent = formatDate(header && header.afIjaYmd);
+                field('repBudoYmd').textContent = formatDate(header && header.budoYmd);
+
+                // 열 2 (구분)
+                field('repSangjGb').textContent = (header && header.sangjGb) ? header.sangjGb : '';
+                field('repSunhuGb').textContent = (header && header.sunhuGb) ? header.sunhuGb : '';
+                field('repBondAttr').textContent = (header && header.bondAttr) ? header.bondAttr : '';
+                field('repIjaJigubGb').textContent = (header && header.ijaJigubGb) ? header.ijaJigubGb : '';
+                field('repJmCreDt').textContent = formatDate(header && header.jmCreDt);
+                field('repSigaGb').textContent = (header && header.sigaGb) ? ((header.sigaGb === 'Y' || header.sigaGb.includes('Y')) ? 'Y평가' : header.sigaGb) : '';
+
+                // 열 3 (이자 및 이율)
+                field('repIjaYySu').textContent = (header && header.ijaYySu != null) ? header.ijaYySu : '';
+                field('repYyIjaHoisu').textContent = (header && header.yyIjaHoisu != null) ? header.yyIjaHoisu : '';
+                field('repNowGuganNo').textContent = (header && header.nowGuganNo != null) ? header.nowGuganNo : '';
+                field('repTotIjaHoicha').textContent = (header && header.totIjaHoicha != null) ? header.totIjaHoicha : '';
+                field('repBalhGa').textContent = (header && header.balhGa != null) ? header.balhGa : '';
+                field('repHusunwiGb').textContent = (header && header.husunwiGb != null) ? header.husunwiGb : '';
+                field('repPyomIyul').textContent = (header && header.pyomIyul != null) ? formatNum(header.pyomIyul, 4) : '';
+
+                // 열 4 (기관 및 평가사)
+                field('repBondCd').textContent = (header && header.bondCd != null) ? ((header.codeNm3 ? header.bondCd + ' ' + header.codeNm3 : header.bondCd)) : '';
+                field('repBalhCo').textContent = (header && header.balhCo != null) ? ((header.codeNm5 ? header.balhCo + ' ' + header.codeNm5 : header.balhCo)) : '';
+                field('repBojngCo').textContent = (header && header.bojngCo != null) ? ((header.codeNm2 ? header.bojngCo + ' ' + header.codeNm2 : header.bojngCo)) : '';
+
+                // 평가사 표
+                field('repKisGrade').textContent = (header && header.kisGrade) ? header.kisGrade : '-';
+                field('repKisSuikRt').textContent = (header && header.kisSuikRt != null) ? formatNum(header.kisSuikRt, 2) : '0.00';
+                field('repKisDanga').textContent = (header && header.kisDanga != null) ? formatNum(header.kisDanga, 2) : '0.00';
+
+                field('repKapGrade').textContent = (header && header.kapGrade) ? header.kapGrade : '-';
+                field('repKapSuikRt').textContent = (header && header.kapSuikRt != null) ? formatNum(header.kapSuikRt, 2) : '0.00';
+                field('repKapDanga').textContent = (header && header.kapDanga != null) ? formatNum(header.kapDanga, 2) : '0.00';
+
+                field('repNiceGrade').textContent = (header && header.niceGrade) ? header.niceGrade : '-';
+                field('repNiceSuikRt').textContent = (header && header.niceSuikRt != null) ? formatNum(header.niceSuikRt, 2) : '0.00';
+                field('repNiceDanga').textContent = (header && header.niceDanga != null) ? formatNum(header.niceDanga, 2) : '0.00';
+
+                field('repJySuikRt').textContent = (header && header.jySuikRt != null) ? formatNum(header.jySuikRt, 2) : '0.00';
+                field('repJyDanga').textContent = (header && header.jyDanga != null) ? formatNum(header.jyDanga, 2) : '0.00';
+
+                // 하단 보유현황 표 및 페이지 네비게이션 갱신
+                renderDetailTableRows();
+                updateDetailNavButtons();
+            }
+
+            // 하단 보유현황 테이블 렌더링 (페이지별 슬라이스 렌더링)
+            function renderDetailTableRows() {
+                const tbody = field('repDetailTbody');
+                const tfoot = field('repDetailTfoot');
+                if (!tbody || !tfoot) return;
+
+                tbody.innerHTML = '';
+                tfoot.innerHTML = '';
+
+                const list = currentDetailList || [];
+                if (list.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:16px; color:#64748b;">보유 내역이 없습니다.</td></tr>';
+                    return;
+                }
+
+                // 현재 페이지 데이터 슬라이스
+                const startIndex = (detailCurrentPage - 1) * DETAIL_PAGE_SIZE;
+                const pageList = list.slice(startIndex, startIndex + DETAIL_PAGE_SIZE);
+
+                let rowsHtml = '';
+                pageList.forEach(function (row) {
+                    const aekm = Number(row.aekm) || 0;
+                    const chuiAek = Number(row.chuiAek) || 0;
+                    const sungCost = Number(row.sungCost) || 0;
+                    const prSungCost = Number(row.prSungCost) || 0;
+                    const dayMisuIja = Number(row.dayMisuIja) || 0;
+                    const dayPrIja = Number(row.dayPrIja) || 0;
+                    const misuIja = Number(row.misuIja) || 0;
+                    const prMisuIja = Number(row.prMisuIja) || 0;
+                    const guganMisuIja = Number(row.guganMisuIja) || 0;
+                    const guganPrIja = Number(row.guganPrIja) || 0;
+                    const dayAnbunAek = Number(row.dayAnbunAek) || 0;
+                    const anbunAek = Number(row.anbunAek) || 0;
+
+                    rowsHtml += '<tr>'
+                        + '<td style="text-align:left; padding:2px 4px; color:#000;">' + (row.fundCd || '') + '</td>'
+                        + '<td style="text-align:right; padding:2px 4px; color:#000;">' + formatNum(aekm) + '</td>'
+                        + '<td style="text-align:right; padding:2px 4px; color:#000;">' + formatNum(sungCost) + '</td>'
+                        + '<td style="text-align:right; padding:2px 4px; color:#000;">' + formatNum(dayMisuIja) + '</td>'
+                        + '<td style="text-align:right; padding:2px 4px; color:#000;">' + formatNum(misuIja) + '</td>'
+                        + '<td style="text-align:right; padding:2px 4px; color:#000;">' + formatNum(guganMisuIja) + '</td>'
+                        + '<td style="text-align:right; padding:2px 4px; color:#000;">' + formatNum(dayAnbunAek) + '</td>'
+                        + '</tr>'
+                        + '<tr style="border-bottom:1px solid #f4f4f5;">'
+                        + '<td style="text-align:left; padding:2px 4px; color:#000;">' + (row.fundNm || '') + '</td>'
+                        + '<td style="text-align:right; padding:2px 4px; color:#000;">' + formatNum(chuiAek) + '</td>'
+                        + '<td style="text-align:right; padding:2px 4px; color:#000;">' + formatNum(prSungCost) + '</td>'
+                        + '<td style="text-align:right; padding:2px 4px; color:#000;">' + formatNum(dayPrIja) + '</td>'
+                        + '<td style="text-align:right; padding:2px 4px; color:#000;">' + formatNum(prMisuIja) + '</td>'
+                        + '<td style="text-align:right; padding:2px 4px; color:#000;">' + formatNum(guganPrIja) + '</td>'
+                        + '<td style="text-align:right; padding:2px 4px; color:#000;">' + formatNum(anbunAek) + '</td>'
+                        + '</tr>';
+                });
+
+                tbody.innerHTML = rowsHtml;
+
+                // [종목계] 합계 행: 전체 데이터(list) 기준 합계 산출
+                let sumAekm = 0, sumChuiAek = 0;
+                let sumSungCost = 0, sumPrSungCost = 0;
+                let sumDayMisuIja = 0, sumDayPrIja = 0;
+                let sumMisuIja = 0, sumPrMisuIja = 0;
+                let sumGuganMisuIja = 0, sumGuganPrIja = 0;
+                let sumDayAnbunAek = 0, sumAnbunAek = 0;
+
+                list.forEach(function (row) {
+                    sumAekm += (Number(row.aekm) || 0);
+                    sumChuiAek += (Number(row.chuiAek) || 0);
+                    sumSungCost += (Number(row.sungCost) || 0);
+                    sumPrSungCost += (Number(row.prSungCost) || 0);
+                    sumDayMisuIja += (Number(row.dayMisuIja) || 0);
+                    sumDayPrIja += (Number(row.dayPrIja) || 0);
+                    sumMisuIja += (Number(row.misuIja) || 0);
+                    sumPrMisuIja += (Number(row.prMisuIja) || 0);
+                    sumGuganMisuIja += (Number(row.guganMisuIja) || 0);
+                    sumGuganPrIja += (Number(row.guganPrIja) || 0);
+                    sumDayAnbunAek += (Number(row.dayAnbunAek) || 0);
+                    sumAnbunAek += (Number(row.anbunAek) || 0);
+                });
+
+                tfoot.innerHTML = '<tr style="background-color:#ede9fe; font-weight:bold; border-top:1px solid #71717a;">'
+                    + '<td style="text-align:center; padding:3px 4px; color:#000;">[종목계]</td>'
+                    + '<td style="text-align:right; padding:3px 4px; color:#000;">' + formatNum(sumAekm) + '</td>'
+                    + '<td style="text-align:right; padding:3px 4px; color:#000;">' + formatNum(sumSungCost) + '</td>'
+                    + '<td style="text-align:right; padding:3px 4px; color:#000;">' + formatNum(sumDayMisuIja) + '</td>'
+                    + '<td style="text-align:right; padding:3px 4px; color:#000;">' + formatNum(sumMisuIja) + '</td>'
+                    + '<td style="text-align:right; padding:3px 4px; color:#000;">' + formatNum(sumGuganMisuIja) + '</td>'
+                    + '<td style="text-align:right; padding:3px 4px; color:#000;">' + formatNum(sumDayAnbunAek) + '</td>'
+                    + '</tr>'
+                    + '<tr style="background-color:#ede9fe; font-weight:bold; border-bottom:1px solid #71717a;">'
+                    + '<td style="text-align:center; padding:3px 4px; color:#000;"></td>'
+                    + '<td style="text-align:right; padding:3px 4px; color:#000;">' + formatNum(sumChuiAek) + '</td>'
+                    + '<td style="text-align:right; padding:3px 4px; color:#000;">' + formatNum(sumPrSungCost) + '</td>'
+                    + '<td style="text-align:right; padding:3px 4px; color:#000;">' + formatNum(sumDayPrIja) + '</td>'
+                    + '<td style="text-align:right; padding:3px 4px; color:#000;">' + formatNum(sumPrMisuIja) + '</td>'
+                    + '<td style="text-align:right; padding:3px 4px; color:#000;">' + formatNum(sumGuganPrIja) + '</td>'
+                    + '<td style="text-align:right; padding:3px 4px; color:#000;">' + formatNum(sumAnbunAek) + '</td>'
+                    + '</tr>';
+            }
+
+            // 4. 마스터 목록 데이터 조회 (wue_retrieve)
+            async function retrieveMasterData() {
+                const ymdInput = field('filterYmd');
+                const ymd = ymdInput ? ymdInput.value : '';
+
+                if (!ymd) {
+                    if (typeof showToast === 'function') showToast('영업일자를 입력하세요.', 'warning');
+                    return;
+                }
+
+                lastLoadedMasterKey = null;
+
+                try {
+                    const query = new URLSearchParams({
+                        corpGr: corpGr(),
+                        ymd: ymd
+                    });
+
+                    const res = await fetch('/api/assetmanagement/ja030e/list?' + query.toString());
+                    if (res.ok) {
+                        const rawData = await res.json();
+                        masterDataList = Array.isArray(rawData) ? rawData : [];
+
+                        if (gridMaster) {
+                            gridMaster.setData(masterDataList).then(function () {
+                                if (masterDataList.length > 0) {
+                                    selectMasterRowByIndex(0);
+                                } else {
+                                    selectMasterRowByIndex(-1);
+                                }
+                            });
+                        }
+
+                        if (window.ButtonRole && typeof window.ButtonRole.setSearchState === 'function') {
+                            window.ButtonRole.setSearchState(pane, true);
+                        }
+                        // 인쇄 버튼 활성화 (이미지의 [인쇄] 버튼 대응)
+                        const printBtn = pane.querySelector('.btn-print');
+                        if (printBtn) {
+                            printBtn.disabled = false;
+                            printBtn.classList.remove('disabled');
+                        }
+                    } else {
+                        if (typeof showToast === 'function') showToast('데이터 조회 중 오류가 발생했습니다.', 'error');
+                    }
+                } catch (e) {
+                    console.error('[W_JA030E] retrieveMasterData error:', e);
+                    if (typeof showToast === 'function') showToast('데이터 통신 오류가 발생했습니다.', 'error');
+                }
+            }
+
+            // --- 상단 공통 툴바 표준 계약 (Rule 08) ---
+            pane.onSearch = function () {
+                retrieveMasterData();
+            };
+
+            pane.onExcel = function () {
+                if (gridMaster) {
+                    const ymd = (field('filterYmd') ? field('filterYmd').value : '').replace(/[^0-9]/g, '');
+                    gridMaster.download('xlsx', '채권종목정보보유현황_' + ymd + '.xlsx', { sheetName: '종목목록' });
+                }
+            };
+
+            // 상단 [인쇄] 버튼 계약 (이미지의 "인쇄" 버튼 대응)
+            pane.onPrint = function () {
+                window.print();
+            };
+
+            pane.onRefresh = function () {
+                if (gridMaster) gridMaster.clearData();
+                masterDataList = [];
+                currentSelectedIndex = -1;
+                lastLoadedMasterKey = null;
+                currentDetailHeader = null;
+                currentDetailList = [];
+                detailCurrentPage = 1;
+                updateDetailNavButtons();
+                renderReport(null, []);
+
+                const ymdInput = field('filterYmd');
+                if (ymdInput && initialWorkDate) ymdInput.value = initialWorkDate;
+
+                if (typeof showToast === 'function') showToast('화면이 초기화되었습니다.', 'info');
+            };
+
+            pane.onCorpGrChange = function (newCorpGr) {
+                if (gridMaster) gridMaster.clearData();
+                masterDataList = [];
+                currentSelectedIndex = -1;
+                lastLoadedMasterKey = null;
+                currentDetailHeader = null;
+                currentDetailList = [];
+                detailCurrentPage = 1;
+                updateDetailNavButtons();
+                updateCompanyLabels();
+                renderReport(null, []);
+                retrieveMasterData();
+            };
+
+            // 네비게이션 버튼 이벤트 바인딩 (엑셀 다운로드 및 DETAIL 페이지 이동)
+            function initNavEvents() {
+                const btnExcel = field('btnDetailExcel');
+                const btnFirst = field('btnFirstPage');
+                const btnPrev = field('btnPrevPage');
+                const btnNext = field('btnNextPage');
+                const btnLast = field('btnLastPage');
+
+                if (btnExcel) btnExcel.addEventListener('click', downloadDetailExcel);
+                if (btnFirst) btnFirst.addEventListener('click', () => goToDetailPage(1));
+                if (btnPrev) btnPrev.addEventListener('click', () => goToDetailPage(detailCurrentPage - 1));
+                if (btnNext) btnNext.addEventListener('click', () => goToDetailPage(detailCurrentPage + 1));
+                if (btnLast) btnLast.addEventListener('click', () => goToDetailPage(getTotalDetailPages()));
+            }
+
+            // 초기화 진입점
+            function init() {
+                if (isInitialized) return;
+                isInitialized = true;
+
+                updateCompanyLabels();
+                initMasterGrid();
+                initNavEvents();
+                updateDetailNavButtons();
+
+                // PB: eb_direct_retrieve = true (화면 진입 시 자동 조회)
+                setTimeout(function () {
+                    retrieveMasterData();
+                }, 100);
+            }
+
+            init();
+        })();
+    </script>
+</div>
+</html>

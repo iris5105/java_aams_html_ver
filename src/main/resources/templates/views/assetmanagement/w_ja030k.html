@@ -1,0 +1,824 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<div class="view-container layout-single ja030k-container layout-mobile-stack-container" th:fragment="mainView" data-pgm-id="W_JA030K"
+     th:attr="data-corp-gr=${corpGr},data-fymd=${fymd},data-tymd=${tymd},data-pgm-no=${pgmNo}"
+     style="display: flex; flex-direction: column; height: 100%; width: 100%; overflow: hidden; background: #fff; position: relative;">
+
+    <!-- Tabulator Group Summary & Fixed Footer Summary (PB d_ja030k1 스타일 테마) -->
+    <style>
+        /* 1) 종목계 행 스타일 (파워빌더 연노랑/연연두 테마, 초록색 텍스트) */
+        .ja030k-container .tabulator-row.aams-item-summary-row,
+        .ja030k-container .tabulator-row.aams-item-summary-row .tabulator-cell {
+            background-color: #fef9c3 !important;
+            color: #15803d !important;
+            font-weight: 600 !important;
+            cursor: default !important;
+        }
+        .ja030k-container .tabulator-row.aams-item-summary-row {
+            border-top: 1px solid #fef08a !important;
+            border-bottom: 1px solid #e2e8f0 !important;
+        }
+
+        /* 2) 구분 합계 행 스타일 (채권 합계, 파워빌더 연보라 테마) */
+        .ja030k-container .tabulator-row.aams-type-summary-row,
+        .ja030k-container .tabulator-row.aams-type-summary-row .tabulator-cell {
+            background-color: #ede9fe !important;
+            color: #1e1b4b !important;
+            font-weight: 700 !important;
+            cursor: default !important;
+        }
+        .ja030k-container .tabulator-row.aams-type-summary-row {
+            border-top: 1px dashed #cbd5e1 !important;
+            border-bottom: 1px solid #cbd5e1 !important;
+        }
+
+        /* 3) 최하단 총 합계 푸터 바 스타일 (파워빌더 연녹/연노랑 테마) */
+        .ja030k-container .tabulator .tabulator-footer {
+            background-color: #f0fdf4 !important;
+            border-top: 2px solid #86efac !important;
+            padding: 0 !important;
+            overflow: hidden !important;
+        }
+        .ja030k-container .tabulator .tabulator-footer .tabulator-calcs-holder {
+            background-color: #f0fdf4 !important;
+            border: none !important;
+            overflow: hidden !important;
+        }
+        .ja030k-container .tabulator .tabulator-footer .tabulator-calcs-holder .tabulator-row {
+            background-color: #f0fdf4 !important;
+            font-weight: 700 !important;
+            color: #1e293b !important;
+            height: 28px !important;
+            min-height: 28px !important;
+        }
+        .ja030k-container .tabulator .tabulator-footer .tabulator-calcs-holder .tabulator-cell {
+            background-color: #f0fdf4 !important;
+            color: #1e293b !important;
+            font-weight: 700 !important;
+            height: 28px !important;
+            line-height: 20px !important;
+            border-right: 1px solid #dcfce7 !important;
+        }
+        .ja030k-container .tabulator .tabulator-footer .tabulator-calcs-holder .tabulator-cell span.cell-text-blue {
+            color: #1d4ed8 !important;
+            font-weight: 700 !important;
+        }
+    </style>
+
+    <!-- 1. Top Action Toolbar & Breadcrumb -->
+    <div class="view-toolbar">
+        <div class="toolbar-left"><div th:replace="~{fragments/tab_header :: toolbarButtons}"></div></div>
+        <div th:replace="~{fragments/tab_header :: toolbarBreadcrumb}"></div>
+    </div>
+
+    <!-- 2. Filter Bar (PB dw_c: dc_ftymd 상환구간 + 리셋자산운용 안내 문구) -->
+    <div class="filter-bar">
+        <div class="filter-left">
+            <th:block th:replace="~{fragments/filter/dc_ftymd :: filter(label='상환구간')}"></th:block>
+            <span id="ja030kEditGuide" style="font-size: 12px; color: #2563eb; display: none; margin-left: 8px;">
+                <i class="fa-solid fa-circle-info"></i> 수령이자 및 세금 셀을 클릭하여 직접 수정할 수 있습니다.
+            </span>
+        </div>
+    </div>
+
+    <!-- 3. Main Grid Container (단일 그리드 wt_list 표준 구조) -->
+    <section class="grid-section" aria-label="원리금 상환 명세 목록">
+        <div class="grid-table-wrapper">
+            <div id="grid-ja030k" class="tabulator-aams-grid"></div>
+        </div>
+    </section>
+
+    <script th:inline="javascript">
+        (function () {
+            const currentScript = document.currentScript;
+            const pane = currentScript ? (currentScript.closest('.tab-pane') || currentScript.closest('.view-container')) : null;
+            if (!pane) return;
+
+            const initialCorpGr = pane.getAttribute('data-corp-gr') || '';
+            const initialFymd = pane.getAttribute('data-fymd') || '';
+            const initialTymd = pane.getAttribute('data-tymd') || '';
+            const initialPgmNo = pane.getAttribute('data-pgm-no') || '00078';
+
+            let grid = null;
+            let cudManager = null;
+            let isInitialized = false;
+            let isGridBuilt = false;
+            let currentRenderedCorpIs2402 = false;
+
+            function field(id) { return pane.querySelector('#' + id); }
+            function corpGr() { return (typeof resolveCorpGr === 'function' ? resolveCorpGr(pane) : '') || initialCorpGr; }
+            function is2402() { return corpGr() === '2402'; }
+
+            function num(val) {
+                if (val == null || val === '') return 0;
+                const n = Number(String(val).replace(/,/g, ''));
+                return isNaN(n) ? 0 : n;
+            }
+
+            function fmtNum(val, decimals) {
+                if (val == null || val === '') return '0';
+                const n = num(val);
+                if (decimals != null && decimals > 0) {
+                    return n.toLocaleString('ko-KR', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+                }
+                return n.toLocaleString('ko-KR');
+            }
+
+            function getFYmd() {
+                return (typeof getFilterFYmd === 'function') ? getFilterFYmd(pane, 'YYYY-MM-DD') : initialFymd;
+            }
+
+            function getTYmd() {
+                return (typeof getFilterTYmd === 'function') ? getFilterTYmd(pane, 'YYYY-MM-DD') : initialTymd;
+            }
+
+            // ==========================================
+            // 1. Column Definitions (PB d_ja030k1 1:1 매핑)
+            // ==========================================
+            function calcPureDataSum(values, data, calcParams) {
+                let sum = 0;
+                if (!data || !Array.isArray(data)) return sum;
+                const fieldName = calcParams && calcParams.field;
+                if (!fieldName) return sum;
+                data.forEach(function (d) {
+                    if (d && !d.isItemSummaryRow && !d.isTypeSummaryRow && !d.isSummaryRow) {
+                        const v = Number(d[fieldName]);
+                        if (!isNaN(v)) sum += v;
+                    }
+                });
+                return sum;
+            }
+
+            function getColumns() {
+                const isCorp2402 = is2402();
+
+                // 가이드 문구 표출 여부
+                const guideEl = field('ja030kEditGuide');
+                if (guideEl) guideEl.style.display = isCorp2402 ? 'inline-flex' : 'none';
+
+                const cols = [
+                    {
+                        title: "No.",
+                        formatter: function (cell) {
+                            const d = cell.getRow().getData();
+                            if (d && (d.isItemSummaryRow || d.isTypeSummaryRow || d.isSummaryRow)) return "";
+                            return cell.getRow().getPosition(true);
+                        },
+                        width: 45,
+                        hozAlign: "center",
+                        headerHozAlign: "center",
+                        headerSort: false,
+                        bottomCalc: function () { return ''; }
+                    },
+                    {
+                        title: "상환일자",
+                        field: "sanghwYmd",
+                        width: 95,
+                        hozAlign: "center",
+                        headerHozAlign: "center",
+                        formatter: function (cell) {
+                            const d = cell.getRow().getData();
+                            if (d && (d.isItemSummaryRow || d.isTypeSummaryRow || d.isSummaryRow)) return "";
+                            return cell.getValue() || "";
+                        },
+                        bottomCalc: function () { return ''; }
+                    },
+                    {
+                        title: "종  목",
+                        field: "jmCd",
+                        width: 110,
+                        hozAlign: "center",
+                        headerHozAlign: "center",
+                        formatter: function (cell) {
+                            const d = cell.getRow().getData();
+                            if (d && (d.isItemSummaryRow || d.isTypeSummaryRow || d.isSummaryRow)) return "";
+                            return cell.getValue() || "";
+                        },
+                        bottomCalc: function () { return ''; }
+                    },
+                    {
+                        title: "종 목 명",
+                        field: "jmNm",
+                        minWidth: 160,
+                        hozAlign: "left",
+                        headerHozAlign: "center",
+                        formatter: function (cell) {
+                            const d = cell.getRow().getData();
+                            if (d && (d.isItemSummaryRow || d.isTypeSummaryRow || d.isSummaryRow)) return "";
+                            return cell.getValue() || "";
+                        },
+                        bottomCalc: function () { return ''; }
+                    },
+                    {
+                        title: "관리번호", // Rule 04: assetmanagement 표준 '관리번호'
+                        field: "fundCd",
+                        width: 90,
+                        hozAlign: "center",
+                        headerHozAlign: "center",
+                        cssClass: "col-hdr-green",
+                        formatter: function (cell) {
+                            const d = cell.getRow().getData();
+                            if (d && (d.isItemSummaryRow || d.isTypeSummaryRow || d.isSummaryRow)) return "";
+                            const val = cell.getValue() || '';
+                            return '<span class="cell-text-green font-bold">' + val + '</span>';
+                        },
+                        bottomCalc: function () { return ''; }
+                    },
+                    {
+                        title: "계좌명",
+                        field: "fundNm",
+                        width: 140,
+                        hozAlign: "left",
+                        headerHozAlign: "center",
+                        formatter: function (cell) {
+                            const d = cell.getRow().getData();
+                            if (d && d.isItemSummaryRow) {
+                                return '<div style="text-align:right; font-weight:700; color:#15803d; width:100%; padding-right:8px;">종목계</div>';
+                            }
+                            if (d && d.isTypeSummaryRow) {
+                                const txt = d.fundNm || '채권 합계';
+                                return '<div style="text-align:right; font-weight:700; color:#1d4ed8; width:100%; padding-right:8px;">' + txt + '</div>';
+                            }
+                            return cell.getValue() || "";
+                        },
+                        bottomCalc: function (values, data) {
+                            return (data && data.length > 0) ? '총 합 계' : '';
+                        },
+                        bottomCalcFormatter: function (cell) {
+                            const val = cell.getValue();
+                            if (!val) return '';
+                            return '<div style="text-align:center; font-weight:bold; width:100%; color:#1e293b;">총 합 계</div>';
+                        }
+                    }
+                ];
+
+                if (isCorp2402) {
+                    cols.push({
+                        title: "매입일자",
+                        field: "buyDate",
+                        width: 95,
+                        hozAlign: "center",
+                        headerHozAlign: "center",
+                        formatter: function (cell) {
+                            const d = cell.getRow().getData();
+                            if (d && (d.isItemSummaryRow || d.isTypeSummaryRow || d.isSummaryRow)) return "";
+                            return cell.getValue() || "";
+                        },
+                        bottomCalc: function () { return ''; }
+                    });
+                }
+
+                cols.push(
+                    {
+                        title: isCorp2402 ? "상환액면" : "액면(만)",
+                        field: "aekm",
+                        width: 100,
+                        hozAlign: "right",
+                        headerHozAlign: "center",
+                        formatter: function (cell) {
+                            const d = cell.getRow().getData();
+                            const val = fmtNum(cell.getValue(), 0);
+                            if (d && d.isTypeSummaryRow) return '<span style="color:#1d4ed8; font-weight:700;">' + val + '</span>';
+                            if (d && d.isItemSummaryRow) return '<span style="color:#15803d; font-weight:600;">' + val + '</span>';
+                            return val;
+                        },
+                        bottomCalc: calcPureDataSum,
+                        bottomCalcParams: { field: "aekm" },
+                        bottomCalcFormatter: function (cell) {
+                            return '<span class="cell-text-blue font-bold">' + fmtNum(cell.getValue(), 0) + '</span>';
+                        }
+                    },
+                    {
+                        title: isCorp2402 ? "취득액" : "원  금",
+                        field: "wonGm",
+                        width: 110,
+                        hozAlign: "right",
+                        headerHozAlign: "center",
+                        formatter: function (cell) {
+                            const d = cell.getRow().getData();
+                            const val = fmtNum(cell.getValue(), 0);
+                            if (d && d.isTypeSummaryRow) return '<span style="color:#1d4ed8; font-weight:700;">' + val + '</span>';
+                            if (d && d.isItemSummaryRow) return '<span style="color:#15803d; font-weight:600;">' + val + '</span>';
+                            return val;
+                        },
+                        bottomCalc: calcPureDataSum,
+                        bottomCalcParams: { field: "wonGm" },
+                        bottomCalcFormatter: function (cell) {
+                            return '<span class="cell-text-blue font-bold">' + fmtNum(cell.getValue(), 0) + '</span>';
+                        }
+                    },
+                    {
+                        title: isCorp2402 ? "수령이자액" : "이  자",
+                        field: "misuIja",
+                        width: 110,
+                        hozAlign: "right",
+                        headerHozAlign: "center",
+                        cssClass: isCorp2402 ? "col-hdr-green" : "",
+                        editor: isCorp2402 ? "number" : undefined,
+                        editable: function (cell) {
+                            const d = cell.getRow().getData();
+                            return isCorp2402 && d && !d.isItemSummaryRow && !d.isTypeSummaryRow;
+                        },
+                        cellClick: isCorp2402 ? aamsCellEdit : undefined,
+                        formatter: function (cell) {
+                            const d = cell.getRow().getData();
+                            const val = fmtNum(cell.getValue(), 0);
+                            if (d && d.isTypeSummaryRow) return '<span style="color:#1d4ed8; font-weight:700;">' + val + '</span>';
+                            if (d && d.isItemSummaryRow) return '<span style="color:#15803d; font-weight:600;">' + val + '</span>';
+                            return isCorp2402 ? '<span class="cell-text-green font-bold">' + val + '</span>' : val;
+                        },
+                        bottomCalc: calcPureDataSum,
+                        bottomCalcParams: { field: "misuIja" },
+                        bottomCalcFormatter: function (cell) {
+                            return '<span class="cell-text-blue font-bold">' + fmtNum(cell.getValue(), 0) + '</span>';
+                        }
+                    },
+                    {
+                        title: "선급비용",
+                        field: "sungCost",
+                        width: 95,
+                        hozAlign: "right",
+                        headerHozAlign: "center",
+                        formatter: function (cell) {
+                            const d = cell.getRow().getData();
+                            const val = fmtNum(cell.getValue(), 0);
+                            if (d && d.isTypeSummaryRow) return '<span style="color:#1d4ed8; font-weight:700;">' + val + '</span>';
+                            if (d && d.isItemSummaryRow) return '<span style="color:#15803d; font-weight:600;">' + val + '</span>';
+                            return val;
+                        },
+                        bottomCalc: calcPureDataSum,
+                        bottomCalcParams: { field: "sungCost" },
+                        bottomCalcFormatter: function (cell) {
+                            return '<span class="cell-text-blue font-bold">' + fmtNum(cell.getValue(), 0) + '</span>';
+                        }
+                    },
+                    {
+                        title: "세  금",
+                        field: "sunnTax",
+                        width: 95,
+                        hozAlign: "right",
+                        headerHozAlign: "center",
+                        cssClass: isCorp2402 ? "col-hdr-green" : "",
+                        editor: isCorp2402 ? "number" : undefined,
+                        editable: function (cell) {
+                            const d = cell.getRow().getData();
+                            return isCorp2402 && d && !d.isItemSummaryRow && !d.isTypeSummaryRow;
+                        },
+                        cellClick: isCorp2402 ? aamsCellEdit : undefined,
+                        formatter: function (cell) {
+                            const d = cell.getRow().getData();
+                            const val = fmtNum(cell.getValue(), 0);
+                            if (d && d.isTypeSummaryRow) return '<span style="color:#1d4ed8; font-weight:700;">' + val + '</span>';
+                            if (d && d.isItemSummaryRow) return '<span style="color:#15803d; font-weight:600;">' + val + '</span>';
+                            return isCorp2402 ? '<span class="cell-text-green font-bold">' + val + '</span>' : val;
+                        },
+                        bottomCalc: calcPureDataSum,
+                        bottomCalcParams: { field: "sunnTax" },
+                        bottomCalcFormatter: function (cell) {
+                            return '<span class="cell-text-blue font-bold">' + fmtNum(cell.getValue(), 0) + '</span>';
+                        }
+                    },
+                    {
+                        title: "수령액",
+                        field: "wonRiGm",
+                        width: 115,
+                        hozAlign: "right",
+                        headerHozAlign: "center",
+                        formatter: function (cell) {
+                            const d = cell.getRow().getData();
+                            const val = fmtNum(cell.getValue(), 0);
+                            if (d && d.isTypeSummaryRow) return '<span style="color:#1d4ed8; font-weight:700;">' + val + '</span>';
+                            if (d && d.isItemSummaryRow) return '<span style="color:#15803d; font-weight:600;">' + val + '</span>';
+                            return val;
+                        },
+                        bottomCalc: calcPureDataSum,
+                        bottomCalcParams: { field: "wonRiGm" },
+                        bottomCalcFormatter: function (cell) {
+                            return '<span class="cell-text-blue font-bold">' + fmtNum(cell.getValue(), 0) + '</span>';
+                        }
+                    },
+                    {
+                        title: "휴원선수이자",
+                        field: "holSunsuIja",
+                        width: 95,
+                        hozAlign: "right",
+                        headerHozAlign: "center",
+                        formatter: function (cell) {
+                            const d = cell.getRow().getData();
+                            const raw = cell.getValue();
+                            if ((d && (d.isItemSummaryRow || d.isTypeSummaryRow)) || (raw != null && raw !== '')) {
+                                const val = fmtNum(raw, 2);
+                                if (d && d.isTypeSummaryRow) return '<span style="color:#1d4ed8; font-weight:700;">' + val + '</span>';
+                                if (d && d.isItemSummaryRow) return '<span style="color:#15803d; font-weight:600;">' + val + '</span>';
+                                return val;
+                            }
+                            return '';
+                        },
+                        bottomCalc: calcPureDataSum,
+                        bottomCalcParams: { field: "holSunsuIja" },
+                        bottomCalcFormatter: function (cell) {
+                            return '<span class="cell-text-blue font-bold">' + fmtNum(cell.getValue(), 2) + '</span>';
+                        }
+                    },
+                    {
+                        title: "상환경과수입이자",
+                        field: "holSuibIja",
+                        width: 105,
+                        hozAlign: "right",
+                        headerHozAlign: "center",
+                        formatter: function (cell) {
+                            const d = cell.getRow().getData();
+                            const val = fmtNum(cell.getValue(), 0);
+                            if (d && d.isTypeSummaryRow) return '<span style="color:#1d4ed8; font-weight:700;">' + val + '</span>';
+                            if (d && d.isItemSummaryRow) return '<span style="color:#15803d; font-weight:600;">' + val + '</span>';
+                            return val;
+                        },
+                        bottomCalc: calcPureDataSum,
+                        bottomCalcParams: { field: "holSuibIja" },
+                        bottomCalcFormatter: function (cell) {
+                            return '<span class="cell-text-blue font-bold">' + fmtNum(cell.getValue(), 0) + '</span>';
+                        }
+                    }
+                );
+
+                return cols;
+            }
+
+            // ==========================================
+            // 2. Group Subtotal & Footer Visibility Helpers
+            // ==========================================
+            // PB d_ja030k1 group 1: sanghw_ymd + jm_gu, group 2: sanghw_ymd + jm_cd
+            function processDataWithSubtotals(list) {
+                if (!list || !Array.isArray(list) || list.length === 0) return [];
+
+                const result = [];
+                let curGroup1Key = null; // sanghwYmd + '__' + jmGu
+                let curGroup2Key = null; // sanghwYmd + '__' + jmCd
+                let g2Rows = [];
+                let g1Rows = [];
+
+                function pushGroup2Subtotal() {
+                    if (g2Rows.length === 0) return;
+                    let sAekm = 0, sWon = 0, sMisu = 0, sSung = 0, sTax = 0, sWonRi = 0, sHolSunsu = 0, sHolSuib = 0;
+                    g2Rows.forEach(function (r) {
+                        sAekm += num(r.aekm);
+                        sWon += num(r.wonGm);
+                        sMisu += num(r.misuIja);
+                        sSung += num(r.sungCost);
+                        sTax += num(r.sunnTax != null ? r.sunnTax : r.ijaTax);
+                        sWonRi += num(r.wonRiGm != null ? r.wonRiGm : r.suryAek);
+                        sHolSunsu += num(r.holSunsuIja);
+                        sHolSuib += num(r.holSuibIja);
+                    });
+
+                    result.push({
+                        isItemSummaryRow: true,
+                        fundNm: '종목계',
+                        aekm: sAekm,
+                        wonGm: sWon,
+                        misuIja: sMisu,
+                        sungCost: sSung,
+                        sunnTax: sTax,
+                        wonRiGm: sWonRi,
+                        holSunsuIja: sHolSunsu,
+                        holSuibIja: sHolSuib
+                    });
+                    g2Rows = [];
+                }
+
+                function pushGroup1Subtotal(jmGuNm) {
+                    if (g1Rows.length === 0) return;
+                    let sAekm = 0, sWon = 0, sMisu = 0, sSung = 0, sTax = 0, sWonRi = 0, sHolSunsu = 0, sHolSuib = 0;
+                    g1Rows.forEach(function (r) {
+                        sAekm += num(r.aekm);
+                        sWon += num(r.wonGm);
+                        sMisu += num(r.misuIja);
+                        sSung += num(r.sungCost);
+                        sTax += num(r.sunnTax != null ? r.sunnTax : r.ijaTax);
+                        sWonRi += num(r.wonRiGm != null ? r.wonRiGm : r.suryAek);
+                        sHolSunsu += num(r.holSunsuIja);
+                        sHolSuib += num(r.holSuibIja);
+                    });
+
+                    result.push({
+                        isTypeSummaryRow: true,
+                        fundNm: (jmGuNm || '채권') + ' 합계',
+                        aekm: sAekm,
+                        wonGm: sWon,
+                        misuIja: sMisu,
+                        sungCost: sSung,
+                        sunnTax: sTax,
+                        wonRiGm: sWonRi,
+                        holSunsuIja: sHolSunsu,
+                        holSuibIja: sHolSuib
+                    });
+                    g1Rows = [];
+                }
+
+                list.forEach(function (row) {
+                    const ymd = row.sanghwYmd || '';
+                    const jmGu = row.jmGu || '채권';
+                    const jmCd = row.jmCd || '';
+
+                    const g1Key = ymd + '__' + jmGu;
+                    const g2Key = ymd + '__' + jmCd;
+
+                    if (curGroup2Key !== null && curGroup2Key !== g2Key) {
+                        pushGroup2Subtotal();
+                    }
+                    if (curGroup1Key !== null && curGroup1Key !== g1Key) {
+                        const prevGu = curGroup1Key.split('__')[1];
+                        pushGroup1Subtotal(prevGu);
+                    }
+
+                    curGroup1Key = g1Key;
+                    curGroup2Key = g2Key;
+
+                    g2Rows.push(row);
+                    g1Rows.push(row);
+                    result.push(row);
+                });
+
+                if (curGroup2Key !== null) pushGroup2Subtotal();
+                if (curGroup1Key !== null) {
+                    const prevGu = curGroup1Key.split('__')[1];
+                    pushGroup1Subtotal(prevGu);
+                }
+
+                return result;
+            }
+
+            function updateFooterVisibility(data) {
+                const el = field('grid-ja030k');
+                if (!el) return;
+                const footer = el.querySelector('.tabulator-footer');
+                if (footer) {
+                    footer.style.display = (data && data.length > 0) ? 'block' : 'none';
+                }
+            }
+
+            // ==========================================
+            // 3. Grid Initialization
+            // ==========================================
+            function updateColumnsForCorp() {
+                if (!grid) return;
+                const nextIs2402 = is2402();
+                if (currentRenderedCorpIs2402 !== nextIs2402) {
+                    currentRenderedCorpIs2402 = nextIs2402;
+                    const guideEl = field('ja030kEditGuide');
+                    if (guideEl) guideEl.style.display = nextIs2402 ? 'inline-flex' : 'none';
+
+                    if (isGridBuilt && typeof grid.setColumns === 'function') {
+                        grid.setColumns(getColumns());
+                    }
+                }
+            }
+
+            function initGrid() {
+                const el = field('grid-ja030k');
+                if (!el) return;
+
+                currentRenderedCorpIs2402 = is2402();
+
+                grid = new Tabulator(el, {
+                    height: "100%",
+                    layout: "fitColumns",
+                    selectableRows: 1,
+                    placeholder: "조회된 데이터가 없습니다.",
+                    editTriggerEvent: "click", // Rule 04: 원클릭 인라인 편집
+                    data: [],
+                    columnDefaults: {
+                        vertAlign: "middle"
+                    },
+                    columns: getColumns(),
+                    rowFormatter: function (row) {
+                        const d = row.getData();
+                        if (d) {
+                            if (d.isItemSummaryRow) {
+                                row.getElement().classList.add("aams-item-summary-row");
+                            } else if (d.isTypeSummaryRow) {
+                                row.getElement().classList.add("aams-type-summary-row");
+                            }
+                        }
+                    }
+                });
+
+                grid.on("tableBuilt", function () {
+                    isGridBuilt = true;
+                });
+
+                cudManager = (typeof AamsCudManager !== 'undefined' && AamsCudManager.create)
+                    ? AamsCudManager.create(grid)
+                    : null;
+
+                // 2402 인라인 편집 시 수령액 자동 계산
+                grid.on("cellEdited", function (cell) {
+                    const fieldNm = cell.getField();
+                    if (fieldNm === "misuIja" || fieldNm === "sunnTax") {
+                        const row = cell.getRow();
+                        const d = row.getData();
+                        if (d && !d.isItemSummaryRow && !d.isTypeSummaryRow && is2402()) {
+                            const base = (d.sunhuGb === "2") ? num(d.aekm) : num(d.chuiAek || d.wonGm);
+                            const misu = num(d.misuIja);
+                            const tax = num(d.sunnTax != null ? d.sunnTax : d.ijaTax);
+                            const sury = base + misu - tax;
+
+                            row.update({
+                                ijaTax: tax,
+                                sunnTax: tax,
+                                suryAek: sury,
+                                wonRiGm: sury,
+                                isUpdated: !d.isNew
+                            });
+                        }
+                    }
+                });
+
+                if (typeof setupTabulatorRowSelection === 'function') {
+                    setupTabulatorRowSelection(grid);
+                }
+            }
+
+            // ==========================================
+            // 4. Data Loading
+            // ==========================================
+            function loadData() {
+                if (!grid) return;
+
+                const c = corpGr();
+                const f = getFYmd();
+                const t = getTYmd();
+
+                if (!c) {
+                    if (typeof showToast === 'function') showToast('회사그룹 정보가 없습니다.', 'warning');
+                    return;
+                }
+
+                // 회사그룹 변경 시 컬럼 동적 갱신
+                updateColumnsForCorp();
+
+                const url = '/api/assetmanagement/ja030k/list?corpGr=' + encodeURIComponent(c)
+                    + '&fymd=' + encodeURIComponent(f)
+                    + '&tymd=' + encodeURIComponent(t);
+
+                fetch(url)
+                    .then(function (res) {
+                        if (!res.ok) throw new Error('조회 실패 (HTTP ' + res.status + ')');
+                        return res.json();
+                    })
+                    .then(function (data) {
+                        const list = Array.isArray(data) ? data : [];
+                        // 그룹 소계 행(종목계, 구분합계) 생성
+                        const rowsWithSubtotals = processDataWithSubtotals(list);
+
+                        grid.setData(rowsWithSubtotals).then(function () {
+                            if (cudManager) cudManager.reset();
+                            updateFooterVisibility(list);
+                            const rows = grid.getRows();
+                            const firstDataRow = rows.find(function (r) {
+                                const d = r.getData();
+                                return d && !d.isItemSummaryRow && !d.isTypeSummaryRow;
+                            });
+                            if (firstDataRow) {
+                                firstDataRow.select();
+                            }
+                        });
+                    })
+                    .catch(function (err) {
+                        console.error('[W_JA030K] load error:', err);
+                        if (typeof showToast === 'function') showToast('데이터 조회 중 오류가 발생했습니다.', 'error');
+                    });
+            }
+
+            // ==========================================
+            // 5. Save Data (2402 리셋자산운용 수령이자/세금)
+            // ==========================================
+            function saveData() {
+                if (!is2402()) {
+                    if (typeof showToast === 'function') showToast('해당 회사는 상환명세 수정 권한이 없습니다.', 'info');
+                    return;
+                }
+
+                if (!grid) return;
+
+                // 소계 행 제외하고 실제 변경된 행 추출
+                const changedList = grid.getData().filter(function (d) {
+                    return d && !d.isItemSummaryRow && !d.isTypeSummaryRow && (d.isUpdated || d.isNew);
+                });
+
+                if (changedList.length === 0) {
+                    if (typeof showToast === 'function') showToast('수정된 내역이 없습니다.', 'info');
+                    return;
+                }
+
+                const payload = {
+                    corpGr: corpGr(),
+                    updatedList: changedList
+                };
+
+                fetch('/api/assetmanagement/ja030k/save', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                })
+                    .then(function (res) { return res.json(); })
+                    .then(function (resData) {
+                        if (resData && resData.success) {
+                            if (typeof showToast === 'function') showToast('저장이 완료되었습니다.', 'success');
+                            loadData();
+                        } else {
+                            const msg = (resData && resData.message) ? resData.message : '저장에 실패했습니다.';
+                            if (typeof showToast === 'function') showToast(msg, 'error');
+                        }
+                    })
+                    .catch(function (err) {
+                        console.error('[W_JA030K] save error:', err);
+                        if (typeof showToast === 'function') showToast('저장 중 통신 오류가 발생했습니다.', 'error');
+                    });
+            }
+
+            // ==========================================
+            // 6. Toolbar Standard Contract (Rule 08)
+            // ==========================================
+            function initToolbar() {
+                pane.onSearch = function () {
+                    loadData();
+                };
+
+                pane.onSave = function () {
+                    saveData();
+                };
+
+                pane.onExcel = function () {
+                    if (grid) {
+                        const f = (typeof getFilterFYmd === 'function') ? getFilterFYmd(pane, 'YYYYMMDD') : '';
+                        const t = (typeof getFilterTYmd === 'function') ? getFilterTYmd(pane, 'YYYYMMDD') : '';
+                        const fileName = (f === t) ? (f + '_원리금상환명세표.xlsx') : (f + '-' + t + '_원리금상환명세표.xlsx');
+                        grid.download("xlsx", fileName, { sheetName: "원리금상환명세" });
+                    }
+                };
+
+                pane.onRefresh = function () {
+                    if (grid) {
+                        grid.clearData();
+                        updateFooterVisibility([]);
+                    }
+                    if (cudManager) cudManager.reset();
+                    if (typeof showToast === 'function') showToast('화면이 초기화되었습니다.', 'info');
+                };
+
+                pane.onCorpGrChange = function (newCorpGr) {
+                    const targetCorp = newCorpGr || corpGr();
+                    fetch('/api/common/workdate?corpGr=' + encodeURIComponent(targetCorp))
+                        .then(function (res) { return res.json(); })
+                        .then(function (data) {
+                            if (data && data.workDate) {
+                                const fInput = field('filterFYmd');
+                                const tInput = field('filterTYmd');
+                                if (tInput) tInput.value = data.workDate;
+                                if (fInput) {
+                                    // 해당 월 1일로 설정
+                                    const clean = data.workDate.replace(/[^0-9]/g, '');
+                                    if (clean.length === 8) {
+                                        fInput.value = clean.substring(0, 4) + '-' + clean.substring(4, 6) + '-01';
+                                    }
+                                }
+                            }
+                            loadData();
+                        })
+                        .catch(function () {
+                            loadData();
+                        });
+                };
+            }
+
+            // ==========================================
+            // 7. Lifecycle Entry Point
+            // ==========================================
+            function init() {
+                if (isInitialized) return;
+                isInitialized = true;
+
+                initGrid();
+                initToolbar();
+
+                // 상단 공통 버튼 권한 엔진(ButtonRole) 적용
+                if (window.ButtonRole && typeof window.ButtonRole.apply === 'function') {
+                    const targetPgmNo = initialPgmNo || (pane ? pane.getAttribute('data-pgm-no') : null);
+                    window.ButtonRole.apply(pane, targetPgmNo);
+                }
+
+                // PB eb_direct_retrieve = true: 화면 진입 시 자동 조회
+                loadData();
+            }
+
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', init, { once: true });
+            } else {
+                init();
+            }
+        })();
+    </script>
+</div>
+</html>
+

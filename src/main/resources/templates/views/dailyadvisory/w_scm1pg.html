@@ -40,28 +40,9 @@
 
         <!-- Right Detail Section: Credit Rating & Buy Account List (d_scm1pg_2) -->
         <div class="pane-right detail-section">
-            <div class="pane-header">
+            <div class="pane-header" style="display: flex; justify-content: space-between; align-items: center;">
                 <span><i class="fa-solid fa-award" style="margin-right: 6px;"></i> 채권 등급 및 매수계좌 (<span id="selected-jm-name" style="color: #2563eb;">선택된 종목 없음</span>)</span>
-                <div style="display: flex; align-items: center; gap: 6px;">
-                    <!-- Detail Sub Action Buttons matching PowerBuilder UI -->
-                    <div class="btn-group-sub" style="display: inline-flex; gap: 3px;">
-                        <button type="button" id="btnDetailRefresh" class="btn-action btn-sub" title="상세 새로고침" style="padding: 2px 7px; font-size: 11px; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 3px; cursor: pointer;">
-                            <i class="fa-solid fa-rotate-right"></i>
-                        </button>
-                        <button type="button" id="btnDetailAdd" class="btn-action btn-sub" title="행추가" style="padding: 2px 7px; font-size: 11px; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 3px; cursor: pointer;">
-                            <i class="fa-solid fa-plus"></i>
-                        </button>
-                        <button type="button" id="btnDetailDel" class="btn-action btn-sub" title="행삭제" style="padding: 2px 7px; font-size: 11px; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 3px; cursor: pointer;">
-                            <i class="fa-solid fa-minus"></i>
-                        </button>
-                        <button type="button" id="btnDetailSave" class="btn-action btn-sub" title="상세저장" style="padding: 2px 7px; font-size: 11px; background: #2563eb; color: #fff; border: 1px solid #1d4ed8; border-radius: 3px; cursor: pointer;">
-                            <i class="fa-solid fa-floppy-disk"></i>
-                        </button>
-                        <button type="button" id="btnDetailExcel" class="btn-action btn-sub" title="엑셀다운로드" style="padding: 2px 7px; font-size: 11px; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 3px; cursor: pointer;">
-                            <i class="fa-solid fa-file-excel" style="color: #16a34a;"></i>
-                        </button>
-                    </div>
-                </div>
+                <div th:replace="~{fragments/grid/detail_nav :: detailNav(targetGrid='#scm1pg-detail-grid', fileName='채권등급및매수계좌', buttons='0011111001')}"></div>
             </div>
             <div class="pane-body">
                 <div id="scm1pg-detail-grid" class="tabulator-aams-grid" style="height: 100%;"></div>
@@ -322,43 +303,7 @@
                     });
                 }
 
-                // Attach sub button events in detail section header
-                bindSubButtons();
-            }
-
-            function bindSubButtons() {
-                const btnRefresh = pane ? pane.querySelector("#btnDetailRefresh") : document.getElementById("btnDetailRefresh");
-                if (btnRefresh) {
-                    btnRefresh.addEventListener("click", function() {
-                        if (currentSelectedMaster && currentSelectedMaster.jmCd) {
-                            loadDetail(currentSelectedMaster.jmCd);
-                        }
-                    });
-                }
-
-                const btnAdd = pane ? pane.querySelector("#btnDetailAdd") : document.getElementById("btnDetailAdd");
-                if (btnAdd) {
-                    btnAdd.addEventListener("click", doInput);
-                }
-
-                const btnDel = pane ? pane.querySelector("#btnDetailDel") : document.getElementById("btnDetailDel");
-                if (btnDel) {
-                    btnDel.addEventListener("click", doDelete);
-                }
-
-                const btnSave = pane ? pane.querySelector("#btnDetailSave") : document.getElementById("btnDetailSave");
-                if (btnSave) {
-                    btnSave.addEventListener("click", doSave);
-                }
-
-                const btnExcel = pane ? pane.querySelector("#btnDetailExcel") : document.getElementById("btnDetailExcel");
-                if (btnExcel) {
-                    btnExcel.addEventListener("click", function() {
-                        if (gridDetail) {
-                            gridDetail.download("xlsx", `채권등급_${currentSelectedMaster ? currentSelectedMaster.jmCd : ''}.xlsx`);
-                        }
-                    });
-                }
+                // Grid initialization complete
             }
 
             function syncDetail(row, masterRowData) {
@@ -538,12 +483,15 @@
                 });
             }
 
-            // Toolbar Button Binding (Rule 9)
+            // Toolbar Button Binding (Rule 9) & Sub-Grid Detail Nav Binding
             if (pane) {
                 pane.onSearch = loadMaster;
                 pane.onInput = doInput;
                 pane.onSave = doSave;
                 pane.onDelete = doDelete;
+                pane.onDetailAdd = doInput;
+                pane.onDetailInput = doInput;
+                pane.onDetailDelete = doDelete;
                 pane.onExcel = function() {
                     if (gridDetail) gridDetail.download("xlsx", `채권등급_${currentSelectedMaster ? currentSelectedMaster.jmCd : ''}.xlsx`);
                 };

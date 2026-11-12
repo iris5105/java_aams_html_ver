@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.kfp.aams.domain.assetmanagement.mapper.Ja030kMapper">
+
+    <!-- 1. 일반 회사 원리금 상환 명세표 조회 (d_ja030k1 / SR_JA030K 동일 쿼리) -->
+    <select id="selectListGeneral" resultType="com.kfp.aams.domain.assetmanagement.dto.Ja030kDto">
+        SELECT TO_CHAR(t1.sanghw_ymd, 'YYYY-MM-DD') AS sanghwYmd
+             , t1.jm_cd                             AS jmCd
+             , t3.cj_nm                             AS jmNm
+             , t1.fund_cd                           AS fundCd
+             , t2.fund_nm                           AS fundNm
+             , '채권'                               AS jmGu
+             , 'C'                                  AS jmGr
+             , t1.aekm / 10000                      AS aekm
+             , t1.won_gm                            AS wonGm
+             , NVL(t1.misu_ija, 0) + NVL(t1.sc_misu_ija, 0)   AS misuIja
+             , NVL(t1.sung_cost, 0) + NVL(t1.sc_sung_cost, 0) AS sungCost
+             , NVL(t1.sunn_tax, 0) + NVL(t1.sc_sunn_tax, 0)
+               + NVL(t1.yesu_tax, 0) + NVL(t1.sc_yesu_tax, 0) AS sunnTax
+             , t1.won_ri_gm - (NVL(t1.sunn_tax, 0) + NVL(t1.sc_sunn_tax, 0)
+                             + NVL(t1.yesu_tax, 0) + NVL(t1.sc_yesu_tax, 0)) AS wonRiGm
+             , t1.sunsu_ija                         AS holSunsuIja
+             , t1.suib_ija                          AS holSuibIja
+             , t1.currency                          AS currency
+          FROM UCS0BH t1
+          JOIN SZM0IA t2
+            ON t2.corp_gr = t1.corp_gr
+           AND t2.fund_cd = t1.fund_cd
+          JOIN SCM0CJ t3
+            ON t3.corp_gr = t1.corp_gr
+           AND t3.jm_cd   = t1.jm_cd
+         WHERE t1.corp_gr    = #{corpGr}
+           AND t1.sanghw_ymd BETWEEN TO_DATE(REPLACE(#{fymd}, '-', ''), 'YYYYMMDD')
+                                 AND TO_DATE(REPLACE(#{tymd}, '-', ''), 'YYYYMMDD')
+           AND t1.currency IS NULL
+         UNION ALL
+        SELECT TO_CHAR(t1.sanghw_ymd, 'YYYY-MM-DD') AS sanghwYmd
+             , t1.hj_cd                             AS jmCd
+             , F_JM_NM(#{corpGr}, t1.hj_cd)         AS jmNm
+             , t1.fund_cd                           AS fundCd
+             , t2.fund_nm                           AS fundNm
+             , '현금'                               AS jmGu
+             , 'H'                                  AS jmGr
+             , t1.aekm / 10000                      AS aekm
+             , t1.sanghw_aek                        AS wonGm
+             , t1.misu_ija                          AS misuIja
+             , t1.sung_cost                         AS sungCost
+             , NVL(t1.sunn_tax, 0) + NVL(t1.yesu_tax, 0) AS sunnTax
+             , NVL(t1.sanghw_aek, 0) + NVL(t1.misu_ija, 0) + NVL(t1.sung_cost, 0)
+               - (NVL(t1.sunn_tax, 0) + NVL(t1.yesu_tax, 0)) AS wonRiGm
+             , 0                                    AS holSunsuIja
+             , 0                                    AS holSuibIja
+             , NULL                                 AS currency
+          FROM UHM0HP t1
+          JOIN SZM0IA t2
+            ON t2.corp_gr = t1.corp_gr
+           AND t2.fund_cd = t1.fund_cd
+         WHERE t1.corp_gr    = #{corpGr}
+           AND t1.sanghw_ymd BETWEEN TO_DATE(REPLACE(#{fymd}, '-', ''), 'YYYYMMDD')
+                                 AND TO_DATE(REPLACE(#{tymd}, '-', ''), 'YYYYMMDD')
+         ORDER BY sanghwYmd ASC, jmGu ASC, jmCd ASC, fundCd ASC
+    </select>
+
+    <!-- 2. 2402 리셋자산운용 원리금 상환 명세표 조회 (d_ja030k1_2402) -->
+    <select id="selectList2402" resultType="com.kfp.aams.domain.assetmanagement.dto.Ja030kDto">
+        SELECT t1.CORP_GR                              AS corpGr
+             , TO_CHAR(t1.sanghw_ymd, 'YYYY-MM-DD')    AS sanghwYmd
+             , t1.fund_cd                              AS fundCd
+             , ia.fund_nm                              AS fundNm
+             , t1.jm_gr                                AS jmGr
+             , DECODE(t1.jm_gr, 'C', '채권', 'H', '현금', t1.jm_gr) AS jmGu
+             , t1.jm_cd                                AS jmCd
+             , t1.sunhu_gb                             AS sunhuGb
+             , F_JM_NM(t1.CORP_GR, t1.jm_cd)           AS jmNm
+             , t1.buy_date                             AS buyDate
+             , t1.aekm                                 AS aekm
+             , t1.chui_aek                             AS chuiAek
+             , t1.chui_aek                             AS wonGm
+             , t1.misu_ija                             AS misuIja
+             , t1.ija_tax                              AS ijaTax
+             , t1.ija_tax                              AS sunnTax
+             , t1.sury_aek                             AS suryAek
+             , t1.sury_aek                             AS wonRiGm
+             , t1.trustee                              AS trustee
+             , t1.currency                             AS currency
+             , t1.mod_user                             AS modUser
+             , TO_CHAR(t1.mod_dt, 'YYYY-MM-DD HH24:MI:SS') AS modDt
+          FROM UZM0SH t1
+          JOIN SZM0IA ia
+            ON ia.CORP_GR = t1.CORP_GR
+           AND ia.fund_cd = t1.fund_cd
+         WHERE t1.CORP_GR    = #{corpGr}
+           AND t1.sanghw_ymd BETWEEN TO_DATE(REPLACE(#{fymd}, '-', ''), 'YYYYMMDD')
+                                 AND TO_DATE(REPLACE(#{tymd}, '-', ''), 'YYYYMMDD')
+         ORDER BY t1.fund_cd ASC, t1.jm_gr ASC, t1.jm_cd ASC, t1.sanghw_ymd ASC
+    </select>
+
+    <!-- 3. 2402 UZM0SH 수령이자/세금/수령액 업데이트 -->
+    <update id="updateUzm0sh">
+        UPDATE UZM0SH
+           SET misu_ija = #{misuIja}
+             , ija_tax  = #{ijaTax}
+             , sury_aek = #{suryAek}
+             , mod_user = #{modUser}
+             , mod_dt   = SYSDATE
+         WHERE corp_gr    = #{corpGr}
+           AND sanghw_ymd = TO_DATE(REPLACE(#{sanghwYmd}, '-', ''), 'YYYYMMDD')
+           AND fund_cd    = #{fundCd}
+           AND jm_gr      = #{jmGr}
+           AND jm_cd      = #{jmCd}
+           AND buy_date   = #{buyDate}
+    </update>
+
+</mapper>
+
