@@ -102,14 +102,15 @@
          style="flex:1; min-height:0; display:flex; width:100%; overflow:hidden; padding:0 10px 10px;">
 
         <!-- Left Pane: Master Grid (d_ja030e1: 종목 목록) -->
-        <div class="pane-left left-pane" style="flex:0 0 300px; width:300px; min-width:250px; display:flex; flex-direction:column; min-height:0; overflow:hidden; border:1px solid #94a3b8; border-radius:3px;">
+        <div class="split-pane pane-left left-pane" style="flex:0 0 300px; width:300px; min-width:250px; display:flex; flex-direction:column; min-height:0; overflow:hidden; border:1px solid #94a3b8; border-radius:3px;">
             <div class="pane-body" style="flex:1; min-height:0; position:relative; overflow:hidden; background:#fff;">
                 <div id="gridJa030eMaster" class="tabulator-aams-grid" style="height:100%; width:100%;"></div>
             </div>
         </div>
 
         <!-- Right Pane: Report Preview Viewport (d_ja030e2: 채권 종목정보 및 보유현황) -->
-        <div class="pane-right ja030e-report-viewport" id="ja030eReportViewport" style="border:1px solid #94a3b8; border-radius:3px; margin-left:8px;">
+        <div class="split-gutter-h" aria-hidden="true"></div>
+        <div class="split-pane pane-right ja030e-report-viewport" id="ja030eReportViewport" style="border:1px solid #94a3b8; border-radius:3px;">
             
             <!-- 상단 네비게이션 툴바: 공통 grid-nav-group 표준 스타일 적용 (엑셀 다운로드 및 페이지 이동 네비게이터) -->
             <div style="width:100%; display:flex; justify-content:flex-end; align-items:center; margin-bottom:6px; box-sizing:border-box;">
@@ -501,6 +502,9 @@
                 detailCurrentPage = page;
                 renderDetailTableRows();
                 updateDetailNavButtons();
+                if (window.AamsSplitter && typeof window.AamsSplitter.init === 'function') {
+                    window.AamsSplitter.init(pane);
+                }
             }
 
             // DETAIL 엑셀 다운로드 핸들러
@@ -961,7 +965,11 @@
                 }, 100);
             }
 
-            init();
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', init, { once:true });
+            } else {
+                init();
+            }
         })();
     </script>
 </div>

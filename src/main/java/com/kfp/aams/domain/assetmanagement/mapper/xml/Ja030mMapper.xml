@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.kfp.aams.domain.assetmanagement.mapper.Ja030mMapper">
+
+    <!-- d_ja030m1/d_ja030m2: 특정 운용사는 최근 12개월, 전체는 기준일 유효분만 조회한다. -->
+    <select id="selectList" resultType="com.kfp.aams.domain.assetmanagement.dto.Ja030mDto">
+        SELECT hj.CORP_GR AS corp_gr, hj.JM_CD AS jm_cd, hj.HJ_NM AS hj_nm,
+               hj.CASH_CD AS cash_cd, hj.BROKER_CD AS sutak_cd,
+               hj.PYOM_IYUL AS pyom_iyul, hj.PYOM_IYUL * 100 AS pyom_iyul_per,
+               hj.MEIB_SUIK_RT AS meib_suik_rt,
+               hj.BALH_YMD AS balh_ymd, hj.SANGHW_YMD AS sanghw_ymd
+          FROM SHM0HJ hj
+         WHERE <choose><when test="allCorp">hj.CORP_GR LIKE '%'</when><otherwise>hj.CORP_GR = #{corpGr}</otherwise></choose>
+           AND <choose>
+                 <when test="allCorp">hj.CASH_CD = '90' AND #{workDate} BETWEEN hj.BALH_YMD AND hj.SANGHW_YMD AND hj.BROKER_CD != '%'</when>
+                 <otherwise>hj.CASH_CD IN ('70', '90') AND hj.BROKER_CD IS NOT NULL AND hj.SANGHW_YMD &gt;= ADD_MONTHS(#{workDate}, -12)</otherwise>
+               </choose>
+         ORDER BY hj.CORP_GR, hj.CASH_CD, hj.BROKER_CD, hj.BALH_YMD DESC
+    </select>
+
+    <!-- PB updatestart와 동일한 KR9 + 대체연월 + 일자 + 자산종류 + 순번 체계. -->
+    <select id="selectNextJmCd" resultType="java.lang.String">
+        SELECT F_JM_CHECK('KR9' || F_GET_ID_DAE('Y', TO_CHAR(#{balhYmd}, 'YYYY'))
+                          || F_GET_ID_DAE('M', TO_CHAR(#{balhYmd}, 'MM'))
+                          || TO_CHAR(#{balhYmd}, 'DD') || #{cashCd}
+                          || LPAD(NVL(MAX(TO_NUMBER(SUBSTR(JM_CD, 10, 2))), 0) + 1, 2, '0'))
+          FROM SHM0HJ
+         WHERE CORP_GR = #{corpGr}
+           AND JM_CD LIKE 'KR9' || F_GET_ID_DAE('Y', TO_CHAR(#{balhYmd}, 'YYYY'))
+                          || F_GET_ID_DAE('M', TO_CHAR(#{balhYmd}, 'MM'))
+                          || TO_CHAR(#{balhYmd}, 'DD') || #{cashCd} || '__'
+    </select>
+
+    <!-- PB dw_list::itemchanged(balh_ymd): 해당 월 말일 다음의 개장일. -->
+    <select id="selectSanghwYmdForBalhYmd" resultType="java.time.LocalDate">
+        SELECT F_OPEN_YMD(LAST_DAY(#{balhYmd}) + 1, '+')
+          FROM DUAL
+    </select>
+
+    <!-- PB dw_list::ue_copyrowset와 동일한 발행일·만기일 이동 규칙. -->
+    <select id="selectCopyDates" resultType="com.kfp.aams.domain.assetmanagement.dto.Ja030mCopyDateDto">
+        SELECT ADD_MONTHS(#{balhYmd}, TRUNC(MONTHS_BETWEEN(#{sanghwYmd}, #{balhYmd}))) AS balh_ymd,
+               F_OPEN_YMD(
+                   TO_DATE(
+                       TO_CHAR(ADD_MONTHS(#{sanghwYmd}, TRUNC(MONTHS_BETWEEN(#{sanghwYmd}, #{balhYmd}))), 'YYYYMM')
+                       || TO_CHAR(#{balhYmd}, 'DD'),
+                       'YYYYMMDD'
+                   ),
+                   '+'
+               ) AS sanghw_ymd
+          FROM DUAL
+    </select>
+
+    <insert id="insert">
+        INSERT INTO SHM0HJ (CORP_GR, JM_CD, HJ_NM, CASH_CD, PYOM_IYUL, BALH_YMD, SANGHW_YMD, MEIB_SUIK_RT, BROKER_CD)
+        VALUES (#{corpGr}, #{jmCd}, #{hjNm}, #{cashCd}, #{pyomIyul}, #{balhYmd}, #{sanghwYmd}, #{meibSuikRt}, #{sutakCd})
+    </insert>
+    <update id="update">
+        UPDATE SHM0HJ
+           SET HJ_NM = #{hjNm}, CASH_CD = #{cashCd}, PYOM_IYUL = #{pyomIyul},
+               BALH_YMD = #{balhYmd}, SANGHW_YMD = #{sanghwYmd}, MEIB_SUIK_RT = #{meibSuikRt}, BROKER_CD = #{sutakCd}
+         WHERE CORP_GR = #{corpGr} AND JM_CD = #{jmCd}
+    </update>
+    <delete id="delete">DELETE FROM SHM0HJ WHERE CORP_GR = #{corpGr} AND JM_CD = #{jmCd}</delete>
+</mapper>

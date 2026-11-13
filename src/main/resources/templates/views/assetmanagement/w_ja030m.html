@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<div class="view-container layout-single layout-mobile-stack-container ja030m-container" th:fragment="mainView" data-pgm-id="W_JA030M"
+     th:attr="data-corp-gr=${corpGr},data-pgm-no=${pgmNo},data-work-date=${workDate}">
+    <style>
+        .ja030m-container .filter-item { display:flex; align-items:center; gap:6px; }
+        .ja030m-container .filter-item label { font-size:12px; font-weight:600; color:#334155; }
+        .ja030m-container .filter-item select { min-width:150px; }
+    </style>
+
+    <div class="view-toolbar">
+        <div class="toolbar-left"><div th:replace="~{fragments/tab_header :: toolbarButtons}"></div></div>
+        <div th:replace="~{fragments/tab_header :: toolbarBreadcrumb}"></div>
+    </div>
+
+    <div class="filter-bar">
+        <div class="filter-left">
+            <div class="filter-item">
+                <label for="filterCorpGr">운용사</label>
+                <select id="filterCorpGr" name="corpGr" th:disabled="${adminYn != 'Y'}"><option th:value="${corpGr}" th:text="${corpGr}"></option></select>
+            </div>
+        </div>
+    </div>
+
+    <section class="grid-section" aria-label="증권사 예금이자 적용종목 목록">
+        <div class="grid-table-wrapper"><div id="gridJa030m" class="tabulator-aams-grid"></div></div>
+    </section>
+
+    <script th:inline="javascript">
+        (function () {
+            const pane = document.currentScript ? (document.currentScript.closest('.tab-pane') || document.currentScript.closest('.view-container')) : null;
+            if (!pane || pane.dataset.isInitialized === 'true') return;
+            pane.dataset.isInitialized = 'true';
+
+            let grid;
+            let deletedRows = [];
+            let initializedCorpGr = '';
+            const field = id => pane.querySelector('#' + id);
+            const corpGr = () => field('filterCorpGr').value;
+            const savedCorpGr = () => {
+                const matched = document.cookie.match(/(?:^|;\s*)savedCorpGr=([^;]*)/)
+                    || document.cookie.match(/(?:^|;\s*)corpGr=([^;]*)/);
+                return matched && matched[1] ? decodeURIComponent(matched[1]).trim() : '';
+            };
+            const isWorkingCorpGr = value => value && String(value).trim() && String(value).trim() !== '%';
+            const currentWorkingCorpGr = () => {
+                const headerCorpGr = document.getElementById('corpGrSelect')?.value;
+                const candidates = [window.currentCorpGr, headerCorpGr, savedCorpGr(), pane.dataset.corpGr, corpGr()];
+                return candidates.find(isWorkingCorpGr) || '';
+            };
+            const workDate = () => pane.dataset.workDate || '';
+            const toast = (message, type) => typeof showToast === 'function' ? showToast(message, type) : alert(message);
+            const toNumber = value => value == null || value === '' ? null : Number(String(value).replace(/,/g, ''));
+            const toYmd = value => {
+                const digits = String(value || '').replace(/\D/g, '');
+                return digits.length === 8 ? `${digits.slice(0, 4)}-${digits.slice(4, 6)}-${digits.slice(6, 8)}` : '';
+            };
+            const isCurrentCompanyMode = () => corpGr() !== '%';
+            const isProtectedMaturityRow = row => {
+                if (!isCurrentCompanyMode() || row.isNew) return false;
+                const maturity = toYmd(row.sanghwYmd);
+                const baseDate = toYmd(workDate());
+                if (!maturity || !baseDate) return false;
+                const cutoff = new Date(`${baseDate}T00:00:00`);
+                cutoff.setDate(cutoff.getDate() - 10);
+                const cutoffYmd = [cutoff.getFullYear(), String(cutoff.getMonth() + 1).padStart(2, '0'), String(cutoff.getDate()).padStart(2, '0')].join('-');
+                return maturity < cutoffYmd;
+            };
+            const isEditableMaturityCell = cell => !isProtectedMaturityRow(cell.getRow().getData());
+            const markUpdated = cell => {
+                const row = cell.getRow();
+                const data = row.getData();
+                if (!data.isNew) row.update({ isUpdated:true, rowStatus:'U' });
+            };
+            const fetchJson = async url => {
+                const response = await fetch(url);
+                if (!response.ok) throw new Error('처리 중 오류가 발생했습니다.');
+                return response.json();
+            };
+            const syncSanghwYmd = async cell => {
+                const balhYmd = toYmd(cell.getRow().getData().balhYmd);
+                if (!balhYmd) return;
+                const result = await fetchJson(`/api/assetmanagement/ja030m/sanghw-ymd?balhYmd=${encodeURIComponent(balhYmd)}`);
+                const row = cell.getRow();
+                row.update({ sanghwYmd:result.sanghwYmd });
+                if (!row.getData().isNew) row.update({ isUpdated:true, rowStatus:'U' });
+            };
+            const syncRateColumns = cell => {
+                const rate = toNumber(cell.getValue());
+                const row = cell.getRow();
+                const rateText = cell.getValue() == null || cell.getValue() === '' ? '' : String(cell.getValue());
+                const cashName = optionValues('cashCd')[row.getData().cashCd] || row.getData().cashCd || '';
+                row.update({
+                    pyomIyul:rate == null ? null : rate / 100,
+                    meibSuikRt:rate == null ? null : rate / 100,
+                    hjNm:(isCurrentCompanyMode() ? cashName : '예금') + `(${rateText}%)`,
+                    isUpdated:!row.getData().isNew || row.getData().isUpdated,
+                    rowStatus:row.getData().isNew ? 'C' : 'U'
+                });
+            };
+            const calendarButtonFormatter = title => cell => {
+                const disabled = isCurrentCompanyMode() && isProtectedMaturityRow(cell.getRow().getData());
+                return `<button type="button" class="btn-grid-addon btn-cal${disabled ? ' disabled' : ''}" title="${title}"${disabled ? ' disabled' : ''}><i class="fa-regular fa-calendar-days"></i></button>`;
+            };
+            const openDatePicker = (event, cell, field, title) => {
+                event.stopPropagation();
+                const row = cell.getRow();
+                if (isCurrentCompanyMode() && isProtectedMaturityRow(row.getData())) return;
+                if (!window.AamsCalendar || typeof window.AamsCalendar.pickDate !== 'function') {
+                    toast('달력 기능을 불러오지 못했습니다.', 'warning');
+                    return;
+                }
+                const target = row.getCell(field);
+                window.AamsCalendar.pickDate(target.getValue(), selectedYmd => {
+                    row.update({ [field]:selectedYmd });
+                    if (field === 'balhYmd') {
+                        syncSanghwYmd(target).catch(error => toast(error.message, 'error'));
+                    } else {
+                        markUpdated(target);
+                    }
+                }, event.target, { pane, format:'dash', title });
+            };
+
+            async function loadDddw(selectedCorpGr) {
+                const current = selectedCorpGr || currentWorkingCorpGr();
+                const sourceCorpGr = current === '%' ? currentWorkingCorpGr() : current;
+                const corpSelect = field('filterCorpGr');
+                pane.dataset.corpGr = current;
+                if (corpSelect.disabled) {
+                    corpSelect.replaceChildren();
+                    const option = document.createElement('option');
+                    option.value = current;
+                    option.textContent = current;
+                    corpSelect.append(option);
+                    corpSelect.value = current;
+                }
+                const corpOptions = corpSelect.disabled
+                    ? []
+                    : await f_dddwctl(corpSelect, 'dddw | corp_gr', current, '%,전체,', 1, '', { defaultVal:current });
+                pane._dddwOptionsMap = { corpGr:corpOptions || [] };
+                if (current === '%') {
+                    await Promise.all([
+                        f_dddwctl('dddw | corp_gr', sourceCorpGr, '', 1, "corp_gr LIKE '%'"),
+                        f_dddwctl('cash_cd', sourceCorpGr, '', 1, "sebu_cd='90'"),
+                        f_dddwctl('sutak_cd', sourceCorpGr, '', 9, "corp_gr LIKE '%'")
+                    ]).then(([corpGridOptions, cashOptions, sutakOptions]) => {
+                        pane._dddwOptionsMap.corpGr = corpGridOptions || [];
+                        pane._dddwOptionsMap.cashCd = cashOptions || [];
+                        pane._dddwOptionsMap.sutakCd = sutakOptions || [];
+                    });
+                } else {
+                    await Promise.all([
+                        f_dddwctl('cash_cd', sourceCorpGr, '', 1, "sebu_cd in ('70','90')"),
+                        f_dddwctl('sutak_cd', current, '%,전체,', 1, '')
+                    ]).then(([cashOptions, sutakOptions]) => {
+                        pane._dddwOptionsMap.cashCd = cashOptions || [];
+                        pane._dddwOptionsMap.sutakCd = sutakOptions || [];
+                    });
+                }
+            }
+            function optionValues(key) {
+                return (pane._dddwOptionsMap[key] || []).reduce((result, item) => { result[item.code] = item.name; return result; }, {});
+            }
+            function createGrid() {
+                const allCorp = corpGr() === '%';
+                const columns = [{ title:'No.', formatter:'rownum', width:35, hozAlign:'center', headerSort:false }];
+                if (allCorp) {
+                    columns.push({ title:'예금이자적용회사', field:'corpGr', width:120, hozAlign:'center', formatter:cell => optionValues('corpGr')[cell.getValue()] || cell.getValue(), editable:false });
+                } else {
+                    columns.push({ title:'자산종류', field:'cashCd', width:75, hozAlign:'center', formatter:cell => optionValues('cashCd')[cell.getValue()] || cell.getValue(), editable:false });
+                }
+                columns.push(
+                    { title:'증권(수탁)사', field:'sutakCd', width:165, editor:allCorp ? false : 'list', editable:allCorp ? false : isEditableMaturityCell, editorParams:{ values:() => optionValues('sutakCd') }, formatter:cell => optionValues('sutakCd')[cell.getValue()] || cell.getValue(), cellClick:aamsCellEdit, cellEdited:markUpdated },
+                    { title:'발행일자', field:'balhYmd', width:105, hozAlign:'center', editor:window.aamsDateEditor || 'input', editable:allCorp ? true : isEditableMaturityCell, editorParams:{ separator:'-' }, cellClick:aamsCellEdit, cellEdited:cell => syncSanghwYmd(cell).catch(error => toast(error.message, 'error')) },
+                    { title:'', field:'p_dd_balh_ymd', width:36, minWidth:36, maxWidth:36, hozAlign:'center', headerSort:false, resizable:false, formatter:calendarButtonFormatter('발행일자 선택'), cellClick:(event, cell) => openDatePicker(event, cell, 'balhYmd', '발행일자 선택') },
+                    { title:'만기인출일', field:'sanghwYmd', width:105, hozAlign:'center', editor:window.aamsDateEditor || 'input', editable:allCorp ? true : isEditableMaturityCell, editorParams:{ separator:'-' }, cellClick:aamsCellEdit, cellEdited:markUpdated },
+                    { title:'', field:'p_dd_sanghw_ymd', width:36, minWidth:36, maxWidth:36, hozAlign:'center', headerSort:false, resizable:false, formatter:calendarButtonFormatter('만기인출일 선택'), cellClick:(event, cell) => openDatePicker(event, cell, 'sanghwYmd', '만기인출일 선택') },
+                    { title:'이율(%)', field:'pyomIyulPer', width:110, hozAlign:'right', editor:'number', editable:allCorp ? true : isEditableMaturityCell, editorParams:{ step:0.0001 }, formatter:'money', formatterParams:{ precision:4 }, cellClick:aamsCellEdit, cellEdited:syncRateColumns },
+                    { title:'종 목 명', field:'hjNm', minWidth:220, editor:'input', cellClick:aamsCellEdit, cellEdited:markUpdated },
+                    { title:'종목코드', field:'jmCd', width:130, hozAlign:'center', editable:false }
+                );
+                grid = new Tabulator(field('gridJa030m'), {
+                    layout:'fitDataStretch', height:'100%', selectableRows:1, editTriggerEvent:'click',
+                    columnDefaults:{ vertAlign:'middle', headerHozAlign:'center', headerSortTristate:true },
+                    columns
+                });
+            }
+            async function retrieve() {
+                if (!corpGr()) { toast('운용사를 확인해 주세요.', 'warning'); return; }
+                const url = `/api/assetmanagement/ja030m/list?corpGr=${encodeURIComponent(corpGr())}`;
+                const response = await fetch(url);
+                if (!response.ok) throw new Error('조회에 실패했습니다.');
+                deletedRows = [];
+                await grid.setData(await response.json());
+            }
+            async function insertRow() {
+                const selected = grid.getSelectedData()[0] || {};
+                const allCompany = corpGr() === '%';
+                const balhYmd = workDate();
+                const maturity = await fetchJson(`/api/assetmanagement/ja030m/sanghw-ymd?balhYmd=${encodeURIComponent(balhYmd)}`);
+                const row = {
+                    isNew:true, rowStatus:'C', corpGr:allCompany ? (selected.corpGr || '') : corpGr(),
+                    cashCd: selected.cashCd || '90', sutakCd:selected.sutakCd || '%',
+                    balhYmd, sanghwYmd:maturity.sanghwYmd, pyomIyulPer:null, hjNm:'', jmCd:''
+                };
+                const newRow = await grid.addRow(row, true);
+                grid.deselectRow();
+                newRow.select();
+                newRow.scrollTo();
+            }
+            async function copyRow() {
+                const source = grid.getSelectedData()[0];
+                if (!source) { toast('복사할 행을 선택해 주세요.', 'warning'); return; }
+                const dates = await fetchJson(`/api/assetmanagement/ja030m/copy-dates?balhYmd=${encodeURIComponent(toYmd(source.balhYmd))}&sanghwYmd=${encodeURIComponent(toYmd(source.sanghwYmd))}`);
+                const row = {
+                    ...source,
+                    isNew:true,
+                    isUpdated:false,
+                    rowStatus:'C',
+                    jmCd:'',
+                    balhYmd:dates.balhYmd,
+                    sanghwYmd:dates.sanghwYmd
+                };
+                const newRow = await grid.addRow(row, false);
+                grid.deselectRow();
+                newRow.select();
+                newRow.scrollTo();
+            }
+            function deleteRow() {
+                const rows = grid.getSelectedRows();
+                if (!rows.length) { toast('삭제할 행을 선택해 주세요.', 'warning'); return; }
+                rows.forEach(row => { const data = row.getData(); if (!data.isNew) deletedRows.push(data); row.delete(); });
+            }
+            async function save() {
+                const rows = grid.getData().filter(row => row.isNew || row.isUpdated || row.rowStatus === 'C' || row.rowStatus === 'U');
+                if (!rows.length && !deletedRows.length) { toast('저장할 변경사항이 없습니다.', 'info'); return; }
+                const response = await fetch('/api/assetmanagement/ja030m/save', { method:'POST', headers:{ 'Content-Type':'application/json' }, body:JSON.stringify({ rows, deletedRows }) });
+                const result = await response.json();
+                if (!response.ok || !result.success) throw new Error(result.message || '저장에 실패했습니다.');
+                toast(result.message, 'success'); await retrieve();
+            }
+            function downloadExcel() {
+                if (!window.XLSX) { toast('엑셀 기능을 불러오지 못했습니다.', 'warning'); return; }
+                grid.download('xlsx', `예금이자적용종목_${workDate().replaceAll('-', '')}.xlsx`, { sheetName:'예금이자적용종목' });
+            }
+            function bindToolbar() {
+                pane.onSearch = pane.onRetrieve = () => retrieve().catch(error => toast(error.message, 'error'));
+                pane.onInput = pane.onInsert = () => insertRow().catch(error => toast(error.message, 'error'));
+                pane.onCopy = () => copyRow().catch(error => toast(error.message, 'error'));
+                pane.onDelete = deleteRow;
+                pane.onSave = () => save().catch(error => toast(error.message, 'error'));
+                pane.onExcel = downloadExcel;
+                pane.onCorpGrChange = value => changeCorpGr(value).catch(error => toast(error.message, 'error'));
+                pane.onRefresh = () => { deletedRows = []; grid.clearData(); };
+                field('filterCorpGr').addEventListener('change', () => changeCorpGr(corpGr()).catch(error => toast(error.message, 'error')));
+            }
+            async function changeCorpGr(value) {
+                const nextCorpGr = value || currentWorkingCorpGr();
+                if (nextCorpGr === initializedCorpGr) return;
+                pane.dataset.corpGr = nextCorpGr;
+                field('filterCorpGr').value = nextCorpGr;
+                await loadDddw(nextCorpGr);
+                initializedCorpGr = nextCorpGr;
+                deletedRows = [];
+                if (grid) grid.destroy();
+                createGrid();
+                await retrieve();
+            }
+            async function startInit() {
+                await loadDddw();
+                initializedCorpGr = corpGr();
+                createGrid();
+                bindToolbar();
+                retrieve().catch(error => toast(error.message, 'error'));
+            }
+            const initialize = () => startInit().catch(error => toast(error.message, 'error'));
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', initialize, { once:true });
+            } else {
+                initialize();
+            }
+        })();
+    </script>
+</div>
+</html>

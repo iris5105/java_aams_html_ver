@@ -4,6 +4,10 @@
      th:attr="data-work-date=${workDate},data-corp-gr=${corpGr}"
      style="display: flex; flex-direction: column; height: 100%; width: 100%; overflow: hidden; background-color: #ffffff; position: relative;">
 
+    <style>
+        .ja031k-container .ja031k-grid-section { margin-top: 4px; }
+    </style>
+
     <!-- 1. 상단 공통 툴바 -->
     <div class="view-toolbar">
         <div class="toolbar-left">
@@ -19,17 +23,12 @@
         </div>
     </div>
 
-    <!-- 3. 메인 그리드 영역 (d_ja031k.srd 1:1 반영, Summary 없음, Zero-Count-Badge 및 detailNav 배제 준수) -->
-    <div class="grid-section" style="flex: 1 1 auto; padding: 0 12px 10px; min-height: 0; display: flex; flex-direction: column;">
-        <div class="sub-grid-header" style="display: flex; align-items: center; justify-content: space-between; min-height: 28px; padding: 4px 10px; background: #f8fafc; border: 1px solid #cbd5e1; border-bottom: 0; flex-shrink: 0;">
-            <span class="sub-title" style="font-weight: 600; font-size: 13px; color: #1e293b;">
-                <i class="fa-solid fa-coins" style="margin-right: 6px; color: #3b82f6;"></i>기타수입 입금등록 목록
-            </span>
+    <!-- 3. 메인 그리드 영역 (d_ja031k.srd 1:1 반영) -->
+    <section class="grid-section ja031k-grid-section" aria-label="기타수입 입금등록 목록">
+        <div class="grid-table-wrapper">
+            <div id="gridList" class="tabulator-aams-grid"></div>
         </div>
-        <div class="grid-table-wrapper" style="flex: 1 1 auto; min-height: 290px; border: 1px solid #cbd5e1; position: relative; overflow: hidden;">
-            <div id="gridList" class="tabulator-aams-grid" style="height: 100%; width: 100%;"></div>
-        </div>
-    </div>
+    </section>
 
     <!-- 4. 화면 전용 스크립트 -->
     <script th:inline="javascript">

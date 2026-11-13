@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
-<div class="view-container layout-single ja030j-container layout-mobile-stack-container" th:fragment="mainView" data-pgm-id="W_JA030J"
+<div class="view-container layout-split ja030j-container layout-mobile-stack-container" th:fragment="mainView" data-pgm-id="W_JA030J"
      th:attr="data-corp-gr=${corpGr},data-pgm-no=${pgmNo},data-work-date=${workDate}"
      style="display:flex; flex-direction:column; height:100%; width:100%; overflow:hidden; background:#fff; position:relative;">
 
@@ -48,6 +48,7 @@
             border-top: 1px dashed #cbd5e1 !important;
             border-bottom: 2px solid #a855f7 !important;
         }
+        .ja030j-container .ja030j-split-body { margin-top: 4px; }
     </style>
 
     <!-- 1. Top Action Toolbar & Breadcrumb (Rule 08) -->
@@ -59,29 +60,7 @@
     <!-- 2. Filter Bar (Rule 08 UX 일체화 원칙) -->
     <div class="filter-bar">
         <div class="filter-left" style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
-            <!-- 조회기간 (fymd ~ tymd) -->
-            <div class="filter-item" style="position:relative; display:flex; align-items:center; gap:6px;">
-                <label style="font-size:12px; font-weight:600; color:#334155;">조회기간</label>
-                <div class="aams-calendar-wrapper" style="position:relative; display:inline-flex; align-items:center;">
-                    <input type="text" id="filterFymd" name="fymd" class="t-input aams-calendar-input"
-                           style="width:90px; padding:4px 8px; font-size:12px; text-align:center; border:1px solid #cbd5e1; border-radius:4px 0 0 4px; cursor:pointer;"
-                           th:value="${workDate}" readonly autocomplete="off" />
-                    <button type="button" class="t-btn btn-calendar" title="시작일 달력 열기"
-                            style="padding:4px 8px; border-radius:0; border-left:none; background-color:#3b82f6; color:#ffffff; border:1px solid #3b82f6; cursor:pointer;"
-                            onclick="AamsCalendar.toggle('filterFymd', event)">
-                        <i class="fa-regular fa-calendar-days"></i>
-                    </button>
-                    <span style="padding:0 4px; color:#64748b; font-weight:bold;">~</span>
-                    <input type="text" id="filterTymd" name="tymd" class="t-input aams-calendar-input"
-                           style="width:90px; padding:4px 8px; font-size:12px; text-align:center; border:1px solid #cbd5e1; border-radius:0; cursor:pointer;"
-                           th:value="${workDate}" readonly autocomplete="off" />
-                    <button type="button" class="t-btn btn-calendar" title="종료일 달력 열기"
-                            style="padding:4px 8px; border-radius:0 4px 4px 0; border-left:none; background-color:#3b82f6; color:#ffffff; border:1px solid #3b82f6; cursor:pointer;"
-                            onclick="AamsCalendar.toggle('filterTymd', event)">
-                        <i class="fa-regular fa-calendar-days"></i>
-                    </button>
-                </div>
-            </div>
+            <th:block th:replace="~{fragments/filter/dc_ftymd :: filter(label='조회기간', fYmd=${workDate}, tYmd=${workDate})}"></th:block>
 
             <!-- 조회구분 (gubun: 1전체, 3현금종류별, 5종목별, 6계좌별) -->
             <div class="filter-item" style="position:relative; display:flex; align-items:center; gap:6px;">
@@ -143,11 +122,11 @@
     </div>
 
     <!-- 3. Main Split Container (Horizontal Split: Left Master Grid / Right Detail Inspector, Rule 10) -->
-    <div class="layout-split-h split-body layout-mobile-stack" data-split-key="W_JA030J" data-default-ratio="62:38"
-         style="flex:1; min-height:0; display:flex; width:100%; overflow:hidden; padding:0 10px 10px;">
+    <div class="layout-split-h split-body layout-mobile-stack ja030j-split-body" data-split-key="W_JA030J" data-default-ratio="62:38"
+         style="flex:1; min-height:0; display:flex; width:100%; overflow:hidden; padding:0 12px 12px;">
         
         <!-- Left Pane: Master Grid (채권 잔고 및 수익 내역) -->
-        <div class="pane-left left-pane" style="display:flex; flex-direction:column; min-height:0; overflow:hidden; flex:1;">
+        <div class="split-pane pane-left left-pane" style="display:flex; flex-direction:column; min-height:0; overflow:hidden; flex:1;">
             <div class="pane-header" style="display:flex; justify-content:space-between; align-items:center; height:32px; padding:0 4px; border-bottom:1px solid #e2e8f0;">
                 <div class="sub-title" style="font-size:13px; font-weight:700; color:#1e293b;">
                     <i class="fa-solid fa-table-list" style="color:#3b82f6; margin-right:6px;"></i>채권 잔고 및 수익 내역
@@ -159,8 +138,9 @@
         </div>
 
         <!-- Right Pane: Detail Inspector Panel (모던 시스템 표준 카드 레이아웃) -->
-        <div class="pane-right detail-section" id="ja030jDetailPane"
-             style="flex:0 0 460px; width:460px; min-width:380px; display:flex; flex-direction:column; min-height:0; background:#ffffff; border:1px solid #e2e8f0; border-radius:6px; box-shadow:0 1px 3px rgba(0,0,0,0.04); overflow:hidden; margin-left:8px;">
+        <div class="split-gutter-h" aria-hidden="true"></div>
+        <div class="split-pane pane-right detail-section" id="ja030jDetailPane"
+             style="flex:0 0 460px; width:460px; min-width:380px; display:flex; flex-direction:column; min-height:0; background:#ffffff; border:1px solid #e2e8f0; border-radius:6px; box-shadow:0 1px 3px rgba(0,0,0,0.04); overflow:hidden;">
             <div class="pane-header" style="display:flex; justify-content:space-between; align-items:center; height:34px; padding:0 12px; background:#f8fafc; border-bottom:1px solid #e2e8f0;">
                 <div class="sub-title" style="font-size:13px; font-weight:700; color:#1e293b; display:flex; align-items:center;">
                     <i class="fa-solid fa-file-invoice" style="color:#3b82f6; margin-right:6px;"></i>채권 상세 정보
@@ -334,7 +314,7 @@
                         seq: 1,
                         getCorpGr: corpGr,
                         addWhere: function () {
-                            const fymd = (field('filterFymd') ? field('filterFymd').value : '').replace(/[^0-9]/g, '');
+                            const fymd = (field('filterFYmd') ? field('filterFYmd').value : '').replace(/[^0-9]/g, '');
                             return fymd ? "sanghw_ymd > '" + fymd + "'" : "";
                         },
                         onSelect: function (code, name, rowData) {
@@ -367,7 +347,7 @@
                         seq: 2,
                         getCorpGr: corpGr,
                         addWhere: function () {
-                            const fymd = (field('filterFymd') ? field('filterFymd').value : '').replace(/[^0-9]/g, '');
+                            const fymd = (field('filterFYmd') ? field('filterFYmd').value : '').replace(/[^0-9]/g, '');
                             return fymd ? "(haeji_ymd >= '" + fymd + "' or haeji_ymd is null)" : "";
                         },
                         onSelect: function (code, name, rowData) {
@@ -593,8 +573,8 @@
 
             // 마스터 데이터 로드 (PB wue_retrieve)
             async function retrieveMasterData() {
-                const fymdInput = field('filterFymd');
-                const tymdInput = field('filterTymd');
+                const fymdInput = field('filterFYmd');
+                const tymdInput = field('filterTYmd');
                 const gubunSelect = field('filterGubun');
                 const cashCdSelect = field('filterCashCd');
                 const hjCdInput = field('filterHjCd');
@@ -873,8 +853,8 @@
 
             pane.onExcel = function () {
                 if (gridMaster) {
-                    const fymd = (field('filterFymd') ? field('filterFymd').value : '').replace(/[^0-9]/g, '');
-                    const tymd = (field('filterTymd') ? field('filterTymd').value : '').replace(/[^0-9]/g, '');
+                    const fymd = (field('filterFYmd') ? field('filterFYmd').value : '').replace(/[^0-9]/g, '');
+                    const tymd = (field('filterTYmd') ? field('filterTYmd').value : '').replace(/[^0-9]/g, '');
                     gridMaster.download('xlsx', '채권잔고및수익내역_' + fymd + '_' + tymd + '.xlsx', { sheetName: '목록' });
                 }
             };
@@ -887,8 +867,8 @@
                 lastLoadedMasterKey = null;
                 renderDetailCard(null);
 
-                const fymdInput = field('filterFymd');
-                const tymdInput = field('filterTymd');
+                const fymdInput = field('filterFYmd');
+                const tymdInput = field('filterTYmd');
                 if (fymdInput && initialWorkDate) fymdInput.value = initialWorkDate;
                 if (tymdInput && initialWorkDate) tymdInput.value = initialWorkDate;
 
@@ -945,11 +925,17 @@
                 if (isInitialized) return;
                 isInitialized = true;
 
+                if (window.AamsCalendar && typeof window.AamsCalendar.autoInitRanges === 'function') {
+                    window.AamsCalendar.autoInitRanges(pane);
+                }
                 initCodeSearch();
                 await initDddw();
                 updateFilterVisibility();
                 initFilterEvents();
                 initGrid();
+                if (window.AamsSplitter && typeof window.AamsSplitter.init === 'function') {
+                    window.AamsSplitter.init(pane);
+                }
 
                 // PB: eb_direct_retrieve = true (화면 오픈 시 자동 조회 실행)
                 setTimeout(function () {
@@ -957,7 +943,11 @@
                 }, 100);
             }
 
-            init();
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', () => init(), { once:true });
+            } else {
+                init();
+            }
         })();
     </script>
 </div>
