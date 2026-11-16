@@ -83,7 +83,7 @@
             const ymd = () => (typeof getFilterYmd === 'function' ? getFilterYmd(pane, 'YYYY-MM-DD') : field('filterYmd')?.value || '');
             const corpGr = () => (typeof resolveCorpGr === 'function' ? resolveCorpGr(pane) : '') || pane.dataset.corpGr || serverCorpGr;
             const amount = cell => cell.getValue() == null ? '' : Number(cell.getValue()).toLocaleString(undefined, { maximumFractionDigits: 2 });
-            const baseColumns = () => [{ title:'No.', formatter:'rownum', width:48, hozAlign:'center'}];
+            const baseColumns = () => [{ title:'No.', headerSort: false, formatter:'rownum', width:48, hozAlign:'center'}];
 
             function columns() {
                 const common = baseColumns();
