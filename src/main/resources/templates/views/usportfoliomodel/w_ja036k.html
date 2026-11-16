@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<div class="view-container layout-single layout-mobile-stack-container ja036k-container" th:fragment="mainView"
+     data-pgm-id="W_JA036K" th:attr="data-corp-gr=${corpGr},data-pgm-no=${pgmNo},data-work-date=${workDate}">
+    <style>
+        .ja036k-container { display:flex; flex-direction:column; height:100%; background:#f8fafc; }
+        .ja036k-container .ja036k-middle-panel { display:flex; align-items:stretch; gap:8px; padding:6px 8px; background:#fff; border-bottom:2px solid #cbd5e1; }
+        .ja036k-container .ja036k-btn-grid { display:grid; grid-template-columns:110px 110px; gap:5px 6px; width:226px; flex-shrink:0; align-content:start; }
+        .ja036k-container .ja036k-pb-btn { display:inline-flex; align-items:center; justify-content:center; height:27px; padding:2px 6px; border:1px solid #708090; border-radius:2px; background:#fff; color:#0000cc; box-shadow:inset 0 1px 0 #fff, 0 1px 1px rgb(0 0 0 / 10%); font-size:11px; font-weight:700; white-space:nowrap; }
+        .ja036k-container .ja036k-pb-btn:hover { border-color:#475569; background:#f1f5f9; }
+        .ja036k-container .ja036k-pb-btn.active { border-color:#2563eb; background:#eff6ff; color:#1d4ed8; }
+        .ja036k-container .ja036k-hts-box { box-sizing:border-box; width:230px; height:104px; flex-shrink:0; overflow:hidden; padding:4px 8px; border:1px solid #94a3b8; background:#fff; }
+        .ja036k-container .ja036k-hts-table { width:100%; border-collapse:collapse; color:#1e293b; font-family:'맑은 고딕', sans-serif; font-size:11px; line-height:1.25; }
+        .ja036k-container .ja036k-hts-table th { padding:1px 2px; border-bottom:1px solid #e2e8f0; color:#0f172a; font-weight:700; text-align:left; }
+        .ja036k-container .ja036k-hts-table td { padding:1px 2px; white-space:nowrap; }
+        .ja036k-container .ja036k-hts-table .co-name { color:#334155; font-weight:600; }
+        .ja036k-container .ja036k-lb-box { box-sizing:border-box; min-width:200px; height:104px; flex:1 1 auto; overflow-y:auto; padding:4px 8px; border:1px solid #94a3b8; background:#fff; color:#334155; font-family:Consolas, 'Courier New', monospace; font-size:11px; }
+        .ja036k-container .ja036k-lb-box .lb-item { padding:2px 0; border-bottom:1px dotted #f1f5f9; white-space:pre-wrap; }
+        .ja036k-container .ja036k-grid-section { flex:1 1 auto; min-height:0; padding:4px 6px; overflow:hidden; }
+        .ja036k-container .ja036k-grid-wrapper { width:100%; height:100%; min-height:0; border:1px solid #94a3b8; background:#fff; }
+        .ja036k-container .ja036k-grid-wrapper .tabulator-header,
+        .ja036k-container .ja036k-grid-wrapper .tabulator-col { border-color:#94a3b8; background:#cbd5e1; color:#1e293b; font-weight:700; }
+        .ja036k-container .ja036k-grid-wrapper .tabulator-row { border-bottom:1px solid #e2e8f0; }
+        @media (max-width:876px) { .ja036k-container .ja036k-middle-panel { flex-wrap:wrap; overflow-x:auto; } .ja036k-container .ja036k-btn-grid { flex-shrink:0; } }
+    </style>
+
+    <div class="view-toolbar">
+        <div class="toolbar-left"><div th:replace="~{fragments/tab_header :: toolbarButtons}"></div></div>
+        <div th:replace="~{fragments/tab_header :: toolbarBreadcrumb}"></div>
+    </div>
+
+    <th:block th:replace="~{fragments/filter/dc_ymd :: filter(label='LOAD기준일')}"></th:block>
+
+    <section class="ja036k-middle-panel" aria-label="외화증권 엑셀자료 LOAD 작업">
+        <div class="ja036k-btn-grid">
+            <input id="balanceFileInput" type="file" accept=".xls,.xlsx,.csv" multiple hidden>
+            <input id="tradeFileInput" type="file" accept=".xls,.xlsx,.csv" multiple hidden>
+            <button type="button" class="ja036k-pb-btn" id="btnSelectBalance">잔고엑셀선택</button>
+            <button type="button" class="ja036k-pb-btn" data-mode="balance">LOAD잔고내역</button>
+            <button type="button" class="ja036k-pb-btn" id="btnSelectTrade">체결엑셀선택</button>
+            <button type="button" class="ja036k-pb-btn" data-mode="trade">LOAD체결내역</button>
+            <button type="button" class="ja036k-pb-btn active" data-mode="status">처리결과조회</button>
+        </div>
+        <div class="ja036k-hts-box" aria-label="증권사 엑셀 조회 화면 안내">
+            <table class="ja036k-hts-table">
+                <thead><tr><th></th><th>잔고화면</th><th>체결화면</th></tr></thead>
+                <tbody>
+                    <tr><td class="co-name">삼성증권</td><td>#</td><td>#3425</td></tr>
+                    <tr><td></td><td>#</td><td>#</td></tr>
+                </tbody>
+            </table>
+        </div>
+        <div class="ja036k-lb-box" id="ja036kLbList" aria-label="선택 파일 및 작업 로그"><div class="lb-item">파일을 선택한 후 LOAD 내역 또는 처리결과를 조회할 수 있습니다.</div></div>
+    </section>
+
+    <section class="grid-section ja036k-grid-section" aria-label="외화증권 LOAD 조회 결과">
+        <div class="grid-table-wrapper ja036k-grid-wrapper"><div id="gridJa036k" class="tabulator-aams-grid"></div></div>
+    </section>
+
+    <script th:inline="javascript">
+        (function () {
+            const pane = document.currentScript ? (document.currentScript.closest('.tab-pane') || document.currentScript.closest('.view-container')) : null;
+            if (!pane || pane.dataset.isInitialized === 'true') return;
+            pane.dataset.isInitialized = 'true';
+
+            let grid;
+            let mode = 'status';
+            const serverCorpGr = /*[[${corpGr}]]*/ '';
+            const field = id => pane.querySelector('#' + id);
+            const toast = (message, type) => {
+                if (typeof showToast === 'function') showToast(message, type);
+                else console.error(message);
+            };
+            const statusText = message => {
+                const list = field('ja036kLbList');
+                if (!list) return;
+                const item = document.createElement('div');
+                item.className = 'lb-item';
+                item.textContent = message;
+                list.appendChild(item);
+                list.scrollTop = list.scrollHeight;
+            };
+            const ymd = () => (typeof getFilterYmd === 'function' ? getFilterYmd(pane, 'YYYY-MM-DD') : field('filterYmd')?.value || '');
+            const corpGr = () => (typeof resolveCorpGr === 'function' ? resolveCorpGr(pane) : '') || pane.dataset.corpGr || serverCorpGr;
+            const amount = cell => cell.getValue() == null ? '' : Number(cell.getValue()).toLocaleString(undefined, { maximumFractionDigits: 2 });
+            const baseColumns = () => [{ title:'No.', formatter:'rownum', width:48, hozAlign:'center'}];
+
+            function columns() {
+                const common = baseColumns();
+                if (mode === 'status') return common.concat([
+                    { title:'작업자', field:'userNm', width:90, hozAlign:'center' },
+                    { title:'작업일시', field:'loadDate', width:152, hozAlign:'center' },
+                    {
+                        title:'작업현황', field:'loadNaye', minWidth:360,
+                        formatter:cell => {
+                            const status = cell.getRow().getData().loadOk;
+                            const value = cell.getValue() || '';
+                            return status === '1' || status === 1 ? value : (value ? `[실패] ${value}` : '실패');
+                        }
+                    }
+                ]);
+                if (mode === 'trade') return common.concat([
+                    { title:'순번', field:'trSeq', width:70, hozAlign:'right' },
+                    { title:'펀드번호', field:'fundCd', width:105, hozAlign:'center' },
+                    { title:'종목코드', field:'jmCd', width:120, hozAlign:'center' },
+                    { title:'종목명', field:'jmNm', minWidth:180 },
+                    { title:'통화', field:'currency', width:70, hozAlign:'center' },
+                    { title:'시장구분', field:'stockNm', width:100 },
+                    { title:'매매구분', field:'trNm', width:110 },
+                    { title:'매매일자', field:'memeYmd', width:110, hozAlign:'center' },
+                    { title:'결제일자', field:'gyulYmd', width:110, hozAlign:'center' },
+                    { title:'체결수량', field:'trJusu', width:110, hozAlign:'right', formatter:amount },
+                    { title:'체결단가', field:'trDanga', width:110, hozAlign:'right', formatter:amount },
+                    { title:'수수료', field:'trSusu', width:100, hozAlign:'right', formatter:amount },
+                    { title:'제세금', field:'trTax', width:100, hozAlign:'right', formatter:amount },
+                    { title:'약정금액', field:'trAek', width:120, hozAlign:'right', formatter:amount },
+                    { title:'매매일 기준환율', field:'memeGijunRt', width:130, hozAlign:'right', formatter:amount },
+                    { title:'결제일 기준환율', field:'gyulGijunRt', width:130, hozAlign:'right', formatter:amount },
+                    { title:'LOAD일시', field:'loadDt', width:155, hozAlign:'center' }
+                ]);
+                return common.concat([
+                    { title:'자산', field:'jasanNm', width:80, hozAlign:'center' },
+                    { title:'펀드번호', field:'fundCd', width:105, hozAlign:'center' },
+                    { title:'계좌명', field:'fundNm', width:150 },
+                    { title:'종목코드', field:'jmCd', width:120, hozAlign:'center' },
+                    { title:'종목명', field:'jmNm', minWidth:200 },
+                    { title:'액면', field:'aekm', width:120, hozAlign:'right', formatter:amount },
+                    { title:'취득액', field:'chuiAek', width:120, hozAlign:'right', formatter:amount },
+                    { title:'시가액', field:'sigaAek', width:120, hozAlign:'right', formatter:amount }
+                ]);
+            }
+
+            function createGrid() {
+                if (grid) grid.destroy();
+                grid = new Tabulator(field('gridJa036k'), {
+                    layout:'fitDataStretch', height:'100%', selectableRows:1,
+                    placeholder:'조회된 데이터가 없습니다.',
+                    columnDefaults:{ vertAlign:'middle', headerHozAlign:'center', headerSortTristate:true },
+                    columns:columns()
+                });
+            }
+
+            async function retrieve() {
+                const selectedYmd = ymd();
+                const selectedCorpGr = corpGr();
+                if (!selectedYmd || !selectedCorpGr) { toast('회사와 LOAD기준일을 확인해 주세요.', 'warning'); return; }
+                const params = new URLSearchParams({ mode, ymd:selectedYmd, corpGr:selectedCorpGr });
+                const response = await fetch('/api/usportfoliomodel/ja036k/list?' + params);
+                if (!response.ok) throw new Error('조회에 실패했습니다.');
+                const rows = await response.json();
+                await grid.setData(rows);
+                statusText(`${mode === 'status' ? '처리결과' : mode === 'trade' ? 'LOAD 체결내역' : 'LOAD 잔고내역'} 조회 완료: ${rows.length}건`);
+            }
+
+            function setMode(nextMode) {
+                if (mode === nextMode) {
+                    retrieve().catch(error => toast(error.message, 'error'));
+                    return;
+                }
+                mode = nextMode;
+                pane.querySelectorAll('[data-mode]').forEach(button => button.classList.toggle('active', button.dataset.mode === mode));
+                createGrid();
+                retrieve().catch(error => toast(error.message, 'error'));
+            }
+
+            function startInit() {
+                createGrid();
+                if (typeof initFilterCalendar === 'function') initFilterCalendar(pane);
+                pane.querySelectorAll('[data-mode]').forEach(button => button.addEventListener('click', () => setMode(button.dataset.mode)));
+                field('btnSelectBalance').addEventListener('click', () => field('balanceFileInput').click());
+                field('btnSelectTrade').addEventListener('click', () => field('tradeFileInput').click());
+                field('balanceFileInput').addEventListener('change', event => {
+                    const names = Array.from(event.target.files || []).map(file => file.name);
+                    statusText(names.length ? `잔고 엑셀 선택: ${names.join(', ')}` : '잔고 엑셀 선택이 취소되었습니다.');
+                });
+                field('tradeFileInput').addEventListener('change', event => {
+                    const names = Array.from(event.target.files || []).map(file => file.name);
+                    statusText(names.length ? `체결 엑셀 선택: ${names.join(', ')}` : '체결 엑셀 선택이 취소되었습니다.');
+                });
+                pane.onSearch = pane.onRetrieve = () => retrieve().catch(error => toast(error.message, 'error'));
+                pane.onRefresh = () => {
+                    grid.clearData();
+                    field('ja036kLbList').replaceChildren();
+                    statusText('화면이 초기화되었습니다.');
+                };
+                pane.onExcel = () => {
+                    if (!window.XLSX) { toast('엑셀 기능을 불러오지 못했습니다.', 'warning'); return; }
+                    grid.download('xlsx', `외화증권_LOAD_${mode}_${ymd().replaceAll('-', '')}.xlsx`, { sheetName:'LOAD조회' });
+                };
+            }
+
+            if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', startInit);
+            else startInit();
+        })();
+    </script>
+</div>
+</html>

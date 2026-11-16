@@ -29,10 +29,13 @@ public class Ja030mController {
     @GetMapping({"/views/w_ja030m", "/views/assetmanagement/w_ja030m"})
     public String view(@AuthenticationPrincipal UserPrincipal principal, @RequestParam(required = false) String corpGr,
                        @CookieValue(name = "savedCorpGr", required = false) String savedCorpGr, Model model) {
+        // PB idt_workdate is based on the current working company, not the query target.
+        String workCorpGr = resolveWorkCorpGr(principal, savedCorpGr);
         String resolved = resolveCorpGr(principal, corpGr, savedCorpGr);
         var menu = menuService.getMenuByPgmId("W_JA030M");
         model.addAttribute("corpGr", resolved);
-        model.addAttribute("workDate", workDateService.getWorkDateOrDefault(resolved));
+        model.addAttribute("workCorpGr", workCorpGr);
+        model.addAttribute("workDate", workDateService.getWorkDateOrDefault(workCorpGr));
         model.addAttribute("adminYn", principal != null && "Y".equalsIgnoreCase(principal.getAdminYn()) ? "Y" : "N");
         model.addAttribute("pgmNo", menu == null ? "W_JA030M" : menu.getPgmNo());
         model.addAttribute("fullpgm2", menu == null ? "W_JA030M" : menu.getFullpgm2());
@@ -44,9 +47,9 @@ public class Ja030mController {
     public List<Ja030mDto> list(@AuthenticationPrincipal UserPrincipal principal, @RequestParam String corpGr,
                                  @CookieValue(name = "savedCorpGr", required = false) String savedCorpGr) {
         boolean allCorp = principal != null && "Y".equalsIgnoreCase(principal.getAdminYn()) && "%".equals(corpGr);
-        String workCorpGr = resolveCorpGr(principal, null, savedCorpGr);
+        String workCorpGr = resolveWorkCorpGr(principal, savedCorpGr);
         String resolvedCorpGr = allCorp ? "%" : resolveCorpGr(principal, corpGr, savedCorpGr);
-        return service.list(resolvedCorpGr, getWorkDate(allCorp ? workCorpGr : resolvedCorpGr), allCorp);
+        return service.list(resolvedCorpGr, getWorkDate(workCorpGr), allCorp);
     }
 
     @PostMapping("/api/assetmanagement/ja030m/save")
@@ -86,6 +89,12 @@ public class Ja030mController {
         if (admin && isTargetCorpGr(saved)) return saved.trim();
         if (principal != null && principal.getCorpGr() != null && !principal.getCorpGr().isBlank()) return principal.getCorpGr().trim();
         throw new IllegalArgumentException("회사그룹 정보가 없습니다.");
+    }
+
+    private String resolveWorkCorpGr(UserPrincipal principal, String savedCorpGr) {
+        if (isTargetCorpGr(savedCorpGr)) return savedCorpGr.trim();
+        if (principal != null && isTargetCorpGr(principal.getCorpGr())) return principal.getCorpGr().trim();
+        throw new IllegalArgumentException("Current working company is unavailable.");
     }
 
     private boolean isTargetCorpGr(String corpGr) {

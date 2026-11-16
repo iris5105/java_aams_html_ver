@@ -39,6 +39,7 @@ public class Ja021fController {
         var menu = menus.getMenuByPgmId("W_JA021F");
         if (menu == null) menu = menus.getMenuByPgmId("w_ja021f");
         model.addAttribute("corpGr", corpGr);
+        model.addAttribute("adminYn", principal.getAdminYn());
         model.addAttribute("workDate", workDate);
         model.addAttribute("initialYmd", workDate);
         model.addAttribute("fullpgm2", menu != null ? menu.getFullpgm2() : "");
@@ -54,7 +55,7 @@ public class Ja021fController {
                                     @CookieValue(name = "savedCorpGr", required = false) String savedCorpGr,
                                     @CookieValue(name = "corpGr", required = false) String cookieCorpGr) {
         String resolvedCorpGr = resolveCorpGr(principal, corpGr, savedCorpGr, cookieCorpGr);
-        return service.selectTab(tab, resolvedCorpGr, workDate);
+        return service.selectTab(tab, resolveDetailCorpGr(principal, resolvedCorpGr), workDate);
     }
 
     @GetMapping("/api/subscriptionrights/ja021f/detail")
@@ -66,7 +67,8 @@ public class Ja021fController {
                                         @AuthenticationPrincipal UserPrincipal principal,
                                         @CookieValue(name = "savedCorpGr", required = false) String savedCorpGr,
                                         @CookieValue(name = "corpGr", required = false) String cookieCorpGr) {
-        return service.selectDetail(resolveCorpGr(principal, corpGr, savedCorpGr, cookieCorpGr), ymd, balhCo, jeungjMth);
+        String resolvedCorpGr = resolveCorpGr(principal, corpGr, savedCorpGr, cookieCorpGr);
+        return service.selectDetail(resolveDetailCorpGr(principal, resolvedCorpGr), ymd, balhCo, jeungjMth);
     }
 
     private String resolveCorpGr(UserPrincipal principal, String requested, String saved, String cookie) {
@@ -78,5 +80,9 @@ public class Ja021fController {
             if (value != null && !value.isBlank()) return value.trim();
         }
         throw new IllegalArgumentException("회사그룹을 확인할 수 없습니다.");
+    }
+
+    private String resolveDetailCorpGr(UserPrincipal principal, String corpGr) {
+        return "Y".equalsIgnoreCase(principal.getAdminYn()) ? "%" : corpGr;
     }
 }

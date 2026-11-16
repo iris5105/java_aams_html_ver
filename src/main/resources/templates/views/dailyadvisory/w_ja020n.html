@@ -12,12 +12,7 @@
         <div th:replace="~{fragments/tab_header :: toolbarBreadcrumb}"></div>
     </div>
 
-    <!-- Filter Bar (Row 2: LOAD기준일 - 연두색 외곽선 박스 및 노란색 입력창) -->
-    <div class="filter-bar ja020n-filter-bar">
-        <div class="ja020n-filter-box">
-            <div th:replace="~{fragments/filter/dc_ymd :: filter(label='LOAD기준일')}"></div>
-        </div>
-    </div>
+    <th:block th:replace="~{fragments/filter/dc_ymd :: filter(label='LOAD기준일')}"></th:block>
 
     <!-- Middle Control Panel (Row 3: 파워빌더 버튼 5개 + HTS 화면 안내 박스 + 파일/로그 리스트박스) -->
     <div class="ja020n-middle-panel">
@@ -115,53 +110,6 @@
         .ja020n-container .toolbar-buttons .btn-delete,
         .ja020n-container .toolbar-buttons .btn-save {
             display: none !important;
-        }
-
-        /* 2. LOAD기준일 필터바 (연두색 외곽선 박스 및 노란색 입력창) */
-        .ja020n-filter-bar {
-            padding: 3px 6px !important;
-            background: #ffffff !important;
-            border-bottom: 1px solid #e2e8f0 !important;
-        }
-        .ja020n-filter-box {
-            border: 1.5px solid #84cc16; /* 연두색 외곽선 */
-            background-color: #ffffff;
-            padding: 3px 10px;
-            display: inline-flex;
-            align-items: center;
-            border-radius: 1px;
-            box-shadow: 0 0 0 1px rgba(132, 204, 22, 0.2);
-        }
-        .ja020n-filter-box .filter-group {
-            margin: 0 !important;
-            display: inline-flex !important;
-            align-items: center !important;
-            gap: 6px !important;
-        }
-        .ja020n-filter-box .filter-label {
-            font-size: 11px !important;
-            font-weight: 700 !important;
-            color: #1e293b !important;
-            margin: 0 !important;
-            white-space: nowrap !important;
-        }
-        .ja020n-filter-box input#filterYmd {
-            background-color: #fef08a !important; /* 노란색 강조 배경 (이미지와 일치) */
-            border: 1px solid #ca8a04 !important;
-            color: #1e293b !important;
-            font-weight: 700 !important;
-            font-size: 12px !important;
-            height: 24px !important;
-            width: 96px !important;
-            text-align: center !important;
-            padding: 0 4px !important;
-        }
-        .ja020n-filter-box .btn-calendar-trigger {
-            height: 24px !important;
-            padding: 0 6px !important;
-            display: inline-flex !important;
-            align-items: center !important;
-            justify-content: center !important;
         }
 
         /* 3. 중간 조작 패널 (Row 3: 버튼 5개 + 안내 박스 + 리스트박스) */

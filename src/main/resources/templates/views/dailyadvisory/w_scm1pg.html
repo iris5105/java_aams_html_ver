@@ -61,6 +61,9 @@
             let gridMaster = null;
             let gridDetail = null;
             let isInitialized = false;
+            let isMasterTableBuilt = false;
+            let isDetailTableBuilt = false;
+            let isMasterLoadPending = false;
             let lastLoadedMasterKey = null;
             let currentSelectedMaster = null;
             let masterAllData = [];
@@ -76,7 +79,7 @@
                 if (typeof window.f_dddwctl === 'function') {
                     return window.f_dddwctl('pg_cd', 1, targetCorpGr, '', '').then(list => {
                         dddwOptionsMap.pg_cd = list || [];
-                        if (gridDetail && typeof gridDetail.redraw === 'function') {
+                        if (isDetailTableBuilt && gridDetail && typeof gridDetail.redraw === 'function') {
                             gridDetail.redraw(true);
                         }
                         return list;
@@ -149,7 +152,6 @@
                     width: 55,
                     hozAlign: "center",
                     headerHozAlign: "center",
-                    headerSort: false,
                     frozen: true
                 },
                 {
@@ -177,7 +179,6 @@
                     width: 55,
                     hozAlign: "center",
                     headerHozAlign: "center",
-                    headerSort: false,
                     frozen: true
                 },
                 {
@@ -243,7 +244,11 @@
                     columns: masterColumns,
                     height: "100%",
                     placeholder: "조회된 채권 종목 데이터가 없습니다.",
-                    selectableRows: 1
+                    selectableRows: 1,
+                    tableBuilt: function() {
+                        isMasterTableBuilt = true;
+                        runPendingMasterLoad();
+                    }
                 });
 
                 gridDetail = new Tabulator(detailEl, {
@@ -253,7 +258,11 @@
                     height: "100%",
                     placeholder: "선택된 채권의 등급 내역이 없습니다.",
                     selectableRows: 1,
-                    editTriggerEvent: "click"
+                    editTriggerEvent: "click",
+                    tableBuilt: function() {
+                        isDetailTableBuilt = true;
+                        runPendingMasterLoad();
+                    }
                 });
 
                 // Rule 8: Triple Fallback & Master-Detail Standard Contract
@@ -289,6 +298,7 @@
                 const kwInput = pane ? pane.querySelector("#filterMasterKeyword") : document.getElementById("filterMasterKeyword");
                 if (kwInput) {
                     kwInput.addEventListener("input", function() {
+                        if (!isMasterTableBuilt) return;
                         const kw = this.value.trim().toLowerCase();
                         if (!kw) {
                             gridMaster.setData(masterAllData);
@@ -332,7 +342,7 @@
                 lastLoadedMasterKey = null;
                 currentSelectedMaster = null;
                 deletedDetailList = [];
-                if (gridDetail && typeof gridDetail.setData === 'function') {
+                if (isDetailTableBuilt && gridDetail && typeof gridDetail.setData === 'function') {
                     try {
                         gridDetail.setData([]);
                     } catch(e) {
@@ -344,6 +354,11 @@
             }
 
             function loadMaster() {
+                if (!isMasterTableBuilt || !isDetailTableBuilt) {
+                    isMasterLoadPending = true;
+                    return;
+                }
+                isMasterLoadPending = false;
                 const corpGr = resolveCorpGr(pane);
                 const ymd = getFilterYmd(pane);
                 if (!corpGr) {
@@ -361,7 +376,7 @@
                     .then(res => res.json())
                     .then(data => {
                         masterAllData = data || [];
-                        if (gridMaster) {
+                        if (isMasterTableBuilt && gridMaster) {
                             gridMaster.setData(masterAllData);
                         }
                     })
@@ -372,7 +387,7 @@
             }
 
             function loadDetail(jmCd) {
-                if (!jmCd) return;
+                if (!jmCd || !isDetailTableBuilt) return;
                 const corpGr = resolveCorpGr(pane);
                 deletedDetailList = [];
 
@@ -380,7 +395,7 @@
                 fetch(url)
                     .then(res => res.json())
                     .then(data => {
-                        if (gridDetail) {
+                        if (isDetailTableBuilt && gridDetail) {
                             gridDetail.setData(data || []);
                         }
                     })
@@ -493,12 +508,13 @@
                 pane.onDetailInput = doInput;
                 pane.onDetailDelete = doDelete;
                 pane.onExcel = function() {
-                    if (gridDetail) gridDetail.download("xlsx", `채권등급_${currentSelectedMaster ? currentSelectedMaster.jmCd : ''}.xlsx`);
+                    if (isDetailTableBuilt && gridDetail) gridDetail.download("xlsx", `채권등급_${currentSelectedMaster ? currentSelectedMaster.jmCd : ''}.xlsx`);
                 };
                 // 공통버튼 지침: 새로고침은 조회 전 초기화 상태로 되돌린다.
                 pane.onRefresh = function() {
-                    if (gridMaster) gridMaster.clearData();
-                    if (gridDetail) gridDetail.clearData();
+                    if (isMasterTableBuilt && gridMaster) gridMaster.clearData();
+                    clearDetail();
+                    masterAllData = [];
                     currentSelectedMaster = null;
                     lastLoadedMasterKey = null;
                     const ymdInput = pane ? pane.querySelector("#filterYmd") : document.getElementById("filterYmd");
@@ -518,6 +534,12 @@
                 };
             }
 
+            function runPendingMasterLoad() {
+                if (isMasterTableBuilt && isDetailTableBuilt && isMasterLoadPending) {
+                    loadMaster();
+                }
+            }
+
             // Initialization logic (Rule 11: startInit pattern)
             function startInit() {
                 if (isInitialized) return;
@@ -531,10 +553,8 @@
                     AamsCalendar.initSimple('filterYmd', { pane: pane });
                 }
 
-                // eb_direct_retrieve = true 명세 반영 자동 조회
-                setTimeout(() => {
-                    loadMaster();
-                }, 100);
+                // eb_direct_retrieve = true 명세 반영: 두 그리드가 준비된 뒤에만 자동 조회
+                loadMaster();
             }
 
             if (document.readyState === "loading") {

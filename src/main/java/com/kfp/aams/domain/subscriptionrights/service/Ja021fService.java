@@ -62,7 +62,19 @@ public class Ja021fService {
 
     public List<Ja021fDetailDto> selectDetail(String corpGr, Object ymd, Object balhCo, Object jeungjMth) {
         if (corpGr == null || corpGr.isBlank() || ymd == null || balhCo == null || jeungjMth == null) return List.of();
-        String ymdValue = String.valueOf(ymd).substring(0, Math.min(10, String.valueOf(ymd).length()));
+        LocalDate ymdValue = toLocalDate(ymd);
+        if (ymdValue == null) return List.of();
         return jpaRepository.selectDetail(corpGr, ymdValue, String.valueOf(balhCo), String.valueOf(jeungjMth));
+    }
+
+    private LocalDate toLocalDate(Object value) {
+        if (value instanceof LocalDate date) return date;
+        String normalized = String.valueOf(value).trim().replace('.', '-');
+        if (normalized.length() >= 10) normalized = normalized.substring(0, 10);
+        try {
+            return LocalDate.parse(normalized);
+        } catch (RuntimeException ignored) {
+            return null;
+        }
     }
 }

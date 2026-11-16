@@ -1,6 +1,5 @@
 package com.kfp.aams.domain.assetmanagement.controller;
 
-import com.kfp.aams.common.dto.ApiResponse;
 import com.kfp.aams.common.service.WorkDateService;
 import com.kfp.aams.domain.assetmanagement.dto.Ja030kDto;
 import com.kfp.aams.domain.assetmanagement.dto.Ja030kSaveRequest;
@@ -18,6 +17,7 @@ import org.springframework.web.bind.annotation.*;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 원리금 상환 명세표 (W_JA030K) 컨트롤러
@@ -65,11 +65,15 @@ public class Ja030kController {
 
     @PostMapping("/api/assetmanagement/ja030k/save")
     @ResponseBody
-    public ResponseEntity<ApiResponse<Integer>> save(@AuthenticationPrincipal UserPrincipal principal,
-                                                     @RequestBody Ja030kSaveRequest request) {
+    public ResponseEntity<Map<String, Object>> save(@AuthenticationPrincipal UserPrincipal principal,
+                                                    @RequestBody Ja030kSaveRequest request) {
         String userNm = principal != null ? principal.getUsername() : "SYSTEM";
         int savedCount = ja030kService.saveList(request, userNm);
-        return ResponseEntity.ok(ApiResponse.ok(savedCount));
+        return ResponseEntity.ok(Map.of(
+                "success", true,
+                "message", "저장되었습니다.",
+                "savedCount", savedCount
+        ));
     }
 
     private String calculateMonthFirstDay(String dateStr) {

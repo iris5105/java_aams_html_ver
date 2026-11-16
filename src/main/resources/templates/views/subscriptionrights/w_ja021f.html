@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
 <div class="view-container layout-mobile-stack-container ja021f-container" th:fragment="mainView"
-     th:attr="data-work-date=${workDate},data-corp-gr=${corpGr}"
+     th:attr="data-work-date=${workDate},data-corp-gr=${corpGr},data-admin-yn=${adminYn}"
      style="display:flex;flex-direction:column;height:100%;width:100%;overflow:hidden;background:#fff;">
     <div class="view-toolbar">
         <div class="toolbar-left"><div th:replace="~{fragments/tab_header :: toolbarButtons}"></div></div>
@@ -55,11 +55,12 @@
             const tabIds = ['t1', 't2', 't3', 't4'];
             const api = '/api/subscriptionrights/ja021f';
             const corpGr = pane.dataset.corpGr || '';
+            const detailCorpGr = String(pane.dataset.adminYn || '').toUpperCase() === 'Y' ? '%' : corpGr;
             const workDate = /*[[${workDate}]]*/ '';
             const requestSeq = {};
             let builtGridCount = 0;
             let splitterInitialized = false;
-            const noColumn = {title:'No.', width:48, hozAlign:'center', headerSort:false, formatter:cell => cell.getRow().getPosition()};
+            const noColumn = {title:'No.', width:48, hozAlign:'center', formatter:cell => cell.getRow().getPosition()};
             const masterColumnsByTab = {
                 t1: [noColumn,
                     {title:'유상증자일<br>(권리락일)', field:'trYmd', width:125, hozAlign:'center'},
@@ -463,7 +464,7 @@
                 if (!current || !rowData) return;
                 const detailMth = rowData.jeungjMth || (tabId === 't1' ? '1' : tabId === 't3' ? '2' : '');
                 const params = new URLSearchParams({
-                    corpGr: corpGr,
+                    corpGr: detailCorpGr,
                     ymd: dateValue(rowData.trYmd),
                     balhCo: rowData.balhCo || '',
                     jeungjMth: detailMth

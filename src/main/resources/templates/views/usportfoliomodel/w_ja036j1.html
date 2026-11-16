@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<div class="view-container layout-single layout-mobile-stack-container ja036j1-container" th:fragment="mainView"
+     style="display:flex;flex-direction:column;height:100%;width:100%;overflow:hidden;background:#fff;">
+    <div class="view-toolbar">
+        <div class="toolbar-left"><div th:replace="~{fragments/tab_header :: toolbarButtons}"></div></div>
+        <div th:replace="~{fragments/tab_header :: toolbarBreadcrumb}"></div>
+    </div>
+
+    <div class="filter-bar">
+        <div class="filter-left">
+            <th:block th:replace="~{fragments/filter/dc_ymd :: filter(label='영업일자')}"></th:block>
+            <input id="ja036j1Excel" type="file" accept=".xlsx,.xls,.csv" hidden>
+            <button type="button" class="t-btn btn-action" id="ja036j1LoadExcel"><i class="fa-solid fa-file-excel"></i> UPLOAD</button>
+            <button type="button" class="t-btn btn-action" id="ja036j1Paste"><i class="fa-solid fa-paste"></i> 붙여넣기</button>
+        </div>
+    </div>
+
+    <section class="grid-section" aria-label="해외주식 종가 목록" style="flex:1;min-height:0;">
+        <div class="grid-table-wrapper" style="height:100%;"><div id="ja036j1Grid" class="tabulator-aams-grid"></div></div>
+    </section>
+
+    <script th:inline="javascript">
+        (function () {
+            const pane = document.currentScript ? (document.currentScript.closest('.tab-pane') || document.currentScript.closest('.view-container')) : null;
+            if (!pane || pane.dataset.ja036j1Initialized === 'true') return;
+            pane.dataset.ja036j1Initialized = 'true';
+
+            const api = '/api/usportfoliomodel/ja036j1';
+            const serverCorpGr = /*[[${corpGr}]]*/ '';
+            const field = id => pane.querySelector('#' + id);
+            const message = (text, type) => typeof showToast === 'function' ? showToast(text, type || 'info') : alert(text);
+            const corpGr = () => (typeof resolveCorpGr === 'function' ? resolveCorpGr(pane) : '') || pane.dataset.corpGr || serverCorpGr;
+            const ymd = () => typeof getFilterYmd === 'function' ? getFilterYmd(pane, 'YYYY-MM-DD') : (field('filterYmd')?.value || '');
+            const number = value => value == null || value === '' ? '' : Number(value).toLocaleString(undefined, {maximumFractionDigits: 2});
+            let grid;
+            let deletedRows = [];
+
+            function buildGrid() {
+                grid = new Tabulator(field('ja036j1Grid'), {
+                    height: '100%', layout: 'fitDataFill', selectableRows: 1, editTriggerEvent: 'click',
+                    placeholder: '조회된 해외주식 종가가 없습니다.',
+                    columnDefaults: {vertAlign: 'middle', headerHozAlign: 'center', headerSortTristate: true},
+                    columns: [
+                        {title: 'No.', formatter: 'rownum', width: 48, hozAlign: 'center'},
+                        {title: '통화', field: 'currency', width: 70, hozAlign: 'center'},
+                        {title: '종목코드', field: 'yjCd', width: 115, hozAlign: 'center', editor: 'input', cellClick: aamsCellEdit},
+                        {title: '종목명', field: 'xxYjCd', minWidth: 180},
+                        {title: '종가', field: 'jonga', width: 120, hozAlign: 'right', formatter: cell => number(cell.getValue()), editor: 'number', cellClick: aamsCellEdit,
+                            cellEdited: cell => cell.getRow().update({isUpdated: true})},
+                        {title: '전일대비', field: 'junJonga', width: 120, hozAlign: 'right', formatter: cell => number(cell.getValue())},
+                        {title: 'LOAD 일시', field: 'loadTime', width: 130, hozAlign: 'center'},
+                        {title: '원화종가', field: 'gijunRt', width: 120, hozAlign: 'right', formatter: cell => number(cell.getRow().getData().jonga * cell.getValue())},
+                        {title: 'Bloomberg Ticker', field: 'blbgTckr', minWidth: 150}
+                    ]
+                });
+                if (typeof setupTabulatorRowSelection === 'function') setupTabulatorRowSelection(grid);
+                if (window.AamsResponsive) window.AamsResponsive.bindGridResize(pane, [grid]);
+            }
+
+            async function request(path, options) {
+                const response = await fetch(path, options);
+                const body = await response.json().catch(() => ({}));
+                if (!response.ok || body.success === false) throw new Error(body.message || '처리 중 오류가 발생했습니다.');
+                return body;
+            }
+
+            async function retrieve() {
+                if (!corpGr() || !ymd()) return message('회사와 영업일자를 확인하십시오.', 'warning');
+                const rows = await request(api + '/list?' + new URLSearchParams({corpGr: corpGr(), ymd: ymd()}));
+                await grid.setData(rows);
+            }
+
+            async function save() {
+                const changed = grid.getData().filter(row => row.isNew || row.isUpdated || row.isDeleted).concat(deletedRows);
+                if (!changed.length) return message('변경된 자료가 없습니다.', 'info');
+                const result = await request(api + '/save?' + new URLSearchParams({corpGr: corpGr(), ymd: ymd()}), {
+                    method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(changed)
+                });
+                message(result.message, 'success');
+                deletedRows = [];
+                await retrieve();
+            }
+
+            async function importRows(rows) {
+                if (!rows.length) return message('반영할 종가 자료가 없습니다.', 'warning');
+                const result = await request(api + '/import?' + new URLSearchParams({corpGr: corpGr(), ymd: ymd()}), {
+                    method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(rows)
+                });
+                message(result.message, 'success');
+                await retrieve();
+            }
+
+            function value(row, names) {
+                for (const name of names) if (row[name] != null && String(row[name]).trim() !== '') return String(row[name]).trim();
+                return '';
+            }
+
+            async function readExcel(file) {
+                if (!window.XLSX) throw new Error('엑셀 읽기 기능을 불러오지 못했습니다.');
+                const data = await file.arrayBuffer();
+                const workbook = window.XLSX.read(data, {type: 'array'});
+                const sheet = workbook.Sheets[workbook.SheetNames[0]];
+                const rows = window.XLSX.utils.sheet_to_json(sheet, {defval: ''});
+                return rows.map(row => ({
+                    stockName: value(row, ['종목명']),
+                    closePrice: Number(value(row, ['현재가', '종가']).replaceAll(',', '')),
+                    linkedCode: value(row, ['연결종목', '종목코드']).replace(/^.../, '')
+                })).filter(row => row.linkedCode && Number.isFinite(row.closePrice));
+            }
+
+            function parseClipboard(text) {
+                return text.split(/\r?\n/).map(line => line.split('\t')).map(columns => ({
+                    stockName: (columns[1] || '').trim(),
+                    closePrice: Number((columns[3] || '').replaceAll(',', '').trim()),
+                    linkedCode: (columns[columns.length - 1] || '').trim().replace(/^.../, '')
+                })).filter(row => row.linkedCode && Number.isFinite(row.closePrice));
+            }
+
+            function bindToolbar() {
+                pane.onSearch = pane.onRetrieve = () => retrieve().catch(error => message(error.message, 'error'));
+                pane.onInput = async () => {
+                    const row = await grid.addRow({yjCd: '', jonga: null, danga: 0, isNew: true}, true);
+                    grid.deselectRow(); row.select(); row.getCell('yjCd').edit();
+                };
+                pane.onDelete = async () => {
+                    const row = grid.getSelectedRows()[0];
+                    if (!row) return message('삭제할 행을 선택하십시오.', 'warning');
+                    const data = row.getData();
+                    if (data.isNew) await row.delete();
+                    else { deletedRows.push({...data, isDeleted: true}); await row.delete(); }
+                };
+                pane.onSave = () => save().catch(error => message(error.message, 'error'));
+                pane.onRefresh = () => { deletedRows = []; grid.clearData(); };
+                pane.onCorpGrChange = nextCorpGr => { pane.dataset.corpGr = nextCorpGr || ''; deletedRows = []; grid.clearData(); };
+                pane.onExcel = () => {
+                    if (!window.XLSX) return message('엑셀 내보내기 기능을 불러오지 못했습니다.', 'warning');
+                    grid.download('xlsx', '해외주식_종가_' + ymd().replaceAll('-', '') + '.xlsx', {sheetName: '해외주식종가'});
+                };
+            }
+
+            function startInit() {
+                buildGrid();
+                if (typeof initFilterCalendar === 'function') initFilterCalendar(pane);
+                bindToolbar();
+                field('ja036j1LoadExcel').addEventListener('click', () => field('ja036j1Excel').click());
+                field('ja036j1Excel').addEventListener('change', async event => {
+                    const file = event.target.files[0];
+                    event.target.value = '';
+                    if (!file) return;
+                    try { await importRows(await readExcel(file)); } catch (error) { message(error.message, 'error'); }
+                });
+                field('ja036j1Paste').addEventListener('click', async () => {
+                    try { await importRows(parseClipboard(await navigator.clipboard.readText())); }
+                    catch (error) { message(error.message || '클립보드 자료를 읽을 수 없습니다.', 'error'); }
+                });
+            }
+
+            if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', startInit, {once: true});
+            else startInit();
+        })();
+    </script>
+</div>
+</html>

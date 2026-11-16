@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
 <div class="view-container layout-single layout-mobile-stack-container ja030m-container" th:fragment="mainView" data-pgm-id="W_JA030M"
-     th:attr="data-corp-gr=${corpGr},data-pgm-no=${pgmNo},data-work-date=${workDate}">
+     th:attr="data-corp-gr=${corpGr},data-work-corp-gr=${workCorpGr},data-pgm-no=${pgmNo},data-work-date=${workDate}">
     <style>
         .ja030m-container .filter-item { display:flex; align-items:center; gap:6px; }
         .ja030m-container .filter-item label { font-size:12px; font-weight:600; color:#334155; }
@@ -45,15 +45,22 @@
             const isWorkingCorpGr = value => value && String(value).trim() && String(value).trim() !== '%';
             const currentWorkingCorpGr = () => {
                 const headerCorpGr = document.getElementById('corpGrSelect')?.value;
-                const candidates = [window.currentCorpGr, headerCorpGr, savedCorpGr(), pane.dataset.corpGr, corpGr()];
+                const candidates = [pane.dataset.workCorpGr, window.currentCorpGr, headerCorpGr, savedCorpGr(), pane.dataset.corpGr, corpGr()];
                 return candidates.find(isWorkingCorpGr) || '';
             };
-            const workDate = () => pane.dataset.workDate || '';
             const toast = (message, type) => typeof showToast === 'function' ? showToast(message, type) : alert(message);
             const toNumber = value => value == null || value === '' ? null : Number(String(value).replace(/,/g, ''));
             const toYmd = value => {
                 const digits = String(value || '').replace(/\D/g, '');
                 return digits.length === 8 ? `${digits.slice(0, 4)}-${digits.slice(4, 6)}-${digits.slice(6, 8)}` : '';
+            };
+            const workDate = () => {
+                // PB idt_workdate is server-injected from SZX0AA.HYUN_YMD for the current working company.
+                const serverWorkDate = toYmd(pane.dataset.workDate);
+                if (serverWorkDate) return serverWorkDate;
+
+                const synchronizedWorkDate = window.WorkDateSyncManager?.getWorkDate?.(currentWorkingCorpGr());
+                return toYmd(synchronizedWorkDate || window.getCookieWorkDate?.() || window.currentWorkDate);
             };
             const isCurrentCompanyMode = () => corpGr() !== '%';
             const isProtectedMaturityRow = row => {
@@ -163,7 +170,7 @@
             }
             function createGrid() {
                 const allCorp = corpGr() === '%';
-                const columns = [{ title:'No.', formatter:'rownum', width:35, hozAlign:'center', headerSort:false }];
+                const columns = [{ title:'No.', formatter:'rownum', width:35, hozAlign:'center'}];
                 if (allCorp) {
                     columns.push({ title:'예금이자적용회사', field:'corpGr', width:120, hozAlign:'center', formatter:cell => optionValues('corpGr')[cell.getValue()] || cell.getValue(), editable:false });
                 } else {
@@ -197,6 +204,10 @@
                 const selected = grid.getSelectedData()[0] || {};
                 const allCompany = corpGr() === '%';
                 const balhYmd = workDate();
+                if (!balhYmd) {
+                    toast('현재 작업 회사의 작업일자를 확인할 수 없습니다.', 'warning');
+                    return;
+                }
                 const maturity = await fetchJson(`/api/assetmanagement/ja030m/sanghw-ymd?balhYmd=${encodeURIComponent(balhYmd)}`);
                 const row = {
                     isNew:true, rowStatus:'C', corpGr:allCompany ? (selected.corpGr || '') : corpGr(),

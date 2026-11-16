@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.kfp.aams.domain.usportfoliomodel.mapper.Ja036kMapper">
+
+    <select id="selectStatusList" resultType="com.kfp.aams.domain.usportfoliomodel.dto.Ja036kLoadDto">
+        SELECT t1.corp_gr AS corp_gr
+             , t1.load_date AS load_date
+             , t1.ip_user AS ip_user
+             , fw.user_nm AS user_nm
+             , t1.load_ok AS load_ok
+             , t1.load_naye AS load_naye
+             , t1.load_ymd AS load_ymd
+          FROM LOAD_STATUS t1
+          LEFT OUTER JOIN FW_USER_MST fw
+            ON fw.enc_e_mail = TO_ENCRYPTS(t1.ip_user)
+         WHERE t1.corp_gr = #{corpGr}
+           AND TRUNC(t1.load_ymd) = #{ymd}
+         ORDER BY t1.load_seq DESC
+    </select>
+
+    <select id="selectTradeLoadList" resultType="com.kfp.aams.domain.usportfoliomodel.dto.Ja036kLoadDto">
+        SELECT t1.corp_gr AS corp_gr
+             , t1.tr_ymd AS load_ymd
+             , t1.tr_seq AS tr_seq
+             , t1.fund_cd AS fund_cd
+             , t1.jm_cd AS jm_cd
+             , t1.jm_nm AS jm_nm
+             , t1.currency AS currency
+             , t1.stock_nm AS stock_nm
+             , t1.tr_nm AS tr_nm
+             , t1.meme_ymd AS meme_ymd
+             , t1.gyul_ymd AS gyul_ymd
+             , t1.tr_jusu AS tr_jusu
+             , t1.tr_danga AS tr_danga
+             , t1.tr_susu AS tr_susu
+             , t1.tr_tax AS tr_tax
+             , t1.tr_aek AS tr_aek
+             , t1.meme_gijun_rt AS meme_gijun_rt
+             , t1.gyul_gijun_rt AS gyul_gijun_rt
+             , t1.load_dt AS load_dt
+             , '1' AS load_ok
+          FROM SYT0MG_LOAD t1
+         WHERE t1.corp_gr = #{corpGr}
+           AND t1.tr_ymd = #{ymd}
+         ORDER BY t1.tr_seq
+    </select>
+
+    <select id="selectBalanceList" resultType="com.kfp.aams.domain.usportfoliomodel.dto.Ja036kLoadDto">
+        SELECT '2' AS s1
+             , '현금' AS jasan_nm
+             , t1.fund_cd AS fund_cd
+             , ia.fund_nm AS fund_nm
+             , t1.jm_cd AS jm_cd
+             , F_JM_NM(t1.corp_gr, t1.jm_cd) AS jm_nm
+             , t1.aekm AS aekm
+             , t1.chui_aek AS chui_aek
+             , t1.siga_aek AS siga_aek
+             , '0' AS load_ok
+          FROM SHM0HM_SIGA t1
+          LEFT OUTER JOIN SZM0IA ia
+            ON ia.corp_gr = t1.corp_gr
+           AND ia.fund_cd = t1.fund_cd
+         WHERE t1.corp_gr = #{corpGr}
+           AND t1.ymd = #{ymd}
+        UNION ALL
+        SELECT '3'
+             , '주식'
+             , t1.fund_cd
+             , ia.fund_nm
+             , t1.jm_cd
+             , F_JM_NM(t1.corp_gr, t1.jm_cd)
+             , t1.jusu
+             , t1.chui_aek
+             , t1.siga_aek
+             , '0'
+          FROM SJM0JM_SIGA t1
+          LEFT OUTER JOIN SZM0IA ia
+            ON ia.corp_gr = t1.corp_gr
+           AND ia.fund_cd = t1.fund_cd
+         WHERE t1.corp_gr = #{corpGr}
+           AND t1.ymd = #{ymd}
+        UNION ALL
+        SELECT '1'
+             , '채권'
+             , t1.fund_cd
+             , ia.fund_nm
+             , t1.jm_cd
+             , F_JM_NM(t1.corp_gr, t1.jm_cd)
+             , t1.aekm
+             , t1.chui_aek
+             , t1.siga_aek
+             , '0'
+          FROM SCM0CM_SIGA t1
+          LEFT OUTER JOIN SZM0IA ia
+            ON ia.corp_gr = t1.corp_gr
+           AND ia.fund_cd = t1.fund_cd
+         WHERE t1.corp_gr = #{corpGr}
+           AND t1.ymd = #{ymd}
+        UNION ALL
+        SELECT '4'
+             , '펀드'
+             , t1.fund_cd
+             , ia.fund_nm
+             , t1.jm_cd
+             , F_JM_NM(t1.corp_gr, t1.jm_cd)
+             , t1.jwa
+             , t1.chui_aek
+             , t1.siga_aek
+             , '0'
+          FROM SJM5SM_SIGA t1
+          LEFT OUTER JOIN SZM0IA ia
+            ON ia.corp_gr = t1.corp_gr
+           AND ia.fund_cd = t1.fund_cd
+         WHERE t1.corp_gr = #{corpGr}
+           AND t1.ymd = #{ymd}
+         ORDER BY 1, 3, 5
+    </select>
+</mapper>

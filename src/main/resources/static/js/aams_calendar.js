@@ -260,7 +260,11 @@ window.AamsCalendar = (function() {
         loadHighlightDates: function(inputId, apiUrl, paramCorpGr) {
             const inst = instances[inputId];
             if (!inst || inst.isSimple) return;
-            const targetUrl = (apiUrl || inst.datesApiUrl) + (paramCorpGr ? '?corpGr=' + encodeURIComponent(paramCorpGr) : '');
+            const baseUrl = apiUrl || inst.datesApiUrl;
+            const separator = baseUrl.includes('?')
+                ? (baseUrl.endsWith('?') || baseUrl.endsWith('&') ? '' : '&')
+                : '?';
+            const targetUrl = baseUrl + (paramCorpGr ? separator + 'corpGr=' + encodeURIComponent(paramCorpGr) : '');
             fetch(targetUrl)
                 .then(res => res.json())
                 .then(dates => {
