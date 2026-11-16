@@ -36,6 +36,7 @@
             const date = value => typeof formatDateVal === 'function' ? formatDateVal(value) : (value || '');
             let jasanGb = '1';
             let grid;
+            let gridBuilt = false;
             let deletedRows = [];
             const dddwOptionsMap = {jasanGb: []};
 
@@ -52,7 +53,7 @@
             async function ue_dddw_retrieve(targetCorpGr) {
                 if (typeof window.f_dddwctl !== 'function') return;
                 dddwOptionsMap.jasanGb = await window.f_dddwctl('jasan_gb', targetCorpGr || corpGr(), '', 51, '');
-                if (grid) grid.redraw(true);
+                if (grid && gridBuilt) grid.redraw(true);
             }
 
             function getDddwLabel(key, value) {
@@ -105,9 +106,11 @@
             }
 
             function createGrid() {
+                gridBuilt = false;
                 grid = new Tabulator(field('ja036jGrid'), {
                     height: '100%', layout: 'fitDataStretch', selectableRows: 1, editTriggerEvent: 'click',
                     placeholder: '조회된 종가/단가 자료가 없습니다.',
+                    tableBuilt: () => { gridBuilt = true; },
                     columnDefaults: {vertAlign: 'middle', headerHozAlign: 'center', headerSortTristate: true},
                     columns: [
                         {title: 'No.', formatter: 'rownum', width: 48, hozAlign: 'center', headerSort: false},
