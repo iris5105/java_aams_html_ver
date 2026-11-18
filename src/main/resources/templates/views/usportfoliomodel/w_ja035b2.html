@@ -6,7 +6,7 @@
       - dw_c: dc_ymd (영업일자)
       - dw_list: d_ja035b2 (해외파생 매매내역)
 -->
-<div class="view-container ja035b2-container layout-mobile-stack-container" th:fragment="ja035b2View" style="display: flex; flex-direction: column; height: 100%; width: 100%; overflow: hidden;">
+<div class="view-container layout-single ja035b2-container layout-mobile-stack-container" th:fragment="ja035b2View" style="display: flex; flex-direction: column; height: 100%; width: 100%; overflow: hidden; background: #fff; position: relative;">
 
     <!-- 1. Top Action Control Bar -->
     <div class="view-toolbar">
@@ -30,23 +30,12 @@
         </div>
     </div>
 
-    <!-- 3. 메인 단일 그리드 패널: 해외파생 매매내역 (d_ja035b2) -->
-    <div class="pane-body-wrapper" style="flex: 1; display: flex; flex-direction: column; min-height: 290px; overflow: hidden; padding: 0 10px 10px 10px;">
-        <div class="sub-grid-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-            <span class="sub-title"><i class="fa-solid fa-table-list"></i> 해외파생 매매내역</span>
-            <div class="sub-grid-actions">
-                <button type="button" class="t-btn btn-sub-grid" id="btnSubAddRow" title="행 추가">
-                    <i class="fa-solid fa-plus"></i> 행추가
-                </button>
-                <button type="button" class="t-btn btn-sub-grid" id="btnSubDeleteRow" title="선택행 삭제">
-                    <i class="fa-solid fa-trash-can"></i> 행삭제
-                </button>
-            </div>
+    <!-- 3. 메인 그리드 섹션 (단일 그리드 wt_list 표준 구조) -->
+    <section class="grid-section" aria-label="해외파생 매매내역 목록">
+        <div class="grid-table-wrapper">
+            <div id="gridJa035b2" class="tabulator-aams-grid"></div>
         </div>
-        <div class="grid-container" style="flex: 1; min-height: 0; overflow: hidden;">
-            <div id="gridJa035b2" class="tabulator-aams-grid" style="height: 100%; width: 100%;"></div>
-        </div>
-    </div>
+    </section>
 
     <script th:inline="javascript">
     (function () {
@@ -148,11 +137,11 @@
                         }
                     },
                     {
-                        title: "펀드코드",
+                        title: "펀드번호",
                         field: "fundCd",
                         width: 90,
                         hozAlign: "center",
-                        headerCssClass: "col-hdr-green",
+                        cssClass: "col-hdr-green",
                         editor: "input",
                         editable: function (cell) {
                             var d = cell.getRow().getData();
@@ -272,7 +261,7 @@
                         field: "yjCd",
                         width: 120,
                         hozAlign: "center",
-                        headerCssClass: "col-hdr-blue",
+                        cssClass: "col-hdr-blue",
                         editor: "input",
                         editable: function (cell) {
                             return !cell.getRow().getData().isSummaryRow;
@@ -398,7 +387,7 @@
                         field: "trustee",
                         width: 70,
                         hozAlign: "center",
-                        headerCssClass: "col-hdr-blue",
+                        cssClass: "col-hdr-blue",
                         editor: "input",
                         editable: function (cell) {
                             return !cell.getRow().getData().isSummaryRow;

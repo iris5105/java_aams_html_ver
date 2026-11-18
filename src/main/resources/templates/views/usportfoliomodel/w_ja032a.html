@@ -21,7 +21,7 @@
     </div>
 
     <!-- 3. Split Master-Detail Layout -->
-    <div class="layout-split-v split-body layout-mobile-stack" data-split-key="W_JA032A" data-default-ratio="40:60">
+    <div class="layout-split-v split-body layout-mobile-stack" data-split-key="W_JA032A_V" data-default-ratio="40:60">
 
         <!-- 3-1. Upper Section: 펀드별 포트폴리오 마스터 목록 (d_ja032a1) -->
         <div class="pane-top master-section">
@@ -41,31 +41,39 @@
             </div>
         </div>
 
-        <!-- 3-2. Lower Section: 좌우 2분할 (Left: 포트별 설정 목록 / Right: 포트 내 종목 상세 목록) -->
-        <div class="pane-bottom detail-section split-lr-container">
-            
-            <!-- Lower Left: 포트별 설정 목록 (d_ja032a2) -->
-            <div class="split-left-section split-panel panel-left">
-                <div class="sub-grid-header">
-                    <span class="sub-title"><i class="fa-solid fa-layer-group"></i> 포트별 설정 목록</span>
-                    <div th:replace="~{fragments/grid/detail_nav :: detailNav(targetGrid='#gridJa032aPort', fileName='포트별설정목록', buttons='excel,add,copy,del')}"></div>
-                </div>
-                <div class="grid-table-wrapper">
-                    <div id="gridJa032aPort" class="tabulator-aams-grid"></div>
-                </div>
-            </div>
+        <!-- 3-2. 상하 스플릿 거터 -->
+        <div class="split-gutter-v" title="드래그하여 상하 비율 조절 (더블클릭 시 기본 비율로 복원)"></div>
 
-            <!-- Lower Right: 포트 내 종목 상세 목록 (d_ja032a3 / d_ja032a3a) -->
-            <div class="split-right-section split-panel panel-right">
-                <div class="sub-grid-header">
-                    <span class="sub-title"><i class="fa-solid fa-chart-pie"></i> 포트 내 종목 상세 목록</span>
-                    <div th:replace="~{fragments/grid/detail_nav :: detailNav(targetGrid='#gridJa032aDetail', fileName='포트내종목상세목록', buttons='0011010000')}"></div>
+        <!-- 3-3. Lower Section: 좌우 2분할 (Left: 포트별 설정 목록 / Right: 포트 내 종목 상세 목록) -->
+        <div class="pane-bottom detail-section aams-nested-pane-host" style="border: none !important; background: transparent !important; box-shadow: none !important; padding: 0 !important;">
+            <div class="layout-split-h layout-mobile-stack" data-split-key="W_JA032A_H" data-default-ratio="50:50" style="height: 100%; width: 100%; display: flex; flex-direction: row; min-height: 0; padding: 0 !important; background: transparent !important;">
+                
+                <!-- Lower Left: 포트별 설정 목록 (d_ja032a2) -->
+                <div class="pane-left master-section">
+                    <div class="sub-grid-header">
+                        <span class="sub-title"><i class="fa-solid fa-layer-group"></i> 포트별 설정 목록</span>
+                        <div th:replace="~{fragments/grid/detail_nav :: detailNav(targetGrid='#gridJa032aPort', fileName='포트별설정목록', buttons='excel,add,copy,del')}"></div>
+                    </div>
+                    <div class="pane-body">
+                        <div id="gridJa032aPort" class="tabulator-aams-grid"></div>
+                    </div>
                 </div>
-                <div class="grid-table-wrapper">
-                    <div id="gridJa032aDetail" class="tabulator-aams-grid"></div>
-                </div>
-            </div>
 
+                <!-- Lower Splitter Gutter (좌우 스플릿바) -->
+                <div class="split-gutter-h" title="드래그하여 좌우 비율 조절 (더블클릭 시 기본 비율로 복원)"></div>
+
+                <!-- Lower Right: 포트 내 종목 상세 목록 (d_ja032a3 / d_ja032a3a) -->
+                <div class="pane-right detail-section">
+                    <div class="sub-grid-header">
+                        <span class="sub-title"><i class="fa-solid fa-chart-pie"></i> 포트 내 종목 상세 목록</span>
+                        <div th:replace="~{fragments/grid/detail_nav :: detailNav(targetGrid='#gridJa032aDetail', fileName='포트내종목상세목록', buttons='0011010000')}"></div>
+                    </div>
+                    <div class="pane-body">
+                        <div id="gridJa032aDetail" class="tabulator-aams-grid"></div>
+                    </div>
+                </div>
+
+            </div>
         </div>
 
     </div>

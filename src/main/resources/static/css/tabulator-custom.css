@@ -33,6 +33,53 @@
   flex-direction: column !important;
 }
 
+/*
+ * A framed grid wrapper owns the outside border.  Tabulator also applies its
+ * own root border, which otherwise produces a doubled frame when it is placed
+ * directly inside one of these wrappers.  Keep the default Tabulator border
+ * for unframed grids so legacy plain grid-table-wrapper layouts are unchanged.
+ */
+.grid-table-wrapper--frame-owner {
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+/* Standard card frame for a single-pane grid whose wrapper owns the border. */
+.aams-grid-card {
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  background-color: #ffffff;
+}
+
+.grid-table-wrapper--frame-owner > .tabulator-aams-grid,
+.grid-table-wrapper--frame-owner > .tabulator-dw-grid,
+.grid-table-wrapper--frame-owner > .tabulator {
+  border: 0 !important;
+  border-radius: 0 !important;
+}
+
+/* A pane may own the card frame around a direct master-grid wrapper. */
+.aams-grid-frame-owner > .master-grid-wrapper {
+  flex: 1 1 0;
+  min-height: 0;
+  width: 100%;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+.aams-grid-frame-owner > .master-grid-wrapper > .tabulator-aams-grid,
+.aams-grid-frame-owner > .master-grid-wrapper > .tabulator-dw-grid,
+.aams-grid-frame-owner > .master-grid-wrapper > .tabulator,
+.aams-grid-frame-owner > .grid-table-wrapper > .tabulator-aams-grid,
+.aams-grid-frame-owner > .grid-table-wrapper > .tabulator-dw-grid,
+.aams-grid-frame-owner > .grid-table-wrapper > .tabulator,
+.aams-grid-frame-owner > .pane-body > .tabulator-aams-grid,
+.aams-grid-frame-owner > .pane-body > .tabulator-dw-grid,
+.aams-grid-frame-owner > .pane-body > .tabulator {
+  border: 0 !important;
+  border-radius: 0 !important;
+}
+
 .tabulator-header {
   flex: 0 0 auto !important;
 }

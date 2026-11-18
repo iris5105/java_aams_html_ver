@@ -137,7 +137,7 @@
     <div class="layout-split-h split-body layout-mobile-stack" data-split-key="W_JA032D_H" data-default-ratio="58:42" style="flex: 1; min-height: 0;">
 
         <!-- 좌측 패널 (상하 2분할: 마스터 현황 + 건별 상세) -->
-        <div class="pane-left master-section" style="width: 58%; height: 100%; display: flex; flex-direction: column; min-width: 320px;">
+        <div class="pane-left master-section aams-nested-pane-host" style="width: 58%; height: 100%; display: flex; flex-direction: column; min-width: 320px;">
             <div class="layout-split-v" data-split-key="W_JA032D_LEFT_V" data-default-ratio="60:40" style="flex: 1; height: 100%; min-height: 0;">
 
                 <!-- 좌측 상단: API 요청 현황 (dw_list - 별도 제목바 없이 그리드가 전면 차지) -->
@@ -286,7 +286,7 @@
                 if (elMaster) {
                     gridMaster = new Tabulator(elMaster, {
                         height: "100%",
-                        layout: "fitColumns",
+                        layout: "fitDataFill",
                         selectableRows: 1,
                         placeholder: "조회된 API 요청 요약 내역이 없습니다.",
                         columns: [
@@ -346,7 +346,7 @@
                 if (elDetail) {
                     gridDetail = new Tabulator(elDetail, {
                         height: "100%",
-                        layout: "fitColumns",
+                        layout: "fitDataFill",
                         selectableRows: 1,
                         placeholder: "선택된 요청 그룹의 건별 상세 데이터가 없습니다.",
                         columns: [
@@ -394,7 +394,7 @@
                 if (elData) {
                     gridData = new Tabulator(elData, {
                         height: "100%",
-                        layout: "fitColumns",
+                        layout: "fitDataFill",
                         selectableRows: 1,
                         placeholder: "선택된 API 요청 건의 컬럼 상세 데이터가 없습니다.",
                         columns: [

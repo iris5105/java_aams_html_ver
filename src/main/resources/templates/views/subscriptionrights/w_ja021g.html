@@ -859,7 +859,7 @@
                 const promises=[];
                 ['master','detail'].forEach(kind=>{
                     const el=view.querySelector('#ja021g-'+kind+'-'+tab);
-                    const grid=new Tabulator(el,{height:'100%',layout:'fitData',selectableRows:1,
+                    const grid=new Tabulator(el,{height:'100%',layout:'fitDataFill',selectableRows:1,
                         placeholder:'조회된 자료가 없습니다.',columns:columns(tab,kind==='detail'),
                         rowFormatter:row=>row.getElement().classList.toggle('row-deleted',!!row.getData().isDeleted)});
                     state[kind]=grid;

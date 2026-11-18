@@ -14,10 +14,20 @@
 
     <!-- Main Grid Section (d_ja010n1.srd / SKT0BM) -->
     <div class="grid-section" style="flex: 1 1 auto; height: calc(100% - 50px); padding: 8px 12px; overflow: hidden; display: flex; flex-direction: column;">
-        <div class="grid-table-wrapper" style="flex: 1 1 auto; height: 100%; width: 100%; max-width: 600px; border: 1px solid #cbd5e1; border-radius: 4px; overflow: hidden; background-color: #fff;">
+        <div class="grid-table-wrapper grid-table-wrapper--frame-owner" style="flex: 1 1 auto; height: 100%; width: 100%; max-width: 600px; border: 1px solid #cbd5e1; border-radius: 4px; overflow: hidden; background-color: #fff;">
             <div id="ja010n-grid" class="tabulator-aams-grid" style="height: 100%;"></div>
         </div>
     </div>
+
+    <style>
+        /* MDI fragment 재로딩 시에도 wrapper만 외곽 프레임을 소유한다. */
+        .ja010n-container .grid-table-wrapper--frame-owner > .tabulator-aams-grid,
+        .ja010n-container .grid-table-wrapper--frame-owner > .tabulator-dw-grid,
+        .ja010n-container .grid-table-wrapper--frame-owner > .tabulator {
+            border: 0 !important;
+            border-radius: 0 !important;
+        }
+    </style>
 
 
     <!-- Page Specific Script for w_ja010n -->
@@ -94,7 +104,7 @@
 
                 gridJa010n = new Tabulator(gridEl, {
                     data: [],
-                    layout: "fitColumns",
+                    layout: "fitDataFill",
                     selectableRows: 1,
                     editTriggerEvent: "click",
                     columns: columns,

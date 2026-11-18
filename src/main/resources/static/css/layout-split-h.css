@@ -38,6 +38,25 @@
     box-sizing: border-box;
 }
 
+/*
+ * Nested split host: the immediately nested panes render their own card
+ * frames, so the outer pane remains a transparent layout container.
+ */
+.layout-split-h > .aams-nested-pane-host,
+.layout-split-h > :is(.pane-left, .pane-right, .left-pane, .right-pane, .master-section, .detail-section).aams-nested-pane-host {
+    background: transparent !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+}
+
+.layout-split-h > .aams-nested-pane-host > .layout-split-v,
+.layout-split-h > :is(.pane-left, .pane-right, .left-pane, .right-pane, .master-section, .detail-section).aams-nested-pane-host > .layout-split-v {
+    padding: 0 !important;
+    background-color: transparent !important;
+}
+
 /* 3. Draggable Splitter Gutter (col-resize) */
 .layout-split-h > .split-gutter-h {
     flex: 0 0 6px;

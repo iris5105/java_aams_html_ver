@@ -7,8 +7,7 @@
       - dw_list: d_ja032g1 (해외 파생종목 목록)
       - dw_detail: d_ja032g2 (해외옵션 일별 시세 내역)
 -->
-<div class="view-container layout-split ja032g-container layout-mobile-stack-container" th:fragment="mainView"
-     style="display: flex; flex-direction: column; height: 100%; width: 100%; overflow: hidden; background-color: #ffffff; position: relative;">
+<div class="view-container layout-split ja032g-container layout-mobile-stack-container" th:fragment="mainView" data-pgm-id="W_JA032G">
 
     <!-- 0. 데이터 로딩 오버레이 (마스터/디테일 조회 및 저장 시 사용) -->
     <div id="ja032gLoadingOverlay" class="view-loading-overlay d-none">
@@ -35,36 +34,43 @@
     </div>
 
     <!-- 2. 상단 필터바 (Row 2: 만기일자 dc_ymd + '만기월 기준' 텍스트 라벨) -->
-    <div class="filter-bar" style="border-bottom: 1px solid #cbd5e1; padding: 6px 12px; background: #ffffff;">
-        <div class="filter-left" style="align-items: center; gap: 16px; display: flex;">
+    <div class="filter-bar">
+        <div class="filter-left">
             <!-- dw_c: dc_ymd (만기일자) -->
             <div th:replace="~{fragments/filter/dc_ymd :: filter(label='만기일자')}"></div>
             <!-- tag="만기월 기준" -->
-            <span style="font-size: 13px; font-weight: 600; color: #1e293b; user-select: none;">만기월 기준</span>
+            <span class="filter-label" style="font-weight: 600; color: #1e293b; margin-left: 4px;">만기월 기준</span>
         </div>
     </div>
 
     <!-- 3. 메인 콘텐츠 섹션: 상하 수직 분할 레이아웃 (wt_listdetail) -->
-    <div class="layout-split-v split-body layout-mobile-stack" data-split-key="JA032G_V" data-default-ratio="55:45"
-         style="flex: 1 1 auto; height: calc(100% - 85px); padding: 8px 12px; gap: 4px; display: flex; flex-direction: column; overflow: hidden;">
+    <div class="layout-split-v split-body layout-mobile-stack" data-split-key="W_JA032G_V" data-default-ratio="55:45">
 
         <!-- 상단 마스터 패널: 해외 파생종목 목록 (dw_list / d_ja032g1) -->
-        <div class="pane-top master-section" style="flex: 1 1 55%; min-height: 200px; display: flex; flex-direction: column; border: 1px solid #86efac; border-radius: 2px; overflow: hidden; background: #ffffff;">
-            <div class="pane-body" style="flex: 1 1 auto; height: 100%; width: 100%; overflow: hidden;">
-                <div id="gridMaster" class="tabulator-aams-grid" style="height: 100%;"></div>
+        <div class="pane-top master-section">
+            <div class="pane-header">
+                <span><i class="fa-solid fa-list-check"></i> 해외 파생종목 목록</span>
+                <div class="panel-actions"></div>
+            </div>
+            <div class="pane-body">
+                <div id="gridMaster" class="tabulator-aams-grid"></div>
             </div>
         </div>
 
-        <div class="split-gutter-v" title="드래그하여 상하 비율 조절 (더블클릭 시 기본 비율로 복원)" style="height: 6px; cursor: row-resize; background: #f1f5f9; border-top: 1px solid #e2e8f0; border-bottom: 1px solid #e2e8f0;"></div>
+        <!-- 상하 스플릿 거터 -->
+        <div class="split-gutter-v" title="드래그하여 상하 비율 조절 (더블클릭 시 기본 비율로 복원)"></div>
 
         <!-- 하단 디테일 패널: 해외옵션 일별 시세 내역 (dw_detail / d_ja032g2) -->
-        <div class="pane-bottom detail-section" style="flex: 1 1 45%; min-height: 160px; display: flex; flex-direction: column; border: 1px solid #86efac; border-radius: 2px; overflow: hidden; background: #ffffff;">
-            <!-- 하단 그리드 상단 우측 파워빌더 DataWindow 네비게이터/컨트롤 바 (공통 detailNav 연동 - 파워빌더 기본 6종 0011111001) -->
-            <div style="display: flex; justify-content: flex-end; align-items: center; padding: 2px 6px; background: #ffffff; border-bottom: 1px solid #e2e8f0;">
-                <div th:replace="~{fragments/grid/detail_nav :: detailNav(targetGrid='#gridDetail', fileName='해외옵션일별시세', buttons='0011111001')}"></div>
+        <div class="pane-bottom detail-section">
+            <div class="pane-header">
+                <span><i class="fa-solid fa-chart-line"></i> 해외옵션 일별 시세 내역</span>
+                <div class="panel-actions">
+                    <!-- 하단 그리드 상단 우측 파워빌더 DataWindow 네비게이터/컨트롤 바 (공통 detailNav 연동 - 파워빌더 기본 6종 0011111001) -->
+                    <div th:replace="~{fragments/grid/detail_nav :: detailNav(targetGrid='#gridDetail', fileName='해외옵션일별시세', buttons='0011111001')}"></div>
+                </div>
             </div>
-            <div class="pane-body" style="flex: 1 1 auto; height: 100%; width: 100%; overflow: hidden;">
-                <div id="gridDetail" class="tabulator-aams-grid" style="height: 100%;"></div>
+            <div class="pane-body">
+                <div id="gridDetail" class="tabulator-aams-grid"></div>
             </div>
         </div>
     </div>
@@ -207,7 +213,7 @@
                                 hozAlign: "left",
                                 headerHozAlign: "center",
                                 headerSort: true,
-                                headerCssClass: "col-hdr-blue",
+                                cssClass: "col-hdr-blue",
                                 editor: "input",
                                 editable: function (cell) {
                                     return !!cell.getRow().getData().isNew;
@@ -348,7 +354,7 @@
                                 hozAlign: "center",
                                 headerHozAlign: "center",
                                 headerSort: true,
-                                headerCssClass: "col-hdr-green",
+                                cssClass: "col-hdr-green",
                                 editor: "list",
                                 editorParams: {
                                     values: [
@@ -383,7 +389,7 @@
                                 hozAlign: "center",
                                 headerHozAlign: "center",
                                 headerSort: true,
-                                headerCssClass: "col-hdr-green",
+                                cssClass: "col-hdr-green",
                                 editor: window.aamsDateEditor || "input",
                                 editorParams: { separator: "." },
                                 cellClick: (typeof aamsCellEdit === 'function') ? aamsCellEdit : undefined,
@@ -402,7 +408,7 @@
                                 hozAlign: "right",
                                 headerHozAlign: "center",
                                 headerSort: true,
-                                headerCssClass: "col-hdr-green",
+                                cssClass: "col-hdr-green",
                                 editor: "number",
                                 cellClick: (typeof aamsCellEdit === 'function') ? aamsCellEdit : undefined,
                                 formatter: function (cell) {
@@ -420,7 +426,7 @@
                                 hozAlign: "right",
                                 headerHozAlign: "center",
                                 headerSort: true,
-                                headerCssClass: "col-hdr-green",
+                                cssClass: "col-hdr-green",
                                 editor: "number",
                                 cellClick: (typeof aamsCellEdit === 'function') ? aamsCellEdit : undefined,
                                 formatter: function (cell) {
@@ -438,7 +444,7 @@
                                 hozAlign: "center",
                                 headerHozAlign: "center",
                                 headerSort: true,
-                                headerCssClass: "col-hdr-green",
+                                cssClass: "col-hdr-green",
                                 editor: "input",
                                 cellClick: (typeof aamsCellEdit === 'function') ? aamsCellEdit : undefined,
                                 cellEdited: function (cell) {
@@ -637,7 +643,7 @@
                                 hozAlign: "right",
                                 headerHozAlign: "center",
                                 headerSort: true,
-                                headerCssClass: "col-hdr-red",
+                                cssClass: "col-hdr-red",
                                 editor: "number",
                                 cellClick: (typeof aamsCellEdit === 'function') ? aamsCellEdit : undefined,
                                 formatter: function (cell) {
@@ -656,7 +662,7 @@
                                 hozAlign: "right",
                                 headerHozAlign: "center",
                                 headerSort: true,
-                                headerCssClass: "col-hdr-blue",
+                                cssClass: "col-hdr-blue",
                                 editor: "number",
                                 cellClick: (typeof aamsCellEdit === 'function') ? aamsCellEdit : undefined,
                                 formatter: function (cell) {

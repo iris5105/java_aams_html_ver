@@ -89,7 +89,7 @@
 
     <!-- Main Grid Section (Row 4: dw_list / d_ja020n.srd) -->
     <div class="grid-section ja020n-grid-section">
-        <div class="grid-table-wrapper ja020n-grid-wrapper">
+        <div class="grid-table-wrapper ja020n-grid-wrapper grid-table-wrapper--frame-owner aams-grid-card">
             <div id="ja020n-grid" class="tabulator-aams-grid" style="height: 100%;"></div>
         </div>
     </div>
@@ -221,13 +221,14 @@
             padding: 4px 6px;
             overflow: hidden;
         }
-        .ja020n-grid-wrapper {
-            height: 100%;
-            width: 100%;
-            border: 1px solid #94a3b8;
+
+        /* MDI fragment 재로딩 시에도 공통 single-grid card 프레임을 즉시 유지한다. */
+        .ja020n-container .ja020n-grid-wrapper.aams-grid-card {
+            border: 1px solid #cbd5e1 !important;
+            border-radius: 4px !important;
             background-color: #ffffff;
-            border-radius: 0;
         }
+
         .ja020n-grid-wrapper .tabulator-header {
             background-color: #cbd5e1 !important; /* 파워빌더 헤더 회색 톤 */
             border-bottom: 1px solid #94a3b8 !important;
@@ -344,7 +345,7 @@
                 if (!gridElement) return;
 
                 gridJa020n = new Tabulator(gridElement, {
-                    layout: "fitColumns",
+                    layout: "fitDataFill",
                     height: "100%",
                     placeholder: "조회된 데이터가 없습니다.",
                     selectableRows: 1,
