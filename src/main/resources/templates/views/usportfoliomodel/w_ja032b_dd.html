@@ -8,6 +8,28 @@
       - dw_list: d_ja032b (종목 목록)
       - dw_detail: d_ja032b_dd / d_ja032b_dd_krx (종목 일별현황 상세)
 -->
+<style>
+    /* W_JA032B_DD: 모바일에서 중첩 좌우 분할의 종목 목록도 하단 일별현황 pane과 같은 카드 규격을 사용한다. */
+    @media (max-width: 876px) {
+        .ja032b-dd-container #splitJa032bDdHorizontalContainer > .pane-right.detail-section {
+            display: flex !important;
+            flex: 0 0 290px !important;
+            flex-direction: column !important;
+            width: 100% !important;
+            height: 290px !important;
+            min-height: 290px !important;
+            max-height: 290px !important;
+            padding: 0 !important;
+            gap: 0 !important;
+            overflow: hidden !important;
+            background: #ffffff !important;
+            border: 1px solid #cbd5e1 !important;
+            border-radius: 6px !important;
+            box-shadow: none !important;
+            box-sizing: border-box !important;
+        }
+    }
+</style>
 <div class="view-container layout-split ja032b-dd-container layout-mobile-stack-container" id="wJa032bDdView" data-pgm-id="W_JA032B_DD" data-pgm-no="00157" th:fragment="ja032bDdView">
 
     <!-- 1. Top Action Control Bar (규정 08: 상단 공통 툴바 및 Breadcrumb) -->
@@ -102,7 +124,7 @@
                     placeholder: "조회된 펀드 데이터가 없습니다.",
                     columns: [
                         {
-                            title: "No.",
+                            title: "No.", headerSort: false,
                             field: "fseq",
                             width: 50,
                             hozAlign: "center",
@@ -232,7 +254,7 @@
                     placeholder: "조회된 종목 데이터가 없습니다.",
                     columns: [
                         {
-                            title: "No.",
+                            title: "No.", headerSort: false,
                             field: "fseq",
                             width: 50,
                             hozAlign: "center",
@@ -401,7 +423,7 @@
                     placeholder: "조회된 일별 상세 데이터가 없습니다.",
                     columns: [
                         {
-                            title: "No.",
+                            title: "No.", headerSort: false,
                             field: "fseq",
                             width: 50,
                             hozAlign: "center",

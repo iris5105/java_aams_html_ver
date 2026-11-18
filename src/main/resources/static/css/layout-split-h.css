@@ -163,7 +163,7 @@
 
 /* 6. Tablet-S / Mobile Responsive Layout (<= 876px) */
 @media (max-width: 876px) {
-    /* 6-0. 최상위 모바일 스택 컨테이너 규격: 화면 바닥과의 적정 여백(12px) 및 스크롤 끝 여백 보장 */
+    /* 6-0. 최상위 모바일 스택 컨테이너 규격: 하단 빈 spacer를 두지 않고 pane이 화면 하단까지 채워지도록 한다. */
     .layout-mobile-stack-container {
         display: flex !important;
         flex-direction: column !important;
@@ -172,13 +172,13 @@
         overflow-y: auto !important;
         overflow-x: hidden !important;
         -webkit-overflow-scrolling: touch !important;
-        padding-bottom: 24px !important;
+        padding-bottom: 5px !important;
         box-sizing: border-box !important;
     }
 
     .layout-mobile-stack-container::after {
         content: "";
-        display: block;
+        display: none !important;
         height: 24px;
         min-height: 24px;
         flex-shrink: 0;

@@ -3,15 +3,43 @@
 <div class="view-container layout-split proposal-container layout-mobile-stack-container" th:fragment="proposalView">
 
     <style>
-        /* 데스크톱 기본 우측 패널 레이아웃 */
-        .proposal-container .proposal-right-pane {
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-            overflow: hidden;
-            padding: 6px;
-            background-color: #f8fafc;
+
+        .proposal-container .proposal-left-split {
+            height: 100%;
+            min-height: 0;
+            padding: 0;
+            background: transparent;
+        }
+
+        .proposal-container .proposal-left-split > .pane-top {
+            flex-basis: calc(66% - 3px);
+            min-height: 180px;
+            border-radius: 0;
+            box-shadow: none;
+        }
+
+        .proposal-container .proposal-left-split > .pane-bottom {
+            min-height: 120px;
+            border-radius: 0;
+            box-shadow: none;
+        }
+
+        .proposal-container .quick-comment-textarea,
+        .proposal-container .proposal-right-pane .proposal-textarea {
+            width: 100%;
+            resize: none;
+            border: 0;
+            padding: 8px 10px;
             box-sizing: border-box;
+            font: inherit;
+            font-size: 12px;
+            line-height: 1.5;
+            color: #0f172a;
+            outline: none;
+        }
+
+        .proposal-container .quick-comment-textarea {
+            flex: 1;
         }
 
         .proposal-container .proposal-right-pane .right-section {
@@ -38,75 +66,6 @@
             .proposal-container .proposal-right-pane .comment-section {
                 flex: 1.3;
                 min-height: 150px;
-            }
-        }
-
-        /* 모바일 환경: 각 섹션 높이 및 여백 최적화 (불필요한 수직 스크롤 제거 및 12px 하단 여백 보장) */
-        @media (max-width: 876px) {
-            .proposal-container.layout-mobile-stack-container {
-                padding-bottom: 12px !important;
-            }
-
-            .proposal-container.layout-mobile-stack-container::after {
-                display: none !important;
-            }
-
-            .proposal-container .proposal-main-content {
-                gap: 8px !important;
-                padding: 4px 6px !important;
-            }
-
-            .proposal-container .proposal-left-pane {
-                flex: 0 0 220px !important;
-                height: 220px !important;
-                min-height: 220px !important;
-                max-height: 220px !important;
-            }
-
-            .proposal-container .proposal-right-pane {
-                gap: 8px !important;
-            }
-
-            .proposal-container .proposal-right-pane .matter-section {
-                flex: 0 0 110px !important;
-                height: 110px !important;
-                min-height: 110px !important;
-                max-height: 110px !important;
-            }
-
-            .proposal-container .proposal-right-pane .content-section {
-                flex: 0 0 90px !important;
-                height: 90px !important;
-                min-height: 90px !important;
-                max-height: 90px !important;
-            }
-
-            .proposal-container .proposal-right-pane .comment-section {
-                flex: 0 0 210px !important;
-                height: 210px !important;
-                min-height: 210px !important;
-                max-height: 210px !important;
-                margin-bottom: 0 !important;
-            }
-
-            .proposal-container .comment-section .grid-table-wrapper {
-                flex: 1 1 auto !important;
-                height: auto !important;
-                min-height: 0 !important;
-            }
-
-            .proposal-container .comment-section .tabulator {
-                min-height: 0 !important;
-                height: 100% !important;
-                border: none !important;
-            }
-
-            .proposal-container .comment-section .tabulator .tabulator-tableholder {
-                min-height: 0 !important;
-            }
-
-            .proposal-container .comment-section .tabulator .tabulator-placeholder {
-                min-height: 40px !important;
             }
         }
 
@@ -143,20 +102,9 @@
 
         .proposal-container .proposal-right-pane .proposal-textarea {
             flex: 1;
-            width: 100%;
-            resize: none;
-            border: none;
-            padding: 8px 10px;
-            font-size: 12px;
-            line-height: 1.5;
-            font-family: inherit;
-            color: #0f172a;
             background-color: #ffffff;
-            box-sizing: border-box;
-            outline: none;
         }
 
-        /* Comment Header & Buttons */
         .proposal-container .comment-grid-header {
             padding: 4px 8px;
             background-color: #f1f5f9;
@@ -174,41 +122,13 @@
             color: #0f172a;
         }
 
-        .proposal-container .comment-grid-header .comment-tools {
-            display: flex;
-            gap: 4px;
-        }
-
-        .proposal-container .comment-grid-header .grid-tool-btn {
-            background: #ffffff;
-            border: 1px solid #cbd5e1;
-            border-radius: 3px;
-            padding: 2px 6px;
-            font-size: 11px;
-            color: #475569;
-            cursor: pointer;
-            transition: all 0.15s ease-in-out;
-        }
-
-        .proposal-container .comment-grid-header .grid-tool-btn:hover {
-            background: #e2e8f0;
-            color: #0f172a;
-        }
-
-        .proposal-container .master-grid-wrapper {
+        .proposal-container .proposal-left-split .master-grid-wrapper {
             flex: 1;
-            height: calc(100% - 42px);
             min-height: 0;
             padding: 2px;
             box-sizing: border-box;
         }
 
-        .proposal-container .comment-section .grid-table-wrapper {
-            flex: 1 1 auto;
-            min-height: 0;
-            overflow: hidden;
-            box-sizing: border-box;
-        }
     </style>
 
     <!-- Top Action Control Bar (Row 1) -->
@@ -221,23 +141,33 @@
         <div th:replace="~{fragments/tab_header :: toolbarBreadcrumb}"></div>
     </div>
 
-    <!-- Main Left/Right Split Layout Container -->
-    <div class="layout-split-h split-body proposal-main-content layout-mobile-stack" data-split-key="W_PROPOSAL" data-default-ratio="38:62">
-
-        <!-- LEFT COLUMN: Filter Bar + Master Grid -->
-        <div class="pane-left proposal-left-pane master-section">
-            <!-- Sub Filter Bar: Common 운용사 Select Box (dddwId='CORP_GR', seq=1) -->
-            <div class="filter-bar">
-                <div class="filter-left">
-                    <div th:replace="~{fragments/filter/corp_filter :: corpFilter(dddwId='CORP_GR', seq=1,label ='자산운용(자문)사' )}"></div>
-                </div>
-            </div>
-
-            <!-- Master Grid Section -->
-            <div class="master-grid-wrapper">
-                <div id="master-grid" class="tabulator-aams-grid" style="height: 100%;"></div>
+    <div class="proposal-filter-bar">
+        <div class="filter-bar">
+            <div class="filter-left">
+                <div th:replace="~{fragments/filter/corp_filter :: corpFilter(dddwId='CORP_GR', seq=1,label ='자산운용(자문)사')}"></div>
             </div>
         </div>
+    </div>
+
+    <!-- Main Left/Right Split Layout Container -->
+    <div class="layout-split-h split-body proposal-main-content layout-mobile-stack" data-split-key="W_PROPOSAL" data-default-ratio="46:54">
+
+        <!-- LEFT COLUMN: Master Grid + Quick Comment -->
+        <div class="pane-left proposal-left-pane master-section">
+            <div class="layout-split-v proposal-left-split" data-split-key="W_PROPOSAL_LEFT" data-default-ratio="66:34">
+                <div class="pane-top">
+                    <div class="master-grid-wrapper">
+                        <div id="master-grid" class="tabulator-aams-grid"></div>
+                    </div>
+                </div>
+                <div class="split-gutter-v"></div>
+                <div class="pane-bottom">
+                    <textarea id="proposalQuickComment" class="quick-comment-textarea" placeholder="기타 의견이나 전달사항이 있으면 입력하십시오.&#10;입력 완료 후 Enter를 치면 댓글로 등록됩니다."></textarea>
+                </div>
+            </div>
+        </div>
+
+        <div class="split-gutter-h"></div>
 
         <!-- RIGHT COLUMN: Matter Text + Content Text + Comment Grid -->
         <div class="pane-right proposal-right-pane detail-section multi-stack-pane">
@@ -668,6 +598,53 @@
                 });
             }
 
+            function addQuickComment(appending) {
+                if (!gridMaster || !gridComment || !cudManagerComment) return Promise.resolve(null);
+
+                const selectedMaster = gridMaster.getSelectedRows();
+                if (!selectedMaster || selectedMaster.length === 0) {
+                    if (typeof showToast === "function") showToast("댓글을 추가할 의뢰 건을 먼저 선택해주세요.", "warning");
+                    return Promise.resolve(null);
+                }
+
+                const masterData = selectedMaster[0].getData();
+                const now = new Date();
+                const pad = n => String(n).padStart(2, '0');
+                const nowYmd = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+
+                return cudManagerComment.addRow({
+                    corpGr: masterData.corpGr,
+                    pYmd: masterData.ymd,
+                    pProposer: masterData.proposer,
+                    ymd: nowYmd,
+                    sbNm: resolveCurrentUserNm(),
+                    appending: appending || "",
+                    color: 16711680,
+                    isNew: true
+                }, false);
+            }
+
+            function initQuickCommentInput() {
+                const input = pane ? pane.querySelector("#proposalQuickComment") : document.getElementById("proposalQuickComment");
+                if (!input) return;
+
+                input.addEventListener("keydown", function(e) {
+                    if (e.key !== "Enter" || e.shiftKey || e.isComposing) return;
+                    e.preventDefault();
+
+                    const appending = input.value.trim();
+                    if (!appending) return;
+
+                    addQuickComment(appending).then(function(row) {
+                        if (!row) return;
+                        input.value = "";
+                        gridComment.deselectRow();
+                        row.select();
+                        row.scrollTo();
+                    });
+                });
+            }
+
             function initCommentTools() {
                 const btnAdd = pane ? pane.querySelector("#btnAddComment") : document.getElementById("btnAddComment");
                 const btnDel = pane ? pane.querySelector("#btnDeleteComment") : document.getElementById("btnDeleteComment");
@@ -942,6 +919,11 @@
                 initMasterGrid();
                 initCommentGrid();
                 initCommentTools();
+                initQuickCommentInput();
+
+                if (window.AamsSplitter && typeof window.AamsSplitter.init === 'function') {
+                    window.AamsSplitter.init(pane);
+                }
 
                 // 모바일/데스크톱 화면 전환 및 윈도우 리사이즈 대응 그리드 리드로우 (공통 AamsResponsive 연동: 탭 닫힘 시 자동 파기 및 활성 탭 가드)
                 if (window.AamsResponsive && typeof window.AamsResponsive.bindGridResize === 'function') {

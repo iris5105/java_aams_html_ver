@@ -1,7 +1,6 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
-<div class="view-container layout-split-v ja020q-container layout-mobile-stack-container" th:fragment="mainView" data-pgm-id="W_JA020Q"
-     style="display: flex; flex-direction: column; height: 100%; width: 100%; overflow: hidden; background-color: #ffffff; position: relative;">
+<div class="view-container layout-split ja020q-container layout-mobile-stack-container" th:fragment="mainView" data-pgm-id="W_JA020Q">
 
     <style>
         .ja020q-container > .ja020q-mobile-tabs { display: none; }
@@ -44,7 +43,7 @@
                 height: 100% !important;
                 min-height: 0 !important;
                 max-height: none !important;
-                padding: 4px 12px 0 !important;
+                padding: 4px 4px 0 !important;
                 gap: 0 !important;
                 overflow: hidden !important;
             }
@@ -90,11 +89,14 @@
     </div>
 
     <!-- 3. 메인 콘텐츠 섹션: 상하 수직 분할 레이아웃 (wt_tablist st_tab_move horizontal splitbar 100% 반영) -->
-    <div id="ja020qMainSplit" class="layout-split-v split-body layout-mobile-stack" data-split-key="W_JA020Q_V" data-default-ratio="42:58" style="flex: 1; min-height: 0; padding: 0 12px 12px 12px;">
-        <!-- 상단 패널: 계좌(펀드) 목록 그리드 (dw_list / d_uzm0hy) - 첫 번째 이미지처럼 패널헤더 없이 그리드 본체 100% -->
-        <div class="pane-top master-section" style="flex: 0 0 calc(42% - 3px); min-height: 140px; display: flex; flex-direction: column; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 4px; overflow: hidden;">
-            <div class="pane-body" style="flex: 1; height: 100%; min-height: 0; width: 100%;">
-                <div id="gridFund" class="tabulator-aams-grid" style="height: 100%; width: 100%;"></div>
+    <div id="ja020qMainSplit" class="layout-split-v split-body layout-mobile-stack" data-split-key="W_JA020Q_V" data-default-ratio="42:58">
+        <!-- 상단 패널: 계좌(펀드) 목록 그리드 (dw_list / d_uzm0hy) -->
+        <div class="pane-top master-section" style="--top-size: calc(42% - 3px);">
+            <div class="pane-header">
+                <span><i class="fa-solid fa-list"></i> 수요예측 참여 계좌 목록</span>
+            </div>
+            <div class="pane-body">
+                <div id="gridFund" class="tabulator-aams-grid"></div>
             </div>
         </div>
 
@@ -102,9 +104,9 @@
         <div class="split-gutter-v"></div>
 
         <!-- 하단 패널: 4개 서브 탭 & MRD 리포트 뷰어 (tab_subpage / ole_rd) -->
-        <div class="pane-bottom detail-section" style="flex: 1 1 auto; min-height: 140px; display: flex; flex-direction: column; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 4px; overflow: hidden;">
+        <div class="pane-bottom detail-section">
             <!-- 하단 4개 서브 탭 네비게이션 & 우측 RD 내보내기 버튼 그룹 -->
-            <div class="sub-tab-bar" style="display: flex; align-items: flex-end; justify-content: space-between; padding: 4px 8px 0 8px; background: #f1f5f9; border-bottom: 1px solid #cbd5e1; flex-shrink: 0; position: relative;">
+            <div class="pane-header sub-tab-bar" style="align-items: flex-end; padding: 4px 8px 0; position: relative;">
                 <!-- 좌측: 4개 서브 탭 -->
                 <div class="sub-tab-group" style="display: flex; gap: 3px; align-items: flex-end;">
                     <button type="button" class="btn sub-tab-btn active" data-tab="tab1" id="tabBtn1"
@@ -285,7 +287,7 @@
                         }
                     },
                     columns: [
-                        { title: "No.", formatter: "rownum", width: 45, hozAlign: "center", headerHozAlign: "center"},
+                        { title: "No.", headerSort: false, formatter: "rownum", width: 45, hozAlign: "center", headerHozAlign: "center"},
                         {
                             title: "증권회사", field: "mgCd", width: 110, hozAlign: "center", headerHozAlign: "center", headerSort: false,
                             formatter: function (cell) {

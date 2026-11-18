@@ -48,5 +48,53 @@
          </if>
          ORDER BY trYmd DESC
     </select>
+
+    <!-- PB w_import_sjt1jg::wue_postopen / ids_fund -->
+    <select id="selectActiveImportFund" resultType="com.kfp.aams.domain.dailyadvisory.dto.Ja010eImportFundDto">
+        SELECT t1.fund_cd    AS fundCd
+             , t1.fund_nm    AS fundNm
+             , t1.enc_acct_no AS encAcctNo
+          FROM szm0ia t1
+         WHERE t1.corp_gr = #{corpGr}
+           AND t1.mg_cd = #{trCoCd}
+           AND t1.haeji_ymd IS NULL
+           AND REPLACE(TO_DECRYPTS(t1.enc_acct_no), '-', '') = #{acctNo}
+           AND ROWNUM = 1
+    </select>
+
+    <!-- PB wf_2203_meme / 00002: 파일명에서 추출한 계좌 뒤 6자리로 전체 계좌를 찾는다. -->
+    <select id="selectImportFundByAccountSuffix" resultType="com.kfp.aams.domain.dailyadvisory.dto.Ja010eImportFundDto">
+        SELECT t1.fund_cd                  AS fundCd
+             , t1.fund_nm                  AS fundNm
+             , t1.enc_acct_no              AS encAcctNo
+             , TO_DECRYPTS(t1.enc_acct_no) AS acctNo
+          FROM szm0ia t1
+         WHERE t1.corp_gr = #{corpGr}
+           AND REPLACE(TO_DECRYPTS(t1.enc_acct_no), '-', '') LIKE '%' || #{acctNoSuffix}
+           AND ROWNUM = 1
+    </select>
+
+    <!-- PB w_import_sjt1jg::wue_postopen / ids_jj -->
+    <select id="selectImportSecurityByKoscomCd" resultType="com.kfp.aams.domain.dailyadvisory.dto.Ja010eImportSecurityDto">
+        SELECT t1.jm_cd     AS jmCd
+             , t1.jj_nm     AS jjNm
+             , t1.koscom_cd AS koscomCd
+             , t1.danc_gb   AS dancGb
+          FROM sjm0jj t1
+         WHERE t1.koscom_cd = #{koscomCd}
+           AND t1.danc_gb IN ('A', 'C', 'D', 'X')
+           AND ROWNUM = 1
+    </select>
+
+    <select id="selectImportSecurityByName" resultType="com.kfp.aams.domain.dailyadvisory.dto.Ja010eImportSecurityDto">
+        SELECT t1.jm_cd     AS jmCd
+             , t1.jj_nm     AS jjNm
+             , t1.koscom_cd AS koscomCd
+             , t1.danc_gb   AS dancGb
+          FROM sjm0jj t1
+         WHERE t1.jj_nm = #{jjNm}
+           AND t1.danc_gb IN ('A', 'C', 'D', 'X')
+           AND ROWNUM = 1
+    </select>
 </mapper>
 

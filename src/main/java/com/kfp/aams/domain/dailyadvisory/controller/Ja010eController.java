@@ -13,12 +13,17 @@ import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.CookieValue;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDate;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Controller for w_ja010e (주식체결LOAD(입고))
@@ -62,6 +67,9 @@ public class Ja010eController {
         model.addAttribute("ymd", initialYmd);
         model.addAttribute("dddw", paramDddw != null ? paramDddw : "%");
         model.addAttribute("trDates", trDates);
+        boolean isAdmin = principal != null && ("Y".equalsIgnoreCase(principal.getAdminYn())
+                || principal.getAuthorities().stream().anyMatch(authority -> authority.getAuthority().contains("ADMIN")));
+        model.addAttribute("isAdmin", isAdmin);
 
         return "views/dailyadvisory/w_ja010e";
     }
@@ -109,6 +117,70 @@ public class Ja010eController {
             return org.springframework.http.ResponseEntity.ok(java.util.Map.of("success", true, "message", "정상적으로 저장되었습니다."));
         } catch (Exception e) {
             return org.springframework.http.ResponseEntity.badRequest().body(java.util.Map.of("success", false, "message", e.getMessage()));
+        }
+    }
+
+    /** PowerBuilder cb_del: removes imported rows only; manual rows are retained. */
+    @PostMapping("/api/daily/ja010e/delete-loaded")
+    @ResponseBody
+    public org.springframework.http.ResponseEntity<?> deleteLoadedRows(
+            @RequestParam(name = "corpGr") String corpGr,
+            @RequestParam(name = "ymd") @DateTimeFormat(pattern = "yyyy-MM-dd", fallbackPatterns = {"yyyyMMdd", "yyyy.MM.dd"}) LocalDate ymd,
+            @RequestParam(name = "trCoCd") String trCoCd) {
+        try {
+            int deletedCount = ja010eService.deleteLoadedRows(corpGr, ymd, trCoCd);
+            return org.springframework.http.ResponseEntity.ok(java.util.Map.of("success", true, "deletedCount", deletedCount));
+        } catch (IllegalArgumentException e) {
+            return org.springframework.http.ResponseEntity.badRequest().body(java.util.Map.of("success", false, "message", e.getMessage()));
+        }
+    }
+
+    /** PowerBuilder w_ja010e::cb_load -> w_import_sjt1jg validation response-window flow. */
+    @PostMapping("/api/daily/ja010e/import-trades")
+    @ResponseBody
+    public org.springframework.http.ResponseEntity<Map<String, Object>> importTrades(
+            @RequestParam(name = "corpGr") String corpGr,
+            @RequestParam(name = "ymd") @DateTimeFormat(pattern = "yyyy-MM-dd", fallbackPatterns = {"yyyyMMdd", "yyyy.MM.dd"}) LocalDate ymd,
+            @RequestParam(name = "trCoCd") String trCoCd,
+            @RequestParam(name = "files") List<MultipartFile> files) {
+        try {
+            return org.springframework.http.ResponseEntity.ok(
+                    ja010eService.previewBrokerTrades(corpGr, ymd, trCoCd, files));
+        } catch (IllegalArgumentException e) {
+            Map<String, Object> result = new HashMap<>();
+            result.put("success", false);
+            result.put("message", e.getMessage());
+            return org.springframework.http.ResponseEntity.badRequest().body(result);
+        } catch (Exception e) {
+            Map<String, Object> result = new HashMap<>();
+            result.put("success", false);
+            result.put("message", "체결자료 등록 중 오류가 발생했습니다.");
+            return org.springframework.http.ResponseEntity.internalServerError().body(result);
+        }
+    }
+
+    /** PowerBuilder w_ja010e::wf_load after CloseWithReturn(w_import_sjt1jg, sp_out). */
+    @PostMapping("/api/daily/ja010e/import-trades/commit")
+    @ResponseBody
+    public org.springframework.http.ResponseEntity<Map<String, Object>> commitImportedTrades(
+            @RequestBody com.kfp.aams.domain.dailyadvisory.dto.Ja010eSaveRequestDto request) {
+        try {
+            if (request == null || request.getItemList() == null || request.getItemList().isEmpty()) {
+                throw new IllegalArgumentException("반영할 체결자료가 없습니다.");
+            }
+            String trCoCd = request.getItemList().getFirst().getTrCoCd();
+            return org.springframework.http.ResponseEntity.ok(ja010eService.commitBrokerTrades(
+                    request.getCorpGr(), request.getYmd(), trCoCd, request.getItemList()));
+        } catch (IllegalArgumentException e) {
+            Map<String, Object> result = new HashMap<>();
+            result.put("success", false);
+            result.put("message", e.getMessage());
+            return org.springframework.http.ResponseEntity.badRequest().body(result);
+        } catch (Exception e) {
+            Map<String, Object> result = new HashMap<>();
+            result.put("success", false);
+            result.put("message", "체결자료 INSERT·COMMIT 중 오류가 발생했습니다.");
+            return org.springframework.http.ResponseEntity.internalServerError().body(result);
         }
     }
 

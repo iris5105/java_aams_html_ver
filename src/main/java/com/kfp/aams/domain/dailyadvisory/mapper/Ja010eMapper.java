@@ -1,6 +1,8 @@
 package com.kfp.aams.domain.dailyadvisory.mapper;
 
 import com.kfp.aams.domain.dailyadvisory.dto.Ja010eDto;
+import com.kfp.aams.domain.dailyadvisory.dto.Ja010eImportFundDto;
+import com.kfp.aams.domain.dailyadvisory.dto.Ja010eImportSecurityDto;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
@@ -20,4 +22,15 @@ public interface Ja010eMapper {
 
     List<String> selectJa010eDates(@Param("corpGr") String corpGr,
                                    @Param("trCoCd") String trCoCd);
+
+    Ja010eImportFundDto selectActiveImportFund(@Param("corpGr") String corpGr,
+                                               @Param("trCoCd") String trCoCd,
+                                               @Param("acctNo") String acctNo);
+
+    Ja010eImportFundDto selectImportFundByAccountSuffix(@Param("corpGr") String corpGr,
+                                                        @Param("acctNoSuffix") String acctNoSuffix);
+
+    Ja010eImportSecurityDto selectImportSecurityByKoscomCd(@Param("koscomCd") String koscomCd);
+
+    Ja010eImportSecurityDto selectImportSecurityByName(@Param("jjNm") String jjNm);
 }

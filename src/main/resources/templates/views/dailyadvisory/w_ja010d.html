@@ -13,12 +13,24 @@
     </div>
 
     <!-- Sub Filter Bar (Row 2: 입출금일자 Filter with Pure JS AAMS Highlight Calendar) -->
-    <div class="filter-bar" style="display: flex; align-items: center; gap: 15px; background-color: #f8fafc; padding: 8px 12px; border-bottom: 1px solid #e2e8f0; position: relative;">
-        <div class="filter-item" style="position: relative; display: flex; align-items: center; gap: 6px;">
-            <label for="filterTrYmd" style="font-weight: 600; font-size: 13px; color: #334155;">입.출금일자:</label>
-            <!-- Pure JS AamsCalendar automatically constructs input wrapper, icon button and popover -->
-            <input type="text" id="filterTrYmd" th:value="${trYmd}" />
-            <span> 7영업일전 입,출금은 등록을 의뢰하십시오.</span>
+    <div class="filter-bar">
+        <div class="filter-left">
+            <div class="filter-item" style="position: relative; display: flex; align-items: center; gap: 6px;">
+                <label for="filterTrYmd">입.출금일자</label>
+                <div class="aams-calendar-wrapper" style="position: relative; display: inline-flex; align-items: center;">
+                    <input type="text" id="filterTrYmd" name="trYmd" class="t-input aams-calendar-input"
+                           style="width: 110px; padding: 4px 8px; font-size: 13px; text-align: center; border: 1px solid #cbd5e1; border-radius: 4px 0 0 4px; cursor: pointer; background: #ffffff;"
+                           th:value="${trYmd}" readonly autocomplete="off" />
+                    <button type="button" class="t-btn btn-calendar" title="달력 열기"
+                            style="padding: 5px 10px; border-radius: 0 4px 4px 0; border-left: none; background-color: #3b82f6; color: #ffffff; border: 1px solid #3b82f6; cursor: pointer;"
+                            onclick="AamsCalendar.toggle('filterTrYmd', event)">
+                        <i class="fa-regular fa-calendar-days"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+        <div class="filter-actions">
+            <span class="small text-muted"><i class="fa-solid fa-circle-info text-primary me-1"></i>7영업일전 입,출금은 등록을 의뢰하십시오.</span>
         </div>
     </div>
 

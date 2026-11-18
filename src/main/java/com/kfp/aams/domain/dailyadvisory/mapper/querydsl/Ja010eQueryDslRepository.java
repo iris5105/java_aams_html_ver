@@ -93,4 +93,42 @@ public class Ja010eQueryDslRepository {
             em.remove(entity);
         }
     }
+
+    /**
+     * PowerBuilder w_ja010e::cb_del clicked:
+     * deletes only broker-loaded rows. Manually entered rows have no encrypted
+     * account number and must remain available for the user to save.
+     */
+    public int deleteLoadedSjt1jg(String corpGr, LocalDate trYmd, String trCoCd) {
+        return em.createQuery(
+                        "DELETE FROM Sjt1jg j " +
+                        " WHERE j.corpGr = :corpGr " +
+                        "   AND j.trYmd = :trYmd " +
+                        "   AND j.trCoCd = :trCoCd " +
+                        "   AND j.encAcctNo IS NOT NULL")
+                .setParameter("corpGr", corpGr)
+                .setParameter("trYmd", trYmd)
+                .setParameter("trCoCd", trCoCd)
+                .executeUpdate();
+    }
+
+    /** PB w_ja010e::wf_load duplicate predicate before dw_list.update(). */
+    public boolean existsImportedTrade(String corpGr, LocalDate trYmd, String trCd,
+                                       String fundCd, String jmCd, String trCoCd, Long offerNo) {
+        Long count = em.createQuery(
+                        "SELECT COUNT(j) FROM Sjt1jg j "
+                                + "WHERE j.corpGr = :corpGr AND j.trYmd = :trYmd "
+                                + "AND j.trCd = :trCd AND j.fundCd = :fundCd "
+                                + "AND j.jmCd = :jmCd AND j.trCoCd = :trCoCd "
+                                + "AND j.offerNo = :offerNo", Long.class)
+                .setParameter("corpGr", corpGr)
+                .setParameter("trYmd", trYmd)
+                .setParameter("trCd", trCd)
+                .setParameter("fundCd", fundCd)
+                .setParameter("jmCd", jmCd)
+                .setParameter("trCoCd", trCoCd)
+                .setParameter("offerNo", offerNo)
+                .getSingleResult();
+        return count != null && count > 0;
+    }
 }

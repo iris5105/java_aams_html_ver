@@ -1223,13 +1223,27 @@ body.header-compact-mode.sidebar-backdrop-open::after {
     box-sizing: border-box;
 }
 
-/* Single grid view: stretches flex: 1 to bottom and matches 10px bottom padding */
+/* Single grid view: stretches flex: 1 to bottom. */
 .view-container:not(.layout-split-tb):not(.layout-split-lr) > .grid-section {
     flex: 1 1 auto;
     min-height: 0;
     display: flex;
     flex-direction: column;
     padding-bottom: 10px;
+}
+
+/* 데스크톱 단일 pane 그리드는 분할 pane과 같은 좌우·하단 8px 여백을 사용한다.
+   직접 grid-section을 가진 화면만 대상으로 하여 리포트·입력 폼 및 복합 split은 제외한다. */
+@media (min-width: 877px) {
+    .view-container:has(> .grid-section):not(.layout-split):not(.layout-split-tb):not(.layout-split-lr):not(:has(.layout-split-h)):not(:has(.layout-split-v)) {
+        padding-bottom: 0 !important;
+    }
+
+    .view-container:has(> .grid-section):not(.layout-split):not(.layout-split-tb):not(.layout-split-lr):not(:has(.layout-split-h)):not(:has(.layout-split-v)) > .grid-section {
+        padding-right: 8px !important;
+        padding-bottom: 8px !important;
+        padding-left: 8px !important;
+    }
 }
 
 .grid-table-wrapper {
@@ -4222,4 +4236,83 @@ body.header-compact-mode.sidebar-backdrop-open::after {
     align-items: center;
     justify-content: flex-end;
     gap: 8px;
+}
+
+/* W_JA010E broker trade import dialog (PowerBuilder w_import_sjt1jg replacement). */
+.ja010e-import-dialog {
+    width: min(1180px, calc(100vw - 32px));
+    border: 1px solid #94a3b8;
+    border-radius: 8px;
+    padding: 0;
+    color: #0f172a;
+    background: #ffffff;
+    box-shadow: 0 18px 48px rgba(15, 23, 42, 0.3);
+}
+
+.ja010e-import-dialog::backdrop {
+    background: rgba(15, 23, 42, 0.45);
+}
+
+.ja010e-import-form {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding: 18px;
+}
+
+.ja010e-import-grid-wrap {
+    width: 100%;
+    height: min(420px, 52vh);
+    min-height: 260px;
+    overflow: hidden;
+    border: 1px solid #cbd5e1;
+    border-radius: 4px;
+}
+
+.ja010e-import-grid {
+    width: 100%;
+    height: 100%;
+}
+
+.ja010e-import-header,
+.ja010e-import-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.ja010e-import-header h2 {
+    margin: 0;
+    font-size: 16px;
+}
+
+.ja010e-import-description {
+    margin: 0;
+    color: #475569;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.ja010e-import-file-label {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.ja010e-import-file {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.ja010e-import-result {
+    min-height: 20px;
+    max-height: 220px;
+    overflow: auto;
+    white-space: pre-wrap;
+    color: #334155;
+    font-size: 12px;
+    line-height: 1.5;
 }

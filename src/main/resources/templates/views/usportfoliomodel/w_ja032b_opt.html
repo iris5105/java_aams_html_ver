@@ -8,6 +8,28 @@
       - dw_list: d_ja032b (종목 목록)
       - dw_detail: d_ja032b_opt / d_ja032b_opt_krx (옵션위험값 일별현황 상세)
 -->
+<style>
+    /* W_JA032B_OPT: 모바일 중첩 좌우 분할의 종목 목록 제목/그리드를 하단 pane과 같은 카드 규격으로 표시한다. */
+    @media (max-width: 876px) {
+        .ja032b-opt-container #splitJa032bOptHorizontalContainer > .pane-right.detail-section {
+            display: flex !important;
+            flex: 0 0 290px !important;
+            flex-direction: column !important;
+            width: 100% !important;
+            height: 290px !important;
+            min-height: 290px !important;
+            max-height: 290px !important;
+            padding: 0 !important;
+            gap: 0 !important;
+            overflow: hidden !important;
+            background: #ffffff !important;
+            border: 1px solid #cbd5e1 !important;
+            border-radius: 6px !important;
+            box-shadow: none !important;
+            box-sizing: border-box !important;
+        }
+    }
+</style>
 <div class="view-container layout-split ja032b-opt-container layout-mobile-stack-container" id="wJa032bOptView" data-pgm-id="W_JA032B_OPT" data-pgm-no="00188" th:fragment="ja032bOptView">
 
     <!-- 1. Top Action Control Bar (규정 08: 상단 공통 툴바 및 Breadcrumb) -->
@@ -102,7 +124,7 @@
                     placeholder: "조회된 펀드 데이터가 없습니다.",
                     columns: [
                         {
-                            title: "No.",
+                            title: "No.", headerSort: false,
                             field: "fseq",
                             width: 50,
                             hozAlign: "center",
@@ -231,7 +253,7 @@
                     placeholder: "조회된 종목 데이터가 없습니다.",
                     columns: [
                         {
-                            title: "No.",
+                            title: "No.", headerSort: false,
                             field: "fseq",
                             width: 50,
                             hozAlign: "center",
@@ -406,7 +428,7 @@
                     },
                     columns: [
                         {
-                            title: "No.",
+                            title: "No.", headerSort: false,
                             field: "fseq",
                             width: 50,
                             hozAlign: "center",

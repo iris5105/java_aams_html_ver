@@ -289,7 +289,7 @@
 
 /* 6. Tablet-S / Mobile Responsive Layout (<= 876px) */
 @media (max-width: 876px) {
-    /* 6-0. 최상위 모바일 스택 컨테이너 규격: 화면 바닥과의 적정 여백(24px) 및 스크롤 끝 여백 보장 */
+    /* 6-0. 최상위 모바일 스택 컨테이너 규격: 하단 빈 spacer를 두지 않고 pane이 화면 하단까지 채워지도록 한다. */
     .layout-mobile-stack-container {
         display: flex !important;
         flex-direction: column !important;
@@ -298,13 +298,13 @@
         overflow-y: auto !important;
         overflow-x: hidden !important;
         -webkit-overflow-scrolling: touch !important;
-        padding-bottom: 24px !important;
+        padding-bottom: 5px !important;
         box-sizing: border-box !important;
     }
 
     .layout-mobile-stack-container::after {
         content: "";
-        display: block;
+        display: none !important;
         height: 24px;
         min-height: 24px;
         flex-shrink: 0;
@@ -409,6 +409,12 @@
         background: transparent !important;
         border: none !important;
         gap: 12px !important;
+        padding: 0 !important;
+    }
+
+    /* 상하 분할 안의 좌우 분할은 외곽 pane의 가로 폭을 그대로 사용한다.
+       중첩 분할 자체의 좌우 padding을 제거해 모든 카드 pane의 폭을 일치시킨다. */
+    .layout-split-v.layout-mobile-stack > :is(.pane-top, .pane-bottom, .split-top-section, .split-bottom-section) > .layout-split-h.layout-mobile-stack {
         padding: 0 !important;
     }
 
@@ -559,6 +565,45 @@
         height: auto !important;
         min-height: 0 !important;
         max-height: none !important;
+        overflow: hidden !important;
+    }
+
+    /* 단순 상하 2-grid pane은 제목과 그리드 사이에 복합 pane용 간격을 두지 않는다. */
+    .layout-split-v.layout-mobile-stack:has(> .pane-top .tabulator-aams-grid, > .pane-top .tabulator-dw-grid):has(> .pane-bottom .tabulator-aams-grid, > .pane-bottom .tabulator-dw-grid):not(:has(> .pane-top > .layout-split-h, > .pane-top > .layout-split-v, > .pane-bottom > .layout-split-h, > .pane-bottom > .layout-split-v)) > .pane-bottom {
+        gap: 0 !important;
+    }
+
+    /* 좌우 분할 안의 상하 2-grid는 가용 높이 50:50 대신 각각 독립 카드 높이로 표시한다. */
+    .layout-split-h.layout-mobile-stack > :is(.pane-left, .left-pane, .master-section, .pane-right, .right-pane, .detail-section) > .layout-split-v.layout-mobile-stack > .pane-top,
+    .layout-split-h.layout-mobile-stack > :is(.pane-left, .left-pane, .master-section, .pane-right, .right-pane, .detail-section) > .layout-split-v.layout-mobile-stack > .pane-bottom {
+        flex: 0 0 290px !important;
+        width: 100% !important;
+        height: 290px !important;
+        min-height: 290px !important;
+        max-height: 290px !important;
+        overflow: hidden !important;
+    }
+
+    /* 좌우 분할에 중첩된 세로 split은 내부 클래스 유무와 관계없이 각 pane의 카드 높이를 보장한다. */
+    .layout-split-h.layout-mobile-stack > :is(.pane-left, .left-pane, .master-section, .pane-right, .right-pane, .detail-section) > .layout-split-v > :is(.pane-top, .pane-bottom) {
+        display: flex !important;
+        flex: 0 0 290px !important;
+        flex-direction: column !important;
+        width: 100% !important;
+        height: 290px !important;
+        min-height: 290px !important;
+        max-height: 290px !important;
+        overflow: hidden !important;
+        background: #ffffff !important;
+        border: 1px solid #cbd5e1 !important;
+        border-radius: 6px !important;
+        box-sizing: border-box !important;
+    }
+
+    .layout-split-h.layout-mobile-stack > :is(.pane-left, .left-pane, .master-section, .pane-right, .right-pane, .detail-section) > .layout-split-v > :is(.pane-top, .pane-bottom) > .pane-body {
+        flex: 1 1 auto !important;
+        height: auto !important;
+        min-height: 0 !important;
         overflow: hidden !important;
     }
 
