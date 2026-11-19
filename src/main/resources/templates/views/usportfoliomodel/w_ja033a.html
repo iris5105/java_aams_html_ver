@@ -42,9 +42,15 @@
     <div class="main-content" style="flex: 1; min-height: 0; padding: 6px 10px 8px 10px; box-sizing: border-box; background-color: #f8fafc; display: flex; flex-direction: column;">
         <div class="pane-single" style="flex: 1; min-height: 0; display: flex; flex-direction: column; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; overflow: hidden; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);">
             <div class="panel-header" style="display: flex; align-items: center; justify-content: space-between; height: 36px; padding: 0 12px; background: #f8fafc; border-bottom: 1px solid #e2e8f0; flex-shrink: 0;">
-                <span class="panel-title" style="font-size: 13px; font-weight: 700; color: #1e293b; display: inline-flex; align-items: center; gap: 6px;">
-                    <i class="fa-solid fa-table-list" style="color: #2563eb;"></i> 주식 선물/옵션 종목 목록
-                </span>
+                <div style="display: inline-flex; align-items: center; gap: 8px;">
+                    <span class="panel-title" style="font-size: 13px; font-weight: 700; color: #1e293b; display: inline-flex; align-items: center; gap: 6px;">
+                        <i class="fa-solid fa-table-list" style="color: #2563eb;"></i> 주식 선물/옵션 종목 목록
+                    </span>
+                    <div style="position: relative; display: inline-flex; align-items: center;">
+                        <input type="text" class="t-input grid-search-input" placeholder="종목코드/단축코드/종목명" style="width: 175px; height: 24px; padding: 2px 24px 2px 8px; font-size: 11.5px; border: 1px solid #cbd5e1; border-radius: 3px; background: #ffffff;" autocomplete="off" />
+                        <i class="fa-solid fa-magnifying-glass" style="position: absolute; right: 7px; font-size: 11px; color: #94a3b8; pointer-events: none;"></i>
+                    </div>
+                </div>
                 <!-- 로컬 건수 배지 배제 (Zero-Count-Badge 준수) -->
             </div>
             <div class="panel-body" style="flex: 1; min-height: 0; padding: 0; position: relative;">
@@ -63,6 +69,42 @@
 
             let gridMaster = null;
             let isInitialized = false;
+            let searchTimer = null;
+
+            // [검색 및 필터] 표준코드, 단축코드, 한글명 실시간 필터
+            function applyGridFilter() {
+                if (!gridMaster) return;
+                const input = pane.querySelector('.grid-search-input');
+                const keyword = (input ? input.value : '').trim().toLowerCase();
+                if (!keyword) {
+                    gridMaster.clearFilter();
+                    return;
+                }
+                gridMaster.setFilter(function (data) {
+                    if (!data || data.isSummaryRow) return true;
+                    const stndIscd = (data.stndIscd || '').toString().toLowerCase();
+                    const shrnIscd = (data.shrnIscd || '').toString().toLowerCase();
+                    const korName = (data.korName || '').toString().toLowerCase();
+                    return stndIscd.includes(keyword) || shrnIscd.includes(keyword) || korName.includes(keyword);
+                });
+            }
+
+            function initGridSearch() {
+                const input = pane.querySelector('.grid-search-input');
+                if (!input) return;
+                input.addEventListener('input', function () {
+                    clearTimeout(searchTimer);
+                    searchTimer = setTimeout(function () {
+                        applyGridFilter();
+                    }, 1000);
+                });
+                input.addEventListener('keydown', function (e) {
+                    if (e.key === 'Enter') {
+                        clearTimeout(searchTimer);
+                        applyGridFilter();
+                    }
+                });
+            }
 
             const dddwOptionsMap = {
                 info_type: []
@@ -275,6 +317,7 @@
                     .then(list => {
                         if (gridMaster) {
                             gridMaster.setData(list || []).then(() => {
+                                applyGridFilter();
                                 const rows = gridMaster.getRows();
                                 if (rows && rows.length > 0) {
                                     rows[0].select();
@@ -345,7 +388,12 @@
                 };
 
                 pane.onRefresh = function () {
-                    if (gridMaster) gridMaster.clearData();
+                    const searchInput = pane.querySelector('.grid-search-input');
+                    if (searchInput) searchInput.value = '';
+                    if (gridMaster) {
+                        gridMaster.clearFilter();
+                        gridMaster.clearData();
+                    }
                     if (typeof showToast === 'function') showToast("화면이 초기화되었습니다.", "info");
                 };
 
@@ -368,6 +416,7 @@
 
                 ue_dddw_retrieve();
                 initGrid();
+                initGridSearch();
                 initFileLoader();
                 initToolbar();
 

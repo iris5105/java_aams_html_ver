@@ -22,7 +22,13 @@
         <!-- 좌측: 마스터 그리드 (SRS_CD) -->
         <div class="pane-left master-section">
             <div class="pane-header">
-                <span class="panel-title"><i class="fa-solid fa-list-check" style="margin-right: 6px;"></i> 해외파생 생성종목 목록 (SRS_CD)</span>
+                <div style="display: inline-flex; align-items: center; gap: 8px;">
+                    <span class="panel-title"><i class="fa-solid fa-list-check" style="margin-right: 6px;"></i> 해외파생 생성종목 목록 (SRS_CD)</span>
+                    <div style="position: relative; display: inline-flex; align-items: center;">
+                        <input type="text" class="t-input grid-search-input" placeholder="종목코드/단축코드/종목명" style="width: 175px; height: 24px; padding: 2px 24px 2px 8px; font-size: 11.5px; border: 1px solid #cbd5e1; border-radius: 3px; background: #ffffff;" autocomplete="off" />
+                        <i class="fa-solid fa-magnifying-glass" style="position: absolute; right: 7px; font-size: 11px; color: #94a3b8; pointer-events: none;"></i>
+                    </div>
+                </div>
             </div>
             <div class="pane-body">
                 <div id="gridMaster" class="tabulator-aams-grid" style="height: 100%;"></div>
@@ -56,6 +62,42 @@
             let lastLoadedMasterKey = null;
             let codeSearchInstance = null;
             let currentSelectedMasterRow = null;
+            let searchTimer = null;
+
+            // [검색 및 필터] 파생종목코드, 주식종목, ISIN코드 실시간 필터
+            function applyGridFilter() {
+                if (!gridMaster) return;
+                const input = pane.querySelector('.grid-search-input');
+                const keyword = (input ? input.value : '').trim().toLowerCase();
+                if (!keyword) {
+                    gridMaster.clearFilter();
+                    return;
+                }
+                gridMaster.setFilter(function (data) {
+                    if (!data || data.isSummaryRow) return true;
+                    const srsCd = (data.srsCd || '').toString().toLowerCase();
+                    const blbgTckr = (data.blbgTckr || '').toString().toLowerCase();
+                    const isinCd = (data.isinCd || '').toString().toLowerCase();
+                    return srsCd.includes(keyword) || blbgTckr.includes(keyword) || isinCd.includes(keyword);
+                });
+            }
+
+            function initGridSearch() {
+                const input = pane.querySelector('.grid-search-input');
+                if (!input) return;
+                input.addEventListener('input', function () {
+                    clearTimeout(searchTimer);
+                    searchTimer = setTimeout(function () {
+                        applyGridFilter();
+                    }, 1000);
+                });
+                input.addEventListener('keydown', function (e) {
+                    if (e.key === 'Enter') {
+                        clearTimeout(searchTimer);
+                        applyGridFilter();
+                    }
+                });
+            }
 
             // [날짜 포맷 헬퍼]
             function formatDateVal(val) {
@@ -368,6 +410,7 @@
 
                         if (gridMaster) {
                             gridMaster.setData(data || []).then(() => {
+                                applyGridFilter();
                                 var rows = gridMaster.getRows();
                                 if (rows && rows.length > 0) {
                                     rows[0].select();
@@ -439,11 +482,16 @@
                 };
 
                 pane.onRefresh = function () {
+                    const searchInput = pane.querySelector('.grid-search-input');
+                    if (searchInput) searchInput.value = '';
                     if (codeSearchInstance && typeof codeSearchInstance.clear === 'function') {
                         codeSearchInstance.clear();
                     }
                     setDefaultStockFilter();
-                    if (gridMaster) gridMaster.clearData();
+                    if (gridMaster) {
+                        gridMaster.clearFilter();
+                        gridMaster.clearData();
+                    }
                     if (gridDetail) gridDetail.clearData();
                     lastLoadedMasterKey = null;
                     currentSelectedMasterRow = null;
@@ -471,6 +519,7 @@
                 initCalendar();
                 initCodeSearch();
                 initGrids();
+                initGridSearch();
                 initSplitter();
                 initToolbar();
             }

@@ -56,7 +56,13 @@
         <!-- 좌측 패널: 해외주식 종목 목록 (d_ja032f1) -->
         <div class="pane-left master-section">
             <div class="pane-header">
-                <span class="panel-title"><i class="fa-solid fa-list-check" style="color: #2563eb; margin-right: 6px;"></i> 해외주식 종목 목록</span>
+                <div style="display: inline-flex; align-items: center; gap: 8px;">
+                    <span class="panel-title"><i class="fa-solid fa-list-check" style="color: #2563eb; margin-right: 6px;"></i> 해외주식 종목 목록</span>
+                    <div style="position: relative; display: inline-flex; align-items: center;">
+                        <input type="text" class="t-input grid-search-input" placeholder="종목코드/단축코드/종목명" style="width: 175px; height: 24px; padding: 2px 24px 2px 8px; font-size: 11.5px; border: 1px solid #cbd5e1; border-radius: 3px; background: #ffffff;" autocomplete="off" />
+                        <i class="fa-solid fa-magnifying-glass" style="position: absolute; right: 7px; font-size: 11px; color: #94a3b8; pointer-events: none;"></i>
+                    </div>
+                </div>
             </div>
             <div class="pane-body">
                 <div id="gridMaster" class="tabulator-aams-grid" style="height: 100%;"></div>
@@ -92,6 +98,32 @@
             let isInitialized = false;
             let lastLoadedMasterKey = null;
             let currentSelectedMasterRow = null;
+            let searchTimer = null;
+
+            // [검색 및 필터] 마스터 그리드 실시간 필터 (1초 디바운스 및 엔터)
+            function applyGridFilter() {
+                if (!gridMaster) return;
+                const input = pane.querySelector('.grid-search-input');
+                const keyword = (input ? input.value : '').trim();
+                applyMasterFilter(keyword);
+            }
+
+            function initGridSearch() {
+                const input = pane.querySelector('.grid-search-input');
+                if (!input) return;
+                input.addEventListener('input', function () {
+                    clearTimeout(searchTimer);
+                    searchTimer = setTimeout(function () {
+                        applyGridFilter();
+                    }, 1000);
+                });
+                input.addEventListener('keydown', function (e) {
+                    if (e.key === 'Enter') {
+                        clearTimeout(searchTimer);
+                        applyGridFilter();
+                    }
+                });
+            }
 
             // [초기화 1] 내부등록 종목코드 검색기 이벤트 바인딩
             function initSearchFilter() {
@@ -716,8 +748,10 @@
                         if (gridMaster) {
                             gridMaster.setData(data || []).then(() => {
                                 // 현재 입력된 검색어가 있으면 필터 자동 적용
+                                const gridSearchInput = pane.querySelector('.grid-search-input');
+                                const gridKw = gridSearchInput ? gridSearchInput.value.trim() : '';
                                 const searchInput = pane.querySelector('#searchJmCd');
-                                const kw = searchInput ? searchInput.value.trim() : '';
+                                const kw = gridKw || (searchInput ? searchInput.value.trim() : '');
                                 if (kw) {
                                     applyMasterFilter(kw);
                                 } else {
@@ -870,6 +904,8 @@
                 };
 
                 pane.onRefresh = function () {
+                    const gridSearchInput = pane.querySelector('.grid-search-input');
+                    if (gridSearchInput) gridSearchInput.value = '';
                     const searchInput = pane.querySelector('#searchJmCd');
                     if (searchInput) searchInput.value = '';
                     const btnClear = pane.querySelector('#btnSearchClear');
@@ -907,6 +943,7 @@
                 isInitialized = true;
 
                 initSearchFilter();
+                initGridSearch();
                 initGrids();
                 initCodUpload();
                 initSplitter();

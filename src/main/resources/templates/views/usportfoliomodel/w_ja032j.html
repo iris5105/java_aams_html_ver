@@ -78,6 +78,10 @@
                     <span class="panel-title" style="font-size: 12px; font-weight: 700; color: #1e293b;">
                         <i class="fa-solid fa-chart-line text-success" style="margin-right: 6px;"></i>해외주식 종가/업종지수 상세
                     </span>
+                    <div style="position: relative; display: inline-flex; align-items: center;">
+                        <input type="text" class="t-input grid-search-input" placeholder="종목코드/단축코드/종목명" style="width: 175px; height: 24px; padding: 2px 24px 2px 8px; font-size: 11.5px; border: 1px solid #cbd5e1; border-radius: 3px; background: #ffffff;" autocomplete="off" />
+                        <i class="fa-solid fa-magnifying-glass" style="position: absolute; right: 7px; font-size: 11px; color: #94a3b8; pointer-events: none;"></i>
+                    </div>
                     <span id="textSelectedDateBadge" class="badge" style="background-color: #dbeafe; color: #1d4ed8; font-size: 11px; padding: 2px 8px; border-radius: 4px; display: none;">
                         기준일: <span id="textSelectedYmd"></span>
                     </span>
@@ -105,6 +109,42 @@
             let isInitialized = false;
             let lastLoadedMasterKey = null;
             let currentSelectedYmd = null;
+            let searchTimer = null;
+
+            // [검색 및 필터] 종목코드, 단축코드, 종목명 실시간 필터
+            function applyGridFilter() {
+                if (!gridDetail) return;
+                const input = pane.querySelector('.grid-search-input');
+                const keyword = (input ? input.value : '').trim().toLowerCase();
+                if (!keyword) {
+                    gridDetail.clearFilter();
+                    return;
+                }
+                gridDetail.setFilter(function (data) {
+                    if (!data || data.isSummaryRow) return true;
+                    const yjCd = (data.yjCd || data.jmCd || '').toString().toLowerCase();
+                    const symb = (data.symb || '').toString().toLowerCase();
+                    const xxYjCd = (data.xxYjCd || data.jmNm || '').toString().toLowerCase();
+                    return yjCd.includes(keyword) || symb.includes(keyword) || xxYjCd.includes(keyword);
+                });
+            }
+
+            function initGridSearch() {
+                const input = pane.querySelector('.grid-search-input');
+                if (!input) return;
+                input.addEventListener('input', function () {
+                    clearTimeout(searchTimer);
+                    searchTimer = setTimeout(function () {
+                        applyGridFilter();
+                    }, 1000);
+                });
+                input.addEventListener('keydown', function (e) {
+                    if (e.key === 'Enter') {
+                        clearTimeout(searchTimer);
+                        applyGridFilter();
+                    }
+                });
+            }
 
             // [로딩 화면 제어 헬퍼]
             function showLoading(show, message) {
@@ -486,6 +526,7 @@
                     .then(list => {
                         if (gridDetail) {
                             gridDetail.setData(list || []).then(function () {
+                                applyGridFilter();
                                 showLoading(false);
                             }).catch(function () {
                                 showLoading(false);
@@ -661,8 +702,13 @@
                 };
 
                 pane.onRefresh = function () {
+                    const searchInput = pane.querySelector('.grid-search-input');
+                    if (searchInput) searchInput.value = '';
                     if (gridMaster) gridMaster.clearData();
-                    if (gridDetail) gridDetail.clearData();
+                    if (gridDetail) {
+                        gridDetail.clearFilter();
+                        gridDetail.clearData();
+                    }
                     lastLoadedMasterKey = null; // Zero-Stale-Key 원칙
                     currentSelectedYmd = null;
                     const badge = pane.querySelector('#textSelectedDateBadge');
@@ -709,6 +755,7 @@
                 isInitialized = true;
 
                 initGrids();
+                initGridSearch();
                 initSplitter();
                 initToolbar();
 

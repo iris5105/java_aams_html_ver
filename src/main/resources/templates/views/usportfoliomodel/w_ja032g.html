@@ -49,7 +49,13 @@
         <!-- 상단 마스터 패널: 해외 파생종목 목록 (dw_list / d_ja032g1) -->
         <div class="pane-top master-section">
             <div class="pane-header">
-                <span><i class="fa-solid fa-list-check"></i> 해외 파생종목 목록</span>
+                <div style="display: inline-flex; align-items: center; gap: 8px;">
+                    <span><i class="fa-solid fa-list-check"></i> 해외 파생종목 목록</span>
+                    <div style="position: relative; display: inline-flex; align-items: center;">
+                        <input type="text" class="t-input grid-search-input" placeholder="종목코드/단축코드/종목명" style="width: 175px; height: 24px; padding: 2px 24px 2px 8px; font-size: 11.5px; border: 1px solid #cbd5e1; border-radius: 3px; background: #ffffff;" autocomplete="off" />
+                        <i class="fa-solid fa-magnifying-glass" style="position: absolute; right: 7px; font-size: 11px; color: #94a3b8; pointer-events: none;"></i>
+                    </div>
+                </div>
                 <div class="panel-actions"></div>
             </div>
             <div class="pane-body">
@@ -91,6 +97,44 @@
             let isInitialized = false;
             let lastLoadedMasterKey = null;
             let currentSelectedMasterRow = null;
+            let searchTimer = null;
+
+            // [검색 및 필터] 종목코드, 종목명, 블룸버그코드, Sedol, ISIN코드 실시간 필터
+            function applyGridFilter() {
+                if (!gridMaster) return;
+                const input = pane.querySelector('.grid-search-input');
+                const keyword = (input ? input.value : '').trim().toLowerCase();
+                if (!keyword) {
+                    gridMaster.clearFilter();
+                    return;
+                }
+                gridMaster.setFilter(function (data) {
+                    if (!data || data.isSummaryRow) return true;
+                    const jmCd = (data.jmCd || '').toString().toLowerCase();
+                    const jmNm = (data.jmNm || '').toString().toLowerCase();
+                    const blbgTckr = (data.blbgTckr || '').toString().toLowerCase();
+                    const sedol = (data.sedol || '').toString().toLowerCase();
+                    const isinCd = (data.isinCd || '').toString().toLowerCase();
+                    return jmCd.includes(keyword) || jmNm.includes(keyword) || blbgTckr.includes(keyword) || sedol.includes(keyword) || isinCd.includes(keyword);
+                });
+            }
+
+            function initGridSearch() {
+                const input = pane.querySelector('.grid-search-input');
+                if (!input) return;
+                input.addEventListener('input', function () {
+                    clearTimeout(searchTimer);
+                    searchTimer = setTimeout(function () {
+                        applyGridFilter();
+                    }, 1000);
+                });
+                input.addEventListener('keydown', function (e) {
+                    if (e.key === 'Enter') {
+                        clearTimeout(searchTimer);
+                        applyGridFilter();
+                    }
+                });
+            }
 
             // [로딩 화면 제어 헬퍼]
             function showLoading(show, message) {
@@ -821,6 +865,7 @@
                     .then(data => {
                         if (gridMaster) {
                             gridMaster.setData(data || []).then(() => {
+                                applyGridFilter();
                                 var rows = gridMaster.getRows();
                                 if (rows && rows.length > 0) {
                                     rows[0].select();
@@ -1242,8 +1287,13 @@
 
                 pane.onRefresh = function () {
                     showLoading(false);
+                    const searchInput = pane.querySelector('.grid-search-input');
+                    if (searchInput) searchInput.value = '';
                     if (gridMaster && gridMaster.initialized) {
-                        try { gridMaster.clearData(); } catch (e) {}
+                        try {
+                            gridMaster.clearFilter();
+                            gridMaster.clearData();
+                        } catch (e) {}
                     }
                     if (gridDetail && gridDetail.initialized) {
                         try { gridDetail.clearData(); } catch (e) {}
@@ -1274,6 +1324,7 @@
 
                 initCalendar();
                 initGrids();
+                initGridSearch();
                 initDetailNavigation();
                 initSplitter();
                 initToolbar();

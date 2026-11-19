@@ -21,7 +21,13 @@
         <!-- Left Master Section: Stock List (d_ja991a1) -->
         <div class="pane-left master-section">
             <div class="pane-header">
-                <span><i class="fa-solid fa-list-ul" style="margin-right: 6px;"></i> 주식 종목 목록</span>
+                <div style="display: inline-flex; align-items: center; gap: 8px;">
+                    <span><i class="fa-solid fa-list-ul" style="margin-right: 6px;"></i> 주식 종목 목록</span>
+                    <div style="position: relative; display: inline-flex; align-items: center;">
+                        <input type="text" class="t-input grid-search-input" placeholder="종목코드/단축코드/종목명" style="width: 175px; height: 24px; padding: 2px 24px 2px 8px; font-size: 11.5px; border: 1px solid #cbd5e1; border-radius: 3px; background: #ffffff;" autocomplete="off" />
+                        <i class="fa-solid fa-magnifying-glass" style="position: absolute; right: 7px; font-size: 11px; color: #94a3b8; pointer-events: none;"></i>
+                    </div>
+                </div>
             </div>
             <div class="pane-body">
                 <div id="ja991a-master-grid" class="tabulator-aams-grid" style="height: 100%;"></div>
@@ -51,6 +57,42 @@
             let isInitialized = false;
             let lastLoadedMasterKey = null;
             let masterDataList = [];
+            let searchTimer = null;
+
+            // [검색 및 필터] 종목코드, 단축코드, 종목명 실시간 필터
+            function applyGridFilter() {
+                if (!gridMaster) return;
+                const input = pane ? pane.querySelector('.grid-search-input') : document.querySelector('.grid-search-input');
+                const keyword = (input ? input.value : '').trim().toLowerCase();
+                if (!keyword) {
+                    gridMaster.clearFilter();
+                    return;
+                }
+                gridMaster.setFilter(function (data) {
+                    if (!data || data.isSummaryRow) return true;
+                    const jmCd = (data.jmCd || '').toString().toLowerCase();
+                    const koscomCd = (data.koscomCd || '').toString().toLowerCase();
+                    const jjNm = (data.jjNm || '').toString().toLowerCase();
+                    return jmCd.includes(keyword) || koscomCd.includes(keyword) || jjNm.includes(keyword);
+                });
+            }
+
+            function initGridSearch() {
+                const input = pane ? pane.querySelector('.grid-search-input') : document.querySelector('.grid-search-input');
+                if (!input) return;
+                input.addEventListener('input', function () {
+                    clearTimeout(searchTimer);
+                    searchTimer = setTimeout(function () {
+                        applyGridFilter();
+                    }, 1000);
+                });
+                input.addEventListener('keydown', function (e) {
+                    if (e.key === 'Enter') {
+                        clearTimeout(searchTimer);
+                        applyGridFilter();
+                    }
+                });
+            }
 
             // Number formatter
             function numberFormatter(cell) {
@@ -176,6 +218,7 @@
                 .then(data => {
                     masterDataList = Array.isArray(data) ? data : [];
                     gridMaster.setData(masterDataList).then(() => {
+                        applyGridFilter();
                         const rows = gridMaster.getRows();
                         if (rows && rows.length > 0) {
                             if (typeof gridMaster.deselectRow === 'function') {
@@ -264,6 +307,8 @@
                     AamsSplitter.init(pane);
                 }
 
+                initGridSearch();
+
                 // Initial Data Load (eb_direct_retrieve = true 명세)
                 loadMasterList();
             }
@@ -277,11 +322,16 @@
 
                 // 공통버튼 지침: 새로고침은 조회 전 초기화 상태로 되돌린다.
                 pane.onRefresh = function() {
-                    if (gridMaster) gridMaster.clearData();
+                    const searchInput = pane ? pane.querySelector('.grid-search-input') : document.querySelector('.grid-search-input');
+                    if (searchInput) searchInput.value = '';
+                    if (gridMaster) {
+                        gridMaster.clearFilter();
+                        gridMaster.clearData();
+                    }
                     if (gridDetail) gridDetail.clearData();
                     lastLoadedMasterKey = null;
                     masterDataList = [];
-                    updateMasterCount(0);
+                    if (typeof updateMasterCount === 'function') updateMasterCount(0);
                     updateDetailHeader(null, 0);
                     if (typeof showToast === "function") showToast("화면이 초기화되었습니다.", "info");
                 };
