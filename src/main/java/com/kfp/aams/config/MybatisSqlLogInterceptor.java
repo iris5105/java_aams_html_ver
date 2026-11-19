@@ -68,6 +68,7 @@ public class MybatisSqlLogInterceptor implements Interceptor {
                 Object paramObj = boundSql.getParameterObject();
 
                 StringBuilder sb = new StringBuilder();
+                sb.append("\n");
                 sb.append(ANSI_YELLOW).append("---------------- [MyBatis SQL Execution (").append(elapsedTime).append(")ms] ----------------").append(ANSI_RESET).append("\n");
                 if (serviceInfo != null && !serviceInfo.equals("-")) {
                     sb.append("Service   : ").append(serviceInfo).append("\n");
@@ -102,6 +103,7 @@ public class MybatisSqlLogInterceptor implements Interceptor {
             Object paramObj = boundSql != null ? boundSql.getParameterObject() : null;
 
             StringBuilder sb = new StringBuilder();
+            sb.append("\n");
             sb.append(ANSI_RED).append("---------------- [MyBatis SQL Execution FAILED (").append(elapsedTime).append(")ms] ----------------").append(ANSI_RESET).append("\n");
             if (serviceInfo != null && !serviceInfo.equals("-")) {
                 sb.append("Service   : ").append(serviceInfo).append("\n");

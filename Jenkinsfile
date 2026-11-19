@@ -7,7 +7,7 @@ pipeline {
     }
 
     environment {
-        JAVA_HOME = '/home/aams/aams_web/jdk/jdk-21.0.12'
+        JAVA_HOME = '/home/aams/aams_web/jdk/jdk-21.0.13.1'
         PATH = "${JAVA_HOME}/bin:${env.PATH}"
         DEPLOY_DIR = '/home/aams/aams_web'
         JAR_NAME = 'aams-0.0.1-SNAPSHOT.jar'

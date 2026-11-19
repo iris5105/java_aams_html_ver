@@ -107,6 +107,7 @@ public class DddwService {
             }
 
             StringBuilder sb = new StringBuilder();
+            sb.append("\n");
             sb.append(ANSI_CYAN).append("---------------- [Dynamic DDDW Cache HIT (f_dddwctl)] ----------------").append(ANSI_RESET).append("\n");
             sb.append("DDDW ID   : ").append(targetDddwId).append(" (Seq: ").append(targetSeq).append(")\n");
             if (corpGr != null && !corpGr.isBlank()) {
@@ -152,6 +153,7 @@ public class DddwService {
                     long elapsedTime = System.currentTimeMillis() - startTime;
 
                     StringBuilder sb = new StringBuilder();
+                    sb.append("\n");
                     sb.append(ANSI_CYAN).append("---------------- [Dynamic DDDW SQL (f_dddwctl) (").append(elapsedTime).append(")ms] ----------------").append(ANSI_RESET).append("\n");
                     sb.append("DDDW ID   : ").append(targetDddwId).append(" (Seq: ").append(targetSeq).append(")\n");
                     if (corpGr != null && !corpGr.isBlank()) {
@@ -172,6 +174,7 @@ public class DddwService {
                 } catch (Exception e) {
                     long elapsedTime = System.currentTimeMillis() - startTime;
                     StringBuilder sb = new StringBuilder();
+                    sb.append("\n");
                     sb.append(ANSI_RED).append("---------------- [Dynamic DDDW SQL FAILED (").append(elapsedTime).append(")ms] ----------------").append(ANSI_RESET).append("\n");
                     sb.append("DDDW ID   : ").append(targetDddwId).append(" (Seq: ").append(targetSeq).append(")\n");
                     sb.append("Error     : ").append(e.getClass().getSimpleName()).append(": ").append(e.getMessage()).append("\n");

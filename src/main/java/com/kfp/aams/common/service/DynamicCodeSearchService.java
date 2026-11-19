@@ -172,6 +172,7 @@ public class DynamicCodeSearchService {
             long elapsedTime = System.currentTimeMillis() - startTime;
 
             StringBuilder sb = new StringBuilder();
+            sb.append("\n");
             sb.append(ANSI_MAGENTA).append("---------------- [Dynamic Code Search SQL (dynamicsearch - CODE_SELECT) (").append(elapsedTime).append(")ms] ----------------").append(ANSI_RESET).append("\n");
             sb.append("Column    : ").append(columnNm).append(" (Seq: ").append(columnSeq).append(")\n");
             if (corpGr != null && !corpGr.isBlank()) {
@@ -191,6 +192,7 @@ public class DynamicCodeSearchService {
         } catch (Exception e) {
             long elapsedTime = System.currentTimeMillis() - startTime;
             StringBuilder sb = new StringBuilder();
+            sb.append("\n");
             sb.append(ANSI_RED).append("---------------- [Dynamic Code Search SQL FAILED (").append(elapsedTime).append(")ms] ----------------").append(ANSI_RESET).append("\n");
             sb.append("Column    : ").append(columnNm).append(" (Seq: ").append(columnSeq).append(")\n");
             sb.append("Error     : ").append(e.getClass().getSimpleName()).append(": ").append(e.getMessage()).append("\n");
@@ -328,6 +330,7 @@ public class DynamicCodeSearchService {
             }
 
             StringBuilder sb = new StringBuilder();
+            sb.append("\n");
             sb.append(ANSI_MAGENTA).append("---------------- [Dynamic Code Search SQL (dynamicsearch - EDIT_SELECT) (").append(elapsedTime).append(")ms] ----------------").append(ANSI_RESET).append("\n");
             sb.append("Column    : ").append(columnNm).append(" (Seq: ").append(columnSeq).append(")\n");
             sb.append("Code      : ").append(code).append("\n");
@@ -345,6 +348,7 @@ public class DynamicCodeSearchService {
         } catch (Exception e) {
             long elapsedTime = System.currentTimeMillis() - startTime;
             StringBuilder sb = new StringBuilder();
+            sb.append("\n");
             sb.append(ANSI_RED).append("---------------- [Dynamic Code Search SQL FAILED (").append(elapsedTime).append(")ms] ----------------").append(ANSI_RESET).append("\n");
             sb.append("Column    : ").append(columnNm).append(" (Seq: ").append(columnSeq).append(")\n");
             sb.append("Code      : ").append(code).append("\n");
