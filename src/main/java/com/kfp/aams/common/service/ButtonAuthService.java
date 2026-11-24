@@ -36,6 +36,10 @@ public class ButtonAuthService {
 
     @SuppressWarnings("null")
     public ButtonAuthDto getButtonAuth(String userId, String corpGr, String adminYn, String userNm, String pgmNo) {
+        if ("Y".equalsIgnoreCase(adminYn)) {
+            return ButtonAuthDto.allAllowed(pgmNo);
+        }
+
         if (pgmNo == null || pgmNo.trim().isEmpty()) {
             return ButtonAuthDto.allAllowed(pgmNo);
         }
@@ -49,10 +53,6 @@ public class ButtonAuthService {
         // 2. 권한 데이터가 존재하지 않는 경우
         if (authList == null || authList.isEmpty()) {
             // 관리자 계정이거나 미지정 프로그램인 경우 기본 허용 fallback
-            if ("Y".equalsIgnoreCase(adminYn)) {
-                log.info("[ButtonAuthService] Admin fallback allAllowed for user: {}, pgmNo: {}", userId, pgmNo);
-                return ButtonAuthDto.allAllowed(pgmNo);
-            }
             log.warn("[ButtonAuthService] No button authority found for user: {}, pgmNo: {}", userId, pgmNo);
             return ButtonAuthDto.disabled(pgmNo);
         }

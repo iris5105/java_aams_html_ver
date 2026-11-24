@@ -625,6 +625,41 @@
                     });
             }
 
+            function inspectAuthorizationError(response) {
+                if (!response || response.status !== 403 || response._aamsAuthorizationNoticeShown) {
+                    return;
+                }
+                response._aamsAuthorizationNoticeShown = true;
+
+                response.clone().text()
+                    .then(async function(rawBody) {
+                        var message = '';
+                        try {
+                            var payload = JSON.parse(rawBody);
+                            if (payload && typeof payload.encData === 'string') {
+                                payload = JSON.parse(await AamsCrypto.decrypt(payload.encData));
+                            }
+                            if (payload && typeof payload === 'object') {
+                                message = payload.message || '';
+                            }
+                        } catch (parseError) {
+                            // A non-JSON 403 still receives the common guidance below.
+                        }
+
+                        message = message
+                            ? '권한이 없습니다. 관리자에게 권한을 요청해주세요. (' + message + ')'
+                            : '권한이 없습니다. 관리자에게 권한을 요청해주세요.';
+                        if (typeof window.showToast === 'function') {
+                            window.showToast(message, 'error', 5000);
+                        } else {
+                            console.warn('[AamsCrypto] Authorization denied:', message);
+                        }
+                    })
+                    .catch(function(inspectError) {
+                        console.warn('[AamsCrypto] Authorization error response inspection failed:', inspectError);
+                    });
+            }
+
             window.fetch = async function (resource, init) {
                 init = Object.assign({}, init || {});
                 resource = convertReadApiToPost(resource, init);
@@ -651,6 +686,7 @@
                 if (!AamsCrypto._enabled) {
                     var plainResponse = await originalFetch.call(this, resource, init);
                     inspectSqlErrorResponse(plainResponse);
+                    inspectAuthorizationError(plainResponse);
                     return plainResponse;
                 }
 
@@ -733,6 +769,7 @@
                 };
 
                 inspectSqlErrorResponse(response);
+                inspectAuthorizationError(response);
                 return response;
             };
         }

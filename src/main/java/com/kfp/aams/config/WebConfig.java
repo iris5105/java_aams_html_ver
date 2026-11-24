@@ -15,6 +15,7 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 import com.kfp.aams.security.interceptor.ViewAccessInterceptor;
 import com.kfp.aams.security.CompanyGroupAuthorizationInterceptor;
+import com.kfp.aams.security.ProgramActionAuthorizationInterceptor;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 
 import java.nio.charset.StandardCharsets;
@@ -32,13 +33,16 @@ public class WebConfig implements WebMvcConfigurer {
 
     private final ViewAccessInterceptor viewAccessInterceptor;
     private final CompanyGroupAuthorizationInterceptor companyGroupAuthorizationInterceptor;
+    private final ProgramActionAuthorizationInterceptor programActionAuthorizationInterceptor;
 
     public WebConfig(
             ViewAccessInterceptor viewAccessInterceptor,
-            CompanyGroupAuthorizationInterceptor companyGroupAuthorizationInterceptor
+            CompanyGroupAuthorizationInterceptor companyGroupAuthorizationInterceptor,
+            ProgramActionAuthorizationInterceptor programActionAuthorizationInterceptor
     ) {
         this.viewAccessInterceptor = viewAccessInterceptor;
         this.companyGroupAuthorizationInterceptor = companyGroupAuthorizationInterceptor;
+        this.programActionAuthorizationInterceptor = programActionAuthorizationInterceptor;
     }
 
     @Override
@@ -47,6 +51,8 @@ public class WebConfig implements WebMvcConfigurer {
                 .addPathPatterns("/views/**", "/api/**")
                 .excludePathPatterns("/views/common/**", "/api/common/security-config");
         registry.addInterceptor(companyGroupAuthorizationInterceptor)
+                .addPathPatterns("/api/**");
+        registry.addInterceptor(programActionAuthorizationInterceptor)
                 .addPathPatterns("/api/**");
     }
 
