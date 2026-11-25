@@ -34,4 +34,10 @@ public interface ButtonAuthMapper {
             @Param("pgmNo") String pgmNo,
             @Param("today") String today,
             @Param("userNm") String userNm);
+
+    /**
+     * 프로그램 번호(pgmNo) 기준 화면 버튼 설정 목록 조회 (관리자용 화면 버튼 설정 준수)
+     */
+    List<ButtonAuthRawDto> selectButtonAuthListByPgm(@Param("pgmNo") String pgmNo,
+            @Param("today") String today);
 }

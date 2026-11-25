@@ -2255,6 +2255,26 @@ window.AamsFocusManager = AamsFocusManager;
  * @param {Function} [onRowChange] Callback function (row, data) when selected row changes
  * @param {Object} [options] Options: { keyField: string, autoSelectFirst: boolean }
  */
+window.isAamsSummaryRow = function(rowOrData) {
+    if (!rowOrData) return false;
+    const data = (typeof rowOrData.getData === 'function') ? rowOrData.getData() : rowOrData;
+    if (data && (data.isSummaryRow || data.isGroupSummaryRow || data.isSubTotal || data.isTotalRow)) {
+        return true;
+    }
+    const el = (typeof rowOrData.getElement === 'function') ? rowOrData.getElement() : null;
+    if (el && (
+        (el.classList && (
+            el.classList.contains('aams-summary-row') ||
+            el.classList.contains('aams-group-summary-row') ||
+            el.classList.contains('tabulator-calcs')
+        )) ||
+        (typeof el.closest === 'function' && el.closest('.tabulator-calcs, .tabulator-calcs-holder, .tabulator-footer'))
+    )) {
+        return true;
+    }
+    return false;
+};
+
 function setupTabulatorRowSelection(table, onRowChange, options = {}) {
     if (!table) return null;
 
@@ -2348,6 +2368,11 @@ function setupTabulatorRowSelection(table, onRowChange, options = {}) {
                     rowComp = row;
                 }
             }
+        }
+
+        if (window.isAamsSummaryRow && window.isAamsSummaryRow(rowComp)) {
+            if (typeof rowComp.deselect === 'function') rowComp.deselect();
+            return;
         }
 
         const currentRowKey = extractRowKey(rowComp);
@@ -2881,6 +2906,10 @@ function aamsCellEdit(e, cell) {
     try {
         const table = cell.getTable();
         const row = cell.getRow();
+        if (window.isAamsSummaryRow && window.isAamsSummaryRow(row)) {
+            if (e && typeof e.stopPropagation === 'function') e.stopPropagation();
+            return;
+        }
         const cellEl = (typeof cell.getElement === 'function') ? cell.getElement() : null;
 
         if (row && typeof row.select === 'function' && !row.isSelected()) {
@@ -3624,6 +3653,32 @@ function aamsCellEdit(e, cell) {
                 setupTabulatorRowSelection(table, null, options);
             }
 
+            // Block selection & editing of summary / group-summary rows globally
+            if (typeof table.on === 'function') {
+                table.on("rowSelected", function(row) {
+                    if (window.isAamsSummaryRow && window.isAamsSummaryRow(row) && typeof row.deselect === 'function') {
+                        row.deselect();
+                    }
+                });
+                table.on("cellEditing", function(cell) {
+                    if (cell && typeof cell.getRow === 'function' && window.isAamsSummaryRow && window.isAamsSummaryRow(cell.getRow())) {
+                        if (typeof cell.cancelEdit === 'function') cell.cancelEdit();
+                    }
+                });
+                table.on("rowDeleted", function() {
+                    if (table._aamsReformatTimer) clearTimeout(table._aamsReformatTimer);
+                    table._aamsReformatTimer = setTimeout(function() {
+                        table._aamsReformatTimer = null;
+                        if (typeof table.getRows !== 'function') return;
+                        const rows = table.getRows();
+                        if (!rows || !rows.length) return;
+                        rows.forEach(function(r) {
+                            if (typeof r.reformat === 'function') r.reformat();
+                        });
+                    }, 0);
+                });
+            }
+
             return table;
         }
 
@@ -3839,6 +3894,9 @@ window.AamsCudManager = {
         function deleteRow(rowOrData) {
             const row = (rowOrData && typeof rowOrData.getData === 'function') ? rowOrData : null;
             const data = row ? row.getData() : (rowOrData || {});
+            if (window.isAamsSummaryRow && window.isAamsSummaryRow(row || data)) {
+                return Promise.resolve();
+            }
             const key = data[keyField];
 
             // 2. 신규행 삭제: insert 큐에서 제거
@@ -4024,17 +4082,246 @@ window.sanitizeGridData = function(grid, dataList, extraAllowedFields) {
     if (window._aamsFetchIntercepted) return;
     window._aamsFetchIntercepted = true;
 
+    // 활성 탭 내에서 마지막으로 클릭/편집한 Tabulator 그리드(masterGrid vs subGrid 구분용) 추적
+    document.addEventListener('pointerdown', function(e) {
+        try {
+            var tabEl = e.target && e.target.closest ? e.target.closest('.tabulator') : null;
+            if (!tabEl) return;
+            var pane = tabEl.closest('.tab-pane') || tabEl.closest('.view-container');
+            if (pane) pane._lastInteractedGridEl = tabEl;
+        } catch (err) {}
+    }, true);
+
+    document.addEventListener('focusin', function(e) {
+        try {
+            var tabEl = e.target && e.target.closest ? e.target.closest('.tabulator') : null;
+            if (!tabEl) return;
+            var pane = tabEl.closest('.tab-pane') || tabEl.closest('.view-container');
+            if (pane) pane._lastInteractedGridEl = tabEl;
+        } catch (err) {}
+    }, true);
+
+    function collectPaneGrids(pane) {
+        var result = { master: [], sub: [], all: [] };
+        if (!pane || typeof Tabulator === 'undefined' || typeof Tabulator.findTable !== 'function') {
+            return result;
+        }
+        var seen = new Set();
+        var gridEls = pane.querySelectorAll('.tabulator, .tabulator-aams-grid');
+        gridEls.forEach(function(el) {
+            var found = null;
+            try { found = Tabulator.findTable(el); } catch (e) {}
+            var tables = Array.isArray(found) ? found : (found ? [found] : []);
+            tables.forEach(function(tbl) {
+                if (!tbl || !tbl.element || seen.has(tbl)) return;
+                seen.add(tbl);
+                var tableEl = tbl.element;
+                var idLower = (tableEl.id || '').toLowerCase();
+                var clsLower = (tableEl.className || '').toLowerCase();
+                var isMasterByDom =
+                    idLower === 'master-grid' ||
+                    idLower.includes('master') ||
+                    clsLower.includes('master-grid') ||
+                    !!tableEl.closest('.master-grid-section, .master-grid-wrapper');
+                var isSubByDom =
+                    idLower.includes('sub') ||
+                    idLower.includes('detail') ||
+                    clsLower.includes('sub-grid') ||
+                    clsLower.includes('detail-grid') ||
+                    !!tableEl.closest('.sub-grid-section, .sub-grid-wrapper, .detail-grid-section, .detail-grid-wrapper');
+
+                var role = isSubByDom ? 'sub' : (isMasterByDom ? 'master' : 'unknown');
+                var entry = { table: tbl, element: tableEl, role: role };
+                result.all.push(entry);
+                if (role === 'master') result.master.push(entry);
+                else if (role === 'sub') result.sub.push(entry);
+            });
+        });
+        // 명시적인 master 마커가 없는 단일/다중 그리드 화면에서는 첫 번째 그리드를 master, 나머지를 sub로 분류
+        if (result.master.length === 0 && result.all.length > 0) {
+            result.all.forEach(function(entry, idx) {
+                if (idx === 0 && entry.role === 'unknown') {
+                    entry.role = 'master';
+                    result.master.push(entry);
+                } else if (entry.role === 'unknown') {
+                    entry.role = 'sub';
+                    result.sub.push(entry);
+                }
+            });
+        } else {
+            result.all.forEach(function(entry) {
+                if (entry.role === 'unknown') {
+                    entry.role = 'sub';
+                    result.sub.push(entry);
+                }
+            });
+        }
+        return result;
+    }
+
+    function findMatchingColumn(table, errorField, errorColumn) {
+        if (!table || typeof table.getColumns !== 'function') return null;
+        var normField = (errorField || '').toLowerCase();
+        var normColNoUnderscore = (errorColumn || '').replace(/_/g, '').toLowerCase();
+        var cols = table.getColumns() || [];
+        for (var i = 0; i < cols.length; i++) {
+            var col = cols[i];
+            var def = col.getDefinition ? col.getDefinition() : {};
+            var f = col.getField ? col.getField() : def.field;
+            if (!f) continue;
+            var fLower = String(f).toLowerCase();
+            var fNoUnderscore = fLower.replace(/_/g, '');
+            if ((normField && fLower === normField) || (normColNoUnderscore && fNoUnderscore === normColNoUnderscore)) {
+                return { column: col, field: f, title: def.title ? String(def.title).trim() : f };
+            }
+        }
+        return null;
+    }
+
+    function isBlankValue(v) {
+        return v === null || v === undefined || String(v).trim() === '';
+    }
+
+    function findTargetRowForError(table, field, errorCode) {
+        if (!table || typeof table.getRows !== 'function') return null;
+        var rows = table.getRows() || [];
+        if (rows.length === 0) return null;
+
+        var changedRows = rows.filter(function(r) {
+            var d = r.getData ? r.getData() : {};
+            return !d.isSummaryRow && (d.isNew || d.isUpdated || d.rowStatus === 'C' || d.rowStatus === 'U');
+        });
+
+        if (errorCode !== 'ORA-12899') {
+            var blankChanged = changedRows.find(function(r) {
+                return isBlankValue(r.getData()[field]);
+            });
+            if (blankChanged) return blankChanged;
+        } else {
+            var nonBlankChanged = changedRows.find(function(r) {
+                return !isBlankValue(r.getData()[field]);
+            });
+            if (nonBlankChanged) return nonBlankChanged;
+        }
+
+        if (changedRows.length > 0) return changedRows[0];
+
+        var selected = typeof table.getSelectedRows === 'function' ? table.getSelectedRows() : [];
+        if (selected && selected.length > 0) return selected[0];
+
+        if (errorCode !== 'ORA-12899') {
+            var blankAny = rows.find(function(r) {
+                var d = r.getData ? r.getData() : {};
+                return !d.isSummaryRow && isBlankValue(d[field]);
+            });
+            if (blankAny) return blankAny;
+        }
+        return rows[0];
+    }
+
+    function applyGridErrorGuidance(pane, requestUrl, errData) {
+        if (!pane || !errData || (!errData.errorField && !errData.errorColumn)) return null;
+        var grids = collectPaneGrids(pane);
+        if (grids.all.length === 0) return null;
+
+        var urlLower = String(requestUrl || '').toLowerCase();
+        var isSubRequestHint = /(?:sub|detail|d2|d3)/.test(urlLower);
+        var lastEl = pane._lastInteractedGridEl || null;
+
+        // 후보 그리드 우선순위 결정 (요청 URL 힌트 + 마지막 상호작용 그리드 + master/sub 구분)
+        var ordered = [];
+        var pushUnique = function(entry) {
+            if (entry && ordered.indexOf(entry) === -1) ordered.push(entry);
+        };
+
+        if (isSubRequestHint) {
+            grids.sub.forEach(function(e) { if (lastEl && e.element === lastEl) pushUnique(e); });
+            grids.sub.forEach(pushUnique);
+            grids.master.forEach(pushUnique);
+        } else {
+            grids.all.forEach(function(e) { if (lastEl && e.element === lastEl) pushUnique(e); });
+            grids.master.forEach(pushUnique);
+            grids.sub.forEach(pushUnique);
+        }
+
+        // 1차: 해당 컬럼을 갖고 있으면서 실제로 비어있는 변경 행(또는 매칭 행)이 있는 그리드 선택
+        var chosen = null;
+        for (var i = 0; i < ordered.length; i++) {
+            var entry = ordered[i];
+            var colInfo = findMatchingColumn(entry.table, errData.errorField, errData.errorColumn);
+            if (!colInfo) continue;
+
+            var rows = entry.table.getRows ? entry.table.getRows() : [];
+            var hasChangedMatch = rows.some(function(r) {
+                var d = r.getData ? r.getData() : {};
+                if (d.isSummaryRow || !(d.isNew || d.isUpdated || d.rowStatus === 'C' || d.rowStatus === 'U')) return false;
+                return errData.errorCode === 'ORA-12899' ? !isBlankValue(d[colInfo.field]) : isBlankValue(d[colInfo.field]);
+            });
+            if (hasChangedMatch) {
+                chosen = { entry: entry, colInfo: colInfo };
+                break;
+            }
+            if (!chosen) {
+                chosen = { entry: entry, colInfo: colInfo };
+            }
+        }
+
+        if (!chosen) return null;
+
+        var targetTable = chosen.entry.table;
+        var colTitle = chosen.colInfo.title;
+        var targetField = chosen.colInfo.field;
+
+        // 해당 행·셀로 포커스 및 편집 진입
+        setTimeout(function() {
+            try {
+                var targetRow = findTargetRowForError(targetTable, targetField, errData.errorCode);
+                if (!targetRow) return;
+                if (typeof targetTable.deselectRow === 'function') targetTable.deselectRow();
+                if (typeof targetRow.select === 'function') targetRow.select();
+                if (typeof targetRow.scrollTo === 'function') {
+                    try { targetRow.scrollTo(); } catch (e) {}
+                }
+                var cell = typeof targetRow.getCell === 'function' ? targetRow.getCell(targetField) : null;
+                if (cell) {
+                    var cellEl = cell.getElement ? cell.getElement() : null;
+                    if (cellEl && typeof cellEl.scrollIntoView === 'function') {
+                        try { cellEl.scrollIntoView({ block: 'nearest', inline: 'nearest' }); } catch (e) {}
+                    }
+                    if (typeof cell.edit === 'function') {
+                        try { cell.edit(true); } catch (e) {
+                            try { cell.edit(); } catch (e2) {}
+                        }
+                    } else if (cellEl && typeof cellEl.focus === 'function') {
+                        cellEl.focus();
+                    }
+                }
+            } catch (focusErr) {
+                console.warn('[applyGridErrorGuidance] 셀 포커스 실패:', focusErr);
+            }
+        }, 50);
+
+        if (colTitle) {
+            if (errData.errorCode === 'ORA-12899') {
+                return '[' + colTitle + '] 입력 값이 허용 길이를 초과했습니다. 다시 확인해 주세요.';
+            }
+            return '[' + colTitle + '] 값을 정확하게 입력해 주세요.';
+        }
+        return null;
+    }
+
     var originalFetch = window.fetch;
     window.fetch = function(input, init) {
         init = init || {};
         var headers = new Headers(init.headers || {});
+        var activePane = null;
 
         try {
             var activeTabKey = window.tabManager ? window.tabManager.activeTabKey : null;
             var activeTab = (window.tabManager && Array.isArray(window.tabManager.openTabs))
                 ? window.tabManager.openTabs.find(function(t) { return t.tabKey === activeTabKey || t.pgmNo === activeTabKey; })
                 : null;
-            var activePane = document.querySelector('.tab-pane.active') || window.currentPane;
+            activePane = document.querySelector('.tab-pane.active') || window.currentPane;
 
             var pgmNo = (activeTab && activeTab.pgmNo) || (activePane && activePane.getAttribute('data-pgm-no')) || window.g_currentPgmNo || '';
             var pgmId = (activeTab && activeTab.pgmId) || (activePane && activePane.getAttribute('data-pgm-id')) || '';
@@ -4050,7 +4337,33 @@ window.sanitizeGridData = function(grid, dataList, extraAllowedFields) {
         }
 
         init.headers = headers;
-        return originalFetch.call(this, input, init);
+        var reqUrl = (typeof input === 'string') ? input : (input && input.url ? input.url : '');
+
+        return originalFetch.call(this, input, init).then(function(res) {
+            if (!res || res.ok) return res;
+            var contentType = (res.headers && res.headers.get) ? (res.headers.get('content-type') || '') : '';
+            if (!contentType.toLowerCase().includes('application/json')) {
+                return res;
+            }
+            return res.clone().json().then(function(errData) {
+                if (!errData || (!errData.errorField && !errData.errorColumn)) {
+                    return res;
+                }
+                var targetPane = activePane || document.querySelector('.tab-pane.active') || document.querySelector('.view-container');
+                var gridMessage = applyGridErrorGuidance(targetPane, reqUrl, errData);
+                if (!gridMessage) {
+                    return res;
+                }
+                errData.message = gridMessage;
+                return new Response(JSON.stringify(errData), {
+                    status: res.status,
+                    statusText: res.statusText,
+                    headers: res.headers
+                });
+            }).catch(function() {
+                return res;
+            });
+        });
     };
 })();
 

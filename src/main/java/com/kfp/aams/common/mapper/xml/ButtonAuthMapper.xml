@@ -66,10 +66,33 @@
                  FROM fw_role_memb m
                     , fw_user_mst u
                 WHERE u.user_id = #{userId}
-                  and u.user_nm = #{userNm}
-                  and u.corp_gr = m.memb_code1
+                  <if test="userNm != null and userNm != ''">
+                  AND u.user_nm = #{userNm}
+                  </if>
+                  AND u.corp_gr = m.memb_code1
                   AND (CASE m.valid_dt_yn WHEN 'Y' THEN (CASE WHEN #{today} BETWEEN m.valid_dt_from AND m.valid_dt_to THEN 'true' ELSE 'false' END) ELSE 'true' END) = 'true'
                   )
+           AND a.pgm_no = #{pgmNo}
+           AND (CASE a.valid_dt_yn WHEN 'Y' THEN (CASE WHEN #{today} BETWEEN a.valid_dt_from AND a.valid_dt_to THEN 'true' ELSE 'false' END) ELSE 'true' END) = 'true'
+    </select>
+
+    <!-- 4. 프로그램 번호(pgm_no) 기준 화면 버튼 설정 조회 (관리자용 화면 버튼 설정 준수) -->
+    <select id="selectButtonAuthListByPgm" resultType="com.kfp.aams.common.dto.ButtonAuthRawDto">
+        SELECT a.role_no           AS roleNo
+             , a.pgm_no            AS pgmNo
+             , a.comm_btn_auth_yn  AS commBtnAuthYn
+             , a.cancel_auth_yn    AS cancelAuthYn
+             , a.retrieve_auth_yn  AS retrieveAuthYn
+             , a.input_auth_yn     AS inputAuthYn
+             , a.ext1_auth_yn      AS ext1AuthYn
+             , a.update_auth_yn    AS updateAuthYn
+             , a.delete_auth_yn    AS deleteAuthYn
+             , a.print_auth_yn     AS printAuthYn
+             , a.excel_auth_yn     AS excelAuthYn
+             , a.execute_auth_yn   AS executeAuthYn
+             , a.indiv_btn_auth_yn AS indivBtnAuthYn
+          FROM fw_role_pgm a
+         WHERE a.sys_id = 'SY'
            AND a.pgm_no = #{pgmNo}
            AND (CASE a.valid_dt_yn WHEN 'Y' THEN (CASE WHEN #{today} BETWEEN a.valid_dt_from AND a.valid_dt_to THEN 'true' ELSE 'false' END) ELSE 'true' END) = 'true'
     </select>

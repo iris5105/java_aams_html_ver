@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<div class="view-container layout-single layout-mobile-stack-container"
+     th:fragment="mainView"
+     th:attr="data-pgm-id='W_JA035C',data-corp-gr=${corpGr}">
+    <div class="view-toolbar">
+        <div class="toolbar-left" th:replace="~{fragments/tab_header :: toolbarButtons}"></div>
+        <div th:replace="~{fragments/tab_header :: toolbarBreadcrumb}"></div>
+    </div>
+    <div class="filter-bar">
+        <div class="filter-left">
+            <div class="filter-bar filter-dc-ymd-dddw">
+                <div class="filter-item" style="position: relative; display: flex; align-items: center; gap: 6px;">
+                    <label for="filterJa035cYmd">영업일자</label>
+                    <div class="aams-calendar-wrapper" style="position: relative; display: inline-flex; align-items: center;">
+                        <input type="text" id="filterJa035cYmd" name="ymd" class="t-input aams-calendar-input"
+                               style="width: 110px; padding: 4px 8px; font-size: 13px; text-align: center; border: 1px solid #cbd5e1; border-radius: 4px 0 0 4px; cursor: pointer; background: #ffffff;"
+                               th:value="${ymd != null ? ymd : ''}" readonly autocomplete="off" />
+                        <button type="button" class="t-btn btn-calendar" title="달력 열기"
+                                style="padding: 5px 10px; border-radius: 0 4px 4px 0; border-left: none; background-color: #3b82f6; color: #ffffff; border: 1px solid #3b82f6; cursor: pointer;"
+                                onclick="AamsCalendar.toggle('filterJa035cYmd', event)">
+                            <i class="fa-regular fa-calendar-days"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="filter-item">
+                    <label for="filterDddw">거래코드</label>
+                    <select id="filterDddw" name="dddw" class="filter-select">
+                    </select>
+                </div>
+            </div>
+        </div>
+    </div>
+    <section class="grid-section" aria-label="해외 결제 내역">
+        <div class="grid-table-wrapper">
+            <div id="gridJa035c" class="tabulator-aams-grid"></div>
+        </div>
+    </section>
+    <script th:inline="javascript">
+    (function () {
+        const view = document.currentScript?.closest('.view-container');
+        const pane = document.currentScript ? (document.currentScript.closest('.tab-pane') || document.currentScript.closest('.view-container')) : null;
+        if (!pane || pane.dataset.ja035cInitialized === 'true') return;
+        pane.dataset.ja035cInitialized = 'true';
+        const api = '/api/usportfoliomodel/ja035c';
+        const calendarId = 'filterJa035cYmd';
+        const field = id => pane.querySelector('#' + id);
+        const corpGr = () =>
+            (window.resolveCorpGr ? resolveCorpGr(pane) : '') || view?.dataset.corpGr || '';
+        const ymd = () =>
+            window.getFilterYmd ? getFilterYmd(pane, 'YYYY-MM-DD') : field(calendarId).value;
+        const trCd = () => field('filterDddw')?.value || '';
+        const workDate = /*[[${workDate}]]*/ '';
+        const initialYmd = /*[[${initialYmd}]]*/ '';
+        const initialTrDates = /*[[${trDates}]]*/ [];
+        const canManage = () => !!ymd() && !!workDate && ymd() >= workDate;
+        const money = value => value == null || value === ''
+            ? ''
+            : Number(value).toLocaleString(undefined, { maximumFractionDigits: 4 });
+        let grid;
+        let cudManager = null;
+        let gridBuilt = false;
+        let hasSucceededSearch = false;
+        let maxSeq = 0;
+        const dddwOptionsMap = { trustee: [], currency: [] };
+        const editable = () => canManage();
+
+        async function fetchJson(url, options) {
+            const response = await fetch(url, options);
+            const body = await response.json().catch(() => null);
+            if (!response.ok || body?.success === false) {
+                throw new Error(body?.message || '처리 중 오류가 발생했습니다.');
+            }
+            return body;
+        }
+        function searchColumn(fieldName, title, columnNm, seq) {
+            async function openSearch(cell) {
+                const row = cell.getRow();
+                const data = row.getData();
+                if (!canManage() || !window.DynamicCodeSearch) return;
+                let currency = data.currency || '';
+                if (fieldName === 'yjCd' && !currency && data.trustee) {
+                    const result = await fetchJson(
+                        api + '/trustee-bank-currency?' +
+                        new URLSearchParams({ corpGr: corpGr(), trustee: data.trustee })
+                    );
+                    currency = result.currency || '';
+                }
+                DynamicCodeSearch.openModal({
+                    title: title + ' 검색',
+                    columnNm,
+                    seq,
+                    corpGr: corpGr(),
+                    initialKeyword: data[fieldName] || '',
+                    addWhere: fieldName === 'yjCd' && currency
+                        ? "currency='" + currency.replaceAll("'", "''") + "'"
+                        : '',
+                    onSelect: (code, name) => {
+                        const values = {};
+                        values[fieldName] = code;
+                        if (fieldName === 'fundCd') values.xxFundCd = name || '';
+                        else values.xxYjCd = name || '';
+                        row.update(values);
+                        if (cudManager) cudManager.trackChange(row);
+                    }
+                });
+            }
+            return {
+                title: '',
+                field: fieldName === 'fundCd' ? 'pXxFundCd' : 'pXxYjCd',
+                width: 36,
+                minWidth: 36,
+                maxWidth: 36,
+                headerSort: false,
+                resizable: false,
+                hozAlign: 'center',
+                formatter: () =>
+                    '<button type="button" class="btn-grid-addon btn-search" title="' +
+                    title + ' 검색"><i class="fa-solid fa-magnifying-glass"></i></button>',
+                cellClick: (event, cell) => {
+                    event.stopPropagation();
+                    openSearch(cell).catch(error => showToast(error.message, 'error'));
+                }
+            };
+        }
+
+        function dddwColumn(fieldName, title, width) {
+            return {
+                title,
+                field: fieldName,
+                width,
+                editor: 'list',
+                editable,
+                cellClick: aamsCellEdit,
+                editorParams: {
+                    valuesLookup: () => window.f_dddwctl.getOptions(dddwOptionsMap, fieldName),
+                    autocomplete: false,
+                    clearable: true,
+                    itemFormatter: window.f_dddwctl.get2ColItemFormatter(
+                        '코드', fieldName === 'trustee' ? '보관처명' : '통화명'
+                    )
+                },
+                formatter: cell =>
+                    window.f_dddwctl.getLabel(dddwOptionsMap, fieldName, cell.getValue()) ||
+                    cell.getValue() || '',
+                cellEdited: async cell => {
+                    if (fieldName === 'trustee') await applyTrustee(cell.getRow());
+                    else await applyRate(cell.getRow());
+                }
+            };
+        }
+        async function loadGridOptions() {
+            if (!corpGr() || !window.f_dddwctl) return;
+            const result = await f_dddwctl.retrieveMultiple({
+                trustee: ['trustee', corpGr(), '', 1, ''],
+                currency: ['currency', corpGr(), '', 1, '']
+            });
+            dddwOptionsMap.trustee = result.trustee || [];
+            dddwOptionsMap.currency = result.currency || [];
+            if (grid && gridBuilt) {
+                grid.getRows().forEach(row => row.reformat());
+            }
+        }
+        async function loadFilter() {
+            if (!window.initFilterDddw) return;
+            const date = ymd();
+            const oldDate = date && workDate && date < workDate;
+            const filterCorpGr = corpGr().replaceAll("'", "''");
+            const where = "szx1pt.obj_id='W_JA035C'" +
+                (oldDate
+                    ? " and szx0gc.tr_cd in (select tr_cd from syt0yh where corp_gr='" + filterCorpGr + "' and tr_ymd='" +
+                      date.replaceAll('-', '.') + "')"
+                    : '');
+            await initFilterDddw(pane, {
+                selectId: 'filterDddw',
+                dddwId: 'dddw',
+                corpGr: corpGr(),
+                seq: 1,
+                addWhere: where,
+                codeTitle: '코드',
+                nameTitle: '거래코드'
+            });
+        }
+        function initCalendar() {
+            if (!window.AamsCalendar) return;
+            AamsCalendar.init(calendarId, {
+                pane,
+                initialYmd: initialYmd || ymd(),
+                highlightDates: Array.isArray(initialTrDates) ? initialTrDates : [],
+                datesApiUrl: api + '/dates',
+                corpGr: corpGr(),
+                historyTitle: '해외 결제 내역 존재',
+                onSelect: () => loadFilter().catch(error => showToast(error.message, 'error'))
+            });
+        }
+        function buildGrid() {
+            grid = new Tabulator(field('gridJa035c'), {
+                height: '100%',
+                layout: 'fitDataFill',
+                selectableRows: 1,
+                editTriggerEvent: 'click',
+                placeholder: '조회된 데이터가 없습니다.',
+                columnDefaults: {
+                    vertAlign: 'middle',
+                    headerHozAlign: 'center',
+                    headerSortTristate: true
+                },
+                columns: [
+                    {
+                        title: 'No.', formatter: 'rownum', width: 48,
+                        hozAlign: 'center', headerSort: false
+                    },
+                    {
+                        title: '펀드번호', field: 'fundCd', width: 110,
+                        headerCssClass: 'col-hdr-green', editor: 'input',
+                        editable, cellClick: aamsCellEdit
+                    },
+                    searchColumn('fundCd', '펀드번호', 'rcd', 4),
+                    { title: '펀드명', field: 'xxFundCd', minWidth: 150 },
+                    dddwColumn('trustee', '해외보관처', 120),
+                    dddwColumn('currency', '통화', 75),
+                    {
+                        title: '종목코드', field: 'yjCd', width: 115,
+                        editor: 'input', editable, cellClick: aamsCellEdit
+                    },
+                    searchColumn('yjCd', '종목코드', 'yj_cd', 5),
+                    { title: '종목명', field: 'xxYjCd', minWidth: 160 },
+                    {
+                        title: '결제수량(금액)', field: 'gyuljeAek', width: 135,
+                        hozAlign: 'right', editor: 'number', editable,
+                        cellClick: aamsCellEdit,
+                        formatter: cell => money(cell.getValue()),
+                        cellEdited: cell => recalc(cell.getRow())
+                    },
+                    {
+                        title: '환율', field: 'transRt', width: 100,
+                        hozAlign: 'right', editor: 'number', editable,
+                        cellClick: aamsCellEdit,
+                        formatter: cell => money(cell.getValue()),
+                        cellEdited: cell => recalc(cell.getRow())
+                    },
+                    {
+                        title: '원화결제액', field: 'wonGyuljeAek', width: 130,
+                        hozAlign: 'right', formatter: cell => money(cell.getValue())
+                    },
+                    {
+                        title: '결제일자', field: 'gyuljeYmd', width: 115,
+                        hozAlign: 'center', editor: window.aamsDateEditor,
+                        editable, cellClick: aamsCellEdit,
+                        formatter: cell => window.formatDateVal(cell.getValue())
+                    },
+                    {
+                        title: '', field: 'p_dd_gyulje_ymd', width: 36,
+                        minWidth: 36, maxWidth: 36, headerSort: false,
+                        resizable: false, hozAlign: 'center',
+                        formatter: () =>
+                            '<button type="button" class="btn-grid-addon btn-cal" title="결제일자 선택">' +
+                            '<i class="fa-regular fa-calendar-days"></i></button>',
+                        cellClick: (event, cell) => {
+                            event.stopPropagation();
+                            if (!canManage() || !window.AamsCalendar) return;
+                            const row = cell.getRow();
+                            AamsCalendar.openDatePicker({
+                                anchorEl: cell.getElement(),
+                                initialYmd: row.getData().gyuljeYmd || '',
+                                format: 'dash',
+                                onSelect: value => {
+                                    row.update({ gyuljeYmd: value });
+                                    if (cudManager) cudManager.trackChange(row);
+                                }
+                            });
+                        }
+                    },
+                    {
+                        title: '기준통화', field: 'fundCurrency', width: 85,
+                        hozAlign: 'center', cssClass: 'cell-text-muted'
+                    },
+                    {
+                        title: '기준통화 결제금액', field: 'fcurGyuljeAek',
+                        width: 150, hozAlign: 'right',
+                        formatter: cell => money(cell.getValue())
+                    }
+                ]
+            });
+            grid.on('tableBuilt', () => { gridBuilt = true; });
+            if (typeof setupTabulatorRowSelection === 'function') {
+                setupTabulatorRowSelection(grid);
+            }
+            if (window.AamsResponsive) {
+                AamsResponsive.bindGridResize(pane, [grid]);
+            }
+            if (window.AamsCudManager) {
+                cudManager = AamsCudManager.create(grid, {
+                    allowedFields: ['trYmd', 'trCd', 'trSeq', 'trCoCd', 'ksdJmCd', 'isDeleted']
+                });
+            }
+        }
+        function recalc(row) {
+            const data = row.getData();
+            row.update({
+                wonGyuljeAek: Math.trunc(
+                    (Number(data.gyuljeAek) || 0) * (Number(data.transRt) || 0)
+                )
+            });
+            if (cudManager) cudManager.trackChange(row);
+        }
+
+        async function applyTrustee(row) {
+            const trustee = row.getData().trustee;
+            if (!trustee) return;
+            const result = await fetchJson(
+                api + '/trustee-currency?' +
+                new URLSearchParams({ corpGr: corpGr(), trustee })
+            );
+            if (result.currency) {
+                await row.update({ currency: result.currency });
+                if (cudManager) cudManager.trackChange(row);
+                await applyRate(row);
+            }
+        }
+
+        async function applyRate(row) {
+            const data = row.getData();
+            if (!data.currency) return;
+            const rate = await fetchJson(
+                api + '/currency-rate?' +
+                new URLSearchParams({
+                    corpGr: corpGr(),
+                    ymd: ymd(),
+                    currency: data.currency
+                })
+            );
+            if (rate != null && Number(rate) !== -1 && Number.isFinite(Number(rate))) {
+                await row.update({ transRt: rate });
+                recalc(row);
+            }
+        }
+
+        function restoreToolbarState() {
+            if (window.ButtonRole && typeof window.ButtonRole.setSearchState === 'function') {
+                window.ButtonRole.setSearchState(pane, hasSucceededSearch);
+            }
+        }
+
+        async function load() {
+            if (!corpGr()) {
+                restoreToolbarState();
+                return showToast('회사그룹을 확인해주세요.', 'warning');
+            }
+            if (!ymd()) {
+                restoreToolbarState();
+                return showToast('영업일자를 선택해주세요.', 'warning');
+            }
+            if (!trCd()) {
+                restoreToolbarState();
+                return showToast('거래코드 목록이 비어 있습니다. 영업일자와 목록 조회를 확인해주세요.', 'warning');
+            }
+            const rows = await fetchJson(
+                api + '/list?' +
+                new URLSearchParams({ corpGr: corpGr(), ymd: ymd(), trCd: trCd() })
+            );
+            hasSucceededSearch = true;
+            maxSeq = Math.max(0, ...rows.map(row => Number(row.trSeq) || 0));
+            const formatted = cudManager ? cudManager.formatData(rows) : rows;
+            await grid.setData(formatted);
+        }
+
+        async function save() {
+            if (!canManage()) {
+                return showToast('과거 영업일자는 수정할 수 없습니다.', 'warning');
+            }
+            if (window.aamsValidateGridDates &&
+                !aamsValidateGridDates(grid, ['gyuljeYmd'])) return;
+
+            const changes = cudManager
+                ? cudManager.getChanges()
+                : { inserts: [], updates: [], deletes: [], hasChanges: false };
+            if (!changes.hasChanges) return showToast('변경된 데이터가 없습니다.');
+
+            const rows = [
+                ...changes.inserts.map(row => ({ ...row, isNew: true, rowStatus: 'C' })),
+                ...changes.updates.map(row => ({ ...row, isUpdated: true, rowStatus: 'U' })),
+                ...changes.deletes.map(row => ({ ...row, isDeleted: true, rowStatus: 'D' }))
+            ];
+
+            const result = await fetchJson(
+                api + '/save?' +
+                new URLSearchParams({ corpGr: corpGr(), ymd: ymd(), trCd: trCd() }),
+                {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(rows)
+                }
+            );
+            if (cudManager) cudManager.reset();
+            showToast(result.message, 'success');
+            if (window.AamsCalendar) {
+                AamsCalendar.loadHighlightDates(calendarId, api + '/dates', corpGr());
+            }
+            await load();
+        }
+        function bind() {
+            pane.onSearch = () => load().catch(error => {
+                restoreToolbarState();
+                showToast(error.message, 'error');
+            });
+            pane.onInput = async () => {
+                if (ymd() && workDate && !canManage()) {
+                    return showToast('과거 영업일자는 수정할 수 없습니다.', 'warning');
+                }
+                if (!canManage() || !corpGr() || !trCd()) {
+                    return showToast('영업일자와 거래코드를 확인하세요.', 'warning');
+                }
+                const newRowData = {
+                    corpGr: corpGr(),
+                    trYmd: ymd(),
+                    trCd: trCd(),
+                    trSeq: ++maxSeq,
+                    fundCd: '',
+                    currency: '',
+                    gyuljeAek: 0,
+                    transRt: 0,
+                    wonGyuljeAek: 0,
+                    gyuljeYmd: ymd(),
+                    isNew: true,
+                    rowStatus: 'C'
+                };
+                const row = cudManager
+                    ? await cudManager.addRow(newRowData, true)
+                    : await grid.addRow(newRowData, true);
+                if (row) {
+                    row.select();
+                    row.getCell('fundCd').edit();
+                }
+            };
+            pane.onDelete = async () => {
+                if (!canManage()) {
+                    return showToast('과거 영업일자는 수정할 수 없습니다.', 'warning');
+                }
+                const row = grid.getSelectedRows()[0];
+                if (!row) return showToast('삭제할 행을 선택해주세요.', 'warning');
+                if (cudManager) await cudManager.deleteRow(row);
+                else await row.delete();
+            };
+            pane.onSave = () => save().catch(error => showToast(error.message, 'error'));
+            pane.onRefresh = () => {
+                hasSucceededSearch = false;
+                if (cudManager) cudManager.reset();
+                if (window.safeClearGrid) safeClearGrid(grid);
+                else if (grid) grid.clearData();
+            };
+            pane.onCorpGrChange = nextCorpGr => {
+                pane.dataset.corpGr = nextCorpGr || '';
+                pane.onRefresh();
+                loadGridOptions().catch(error => showToast(error.message, 'error'));
+                loadFilter().catch(error => showToast(error.message, 'error'));
+                if (window.AamsCalendar) {
+                    AamsCalendar.loadHighlightDates(calendarId, api + '/dates', nextCorpGr || corpGr());
+                }
+            };
+            pane.onExcel = () => {
+                if (!window.XLSX) {
+                    return showToast('Excel 모듈을 불러오지 못했습니다.', 'warning');
+                }
+                grid.download(
+                    'xlsx',
+                    '해외결제내역_' + ymd().replaceAll('-', '') + '.xlsx',
+                    { sheetName: '해외결제내역' }
+                );
+            };
+        }
+
+        async function start() {
+            initCalendar();
+            await Promise.all([loadGridOptions(), loadFilter()]);
+            buildGrid();
+            bind();
+        }
+        start().catch(error => showToast(error.message, 'error'));
+    })();
+    </script>
+</div>
+</html>

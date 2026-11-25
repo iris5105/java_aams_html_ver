@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.kfp.aams.domain.foreignassetmanagement.mapper.Ja035jMapper">
+
+    <!-- 1. 수도결제 등록 목록 조회 (d_ja035j.srd) -->
+    <select id="selectList" resultType="com.kfp.aams.domain.foreignassetmanagement.dto.Ja035jDto">
+        SELECT ys.CORP_GR
+             , TO_CHAR(ys.YMD, 'YYYY-MM-DD')        AS ymd
+             , TO_CHAR(ys.TR_YMD, 'YYYY-MM-DD')     AS tr_ymd
+             , ys.TR_CD
+             , ys.FUND_CD
+             , ys.TR_CO_CD
+             , ys.TRUSTEE
+             , ys.JM_CD
+             , ys.CURRENCY
+             , ys.TR_SEQ
+             , TO_CHAR(ys.GYULJE_YMD, 'YYYY-MM-DD') AS gyulje_ymd
+             , ys.GYULJE_AEK
+             , ys.WON_GYULJE_AEK
+             , ys.GYULJE_GB
+             , ys.GYULJE_JM_CD
+             , ya.JM_NM                             AS sym0ya_jm_nm
+             , ya.JASAN_GB
+             , ys.WON_HWAN_CHA
+             , ys.SURY_AEK
+             , ys.BS_TYPE
+             , ia.FUND_NM
+             , ia.FUND_CURRENCY
+             , ys.FCUR_GYULJE_AEK
+             , ys.FCUR_HWAN_CHA                     AS syt0ys_fcur_hwan_cha
+             , ys.BUNHAL_AEK
+          FROM SYT0YS ys
+          LEFT OUTER JOIN SYM0YA ya
+            ON ya.CORP_GR = ys.CORP_GR
+           AND ya.JM_CD   = ys.JM_CD
+             , SZM0IA ia
+         WHERE ys.CORP_GR = #{corpGr}
+           AND ys.YMD     = TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
+           AND ys.TR_CD   &lt;&gt; 'G33'
+           AND ys.CORP_GR = ia.CORP_GR
+           AND ys.FUND_CD = ia.FUND_CD
+         ORDER BY ya.JASAN_GB ASC
+                , ys.GYULJE_YMD ASC
+                , ys.CURRENCY ASC
+                , ys.TR_YMD ASC
+                , ys.TR_CD ASC
+                , ys.FUND_CD ASC
+                , ys.JM_CD ASC
+    </select>
+
+    <!-- 2. 달력 하이라이트 일자 조회 (w_ja035j.srw dw_c::ue_getdate) -->
+    <select id="selectHighlightDates" resultType="java.lang.String">
+        SELECT DISTINCT TO_CHAR(t1.YMD, 'YYYY-MM-DD') AS ymd
+          FROM SYT0YS t1
+         WHERE t1.CORP_GR = #{corpGr}
+         ORDER BY ymd
+    </select>
+
+    <!-- 3. 결제체크 시 기본 결제종목 조회 (w_ja035j.srw dw_list::itemchanged) -->
+    <select id="selectDefaultGyuljeJmCd" resultType="java.lang.String">
+        SELECT t1.JM_CD
+          FROM SYM0YA t1
+         WHERE t1.CORP_GR   = #{corpGr}
+           AND t1.CURRENCY  = #{currency}
+           AND t1.GYULJE_JM = 'Y'
+           AND t1.JASAN_GB  = '5'
+           AND ROWNUM       = 1
+    </select>
+
+    <!-- 4. SYT0YS 수정 (d_ja035j.srd update=yes 컬럼만 갱신) -->
+    <update id="updateSyt0ys">
+        UPDATE SYT0YS
+           SET GYULJE_YMD   = TO_DATE(REPLACE(#{gyuljeYmd, jdbcType=VARCHAR}, '-', ''), 'YYYYMMDD')
+             , GYULJE_GB    = #{gyuljeGb, jdbcType=VARCHAR}
+             , GYULJE_JM_CD = #{gyuljeJmCd, jdbcType=VARCHAR}
+             , SURY_AEK     = #{suryAek, jdbcType=NUMERIC}
+             , BUNHAL_AEK   = #{bunhalAek, jdbcType=NUMERIC}
+         WHERE CORP_GR  = #{corpGr, jdbcType=VARCHAR}
+           AND YMD      = TO_DATE(REPLACE(#{ymd, jdbcType=VARCHAR}, '-', ''), 'YYYYMMDD')
+           AND TR_YMD   = TO_DATE(REPLACE(#{trYmd, jdbcType=VARCHAR}, '-', ''), 'YYYYMMDD')
+           AND TR_CD    = #{trCd, jdbcType=VARCHAR}
+           AND FUND_CD  = #{fundCd, jdbcType=VARCHAR}
+           AND TR_CO_CD = #{trCoCd, jdbcType=VARCHAR}
+           AND TRUSTEE  = #{trustee, jdbcType=VARCHAR}
+           AND JM_CD    = #{jmCd, jdbcType=VARCHAR}
+           AND TR_SEQ   = #{trSeq, jdbcType=NUMERIC}
+           AND BS_TYPE  = #{bsType, jdbcType=NUMERIC}
+    </update>
+
+</mapper>

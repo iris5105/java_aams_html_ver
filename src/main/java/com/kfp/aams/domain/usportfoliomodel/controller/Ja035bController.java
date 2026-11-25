@@ -34,7 +34,7 @@ public class Ja035bController {
         this.workDateService = workDateService;
     }
 
-    @GetMapping({"/views/w_ja035b1", "/views/usportfoliomodel/w_ja035b1"})
+    @GetMapping({"/views/w_ja035b1", "/views/foreignassetmanagement/w_ja035b1", "/views/usportfoliomodel/w_ja035b1"})
     public String viewJa035b1(@AuthenticationPrincipal Object principalObj,
                               @RequestParam(name = "corpGr", required = false) String paramCorpGr,
                               @RequestParam(name = "ymd", required = false) String paramYmd,
@@ -49,7 +49,7 @@ public class Ja035bController {
         String workDate = paramYmd != null && !paramYmd.isBlank() ? paramYmd : workDateService.getWorkDateOrDefault(corpGr);
         model.addAttribute("initialYmd", workDate);
         model.addAttribute("ymd", workDate);
-        return "views/usportfoliomodel/w_ja035b1";
+        return "views/foreignassetmanagement/w_ja035b1";
     }
 
     /**

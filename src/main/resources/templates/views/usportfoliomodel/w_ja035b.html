@@ -7,6 +7,45 @@
       - dw_list: d_ja035b (해외주식 매매내역)
 -->
 <div class="view-container layout-single ja035b-container layout-mobile-stack-container" th:fragment="ja035bView" style="display: flex; flex-direction: column; height: 100%; width: 100%; overflow: hidden; background: #fff; position: relative;">
+    <style>
+        .ja035b-container .tabulator .tabulator-footer,
+        .ja035b-container .tabulator .tabulator-footer .tabulator-calcs-holder,
+        .ja035b-container .tabulator .tabulator-footer .tabulator-calcs-holder .tabulator-row,
+        .ja035b-container .tabulator .tabulator-footer .tabulator-calcs-holder .tabulator-cell {
+            background-color: #fbf2c4 !important;
+            color: #1e293b !important;
+            font-weight: 600 !important;
+        }
+        .ja035b-container .tabulator .tabulator-footer {
+            border-top: 1px solid #cbd5e1 !important;
+            padding: 0 !important;
+            overflow: hidden !important;
+        }
+        .ja035b-container .tabulator .tabulator-footer .tabulator-calcs-holder {
+            border: none !important;
+            overflow: hidden !important;
+        }
+        .ja035b-container .tabulator .tabulator-footer .tabulator-calcs-holder .tabulator-row,
+        .ja035b-container .tabulator .tabulator-footer .tabulator-calcs-holder .tabulator-cell {
+            height: 28px !important;
+            min-height: 28px !important;
+        }
+        .ja035b-container .tabulator .tabulator-footer .tabulator-calcs-holder .tabulator-cell {
+            line-height: 20px !important;
+            border-right: 1px solid #e2e8f0 !important;
+        }
+        .ja035b-container .tabulator .tabulator-footer .cell-text-blue {
+            color: #1d4ed8 !important;
+            font-weight: 700 !important;
+        }
+        .ja035b-container .tabulator .tabulator-footer .tabulator-calcs-holder,
+        .ja035b-container .tabulator .tabulator-footer .tabulator-calcs-holder .tabulator-row,
+        .ja035b-container .tabulator .tabulator-footer .tabulator-calcs-holder .tabulator-cell {
+            pointer-events: none !important;
+            user-select: none !important;
+            cursor: default !important;
+        }
+    </style>
 
     <!-- 1. Top Action Control Bar -->
     <div class="view-toolbar">
@@ -42,6 +81,33 @@
 
         var isInitialized = false;
         var gridList = null;
+        var gridBuilt = false;
+        function calcNormalSum(values, data, params) {
+            return (data || []).reduce(function (sum, row) {
+                return row.isDeleted ? sum : sum + (Number(row[params.field]) || 0);
+            }, 0);
+        }
+        function formatFooterNumber(cell, decimals) {
+            var value = Number(cell.getValue()) || 0;
+            var formatted = value.toLocaleString('ko-KR', {
+                minimumFractionDigits: decimals,
+                maximumFractionDigits: decimals
+            });
+            return '<span class="cell-text-blue font-bold">' + formatted + '</span>';
+        }
+        function updateFooterVisibility() {
+            if (!gridList) return;
+            var footer = gridList.element.querySelector('.tabulator-footer');
+            if (footer) {
+                footer.style.display = gridList.getData().some(function (row) { return !row.isDeleted; })
+                    ? 'block' : 'none';
+            }
+        }
+        function recalcSummaryRow() {
+            if (!gridList) return;
+            gridList.recalc();
+            updateFooterVisibility();
+        }
         var curMaxTrSeq = 0;
         var codeSearchInstance = null;
 
@@ -125,8 +191,8 @@
                 dddwOptionsMap.currency = results.currency || [];
                 dddwOptionsMap.gyulje_jm_cd = results.gyulje_jm_cd || [];
 
-                if (gridList) {
-                    if (typeof gridList.reformat === 'function') gridList.reformat();
+                if (gridList && gridBuilt) {
+                    gridList.getRows().forEach(function (row) { row.reformat(); });
                     gridList.redraw(true);
                 }
             }).catch(function (err) {
@@ -146,12 +212,14 @@
             if (!cell) return;
             var row = cell.getRow();
             var data = row.getData();
+            if (data && data.isSummaryRow) return;
             if (data) {
                 if (!data.isNew) {
                     data.isUpdated = true;
                     data.rowStatus = "U";
                 }
             }
+            setTimeout(recalcSummaryRow, 0);
         }
 
         // ==========================================
@@ -168,6 +236,9 @@
                 editTriggerEvent: "click",
                 headerSort: false,
                 placeholder: "조회된 내역이 없습니다.",
+                rowFormatter: function (row) {
+                    if (row.getData().isSummaryRow) row.getElement().classList.add('aams-summary-row');
+                },
                 columns: [
                     {
                         title: "No.", headerSort: false,
@@ -176,6 +247,7 @@
                         hozAlign: "center",
                         resizable: false,
                         formatter: function (cell) {
+                            if (cell.getRow().getData().isSummaryRow) return '';
                             var row = cell.getRow();
                             return row.getPosition(true) || (row.getIndex() + 1);
                         }
@@ -185,8 +257,9 @@
                         field: "fundCd",
                         width: 95,
                         hozAlign: "center",
-                        cssClass: "col-hdr-green",
+                        headerCssClass: "col-hdr-green",
                         editor: "input",
+                        editable: function (cell) { return !cell.getRow().getData().isSummaryRow; },
                         cellClick: window.aamsCellEdit,
                         cellEdited: function (cell) {
                             markRowUpdated(cell);
@@ -209,6 +282,7 @@
                         resizable: false,
                         formatter: function (cell) {
                             var data = cell.getRow().getData();
+                            if (data.isSummaryRow) return '';
                             var isEnabled = (data.pVisible !== 0 && !data.isDeleted);
                             var disClass = isEnabled ? "" : "disabled";
                             return '<button type="button" class="btn-grid-addon btn-search ' + disClass + '" title="펀드코드 검색"><i class="fa-solid fa-magnifying-glass"></i></button>';
@@ -217,6 +291,7 @@
                             e.stopPropagation();
                             var row = cell.getRow();
                             var data = row.getData();
+                            if (data.isSummaryRow || (window.isAamsSummaryRow && window.isAamsSummaryRow(row))) return;
                             if (data.pVisible === 0 || data.isDeleted) {
                                 if (gridList) { gridList.deselectRow(); row.select(); }
                                 return;
@@ -248,6 +323,10 @@
                         field: "xxFundCd",
                         width: 140,
                         hozAlign: "left",
+                        bottomCalc: function (values, data) { return data.some(function (row) { return !row.isDeleted; }) ? '합계' : ''; },
+                        bottomCalcFormatter: function (cell) {
+                            return '<div style="text-align:center; font-weight:bold; width:100%;">' + (cell.getValue() || '') + '</div>';
+                        }
                     },
                     {
                         title: "해외보관처",
@@ -255,6 +334,7 @@
                         width: 110,
                         hozAlign: "center",
                         editor: "list",
+                        editable: function (cell) { return !cell.getRow().getData().isSummaryRow; },
                         editorParams: {
                             valuesLookup: function () {
                                 return getDddwOptions('trustee');
@@ -281,8 +361,9 @@
                         field: "yjCd",
                         width: 100,
                         hozAlign: "center",
-                        cssClass: "col-hdr-blue",
+                        headerCssClass: "col-hdr-blue",
                         editor: "input",
+                        editable: function (cell) { return !cell.getRow().getData().isSummaryRow; },
                         cellClick: window.aamsCellEdit,
                         cellEdited: function (cell) {
                             markRowUpdated(cell);
@@ -305,6 +386,7 @@
                         resizable: false,
                         formatter: function (cell) {
                             var data = cell.getRow().getData();
+                            if (data.isSummaryRow) return '';
                             var isEnabled = (data.pVisible !== 0 && !data.isDeleted);
                             var disClass = isEnabled ? "" : "disabled";
                             return '<button type="button" class="btn-grid-addon btn-search ' + disClass + '" title="종목 검색"><i class="fa-solid fa-magnifying-glass"></i></button>';
@@ -313,6 +395,7 @@
                             e.stopPropagation();
                             var row = cell.getRow();
                             var data = row.getData();
+                            if (data.isSummaryRow || (window.isAamsSummaryRow && window.isAamsSummaryRow(row))) return;
                             if (data.pVisible === 0 || data.isDeleted) {
                                 if (gridList) { gridList.deselectRow(); row.select(); }
                                 return;
@@ -351,30 +434,8 @@
                         hozAlign: "left",
                         headerSort: false
                     },
-                    {
-                        title: "통화",
-                        field: "currency",
-                        width: 80,
-                        hozAlign: "center",
-                        headerSort: false,
-                        editor: "list",
-                        editorParams: {
-                            valuesLookup: function () {
-                                var opts = getDddwOptions('currency');
-                                return (opts && opts.length > 0) ? opts : ["USD", "KRW", "EUR", "JPY", "HKD", "CNY", "GBP"];
-                            },
-                            autocomplete: false,
-                            clearable: true,
-                            itemFormatter: window.f_dddwctl && typeof window.f_dddwctl.get2ColItemFormatter === 'function'
-                                ? window.f_dddwctl.get2ColItemFormatter('통화', '통화명')
-                                : null
-                        },
-                        cellClick: window.aamsCellEdit,
-                        cellEdited: function (cell) {
-                            markRowUpdated(cell);
-                            onCurrencyEdited(cell);
-                        }
-                    },
+                    { title: "통화", field: "currency", width: 80, hozAlign: "center",
+                        formatter: function (cell) { return getDddwLabel('currency', cell.getValue()) || cell.getValue() || ''; } },
                     {
                         title: "주수/액면가",
                         field: "trJusu",
@@ -382,6 +443,7 @@
                         hozAlign: "right",
                         headerSort: false,
                         editor: "input",
+                        editable: function (cell) { return !cell.getRow().getData().isSummaryRow; },
                         cellClick: window.aamsCellEdit,
                         cellEdited: function (cell) {
                             markRowUpdated(cell);
@@ -391,7 +453,10 @@
                             var val = cell.getValue();
                             if (val == null || val === '') return '';
                             return window.formatNumber ? window.formatNumber(val, 2) : Number(val).toFixed(2);
-                        }
+                        },
+                        bottomCalc: calcNormalSum,
+                        bottomCalcParams: { field: 'trJusu' },
+                        bottomCalcFormatter: function (cell) { return formatFooterNumber(cell, 2); }
                     },
                     {
                         title: "매매단가",
@@ -400,6 +465,7 @@
                         hozAlign: "right",
                         headerSort: false,
                         editor: "input",
+                        editable: function (cell) { return !cell.getRow().getData().isSummaryRow; },
                         cellClick: window.aamsCellEdit,
                         cellEdited: function (cell) {
                             markRowUpdated(cell);
@@ -418,6 +484,7 @@
                         hozAlign: "right",
                         headerSort: false,
                         editor: "input",
+                        editable: function (cell) { return !cell.getRow().getData().isSummaryRow; },
                         cellClick: window.aamsCellEdit,
                         cellEdited: function (cell) {
                             markRowUpdated(cell);
@@ -426,7 +493,10 @@
                         formatter: function (cell) {
                             var val = cell.getValue();
                             return (val == null || val === '') ? '0.00' : (window.formatNumber ? window.formatNumber(val, 2) : Number(val).toFixed(2));
-                        }
+                        },
+                        bottomCalc: calcNormalSum,
+                        bottomCalcParams: { field: 'trCost' },
+                        bottomCalcFormatter: function (cell) { return formatFooterNumber(cell, 2); }
                     },
                     {
                         title: "세금",
@@ -435,6 +505,7 @@
                         hozAlign: "right",
                         headerSort: false,
                         editor: "input",
+                        editable: function (cell) { return !cell.getRow().getData().isSummaryRow; },
                         cellClick: window.aamsCellEdit,
                         cellEdited: function (cell) {
                             markRowUpdated(cell);
@@ -443,7 +514,10 @@
                         formatter: function (cell) {
                             var val = cell.getValue();
                             return (val == null || val === '') ? '0.00' : (window.formatNumber ? window.formatNumber(val, 2) : Number(val).toFixed(2));
-                        }
+                        },
+                        bottomCalc: calcNormalSum,
+                        bottomCalcParams: { field: 'trTax' },
+                        bottomCalcFormatter: function (cell) { return formatFooterNumber(cell, 2); }
                     },
                     {
                         title: "매매금액",
@@ -454,7 +528,10 @@
                         formatter: function (cell) {
                             var val = cell.getValue();
                             return (val == null || val === '') ? '0.00' : (window.formatNumber ? window.formatNumber(val, 2) : Number(val).toFixed(2));
-                        }
+                        },
+                        bottomCalc: calcNormalSum,
+                        bottomCalcParams: { field: 'trAek' },
+                        bottomCalcFormatter: function (cell) { return formatFooterNumber(cell, 2); }
                     },
                     {
                         title: "결제일자",
@@ -463,6 +540,7 @@
                         hozAlign: "center",
                         headerSort: false,
                         editor: window.aamsDateEditor || "input",
+                        editable: function (cell) { return !cell.getRow().getData().isSummaryRow; },
                         editorParams: { separator: "-" },
                         cellClick: window.aamsCellEdit,
                         cellEdited: function (cell) {
@@ -484,12 +562,14 @@
                         hozAlign: "center",
                         headerSort: false,
                         resizable: false,
-                        formatter: function () {
+                        formatter: function (cell) {
+                            if (cell.getRow().getData().isSummaryRow) return '';
                             return '<button type="button" class="btn-grid-addon btn-cal" title="결제일자 선택"><i class="fa-regular fa-calendar-days"></i></button>';
                         },
                         cellClick: function (e, cell) {
                             e.stopPropagation();
                             var row = cell.getRow();
+                            if (row.getData().isSummaryRow || (window.isAamsSummaryRow && window.isAamsSummaryRow(row))) return;
                             var curVal = row.getData().gyuljeYmd || "";
                             if (window.AamsCalendar && typeof window.AamsCalendar.openDatePicker === 'function') {
                                 window.AamsCalendar.openDatePicker({
@@ -513,7 +593,10 @@
                         formatter: function (cell) {
                             var val = cell.getValue();
                             return (val == null || val === '') ? '0.00' : (window.formatNumber ? window.formatNumber(val, 2) : Number(val).toFixed(2));
-                        }
+                        },
+                        bottomCalc: calcNormalSum,
+                        bottomCalcParams: { field: 'gyuljeAek' },
+                        bottomCalcFormatter: function (cell) { return formatFooterNumber(cell, 2); }
                     },
                     {
                         title: "적용환율",
@@ -522,6 +605,7 @@
                         hozAlign: "right",
                         headerSort: false,
                         editor: "input",
+                        editable: function (cell) { return !cell.getRow().getData().isSummaryRow; },
                         cellClick: window.aamsCellEdit,
                         cellEdited: function (cell) {
                             markRowUpdated(cell);
@@ -553,7 +637,7 @@
                         editable: function (cell) {
                             var d = cell.getRow().getData();
                             var trCd = d.trCd || getSelectedTrCd();
-                            return trCd === 'F46'; // 파워빌더 protect="0~tif(tr_cd='F46',0,1)"
+                            return !d.isSummaryRow && trCd === 'F46'; // 파워빌더 protect="0~tif(tr_cd='F46',0,1)"
                         },
                         cellClick: window.aamsCellEdit,
                         cellEdited: function (cell) {
@@ -564,10 +648,35 @@
                             if (!val) return "";
                             return getDddwLabel('gyulje_jm_cd', val);
                         }
+                    },
+                    {
+                        title: "원화결제금액",
+                        field: "wonGyuljeAek",
+                        width: 120,
+                        hozAlign: "right",
+                        headerSort: false,
+                        formatter: function (cell) {
+                            var val = cell.getValue();
+                            return (val == null || val === '') ? '0' :
+                                (window.formatNumber ? window.formatNumber(val, 0) : Number(val).toLocaleString('ko-KR'));
+                        },
+                        bottomCalc: calcNormalSum,
+                        bottomCalcParams: { field: 'wonGyuljeAek' },
+                        bottomCalcFormatter: function (cell) { return formatFooterNumber(cell, 0); }
                     }
                 ]
             });
 
+            gridList.on('cellEditing', function (cell) {
+                if (cell && cell.getRow && cell.getRow().getData().isSummaryRow) {
+                    if (typeof cell.cancelEdit === 'function') cell.cancelEdit();
+                }
+            });
+            gridList.on('tableBuilt', function () {
+                gridBuilt = true;
+                updateFooterVisibility();
+            });
+            updateFooterVisibility();
             if (typeof window.setupTabulatorRowSelection === 'function') {
                 window.setupTabulatorRowSelection(gridList);
             }
@@ -836,6 +945,7 @@
 
                     if (gridList) {
                         gridList.setData(list).then(function () {
+                            updateFooterVisibility();
                             var rows = gridList.getRows();
                             if (rows.length > 0) {
                                 rows[0].select();
@@ -891,6 +1001,7 @@
 
                         if (gridList) {
                             gridList.setData(newList).then(function () {
+                                updateFooterVisibility();
                                 var rows = gridList.getRows();
                                 if (rows.length > 0) {
                                     rows[0].select();
@@ -902,7 +1013,7 @@
                         }
                     } else {
                         if (gridList) {
-                            gridList.setData([]);
+                            gridList.setData([]).then(updateFooterVisibility);
                         }
                     }
                 })
@@ -958,6 +1069,7 @@
 
             gridList.addRow(newRowData, false).then(function (row) {
                 row.select();
+                recalcSummaryRow();
                 var cell = row.getCell("fundCd");
                 if (cell) cell.edit();
             });
@@ -973,14 +1085,16 @@
 
             var row = selRows[0];
             var data = row.getData();
+            if (data.isSummaryRow) return;
 
             if (confirm("선택한 내역을 삭제하시겠습니까?")) {
                 if (data.isNew) {
-                    row.delete();
+                    row.delete().then(recalcSummaryRow);
                 } else {
                     data.isDeleted = true;
                     data.rowStatus = "D";
                     row.getElement().style.display = "none";
+                    recalcSummaryRow();
                 }
             }
         }
@@ -1002,7 +1116,7 @@
             for (var i = 0; i < allData.length; i++) {
                 var d = allData[i];
 
-                if (d.isNew || d.isUpdated || d.isDeleted || d.rowStatus) {
+                if (!d.isSummaryRow && (d.isNew || d.isUpdated || d.isDeleted || d.rowStatus)) {
                     if (!d.isDeleted && "D" !== d.rowStatus) {
                         if (!d.fundCd || !d.fundCd.trim()) {
                             if (typeof window.showToast === 'function') window.showToast("펀드코드는 필수 입력 항목입니다.", "warning");
@@ -1155,6 +1269,7 @@
                 var currentData = gridList.getData();
                 var combined = currentData.concat(newItems);
                 gridList.setData(combined).then(function () {
+                    recalcSummaryRow();
                     if (typeof window.showToast === 'function') {
                         window.showToast("엑셀 파일에서 " + newItems.length + "건을 성공적으로 추가했습니다.", "success");
                     }
@@ -1183,7 +1298,7 @@
             };
 
             currentPane.onRefresh = function () {
-                if (gridList) gridList.clearData();
+                if (gridList) gridList.setData([]).then(updateFooterVisibility);
                 curMaxTrSeq = 0;
                 var inputXx = currentPane.querySelector('#filterXx');
                 var textXx = currentPane.querySelector('#textXxName');

@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.kfp.aams.domain.foreignassetmanagement.mapper.Ja036j1Mapper">
+
+    <!-- d_ja036j1.srd 조회 SQL을 기준으로 한 해외주식 종가 목록 -->
+    <select id="selectList" resultType="com.kfp.aams.domain.foreignassetmanagement.dto.Ja036j1Dto">
+        SELECT lp.CORP_GR AS corpGr
+             , TO_CHAR(lp.YMD, 'YYYY-MM-DD') AS ymd
+             , ya.CURRENCY AS currency
+             , lp.JM_CD AS yjCd
+             , lp.JONGA AS jonga
+             , lp.DANGA AS danga
+             , TO_CHAR(lp.LOAD_TIME, 'MM.DD HH24:MI:SS') AS loadTime
+             , ya.BLBG_TCKR AS blbgTckr
+             , ya.JM_NM AS xxYjCd
+             , F_YJONGA(lp.CORP_GR, lp.JM_CD, lp.YMD - 1) AS junJonga
+             , F_YDANGA(lp.CORP_GR, lp.JM_CD, lp.YMD - 1) AS junDanga
+             , F_CURRENCY_RT(#{corpGr}, #{ymd}, ya.CURRENCY) AS gijunRt
+          FROM SYT0LP lp
+          JOIN SYM0YA ya
+            ON ya.CORP_GR = lp.CORP_GR
+           AND ya.JM_CD = lp.JM_CD
+         WHERE lp.CORP_GR = #{corpGr}
+           AND lp.YMD = TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
+           AND ya.JASAN_GB = '1'
+         ORDER BY ya.CURRENCY ASC, lp.JM_CD ASC
+    </select>
+
+    <select id="selectStockCode" resultType="string">
+        SELECT JM_CD
+          FROM SYM0YA
+         WHERE CORP_GR = #{corpGr}
+           AND JM_CD = #{jmCd}
+           AND JASAN_GB = '1'
+    </select>
+
+    <update id="mergeClose">
+        MERGE INTO SYT0LP target
+        USING DUAL
+           ON (target.CORP_GR = #{corpGr}
+           AND target.YMD = TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
+           AND target.JM_CD = #{yjCd})
+        WHEN MATCHED THEN
+             UPDATE SET target.JONGA = #{jonga, jdbcType=NUMERIC}
+                      , target.LOAD_TIME = SYSDATE
+        WHEN NOT MATCHED THEN
+             INSERT (CORP_GR, YMD, JM_CD, JONGA, DANGA, LOAD_TIME)
+             VALUES (#{corpGr}, TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD'),
+                     #{yjCd}, #{jonga, jdbcType=NUMERIC}, NVL(#{danga, jdbcType=NUMERIC}, 0), SYSDATE)
+    </update>
+
+    <delete id="deleteClose">
+        DELETE FROM SYT0LP
+         WHERE CORP_GR = #{corpGr}
+           AND YMD = TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
+           AND JM_CD = #{yjCd}
+    </delete>
+
+    <!-- W_JA036J1 LOAD 완료 후 연계자료 갱신 시각 반영 -->
+    <update id="touchSyt0lpLink">
+        UPDATE LINK_GR
+           SET SYT0LP = SYSDATE
+         WHERE CORP_GR IN (SELECT COPR_GR FROM SZX0AA WHERE DATA_FILE != 'KSD')
+    </update>
+</mapper>

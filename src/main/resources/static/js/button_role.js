@@ -163,8 +163,14 @@
                 '.toolbar-buttons .t-btn:not(.btn-search)'
             );
 
-            // 새로고침 버튼 존재 및 실제 노출 여부 확인
+            // 새로고침 / 조회 버튼 존재 및 실제 노출 여부 확인
             const hasRefreshButton = this._hasVisibleRefreshButton(container);
+            const hasSearchButton = !!(btnSearch &&
+                btnSearch.style.display !== 'none' &&
+                !btnSearch.classList.contains('d-none') &&
+                !btnSearch.classList.contains('btn-auth-hidden') &&
+                !btnSearch.hidden &&
+                (!window.getComputedStyle || !btnSearch.isConnected || window.getComputedStyle(btnSearch).display !== 'none'));
 
             if (isSearched) {
                 // [조회 실행 완료 후]
@@ -175,8 +181,13 @@
                 if (btnSearch) this._setElementEnabled(btnSearch, true);
 
                 // 3) 조회 버튼을 제외한 나머지 권한 버튼들: 활성화
+                //    단, 파워빌더 eb_new_false / eb_copy_false / eb_delete_false 설정이 true인 버튼은 강제 비활성화 유지
                 otherButtons.forEach(function(btn) {
-                    ButtonRole._setElementEnabled(btn, true);
+                    const forceDisabled =
+                        (container.ebNewFalse && btn.classList.contains('btn-input')) ||
+                        (container.ebCopyFalse && btn.classList.contains('btn-copy')) ||
+                        (container.ebDeleteFalse && btn.classList.contains('btn-delete'));
+                    ButtonRole._setElementEnabled(btn, !forceDisabled);
                 });
             } else {
                 // [조회 실행 전 (초기 진입 또는 새로고침 후)]
@@ -186,9 +197,14 @@
                 // 2) 조회 버튼: 활성화
                 if (btnSearch) this._setElementEnabled(btnSearch, true);
 
-                // 3) 닫기와 조회를 제외한 나머지 버튼들: 비활성화 (보여지되 기능 차단 및 시각적 딤)
+                // 3) 닫기와 조회를 제외한 나머지 버튼들: 비활성화
+                //    단, 조회 버튼 권한이 없고 새로고침만 있는 화면은 새로고침 버튼을 활성화 유지
                 otherButtons.forEach(function(btn) {
-                    ButtonRole._setElementEnabled(btn, false);
+                    if (!hasSearchButton && hasRefreshButton && btn.classList.contains('btn-refresh')) {
+                        ButtonRole._setElementEnabled(btn, true);
+                    } else {
+                        ButtonRole._setElementEnabled(btn, false);
+                    }
                 });
             }
 

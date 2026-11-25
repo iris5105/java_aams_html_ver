@@ -204,8 +204,29 @@ window.DynamicCodeSearch = (function() {
     /**
      * Open Modal Code Search Popup (w_DynamicCodeSearch)
      */
+    function isSummaryTrigger(modalOptions) {
+        try {
+            const targetRow = (modalOptions && modalOptions.row)
+                || (modalOptions && modalOptions.cell && typeof modalOptions.cell.getRow === "function" ? modalOptions.cell.getRow() : null);
+            if (targetRow && typeof window.isAamsSummaryRow === "function" && window.isAamsSummaryRow(targetRow)) {
+                return true;
+            }
+            const el = (modalOptions && (modalOptions.anchorEl || modalOptions.target))
+                || (typeof window.event !== "undefined" && window.event ? window.event.target : null);
+            if (el && typeof el.closest === "function") {
+                if (el.closest(".aams-summary-row, .aams-group-summary-row, .tabulator-calcs, .tabulator-calcs-holder, .tabulator-footer")) {
+                    return true;
+                }
+            }
+        } catch (e) {}
+        return false;
+    }
+
     function openModal(modalOptions) {
         if (!modalOptions) modalOptions = {};
+        if (isSummaryTrigger(modalOptions)) {
+            return;
+        }
         const columnNm = modalOptions.columnNm || "rcd";
         const seq = modalOptions.seq || 2;
         const corpGr = modalOptions.corpGr || resolveCorpGr();

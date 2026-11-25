@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.kfp.aams.domain.foreignassetmanagement.mapper.Ja035cMapper">
+    <select id="selectList" resultType="com.kfp.aams.domain.foreignassetmanagement.dto.Ja035cDto">
+        SELECT yh.CORP_GR, TO_CHAR(yh.TR_YMD, 'YYYY-MM-DD') AS tr_ymd, yh.TR_CD, yh.FUND_CD, yh.TR_CO_CD,
+               yh.TRUSTEE, yh.JM_CD AS yj_cd, yh.TR_SEQ, yh.CURRENCY, yh.GYULJE_AEK, yh.TRANS_RT,
+               yh.WON_GYULJE_AEK, TO_CHAR(yh.GYULJE_YMD, 'YYYY-MM-DD') AS gyulje_ymd,
+               ia.FUND_NM AS xx_fund_cd, F_JM_NM(yh.CORP_GR, yh.JM_CD) AS xx_yj_cd, ia.FUND_CURRENCY,
+               yh.FCUR_GYULJE_AEK, yh.KSD_JM_CD, jm.JM_NM AS xx_ksd_jm_cd, 1 AS p_visible
+          FROM SYT0YH yh
+          JOIN SZM0IA ia ON ia.CORP_GR = yh.CORP_GR AND ia.FUND_CD = yh.FUND_CD
+          LEFT JOIN OTS0JM jm ON jm.CORP_GR = yh.CORP_GR AND jm.JM_CD = yh.KSD_JM_CD
+         WHERE yh.CORP_GR = #{corpGr}
+           AND yh.TR_YMD = TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
+           AND yh.TR_CD = #{trCd}
+         ORDER BY yh.FUND_CD, yh.TRUSTEE, yh.JM_CD
+    </select>
+    <select id="selectHighlightDates" resultType="java.lang.String">
+        SELECT DISTINCT TO_CHAR(yh.TR_YMD, 'YYYY-MM-DD') AS tr_ymd
+          FROM SYT0YH yh
+         WHERE yh.CORP_GR = #{corpGr}
+         ORDER BY tr_ymd
+    </select>
+    <select id="selectMaxTrSeq" resultType="java.lang.Long">
+        SELECT NVL(MAX(TR_SEQ), 0) FROM SYT0YH WHERE CORP_GR=#{corpGr}
+          AND TR_YMD=TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD') AND TR_CD=#{trCd}
+    </select>
+    <select id="selectCurrencyRate" resultType="java.math.BigDecimal">
+        SELECT F_CURRENCY_RT(#{corpGr}, TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD'), #{currency}) FROM DUAL
+    </select>
+    <select id="selectTrusteeCurrency" resultType="java.lang.String">
+        SELECT CURRENCY FROM SYX2MM
+         WHERE CORP_GR = #{corpGr} AND TRUSTEE = #{trustee} AND ROWNUM = 1
+    </select>
+    <select id="selectTrusteeBankCurrency" resultType="java.lang.String">
+        SELECT BANK_CD FROM SZX2MM
+         WHERE CORP_GR = #{corpGr} AND TR_CO_CD = #{trustee} AND ROWNUM = 1
+    </select>
+    <insert id="insert">
+        INSERT INTO SYT0YH (CORP_GR, TR_YMD, TR_CD, FUND_CD, TR_CO_CD, TRUSTEE, JM_CD, TR_SEQ, CURRENCY,
+                            GYULJE_AEK, TRANS_RT, WON_GYULJE_AEK, GYULJE_YMD, FCUR_GYULJE_AEK, KSD_JM_CD)
+        VALUES (#{corpGr}, TO_DATE(REPLACE(#{trYmd}, '-', ''), 'YYYYMMDD'), #{trCd}, #{fundCd}, #{trCoCd,jdbcType=VARCHAR},
+                #{trustee,jdbcType=VARCHAR}, #{yjCd,jdbcType=VARCHAR}, #{trSeq}, #{currency,jdbcType=VARCHAR},
+                NVL(#{gyuljeAek},0), NVL(#{transRt},0), NVL(#{wonGyuljeAek},0),
+                TO_DATE(REPLACE(#{gyuljeYmd}, '-', ''), 'YYYYMMDD'), #{fcurGyuljeAek,jdbcType=NUMERIC}, #{ksdJmCd,jdbcType=VARCHAR})
+    </insert>
+    <update id="update">
+        UPDATE SYT0YH SET TR_CO_CD=#{trCoCd,jdbcType=VARCHAR}, TRUSTEE=#{trustee,jdbcType=VARCHAR}, JM_CD=#{yjCd,jdbcType=VARCHAR},
+            CURRENCY=#{currency,jdbcType=VARCHAR}, GYULJE_AEK=NVL(#{gyuljeAek},0), TRANS_RT=NVL(#{transRt},0),
+            WON_GYULJE_AEK=NVL(#{wonGyuljeAek},0), GYULJE_YMD=TO_DATE(REPLACE(#{gyuljeYmd}, '-', ''), 'YYYYMMDD'),
+            FCUR_GYULJE_AEK=#{fcurGyuljeAek,jdbcType=NUMERIC}, KSD_JM_CD=#{ksdJmCd,jdbcType=VARCHAR}
+        WHERE CORP_GR=#{corpGr} AND TR_YMD=TO_DATE(REPLACE(#{trYmd}, '-', ''), 'YYYYMMDD') AND TR_CD=#{trCd}
+          AND FUND_CD=#{fundCd} AND TR_SEQ=#{trSeq}
+    </update>
+    <delete id="delete">
+        DELETE FROM SYT0YH WHERE CORP_GR=#{corpGr} AND TR_YMD=TO_DATE(REPLACE(#{trYmd}, '-', ''), 'YYYYMMDD')
+          AND TR_CD=#{trCd} AND FUND_CD=#{fundCd} AND TR_SEQ=#{trSeq}
+    </delete>
+</mapper>

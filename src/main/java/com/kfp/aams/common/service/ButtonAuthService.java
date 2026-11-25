@@ -36,23 +36,29 @@ public class ButtonAuthService {
 
     @SuppressWarnings("null")
     public ButtonAuthDto getButtonAuth(String userId, String corpGr, String adminYn, String userNm, String pgmNo) {
-        if ("Y".equalsIgnoreCase(adminYn)) {
-            return ButtonAuthDto.allAllowed(pgmNo);
-        }
-
         if (pgmNo == null || pgmNo.trim().isEmpty()) {
             return ButtonAuthDto.allAllowed(pgmNo);
         }
 
+        String cleanPgmNo = pgmNo.trim();
         String today = LocalDate.now().format(DateTimeFormatter.BASIC_ISO_DATE); // yyyyMMdd
+        boolean isAdmin = "Y".equalsIgnoreCase(adminYn);
 
-        // 1. 파워빌더 fw_d_commbtnauth.srd 쿼리 결과 조회
-        List<ButtonAuthRawDto> authList = buttonAuthMapper.selectButtonAuthListByUser(userId, corpGr, pgmNo.trim(),
+        // 1. 파워빌더 fw_d_commbtnauth.srd 쿼리 결과 조회 (사용자 역할 기반)
+        List<ButtonAuthRawDto> authList = buttonAuthMapper.selectButtonAuthListByUser(userId, corpGr, cleanPgmNo,
                 today, userNm);
 
-        // 2. 권한 데이터가 존재하지 않는 경우
+        // 2. 관리자(adminYn='Y')인 경우에도 사용자 역할 매핑이 없으면 해당 화면(pgmNo)의 버튼 설정을 조회하여 따름
+        if ((authList == null || authList.isEmpty()) && isAdmin) {
+            authList = buttonAuthMapper.selectButtonAuthListByPgm(cleanPgmNo, today);
+        }
+
+        // 3. 권한 데이터가 존재하지 않는 경우
         if (authList == null || authList.isEmpty()) {
-            // 관리자 계정이거나 미지정 프로그램인 경우 기본 허용 fallback
+            if (isAdmin) {
+                // DB에 등록되지 않은 프로그램에 대한 관리자 fallback
+                return ButtonAuthDto.allAllowed(pgmNo);
+            }
             log.warn("[ButtonAuthService] No button authority found for user: {}, pgmNo: {}", userId, pgmNo);
             return ButtonAuthDto.disabled(pgmNo);
         }

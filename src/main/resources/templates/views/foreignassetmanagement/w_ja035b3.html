@@ -1,0 +1,826 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<!--
+    W_JA035B3: 해외선물 매매등록 (사무관리 > 외화자산운용 > 외화자산운용)
+    DataWindow:
+      - dw_c: dc_ymd_dddw (영업일자@매매구분, default: S10)
+      - dw_list: d_ja035b3 (해외선물 매매내역, SYT0MG)
+-->
+<div class="view-container layout-single ja035b3-container layout-mobile-stack-container" th:fragment="ja035b3View">
+    <style>
+        .ja035b3-container .tabulator .tabulator-footer,
+        .ja035b3-container .tabulator .tabulator-footer .tabulator-calcs-holder,
+        .ja035b3-container .tabulator .tabulator-footer .tabulator-calcs-holder .tabulator-row,
+        .ja035b3-container .tabulator .tabulator-footer .tabulator-calcs-holder .tabulator-cell {
+            background-color: #fbf2c4 !important;
+            color: #1e293b !important;
+            font-weight: 600 !important;
+        }
+        .ja035b3-container .tabulator .tabulator-footer {
+            border-top: 1px solid #cbd5e1 !important;
+            padding: 0 !important;
+            overflow: hidden !important;
+        }
+        .ja035b3-container .tabulator .tabulator-footer .tabulator-calcs-holder {
+            border: none !important;
+            overflow: hidden !important;
+            pointer-events: none !important;
+            user-select: none !important;
+            cursor: default !important;
+        }
+        .ja035b3-container .tabulator .tabulator-footer .tabulator-calcs-holder .tabulator-row,
+        .ja035b3-container .tabulator .tabulator-footer .tabulator-calcs-holder .tabulator-cell {
+            height: 28px !important;
+            min-height: 28px !important;
+            pointer-events: none !important;
+            user-select: none !important;
+            cursor: default !important;
+        }
+        .ja035b3-container .tabulator .tabulator-footer .tabulator-calcs-holder .tabulator-cell {
+            line-height: 20px !important;
+            border-right: 1px solid #e2e8f0 !important;
+        }
+        .ja035b3-container .tabulator .tabulator-footer .cell-text-blue {
+            color: #1d4ed8 !important;
+            font-weight: 700 !important;
+        }
+    </style>
+
+    <div class="view-toolbar">
+        <div class="toolbar-left">
+            <div th:replace="~{fragments/tab_header :: toolbarButtons}"></div>
+        </div>
+        <div th:replace="~{fragments/tab_header :: toolbarBreadcrumb}"></div>
+    </div>
+
+    <div class="filter-bar">
+        <div class="filter-left">
+            <div class="filter-bar filter-dc-ymd-dddw">
+                <div class="filter-item" style="position: relative; display: flex; align-items: center; gap: 6px;">
+                    <label for="filterJa035b3Ymd">영업일자</label>
+                    <div class="aams-calendar-wrapper" style="position: relative; display: inline-flex; align-items: center;">
+                        <input type="text" id="filterJa035b3Ymd" name="ymd" class="t-input aams-calendar-input"
+                               style="width: 110px; padding: 4px 8px; font-size: 13px; text-align: center; border: 1px solid #cbd5e1; border-radius: 4px 0 0 4px; cursor: pointer; background: #ffffff;"
+                               th:value="${ymd != null ? ymd : ''}" readonly autocomplete="off" />
+                        <button type="button" class="t-btn btn-calendar" title="달력 열기"
+                                style="padding: 5px 10px; border-radius: 0 4px 4px 0; border-left: none; background-color: #3b82f6; color: #ffffff; border: 1px solid #3b82f6; cursor: pointer;"
+                                onclick="AamsCalendar.toggle('filterJa035b3Ymd', event)">
+                            <i class="fa-regular fa-calendar-days"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="filter-item">
+                    <label for="filterDddw">매매구분</label>
+                    <select id="filterDddw" name="dddw" class="filter-select"></select>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <section class="grid-section" aria-label="해외선물 매매등록">
+        <div class="grid-table-wrapper">
+            <div id="gridJa035b3" class="tabulator-aams-grid"></div>
+        </div>
+    </section>
+
+    <script th:inline="javascript">
+    (function () {
+        const script = document.currentScript;
+        const pane = script && (script.closest('.tab-pane') || script.closest('.view-container'));
+        if (!pane) return;
+
+        const api = '/api/foreignassetmanagement/ja035b3';
+        const calendarId = 'filterJa035b3Ymd';
+        const initialYmd = /*[[${initialYmd}]]*/ '';
+        const workDate = /*[[${workDate}]]*/ '';
+        const initialTrDates = /*[[${trDates}]]*/ [];
+
+        let initialized = false;
+        let grid = null;
+        let gridBuilt = false;
+        let cudManager = null;
+        let maxSeq = 0;
+        let hasSucceededSearch = false;
+
+        const dddwOptionsMap = {
+            tr_co_cd: [],
+            trustee: [],
+            currency: [],
+            gyulje_jm_cd: []
+        };
+
+        const totalFields = ['trJusu', 'trCost', 'trAek', 'gyuljeAek', 'wonGyuljeAek'];
+
+        const notify = (msg, level) => { if (window.showToast) window.showToast(msg, level); };
+        const corpGr = () => window.resolveCorpGr ? window.resolveCorpGr(pane) : '';
+        const ymd = () => window.getFilterYmd ? window.getFilterYmd(pane) : (pane.querySelector('#' + calendarId)?.value || '');
+        const trCd = () => pane.querySelector('#filterDddw')?.value || '';
+        const num = val => Number(val) || 0;
+        const trunc2 = val => Math.trunc((Number(val) || 0) * 100) / 100;
+
+        function isSummary(row) {
+            if (!row) return false;
+            if (window.isAamsSummaryRow && window.isAamsSummaryRow(row)) return true;
+            const data = typeof row.getData === 'function' ? row.getData() : row;
+            return !!(data && data.isSummaryRow);
+        }
+
+        function canManage() {
+            if (window.ButtonRole && typeof window.ButtonRole.isDisabled === 'function') {
+                const saveBtn = pane.querySelector('.toolbar-left [data-btn-id="save"]');
+                if (saveBtn && window.ButtonRole.isDisabled(saveBtn)) return false;
+            }
+            return true;
+        }
+
+        function restoreToolbarState() {
+            if (window.ButtonRole && typeof window.ButtonRole.setSearchState === 'function') {
+                window.ButtonRole.setSearchState(pane, hasSucceededSearch);
+            }
+        }
+
+        function updateFooterVisibility() {
+            if (!grid || !grid.element) return;
+            const footer = grid.element.querySelector('.tabulator-footer');
+            if (footer) {
+                footer.style.display = grid.getData().some(row => !row.isDeleted) ? 'block' : 'none';
+            }
+        }
+
+        function recalcSummaryRow() {
+            if (!grid) return;
+            if (typeof grid.recalc === 'function') grid.recalc();
+            updateFooterVisibility();
+        }
+
+        function calcNormalSum(values, data, params) {
+            return (data || []).reduce((sum, row) => row.isDeleted ? sum : sum + (Number(row[params.field]) || 0), 0);
+        }
+
+        function formatFooterNumber(cell, decimals) {
+            const value = Number(cell.getValue()) || 0;
+            return '<span class="cell-text-blue font-bold">' + value.toLocaleString('ko-KR', {
+                minimumFractionDigits: decimals,
+                maximumFractionDigits: decimals
+            }) + '</span>';
+        }
+
+        async function fetchJson(url, options) {
+            const response = await fetch(url, options);
+            const body = await response.json().catch(() => null);
+            if (!response.ok || (body && body.success === false)) {
+                throw new Error((body && body.message) || '처리 중 오류가 발생했습니다.');
+            }
+            return body;
+        }
+
+        function markRowUpdated(row, patch) {
+            if (!row || isSummary(row)) return;
+            const data = row.getData();
+            const update = Object.assign({
+                isUpdated: !data.isNew,
+                rowStatus: data.isNew ? 'C' : 'U'
+            }, patch || {});
+            row.update(update);
+        }
+
+        function propagateBlankRows(sourceRow, field, extraFields) {
+            if (!grid || !sourceRow) return;
+            const rows = grid.getRows().filter(r => !isSummary(r));
+            const startIdx = rows.indexOf(sourceRow);
+            if (startIdx < 0) return;
+            const srcData = sourceRow.getData();
+            const val = srcData[field];
+            if (val === null || val === undefined || String(val).trim() === '') return;
+
+            for (let i = startIdx + 1; i < rows.length; i++) {
+                const target = rows[i];
+                const tData = target.getData();
+                if (tData[field] === null || tData[field] === undefined || String(tData[field]).trim() === '') {
+                    const patch = {};
+                    patch[field] = val;
+                    if (Array.isArray(extraFields)) {
+                        extraFields.forEach(ef => { patch[ef] = srcData[ef]; });
+                    }
+                    markRowUpdated(target, patch);
+                }
+            }
+        }
+
+        function propagateTransRt(sourceRow) {
+            if (!grid || !sourceRow) return;
+            const rows = grid.getRows().filter(r => !isSummary(r));
+            const startIdx = rows.indexOf(sourceRow);
+            if (startIdx < 0) return;
+            const rt = num(sourceRow.getData().transRt);
+
+            for (let i = startIdx + 1; i < rows.length; i++) {
+                const target = rows[i];
+                const tData = target.getData();
+                if (num(tData.transRt) === 0) {
+                    const wonGyuljeAek = Math.trunc(num(tData.gyuljeAek) * rt);
+                    markRowUpdated(target, { transRt: rt, wonGyuljeAek: wonGyuljeAek });
+                }
+            }
+        }
+
+        function recalculateRow(row, field) {
+            if (!row || isSummary(row)) return;
+            const d = row.getData();
+            let trAek = num(d.trAek);
+            const unitAek = num(d.unitAek) || 1;
+
+            if (field === 'trJusu' || field === 'trDanga' || field === 'unitAek') {
+                trAek = trunc2(num(d.trJusu) * num(d.trDanga) * unitAek);
+            }
+
+            let gyuljeAek = num(d.gyuljeAek);
+            if (['trJusu', 'trDanga', 'unitAek', 'trAek', 'trTax', 'trCost'].includes(field)) {
+                gyuljeAek = trunc2(trAek + num(d.trTax) + num(d.trCost));
+            }
+
+            const wonGyuljeAek = Math.trunc(gyuljeAek * num(d.transRt));
+            markRowUpdated(row, {
+                trAek: trAek,
+                gyuljeAek: gyuljeAek,
+                wonGyuljeAek: wonGyuljeAek
+            });
+        }
+
+        async function applyUnitAek(row, jmCd) {
+            if (!row || !jmCd || !corpGr()) return;
+            try {
+                const res = await fetchJson(api + '/unit-aek?' + new URLSearchParams({
+                    corpGr: corpGr(),
+                    jmCd: jmCd
+                }));
+                const unitAek = num(res && res.unitAek);
+                markRowUpdated(row, { unitAek: unitAek });
+                recalculateRow(row, 'unitAek');
+                recalcSummaryRow();
+            } catch (e) {
+                console.warn('[Ja035b3] unit-aek 조회 오류:', e);
+            }
+        }
+
+        async function applyTrusteeInfo(row, trustee) {
+            if (!row || !trustee || !corpGr()) return;
+            try {
+                const res = await fetchJson(api + '/trustee-info?' + new URLSearchParams({
+                    corpGr: corpGr(),
+                    ymd: ymd(),
+                    trustee: trustee
+                }));
+                if (!res) return;
+                const patch = {};
+                if (res.currency) patch.currency = res.currency;
+                if (res.transRt !== undefined && res.transRt !== null) {
+                    patch.transRt = num(res.transRt);
+                }
+                if (res.gyuljeJmCd) patch.gyuljeJmCd = res.gyuljeJmCd;
+                const d = row.getData();
+                const rt = patch.transRt !== undefined ? patch.transRt : num(d.transRt);
+                patch.wonGyuljeAek = Math.trunc(num(d.gyuljeAek) * rt);
+                markRowUpdated(row, patch);
+                recalcSummaryRow();
+            } catch (e) {
+                console.warn('[Ja035b3] trustee-info 조회 오류:', e);
+            }
+        }
+
+        async function onCellEdited(cell) {
+            if (!cell) return;
+            const row = cell.getRow();
+            if (!row || isSummary(row)) return;
+            const field = cell.getField();
+            const d = row.getData();
+
+            if (!d.isNew) {
+                d.isUpdated = true;
+                d.rowStatus = 'U';
+            }
+
+            if (field === 'fundCd') {
+                propagateBlankRows(row, 'fundCd', ['xxFundCd']);
+            } else if (field === 'yjCd') {
+                propagateBlankRows(row, 'yjCd', ['xxYjCd']);
+                await applyUnitAek(row, d.yjCd);
+            } else if (field === 'trustee') {
+                propagateBlankRows(row, 'trustee');
+                await applyTrusteeInfo(row, d.trustee);
+            } else if (field === 'currency' || field === 'gyuljeJmCd') {
+                propagateBlankRows(row, field);
+            } else if (['trJusu', 'trDanga', 'trAek', 'trTax', 'trCost', 'gyuljeAek'].includes(field)) {
+                recalculateRow(row, field);
+            } else if (field === 'transRt') {
+                recalculateRow(row, 'transRt');
+                propagateTransRt(row);
+            }
+
+            setTimeout(recalcSummaryRow, 0);
+        }
+
+        function editCol(field, title, width, extra) {
+            return Object.assign({
+                field: field,
+                title: title,
+                width: width,
+                editor: 'input',
+                editable: cell => !isSummary(cell.getRow()) && canManage(),
+                cellClick: window.aamsCellEdit,
+                cellEdited: onCellEdited
+            }, extra || {});
+        }
+
+        function dropdownCol(field, title, width, key) {
+            return editCol(field, title, width, {
+                editor: 'list',
+                editorParams: function () {
+                    return { values: f_dddwctl ? f_dddwctl.getOptions(dddwOptionsMap, key) : [] };
+                },
+                formatter: function (cell) {
+                    return (f_dddwctl && f_dddwctl.getLabel(dddwOptionsMap, key, cell.getValue())) || cell.getValue() || '';
+                }
+            });
+        }
+
+        function numberCol(field, title, width, decimals, writable = true) {
+            const col = {
+                field: field,
+                title: title,
+                width: width,
+                hozAlign: 'right',
+                formatter: function (cell) {
+                    const val = cell.getValue();
+                    if (val === null || val === undefined || val === '') return '';
+                    const n = Number(val);
+                    if (Number.isNaN(n)) return '';
+                    return n.toLocaleString('ko-KR', {
+                        minimumFractionDigits: decimals,
+                        maximumFractionDigits: decimals
+                    });
+                }
+            };
+            if (totalFields.includes(field)) {
+                col.bottomCalc = calcNormalSum;
+                col.bottomCalcParams = { field: field };
+                col.bottomCalcFormatter = cell => formatFooterNumber(cell, decimals);
+            }
+            return writable
+                ? Object.assign(editCol(field, title, width), col, { editor: 'number' })
+                : col;
+        }
+
+        async function openFundSearch(target) {
+            const row = target && target.getRow ? target.getRow() : target;
+            if (!row || isSummary(row) || !canManage()) return;
+            if (!window.DynamicCodeSearch || typeof window.DynamicCodeSearch.openModal !== 'function') return;
+
+            const ymdDot = (ymd() || '').replaceAll('-', '.');
+            const addWhere = ymdDot ? "nvl(haeji_ymd,'2999.12.31') > '" + ymdDot + "'" : '';
+
+            window.DynamicCodeSearch.openModal({
+                title: '펀드 검색',
+                columnNm: 'fund_cd',
+                corpGr: corpGr(),
+                seq: 50,
+                addWhere: addWhere,
+                row: row,
+                initialKeyword: row.getData().fundCd || '',
+                onSelect: function (code, name) {
+                    markRowUpdated(row, { fundCd: code || '', xxFundCd: name || '' });
+                    propagateBlankRows(row, 'fundCd', ['xxFundCd']);
+                }
+            });
+        }
+
+        async function openItemSearch(target) {
+            const row = target && target.getRow ? target.getRow() : target;
+            if (!row || isSummary(row) || !canManage()) return;
+            if (!window.DynamicCodeSearch || typeof window.DynamicCodeSearch.openModal !== 'function') return;
+
+            const d = row.getData();
+            const curTrCd = trCd();
+            const cur = (d.currency || '').trim();
+            let seq = 3;
+            const conds = [];
+            if (cur) conds.push("currency='" + cur.replaceAll("'", "''") + "'");
+
+            if (curTrCd === 'E33' || curTrCd === 'J93') {
+                seq = 9;
+            } else {
+                seq = 3;
+                try {
+                    const condRes = await fetchJson(api + '/item-search-cond?' + new URLSearchParams({
+                        corpGr: corpGr(),
+                        trustee: d.trustee || '',
+                        trCd: curTrCd
+                    }));
+                    if (condRes && condRes.sjGb) {
+                        conds.push("sj_gb='" + String(condRes.sjGb).replaceAll("'", "''") + "'");
+                    }
+                } catch (e) {
+                    console.warn('[Ja035b3] item-search-cond 조회 오류:', e);
+                }
+            }
+
+            window.DynamicCodeSearch.openModal({
+                title: '종목 검색',
+                columnNm: 'yj_cd',
+                corpGr: corpGr(),
+                seq: seq,
+                addWhere: conds.join(' and '),
+                row: row,
+                initialKeyword: d.yjCd || '',
+                onSelect: function (code, name) {
+                    markRowUpdated(row, { yjCd: code || '', xxYjCd: name || '' });
+                    propagateBlankRows(row, 'yjCd', ['xxYjCd']);
+                    applyUnitAek(row, code);
+                }
+            });
+        }
+
+        function initGrid() {
+            grid = new Tabulator(pane.querySelector('#gridJa035b3'), {
+                height: '100%',
+                layout: 'fitDataFill',
+                selectableRows: 1,
+                editTriggerEvent: 'click',
+                placeholder: '조회된 내역이 없습니다.',
+                columnDefaults: {
+                    vertAlign: 'middle',
+                    headerHozAlign: 'center',
+                    headerSort: false
+                },
+                columns: [
+                    {
+                        title: 'No.',
+                        width: 55,
+                        hozAlign: 'center',
+                        formatter: cell => isSummary(cell.getRow()) ? '' : cell.getRow().getPosition(true)
+                    },
+                    editCol('fundCd', '펀드번호', 105, {
+                        hozAlign: 'center',
+                        headerCssClass: 'col-hdr-green',
+                        cellDblClick: (_e, cell) => openFundSearch(cell)
+                    }),
+                    {
+                        title: '',
+                        field: 'pXxFundCd',
+                        width: 36,
+                        minWidth: 36,
+                        maxWidth: 36,
+                        resizable: false,
+                        hozAlign: 'center',
+                        formatter: cell => isSummary(cell.getRow())
+                            ? ''
+                            : '<button type="button" class="btn-grid-addon btn-search" title="펀드 검색"><i class="fa-solid fa-magnifying-glass"></i></button>',
+                        cellClick: function (event, cell) {
+                            event.stopPropagation();
+                            openFundSearch(cell);
+                        }
+                    },
+                    { title: '펀드명', field: 'xxFundCd', width: 185, hozAlign: 'left' },
+                    dropdownCol('trCoCd', '매매처', 145, 'tr_co_cd'),
+                    dropdownCol('trustee', '거래소', 130, 'trustee'),
+                    editCol('yjCd', '종목', 125, {
+                        hozAlign: 'center',
+                        headerCssClass: 'col-hdr-blue',
+                        cellDblClick: (_e, cell) => openItemSearch(cell)
+                    }),
+                    {
+                        title: '',
+                        field: 'pXxYjCd',
+                        width: 36,
+                        minWidth: 36,
+                        maxWidth: 36,
+                        resizable: false,
+                        hozAlign: 'center',
+                        formatter: cell => isSummary(cell.getRow())
+                            ? ''
+                            : '<button type="button" class="btn-grid-addon btn-search" title="종목 검색"><i class="fa-solid fa-magnifying-glass"></i></button>',
+                        cellClick: function (event, cell) {
+                            event.stopPropagation();
+                            openItemSearch(cell);
+                        }
+                    },
+                    {
+                        title: '종목명',
+                        field: 'xxYjCd',
+                        width: 200,
+                        hozAlign: 'left',
+                        bottomCalc: (values, data) => data && data.some(r => !r.isDeleted) ? '합  계' : '',
+                        bottomCalcFormatter: cell => '<div style="text-align:center; font-weight:bold; width:100%;">' + (cell.getValue() || '') + '</div>'
+                    },
+                    { title: 'No', field: 'trSeq', width: 60, hozAlign: 'center' },
+                    numberCol('trJusu', '수량', 110, 2),
+                    numberCol('trDanga', '지수', 110, 4),
+                    numberCol('trCost', '외화수수료', 115, 2),
+                    numberCol('trAek', '외화약정금액', 135, 2),
+                    numberCol('gyuljeAek', '외화결제금액', 135, 2),
+                    numberCol('transRt', '거래환율', 100, 2),
+                    numberCol('wonGyuljeAek', '원화결제액', 135, 0, false),
+                    editCol('gyuljeYmd', '결제일자', 115, {
+                        editor: window.aamsDateEditor,
+                        hozAlign: 'center',
+                        formatter: cell => window.formatDateVal ? window.formatDateVal(cell.getValue()) : (cell.getValue() || '')
+                    }),
+                    {
+                        title: '',
+                        field: 'p_dd_gyulje_ymd',
+                        width: 36,
+                        minWidth: 36,
+                        maxWidth: 36,
+                        resizable: false,
+                        hozAlign: 'center',
+                        formatter: cell => isSummary(cell.getRow())
+                            ? ''
+                            : '<button type="button" class="btn-grid-addon btn-cal" title="결제일자 선택"><i class="fa-regular fa-calendar-days"></i></button>',
+                        cellClick: function (event, cell) {
+                            event.stopPropagation();
+                            const row = cell.getRow();
+                            if (!canManage() || isSummary(row) || !window.AamsCalendar) return;
+                            AamsCalendar.openDatePicker({
+                                anchorEl: cell.getElement(),
+                                initialYmd: row.getData().gyuljeYmd || '',
+                                format: 'dash',
+                                onSelect: value => markRowUpdated(row, { gyuljeYmd: value })
+                            });
+                        }
+                    },
+                    dropdownCol('currency', '통화', 85, 'currency'),
+                    dropdownCol('gyuljeJmCd', '결제종목', 130, 'gyulje_jm_cd'),
+                    numberCol('unitAek', '거래단위', 95, 2, false),
+                    { title: '기준통화', field: 'fundCurrency', width: 85, hozAlign: 'center', cssClass: 'cell-text-muted' },
+                    numberCol('syt0mgFcurGyuljeAek', '기준통화 결제금액', 135, 2, false),
+                    numberCol('syt0mgFcurSonik', '기준통화 손익액', 135, 2, false),
+                    numberCol('syt0mgFcurHwanCha', '기준통화 환차손익', 135, 2, false)
+                ]
+            });
+
+            grid.on('cellEditing', function (cell) {
+                const row = cell && cell.getRow ? cell.getRow() : null;
+                if (row && isSummary(row) && typeof cell.cancelEdit === 'function') {
+                    cell.cancelEdit();
+                }
+            });
+
+            grid.on('tableBuilt', function () {
+                gridBuilt = true;
+                updateFooterVisibility();
+            });
+
+            if (typeof setupTabulatorRowSelection === 'function') {
+                setupTabulatorRowSelection(grid);
+            }
+            if (window.AamsResponsive) {
+                AamsResponsive.bindGridResize(pane, [grid]);
+            }
+            if (window.AamsCudManager) {
+                cudManager = AamsCudManager.create(grid, {
+                    allowedFields: [
+                        'trYmd', 'trCd', 'trSeq', 'bsType', 'trTax', 'mkSuikPer',
+                        'passIja', 'wonPassIja', 'unitAek',
+                        'syt0mgFcurGyuljeAek', 'syt0mgFcurSonik', 'syt0mgFcurHwanCha',
+                        'isDeleted'
+                    ]
+                });
+            }
+        }
+
+        async function loadGridOptions() {
+            if (!corpGr() || !window.f_dddwctl) return;
+            const results = await f_dddwctl.retrieveMultiple({
+                tr_co_cd:     ['tr_co_cd', corpGr(), '', 1, "tr_gb in ('1','2')"],
+                trustee:      ['trustee', corpGr(), '', 1, ''],
+                currency:     ['currency', corpGr(), '', 1, ''],
+                gyulje_jm_cd: ['gyulje_jm_cd', corpGr(), '', 1, '']
+            });
+            dddwOptionsMap.tr_co_cd = results.tr_co_cd || [];
+            dddwOptionsMap.trustee = results.trustee || [];
+            dddwOptionsMap.currency = results.currency || [];
+            dddwOptionsMap.gyulje_jm_cd = results.gyulje_jm_cd || [];
+            if (grid && gridBuilt) {
+                grid.getRows().forEach(r => r.reformat());
+            }
+        }
+
+        async function loadFilter() {
+            if (!window.initFilterDddw) return;
+            const date = ymd();
+            const oldDate = date && workDate && date < workDate;
+            const safeCorpGr = corpGr().replaceAll("'", "''");
+            const where = "szx1pt.obj_id='W_JA035B3'" +
+                (oldDate
+                    ? " and szx0gc.tr_cd in (select tr_cd from syt0mg where corp_gr='" + safeCorpGr + "' and tr_ymd='" + date.replaceAll('-', '.') + "')"
+                    : '');
+            await initFilterDddw(pane, {
+                selectId: 'filterDddw',
+                dddwId: 'dddw',
+                corpGr: corpGr(),
+                seq: 1,
+                addWhere: where,
+                defaultVal: 'S10',
+                codeTitle: '코드',
+                nameTitle: '매매구분'
+            });
+        }
+
+        function initCalendar() {
+            if (!window.AamsCalendar) return;
+            AamsCalendar.init(calendarId, {
+                pane: pane,
+                initialYmd: initialYmd || ymd(),
+                highlightDates: Array.isArray(initialTrDates) ? initialTrDates : [],
+                datesApiUrl: api + '/dates',
+                corpGr: corpGr(),
+                historyTitle: '해외선물 매매내역 존재',
+                onSelect: () => loadFilter().catch(err => notify(err.message, 'error'))
+            });
+        }
+
+        async function load() {
+            if (!corpGr()) {
+                restoreToolbarState();
+                return notify('회사그룹을 확인해주세요.', 'warning');
+            }
+            if (!ymd()) {
+                restoreToolbarState();
+                return notify('영업일자를 선택해주세요.', 'warning');
+            }
+            if (!trCd()) {
+                restoreToolbarState();
+                return notify('매매구분을 선택해주세요.', 'warning');
+            }
+
+            try {
+                const rows = await fetchJson(api + '/list?' + new URLSearchParams({
+                    corpGr: corpGr(),
+                    ymd: ymd(),
+                    trCd: trCd()
+                }));
+                hasSucceededSearch = true;
+                maxSeq = Math.max(0, ...rows.map(r => Number(r.trSeq) || 0));
+                const formatted = cudManager ? cudManager.formatData(rows) : rows;
+                await grid.setData(formatted);
+                updateFooterVisibility();
+                const firstRow = grid.getRows().find(r => !isSummary(r));
+                if (firstRow) firstRow.select();
+            } catch (err) {
+                restoreToolbarState();
+                notify(err.message || '조회 중 오류가 발생했습니다.', 'error');
+            }
+        }
+
+        function addRow() {
+            if (!corpGr() || !ymd() || !trCd()) {
+                return notify('회사그룹, 영업일자, 매매구분을 확인해주세요.', 'warning');
+            }
+            const existingRows = grid.getRows().filter(r => !isSummary(r) && !r.getData().isDeleted);
+            const prevData = existingRows.length > 0 ? existingRows[existingRows.length - 1].getData() : null;
+
+            const newRow = {
+                isNew: true,
+                rowStatus: 'C',
+                corpGr: corpGr(),
+                trYmd: ymd(),
+                trCd: trCd(),
+                trSeq: ++maxSeq,
+                bsType: 0,
+                trCoCd: prevData ? (prevData.trCoCd || '') : '',
+                gyuljeYmd: ymd(),
+                trJusu: 0,
+                trDanga: 0,
+                trCost: 0,
+                trAek: 0,
+                gyuljeAek: 0,
+                transRt: 0,
+                wonGyuljeAek: 0,
+                unitAek: 0
+            };
+
+            grid.addRow(newRow).then(r => {
+                r.select();
+                recalcSummaryRow();
+                const fundCell = r.getCell('fundCd');
+                if (fundCell) fundCell.edit();
+            });
+        }
+
+        function deleteRow() {
+            if (!grid) return;
+            const selectedRows = grid.getSelectedRows().filter(r => !isSummary(r));
+            if (!selectedRows.length) {
+                return notify('삭제할 행을 먼저 선택해주세요.', 'warning');
+            }
+            if (!confirm('선택한 행을 삭제하시겠습니까? (저장 시 DB에 반영됩니다)')) return;
+
+            const targetRow = selectedRows[0];
+            const dataRowsBefore = grid.getRows().filter(r => !isSummary(r));
+            const deletedIndex = dataRowsBefore.indexOf(targetRow);
+
+            const finalizeDelete = () => {
+                recalcSummaryRow();
+                const remaining = grid.getRows().filter(r => !isSummary(r));
+                remaining.forEach(r => r.reformat());
+                if (remaining.length > 0 && deletedIndex >= 0) {
+                    const nextIdx = deletedIndex < remaining.length ? deletedIndex : remaining.length - 1;
+                    const nextRow = remaining[nextIdx];
+                    if (nextRow) {
+                        grid.deselectRow();
+                        nextRow.select();
+                        try { nextRow.scrollTo(); } catch (e) {}
+                    }
+                }
+                notify('행이 삭제되었습니다. [저장] 시 최종 반영됩니다.', 'info');
+            };
+
+            if (cudManager && typeof cudManager.deleteRow === 'function') {
+                cudManager.deleteRow(targetRow).then(finalizeDelete);
+            } else {
+                targetRow.delete().then(finalizeDelete);
+            }
+        }
+
+        async function save() {
+            if (window.aamsValidateGridDates && !window.aamsValidateGridDates(grid, ['gyuljeYmd'])) return;
+            const changes = cudManager
+                ? cudManager.getChanges()
+                : grid.getData().filter(r => !isSummary(r) && (r.isNew || r.isUpdated || r.isDeleted));
+
+            if (!changes || !changes.length) {
+                return notify('저장할 변경 내역이 없습니다.', 'info');
+            }
+
+            try {
+                const res = await fetchJson(api + '/save?' + new URLSearchParams({
+                    corpGr: corpGr(),
+                    ymd: ymd(),
+                    trCd: trCd()
+                }), {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(changes)
+                });
+                notify(res.message || '저장되었습니다.', 'success');
+                if (window.AamsCalendar) {
+                    AamsCalendar.loadHighlightDates(calendarId, api + '/dates', corpGr());
+                }
+                await load();
+            } catch (err) {
+                notify(err.message || '저장 중 오류가 발생했습니다.', 'error');
+            }
+        }
+
+        function refresh() {
+            hasSucceededSearch = false;
+            maxSeq = 0;
+            if (cudManager && typeof cudManager.reset === 'function') {
+                cudManager.reset();
+            }
+            if (window.safeClearGrid) {
+                window.safeClearGrid(grid).then(updateFooterVisibility);
+            } else if (grid) {
+                grid.setData([]).then(updateFooterVisibility);
+            }
+            restoreToolbarState();
+        }
+
+        function start() {
+            if (initialized) return;
+            initialized = true;
+
+            initCalendar();
+            initGrid();
+            loadGridOptions().catch(err => notify(err.message || '선택 목록을 불러오지 못했습니다.', 'error'));
+            loadFilter().catch(err => notify(err.message || '매매구분 목록을 불러오지 못했습니다.', 'error'));
+
+            pane.onSearch = load;
+            pane.onInput = addRow;
+            pane.onDelete = deleteRow;
+            pane.onSave = save;
+            pane.onRefresh = refresh;
+            pane.onCorpGrChange = function (nextCorpGr) {
+                refresh();
+                loadGridOptions().catch(err => notify(err.message, 'error'));
+                loadFilter().catch(err => notify(err.message, 'error'));
+                if (window.AamsCalendar) {
+                    AamsCalendar.loadHighlightDates(calendarId, api + '/dates', nextCorpGr || corpGr());
+                }
+            };
+            pane.onExcel = function () {
+                if (grid) {
+                    grid.download('xlsx', '해외선물_매매등록_' + (ymd() || '') + '.xlsx', { sheetName: '매매등록' });
+                }
+            };
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', start);
+        } else {
+            start();
+        }
+    })();
+    </script>
+</div>
+</html>

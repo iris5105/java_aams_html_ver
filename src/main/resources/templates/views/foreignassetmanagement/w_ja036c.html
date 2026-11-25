@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<!--
+    W_JA036C: 유상청약납입 (사무관리 > 외화자산운용 > 외화자산운용)
+    DataWindow:
+      - dw_c: dc_ymd (영업일자)
+      - dw_list: d_ja036c (SYT0YS, TR_CD = 'G33')
+      - eb_direct_retrieve = true
+-->
+<div class="view-container layout-single ja036c-container layout-mobile-stack-container" th:fragment="ja036cView">
+    <style>
+        .ja036c-container .tabulator-row.aams-summary-row,
+        .ja036c-container .tabulator-row.aams-summary-row .tabulator-cell {
+            background-color: #fbf2c4 !important;
+            color: #1e293b !important;
+            font-weight: 600 !important;
+            pointer-events: none !important;
+            user-select: none !important;
+            cursor: default !important;
+            outline: none !important;
+        }
+        .ja036c-container .tabulator-row.aams-summary-row .cell-text-blue {
+            color: #1d4ed8 !important;
+            font-weight: 700 !important;
+        }
+    </style>
+
+    <div class="view-toolbar">
+        <div class="toolbar-left">
+            <div th:replace="~{fragments/tab_header :: toolbarButtons}"></div>
+        </div>
+        <div th:replace="~{fragments/tab_header :: toolbarBreadcrumb}"></div>
+    </div>
+
+    <div class="filter-bar">
+        <div class="filter-left">
+            <div class="filter-item" style="position: relative; display: flex; align-items: center; gap: 6px;">
+                <label for="filterJa036cYmd">영업일자</label>
+                <div class="aams-calendar-wrapper" style="position: relative; display: inline-flex; align-items: center;">
+                    <input type="text" id="filterJa036cYmd" name="ymd" class="t-input aams-calendar-input"
+                           style="width: 110px; padding: 4px 8px; font-size: 13px; text-align: center; border: 1px solid #cbd5e1; border-radius: 4px 0 0 4px; cursor: pointer; background: #ffffff;"
+                           th:value="${ymd != null ? ymd : ''}" readonly autocomplete="off" />
+                    <button type="button" class="t-btn btn-calendar" title="달력 열기"
+                            style="padding: 5px 10px; border-radius: 0 4px 4px 0; border-left: none; background-color: #3b82f6; color: #ffffff; border: 1px solid #3b82f6; cursor: pointer;"
+                            onclick="AamsCalendar.toggle('filterJa036cYmd', event)">
+                        <i class="fa-regular fa-calendar-days"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <section class="grid-section" aria-label="유상청약납입">
+        <div class="grid-table-wrapper">
+            <div id="gridJa036c" class="tabulator-aams-grid"></div>
+        </div>
+    </section>
+
+    <script th:inline="javascript">
+    (function () {
+        const script = document.currentScript;
+        const pane = script && (script.closest('.tab-pane') || script.closest('.view-container'));
+        if (!pane) return;
+
+        const api = '/api/foreignassetmanagement/ja036c';
+        const calendarId = 'filterJa036cYmd';
+        const initialYmd = /*[[${initialYmd}]]*/ '';
+        const workDate = /*[[${workDate}]]*/ '';
+        const initialTrDates = /*[[${trDates}]]*/ [];
+
+        let initialized = false;
+        let grid = null;
+        let gridBuilt = false;
+        let hasSucceededSearch = false;
+
+        const dddwOptionsMap = {
+            gyulje_jm_cd: [],
+            trustee: []
+        };
+
+        const notify = (msg, level) => { if (window.showToast) window.showToast(msg, level); };
+        const corpGr = () => window.resolveCorpGr ? window.resolveCorpGr(pane) : '';
+        const ymd = () => window.getFilterYmd ? window.getFilterYmd(pane) : (pane.querySelector('#' + calendarId)?.value || '');
+        const num = val => Number(val) || 0;
+
+        function isSummary(row) {
+            if (!row) return false;
+            if (window.isAamsSummaryRow && window.isAamsSummaryRow(row)) return true;
+            const data = typeof row.getData === 'function' ? row.getData() : row;
+            return !!(data && data.isSummaryRow);
+        }
+
+        function canManage() {
+            const curYmd = ymd();
+            if (workDate && curYmd && curYmd < workDate) return false;
+            if (window.ButtonRole && typeof window.ButtonRole.isDisabled === 'function') {
+                const saveBtn = pane.querySelector('.toolbar-left [data-btn-id="save"]');
+                if (saveBtn && window.ButtonRole.isDisabled(saveBtn)) return false;
+            }
+            return true;
+        }
+
+        function restoreToolbarState() {
+            if (window.ButtonRole && typeof window.ButtonRole.setSearchState === 'function') {
+                window.ButtonRole.setSearchState(pane, hasSucceededSearch);
+            }
+        }
+
+        async function fetchJson(url, options) {
+            const response = await fetch(url, options);
+            const body = await response.json().catch(() => null);
+            if (!response.ok || (body && body.success === false)) {
+                throw new Error((body && body.message) || '처리 중 오류가 발생했습니다.');
+            }
+            return body;
+        }
+
+        function markRowUpdated(row, patch) {
+            if (!row || isSummary(row)) return;
+            row.update(Object.assign({ isUpdated: true, rowStatus: 'U' }, patch || {}));
+        }
+
+        function fmtNum(val, decimals) {
+            if (val === null || val === undefined || val === '') return '';
+            const n = Number(val);
+            if (Number.isNaN(n)) return '';
+            return n.toLocaleString('ko-KR', {
+                minimumFractionDigits: decimals,
+                maximumFractionDigits: decimals
+            });
+        }
+
+        function buildGroupedRows(rows) {
+            if (!Array.isArray(rows) || rows.length === 0) return [];
+            const result = [];
+            const groupKey = r => [r.jasanGb || '', r.gyuljeYmd || '', r.currency || '', r.trCd || ''].join('|');
+            let curKey = null;
+            let acc = null;
+
+            const flushGroup = () => {
+                if (!acc) return;
+                result.push(Object.assign({
+                    isSummaryRow: true,
+                    jmCd: '소계'
+                }, acc));
+            };
+
+            rows.forEach(r => {
+                const k = groupKey(r);
+                if (curKey !== null && curKey !== k) {
+                    flushGroup();
+                    acc = null;
+                }
+                if (!acc) {
+                    curKey = k;
+                    acc = {
+                        gyuljeAek: 0,
+                        wonGyuljeAek: 0,
+                        wonHwanCha: 0
+                    };
+                }
+                acc.gyuljeAek += num(r.gyuljeAek);
+                acc.wonGyuljeAek += num(r.wonGyuljeAek);
+                acc.wonHwanCha += num(r.wonHwanCha);
+                result.push(r);
+            });
+            flushGroup();
+            return result;
+        }
+
+        async function handleGyuljeGbChange(row, newVal) {
+            const d = row.getData();
+
+            if (newVal === 'N') {
+                const patch = { gyuljeGb: 'N' };
+                if (d.jmCd !== d.gyuljeJmCd) {
+                    patch.gyuljeJmCd = '';
+                }
+                markRowUpdated(row, patch);
+                return;
+            }
+
+            const patch = {
+                gyuljeGb: 'Y',
+                gyuljeYmd: ymd() || d.gyuljeYmd
+            };
+
+            if (!d.gyuljeJmCd && d.currency) {
+                try {
+                    const res = await fetchJson(api + '/default-gyulje-jm?' + new URLSearchParams({
+                        corpGr: corpGr(),
+                        currency: d.currency
+                    }));
+                    if (res && res.gyuljeJmCd) {
+                        patch.gyuljeJmCd = res.gyuljeJmCd;
+                    }
+                } catch (e) {
+                    console.warn('[Ja036c] default-gyulje-jm 조회 오류:', e);
+                }
+            }
+            markRowUpdated(row, patch);
+        }
+
+        function numCol(field, title, width, decimals, summaryBlue = false) {
+            return {
+                field: field,
+                title: title,
+                width: width,
+                hozAlign: 'right',
+                formatter: function (cell) {
+                    const row = cell.getRow();
+                    const str = fmtNum(cell.getValue(), decimals);
+                    if (isSummary(row)) {
+                        return summaryBlue
+                            ? '<span class="cell-text-blue">' + str + '</span>'
+                            : str;
+                    }
+                    return str;
+                }
+            };
+        }
+
+        function initGrid() {
+            grid = new Tabulator(pane.querySelector('#gridJa036c'), {
+                height: '100%',
+                layout: 'fitDataFill',
+                selectableRows: 1,
+                editTriggerEvent: 'click',
+                placeholder: '조회된 내역이 없습니다.',
+                columnDefaults: {
+                    vertAlign: 'middle',
+                    headerHozAlign: 'center',
+                    headerSort: false
+                },
+                rowFormatter: function (row) {
+                    if (isSummary(row)) {
+                        row.getElement().classList.add('aams-summary-row');
+                    }
+                },
+                columns: [
+                    {
+                        title: 'No.',
+                        width: 55,
+                        hozAlign: 'center',
+                        formatter: function (cell) {
+                            const row = cell.getRow();
+                            if (isSummary(row)) return '';
+                            const rows = grid.getRows().filter(r => !isSummary(r));
+                            const idx = rows.indexOf(row);
+                            return idx >= 0 ? idx + 1 : '';
+                        }
+                    },
+                    {
+                        title: '결제',
+                        field: 'gyuljeGb',
+                        width: 60,
+                        hozAlign: 'center',
+                        headerCssClass: 'col-hdr-green',
+                        formatter: function (cell) {
+                            const row = cell.getRow();
+                            if (isSummary(row)) return '';
+                            const checked = cell.getValue() === 'Y' ? 'checked' : '';
+                            const disabled = canManage() ? '' : 'disabled';
+                            return '<input type="checkbox" class="ja036c-chk-gyulje" ' + checked + ' ' + disabled + ' />';
+                        },
+                        cellClick: function (e, cell) {
+                            e.stopPropagation();
+                            const row = cell.getRow();
+                            if (isSummary(row) || !canManage()) return;
+                            const nextVal = row.getData().gyuljeGb === 'Y' ? 'N' : 'Y';
+                            handleGyuljeGbChange(row, nextVal);
+                        }
+                    },
+                    {
+                        title: '결제일자',
+                        field: 'gyuljeYmd',
+                        width: 105,
+                        hozAlign: 'center',
+                        formatter: cell => isSummary(cell.getRow())
+                            ? ''
+                            : (window.formatDateVal ? window.formatDateVal(cell.getValue()) : (cell.getValue() || ''))
+                    },
+                    {
+                        title: '매매일자',
+                        field: 'trYmd',
+                        width: 105,
+                        hozAlign: 'center',
+                        formatter: cell => isSummary(cell.getRow())
+                            ? ''
+                            : (window.formatDateVal ? window.formatDateVal(cell.getValue()) : (cell.getValue() || ''))
+                    },
+                    {
+                        title: '통화',
+                        field: 'currency',
+                        width: 75,
+                        hozAlign: 'center',
+                        formatter: cell => isSummary(cell.getRow()) ? '' : (cell.getValue() || '')
+                    },
+                    {
+                        title: '결제종목',
+                        field: 'gyuljeJmCd',
+                        width: 145,
+                        hozAlign: 'center',
+                        headerCssClass: 'col-hdr-green',
+                        editor: 'list',
+                        editorParams: function () {
+                            return { values: f_dddwctl ? f_dddwctl.getOptions(dddwOptionsMap, 'gyulje_jm_cd') : [] };
+                        },
+                        editable: cell => !isSummary(cell.getRow()) && canManage() && cell.getRow().getData().gyuljeGb === 'Y',
+                        cellClick: window.aamsCellEdit,
+                        cellEdited: cell => markRowUpdated(cell.getRow()),
+                        formatter: function (cell) {
+                            if (isSummary(cell.getRow())) return '';
+                            return (f_dddwctl && f_dddwctl.getLabel(dddwOptionsMap, 'gyulje_jm_cd', cell.getValue())) || cell.getValue() || '';
+                        }
+                    },
+                    numCol('gyuljeAek', '결제금액', 135, 2, true),
+                    numCol('wonGyuljeAek', '원화결제금액', 135, 0, true),
+                    {
+                        title: '펀드번호',
+                        field: 'fundCd',
+                        width: 105,
+                        hozAlign: 'center',
+                        headerCssClass: 'col-hdr-green',
+                        formatter: cell => isSummary(cell.getRow()) ? '' : (cell.getValue() || '')
+                    },
+                    {
+                        title: '계좌명',
+                        field: 'fundNm',
+                        width: 190,
+                        hozAlign: 'left',
+                        formatter: cell => isSummary(cell.getRow()) ? '' : (cell.getValue() || '')
+                    },
+                    {
+                        title: '해외보관처',
+                        field: 'trustee',
+                        width: 145,
+                        hozAlign: 'center',
+                        formatter: function (cell) {
+                            if (isSummary(cell.getRow())) return '';
+                            return (f_dddwctl && f_dddwctl.getLabel(dddwOptionsMap, 'trustee', cell.getValue())) || cell.getValue() || '';
+                        }
+                    },
+                    {
+                        title: '종목',
+                        field: 'jmCd',
+                        width: 120,
+                        hozAlign: 'center',
+                        formatter: function (cell) {
+                            if (isSummary(cell.getRow())) {
+                                return '<div style="text-align:center;font-weight:bold;">소계</div>';
+                            }
+                            return cell.getValue() || '';
+                        }
+                    },
+                    {
+                        title: '종목명',
+                        field: 'sym0yaJmNm',
+                        width: 210,
+                        hozAlign: 'left',
+                        formatter: cell => isSummary(cell.getRow()) ? '' : (cell.getValue() || '')
+                    },
+                    numCol('wonHwanCha', '환차손익', 130, 0, false),
+                    {
+                        title: '기준통화',
+                        field: 'fundCurrency',
+                        width: 80,
+                        hozAlign: 'center',
+                        cssClass: 'cell-text-muted',
+                        formatter: cell => isSummary(cell.getRow()) ? '' : (cell.getValue() || '')
+                    },
+                    numCol('syt0ysFcurGyuljeAek', '기준통화 결제금액', 135, 2, false),
+                    numCol('syt0ysFcurHwanCha', '기준통화 환차손익', 125, 2, false)
+                ]
+            });
+
+            grid.on('cellEditing', function (cell) {
+                const row = cell && cell.getRow ? cell.getRow() : null;
+                if (row && isSummary(row) && typeof cell.cancelEdit === 'function') {
+                    cell.cancelEdit();
+                }
+            });
+
+            grid.on('tableBuilt', function () {
+                gridBuilt = true;
+            });
+
+            if (typeof setupTabulatorRowSelection === 'function') {
+                setupTabulatorRowSelection(grid);
+            }
+            if (window.AamsResponsive) {
+                AamsResponsive.bindGridResize(pane, [grid]);
+            }
+        }
+
+        async function loadGridOptions() {
+            if (!corpGr() || !window.f_dddwctl) return;
+            const results = await f_dddwctl.retrieveMultiple({
+                gyulje_jm_cd: ['gyulje_jm_cd', corpGr(), '', 1, ''],
+                trustee:      ['trustee', corpGr(), '', 1, '']
+            });
+            dddwOptionsMap.gyulje_jm_cd = results.gyulje_jm_cd || [];
+            dddwOptionsMap.trustee = results.trustee || [];
+            if (grid && gridBuilt) {
+                grid.getRows().forEach(r => r.reformat());
+            }
+        }
+
+        function initCalendar() {
+            if (!window.AamsCalendar) return;
+            AamsCalendar.init(calendarId, {
+                pane: pane,
+                initialYmd: initialYmd || ymd(),
+                highlightDates: Array.isArray(initialTrDates) ? initialTrDates : [],
+                datesApiUrl: api + '/dates',
+                corpGr: corpGr(),
+                historyTitle: '유상청약납입 내역 존재'
+            });
+        }
+
+        async function load() {
+            if (!corpGr()) {
+                restoreToolbarState();
+                return notify('회사그룹을 확인해주세요.', 'warning');
+            }
+            if (!ymd()) {
+                restoreToolbarState();
+                return notify('영업일자를 선택해주세요.', 'warning');
+            }
+
+            try {
+                const rows = await fetchJson(api + '/list?' + new URLSearchParams({
+                    corpGr: corpGr(),
+                    ymd: ymd()
+                }));
+                hasSucceededSearch = true;
+                await grid.setData(buildGroupedRows(rows));
+                const firstRow = grid.getRows().find(r => !isSummary(r));
+                if (firstRow) firstRow.select();
+            } catch (err) {
+                restoreToolbarState();
+                notify(err.message || '조회 중 오류가 발생했습니다.', 'error');
+            }
+        }
+
+        async function save() {
+            if (!canManage()) {
+                return notify('작업일자 이전 데이터는 수정할 수 없습니다.', 'warning');
+            }
+            const changed = grid.getData().filter(r => !r.isSummaryRow && r.isUpdated);
+            if (!changed.length) {
+                return notify('저장할 변경 내역이 없습니다.', 'info');
+            }
+
+            try {
+                const res = await fetchJson(api + '/save?' + new URLSearchParams({ corpGr: corpGr() }), {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(changed)
+                });
+                notify(res.message || '저장되었습니다.', 'success');
+                await load();
+            } catch (err) {
+                notify(err.message || '저장 중 오류가 발생했습니다.', 'error');
+            }
+        }
+
+        function refresh() {
+            hasSucceededSearch = false;
+            if (window.safeClearGrid) {
+                window.safeClearGrid(grid);
+            } else if (grid) {
+                grid.setData([]);
+            }
+            restoreToolbarState();
+        }
+
+        function start() {
+            if (initialized) return;
+            initialized = true;
+
+            // 파워빌더 dw_list (eb_new_false, eb_copy_false, eb_delete_false) 반영: 입력/복사/삭제 강제 비활성화
+            pane.ebNewFalse = true;
+            pane.ebCopyFalse = true;
+            pane.ebDeleteFalse = true;
+            restoreToolbarState();
+
+            initCalendar();
+            initGrid();
+
+            pane.onSearch = load;
+            pane.onSave = save;
+            pane.onRefresh = refresh;
+            pane.onCorpGrChange = function (nextCorpGr) {
+                refresh();
+                loadGridOptions()
+                    .then(() => load())
+                    .catch(err => notify(err.message, 'error'));
+                if (window.AamsCalendar) {
+                    AamsCalendar.loadHighlightDates(calendarId, api + '/dates', nextCorpGr || corpGr());
+                }
+            };
+            pane.onExcel = function () {
+                if (grid) {
+                    grid.download('xlsx', '유상청약납입_' + (ymd() || '') + '.xlsx', { sheetName: '유상청약납입' });
+                }
+            };
+
+            loadGridOptions()
+                .then(() => load())
+                .catch(err => notify(err.message || '초기 조회 중 오류가 발생했습니다.', 'error'));
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', start);
+        } else {
+            start();
+        }
+    })();
+    </script>
+</div>
+</html>

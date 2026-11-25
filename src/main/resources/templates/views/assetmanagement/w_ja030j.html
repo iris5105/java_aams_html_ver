@@ -696,9 +696,18 @@
                             hozAlign: 'center',
                             width: 45,
                             formatter: function (cell) {
-                                const d = cell.getRow().getData();
+                                const row = cell.getRow();
+                                const d = row.getData();
                                 if (d && (d.isGroupSummaryRow || d.isSummaryRow)) return '';
-                                return cell.getRow().getPosition();
+                                const rows = cell.getTable().getRows('active');
+                                let seq = 0;
+                                for (let i = 0; i < rows.length; i++) {
+                                    const rd = rows[i].getData();
+                                    if (rd && (rd.isGroupSummaryRow || rd.isSummaryRow)) continue;
+                                    seq++;
+                                    if (rows[i] === row) return seq;
+                                }
+                                return '';
                             },
                             bottomCalc: function () { return ''; }
                         },
@@ -709,7 +718,7 @@
                             width: 90,
                             formatter: function (cell) {
                                 const d = cell.getRow().getData();
-                                if (!d || d.isGroupSummaryRow || d.isSummaryRow || !d.isFirstInGroup) return '';
+                                if (!d || d.isGroupSummaryRow || d.isSummaryRow || (!d.isFirstInGroup && !d.isNew)) return '';
                                 return cell.getValue() || '';
                             },
                             bottomCalc: function (values, data) {
@@ -728,7 +737,7 @@
                             width: 95,
                             formatter: function (cell) {
                                 const d = cell.getRow().getData();
-                                if (!d || d.isGroupSummaryRow || d.isSummaryRow || !d.isFirstInGroup) return '';
+                                if (!d || d.isGroupSummaryRow || d.isSummaryRow || (!d.isFirstInGroup && !d.isNew)) return '';
                                 return cell.getValue() || '';
                             },
                             bottomCalc: function () { return ''; }
@@ -740,7 +749,7 @@
                             width: 170,
                             formatter: function (cell) {
                                 const d = cell.getRow().getData();
-                                if (!d || d.isGroupSummaryRow || d.isSummaryRow || !d.isFirstInGroup) return '';
+                                if (!d || d.isGroupSummaryRow || d.isSummaryRow || (!d.isFirstInGroup && !d.isNew)) return '';
                                 return cell.getValue() || '';
                             },
                             bottomCalc: function () { return ''; }
@@ -752,7 +761,7 @@
                             width: 85,
                             formatter: function (cell) {
                                 const d = cell.getRow().getData();
-                                if (!d || d.isGroupSummaryRow || d.isSummaryRow || !d.isFirstInGroup) return '';
+                                if (!d || d.isGroupSummaryRow || d.isSummaryRow || (!d.isFirstInGroup && !d.isNew)) return '';
                                 return cell.getValue() || '';
                             },
                             bottomCalc: function () { return ''; }
@@ -764,7 +773,7 @@
                             width: 85,
                             formatter: function (cell) {
                                 const d = cell.getRow().getData();
-                                if (!d || d.isGroupSummaryRow || d.isSummaryRow || !d.isFirstInGroup) return '';
+                                if (!d || d.isGroupSummaryRow || d.isSummaryRow || (!d.isFirstInGroup && !d.isNew)) return '';
                                 return cell.getValue() || '';
                             },
                             bottomCalc: function () { return ''; }
@@ -776,7 +785,7 @@
                             width: 75,
                             formatter: function (cell) {
                                 const d = cell.getRow().getData();
-                                if (!d || d.isGroupSummaryRow || d.isSummaryRow || !d.isFirstInGroup) return '';
+                                if (!d || d.isGroupSummaryRow || d.isSummaryRow || (!d.isFirstInGroup && !d.isNew)) return '';
                                 return numFmt(cell, 2);
                             },
                             bottomCalc: function () { return ''; }

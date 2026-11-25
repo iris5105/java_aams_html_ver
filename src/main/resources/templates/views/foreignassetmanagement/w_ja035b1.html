@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<div class="view-container layout-single layout-mobile-stack-container ja035b1-container" th:fragment="ja035b1View">
+    <style>
+        .ja035b1-container .tabulator .tabulator-footer,
+        .ja035b1-container .tabulator .tabulator-footer .tabulator-calcs-holder,
+        .ja035b1-container .tabulator .tabulator-footer .tabulator-calcs-holder .tabulator-row,
+        .ja035b1-container .tabulator .tabulator-footer .tabulator-calcs-holder .tabulator-cell {
+            background-color: #fbf2c4 !important;
+            color: #1e293b !important;
+            font-weight: 600 !important;
+        }
+        .ja035b1-container .tabulator .tabulator-footer {
+            border-top: 1px solid #cbd5e1 !important;
+            padding: 0 !important;
+            overflow: hidden !important;
+        }
+        .ja035b1-container .tabulator .tabulator-footer .tabulator-calcs-holder {
+            border: none !important;
+            overflow: hidden !important;
+        }
+        .ja035b1-container .tabulator .tabulator-footer .tabulator-calcs-holder .tabulator-row,
+        .ja035b1-container .tabulator .tabulator-footer .tabulator-calcs-holder .tabulator-cell {
+            height: 28px !important;
+            min-height: 28px !important;
+        }
+        .ja035b1-container .tabulator .tabulator-footer .tabulator-calcs-holder .tabulator-cell {
+            line-height: 20px !important;
+            border-right: 1px solid #e2e8f0 !important;
+        }
+        .ja035b1-container .tabulator .tabulator-footer .cell-text-blue {
+            color: #1d4ed8 !important;
+            font-weight: 700 !important;
+        }
+        .ja035b1-container .tabulator .tabulator-footer .tabulator-calcs-holder,
+        .ja035b1-container .tabulator .tabulator-footer .tabulator-calcs-holder .tabulator-row,
+        .ja035b1-container .tabulator .tabulator-footer .tabulator-calcs-holder .tabulator-cell {
+            pointer-events: none !important;
+            user-select: none !important;
+            cursor: default !important;
+        }
+    </style>
+    <div class="view-toolbar">
+        <div class="toolbar-left"><div th:replace="~{fragments/tab_header :: toolbarButtons}"></div></div>
+        <div th:replace="~{fragments/tab_header :: toolbarBreadcrumb}"></div>
+    </div>
+    <div class="filter-bar">
+        <div class="filter-left">
+            <div th:replace="~{fragments/filter/dc_ymd_dddw :: filter(labelYmd='영업일자', labelDddw='매매구분')}"></div>
+        </div>
+    </div>
+    <section class="grid-section" aria-label="해외채권 매매내역">
+        <div class="grid-table-wrapper">
+            <div id="gridJa035b1" class="tabulator-aams-grid"></div>
+        </div>
+    </section>
+    <script th:inline="javascript">
+    (function () {
+        const script = document.currentScript;
+        const pane = script && (script.closest('.tab-pane') || script.closest('.view-container'));
+        if (!pane) return;
+        let initialized = false;
+        let grid;
+        let gridBuilt = false;
+        let maxSeq = 0;
+        let deleted = [];
+        const totalFields = ['trJusu', 'trTax', 'trCost', 'trAek', 'gyuljeAek',
+            'trHalinAek', 'passIja', 'wonGyuljeAek'];
+        function calcNormalSum(values, data, params) {
+            return (data || []).reduce((sum, row) =>
+                row.isDeleted ? sum : sum + (Number(row[params.field]) || 0), 0);
+        }
+        function formatFooterNumber(cell, decimals) {
+            const value = Number(cell.getValue()) || 0;
+            return '<span class="cell-text-blue font-bold">' + value.toLocaleString('ko-KR', {
+                minimumFractionDigits: decimals,
+                maximumFractionDigits: decimals
+            }) + '</span>';
+        }
+        function updateFooterVisibility() {
+            if (!grid) return;
+            const footer = grid.element.querySelector('.tabulator-footer');
+            if (footer) footer.style.display = grid.getData().some(row => !row.isDeleted) ? 'block' : 'none';
+        }
+        function recalcSummaryRow() {
+            if (!grid) return;
+            grid.recalc();
+            updateFooterVisibility();
+        }
+        const options = { trustee: [], currency: [], gyulje_jm_cd: [] };
+        const notify = (message, level) => { if (window.showToast) window.showToast(message, level); };
+        const corpGr = () => window.resolveCorpGr ? window.resolveCorpGr(pane) : '';
+        const ymd = () => window.getFilterYmd ? window.getFilterYmd(pane) : pane.querySelector('#filterYmd').value;
+        const trCd = () => pane.querySelector('#filterDddw').value;
+        const url = (path, params) => '/api/usportfoliomodel/ja035b1/' + path + '?' + new URLSearchParams(params);
+        function changed(cell) {
+            const data = cell.getRow().getData();
+            if (data.isSummaryRow) return;
+            if (!data.isNew) { data.isUpdated = true; data.rowStatus = 'U'; }
+            if (['trJusu','trDanga','trAek','trTax','trCost','passIja','transRt','gyuljeAek'].includes(cell.getField())) calculate(cell.getRow(), cell.getField());
+            setTimeout(recalcSummaryRow, 0);
+        }
+        function amount(value) { return Number(value) || 0; }
+        function calculate(row, field) {
+            const d = row.getData();
+            const trade = ['trJusu', 'trDanga'].includes(field) ? Math.trunc(amount(d.trJusu) * amount(d.trDanga)) / 100 : amount(d.trAek);
+            const settlement = ['gyuljeAek','transRt'].includes(field) ? amount(d.gyuljeAek) : trade + (trCd().startsWith('K') || trCd() === 'E42' ? -1 : 1)
+                * (amount(d.trTax) + amount(d.trCost)) + amount(d.passIja);
+            row.update({ trAek: trade, gyuljeAek: settlement,
+                wonPassIja: Math.trunc(amount(d.passIja) * amount(d.transRt)),
+                wonGyuljeAek: Math.trunc(settlement * amount(d.transRt)) });
+        }
+        function edit(field, title, width, extra) {
+            return Object.assign({ field: field, title: title, width: width, editor: 'input',
+                editable: cell => !cell.getRow().getData().isSummaryRow,
+                cellClick: window.aamsCellEdit, cellEdited: changed }, extra || {});
+        }
+        function dropdown(field, title, width, key) {
+            return edit(field, title, width, {
+                editor: 'list', editorParams: function () { return { values: f_dddwctl.getOptions(options, key) }; },
+                formatter: function (cell) { return f_dddwctl.getLabel(options, key, cell.getValue()) || cell.getValue() || ''; }
+            });
+        }
+        function searchColumns(field, title, width, columnNm, seq) {
+            function openSearch(target) {
+                const row = target.getRow ? target.getRow() : target;
+                if (!row || (window.isAamsSummaryRow && window.isAamsSummaryRow(row)) || row.getData().isSummaryRow) return;
+                if (!window.DynamicCodeSearch || typeof window.DynamicCodeSearch.openModal !== 'function') return;
+                window.DynamicCodeSearch.openModal({
+                    title: title + ' 검색', columnNm: columnNm, corpGr: corpGr(), seq: seq,
+                    row: row,
+                    initialKeyword: row.getData()[field] || '',
+                    onSelect: function (code, name) {
+                        const data = row.getData();
+                        const update = { isUpdated: !data.isNew, rowStatus: data.isNew ? 'C' : 'U' };
+                        update[field] = code;
+                        if (field === 'fundCd') update.xxFundCd = name || '';
+                        if (field === 'yjCd') update.xxYjCd = name || '';
+                        row.update(update);
+                    }
+                });
+            }
+            return [
+                edit(field, title, width, {
+                    hozAlign: 'center', headerCssClass: field === 'fundCd' ? 'col-hdr-green' : 'col-hdr-blue', cellDblClick: function (_event, cell) { openSearch(cell); }
+                }),
+                { title: '', field: field === 'fundCd' ? 'pXxFundCd' : 'pXxYjCd',
+                    width: 36, minWidth: 36, maxWidth: 36, headerSort: false,
+                    hozAlign: 'center', resizable: false,
+                    formatter: function (cell) {
+                        if (cell.getRow().getData().isSummaryRow) return '';
+                        return '<button type="button" class="btn-grid-addon btn-search" title="' + title +
+                            ' 검색"><i class="fa-solid fa-magnifying-glass"></i></button>';
+                    },
+                    cellClick: function (event, cell) {
+                        event.stopPropagation();
+                        const row = cell.getRow();
+                        if ((window.isAamsSummaryRow && window.isAamsSummaryRow(row)) || row.getData().isSummaryRow) return;
+                        openSearch(cell);
+                    } }
+            ];
+        }
+        function numberColumn(field, title, decimals, writable = true) {
+            const column = { field, title, width: 135, hozAlign: 'right',
+                formatter: cell => cell.getValue() == null ? '' : Number(cell.getValue()).toLocaleString('ko-KR',
+                    {minimumFractionDigits: decimals, maximumFractionDigits: decimals}) };
+            if (totalFields.includes(field)) {
+                column.bottomCalc = calcNormalSum;
+                column.bottomCalcParams = { field: field };
+                column.bottomCalcFormatter = cell => formatFooterNumber(cell, decimals);
+            }
+            return writable ? Object.assign(edit(field, title, 135), column, {editor: 'number'}) : column;
+        }
+        function initGrid() {
+            grid = new Tabulator(pane.querySelector('#gridJa035b1'), {
+                height: '100%', layout: 'fitDataFill', selectableRows: 1, editTriggerEvent: 'click',
+                placeholder: '조회된 내역이 없습니다.',
+                columnDefaults: { vertAlign: 'middle', headerHozAlign: 'center', headerSort: false },
+                columns: [
+                    { title: 'No.', formatter: cell => cell.getRow().getData().isSummaryRow
+                        ? '' : cell.getRow().getPosition(true), width: 55, headerSort: false, hozAlign: 'center' },
+                    ...searchColumns('fundCd', '펀드번호', 105, 'rcd', 4),
+                    { title: '계좌명', field: 'xxFundCd', width: 180,
+                        formatter: cell => cell.getValue() || '',
+                        bottomCalc: (values, data) => data && data.length ? '합계' : '',
+                        bottomCalcFormatter: cell => '<div style="text-align:center; font-weight:bold; width:100%;">' +
+                            (cell.getValue() || '') + '</div>' },
+                    dropdown('trustee', '해외보관처', 125, 'trustee'),
+                    ...searchColumns('yjCd', '종목', 120, 'yj_cd', 2),
+                    { title: '종목명', field: 'xxYjCd', width: 190 },
+                    numberColumn('trJusu', '외화액면', 2),
+                    numberColumn('trDanga', '외화 매매단가', 4),
+                    numberColumn('trTax', '외화세금', 2),
+                    numberColumn('trCost', '외화수수료', 2),
+                    numberColumn('trAek', '외화매매금액', 2),
+                    numberColumn('gyuljeAek', '외화결제금액', 2),
+                    numberColumn('trHalinAek', '외화 거래할인액', 2),
+                    numberColumn('transRt', '거래환율', 2),
+                    Object.assign(numberColumn('passIja', '경과이자', 2), {
+                        editable: cell => !cell.getRow().getData().isSummaryRow &&
+                            /^[JF]/.test(trCd()) && cell.getRow().getData().sjGb !== 'Z'
+                    }),
+                    numberColumn('mkSuikPer', '매매 수익률(%)', 2),
+                    edit('gyuljeYmd', '결제일자', 125, { editor: window.aamsDateEditor,
+                        hozAlign: 'center', formatter: cell => window.formatDateVal(cell.getValue()),
+                        editable: cell => !cell.getRow().getData().isSummaryRow &&
+                            !['J10', 'K10'].includes(trCd()) }),
+                    {title:'',field:'p_dd_gyulje_ymd',width:36,minWidth:36,maxWidth:36,headerSort:false,resizable:false,hozAlign:'center',
+                        formatter: cell => cell.getRow().getData().isSummaryRow ? '' :
+                            '<button type="button" class="btn-grid-addon btn-cal" title="결제일자 선택"><i class="fa-regular fa-calendar-days"></i></button>',
+                        cellClick:(event,cell)=>{
+                            event.stopPropagation();
+                            if(cell.getRow().getData().isSummaryRow || ['J10','K10'].includes(trCd())) return;
+                            if(!window.AamsCalendar) return;
+                            AamsCalendar.openDatePicker({anchorEl:cell.getElement(),initialYmd:cell.getRow().getData().gyuljeYmd||'',format:'dash',
+                                onSelect:value=>cell.getRow().update({gyuljeYmd:value,isUpdated:!cell.getRow().getData().isNew,rowStatus:cell.getRow().getData().isNew?'C':'U'})});
+                        }},
+                    numberColumn('todayIja', '상환이자금액(*이자차이액)', 2),
+                    dropdown('currency', '통화', 90, 'currency'),
+                    numberColumn('wonGyuljeAek', '원화결제액', 0, false),
+                    numberColumn('wonTrHalinAek', '원화 거래할인액', 0, false),
+                    dropdown('gyuljeJmCd', '결제종목', 130, 'gyulje_jm_cd'),
+                    { title: '기준통화', field: 'fundCurrency', width: 85, hozAlign: 'center', cssClass: 'cell-text-muted' },
+                    numberColumn('fcurGyuljeAek', '기준통화 결제금액', 2, false),
+                    numberColumn('fcurTrHalinAek', '기준통화 거래할인액', 2),
+                    numberColumn('fcurSonik', '기준통화 손익액', 2, false),
+                    numberColumn('fcurHwanCha', '기준통화 환차손익', 2, false)
+                ]
+            });
+            grid.on('cellEditing', function (cell) {
+                const row = cell && cell.getRow ? cell.getRow() : null;
+                if (row && ((window.isAamsSummaryRow && window.isAamsSummaryRow(row)) || row.getData().isSummaryRow)) {
+                    if (typeof cell.cancelEdit === 'function') cell.cancelEdit();
+                }
+            });
+            grid.on('tableBuilt', function () {
+                gridBuilt = true;
+                updateFooterVisibility();
+            });
+            updateFooterVisibility();
+            if (typeof setupTabulatorRowSelection === 'function') setupTabulatorRowSelection(grid);
+            if (window.AamsResponsive) window.AamsResponsive.bindGridResize(pane, [grid]);
+        }
+        function loadOptions() {
+            const group = corpGr();
+            if (!group || !window.f_dddwctl) return Promise.resolve();
+            return f_dddwctl.retrieveMultiple({
+                trustee: ['trustee', group, '', 1, ''],
+                currency: ['currency', group, '', 1, ''],
+                gyulje_jm_cd: ['gyulje_jm_cd', group, '', 1, '']
+            }).then(function (result) {
+                Object.keys(options).forEach(key => { options[key] = result[key] || []; });
+                if (grid && gridBuilt) grid.getRows().forEach(row => row.reformat());
+            });
+        }
+        function loadFilter() {
+            const date = ymd();
+            const workDate = /*[[${initialYmd}]]*/ '';
+            const oldDate = date && workDate && date < workDate;
+            const where = "szx1pt.obj_id='W_JA035B1'" +
+                (oldDate ? " and szx0gc.tr_cd in (select tr_cd from syt0mg where corp_gr=':corp_gr' and tr_ymd='" + date.replaceAll('-', '.') + "')" : '');
+            return window.initFilterDddw(pane, {
+                selectId: 'filterDddw', dddwId: 'dddw', corpGr: corpGr(), seq: 1,
+                addWhere: where, defaultVal: 'J10'
+            });
+        }
+        async function load() {
+            if (!corpGr() || !ymd() || !trCd()) { notify('회사그룹, 영업일자, 매매구분을 확인하세요.', 'warning'); return; }
+            try {
+                const response = await fetch(url('list', { corpGr: corpGr(), ymd: ymd(), trCd: trCd() }));
+                if (!response.ok) throw new Error('조회 실패');
+                const rows = await response.json();
+                deleted = [];
+                maxSeq = Math.max(0, ...rows.map(row => Number(row.trSeq) || 0));
+                await grid.setData(rows);
+                updateFooterVisibility();
+            } catch (error) { notify('조회 중 오류가 발생했습니다.', 'error'); }
+        }
+        function add() {
+            if (!trCd() || !corpGr() || !ymd()) return;
+            const row = { isNew: true, rowStatus: 'C', corpGr: corpGr(), trYmd: ymd(),
+                trCd: trCd(), trSeq: ++maxSeq, bsType: 0, gyuljeYmd: ymd() };
+            grid.addRow(row).then(r => {
+                r.select();
+                recalcSummaryRow();
+                r.getCell('fundCd').edit();
+            });
+        }
+        function remove() {
+            if (!grid) return;
+            const selectedRows = grid.getSelectedRows().filter(r => !r.getData().isSummaryRow);
+            if (!selectedRows.length) {
+                notify('삭제할 행을 먼저 선택해주세요.', 'warning');
+                return;
+            }
+            if (!confirm('선택한 행을 삭제하시겠습니까? (저장 시 DB에 반영됩니다)')) return;
+
+            const targetRow = selectedRows[0];
+            const dataRowsBefore = grid.getRows().filter(r => !r.getData().isSummaryRow);
+            const deletedIndex = dataRowsBefore.indexOf(targetRow);
+            const data = targetRow.getData();
+            if (!data.isNew) {
+                deleted.push(Object.assign({}, data, { isDeleted: true, rowStatus: 'D' }));
+            }
+
+            targetRow.delete().then(() => {
+                recalcSummaryRow();
+                const remainingRows = grid.getRows().filter(r => !r.getData().isSummaryRow);
+                remainingRows.forEach(r => r.reformat());
+                if (remainingRows.length > 0 && deletedIndex >= 0) {
+                    const nextIndex = deletedIndex < remainingRows.length
+                        ? deletedIndex
+                        : remainingRows.length - 1;
+                    const nextRow = remainingRows[nextIndex];
+                    if (nextRow) {
+                        grid.deselectRow();
+                        nextRow.select();
+                        try { nextRow.scrollTo(); } catch (e) {}
+                    }
+                }
+                notify('행이 삭제되었습니다. [저장] 시 최종 반영됩니다.', 'info');
+            });
+        }
+        async function save() {
+            if (window.aamsValidateGridDates && !window.aamsValidateGridDates(grid, ['gyuljeYmd'])) return;
+            const rows = grid.getData().filter(row => !row.isSummaryRow &&
+                (row.isNew || row.isUpdated)).concat(deleted);
+            if (!rows.length) { notify('저장할 변경 내역이 없습니다.', 'info'); return; }
+            try {
+                const response = await fetch(url('save', { corpGr: corpGr() }), {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(rows)
+                });
+                const result = await response.json();
+                if (!response.ok || !result.success) throw new Error(result.message || '저장 실패');
+                notify(result.message || '저장되었습니다.', 'success');
+                load();
+            } catch (error) { notify(error.message || '저장 중 오류가 발생했습니다.', 'error'); }
+        }
+        function start() {
+            if (initialized) return;
+            initialized = true;
+            if (window.initFilterCalendar) window.initFilterCalendar(pane, { onSelect: loadFilter });
+            initGrid();
+            loadOptions().catch(error => notify(error.message || '선택 목록을 불러오지 못했습니다.', 'error'));
+            loadFilter();
+            pane.onSearch = load;
+            pane.onInput = add;
+            pane.onDelete = remove;
+            pane.onSave = save;
+            pane.onRefresh = () => { deleted = []; grid.setData([]).then(updateFooterVisibility); };
+            pane.onCorpGrChange = () => { grid.setData([]).then(updateFooterVisibility); loadOptions(); loadFilter(); };
+            pane.onExcel = () => grid.download('xlsx', '해외채권_매매내역.xlsx', { sheetName: '매매내역' });
+        }
+        if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start);
+        else start();
+    })();
+    </script>
+</div>
+</html>

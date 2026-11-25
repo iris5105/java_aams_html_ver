@@ -40,6 +40,14 @@
              , mg.TODAY_IJA                                    AS today_ija
              , mg.WON_TODAY_IJA                                AS won_today_ija
              , ya.SJ_GB                                        AS sj_gb
+             , ia.FUND_CURRENCY                                AS fund_currency
+             , mg.MK_SUIK_PER AS mk_suik_per
+             , mg.TR_HALIN_AEK AS tr_halin_aek
+             , mg.WON_TR_HALIN_AEK AS won_tr_halin_aek
+             , mg.FCUR_TR_HALIN_AEK AS fcur_tr_halin_aek
+             , mg.FCUR_GYULJE_AEK AS fcur_gyulje_aek
+             , mg.FCUR_SONIK AS fcur_sonik
+             , mg.FCUR_HWAN_CHA AS fcur_hwan_cha
              , 1                                               AS p_visible
           FROM SYT0MG mg
              , SZM0IA ia
@@ -174,28 +182,32 @@
           , TRANS_RT
           , WON_GYULJE_AEK
           , WON_CHUI_AEK
+          , FCUR_TR_HALIN_AEK
+          , WON_TR_HALIN_AEK
+          , TR_HALIN_AEK
+          , MK_SUIK_PER
           , PASS_IJA
           , WON_PASS_IJA
           , TODAY_IJA
           , WON_TODAY_IJA
         ) VALUES (
-            #{corpGr}
-          , TO_DATE(REPLACE(#{trYmd}, '-', ''), 'YYYYMMDD')
-          , #{trCd}
-          , #{fundCd}
+            #{corpGr, jdbcType=VARCHAR}
+          , TO_DATE(REPLACE(#{trYmd, jdbcType=VARCHAR}, '-', ''), 'YYYYMMDD')
+          , #{trCd, jdbcType=VARCHAR}
+          , #{fundCd, jdbcType=VARCHAR}
           , #{trCoCd, jdbcType=VARCHAR}
           , #{trustee, jdbcType=VARCHAR}
-          , #{yjCd}
-          , NVL(#{bsType}, 0)
-          , #{trSeq}
+          , #{yjCd, jdbcType=VARCHAR}
+          , NVL(#{bsType, jdbcType=NUMERIC}, 0)
+          , #{trSeq, jdbcType=NUMERIC}
           , #{currency, jdbcType=VARCHAR}
-          , NVL(#{trJusu}, 0)
-          , NVL(#{trDanga}, 0)
-          , NVL(#{trTax}, 0)
-          , NVL(#{trCost}, 0)
-          , NVL(#{trAek}, 0)
-          , TO_DATE(REPLACE(#{gyuljeYmd}, '-', ''), 'YYYYMMDD')
-          , NVL(#{gyuljeAek}, 0)
+          , NVL(#{trJusu, jdbcType=NUMERIC}, 0)
+          , NVL(#{trDanga, jdbcType=NUMERIC}, 0)
+          , NVL(#{trTax, jdbcType=NUMERIC}, 0)
+          , NVL(#{trCost, jdbcType=NUMERIC}, 0)
+          , NVL(#{trAek, jdbcType=NUMERIC}, 0)
+          , TO_DATE(REPLACE(#{gyuljeYmd, jdbcType=VARCHAR}, '-', ''), 'YYYYMMDD')
+          , NVL(#{gyuljeAek, jdbcType=NUMERIC}, 0)
           , #{gyuljeJmCd, jdbcType=VARCHAR}
           , #{countCost, jdbcType=VARCHAR}
           , #{secCode, jdbcType=VARCHAR}
@@ -204,6 +216,10 @@
           , #{transRt, jdbcType=NUMERIC}
           , #{wonGyuljeAek, jdbcType=NUMERIC}
           , #{wonChuiAek, jdbcType=NUMERIC}
+          , #{fcurTrHalinAek, jdbcType=NUMERIC}
+          , #{wonTrHalinAek, jdbcType=NUMERIC}
+          , #{trHalinAek, jdbcType=NUMERIC}
+          , #{mkSuikPer, jdbcType=NUMERIC}
           , #{passIja, jdbcType=NUMERIC}
           , #{wonPassIja, jdbcType=NUMERIC}
           , #{todayIja, jdbcType=NUMERIC}
@@ -216,16 +232,16 @@
         UPDATE SYT0MG
            SET TR_CO_CD       = #{trCoCd, jdbcType=VARCHAR}
              , TRUSTEE        = #{trustee, jdbcType=VARCHAR}
-             , JM_CD          = #{yjCd}
-             , BS_TYPE        = NVL(#{bsType}, 0)
+             , JM_CD          = #{yjCd, jdbcType=VARCHAR}
+             , BS_TYPE        = NVL(#{bsType, jdbcType=NUMERIC}, 0)
              , CURRENCY       = #{currency, jdbcType=VARCHAR}
-             , TR_JUSU        = NVL(#{trJusu}, 0)
-             , TR_DANGA       = NVL(#{trDanga}, 0)
-             , TR_TAX         = NVL(#{trTax}, 0)
-             , TR_COST        = NVL(#{trCost}, 0)
-             , TR_AEK         = NVL(#{trAek}, 0)
-             , GYULJE_YMD     = TO_DATE(REPLACE(#{gyuljeYmd}, '-', ''), 'YYYYMMDD')
-             , GYULJE_AEK     = NVL(#{gyuljeAek}, 0)
+             , TR_JUSU        = NVL(#{trJusu, jdbcType=NUMERIC}, 0)
+             , TR_DANGA       = NVL(#{trDanga, jdbcType=NUMERIC}, 0)
+             , TR_TAX         = NVL(#{trTax, jdbcType=NUMERIC}, 0)
+             , TR_COST        = NVL(#{trCost, jdbcType=NUMERIC}, 0)
+             , TR_AEK         = NVL(#{trAek, jdbcType=NUMERIC}, 0)
+             , GYULJE_YMD     = TO_DATE(REPLACE(#{gyuljeYmd, jdbcType=VARCHAR}, '-', ''), 'YYYYMMDD')
+             , GYULJE_AEK     = NVL(#{gyuljeAek, jdbcType=NUMERIC}, 0)
              , GYULJE_JM_CD   = #{gyuljeJmCd, jdbcType=VARCHAR}
              , COUNT_COST     = #{countCost, jdbcType=VARCHAR}
              , SEC_CODE       = #{secCode, jdbcType=VARCHAR}
@@ -234,6 +250,18 @@
              , TRANS_RT       = #{transRt, jdbcType=NUMERIC}
              , WON_GYULJE_AEK = #{wonGyuljeAek, jdbcType=NUMERIC}
              , WON_CHUI_AEK   = #{wonChuiAek, jdbcType=NUMERIC}
+             <if test="fcurTrHalinAek != null">
+             , FCUR_TR_HALIN_AEK = #{fcurTrHalinAek}
+             </if>
+             <if test="wonTrHalinAek != null">
+             , WON_TR_HALIN_AEK = #{wonTrHalinAek}
+             </if>
+             <if test="trHalinAek != null">
+             , TR_HALIN_AEK = #{trHalinAek}
+             </if>
+             <if test="mkSuikPer != null">
+             , MK_SUIK_PER = #{mkSuikPer}
+             </if>
              <if test="passIja != null">
              , PASS_IJA       = #{passIja}
              </if>

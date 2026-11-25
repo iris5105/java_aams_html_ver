@@ -1,0 +1,223 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.kfp.aams.domain.foreignassetmanagement.mapper.Ja035b3Mapper">
+
+    <!-- 1. 해외선물 매매내역 목록 조회 (d_ja035b3.srd) -->
+    <select id="selectList" resultType="com.kfp.aams.domain.foreignassetmanagement.dto.Ja035b3Dto">
+        SELECT mg.CORP_GR
+             , TO_CHAR(mg.TR_YMD, 'YYYY-MM-DD')     AS tr_ymd
+             , mg.TR_CD
+             , mg.FUND_CD
+             , mg.TR_CO_CD
+             , mg.TRUSTEE
+             , mg.JM_CD                             AS yj_cd
+             , mg.TR_SEQ
+             , mg.CURRENCY
+             , mg.TR_JUSU
+             , mg.TR_DANGA
+             , mg.TR_COST
+             , mg.TR_AEK
+             , TO_CHAR(mg.GYULJE_YMD, 'YYYY-MM-DD') AS gyulje_ymd
+             , mg.GYULJE_AEK
+             , mg.GYULJE_JM_CD
+             , mg.MK_SUIK_PER
+             , mg.TRANS_RT
+             , ia.FUND_NM                           AS xx_fund_cd
+             , ya.JM_NM                             AS xx_yj_cd
+             , mg.PASS_IJA
+             , mg.WON_PASS_IJA
+             , mg.WON_GYULJE_AEK
+             , ya.UNIT_AEK
+             , mg.BS_TYPE
+             , ia.FUND_CURRENCY
+             , mg.FCUR_GYULJE_AEK                   AS syt0mg_fcur_gyulje_aek
+             , mg.FCUR_SONIK                        AS syt0mg_fcur_sonik
+             , mg.FCUR_HWAN_CHA                     AS syt0mg_fcur_hwan_cha
+             , CASE WHEN mg.TR_YMD >= F_WORKDATE(mg.CORP_GR) THEN 1 ELSE 0 END AS p_visible
+          FROM SYT0MG mg
+             , SZM0IA ia
+             , SYM0YA ya
+         WHERE mg.CORP_GR = #{corpGr}
+           AND mg.TR_YMD  = TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
+           AND mg.TR_CD   = #{trCd}
+           AND ia.CORP_GR = mg.CORP_GR
+           AND ia.FUND_CD = mg.FUND_CD
+           AND ya.CORP_GR = mg.CORP_GR
+           AND ya.JM_CD   = mg.JM_CD
+         ORDER BY mg.FUND_CD ASC
+                , mg.TRUSTEE ASC
+                , mg.JM_CD ASC
+                , mg.TR_SEQ ASC
+    </select>
+
+    <!-- 2. 달력 하이라이트 일자 조회 (w_ja035b3.srw dw_c::ue_getdate) -->
+    <select id="selectHighlightDates" resultType="java.lang.String">
+        SELECT DISTINCT TO_CHAR(t1.TR_YMD, 'YYYY-MM-DD') AS tr_ymd
+          FROM SYT0MG t1
+         WHERE t1.CORP_GR = #{corpGr}
+           <choose>
+               <when test="trCd != null and trCd != ''">
+           AND t1.TR_CD = #{trCd}
+               </when>
+               <otherwise>
+           AND t1.TR_CD IN (SELECT ta.TR_CD FROM SZX1PT ta WHERE ta.OBJ_ID = 'W_JA035B3')
+               </otherwise>
+           </choose>
+         ORDER BY tr_ymd
+    </select>
+
+    <!-- 3. 당일 펀드별 최대 TR_SEQ 조회 -->
+    <select id="selectMaxTrSeq" resultType="java.lang.Long">
+        SELECT NVL(MAX(TR_SEQ), 0)
+          FROM SYT0MG
+         WHERE CORP_GR = #{corpGr}
+           AND TR_YMD  = TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
+           <if test="fundCd != null and fundCd != ''">
+           AND FUND_CD = #{fundCd}
+           </if>
+    </select>
+
+    <!-- 4. 종목 거래단위(UNIT_AEK) 조회 -->
+    <select id="selectUnitAek" resultType="java.math.BigDecimal">
+        SELECT UNIT_AEK
+          FROM SYM0YA
+         WHERE CORP_GR = #{corpGr}
+           AND JM_CD   = #{jmCd}
+           AND ROWNUM  = 1
+    </select>
+
+    <!-- 5. 거래소(보관처) 변경 시 통화/환율/결제종목 조회 -->
+    <select id="selectTrusteeInfo" resultType="map">
+        SELECT t1.CURRENCY AS currency
+             , F_CURRENCY_RT(#{corpGr}, TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD'), t1.CURRENCY) AS transRt
+             , (
+                 SELECT ya.JM_CD
+                   FROM SYM0YA ya
+                  WHERE ya.CORP_GR   = t1.CORP_GR
+                    AND ya.CURRENCY  = t1.CURRENCY
+                    AND ya.GYULJE_JM = 'Y'
+                    AND ROWNUM       = 1
+               ) AS gyuljeJmCd
+          FROM SYX2MM t1
+         WHERE t1.CORP_GR = #{corpGr}
+           AND t1.TRUSTEE = #{trustee}
+           AND ROWNUM     = 1
+    </select>
+
+    <!-- 6. 거래소 미입력 currency 보완용 bank_cd 조회 (szx2mm) -->
+    <select id="selectTrusteeBankCd" resultType="java.lang.String">
+        SELECT BANK_CD
+          FROM SZX2MM
+         WHERE CORP_GR  = #{corpGr}
+           AND TR_CO_CD = #{trustee}
+           AND ROWNUM   = 1
+    </select>
+
+    <!-- 7. 거래코드별 sj_gb 조회 (szx0gr gr_cd='B4') -->
+    <select id="selectSjGb" resultType="java.lang.String">
+        SELECT SEBU_CD_EFNM
+          FROM SZX0GR
+         WHERE GR_CD   = 'B4'
+           AND SEBU_CD = #{trCd}
+           AND ROWNUM  = 1
+    </select>
+
+    <!-- 8. SYT0MG 신규 등록 -->
+    <insert id="insertSyt0mg">
+        INSERT INTO SYT0MG (
+            CORP_GR
+          , TR_YMD
+          , TR_CD
+          , FUND_CD
+          , TR_CO_CD
+          , TRUSTEE
+          , JM_CD
+          , TR_SEQ
+          , CURRENCY
+          , TR_JUSU
+          , TR_DANGA
+          , TR_COST
+          , TR_AEK
+          , GYULJE_YMD
+          , GYULJE_AEK
+          , GYULJE_JM_CD
+          , MK_SUIK_PER
+          , TRANS_RT
+          , PASS_IJA
+          , WON_PASS_IJA
+          , WON_GYULJE_AEK
+          , BS_TYPE
+          , FCUR_GYULJE_AEK
+          , FCUR_SONIK
+          , FCUR_HWAN_CHA
+        ) VALUES (
+            #{corpGr, jdbcType=VARCHAR}
+          , TO_DATE(REPLACE(#{trYmd, jdbcType=VARCHAR}, '-', ''), 'YYYYMMDD')
+          , #{trCd, jdbcType=VARCHAR}
+          , #{fundCd, jdbcType=VARCHAR}
+          , #{trCoCd, jdbcType=VARCHAR}
+          , #{trustee, jdbcType=VARCHAR}
+          , #{yjCd, jdbcType=VARCHAR}
+          , #{trSeq, jdbcType=NUMERIC}
+          , #{currency, jdbcType=VARCHAR}
+          , NVL(#{trJusu, jdbcType=NUMERIC}, 0)
+          , NVL(#{trDanga, jdbcType=NUMERIC}, 0)
+          , NVL(#{trCost, jdbcType=NUMERIC}, 0)
+          , NVL(#{trAek, jdbcType=NUMERIC}, 0)
+          , TO_DATE(REPLACE(#{gyuljeYmd, jdbcType=VARCHAR}, '-', ''), 'YYYYMMDD')
+          , NVL(#{gyuljeAek, jdbcType=NUMERIC}, 0)
+          , #{gyuljeJmCd, jdbcType=VARCHAR}
+          , #{mkSuikPer, jdbcType=NUMERIC}
+          , #{transRt, jdbcType=NUMERIC}
+          , #{passIja, jdbcType=NUMERIC}
+          , #{wonPassIja, jdbcType=NUMERIC}
+          , #{wonGyuljeAek, jdbcType=NUMERIC}
+          , NVL(#{bsType, jdbcType=NUMERIC}, 0)
+          , #{syt0mgFcurGyuljeAek, jdbcType=NUMERIC}
+          , #{syt0mgFcurSonik, jdbcType=NUMERIC}
+          , #{syt0mgFcurHwanCha, jdbcType=NUMERIC}
+        )
+    </insert>
+
+    <!-- 9. SYT0MG 수정 -->
+    <update id="updateSyt0mg">
+        UPDATE SYT0MG
+           SET TR_CO_CD        = #{trCoCd, jdbcType=VARCHAR}
+             , TRUSTEE         = #{trustee, jdbcType=VARCHAR}
+             , JM_CD           = #{yjCd, jdbcType=VARCHAR}
+             , CURRENCY        = #{currency, jdbcType=VARCHAR}
+             , TR_JUSU         = NVL(#{trJusu, jdbcType=NUMERIC}, 0)
+             , TR_DANGA        = NVL(#{trDanga, jdbcType=NUMERIC}, 0)
+             , TR_COST         = NVL(#{trCost, jdbcType=NUMERIC}, 0)
+             , TR_AEK          = NVL(#{trAek, jdbcType=NUMERIC}, 0)
+             , GYULJE_YMD      = TO_DATE(REPLACE(#{gyuljeYmd, jdbcType=VARCHAR}, '-', ''), 'YYYYMMDD')
+             , GYULJE_AEK      = NVL(#{gyuljeAek, jdbcType=NUMERIC}, 0)
+             , GYULJE_JM_CD    = #{gyuljeJmCd, jdbcType=VARCHAR}
+             , MK_SUIK_PER     = #{mkSuikPer, jdbcType=NUMERIC}
+             , TRANS_RT        = #{transRt, jdbcType=NUMERIC}
+             , PASS_IJA        = #{passIja, jdbcType=NUMERIC}
+             , WON_PASS_IJA    = #{wonPassIja, jdbcType=NUMERIC}
+             , WON_GYULJE_AEK  = #{wonGyuljeAek, jdbcType=NUMERIC}
+             , BS_TYPE         = NVL(#{bsType, jdbcType=NUMERIC}, 0)
+             , FCUR_GYULJE_AEK = #{syt0mgFcurGyuljeAek, jdbcType=NUMERIC}
+             , FCUR_SONIK      = #{syt0mgFcurSonik, jdbcType=NUMERIC}
+             , FCUR_HWAN_CHA   = #{syt0mgFcurHwanCha, jdbcType=NUMERIC}
+         WHERE CORP_GR = #{corpGr, jdbcType=VARCHAR}
+           AND TR_YMD  = TO_DATE(REPLACE(#{trYmd, jdbcType=VARCHAR}, '-', ''), 'YYYYMMDD')
+           AND TR_CD   = #{trCd, jdbcType=VARCHAR}
+           AND FUND_CD = #{fundCd, jdbcType=VARCHAR}
+           AND TR_SEQ  = #{trSeq, jdbcType=NUMERIC}
+    </update>
+
+    <!-- 10. SYT0MG 삭제 -->
+    <delete id="deleteSyt0mg">
+        DELETE FROM SYT0MG
+         WHERE CORP_GR = #{corpGr, jdbcType=VARCHAR}
+           AND TR_YMD  = TO_DATE(REPLACE(#{trYmd, jdbcType=VARCHAR}, '-', ''), 'YYYYMMDD')
+           AND TR_CD   = #{trCd, jdbcType=VARCHAR}
+           AND FUND_CD = #{fundCd, jdbcType=VARCHAR}
+           AND TR_SEQ  = #{trSeq, jdbcType=NUMERIC}
+    </delete>
+
+</mapper>

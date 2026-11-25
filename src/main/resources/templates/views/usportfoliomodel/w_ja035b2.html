@@ -16,17 +16,10 @@
         <div th:replace="~{fragments/tab_header :: toolbarBreadcrumb}"></div>
     </div>
 
-    <!-- 2. Sub Filter Bar: 영업일자 + 엑셀LOAD 보조 버튼 -->
+    <!-- 2. Sub Filter Bar: 영업일자 -->
     <div class="filter-bar">
         <div class="filter-left">
             <div th:replace="~{fragments/filter/dc_ymd :: filter(label='영업일자')}"></div>
-            <button type="button" class="t-btn btn-action" id="btnLoadSamsung" title="엑셀LOAD(삼성선물)">
-                <i class="fa-solid fa-file-excel"></i> 엑셀LOAD(삼성선물)
-            </button>
-            <button type="button" class="t-btn btn-action" id="btnLoadKb" title="엑셀LOAD(KB증권)">
-                <i class="fa-solid fa-file-excel"></i> 엑셀LOAD(KB증권)
-            </button>
-            <input type="file" id="excelFileInput" accept=".xlsx, .xls" style="display: none;" />
         </div>
     </div>
 
@@ -1078,50 +1071,7 @@
         }
 
         // ==========================================
-        // 8. 엑셀LOAD 보조 버튼 핸들러
-        // ==========================================
-        function initExcelButtons() {
-            var btnSamsung = currentPane.querySelector('#btnLoadSamsung');
-            var btnKb = currentPane.querySelector('#btnLoadKb');
-            var fileInput = currentPane.querySelector('#excelFileInput');
-            var currentType = '';
-
-            if (btnSamsung) {
-                btnSamsung.addEventListener('click', function () {
-                    currentType = 'SAMSUNG';
-                    if (fileInput) fileInput.click();
-                });
-            }
-
-            if (btnKb) {
-                btnKb.addEventListener('click', function () {
-                    currentType = 'KB';
-                    if (fileInput) fileInput.click();
-                });
-            }
-
-            if (fileInput) {
-                fileInput.addEventListener('change', function (e) {
-                    var files = e.target.files;
-                    if (!files || files.length === 0) return;
-                    var file = files[0];
-                    if (typeof window.showToast === 'function') {
-                        window.showToast(file.name + " 파일이 선택되었습니다. (" + currentType + " 양식 파싱 준비)", "info");
-                    }
-                    // 파일 선택 초기화
-                    fileInput.value = '';
-                });
-            }
-
-            // 행 추가/삭제 서브 버튼 연동
-            var btnAdd = currentPane.querySelector('#btnSubAddRow');
-            var btnDel = currentPane.querySelector('#btnSubDeleteRow');
-            if (btnAdd) btnAdd.addEventListener('click', addNewRow);
-            if (btnDel) btnDel.addEventListener('click', deleteSelectedRow);
-        }
-
-        // ==========================================
-        // 9. 상단 공통 툴바 표준 계약 (규칙 08)
+        // 8. 상단 공통 툴바 표준 계약 (규칙 08)
         // ==========================================
         function initToolbar() {
             currentPane.onSearch = function () {
@@ -1170,7 +1120,6 @@
 
             initGrid();
             ue_dddw_retrieve();
-            initExcelButtons();
             initToolbar();
 
             // 기준일자 달력 컴포넌트 초기화 (규칙 09)

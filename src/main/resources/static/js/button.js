@@ -28,6 +28,42 @@ function onToolbarClose(btn) {
 }
 
 /**
+ * Helper: 합계 행(전체 합계 및 분류별 소계) 여부 판별
+ * @param {Object} rowOrData
+ * @returns {boolean}
+ */
+function isSummaryTarget(rowOrData) {
+    if (typeof window.isAamsSummaryRow === 'function') {
+        return window.isAamsSummaryRow(rowOrData);
+    }
+    if (!rowOrData) return false;
+    const data = typeof rowOrData.getData === 'function' ? rowOrData.getData() : rowOrData;
+    return !!(data && (data.isSummaryRow || data.isGroupSummaryRow || data.isSubTotal || data.isTotalRow));
+}
+
+/**
+ * Helper: 최상단에 신규/복사 행 추가 또는 삭제 후 순번(no, fseq, rownum)을 1부터 재정렬
+ * @param {Object} table - Tabulator 인스턴스
+ */
+function resequenceMasterRows(table) {
+    if (!table || typeof table.getRows !== 'function') return;
+    let seq = 1;
+    table.getRows().forEach(function(row) {
+        if (isSummaryTarget(row)) return;
+        const data = row.getData ? row.getData() : {};
+        const currentSeq = seq++;
+        const patch = {};
+        if (Object.prototype.hasOwnProperty.call(data, 'no')) patch.no = currentSeq;
+        if (Object.prototype.hasOwnProperty.call(data, 'fseq')) patch.fseq = currentSeq;
+        if (Object.keys(patch).length && typeof row.update === 'function') {
+            row.update(patch);
+        } else if (typeof row.reformat === 'function') {
+            row.reformat();
+        }
+    });
+}
+
+/**
  * Toolbar Action: [입력] (Insert New Row into Master Grid)
  * @param {HTMLElement} btn
  */
@@ -49,13 +85,7 @@ function onToolbarInput(btn) {
             table.addRow(newRowData, true).then(function(newRow) {
                 table.deselectRow(); newRow.select();
                 // 신규행을 상단에 추가한 뒤 No. 표시용 필드를 1부터 다시 정렬한다.
-                table.getRows().forEach(function(row, index) {
-                    const data = row.getData();
-                    const patch = {};
-                    if (Object.prototype.hasOwnProperty.call(data, 'no')) patch.no = index + 1;
-                    if (Object.prototype.hasOwnProperty.call(data, 'fseq')) patch.fseq = index + 1;
-                    if (Object.keys(patch).length) row.update(patch);
-                });
+                resequenceMasterRows(table);
                 try { newRow.scrollTo(); } catch (e) {}
                 pane.dispatchEvent(new CustomEvent('masterRowInserted', {bubbles: true, detail: {row: newRow, data: newRow.getData(), tab: activePage && activePage.dataset ? activePage.dataset.page || activePage.dataset.tab : null}}));
             }).catch(function(err) { console.warn('Tabulator tab insert warning:', err); });
@@ -98,6 +128,7 @@ function onToolbarInput(btn) {
             table.addRow(newRowData, true).then(function(newRow) {
                 table.deselectRow();
                 newRow.select();
+                resequenceMasterRows(table);
                 try { newRow.scrollTo(); } catch (e) {}
 
                 if (typeof pane.onRowSelect === 'function') {
@@ -127,11 +158,9 @@ function onToolbarInput(btn) {
  * @param {HTMLElement} pane
  * @returns {number} 초기화된 Tabulator 인스턴스 수
  */
-function clearAllTabulatorsInPane(pane) {
-    if (!pane) return 0;
-    pane._isClearingTabulator = true;
-
-    const tablesToClear = new Set();
+function collectTabulatorsInPane(pane) {
+    const tables = new Set();
+    if (!pane) return tables;
 
     // 1. Tabulator 전역 레지스트리 탐색 (Tabulator v5/v6 표준 내부 레지스트리)
     try {
@@ -139,16 +168,14 @@ function clearAllTabulatorsInPane(pane) {
             const registry = Tabulator.registry || (Tabulator.__proto__ && Tabulator.__proto__.registry);
             if (registry && Array.isArray(registry.tables)) {
                 registry.tables.forEach(tbl => {
-                    if (tbl && tbl.element) {
-                        if (pane === document || pane.contains(tbl.element)) {
-                            tablesToClear.add(tbl);
-                        }
+                    if (tbl && tbl.element && (pane === document || pane.contains(tbl.element))) {
+                        tables.add(tbl);
                     }
                 });
             }
         }
     } catch (e) {
-        console.warn('[clearAllTabulatorsInPane] 전역 레지스트리 조회 중 예외:', e);
+        console.warn('[collectTabulatorsInPane] 전역 레지스트리 조회 중 예외:', e);
     }
 
     // 2. DOM 엘리먼트 기반 탐색 (Tabulator.findTable)
@@ -160,16 +187,16 @@ function clearAllTabulatorsInPane(pane) {
                     const found = Tabulator.findTable(el);
                     if (found) {
                         if (Array.isArray(found)) {
-                            found.forEach(t => { if (t) tablesToClear.add(t); });
+                            found.forEach(t => { if (t) tables.add(t); });
                         } else {
-                            tablesToClear.add(found);
+                            tables.add(found);
                         }
                     }
                 } catch (e) {}
             });
         }
     } catch (e) {
-        console.warn('[clearAllTabulatorsInPane] DOM 엘리먼트 기반 조회 중 예외:', e);
+        console.warn('[collectTabulatorsInPane] DOM 엘리먼트 기반 조회 중 예외:', e);
     }
 
     // 3. pane 및 하위/상위 컨테이너에 직접 바인딩된 Tabulator 객체 탐색
@@ -186,12 +213,51 @@ function clearAllTabulatorsInPane(pane) {
                 try {
                     const obj = c[prop];
                     if (obj && typeof obj.clearData === 'function' && typeof obj.deselectRow === 'function') {
-                        tablesToClear.add(obj);
+                        tables.add(obj);
                     }
                 } catch (e) {}
             }
         });
     } catch (e) {}
+
+    return tables;
+}
+
+function hasUnsavedChangesInPane(pane) {
+    if (!pane) return false;
+    if (typeof pane.hasUnsavedChanges === 'function') {
+        try {
+            if (pane.hasUnsavedChanges()) return true;
+        } catch (e) {}
+    }
+
+    const tables = collectTabulatorsInPane(pane);
+    for (const tbl of tables) {
+        if (!tbl) continue;
+        try {
+            if (tbl._cudManager && typeof tbl._cudManager.getChanges === 'function') {
+                const changes = tbl._cudManager.getChanges();
+                if (changes && changes.hasChanges) return true;
+            }
+            if (typeof tbl.getData === 'function') {
+                const rows = tbl.getData() || [];
+                const dirty = rows.some(r => {
+                    if (!r || r.isSummaryRow || r.isGroupSummaryRow) return false;
+                    return !!(r.isNew || r._isNew || r.isUpdated || r._isUpdated || r.isDeleted || r._isDeleted ||
+                        r.rowStatus === 'C' || r.rowStatus === 'U' || r.rowStatus === 'D');
+                });
+                if (dirty) return true;
+            }
+        } catch (e) {}
+    }
+    return false;
+}
+
+function clearAllTabulatorsInPane(pane) {
+    if (!pane) return 0;
+    pane._isClearingTabulator = true;
+
+    const tablesToClear = collectTabulatorsInPane(pane);
 
     // 4. 발견된 모든 Tabulator 인스턴스에 대해 clearData 및 deselectRow 안전 실행 (초기화 완료된 경우에만 실행)
     tablesToClear.forEach(tbl => {
@@ -228,6 +294,18 @@ function onToolbarRefresh(btn) {
     const pane = getActiveTabPane(btn);
     if (!pane) return;
 
+    if (hasUnsavedChangesInPane(pane)) {
+        if (confirm("변경된 사항이 있습니다.\n변경된 내용을 저장하시겠습니까?")) {
+            const saveBtn = pane.querySelector('.btn-save');
+            if (saveBtn && !saveBtn.disabled && !saveBtn.classList.contains('disabled')) {
+                onToolbarSave(saveBtn);
+            } else {
+                onToolbarSave(btn);
+            }
+            return;
+        }
+    }
+
     // 작업일자 미동기화 알림 해제 (수단 C)
     if (window.WorkDateSyncManager && typeof window.WorkDateSyncManager.clearTabNoticeForPane === 'function') {
         window.WorkDateSyncManager.clearTabNoticeForPane(pane);
@@ -240,6 +318,7 @@ function onToolbarRefresh(btn) {
     const isSearchHidden = !btnSearch ||
         btnSearch.style.display === 'none' ||
         btnSearch.classList.contains('d-none') ||
+        btnSearch.classList.contains('btn-auth-hidden') ||
         btnSearch.hidden ||
         ((window.getComputedStyle && btnSearch.isConnected) && window.getComputedStyle(btnSearch).display === 'none');
 
@@ -255,37 +334,37 @@ function onToolbarRefresh(btn) {
     if (isSearchHidden) {
         let reloaded = false;
 
-        // 1. 화면 전용 onRefresh 계약 함수 우선 실행 (재조회 로직 포함)
+        // 1. onSearch / onRetrieve 우선 실행 (대부분의 화면에서 onRefresh는 clearData 용도이므로 조회 함수를 먼저 호출)
         for (const c of containers) {
-            if (c && typeof c.onRefresh === 'function') {
+            if (c && typeof c.onSearch === 'function') {
                 try {
-                    c.onRefresh(btn);
+                    c.onSearch(btn);
                     reloaded = true;
                     break;
                 } catch (err) {
-                    console.warn('[onToolbarRefresh:Reload] onRefresh 실행 중 오류:', err);
+                    console.warn('[onToolbarRefresh:Reload] onSearch 실행 중 오류:', err);
+                }
+            } else if (c && typeof c.onRetrieve === 'function') {
+                try {
+                    c.onRetrieve(btn);
+                    reloaded = true;
+                    break;
+                } catch (err) {
+                    console.warn('[onToolbarRefresh:Reload] onRetrieve 실행 중 오류:', err);
                 }
             }
         }
 
-        // 2. 만약 onRefresh가 재조회를 하지 않았거나 없는 경우, onSearch / onRetrieve fallback 실행
+        // 2. onSearch / onRetrieve가 없는 화면이면 onRefresh fallback 실행
         if (!reloaded) {
             for (const c of containers) {
-                if (c && typeof c.onSearch === 'function') {
+                if (c && typeof c.onRefresh === 'function') {
                     try {
-                        c.onSearch(btn);
+                        c.onRefresh(btn);
                         reloaded = true;
                         break;
                     } catch (err) {
-                        console.warn('[onToolbarRefresh:Reload] onSearch 실행 중 오류:', err);
-                    }
-                } else if (c && typeof c.onRetrieve === 'function') {
-                    try {
-                        c.onRetrieve(btn);
-                        reloaded = true;
-                        break;
-                    } catch (err) {
-                        console.warn('[onToolbarRefresh:Reload] onRetrieve 실행 중 오류:', err);
+                        console.warn('[onToolbarRefresh:Reload] onRefresh 실행 중 오류:', err);
                     }
                 }
             }
@@ -510,20 +589,63 @@ function onToolbarCopy(btn) {
 
     const selectedRow = selectedRows[0];
     const originalData = selectedRow.getData ? selectedRow.getData() : {};
+    if (isSummaryTarget(selectedRow)) {
+        if (typeof showToast === 'function') {
+            showToast("합계 행은 복사할 수 없습니다.", "warning");
+        } else {
+            alert("합계 행은 복사할 수 없습니다.");
+        }
+        return;
+    }
 
-    // 4. 데이터 딥 카피 & 신규 행 플래그 설정 (예외규칙: isNew: true)
+    // 4. 데이터 딥 카피 & 신규 행 플래그 설정 (예외규칙: isNew: true, 그룹 가림 해제: isFirstInGroup: true)
     let copiedData = JSON.parse(JSON.stringify(originalData));
+    delete copiedData._rowId;
     copiedData.isNew = true;
+    copiedData.isUpdated = false;
+    copiedData.isDeleted = false;
+    copiedData.rowStatus = 'C';
+    copiedData.isFirstInGroup = true;
+
+    // suppressRepeating 컬럼에 값이 비어 있는 경우(상위 행 병합형) 상위 행에서 보완
+    if (typeof table.getRows === 'function' && typeof table.getColumns === 'function') {
+        const allRows = table.getRows();
+        const selectedIdx = allRows.indexOf(selectedRow);
+        if (selectedIdx > 0) {
+            (table.getColumns() || []).forEach(function(col) {
+                const def = col.getDefinition ? col.getDefinition() : {};
+                const field = col.getField ? col.getField() : def.field;
+                if (!field || !def.suppressRepeating) return;
+                const val = copiedData[field];
+                if (val === null || val === undefined || val === '') {
+                    for (let i = selectedIdx - 1; i >= 0; i--) {
+                        const prevData = allRows[i].getData ? allRows[i].getData() : {};
+                        if (isSummaryTarget(prevData)) continue;
+                        if (prevData[field] !== null && prevData[field] !== undefined && prevData[field] !== '') {
+                            copiedData[field] = prevData[field];
+                            break;
+                        }
+                    }
+                }
+            });
+        }
+    }
 
     // 화면 전용 복사 행 보정 함수가 있다면 적용
     if (typeof pane.getCopiedRowData === 'function') {
         copiedData = Object.assign(copiedData, pane.getCopiedRowData(copiedData, originalData) || {});
     }
 
-    // 5. 그리드 최상단에 신규 행 추가
-    table.addRow(copiedData, true).then(function(newRow) {
+    // 5. 그리드 최상단에 신규 행 추가 및 순번 1부터 재정렬
+    const addPromise = (table._cudManager && typeof table._cudManager.addRow === 'function')
+        ? table._cudManager.addRow(copiedData, true)
+        : table.addRow(copiedData, true);
+
+    addPromise.then(function(newRow) {
+        if (!newRow) return;
         table.deselectRow();
         newRow.select();
+        resequenceMasterRows(table);
         try { newRow.scrollTo(); } catch (e) {}
 
         if (typeof pane.onRowSelect === 'function') {
@@ -586,16 +708,50 @@ function onToolbarDelete(btn) {
 
             const targetRow = selectedRows[0];
             const rowData = targetRow.getData ? targetRow.getData() : {};
+            if (isSummaryTarget(targetRow)) {
+                if (typeof showToast === 'function') {
+                    showToast("합계 행은 삭제할 수 없습니다.", "warning");
+                } else {
+                    alert("합계 행은 삭제할 수 없습니다.");
+                }
+                return;
+            }
+            const dataRowsBeforeDelete = (typeof table.getRows === 'function' ? table.getRows() : []).filter(function(r) {
+                return !isSummaryTarget(r);
+            });
+            const deletedIndex = dataRowsBeforeDelete.indexOf(targetRow);
+
+            const finalizeDelete = function(toastMessage) {
+                resequenceMasterRows(table);
+                const remainingRows = (typeof table.getRows === 'function' ? table.getRows() : []).filter(function(r) {
+                    return !isSummaryTarget(r);
+                });
+                if (remainingRows.length > 0 && deletedIndex >= 0) {
+                    const nextIndex = deletedIndex < remainingRows.length
+                        ? deletedIndex
+                        : remainingRows.length - 1;
+                    const nextRow = remainingRows[nextIndex];
+                    if (nextRow) {
+                        if (typeof table.deselectRow === 'function') table.deselectRow();
+                        if (typeof nextRow.select === 'function') nextRow.select();
+                        try { nextRow.scrollTo(); } catch (e) {}
+                        if (typeof pane.onRowSelect === 'function') {
+                            pane.onRowSelect(nextRow.getData(), nextRow);
+                        }
+                    }
+                }
+                if (typeof showToast === 'function') {
+                    showToast(toastMessage, "info");
+                }
+                pane.dispatchEvent(new CustomEvent('masterRowDeleted', {
+                    bubbles: true,
+                    detail: { data: rowData }
+                }));
+            };
 
             if (table._cudManager && typeof table._cudManager.deleteRow === 'function') {
                 table._cudManager.deleteRow(targetRow).then(function() {
-                    if (typeof showToast === 'function') {
-                        showToast("행이 삭제되었습니다. [저장] 시 최종 반영됩니다.", "info");
-                    }
-                    pane.dispatchEvent(new CustomEvent('masterRowDeleted', {
-                        bubbles: true,
-                        detail: { data: rowData }
-                    }));
+                    finalizeDelete("행이 삭제되었습니다. [저장] 시 최종 반영됩니다.");
                 }).catch(function(err) {
                     console.error('[onToolbarDelete] 행 삭제 실패:', err);
                 });
@@ -603,13 +759,7 @@ function onToolbarDelete(btn) {
             }
 
             targetRow.delete().then(function() {
-                if (typeof showToast === 'function') {
-                    showToast("행이 삭제되었습니다.", "info");
-                }
-                pane.dispatchEvent(new CustomEvent('masterRowDeleted', {
-                    bubbles: true,
-                    detail: { data: rowData }
-                }));
+                finalizeDelete("행이 삭제되었습니다.");
             }).catch(function(err) {
                 console.error('[onToolbarDelete] 행 삭제 실패:', err);
             });
