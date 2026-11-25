@@ -45,6 +45,16 @@ public class Ja035cController {
     public BigDecimal rate(@RequestParam String corpGr, @RequestParam String ymd, @RequestParam String currency) {
         return service.getCurrencyRate(corpGr, ymd, currency);
     }
+    @GetMapping("/api/usportfoliomodel/ja035c/trustee-currency") @ResponseBody
+    public Map<String, String> trusteeCurrency(@RequestParam String corpGr, @RequestParam String trustee) {
+        String currency = service.getTrusteeCurrency(corpGr, trustee);
+        return Map.of("currency", currency == null ? "" : currency);
+    }
+    @GetMapping("/api/usportfoliomodel/ja035c/trustee-bank-currency") @ResponseBody
+    public Map<String, String> trusteeBankCurrency(@RequestParam String corpGr, @RequestParam String trustee) {
+        String currency = service.getTrusteeBankCurrency(corpGr, trustee);
+        return Map.of("currency", currency == null ? "" : currency);
+    }
     @PostMapping("/api/usportfoliomodel/ja035c/save") @ResponseBody
     public ResponseEntity<Map<String, Object>> save(@RequestParam String corpGr, @RequestParam String ymd, @RequestParam String trCd,
                                                      @RequestBody List<Ja035cDto> rows) {

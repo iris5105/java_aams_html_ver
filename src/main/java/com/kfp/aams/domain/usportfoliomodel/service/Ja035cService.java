@@ -24,6 +24,16 @@ public class Ja035cService {
         return mapper.selectCurrencyRate(corpGr, ymd, currency);
     }
 
+    @Transactional(readOnly = true)
+    public String getTrusteeCurrency(String corpGr, String trustee) {
+        return mapper.selectTrusteeCurrency(corpGr, trustee);
+    }
+
+    @Transactional(readOnly = true)
+    public String getTrusteeBankCurrency(String corpGr, String trustee) {
+        return mapper.selectTrusteeBankCurrency(corpGr, trustee);
+    }
+
     @Transactional
     public int save(String corpGr, String ymd, String trCd, List<Ja035cDto> rows) {
         if (rows == null) return 0;

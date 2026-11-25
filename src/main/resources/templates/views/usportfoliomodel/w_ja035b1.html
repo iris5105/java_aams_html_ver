@@ -56,57 +56,69 @@
                 formatter: function (cell) { return f_dddwctl.getLabel(options, key, cell.getValue()) || cell.getValue() || ''; }
             });
         }
-        function search(field, title, width, columnNm, seq) {
-            return { title: title, columns: [
-                edit(field, title, width, { cellEdited: function (cell) { changed(cell); } }),
-                { title: '검색', width: 36, headerSort: false, hozAlign: 'center',
-                    formatter: () => '<i class="fa-solid fa-magnifying-glass"></i>',
-                    cellClick: function (event, cell) {
-                        const row = cell.getRow();
-                        if (!window.DynamicCodeSearch) return;
-                        window.DynamicCodeSearch.openModal({
-                            title: title + ' 검색', columnNm: columnNm, corpGr: corpGr(), seq: seq,
-                            initialKeyword: row.getData()[field] || '',
-                            onSelect: function (code, name) {
-                                const update = { isUpdated: !row.getData().isNew, rowStatus: row.getData().isNew ? 'C' : 'U' };
-                                update[field] = code;
-                                if (field === 'fundCd') update.xxFundCd = name;
-                                if (field === 'yjCd') update.xxYjCd = name;
-                                row.update(update);
-                            }
-                        });
-                    } }
-            ] };
+        function searchColumns(field, title, width, columnNm, seq) {
+            function openSearch(target) {
+                const row = target.getRow ? target.getRow() : target;
+                if (!row || !window.DynamicCodeSearch || typeof window.DynamicCodeSearch.openModal !== 'function') return;
+                window.DynamicCodeSearch.openModal({
+                    title: title + ' 검색', columnNm: columnNm, corpGr: corpGr(), seq: seq,
+                    initialKeyword: row.getData()[field] || '',
+                    onSelect: function (code, name) {
+                        const data = row.getData();
+                        const update = { isUpdated: !data.isNew, rowStatus: data.isNew ? 'C' : 'U' };
+                        update[field] = code;
+                        if (field === 'fundCd') update.xxFundCd = name || '';
+                        if (field === 'yjCd') update.xxYjCd = name || '';
+                        row.update(update);
+                    }
+                });
+            }
+            return [
+                edit(field, title, width, {
+                    hozAlign: 'center', cellDblClick: function (_event, cell) { openSearch(cell); }
+                }),
+                { title: '', field: field === 'fundCd' ? 'pXxFundCd' : 'pXxYjCd',
+                    width: 36, minWidth: 36, maxWidth: 36, headerSort: false,
+                    hozAlign: 'center', resizable: false,
+                    formatter: function () {
+                        return '<button type="button" class="btn-grid-addon btn-search" title="' + title +
+                            ' 검색"><i class="fa-solid fa-magnifying-glass"></i></button>';
+                    },
+                    cellClick: function (event, cell) { event.stopPropagation(); openSearch(cell); } }
+            ];
         }
         function initGrid() {
             grid = new Tabulator(pane.querySelector('#gridJa035b1'), {
                 height: '100%', layout: 'fitDataFill', selectableRows: 1, editTriggerEvent: 'click',
                 placeholder: '조회된 내역이 없습니다.',
+                columnDefaults: { vertAlign: 'middle', headerHozAlign: 'center', headerSortTristate: true },
                 columns: [
                     { title: 'No.', formatter: 'rownum', width: 55, headerSort: false, hozAlign: 'center' },
-                    search('fundCd', '펀드번호', 105, 'rcd', 4),
+                    ...searchColumns('fundCd', '펀드번호', 105, 'rcd', 4),
                     { title: '계좌명', field: 'xxFundCd', width: 180 },
                     dropdown('trustee', '해외보관처', 125, 'trustee'),
-                    search('yjCd', '종목', 120, 'yj_cd', 1),
+                    ...searchColumns('yjCd', '종목', 120, 'yj_cd', 1),
                     { title: '종목명', field: 'xxYjCd', width: 190 },
                     edit('trJusu', '외화액면', 120),
                     edit('trDanga', '외화 매매단가', 125),
-                    { title: '외화 매매금액', field: 'trAek', width: 130 },
-                    edit('trTax', '세금', 100),
-                    edit('trCost', '수수료', 100),
+                    { title: '외화매매금액', field: 'trAek', width: 130 },
+                    edit('trTax', '외화세금', 100),
+                    edit('trCost', '외화수수료', 100),
                     edit('passIja', '경과이자', 110, { editable: function (cell) {
                         return /^[JF]/.test(trCd()) && cell.getRow().getData().sjGb !== 'Z';
                     } }),
-                    { title: '외화 결제금액', field: 'gyuljeAek', width: 135 },
+                    { title: '외화결제금액', field: 'gyuljeAek', width: 135 },
                     edit('gyuljeYmd', '결제일자', 125, { editor: window.aamsDateEditor,
                         editable: () => !['J10', 'K10'].includes(trCd()) }),
                     dropdown('currency', '통화', 90, 'currency'),
-                    edit('transRt', '환율', 105),
+                    edit('transRt', '거래환율', 105),
                     dropdown('gyuljeJmCd', '결제종목', 130, 'gyulje_jm_cd'),
-                    { title: '원화 결제금액', field: 'wonGyuljeAek', width: 135 }
+                    { title: '원화결제액', field: 'wonGyuljeAek', width: 135 }
                 ]
             });
             grid.on('tableBuilt', function () { gridBuilt = true; });
+            if (typeof setupTabulatorRowSelection === 'function') setupTabulatorRowSelection(grid);
+            if (window.AamsResponsive) window.AamsResponsive.bindGridResize(pane, [grid]);
         }
         function loadOptions() {
             const group = corpGr();

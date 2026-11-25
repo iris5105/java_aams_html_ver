@@ -22,6 +22,14 @@
     <select id="selectCurrencyRate" resultType="java.math.BigDecimal">
         SELECT F_CURRENCY_RT(#{corpGr}, TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD'), #{currency}) FROM DUAL
     </select>
+    <select id="selectTrusteeCurrency" resultType="java.lang.String">
+        SELECT CURRENCY FROM SYX2MM
+         WHERE CORP_GR = #{corpGr} AND TRUSTEE = #{trustee} AND ROWNUM = 1
+    </select>
+    <select id="selectTrusteeBankCurrency" resultType="java.lang.String">
+        SELECT BANK_CD FROM SZX2MM
+         WHERE CORP_GR = #{corpGr} AND TR_CO_CD = #{trustee} AND ROWNUM = 1
+    </select>
     <insert id="insert">
         INSERT INTO SYT0YH (CORP_GR, TR_YMD, TR_CD, FUND_CD, TR_CO_CD, TRUSTEE, JM_CD, TR_SEQ, CURRENCY,
                             GYULJE_AEK, TRANS_RT, WON_GYULJE_AEK, GYULJE_YMD, FCUR_GYULJE_AEK, KSD_JM_CD)

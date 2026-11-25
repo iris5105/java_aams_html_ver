@@ -12,6 +12,8 @@ public interface Ja035cMapper {
     List<Ja035cDto> selectList(@Param("corpGr") String corpGr, @Param("ymd") String ymd, @Param("trCd") String trCd);
     Long selectMaxTrSeq(@Param("corpGr") String corpGr, @Param("ymd") String ymd, @Param("trCd") String trCd);
     BigDecimal selectCurrencyRate(@Param("corpGr") String corpGr, @Param("ymd") String ymd, @Param("currency") String currency);
+    String selectTrusteeCurrency(@Param("corpGr") String corpGr, @Param("trustee") String trustee);
+    String selectTrusteeBankCurrency(@Param("corpGr") String corpGr, @Param("trustee") String trustee);
     int insert(Ja035cDto dto);
     int update(Ja035cDto dto);
     int delete(Ja035cDto dto);
