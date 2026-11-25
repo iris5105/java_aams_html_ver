@@ -2,7 +2,7 @@
 <html xmlns:th="http://www.thymeleaf.org">
 <div class="view-container layout-single layout-mobile-stack-container" th:fragment="mainView" th:attr="data-pgm-id='W_JA035C',data-corp-gr=${corpGr}">
     <div class="view-toolbar"><div class="toolbar-left" th:replace="~{fragments/tab_header :: toolbarButtons}"></div><div th:replace="~{fragments/tab_header :: toolbarBreadcrumb}"></div></div>
-    <div class="filter-bar"><div class="filter-left"><th:block th:replace="~{fragments/filter/dc_ymd_dddw :: filter(labelYmd='기준일자', labelDddw='거래코드')}"></th:block></div></div>
+    <div class="filter-bar"><div class="filter-left"><th:block th:replace="~{fragments/filter/dc_ymd_dddw :: filter(labelYmd='영업일자', labelDddw='거래코드')}"></th:block></div></div>
     <section class="grid-section" aria-label="해외 결제 내역"><div class="grid-table-wrapper"><div id="gridJa035c" class="tabulator-aams-grid"></div></div></section>
     <script th:inline="javascript">
     (function () {
@@ -14,10 +14,65 @@
         const corpGr = () => (window.resolveCorpGr ? resolveCorpGr(pane) : '') || pane.dataset.corpGr;
         const ymd = () => window.getFilterYmd ? getFilterYmd(pane,'YYYY-MM-DD') : field('filterYmd').value;
         const trCd = () => field('filterDddw')?.value || '';
+        const workDate = /*[[${workDate}]]*/ '';
+        const canManage = () => !!ymd() && !!workDate && ymd() >= workDate;
         const money = v => v == null || v === '' ? '' : Number(v).toLocaleString(undefined,{maximumFractionDigits:4});
-        let grid, deletedRows = [], maxSeq = 0;
+        let grid, gridBuilt = false, deletedRows = [], maxSeq = 0;
         function updated(cell) { const d=cell.getRow().getData(); if (!d.isNew) cell.getRow().update({isUpdated:true,rowStatus:'U'}); }
         async function fetchJson(url, options) { const r=await fetch(url,options); const b=await r.json().catch(()=>({})); if(!r.ok || b.success===false) throw new Error(b.message||'처리 중 오류가 발생했습니다.'); return b; }
+        const dddwOptionsMap = {trustee:[],currency:[]};
+        const editable = () => canManage();
+        function searchColumn(fieldName, title, columnNm, seq) {
+            async function openSearch(cell) {
+                const row=cell.getRow(), data=row.getData();
+                if(!canManage() || !window.DynamicCodeSearch) return;
+                let currency=data.currency || '';
+                if(fieldName==='yjCd' && !currency && data.trustee) {
+                    const result=await fetchJson(api+'/trustee-bank-currency?'+new URLSearchParams({corpGr:corpGr(),trustee:data.trustee}));
+                    currency=result.currency || '';
+                }
+                DynamicCodeSearch.openModal({title:title+' 검색',columnNm,seq,corpGr:corpGr(),
+                    initialKeyword:data[fieldName]||'',
+                    addWhere:fieldName==='yjCd' && currency ? "currency='"+currency.replaceAll("'","''")+"'" : '',
+                    onSelect:(code,name)=>{
+                        const values={isUpdated:!data.isNew,rowStatus:data.isNew?'C':'U'};
+                        values[fieldName]=code;
+                        if(fieldName==='fundCd') values.xxFundCd=name||'';
+                        else values.xxYjCd=name||'';
+                        row.update(values);
+                    }});
+            }
+            return {title:'',field:fieldName==='fundCd'?'pXxFundCd':'pXxYjCd',
+                width:36,minWidth:36,maxWidth:36,headerSort:false,resizable:false,hozAlign:'center',
+                formatter:()=>'<button type="button" class="btn-grid-addon btn-search" title="'+title+' 검색"><i class="fa-solid fa-magnifying-glass"></i></button>',
+                cellClick:(event,cell)=>{event.stopPropagation();openSearch(cell).catch(e=>toast(e.message,'error'));}};
+        }
+        function dddwColumn(fieldName,title,width) {
+            return {title,field:fieldName,width,editor:'list',editable,cellClick:aamsCellEdit,
+                editorParams:()=>({values:f_dddwctl.getOptions(dddwOptionsMap,fieldName)}),
+                formatter:cell=>f_dddwctl.getLabel(dddwOptionsMap,fieldName,cell.getValue())||cell.getValue()||'',
+                cellEdited:async cell=>{
+                    updated(cell);
+                    if(fieldName==='trustee') await applyTrustee(cell.getRow());
+                    else await applyRate(cell.getRow());
+                }};
+        }
+        async function loadGridOptions() {
+            if(!corpGr() || !window.f_dddwctl) return;
+            const result=await f_dddwctl.retrieveMultiple({
+                trustee:['trustee',corpGr(),'',1,''],currency:['currency',corpGr(),'',1,'']});
+            dddwOptionsMap.trustee=result.trustee||[];
+            dddwOptionsMap.currency=result.currency||[];
+            if(grid && gridBuilt) grid.reformat();
+        }
+        async function loadFilter() {
+            if(!window.initFilterDddw) return;
+            const date=ymd(), oldDate=date && workDate && date<workDate;
+            const where="szx1pt.obj_id='W_JA035C'"+
+                (oldDate?" and szx0gc.tr_cd in (select tr_cd from syt0yh where corp_gr=':corp_gr' and tr_ymd='"+date.replaceAll('-','.')+"')":'');
+            await initFilterDddw(pane,{selectId:'filterDddw',dddwId:'dddw',corpGr:corpGr(),seq:1,
+                addWhere:where,codeTitle:'코드',nameTitle:'거래코드'});
+        }
         function buildGrid() {
             grid = new Tabulator(field('gridJa035c'), {height:'100%',layout:'fitDataFill',selectableRows:1,editTriggerEvent:'click',placeholder:'조회된 데이터가 없습니다.',
                 columns:[
