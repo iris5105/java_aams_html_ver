@@ -41,6 +41,11 @@ public class Ja035bDto {
     private BigDecimal transRt;
     private BigDecimal wonGyuljeAek;
     private BigDecimal wonChuiAek;
+    private BigDecimal passIja;
+    private BigDecimal wonPassIja;
+    private BigDecimal todayIja;
+    private BigDecimal wonTodayIja;
+    private String sjGb;
     private Integer pVisible;
 
     // 양방향 프로퍼티: fundNm & xxFundCd

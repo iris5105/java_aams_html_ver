@@ -34,6 +34,24 @@ public class Ja035bController {
         this.workDateService = workDateService;
     }
 
+    @GetMapping({"/views/w_ja035b1", "/views/usportfoliomodel/w_ja035b1"})
+    public String viewJa035b1(@AuthenticationPrincipal Object principalObj,
+                              @RequestParam(name = "corpGr", required = false) String paramCorpGr,
+                              @RequestParam(name = "ymd", required = false) String paramYmd,
+                              @CookieValue(name = "savedCorpGr", required = false) String cookieCorpGr1,
+                              @CookieValue(name = "corpGr", required = false) String cookieCorpGr2,
+                              Model model) {
+        String cookieCorpGr = cookieCorpGr1 != null && !cookieCorpGr1.isBlank() ? cookieCorpGr1 : cookieCorpGr2;
+        String corpGr = resolveCorpGr(paramCorpGr, cookieCorpGr, principalObj);
+        var menuDto = menuService.getMenuByPgmId("W_JA035B1");
+        model.addAttribute("fullpgm2", menuDto != null ? menuDto.getFullpgm2() : "해외채권 PORT 매매관리");
+        model.addAttribute("corpGr", corpGr);
+        String workDate = paramYmd != null && !paramYmd.isBlank() ? paramYmd : workDateService.getWorkDateOrDefault(corpGr);
+        model.addAttribute("initialYmd", workDate);
+        model.addAttribute("ymd", workDate);
+        return "views/usportfoliomodel/w_ja035b1";
+    }
+
     /**
      * 뷰 렌더링
      */
@@ -70,7 +88,7 @@ public class Ja035bController {
     /**
      * 해외주식 매매내역 목록 조회 API (d_ja035b)
      */
-    @GetMapping("/api/usportfoliomodel/ja035b/list")
+    @GetMapping({"/api/usportfoliomodel/ja035b/list", "/api/usportfoliomodel/ja035b1/list"})
     @ResponseBody
     public ResponseEntity<List<Ja035bDto>> getList(@RequestParam(name = "corpGr", required = false) String paramCorpGr,
                                                    @RequestParam("ymd") String ymd,
@@ -159,7 +177,7 @@ public class Ja035bController {
     /**
      * 매매내역 CUD 저장 API
      */
-    @PostMapping("/api/usportfoliomodel/ja035b/save")
+    @PostMapping({"/api/usportfoliomodel/ja035b/save", "/api/usportfoliomodel/ja035b1/save"})
     @ResponseBody
     public ResponseEntity<Map<String, Object>> saveList(@RequestParam(name = "corpGr", required = false) String paramCorpGr,
                                                         @RequestBody List<Ja035bDto> dtoList,

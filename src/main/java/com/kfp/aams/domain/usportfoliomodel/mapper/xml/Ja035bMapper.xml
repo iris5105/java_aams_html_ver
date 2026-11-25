@@ -35,6 +35,11 @@
              , mg.TRANS_RT                                     AS trans_rt
              , mg.WON_GYULJE_AEK                               AS won_gyulje_aek
              , mg.WON_CHUI_AEK                                 AS won_chui_aek
+             , mg.PASS_IJA                                     AS pass_ija
+             , mg.WON_PASS_IJA                                 AS won_pass_ija
+             , mg.TODAY_IJA                                    AS today_ija
+             , mg.WON_TODAY_IJA                                AS won_today_ija
+             , ya.SJ_GB                                        AS sj_gb
              , 1                                               AS p_visible
           FROM SYT0MG mg
              , SZM0IA ia
@@ -169,6 +174,10 @@
           , TRANS_RT
           , WON_GYULJE_AEK
           , WON_CHUI_AEK
+          , PASS_IJA
+          , WON_PASS_IJA
+          , TODAY_IJA
+          , WON_TODAY_IJA
         ) VALUES (
             #{corpGr}
           , TO_DATE(REPLACE(#{trYmd}, '-', ''), 'YYYYMMDD')
@@ -195,6 +204,10 @@
           , #{transRt, jdbcType=NUMERIC}
           , #{wonGyuljeAek, jdbcType=NUMERIC}
           , #{wonChuiAek, jdbcType=NUMERIC}
+          , #{passIja, jdbcType=NUMERIC}
+          , #{wonPassIja, jdbcType=NUMERIC}
+          , #{todayIja, jdbcType=NUMERIC}
+          , #{wonTodayIja, jdbcType=NUMERIC}
         )
     </insert>
 
@@ -221,6 +234,18 @@
              , TRANS_RT       = #{transRt, jdbcType=NUMERIC}
              , WON_GYULJE_AEK = #{wonGyuljeAek, jdbcType=NUMERIC}
              , WON_CHUI_AEK   = #{wonChuiAek, jdbcType=NUMERIC}
+             <if test="passIja != null">
+             , PASS_IJA       = #{passIja}
+             </if>
+             <if test="wonPassIja != null">
+             , WON_PASS_IJA   = #{wonPassIja}
+             </if>
+             <if test="todayIja != null">
+             , TODAY_IJA      = #{todayIja}
+             </if>
+             <if test="wonTodayIja != null">
+             , WON_TODAY_IJA  = #{wonTodayIja}
+             </if>
          WHERE CORP_GR        = #{corpGr}
            AND TR_YMD         = TO_DATE(REPLACE(#{trYmd}, '-', ''), 'YYYYMMDD')
            AND TR_CD          = #{trCd}
