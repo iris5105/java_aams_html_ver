@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<!--
+    W_JA035Q: 미지급/미수금 이월내역 관리
+    DataWindow:
+      - dw_c: dc_ymd (처리일자)
+      - dw_list: d_ja035q (SYT0MC)
+      - eb_new_false = true, eb_copy_false = true
+-->
+<div class="view-container layout-single ja035q-container layout-mobile-stack-container" th:fragment="ja035qView">
+
+    <div class="view-toolbar">
+        <div class="toolbar-left">
+            <div th:replace="~{fragments/tab_header :: toolbarButtons}"></div>
+        </div>
+        <div th:replace="~{fragments/tab_header :: toolbarBreadcrumb}"></div>
+    </div>
+
+    <div class="filter-bar">
+        <div class="filter-left">
+            <div class="filter-item" style="position: relative; display: flex; align-items: center; gap: 6px;">
+                <label for="filterJa035qYmd">처리일자</label>
+                <div class="aams-calendar-wrapper" style="position: relative; display: inline-flex; align-items: center;">
+                    <input type="text" id="filterJa035qYmd" name="ymd" class="t-input aams-calendar-input"
+                           style="width: 110px; padding: 4px 8px; font-size: 13px; text-align: center; border: 1px solid #cbd5e1; border-radius: 4px 0 0 4px; cursor: pointer; background: #ffffff;"
+                           th:value="${ymd != null ? ymd : ''}" readonly autocomplete="off" />
+                    <button type="button" class="t-btn btn-calendar" title="달력 열기"
+                            style="padding: 5px 10px; border-radius: 0 4px 4px 0; border-left: none; background-color: #3b82f6; color: #ffffff; border: 1px solid #3b82f6; cursor: pointer;"
+                            onclick="AamsCalendar.toggle('filterJa035qYmd', event)">
+                        <i class="fa-regular fa-calendar-days"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <section class="grid-section" aria-label="미지급/미수금 이월내역">
+        <div class="grid-table-wrapper">
+            <div id="gridJa035q" class="tabulator-aams-grid"></div>
+        </div>
+    </section>
+
+    <script th:inline="javascript">
+    (function () {
+        const script = document.currentScript;
+        const pane = script && (script.closest('.tab-pane') || script.closest('.view-container'));
+        if (!pane) return;
+
+        const api = '/api/foreignassetmanagement/ja035q';
+        const calendarId = 'filterJa035qYmd';
+        const initialYmd = /*[[${initialYmd}]]*/ '';
+        const workDate = /*[[${workDate}]]*/ '';
+        const initialTrDates = /*[[${trDates}]]*/ [];
+
+        let initialized = false;
+        let grid = null;
+        let gridBuilt = false;
+        let cudManager = null;
+        let hasSucceededSearch = false;
+
+        const dddwOptionsMap = {
+            tr_cd: [],
+            trustee: []
+        };
+
+        const notify = (msg, level) => { if (window.showToast) window.showToast(msg, level); };
+        const corpGr = () => window.resolveCorpGr ? window.resolveCorpGr(pane) : '';
+        const ymd = () => window.getFilterYmd ? window.getFilterYmd(pane) : (pane.querySelector('#' + calendarId)?.value || '');
+        const num = val => Number(val) || 0;
+
+        function canEditRow(row) {
+            if (!row) return false;
+            const d = row.getData();
+            return !!(workDate && d.trYmd && d.trYmd === workDate);
+        }
+
+        function restoreToolbarState() {
+            if (window.ButtonRole && typeof window.ButtonRole.setSearchState === 'function') {
+                window.ButtonRole.setSearchState(pane, hasSucceededSearch);
+            }
+        }
+
+        async function fetchJson(url, options) {
+            const response = await fetch(url, options);
+            const body = await response.json().catch(() => null);
+            if (!response.ok || (body && body.success === false)) {
+                throw new Error((body && body.message) || '처리 중 오류가 발생했습니다.');
+            }
+            return body;
+        }
+
+        function markRowUpdated(row, patch) {
+            if (!row) return;
+            row.update(Object.assign({
+                isUpdated: true,
+                rowStatus: 'U'
+            }, patch || {}));
+            if (cudManager && typeof cudManager.trackChange === 'function') {
+                cudManager.trackChange(row);
+            }
+        }
+
+        // w_ja035q.srw dw_list::itemchanged: 이전 동일(fund_cd, trustee, tr_cd) 행의 감소액 자동 보정
+        function onCellEdited(cell) {
+            if (!cell) return;
+            const row = cell.getRow();
+            const field = cell.getField();
+            const d = row.getData();
+
+            d.isUpdated = true;
+            d.rowStatus = 'U';
+            if (cudManager && typeof cudManager.trackChange === 'function') {
+                cudManager.trackChange(row);
+            }
+
+            if (field !== 'bfilAek' && field !== 'wonBfilAek') {
+                row.reformat();
+                return;
+            }
+
+            const allRows = grid.getRows();
+            const curIdx = allRows.indexOf(row);
+            let prevRow = null;
+            for (let i = 0; i < curIdx; i++) {
+                const pd = allRows[i].getData();
+                if (pd.fundCd === d.fundCd && pd.trustee === d.trustee && pd.trCd === d.trCd) {
+                    prevRow = allRows[i];
+                    break;
+                }
+            }
+
+            if (prevRow) {
+                const pd = prevRow.getData();
+                if (field === 'bfilAek') {
+                    const prevJan = num(pd.bfilAek) + num(pd.upAek) - num(pd.dwAek);
+                    const nextDwAek = num(pd.dwAek) + (prevJan - num(d.bfilAek));
+                    markRowUpdated(prevRow, { dwAek: nextDwAek });
+                } else if (field === 'wonBfilAek') {
+                    const prevWonJan = num(pd.wonBfilAek) + num(pd.wonUpAek) - num(pd.wonDwAek);
+                    const nextWonDwAek = num(pd.wonDwAek) + (prevWonJan - num(d.wonBfilAek));
+                    markRowUpdated(prevRow, { wonDwAek: nextWonDwAek });
+                }
+                prevRow.reformat();
+            }
+            row.reformat();
+        }
+
+        function formatNum(val, decimals) {
+            if (val === null || val === undefined || val === '') return '';
+            const n = Number(val);
+            if (Number.isNaN(n)) return '';
+            return n.toLocaleString('ko-KR', {
+                minimumFractionDigits: decimals,
+                maximumFractionDigits: decimals
+            });
+        }
+
+        function numCol(field, title, width, decimals, writable = false, cssClass = '') {
+            const col = {
+                field: field,
+                title: title,
+                width: width,
+                hozAlign: 'right',
+                cssClass: cssClass,
+                formatter: cell => formatNum(cell.getValue(), decimals)
+            };
+            if (writable) {
+                col.editor = 'number';
+                col.editable = cell => canEditRow(cell.getRow());
+                col.cellClick = window.aamsCellEdit;
+                col.cellEdited = onCellEdited;
+            }
+            return col;
+        }
+
+        function initGrid() {
+            grid = new Tabulator(pane.querySelector('#gridJa035q'), {
+                height: '100%',
+                layout: 'fitDataFill',
+                selectableRows: 1,
+                editTriggerEvent: 'click',
+                placeholder: '조회된 내역이 없습니다.',
+                columnDefaults: {
+                    vertAlign: 'middle',
+                    headerHozAlign: 'center',
+                    headerSort: false
+                },
+                columns: [
+                    {
+                        title: 'No.',
+                        width: 55,
+                        hozAlign: 'center',
+                        formatter: cell => cell.getRow().getPosition(true)
+                    },
+                    {
+                        title: '생성일자',
+                        field: 'trYmd',
+                        width: 105,
+                        hozAlign: 'center',
+                        formatter: cell => window.formatDateVal ? window.formatDateVal(cell.getValue()) : (cell.getValue() || '')
+                    },
+                    { title: '펀드번호', field: 'fundCd', width: 105, hozAlign: 'center', headerCssClass: 'col-hdr-green' },
+                    { title: '계좌명', field: 'xxFundCd', width: 200, hozAlign: 'left' },
+                    {
+                        title: '생성구분',
+                        field: 'trCd',
+                        width: 145,
+                        hozAlign: 'center',
+                        formatter: cell => (f_dddwctl && f_dddwctl.getLabel(dddwOptionsMap, 'tr_cd', cell.getValue())) || cell.getValue() || ''
+                    },
+                    {
+                        title: '해외보관처',
+                        field: 'trustee',
+                        width: 150,
+                        hozAlign: 'center',
+                        formatter: cell => (f_dddwctl && f_dddwctl.getLabel(dddwOptionsMap, 'trustee', cell.getValue())) || cell.getValue() || ''
+                    },
+                    { title: '통화', field: 'currency', width: 75, hozAlign: 'center' },
+                    numCol('bfilAek', '이월액', 120, 2, true),
+                    numCol('upAek', '증가액', 120, 2, false),
+                    numCol('dwAek', '감소액', 120, 2, false),
+                    {
+                        title: '잔액',
+                        field: 'janAekCalc',
+                        width: 120,
+                        hozAlign: 'right',
+                        cssClass: 'cell-text-blue',
+                        formatter: cell => {
+                            const d = cell.getRow().getData();
+                            return formatNum(num(d.bfilAek) + num(d.upAek) - num(d.dwAek), 2);
+                        }
+                    },
+                    numCol('wonBfilAek', '이월액(원화)', 125, 0, true),
+                    numCol('wonUpAek', '증가액(원화)', 120, 0, false),
+                    numCol('wonDwAek', '감소액(원화)', 120, 0, false),
+                    {
+                        title: '잔액(원화)',
+                        field: 'wonJanAekCalc',
+                        width: 125,
+                        hozAlign: 'right',
+                        cssClass: 'cell-text-blue',
+                        formatter: cell => {
+                            const d = cell.getRow().getData();
+                            return formatNum(num(d.wonBfilAek) + num(d.wonUpAek) - num(d.wonDwAek), 0);
+                        }
+                    },
+                    numCol('wonHwanCha', '환차손익(원화)', 125, 0, false, 'cell-text-muted'),
+                    { title: '기준통화', field: 'fundCurrency', width: 80, hozAlign: 'center', cssClass: 'cell-text-muted' },
+                    numCol('fcurAek', '기준통화 잔액', 130, 2, false, 'cell-text-muted'),
+                    numCol('syt0mcFcurHwanCha', '기준통화 환차손익', 125, 2, false, 'cell-text-muted')
+                ]
+            });
+
+            grid.on('tableBuilt', () => { gridBuilt = true; });
+
+            if (typeof setupTabulatorRowSelection === 'function') {
+                setupTabulatorRowSelection(grid);
+            }
+            if (window.AamsResponsive) {
+                AamsResponsive.bindGridResize(pane, [grid]);
+            }
+            if (window.AamsCudManager) {
+                cudManager = AamsCudManager.create(grid, {
+                    allowedFields: [
+                        'corpGr', 'trYmd', 'trCd', 'fundCd', 'trustee', 'currency',
+                        'upAek', 'dwAek', 'wonUpAek', 'wonDwAek', 'isDeleted'
+                    ]
+                });
+            }
+        }
+
+        async function loadGridOptions() {
+            if (!corpGr() || !window.f_dddwctl) return;
+            const results = await f_dddwctl.retrieveMultiple({
+                tr_cd:   ['tr_cd', corpGr(), '', 1, ''],
+                trustee: ['trustee', corpGr(), '', 1, '']
+            });
+            dddwOptionsMap.tr_cd = results.tr_cd || [];
+            dddwOptionsMap.trustee = results.trustee || [];
+            if (grid && gridBuilt) {
+                grid.getRows().forEach(r => r.reformat());
+            }
+        }
+
+        function initCalendar() {
+            if (!window.AamsCalendar) return;
+            AamsCalendar.init(calendarId, {
+                pane: pane,
+                initialYmd: initialYmd || ymd(),
+                highlightDates: Array.isArray(initialTrDates) ? initialTrDates : [],
+                datesApiUrl: api + '/dates',
+                corpGr: corpGr(),
+                historyTitle: '이월내역 존재'
+            });
+        }
+
+        async function load() {
+            if (!corpGr()) {
+                restoreToolbarState();
+                return notify('회사그룹을 확인해주세요.', 'warning');
+            }
+            if (!ymd()) {
+                restoreToolbarState();
+                return notify('처리일자를 선택해주세요.', 'warning');
+            }
+
+            try {
+                const rows = await fetchJson(api + '/list?' + new URLSearchParams({
+                    corpGr: corpGr(),
+                    ymd: ymd()
+                }));
+                hasSucceededSearch = true;
+                restoreToolbarState();
+                const formatted = cudManager ? cudManager.formatData(rows) : rows;
+                await grid.setData(formatted);
+                const firstRow = grid.getRows()[0];
+                if (firstRow) firstRow.select();
+            } catch (err) {
+                restoreToolbarState();
+                notify(err.message || '조회 중 오류가 발생했습니다.', 'error');
+            }
+        }
+
+        function deleteRow() {
+            if (!grid) return;
+            const selectedRows = grid.getSelectedRows();
+            if (!selectedRows.length) {
+                return notify('삭제할 행을 먼저 선택해주세요.', 'warning');
+            }
+            if (!confirm('선택한 행을 삭제하시겠습니까? (저장 시 DB에 반영됩니다)')) return;
+
+            const targetRow = selectedRows[0];
+            if (cudManager && typeof cudManager.deleteRow === 'function') {
+                cudManager.deleteRow(targetRow).then(() => {
+                    notify('행이 삭제되었습니다. [저장] 시 최종 반영됩니다.', 'info');
+                });
+            } else {
+                targetRow.delete();
+            }
+        }
+
+        async function save() {
+            const changes = cudManager
+                ? cudManager.getChanges()
+                : grid.getData().filter(r => r.isUpdated || r.isDeleted);
+
+            if (!changes || !changes.length) {
+                return notify('저장할 변경 내역이 없습니다.', 'info');
+            }
+
+            try {
+                const res = await fetchJson(api + '/save?' + new URLSearchParams({ corpGr: corpGr() }), {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(changes)
+                });
+                notify(res.message || '저장되었습니다.', 'success');
+                if (window.AamsCalendar) {
+                    AamsCalendar.loadHighlightDates(calendarId, api + '/dates', corpGr());
+                }
+                await load();
+            } catch (err) {
+                notify(err.message || '저장 중 오류가 발생했습니다.', 'error');
+            }
+        }
+
+        function refresh() {
+            hasSucceededSearch = false;
+            if (cudManager && typeof cudManager.reset === 'function') {
+                cudManager.reset();
+            }
+            if (window.safeClearGrid) {
+                window.safeClearGrid(grid);
+            } else if (grid) {
+                grid.setData([]);
+            }
+            restoreToolbarState();
+        }
+
+        function start() {
+            if (initialized) return;
+            initialized = true;
+
+            // 파워빌더 w_ja035q (ib_managedata = false, eb_new_false = true, eb_copy_false = true) 반영:
+            // w_winpage::ue_setenabled 규칙에 따라 입력/복사/삭제 버튼 비활성화
+            pane.ibManageData = false;
+            pane.ebNewFalse = true;
+            pane.ebCopyFalse = true;
+            pane.ebDeleteFalse = true;
+            restoreToolbarState();
+
+            pane.addEventListener('buttonAuthApplied', restoreToolbarState);
+
+            initCalendar();
+            initGrid();
+            loadGridOptions().catch(err => notify(err.message || '선택 목록을 불러오지 못했습니다.', 'error'));
+
+            pane.onSearch = load;
+            pane.onDelete = deleteRow;
+            pane.onSave = save;
+            pane.onRefresh = refresh;
+            pane.onCorpGrChange = function (nextCorpGr) {
+                refresh();
+                loadGridOptions().catch(err => notify(err.message, 'error'));
+                if (window.AamsCalendar) {
+                    AamsCalendar.loadHighlightDates(calendarId, api + '/dates', nextCorpGr || corpGr());
+                }
+            };
+            pane.onExcel = function () {
+                if (grid) {
+                    grid.download('xlsx', '미지급미수금이월_' + (ymd() || '') + '.xlsx', { sheetName: '이월내역' });
+                }
+            };
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', start);
+        } else {
+            start();
+        }
+    })();
+    </script>
+</div>
+</html>

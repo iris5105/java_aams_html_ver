@@ -1,0 +1,270 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.kfp.aams.domain.foreignassetmanagement.mapper.Ja035pMapper">
+
+    <!-- 1. 마스터 목록 조회 (d_ja035p1.srd) -->
+    <select id="selectMasterList" resultType="com.kfp.aams.domain.foreignassetmanagement.dto.Ja035pMasterDto">
+        SELECT t1.CORP_GR
+             , TO_CHAR(t1.TR_YMD, 'YYYY-MM-DD')     AS tr_ymd
+             , t1.TR_CD
+             , t1.FUND_CD
+             , t1.TRUSTEE
+             , t1.JM_CD                             AS hj_cd
+             , t1.TR_SEQ
+             , t1.AEK_GB
+             , t1.CURRENCY
+             , t1.TR_CO_CD
+             , t1.AEK
+             , t1.JAN_AEK
+             , t1.WON_AEK
+             , t1.WON_JAN_AEK
+             , TO_CHAR(t1.SANGHW_YMD, 'YYYY-MM-DD') AS sanghw_ymd
+             , TO_CHAR(t1.BF_YMD, 'YYYY-MM-DD')     AS bf_ymd
+             , TO_CHAR(t1.AF_YMD, 'YYYY-MM-DD')     AS af_ymd
+             , t1.BIGO
+             , t1.GWAMOK
+             , F_FUND_NM(t1.CORP_GR, t1.FUND_CD)    AS xx_fund_cd
+             , F_JM_NM(t1.CORP_GR, t1.JM_CD)        AS xx_jm_nm
+             , t2.GIJUN_RT
+             , t2.WON_SANGHW_AEK
+             , 1                                    AS p_visible
+             , TO_CHAR(t1.TR_YMD, 'YYYY-MM-DD')     AS orig_tr_ymd
+             , t1.TR_CD                             AS orig_tr_cd
+             , t1.FUND_CD                           AS orig_fund_cd
+             , t1.JM_CD                             AS orig_hj_cd
+             , t1.TR_SEQ                            AS orig_tr_seq
+             , t1.AEK_GB                            AS orig_aek_gb
+          FROM SYT9MG t1
+          LEFT JOIN SYT9MG_TR t2
+            ON t2.CORP_GR    = t1.CORP_GR
+           AND t2.TR_YMD     = t1.TR_YMD
+           AND t2.TR_CD      = t1.TR_CD
+           AND t2.FUND_CD    = t1.FUND_CD
+           AND t2.JM_CD      = t1.JM_CD
+           AND t2.TR_SEQ     = t1.TR_SEQ
+           AND t2.AEK_GB     = t1.AEK_GB
+           AND t2.SANGHW_YMD = TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
+         WHERE t1.CORP_GR = #{corpGr}
+           AND COALESCE(t1.SANGHW_YMD, TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')) &gt;= TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
+         ORDER BY t1.TR_YMD ASC
+                , t1.FUND_CD ASC
+                , t1.JM_CD ASC
+                , t1.TR_SEQ ASC
+    </select>
+
+    <!-- 2. 디테일 목록 조회 (d_ja035p2.srd) -->
+    <select id="selectDetailList" resultType="com.kfp.aams.domain.foreignassetmanagement.dto.Ja035pDetailDto">
+        SELECT t1.CORP_GR
+             , TO_CHAR(t1.TR_YMD, 'YYYY-MM-DD')     AS tr_ymd
+             , t1.TR_CD
+             , t1.FUND_CD
+             , t1.TRUSTEE
+             , t1.JM_CD                             AS hj_cd
+             , t1.TR_SEQ
+             , t1.AEK_GB
+             , t1.CURRENCY
+             , t1.TR_CO_CD
+             , t1.SANGHW_AEK
+             , t1.WON_SANGHW_AEK
+             , t1.GIJUN_RT
+             , t1.JAN_AEK
+             , t1.WON_JAN_AEK
+             , t1.WON_HWAN_CHA
+             , t1.FCUR_JAN_AEK
+             , t1.FCUR_HWAN_CHA
+             , TO_CHAR(t1.SANGHW_YMD, 'YYYY-MM-DD') AS sanghw_ymd
+             , TO_CHAR(t1.SANGHW_YMD, 'YYYY-MM-DD') AS orig_sanghw_ymd
+             , F_FUND_NM(t1.CORP_GR, t1.FUND_CD)    AS xx_fund_cd
+             , F_JM_NM(t1.CORP_GR, t1.JM_CD)        AS xx_jm_nm
+             , 1                                    AS p_visible
+          FROM SYT9MG_TR t1
+         WHERE t1.CORP_GR = #{corpGr}
+           AND t1.TR_YMD  = TO_DATE(REPLACE(#{trYmd}, '-', ''), 'YYYYMMDD')
+           AND t1.TR_CD   = #{trCd}
+           AND t1.FUND_CD = #{fundCd}
+           AND t1.JM_CD   = #{hjCd}
+           AND t1.TR_SEQ  = #{trSeq}
+           AND t1.AEK_GB  = #{aekGb}
+         ORDER BY t1.SANGHW_YMD ASC
+    </select>
+
+    <!-- 3. 달력 하이라이트 일자 조회 -->
+    <select id="selectHighlightDates" resultType="java.lang.String">
+        SELECT DISTINCT TO_CHAR(t1.TR_YMD, 'YYYY-MM-DD') AS ymd
+          FROM SYT9MG t1
+         WHERE t1.CORP_GR = #{corpGr}
+         ORDER BY ymd
+    </select>
+
+    <!-- 4. SYT9MG 신규 등록 -->
+    <insert id="insertMaster">
+        INSERT INTO SYT9MG (
+            CORP_GR
+          , TR_YMD
+          , TR_CD
+          , FUND_CD
+          , TRUSTEE
+          , JM_CD
+          , TR_SEQ
+          , AEK_GB
+          , CURRENCY
+          , TR_CO_CD
+          , AEK
+          , JAN_AEK
+          , WON_AEK
+          , WON_JAN_AEK
+          , SANGHW_YMD
+          , BF_YMD
+          , AF_YMD
+          , BIGO
+          , GWAMOK
+        ) VALUES (
+            #{corpGr, jdbcType=VARCHAR}
+          , TO_DATE(REPLACE(#{trYmd, jdbcType=VARCHAR}, '-', ''), 'YYYYMMDD')
+          , #{trCd, jdbcType=VARCHAR}
+          , #{fundCd, jdbcType=VARCHAR}
+          , #{trustee, jdbcType=VARCHAR}
+          , #{hjCd, jdbcType=VARCHAR}
+          , COALESCE(#{trSeq, jdbcType=NUMERIC}, 1)
+          , COALESCE(#{aekGb, jdbcType=VARCHAR}, '1')
+          , #{currency, jdbcType=VARCHAR}
+          , #{trCoCd, jdbcType=VARCHAR}
+          , COALESCE(#{aek, jdbcType=NUMERIC}, 0)
+          , COALESCE(#{janAek, jdbcType=NUMERIC}, 0)
+          , COALESCE(#{wonAek, jdbcType=NUMERIC}, 0)
+          , COALESCE(#{wonJanAek, jdbcType=NUMERIC}, 0)
+          , CASE WHEN #{sanghwYmd, jdbcType=VARCHAR} IS NOT NULL AND #{sanghwYmd, jdbcType=VARCHAR} != '' THEN TO_DATE(REPLACE(#{sanghwYmd, jdbcType=VARCHAR}, '-', ''), 'YYYYMMDD') ELSE NULL END
+          , CASE WHEN #{bfYmd, jdbcType=VARCHAR} IS NOT NULL AND #{bfYmd, jdbcType=VARCHAR} != '' THEN TO_DATE(REPLACE(#{bfYmd, jdbcType=VARCHAR}, '-', ''), 'YYYYMMDD') ELSE NULL END
+          , CASE WHEN #{afYmd, jdbcType=VARCHAR} IS NOT NULL AND #{afYmd, jdbcType=VARCHAR} != '' THEN TO_DATE(REPLACE(#{afYmd, jdbcType=VARCHAR}, '-', ''), 'YYYYMMDD') ELSE NULL END
+          , #{bigo, jdbcType=VARCHAR}
+          , #{gwamok, jdbcType=VARCHAR}
+        )
+    </insert>
+
+    <!-- 5. SYT9MG 수정 -->
+    <update id="updateMaster">
+        UPDATE SYT9MG
+           SET TR_YMD      = TO_DATE(REPLACE(#{trYmd, jdbcType=VARCHAR}, '-', ''), 'YYYYMMDD')
+             , TR_CD       = #{trCd, jdbcType=VARCHAR}
+             , FUND_CD     = #{fundCd, jdbcType=VARCHAR}
+             , TRUSTEE     = #{trustee, jdbcType=VARCHAR}
+             , JM_CD       = #{hjCd, jdbcType=VARCHAR}
+             , TR_SEQ      = COALESCE(#{trSeq, jdbcType=NUMERIC}, 1)
+             , AEK_GB      = COALESCE(#{aekGb, jdbcType=VARCHAR}, '1')
+             , CURRENCY    = #{currency, jdbcType=VARCHAR}
+             , TR_CO_CD    = #{trCoCd, jdbcType=VARCHAR}
+             , AEK         = COALESCE(#{aek, jdbcType=NUMERIC}, 0)
+             , JAN_AEK     = COALESCE(#{janAek, jdbcType=NUMERIC}, 0)
+             , WON_AEK     = COALESCE(#{wonAek, jdbcType=NUMERIC}, 0)
+             , WON_JAN_AEK = COALESCE(#{wonJanAek, jdbcType=NUMERIC}, 0)
+             , SANGHW_YMD  = CASE WHEN #{sanghwYmd, jdbcType=VARCHAR} IS NOT NULL AND #{sanghwYmd, jdbcType=VARCHAR} != '' THEN TO_DATE(REPLACE(#{sanghwYmd, jdbcType=VARCHAR}, '-', ''), 'YYYYMMDD') ELSE NULL END
+             , BF_YMD      = CASE WHEN #{bfYmd, jdbcType=VARCHAR} IS NOT NULL AND #{bfYmd, jdbcType=VARCHAR} != '' THEN TO_DATE(REPLACE(#{bfYmd, jdbcType=VARCHAR}, '-', ''), 'YYYYMMDD') ELSE NULL END
+             , AF_YMD      = CASE WHEN #{afYmd, jdbcType=VARCHAR} IS NOT NULL AND #{afYmd, jdbcType=VARCHAR} != '' THEN TO_DATE(REPLACE(#{afYmd, jdbcType=VARCHAR}, '-', ''), 'YYYYMMDD') ELSE NULL END
+             , BIGO        = #{bigo, jdbcType=VARCHAR}
+             , GWAMOK      = #{gwamok, jdbcType=VARCHAR}
+         WHERE CORP_GR = #{corpGr, jdbcType=VARCHAR}
+           AND TR_YMD  = TO_DATE(REPLACE(COALESCE(#{origTrYmd, jdbcType=VARCHAR}, #{trYmd, jdbcType=VARCHAR}), '-', ''), 'YYYYMMDD')
+           AND TR_CD   = COALESCE(#{origTrCd, jdbcType=VARCHAR}, #{trCd, jdbcType=VARCHAR})
+           AND FUND_CD = COALESCE(#{origFundCd, jdbcType=VARCHAR}, #{fundCd, jdbcType=VARCHAR})
+           AND JM_CD   = COALESCE(#{origHjCd, jdbcType=VARCHAR}, #{hjCd, jdbcType=VARCHAR})
+           AND TR_SEQ  = COALESCE(#{origTrSeq, jdbcType=NUMERIC}, #{trSeq, jdbcType=NUMERIC})
+           AND AEK_GB  = COALESCE(#{origAekGb, jdbcType=VARCHAR}, #{aekGb, jdbcType=VARCHAR})
+    </update>
+
+    <!-- 6. SYT9MG 삭제 -->
+    <delete id="deleteMaster">
+        DELETE FROM SYT9MG
+         WHERE CORP_GR = #{corpGr, jdbcType=VARCHAR}
+           AND TR_YMD  = TO_DATE(REPLACE(COALESCE(#{origTrYmd, jdbcType=VARCHAR}, #{trYmd, jdbcType=VARCHAR}), '-', ''), 'YYYYMMDD')
+           AND TR_CD   = COALESCE(#{origTrCd, jdbcType=VARCHAR}, #{trCd, jdbcType=VARCHAR})
+           AND FUND_CD = COALESCE(#{origFundCd, jdbcType=VARCHAR}, #{fundCd, jdbcType=VARCHAR})
+           AND JM_CD   = COALESCE(#{origHjCd, jdbcType=VARCHAR}, #{hjCd, jdbcType=VARCHAR})
+           AND TR_SEQ  = COALESCE(#{origTrSeq, jdbcType=NUMERIC}, #{trSeq, jdbcType=NUMERIC})
+           AND AEK_GB  = COALESCE(#{origAekGb, jdbcType=VARCHAR}, #{aekGb, jdbcType=VARCHAR})
+    </delete>
+
+    <!-- 7. SYT9MG_TR 신규 등록 -->
+    <insert id="insertDetail">
+        INSERT INTO SYT9MG_TR (
+            CORP_GR
+          , TR_YMD
+          , TR_CD
+          , FUND_CD
+          , TRUSTEE
+          , JM_CD
+          , TR_SEQ
+          , AEK_GB
+          , CURRENCY
+          , TR_CO_CD
+          , SANGHW_AEK
+          , WON_SANGHW_AEK
+          , GIJUN_RT
+          , JAN_AEK
+          , WON_JAN_AEK
+          , WON_HWAN_CHA
+          , FCUR_JAN_AEK
+          , FCUR_HWAN_CHA
+          , SANGHW_YMD
+        ) VALUES (
+            #{corpGr, jdbcType=VARCHAR}
+          , TO_DATE(REPLACE(#{trYmd, jdbcType=VARCHAR}, '-', ''), 'YYYYMMDD')
+          , #{trCd, jdbcType=VARCHAR}
+          , #{fundCd, jdbcType=VARCHAR}
+          , #{trustee, jdbcType=VARCHAR}
+          , #{hjCd, jdbcType=VARCHAR}
+          , COALESCE(#{trSeq, jdbcType=NUMERIC}, 1)
+          , COALESCE(#{aekGb, jdbcType=VARCHAR}, '1')
+          , #{currency, jdbcType=VARCHAR}
+          , #{trCoCd, jdbcType=VARCHAR}
+          , COALESCE(#{sanghwAek, jdbcType=NUMERIC}, 0)
+          , COALESCE(#{wonSanghwAek, jdbcType=NUMERIC}, 0)
+          , COALESCE(#{gijunRt, jdbcType=NUMERIC}, 0)
+          , COALESCE(#{janAek, jdbcType=NUMERIC}, 0)
+          , COALESCE(#{wonJanAek, jdbcType=NUMERIC}, 0)
+          , COALESCE(#{wonHwanCha, jdbcType=NUMERIC}, 0)
+          , COALESCE(#{fcurJanAek, jdbcType=NUMERIC}, 0)
+          , COALESCE(#{fcurHwanCha, jdbcType=NUMERIC}, 0)
+          , TO_DATE(REPLACE(#{sanghwYmd, jdbcType=VARCHAR}, '-', ''), 'YYYYMMDD')
+        )
+    </insert>
+
+    <!-- 8. SYT9MG_TR 수정 -->
+    <update id="updateDetail">
+        UPDATE SYT9MG_TR
+           SET SANGHW_YMD     = TO_DATE(REPLACE(#{sanghwYmd, jdbcType=VARCHAR}, '-', ''), 'YYYYMMDD')
+             , TRUSTEE        = #{trustee, jdbcType=VARCHAR}
+             , CURRENCY       = #{currency, jdbcType=VARCHAR}
+             , TR_CO_CD       = #{trCoCd, jdbcType=VARCHAR}
+             , SANGHW_AEK     = COALESCE(#{sanghwAek, jdbcType=NUMERIC}, 0)
+             , WON_SANGHW_AEK = COALESCE(#{wonSanghwAek, jdbcType=NUMERIC}, 0)
+             , GIJUN_RT       = COALESCE(#{gijunRt, jdbcType=NUMERIC}, 0)
+             , JAN_AEK        = COALESCE(#{janAek, jdbcType=NUMERIC}, 0)
+             , WON_JAN_AEK    = COALESCE(#{wonJanAek, jdbcType=NUMERIC}, 0)
+             , WON_HWAN_CHA   = COALESCE(#{wonHwanCha, jdbcType=NUMERIC}, 0)
+             , FCUR_JAN_AEK   = COALESCE(#{fcurJanAek, jdbcType=NUMERIC}, 0)
+             , FCUR_HWAN_CHA  = COALESCE(#{fcurHwanCha, jdbcType=NUMERIC}, 0)
+         WHERE CORP_GR    = #{corpGr, jdbcType=VARCHAR}
+           AND TR_YMD     = TO_DATE(REPLACE(#{trYmd, jdbcType=VARCHAR}, '-', ''), 'YYYYMMDD')
+           AND TR_CD      = #{trCd, jdbcType=VARCHAR}
+           AND FUND_CD    = #{fundCd, jdbcType=VARCHAR}
+           AND JM_CD      = #{hjCd, jdbcType=VARCHAR}
+           AND TR_SEQ     = COALESCE(#{trSeq, jdbcType=NUMERIC}, 1)
+           AND AEK_GB     = COALESCE(#{aekGb, jdbcType=VARCHAR}, '1')
+           AND SANGHW_YMD = TO_DATE(REPLACE(COALESCE(#{origSanghwYmd, jdbcType=VARCHAR}, #{sanghwYmd, jdbcType=VARCHAR}), '-', ''), 'YYYYMMDD')
+    </update>
+
+    <!-- 9. SYT9MG_TR 삭제 -->
+    <delete id="deleteDetail">
+        DELETE FROM SYT9MG_TR
+         WHERE CORP_GR    = #{corpGr, jdbcType=VARCHAR}
+           AND TR_YMD     = TO_DATE(REPLACE(#{trYmd, jdbcType=VARCHAR}, '-', ''), 'YYYYMMDD')
+           AND TR_CD      = #{trCd, jdbcType=VARCHAR}
+           AND FUND_CD    = #{fundCd, jdbcType=VARCHAR}
+           AND JM_CD      = #{hjCd, jdbcType=VARCHAR}
+           AND TR_SEQ     = COALESCE(#{trSeq, jdbcType=NUMERIC}, 1)
+           AND AEK_GB     = COALESCE(#{aekGb, jdbcType=VARCHAR}, '1')
+           AND SANGHW_YMD = TO_DATE(REPLACE(COALESCE(#{origSanghwYmd, jdbcType=VARCHAR}, #{sanghwYmd, jdbcType=VARCHAR}), '-', ''), 'YYYYMMDD')
+    </delete>
+
+</mapper>

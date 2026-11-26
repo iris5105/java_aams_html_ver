@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.kfp.aams.domain.foreignassetmanagement.mapper.Ja036eMapper">
+
+    <!-- 1. 계좌(펀드) 목록 조회 (d_ja036e.srd) -->
+    <select id="selectList" resultType="com.kfp.aams.domain.foreignassetmanagement.dto.Ja036eDto">
+        SELECT DISTINCT ia.FUND_CD
+             , ia.FUND_NM                                                         AS xx_fund_cd
+             , ia.MG_CD
+             , F_FUND_COLOR(#{corpGr}, ia.FUND_CD, TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')) AS fund_color
+             , ia.ENC_ACCT_NO
+             , TO_DECRYPTS(ia.ENC_ACCT_NO)                                        AS acct_no
+             , TO_CHAR(ia.FST_SEOLJ_YMD, 'YYYY-MM-DD')                            AS fst_seolj_ymd
+             , TO_CHAR(t2.BF_GYUL_YMD, 'YYYY-MM-DD')                              AS bf_gyul_ymd
+             , TO_CHAR(t2.HAEJI_YMD, 'YYYY-MM-DD')                                AS haeji_ymd
+          FROM SZM0IA ia
+          JOIN SZM0GI t2
+            ON t2.CORP_GR = ia.CORP_GR
+           AND t2.FUND_CD = ia.FUND_CD
+         WHERE ia.CORP_GR = #{corpGr}
+           AND ia.MG_CD LIKE #{mgCd}
+           AND COALESCE(ia.HAEJI_YMD, TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD') + 1) &gt; TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
+           AND TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD') BETWEEN (t2.BF_GYUL_YMD + 1) AND t2.AF_GYUL_YMD
+         ORDER BY ia.MG_CD ASC
+                , ia.FUND_CD ASC
+    </select>
+
+</mapper>

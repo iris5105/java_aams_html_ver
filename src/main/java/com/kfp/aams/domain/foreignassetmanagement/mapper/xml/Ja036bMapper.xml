@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.kfp.aams.domain.foreignassetmanagement.mapper.Ja036bMapper">
+
+    <!-- 1. 외화배당금 수령등록 목록 조회 (d_ja036b.srd) -->
+    <select id="selectList" resultType="com.kfp.aams.domain.foreignassetmanagement.dto.Ja036bDto">
+        SELECT TO_CHAR(t1.CHURI_YMD, 'YYYY-MM-DD') AS churi_ymd
+             , t1.GYULJE_JM_CD
+             , t1.CHURI_JUSU
+             , t1.AEK
+             , t1.TAX_AEK
+             , t1.WON_AEK
+             , t1.WON_TAX_AEK
+             , t1.GROSS_UP_AEK
+             , TO_CHAR(yg.TR_YMD, 'YYYY-MM-DD')    AS tr_ymd
+             , yg.TR_CD
+             , yg.FUND_CD
+             , ia.FUND_NM                          AS szm0ia_fund_nm
+             , yg.JM_CD
+             , ya.JM_NM                            AS sym0ya_jm_nm
+             , yg.TRUSTEE
+             , yg.CURRENCY
+             , TO_CHAR(yg.HWAKJ_YMD, 'YYYY-MM-DD') AS hwakj_ymd
+             , yg.TAX_AEK                          AS yg_tax_aek
+             , yg.GYULJE_AEK                       AS yg_gyulje_aek
+             , CASE WHEN yg.CHURI_YMD IS NULL THEN 0 ELSE 1 END AS chk
+             , t1.CORP_GR
+             , TO_CHAR(t1.YMD, 'YYYY-MM-DD')       AS ymd
+             , t1.PYUNGA_JOIN
+             , ROWIDTOCHAR(yg.ROWID)               AS yg_rowid
+             , ia.FUND_CURRENCY
+             , t1.FCUR_GYULJE_AEK
+             , t1.FCUR_HWAN_CHA
+             , t1.GYULJE_AEK
+             , t1.WON_GYULJE_AEK
+          FROM SYT0YG_PYUNGA t1
+          JOIN SYT0YG yg
+            ON yg.CORP_GR     = t1.CORP_GR
+           AND yg.PYUNGA_JOIN = t1.PYUNGA_JOIN
+          JOIN SZM0IA ia
+            ON ia.CORP_GR     = yg.CORP_GR
+           AND ia.FUND_CD     = yg.FUND_CD
+          JOIN SYM0YA ya
+            ON ya.CORP_GR     = yg.CORP_GR
+           AND ya.JM_CD       = yg.JM_CD
+         WHERE t1.CORP_GR = #{corpGr}
+           AND t1.YMD     = TO_DATE(REPLACE(#{ymd}, '-', ''), 'YYYYMMDD')
+           AND yg.TR_CD   IN ('G12', 'G17')
+         ORDER BY yg.FUND_CD ASC
+    </select>
+
+    <!-- 2. 달력 하이라이트 일자 조회 (w_ja036b.srw dw_c::ue_getdate) -->
+    <select id="selectHighlightDates" resultType="java.lang.String">
+        SELECT DISTINCT TO_CHAR(t1.CHURI_YMD, 'YYYY-MM-DD') AS ymd
+          FROM SYT0YG_PYUNGA t1
+          JOIN SYT0YG yg
+            ON yg.CORP_GR     = t1.CORP_GR
+           AND yg.PYUNGA_JOIN = t1.PYUNGA_JOIN
+         WHERE t1.CORP_GR = #{corpGr}
+           AND yg.TR_CD   IN ('G12', 'G17')
+           AND t1.CHURI_YMD IS NOT NULL
+         ORDER BY ymd
+    </select>
+
+    <!-- 3. 통화별 기본 결제종목 조회 (w_ja036b.srw dw_list::itemchanged) -->
+    <select id="selectDefaultGyuljeJmCd" resultType="java.lang.String">
+        SELECT JM_CD
+          FROM SYM0YA
+         WHERE CORP_GR   = #{corpGr}
+           AND CURRENCY  = #{currency}
+           AND GYULJE_JM = 'Y'
+           AND JASAN_GB  = '5'
+         FETCH FIRST 1 ROWS ONLY
+    </select>
+
+    <!-- 4. SYT0YG_PYUNGA 수정 -->
+    <update id="updateSyt0ygPyunga">
+        UPDATE SYT0YG_PYUNGA
+           SET CHURI_YMD    = CASE WHEN #{churiYmd, jdbcType=VARCHAR} IS NOT NULL AND #{churiYmd, jdbcType=VARCHAR} != ''
+                                   THEN TO_DATE(REPLACE(#{churiYmd, jdbcType=VARCHAR}, '-', ''), 'YYYYMMDD')
+                                   ELSE NULL
+                              END
+             , GYULJE_JM_CD = #{gyuljeJmCd, jdbcType=VARCHAR}
+             , AEK          = #{aek, jdbcType=NUMERIC}
+             , TAX_AEK      = #{taxAek, jdbcType=NUMERIC}
+         WHERE CORP_GR     = #{corpGr, jdbcType=VARCHAR}
+           AND YMD         = TO_DATE(REPLACE(#{ymd, jdbcType=VARCHAR}, '-', ''), 'YYYYMMDD')
+           AND PYUNGA_JOIN = #{pyungaJoin, jdbcType=VARCHAR}
+    </update>
+
+    <!-- 5. SYT0YG.CHURI_YMD 동기화 (w_ja036b.srw dw_list::updateend) -->
+    <update id="updateSyt0ygChuriYmd">
+        UPDATE SYT0YG
+           SET CHURI_YMD = CASE WHEN #{churiYmd, jdbcType=VARCHAR} IS NOT NULL AND #{churiYmd, jdbcType=VARCHAR} != ''
+                                THEN TO_DATE(REPLACE(#{churiYmd, jdbcType=VARCHAR}, '-', ''), 'YYYYMMDD')
+                                ELSE NULL
+                           END
+         WHERE ROWID = CHARTOROWID(#{ygRowid, jdbcType=VARCHAR})
+    </update>
+
+</mapper>

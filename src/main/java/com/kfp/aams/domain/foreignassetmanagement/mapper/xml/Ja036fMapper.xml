@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.kfp.aams.domain.foreignassetmanagement.mapper.Ja036fMapper">
+
+    <select id="selectList" resultType="com.kfp.aams.domain.foreignassetmanagement.dto.Ja036fDto">
+        SELECT t1.CORP_GR
+             , TO_CHAR(t1.YMD, 'YYYY-MM-DD') AS ymd
+             , t1.FUND_CD
+             , t1.TRUSTEE
+             , t1.JM_CD
+             , t1.CURRENCY
+             , t1.TR_BFIL_JUSU + COALESCE(t1.RIGHT_JUSU, 0)         AS tr_bfil_jusu
+             , t1.TR_UP_JUSU
+             , t1.TR_DW_JUSU
+             , t1.TR_BFIL_CHUI_AEK + COALESCE(t1.RIGHT_AEK, 0)      AS tr_bfil_chui_aek
+             , t1.TR_UP_CHUI_AEK
+             , t1.TR_DW_CHUI_AEK
+             , t1.TR_PYUNGA_AEK
+             , t1.FCUR_BFIL_CHUI_AEK + COALESCE(t1.RIGHT_FCUR_AEK, 0) AS fcur_bfil_chui_aek
+             , t1.FCUR_UP_CHUI_AEK
+             , t1.FCUR_DW_CHUI_AEK
+             , t1.WON_BFIL_CHUI_AEK + COALESCE(t1.RIGHT_WON_AEK, 0) AS won_bfil_chui_aek
+             , t1.WON_UP_CHUI_AEK
+             , t1.WON_DW_CHUI_AEK
+             , t1.BFIL_SUNG_COST
+             , t1.SUNG_COST
+             , t1.FCUR_BFIL_SUNG_COST
+             , t1.FCUR_SUNG_COST
+             , t1.WON_BFIL_SUNG_COST
+             , t1.WON_SUNG_COST
+             , t1.BFIL_MISU_IJA
+             , t1.MISU_IJA
+             , t1.FCUR_PYUNGA_AEK
+             , t1.FCUR_PYUNGA_SONIK
+             , t1.FCUR_HWAN_CHA
+             , t1.WON_PYUNGA_AEK
+             , t1.WON_PYUNGA_SONIK
+             , t1.WON_HWAN_CHA
+             , ya.JM_NM
+             , ya.JASAN_GB
+             , F_SZX0GR('62', ya.JASAN_GB)                          AS jasan_nm
+             , ia.FUND_NM
+             , ia.FUND_NM                                           AS xx_fund_cd
+             , t1.BS_TYPE
+             , t1.SM_TR_GB
+             , ia.FUND_CURRENCY
+          FROM SYM0YZ t1
+          LEFT OUTER JOIN SYM0YA ya
+            ON ya.CORP_GR = t1.CORP_GR
+           AND ya.JM_CD   = t1.JM_CD
+         INNER JOIN SZM0IA ia
+            ON ia.CORP_GR = t1.CORP_GR
+           AND ia.FUND_CD = t1.FUND_CD
+         WHERE t1.CORP_GR = #{corpGr}
+           AND t1.YMD     = TO_DATE(SUBSTR(REGEXP_REPLACE(#{ymd}, '[^0-9]', ''), 1, 8), 'YYYYMMDD')
+        <choose>
+            <when test='accountType == "2"'>
+           AND ia.FUND_CURRENCY &lt;&gt; 'KRW'
+            </when>
+            <otherwise>
+           AND ia.FUND_CURRENCY = 'KRW'
+            </otherwise>
+        </choose>
+         ORDER BY ya.JASAN_GB ASC
+                , t1.FUND_CD ASC
+                , t1.CURRENCY ASC
+                , t1.JM_CD ASC
+    </select>
+
+</mapper>

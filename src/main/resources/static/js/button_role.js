@@ -177,16 +177,19 @@
                 // 1) 닫기 버튼: 활성화
                 if (btnClose) this._setElementEnabled(btnClose, true);
 
-                // 2) 조회 버튼: 조건 변경 후 언제든지 재조회할 수 있도록 항상 활성화 유지 (웹 표준 UX 방안 A)
-                if (btnSearch) this._setElementEnabled(btnSearch, true);
+                // 2) 조회 버튼: 새로고침 버튼이 노출(DISPLAY=TRUE)된 화면이면 비활성화,
+                //    새로고침 버튼이 숨김(DISPLAY=FALSE)인 화면이면 재조회를 위해 활성화 유지
+                if (btnSearch) this._setElementEnabled(btnSearch, !hasRefreshButton);
 
                 // 3) 조회 버튼을 제외한 나머지 권한 버튼들: 활성화
-                //    단, 파워빌더 eb_new_false / eb_copy_false / eb_delete_false 설정이 true인 버튼은 강제 비활성화 유지
+                //    단, 파워빌더 eb_new_false / eb_copy_false / eb_delete_false 설정이 true이거나
+                //    ib_managedata = false인 화면은 입력/복사/삭제 버튼을 강제 비활성화 유지 (w_winpage::ue_setenabled)
+                const isManageDisabled = (container.ibManageData === false);
                 otherButtons.forEach(function(btn) {
                     const forceDisabled =
-                        (container.ebNewFalse && btn.classList.contains('btn-input')) ||
-                        (container.ebCopyFalse && btn.classList.contains('btn-copy')) ||
-                        (container.ebDeleteFalse && btn.classList.contains('btn-delete'));
+                        ((container.ebNewFalse || isManageDisabled) && btn.classList.contains('btn-input')) ||
+                        ((container.ebCopyFalse || isManageDisabled) && btn.classList.contains('btn-copy')) ||
+                        ((container.ebDeleteFalse || isManageDisabled) && btn.classList.contains('btn-delete'));
                     ButtonRole._setElementEnabled(btn, !forceDisabled);
                 });
             } else {

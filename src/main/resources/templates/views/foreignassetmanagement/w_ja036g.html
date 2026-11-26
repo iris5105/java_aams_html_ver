@@ -1,0 +1,725 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<!--
+    W_JA036G: 외화자산 보유현황(종목/기간별) (wt_listdetail)
+    DataWindow:
+      - dw_c: dc_ftymd (영업일자구간: 당월 1일 ~ 작업일자)
+      - dw_list: d_ja036g1
+      - dw_detail: d_ja036g2 (외화계좌) / d_ja036g2_krw (원화계좌)
+      - eb_retrievewait = true (수동 조회), ib_managedata = false
+-->
+<div class="view-container layout-split ja036g-container layout-mobile-stack-container"
+     th:fragment="ja036gView"
+     th:data-initial-f-ymd="${initialFYmd}"
+     th:data-initial-t-ymd="${initialTYmd}"
+     th:data-work-date="${workDate}"
+     style="display: flex; flex-direction: column; height: 100%; width: 100%; overflow: hidden;">
+
+    <style>
+        .ja036g-container .ja036g-detail-meta {
+            font-size: 11px;
+            font-weight: 600;
+            color: #1d4ed8;
+            background: #eff6ff;
+            border: 1px solid #bfdbfe;
+            border-radius: 999px;
+            padding: 1px 10px;
+            white-space: nowrap;
+        }
+        .ja036g-container .cell-text-red {
+            color: #dc2626 !important;
+        }
+        .ja036g-container .cell-text-blue {
+            color: #2563eb !important;
+        }
+    </style>
+
+    <div class="view-toolbar">
+        <div class="toolbar-left">
+            <div th:replace="~{fragments/tab_header :: toolbarButtons}"></div>
+        </div>
+        <div th:replace="~{fragments/tab_header :: toolbarBreadcrumb}"></div>
+    </div>
+
+    <div class="filter-bar">
+        <div class="filter-left">
+            <div th:replace="~{fragments/filter/dc_ftymd :: filter(label='영업일자구간')}"></div>
+        </div>
+    </div>
+
+    <div class="layout-split-v split-body layout-mobile-stack" data-split-key="W_JA036G" data-default-ratio="40:60">
+        <div class="pane-top master-section" id="ja036gTopPane">
+            <div class="pane-header">
+                <span><i class="fa-solid fa-list"></i> 보유 종목 목록</span>
+            </div>
+            <div class="pane-body">
+                <div id="gridJa036gMaster" class="tabulator-aams-grid" style="height: 100%;"></div>
+            </div>
+        </div>
+
+        <div class="pane-bottom detail-section" id="ja036gBottomPane">
+            <div class="pane-header" style="display: flex; justify-content: space-between; align-items: center;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span><i class="fa-solid fa-calendar-days"></i> 기간별 일자 상세 내역</span>
+                    <span class="ja036g-detail-meta" id="ja036gDetailMeta">종목을 선택하세요</span>
+                </div>
+                <div th:replace="~{fragments/grid/detail_nav :: detailNav(targetGrid='#gridJa036gDetail', fileName='외화자산보유현황_상세', buttons='0010001001')}"></div>
+            </div>
+            <div class="pane-body">
+                <div id="gridJa036gDetail" class="tabulator-aams-grid" style="height: 100%;"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    (function () {
+        const script = document.currentScript;
+        const pane = script && (script.closest('.tab-pane') || script.closest('.view-container'));
+        if (!pane) return;
+
+        const viewEl = pane.classList.contains('ja036g-container')
+            ? pane
+            : pane.querySelector('.ja036g-container');
+        if (!viewEl) return;
+
+        const api = '/api/foreignassetmanagement/ja036g';
+        const initialFYmd = viewEl.dataset.initialFYmd || '';
+        const initialTYmd = viewEl.dataset.initialTYmd || '';
+        const workDate = viewEl.dataset.workDate || '';
+
+        let initialized = false;
+        let gridMaster = null;
+        let gridDetail = null;
+        let gridsBuilt = false;
+        let hasSucceededSearch = false;
+        let lastLoadedMasterKey = null;
+        let currentMasterRow = null;
+        let jasanMap = {};
+
+        pane.ibManageData = false;
+
+        function getCorpGr() {
+            if (typeof resolveCorpGr === 'function') {
+                return resolveCorpGr(pane);
+            }
+            return '';
+        }
+
+        function getFYmdInput() {
+            return pane.querySelector('#filterFYmd');
+        }
+
+        function getTYmdInput() {
+            return pane.querySelector('#filterTYmd');
+        }
+
+        function getDateRange() {
+            const fInp = getFYmdInput();
+            const tInp = getTYmdInput();
+            return {
+                fYmd: fInp ? (fInp.value || '').trim() : initialFYmd,
+                tYmd: tInp ? (tInp.value || '').trim() : initialTYmd
+            };
+        }
+
+        function updateToolbarState() {
+            if (window.ButtonRole && typeof window.ButtonRole.setSearchState === 'function') {
+                window.ButtonRole.setSearchState(pane, hasSucceededSearch);
+            }
+        }
+
+        function numVal(v) {
+            const n = Number(v);
+            return Number.isFinite(n) ? n : 0;
+        }
+
+        function formatNum(val, decimals) {
+            if (val === null || val === undefined || val === '') return '';
+            const num = Number(val);
+            if (!Number.isFinite(num)) return '';
+            if (typeof window.formatNumber === 'function') {
+                return window.formatNumber(num, decimals);
+            }
+            return num.toLocaleString('ko-KR', {
+                minimumFractionDigits: decimals,
+                maximumFractionDigits: decimals
+            });
+        }
+
+        function buildMasterColumns() {
+            return [
+                {
+                    title: 'No.',
+                    formatter: 'rownum',
+                    width: 50,
+                    hozAlign: 'center',
+                    headerHozAlign: 'center',
+                    headerSort: false
+                },
+                {
+                    title: '자산구분',
+                    field: 'jasanGb',
+                    width: 110,
+                    hozAlign: 'center',
+                    headerHozAlign: 'center',
+                    formatter: function (cell) {
+                        const code = cell.getValue();
+                        return jasanMap[code] || code || '';
+                    }
+                },
+                {
+                    title: '기준통화',
+                    field: 'fundCurrency',
+                    width: 72,
+                    hozAlign: 'center',
+                    headerHozAlign: 'center'
+                },
+                {
+                    title: '펀드번호',
+                    field: 'fundCd',
+                    width: 100,
+                    hozAlign: 'center',
+                    headerHozAlign: 'center'
+                },
+                {
+                    title: '계좌명',
+                    field: 'fundNm',
+                    width: 175,
+                    hozAlign: 'left',
+                    headerHozAlign: 'center'
+                },
+                {
+                    title: '종목코드',
+                    field: 'jmCd',
+                    width: 120,
+                    hozAlign: 'center',
+                    headerHozAlign: 'center'
+                },
+                {
+                    title: '종목명',
+                    field: 'jmNm',
+                    width: 190,
+                    hozAlign: 'left',
+                    headerHozAlign: 'center'
+                },
+                {
+                    title: '통화',
+                    field: 'currency',
+                    width: 65,
+                    hozAlign: 'center',
+                    headerHozAlign: 'center'
+                }
+            ];
+        }
+
+        function buildDetailColumns(masterRow) {
+            const isKrw = masterRow && String(masterRow.fundCurrency || '').trim().toUpperCase() === 'KRW';
+            const prefix = isKrw ? 'won' : 'fcur';
+            const curTitle = (masterRow && masterRow.currency ? masterRow.currency + ' ' : '') + '금액';
+            const baseTitle = isKrw ? '원화 금액' : '기준통화 금액';
+
+            return [
+                {
+                    title: 'No.',
+                    formatter: 'rownum',
+                    width: 50,
+                    hozAlign: 'center',
+                    headerHozAlign: 'center',
+                    headerSort: false
+                },
+                {
+                    title: '잔고일자',
+                    field: 'ymd',
+                    width: 100,
+                    hozAlign: 'center',
+                    headerHozAlign: 'center'
+                },
+                {
+                    title: curTitle,
+                    headerHozAlign: 'center',
+                    columns: [
+                        {
+                            title: '보유주수(액면)',
+                            field: 'calcJangoJusu',
+                            width: 125,
+                            hozAlign: 'right',
+                            headerHozAlign: 'center',
+                            mutator: function (_v, data) {
+                                return numVal(data.trBfilJusu) + numVal(data.trUpJusu) - numVal(data.trDwJusu);
+                            },
+                            formatter: function (cell) { return formatNum(cell.getValue(), 2); }
+                        },
+                        {
+                            title: '증가주수(액면)',
+                            field: 'trUpJusu',
+                            width: 120,
+                            hozAlign: 'right',
+                            headerHozAlign: 'center',
+                            formatter: function (cell) {
+                                return '<span class="cell-text-red">' + formatNum(cell.getValue(), 2) + '</span>';
+                            }
+                        },
+                        {
+                            title: '감소주수(액면)',
+                            field: 'trDwJusu',
+                            width: 120,
+                            hozAlign: 'right',
+                            headerHozAlign: 'center',
+                            formatter: function (cell) {
+                                return '<span class="cell-text-blue">' + formatNum(cell.getValue(), 2) + '</span>';
+                            }
+                        },
+                        {
+                            title: '취득잔액',
+                            field: 'calcTrChuiAek',
+                            width: 130,
+                            hozAlign: 'right',
+                            headerHozAlign: 'center',
+                            mutator: function (_v, data) {
+                                return numVal(data.trBfilChuiAek) + numVal(data.trUpChuiAek) - numVal(data.trDwChuiAek);
+                            },
+                            formatter: function (cell) { return formatNum(cell.getValue(), 2); }
+                        },
+                        {
+                            title: '증가금액',
+                            field: 'trUpChuiAek',
+                            width: 120,
+                            hozAlign: 'right',
+                            headerHozAlign: 'center',
+                            formatter: function (cell) {
+                                return '<span class="cell-text-red">' + formatNum(cell.getValue(), 2) + '</span>';
+                            }
+                        },
+                        {
+                            title: '감소금액',
+                            field: 'trDwChuiAek',
+                            width: 120,
+                            hozAlign: 'right',
+                            headerHozAlign: 'center',
+                            formatter: function (cell) {
+                                return '<span class="cell-text-blue">' + formatNum(cell.getValue(), 2) + '</span>';
+                            }
+                        },
+                        {
+                            title: '평가금액',
+                            field: 'trPyungaAek',
+                            width: 130,
+                            hozAlign: 'right',
+                            headerHozAlign: 'center',
+                            formatter: function (cell) { return formatNum(cell.getValue(), 2); }
+                        }
+                    ]
+                },
+                {
+                    title: baseTitle,
+                    headerHozAlign: 'center',
+                    columns: [
+                        {
+                            title: '취득잔액',
+                            field: prefix + 'CalcChuiAek',
+                            width: 130,
+                            hozAlign: 'right',
+                            headerHozAlign: 'center',
+                            mutator: function (_v, data) {
+                                if (isKrw) {
+                                    return numVal(data.wonBfilChuiAek) + numVal(data.wonUpChuiAek) - numVal(data.wonDwChuiAek);
+                                }
+                                return numVal(data.fcurBfilChuiAek) + numVal(data.fcurUpChuiAek) - numVal(data.fcurDwChuiAek);
+                            },
+                            formatter: function (cell) { return formatNum(cell.getValue(), 0); }
+                        },
+                        {
+                            title: '증가금액',
+                            field: prefix + 'UpChuiAek',
+                            width: 120,
+                            hozAlign: 'right',
+                            headerHozAlign: 'center',
+                            formatter: function (cell) {
+                                return '<span class="cell-text-red">' + formatNum(cell.getValue(), 0) + '</span>';
+                            }
+                        },
+                        {
+                            title: '감소금액',
+                            field: prefix + 'DwChuiAek',
+                            width: 120,
+                            hozAlign: 'right',
+                            headerHozAlign: 'center',
+                            formatter: function (cell) {
+                                return '<span class="cell-text-blue">' + formatNum(cell.getValue(), 0) + '</span>';
+                            }
+                        },
+                        {
+                            title: '평가금액',
+                            field: prefix + 'PyungaAek',
+                            width: 130,
+                            hozAlign: 'right',
+                            headerHozAlign: 'center',
+                            formatter: function (cell) { return formatNum(cell.getValue(), 0); }
+                        },
+                        {
+                            title: '평가손익',
+                            field: prefix + 'PyungaSonik',
+                            width: 125,
+                            hozAlign: 'right',
+                            headerHozAlign: 'center',
+                            formatter: function (cell) { return formatNum(cell.getValue(), 0); }
+                        },
+                        {
+                            title: '환차손익',
+                            field: prefix + 'HwanCha',
+                            width: 120,
+                            hozAlign: 'right',
+                            headerHozAlign: 'center',
+                            formatter: function (cell) { return formatNum(cell.getValue(), 0); }
+                        }
+                    ]
+                },
+                {
+                    title: '환율',
+                    field: 'currencyRt',
+                    width: 100,
+                    hozAlign: 'right',
+                    headerHozAlign: 'center',
+                    formatter: function (cell) { return formatNum(cell.getValue(), 4); }
+                },
+                {
+                    title: '선급비용(통화)',
+                    field: 'sungCost',
+                    width: 120,
+                    hozAlign: 'right',
+                    headerHozAlign: 'center',
+                    formatter: function (cell) { return formatNum(cell.getValue(), 2); }
+                },
+                {
+                    title: '미수이자(통화)',
+                    field: 'misuIja',
+                    width: 120,
+                    hozAlign: 'right',
+                    headerHozAlign: 'center',
+                    formatter: function (cell) { return formatNum(cell.getValue(), 2); }
+                },
+                {
+                    title: '당일이자(통화)',
+                    field: 'calcDayMisuIja',
+                    width: 120,
+                    hozAlign: 'right',
+                    headerHozAlign: 'center',
+                    mutator: function (_v, data) {
+                        return numVal(data.bfilMisuIja) - numVal(data.misuIja);
+                    },
+                    formatter: function (cell) { return formatNum(cell.getValue(), 2); }
+                },
+                {
+                    title: '미수이자(원화)',
+                    field: prefix + 'MisuIja',
+                    width: 120,
+                    hozAlign: 'right',
+                    headerHozAlign: 'center',
+                    formatter: function (cell) { return formatNum(cell.getValue(), 0); }
+                },
+                {
+                    title: '당일이자(원화)',
+                    field: prefix + 'CalcDayMisuIja',
+                    width: 120,
+                    hozAlign: 'right',
+                    headerHozAlign: 'center',
+                    mutator: function (_v, data) {
+                        if (isKrw) {
+                            return numVal(data.wonBfilMisuIja) - numVal(data.wonMisuIja);
+                        }
+                        return numVal(data.fcurBfilMisuIja) - numVal(data.fcurMisuIja);
+                    },
+                    formatter: function (cell) { return formatNum(cell.getValue(), 0); }
+                },
+                {
+                    title: '미수도 매입액면',
+                    field: 'msdMeibAekm',
+                    width: 125,
+                    hozAlign: 'right',
+                    headerHozAlign: 'center',
+                    formatter: function (cell) { return formatNum(cell.getValue(), 2); }
+                },
+                {
+                    title: '미수도 매입금액',
+                    field: 'msdMeibAek',
+                    width: 125,
+                    hozAlign: 'right',
+                    headerHozAlign: 'center',
+                    formatter: function (cell) { return formatNum(cell.getValue(), 2); }
+                },
+                {
+                    title: '미수도 매입액(원화)',
+                    field: prefix + 'MsdMeibAek',
+                    width: 130,
+                    hozAlign: 'right',
+                    headerHozAlign: 'center',
+                    formatter: function (cell) { return formatNum(cell.getValue(), 0); }
+                },
+                {
+                    title: '미수도 매도액면',
+                    field: 'msdMedoAekm',
+                    width: 125,
+                    hozAlign: 'right',
+                    headerHozAlign: 'center',
+                    formatter: function (cell) { return formatNum(cell.getValue(), 2); }
+                },
+                {
+                    title: '미수도 매도금액',
+                    field: 'msdMedoAek',
+                    width: 125,
+                    hozAlign: 'right',
+                    headerHozAlign: 'center',
+                    formatter: function (cell) { return formatNum(cell.getValue(), 2); }
+                },
+                {
+                    title: '미수도 매도금액(원화)',
+                    field: prefix + 'MsdMedoAek',
+                    width: 135,
+                    hozAlign: 'right',
+                    headerHozAlign: 'center',
+                    formatter: function (cell) { return formatNum(cell.getValue(), 0); }
+                }
+            ];
+        }
+
+        function ensureGrids() {
+            if (gridsBuilt && gridMaster && gridDetail) return true;
+            const masterEl = pane.querySelector('#gridJa036gMaster');
+            const detailEl = pane.querySelector('#gridJa036gDetail');
+            if (!masterEl || !detailEl || typeof Tabulator === 'undefined') return false;
+
+            gridMaster = new Tabulator(masterEl, {
+                layout: 'fitDataFill',
+                height: '100%',
+                placeholder: '조회 버튼을 클릭하여 종목 목록을 조회하세요.',
+                selectableRows: 1,
+                columns: buildMasterColumns()
+            });
+
+            gridDetail = new Tabulator(detailEl, {
+                layout: 'fitDataFill',
+                height: '100%',
+                placeholder: '좌측 목록에서 종목을 선택하면 기간별 일자 상세 내역이 표시됩니다.',
+                columns: buildDetailColumns(null)
+            });
+
+            gridMaster.on('rowClick', function (_e, row) {
+                if (!row) return;
+                row.select();
+                retrieveDetail(row.getData());
+            });
+
+            gridsBuilt = true;
+            return true;
+        }
+
+        async function loadDddwMap(dddwId, seq) {
+            try {
+                const corpGr = getCorpGr();
+                let list = [];
+                if (typeof window.f_dddwctl === 'function') {
+                    list = await window.f_dddwctl(dddwId, corpGr, '', seq, '');
+                } else {
+                    const params = new URLSearchParams({
+                        dddwId: dddwId,
+                        seq: String(seq)
+                    });
+                    if (corpGr) params.set('corpGr', corpGr);
+                    const res = await fetch('/api/common/dddw?' + params.toString(), {
+                        credentials: 'same-origin'
+                    });
+                    if (!res.ok) return {};
+                    list = await res.json();
+                }
+                const map = {};
+                if (Array.isArray(list)) {
+                    list.forEach(function (item) {
+                        const code = item.cd != null ? String(item.cd).trim() : '';
+                        const name = item.dscr != null ? String(item.dscr).trim() : code;
+                        if (code) map[code] = name;
+                    });
+                }
+                return map;
+            } catch (_e) {
+                return {};
+            }
+        }
+
+        function updateDetailMeta(masterRow) {
+            const badge = pane.querySelector('#ja036gDetailMeta');
+            if (!badge) return;
+            if (!masterRow) {
+                badge.textContent = '종목을 선택하세요';
+                return;
+            }
+            const typeText = String(masterRow.fundCurrency || '').trim().toUpperCase() === 'KRW' ? '원화계좌' : '외화계좌';
+            badge.textContent = '[' + typeText + '] ' + (masterRow.fundCd || '') + ' · ' + (masterRow.jmNm || masterRow.jmCd || '');
+        }
+
+        async function retrieveDetail(masterRow) {
+            if (!ensureGrids() || !masterRow) return;
+            const range = getDateRange();
+            const key = [range.fYmd, range.tYmd, masterRow.fundCd || '', masterRow.jmCd || ''].join('|');
+            if (lastLoadedMasterKey === key) return;
+            lastLoadedMasterKey = key;
+            currentMasterRow = masterRow;
+
+            updateDetailMeta(masterRow);
+            gridDetail.setColumns(buildDetailColumns(masterRow));
+
+            const params = new URLSearchParams({
+                fYmd: range.fYmd,
+                tYmd: range.tYmd,
+                fundCd: masterRow.fundCd || '',
+                jmCd: masterRow.jmCd || ''
+            });
+            const corpGr = getCorpGr();
+            if (corpGr) params.set('corpGr', corpGr);
+
+            try {
+                const res = await fetch(api + '/detail?' + params.toString(), {
+                    credentials: 'same-origin'
+                });
+                if (!res.ok) throw new Error('HTTP ' + res.status);
+                const rows = await res.json();
+                const list = Array.isArray(rows) ? rows : [];
+                await gridDetail.setData(list);
+            } catch (err) {
+                console.error('w_ja036g retrieveDetail error:', err);
+                if (typeof showToast === 'function') {
+                    showToast('상세 내역 조회 중 오류가 발생했습니다.', 'error');
+                }
+            }
+        }
+
+        async function retrieveMaster() {
+            if (!ensureGrids()) return;
+            const range = getDateRange();
+            if (!range.fYmd || !range.tYmd) {
+                if (typeof showToast === 'function') {
+                    showToast('영업일자구간을 선택해 주세요.', 'warning');
+                }
+                return;
+            }
+
+            lastLoadedMasterKey = null;
+            currentMasterRow = null;
+
+            const params = new URLSearchParams({
+                fYmd: range.fYmd,
+                tYmd: range.tYmd
+            });
+            const corpGr = getCorpGr();
+            if (corpGr) params.set('corpGr', corpGr);
+
+            try {
+                const res = await fetch(api + '/master?' + params.toString(), {
+                    credentials: 'same-origin'
+                });
+                if (!res.ok) throw new Error('HTTP ' + res.status);
+                const rows = await res.json();
+                const list = Array.isArray(rows) ? rows : [];
+                await gridMaster.setData(list);
+
+                if (list.length > 0) {
+                    const firstRow = gridMaster.getRows()[0];
+                    if (firstRow) {
+                        firstRow.select();
+                        await retrieveDetail(firstRow.getData());
+                    }
+                } else {
+                    gridDetail.clearData();
+                    updateDetailMeta(null);
+                }
+
+                hasSucceededSearch = true;
+                updateToolbarState();
+            } catch (err) {
+                console.error('w_ja036g retrieveMaster error:', err);
+                if (typeof showToast === 'function') {
+                    showToast('종목 목록 조회 중 오류가 발생했습니다.', 'error');
+                }
+            }
+        }
+
+        function initCalendar() {
+            const fInp = getFYmdInput();
+            const tInp = getTYmdInput();
+            if (fInp && !fInp.value) fInp.value = initialFYmd || workDate;
+            if (tInp && !tInp.value) tInp.value = initialTYmd || workDate;
+            if (window.AamsCalendar && typeof window.AamsCalendar.initRange === 'function' && fInp && tInp) {
+                window.AamsCalendar.initRange(fInp.id || 'filterFYmd', tInp.id || 'filterTYmd', { pane: pane });
+            }
+        }
+
+        function initSplitter() {
+            if (window.AamsSplitter && typeof window.AamsSplitter.init === 'function') {
+                window.AamsSplitter.init(pane);
+            }
+        }
+
+        pane.onSearch = function () {
+            retrieveMaster();
+        };
+
+        pane.onRefresh = pane.onClear = function () {
+            lastLoadedMasterKey = null;
+            currentMasterRow = null;
+            if (gridMaster) gridMaster.clearData();
+            if (gridDetail) gridDetail.clearData();
+            updateDetailMeta(null);
+            hasSucceededSearch = false;
+            updateToolbarState();
+            if (typeof showToast === 'function') {
+                showToast('화면이 초기화되었습니다.', 'info');
+            }
+        };
+
+        pane.onExcel = function () {
+            const range = getDateRange();
+            const periodStr = (range.fYmd || '').replace(/-/g, '') + '_' + (range.tYmd || '').replace(/-/g, '');
+            if (gridDetail && gridDetail.getDataCount() > 0 && currentMasterRow) {
+                gridDetail.download('xlsx', '외화자산보유현황_상세_' + (currentMasterRow.fundCd || '') + '_' + periodStr + '.xlsx', {
+                    sheetName: '기간별상세'
+                });
+            } else if (gridMaster) {
+                gridMaster.download('xlsx', '외화자산보유현황_목록_' + periodStr + '.xlsx', {
+                    sheetName: '보유종목목록'
+                });
+            }
+        };
+
+        pane.onCorpGrChange = function () {
+            lastLoadedMasterKey = null;
+            currentMasterRow = null;
+            if (gridMaster) gridMaster.clearData();
+            if (gridDetail) gridDetail.clearData();
+            updateDetailMeta(null);
+            hasSucceededSearch = false;
+            updateToolbarState();
+            loadDddwMap('jasan_gb', 51).then(function (map) {
+                jasanMap = map || {};
+            });
+        };
+
+        async function init() {
+            if (initialized) return;
+            initialized = true;
+
+            initCalendar();
+            initSplitter();
+            ensureGrids();
+            updateToolbarState();
+
+            jasanMap = await loadDddwMap('jasan_gb', 51);
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', init);
+        } else {
+            init();
+        }
+    })();
+    </script>
+</div>
+</html>

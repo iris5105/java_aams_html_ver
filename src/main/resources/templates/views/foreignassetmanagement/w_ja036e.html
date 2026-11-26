@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<!--
+    W_JA036E: 외화배당내역 (wt_vertole)
+    DataWindow:
+      - dw_c: dc_ymd_dddw (증권사, 기준일자)
+      - dw_list: d_ja036e (계좌 목록)
+      - ole_rd: rd_ja036e.mrd
+      - eb_direct_retrieve = true
+-->
+<div class="view-container layout-split ja036e-container layout-mobile-stack-container" th:fragment="ja036eView"
+     th:data-initial-ymd="${initialYmd}"
+     th:data-corp-gr="${corpGr}"
+     th:data-default-mg-cd="${defaultMgCd}">
+
+    <style>
+        .ja036e-container .btn-input,
+        .ja036e-container .btn-copy,
+        .ja036e-container .btn-delete,
+        .ja036e-container .btn-save {
+            display: none !important;
+        }
+    </style>
+
+    <div class="view-toolbar">
+        <div class="toolbar-left">
+            <div th:replace="~{fragments/tab_header :: toolbarButtons}"></div>
+        </div>
+        <div th:replace="~{fragments/tab_header :: toolbarBreadcrumb}"></div>
+    </div>
+
+    <div class="filter-bar">
+        <div class="filter-left">
+            <div class="filter-item">
+                <label for="filterDddw">증권사</label>
+                <select id="filterDddw" name="dddw" class="filter-select"></select>
+            </div>
+            <div class="filter-item" style="position: relative; display: flex; align-items: center; gap: 6px;">
+                <label for="filterJa036eYmd">기준일자</label>
+                <div class="aams-calendar-wrapper">
+                    <input type="text" id="filterJa036eYmd" name="ymd" class="t-input aams-calendar-input"
+                           th:value="${ymd != null ? ymd : ''}" readonly autocomplete="off" />
+                    <button type="button" class="t-btn btn-calendar" title="달력 열기"
+                            onclick="AamsCalendar.toggle('filterJa036eYmd', event)">
+                        <i class="fa-regular fa-calendar-days"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="layout-split-h split-body" data-split-key="W_JA036E" data-default-ratio="38:62">
+        <div class="pane-left left-pane">
+            <div class="pane-header">
+                <span><i class="fa-solid fa-list" style="margin-right: 6px;"></i> 계좌(펀드) 목록</span>
+            </div>
+            <div class="pane-body">
+                <div id="gridJa036e" class="tabulator-aams-grid" style="height: 100%; width: 100%;"></div>
+            </div>
+        </div>
+
+        <div th:replace="~{fragments/report/report_viewer :: reportViewerPane(reportTitle='외화배당내역', defaultStatus='선택된 계좌 없음')}"></div>
+    </div>
+
+    <div th:replace="~{fragments/report/report_viewer :: reportMobileModal(modalId='ja036eMobileModal', modalTitle='외화배당내역 리포트')}"></div>
+
+    <script>
+    (function () {
+        const script = document.currentScript;
+        const viewEl = script && script.closest('.view-container');
+        const pane = script && (script.closest('.tab-pane') || viewEl);
+        if (!pane) return;
+
+        const api = '/api/foreignassetmanagement/ja036e';
+        const calendarId = 'filterJa036eYmd';
+        const initialYmd = (viewEl && viewEl.dataset.initialYmd) || '';
+        const defaultMgCd = (viewEl && viewEl.dataset.defaultMgCd) || '%';
+
+        let initialized = false;
+        let grid = null;
+        let gridBuilt = false;
+        let lastLoadedMasterKey = null;
+        let currentSelectedRowData = null;
+        let hasSucceededSearch = false;
+
+        const dddwOptionsMap = {
+            mg_cd: []
+        };
+
+        const notify = (msg, level) => { if (window.showToast) window.showToast(msg, level); };
+        const corpGr = () => window.resolveCorpGr ? window.resolveCorpGr(pane) : '';
+        const ymd = () => window.getFilterYmd ? window.getFilterYmd(pane) : (pane.querySelector('#' + calendarId)?.value || '');
+        const mgCd = () => {
+            const sel = pane.querySelector('#filterDddw');
+            return (sel && sel.value) ? sel.value.trim() : (defaultMgCd || '%');
+        };
+
+        function restoreToolbarState() {
+            if (window.ButtonRole && typeof window.ButtonRole.setSearchState === 'function') {
+                window.ButtonRole.setSearchState(pane, hasSucceededSearch);
+            }
+        }
+
+        function isMobileView() {
+            if (window.AamsReport && typeof window.AamsReport.isMobileView === 'function') {
+                return window.AamsReport.isMobileView(pane);
+            }
+            return window.matchMedia('(max-width: 876px)').matches || window.innerWidth <= 876;
+        }
+
+        async function fetchJson(url) {
+            const response = await fetch(url);
+            const body = await response.json().catch(() => null);
+            if (!response.ok || (body && body.success === false)) {
+                throw new Error((body && body.message) || '처리 중 오류가 발생했습니다.');
+            }
+            return body;
+        }
+
+        function buildReportParams(data) {
+            return {
+                ymd: (ymd() || '').replaceAll('-', ''),
+                fund_cd: data.fundCd || '',
+                fund_nm: data.xxFundCd || data.fundNm || ''
+            };
+        }
+
+        const reportViewer = (window.AamsReport && typeof window.AamsReport.bindViewer === 'function')
+            ? window.AamsReport.bindViewer(pane, {
+                reportFile: 'rd_ja036e.mrd',
+                modalId: 'ja036eMobileModal',
+                zoom: 120,
+                grid: () => grid,
+                getCorpGr: () => corpGr(),
+                buildParams: data => buildReportParams(data),
+                getTitle: data => ((data.xxFundCd || data.fundNm || '') + ' (' + (data.fundCd || '') + ') 외화배당내역'),
+                getStatus: (_data, params) => '기준일: ' + (window.formatDateDot ? window.formatDateDot(params.ymd) : params.ymd),
+                getDownloadName: (data, params) => {
+                    const safeNm = (data.xxFundCd || data.fundNm || '').trim().replace(/[\\/:*?"<>|]/g, '_') || '외화배당내역';
+                    return (params.ymd || '') + '_' + safeNm + '(' + (data.fundCd || '') + ')';
+                }
+            })
+            : null;
+
+        function syncDetail(row, masterRowData, isUserClick) {
+            if (!row) return;
+            const data = masterRowData || (row.getData ? row.getData() : null);
+            if (!data) return;
+
+            currentSelectedRowData = data;
+
+            if (isMobileView()) {
+                if (isUserClick && reportViewer) {
+                    reportViewer.openMobile(data);
+                }
+            } else {
+                const currentKey = corpGr() + '_' + (ymd() || '') + '_' + (data.fundCd || '');
+                if (lastLoadedMasterKey === currentKey) return;
+                lastLoadedMasterKey = currentKey;
+
+                if (reportViewer) {
+                    reportViewer.loadPreview(data);
+                }
+            }
+        }
+
+        function initGrid() {
+            grid = new Tabulator(pane.querySelector('#gridJa036e'), {
+                height: '100%',
+                layout: 'fitDataFill',
+                selectableRows: 1,
+                placeholder: '조회된 내역이 없습니다.',
+                columnDefaults: {
+                    vertAlign: 'middle',
+                    headerHozAlign: 'center',
+                    headerSort: false
+                },
+                columns: [
+                    {
+                        title: 'No.',
+                        width: 45,
+                        hozAlign: 'center',
+                        formatter: cell => cell.getRow().getPosition(true)
+                    },
+                    {
+                        title: '증권사',
+                        field: 'mgCd',
+                        width: 145,
+                        hozAlign: 'left',
+                        formatter: cell => (window.f_dddwctl && f_dddwctl.getLabel(dddwOptionsMap, 'mg_cd', cell.getValue())) || cell.getValue() || ''
+                    },
+                    {
+                        title: '펀드번호',
+                        field: 'fundCd',
+                        width: 90,
+                        hozAlign: 'center',
+                        headerCssClass: 'col-hdr-green'
+                    },
+                    {
+                        title: '계좌명',
+                        field: 'xxFundCd',
+                        minWidth: 180,
+                        hozAlign: 'left'
+                    }
+                ]
+            });
+
+            grid.on('tableBuilt', () => { gridBuilt = true; });
+
+            if (typeof setupTabulatorRowSelection === 'function') {
+                setupTabulatorRowSelection(grid, (row, data) => {
+                    syncDetail(row, data, false);
+                }, { autoSelectFirst: false });
+            }
+            grid.on('rowClick', (e, row) => {
+                const isRealClick = e && (e.isTrusted !== false);
+                syncDetail(row, row ? row.getData() : null, isRealClick);
+            });
+            grid.on('rowSelectionChanged', (_data, rows) => {
+                if (rows && rows.length > 0 && !isMobileView()) {
+                    syncDetail(rows[0], rows[0].getData(), false);
+                }
+            });
+        }
+
+        function initFilterMgCdDddw() {
+            if (!corpGr() || typeof window.initFilterDddw !== 'function') {
+                return Promise.resolve([]);
+            }
+            const safeCorpGr = corpGr().replaceAll("'", "''");
+            return window.initFilterDddw(pane, {
+                selectId: 'filterDddw',
+                dddwId: 'dddw',
+                corpGr: corpGr(),
+                addData: '%,전체,',
+                seq: 2,
+                addWhere: "tr_co_cd in (select mg_cd from szm0ia where corp_gr='" + safeCorpGr + "')",
+                codeTitle: '코드',
+                nameTitle: '증권사',
+                defaultVal: defaultMgCd || '%'
+            });
+        }
+
+        async function loadGridOptions() {
+            if (!corpGr() || !window.f_dddwctl) return;
+            const results = await f_dddwctl.retrieveMultiple({
+                mg_cd: ['mg_cd', corpGr(), '', 1, '']
+            });
+            dddwOptionsMap.mg_cd = results.mg_cd || [];
+            if (grid && gridBuilt) {
+                grid.getRows().forEach(r => r.reformat());
+            }
+        }
+
+        function initCalendar() {
+            if (!window.AamsCalendar) return;
+            AamsCalendar.init(calendarId, {
+                pane: pane,
+                initialYmd: initialYmd || ymd(),
+                corpGr: corpGr()
+            });
+        }
+
+        async function load() {
+            if (!corpGr()) {
+                restoreToolbarState();
+                return notify('회사그룹을 확인해주세요.', 'warning');
+            }
+            if (!ymd()) {
+                restoreToolbarState();
+                return notify('기준일자를 선택해주세요.', 'warning');
+            }
+
+            try {
+                lastLoadedMasterKey = null;
+                currentSelectedRowData = null;
+                const rows = await fetchJson(api + '/list?' + new URLSearchParams({
+                    corpGr: corpGr(),
+                    mgCd: mgCd(),
+                    ymd: ymd()
+                }));
+                hasSucceededSearch = true;
+                restoreToolbarState();
+                await grid.setData(rows);
+
+                if (!isMobileView()) {
+                    const firstRow = grid.getRows()[0];
+                    if (firstRow) {
+                        firstRow.select();
+                        syncDetail(firstRow, firstRow.getData(), false);
+                    }
+                }
+            } catch (err) {
+                restoreToolbarState();
+                notify(err.message || '조회 중 오류가 발생했습니다.', 'error');
+            }
+        }
+
+        function refresh() {
+            hasSucceededSearch = false;
+            lastLoadedMasterKey = null;
+            currentSelectedRowData = null;
+            if (window.safeClearGrid) {
+                window.safeClearGrid(grid);
+            } else if (grid) {
+                grid.setData([]);
+            }
+            if (reportViewer && typeof reportViewer.clear === 'function') {
+                reportViewer.clear();
+            }
+            restoreToolbarState();
+        }
+
+        function start() {
+            if (initialized) return;
+            initialized = true;
+
+            pane.ibManageData = false;
+            pane.ebNewFalse = true;
+            pane.ebCopyFalse = true;
+            pane.ebDeleteFalse = true;
+            restoreToolbarState();
+
+            pane.addEventListener('buttonAuthApplied', restoreToolbarState);
+
+            if (window.AamsSplitter && typeof window.AamsSplitter.init === 'function') {
+                window.AamsSplitter.init(pane);
+            }
+            initCalendar();
+            initGrid();
+
+            Promise.all([initFilterMgCdDddw(), loadGridOptions()])
+                .then(() => load())
+                .catch(err => notify(err.message || '초기 조회 중 오류가 발생했습니다.', 'error'));
+
+            pane.onSearch = load;
+            pane.onRefresh = refresh;
+            pane.onCorpGrChange = function () {
+                refresh();
+                Promise.all([initFilterMgCdDddw(), loadGridOptions()])
+                    .then(() => load())
+                    .catch(err => notify(err.message, 'error'));
+            };
+            pane.onExcel = function () {
+                if (reportViewer && currentSelectedRowData) {
+                    reportViewer.exportFormat('excel');
+                } else if (grid) {
+                    grid.download('xlsx', '외화배당내역_' + (ymd() || '') + '.xlsx', { sheetName: '계좌목록' });
+                }
+            };
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', start);
+        } else {
+            start();
+        }
+    })();
+    </script>
+</div>
+</html>

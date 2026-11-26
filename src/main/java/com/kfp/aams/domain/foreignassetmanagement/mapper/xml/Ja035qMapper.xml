@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.kfp.aams.domain.foreignassetmanagement.mapper.Ja035qMapper">
+
+    <!-- 1. 미지급/미수금 이월내역 조회 (d_ja035q.srd) -->
+    <select id="selectList" resultType="com.kfp.aams.domain.foreignassetmanagement.dto.Ja035qDto">
+        SELECT mc.CORP_GR
+             , TO_CHAR(mc.TR_YMD, 'YYYY-MM-DD')                                                 AS tr_ymd
+             , mc.TR_CD
+             , mc.FUND_CD
+             , mc.TRUSTEE
+             , mc.CURRENCY
+             , mc.BFIL_AEK
+             , mc.UP_AEK
+             , mc.DW_AEK
+             , mc.WON_BFIL_AEK
+             , mc.WON_UP_AEK
+             , mc.WON_DW_AEK
+             , mc.WON_BFIL_HWAN_CHA
+             , mc.WON_HWAN_CHA
+             , ia.FUND_NM                                                                       AS xx_fund_cd
+             , #{workdate}                                                                      AS workdate
+             , ia.FUND_CURRENCY
+             , COALESCE(mc.FCUR_BFIL_AEK, 0) + COALESCE(mc.FCUR_UP_AEK, 0) - COALESCE(mc.FCUR_DW_AEK, 0) AS fcur_aek
+             , mc.FCUR_HWAN_CHA                                                                 AS syt0mc_fcur_hwan_cha
+          FROM SYT0MC mc
+          JOIN SZM0IA ia
+            ON ia.CORP_GR = mc.CORP_GR
+           AND ia.FUND_CD = mc.FUND_CD
+         WHERE mc.CORP_GR = #{corpGr}
+           AND mc.TR_YMD  &gt;= TO_DATE(REPLACE(#{trYmd}, '-', ''), 'YYYYMMDD') - 1
+         ORDER BY mc.TR_YMD ASC
+                , mc.FUND_CD ASC
+                , mc.TR_CD ASC
+                , mc.TRUSTEE ASC
+                , mc.CURRENCY ASC
+    </select>
+
+    <!-- 2. 달력 하이라이트 일자 조회 (w_ja035q.srw dw_c::ue_getdate) -->
+    <select id="selectHighlightDates" resultType="java.lang.String">
+        SELECT DISTINCT TO_CHAR(t1.TR_YMD, 'YYYY-MM-DD') AS ymd
+          FROM SYT0MC t1
+         WHERE t1.CORP_GR = #{corpGr}
+         ORDER BY ymd
+    </select>
+
+    <!-- 3. SYT0MC 수정 -->
+    <update id="updateSyt0mc">
+        UPDATE SYT0MC
+           SET BFIL_AEK     = COALESCE(#{bfilAek, jdbcType=NUMERIC}, 0)
+             , UP_AEK       = COALESCE(#{upAek, jdbcType=NUMERIC}, 0)
+             , DW_AEK       = COALESCE(#{dwAek, jdbcType=NUMERIC}, 0)
+             , WON_BFIL_AEK = COALESCE(#{wonBfilAek, jdbcType=NUMERIC}, 0)
+             , WON_UP_AEK   = COALESCE(#{wonUpAek, jdbcType=NUMERIC}, 0)
+             , WON_DW_AEK   = COALESCE(#{wonDwAek, jdbcType=NUMERIC}, 0)
+         WHERE CORP_GR  = #{corpGr, jdbcType=VARCHAR}
+           AND TR_YMD   = TO_DATE(REPLACE(#{trYmd, jdbcType=VARCHAR}, '-', ''), 'YYYYMMDD')
+           AND TR_CD    = #{trCd, jdbcType=VARCHAR}
+           AND FUND_CD  = #{fundCd, jdbcType=VARCHAR}
+           AND TRUSTEE  = #{trustee, jdbcType=VARCHAR}
+           AND CURRENCY = #{currency, jdbcType=VARCHAR}
+    </update>
+
+    <!-- 4. SYT0MC 삭제 -->
+    <delete id="deleteSyt0mc">
+        DELETE FROM SYT0MC
+         WHERE CORP_GR  = #{corpGr, jdbcType=VARCHAR}
+           AND TR_YMD   = TO_DATE(REPLACE(#{trYmd, jdbcType=VARCHAR}, '-', ''), 'YYYYMMDD')
+           AND TR_CD    = #{trCd, jdbcType=VARCHAR}
+           AND FUND_CD  = #{fundCd, jdbcType=VARCHAR}
+           AND TRUSTEE  = #{trustee, jdbcType=VARCHAR}
+           AND CURRENCY = #{currency, jdbcType=VARCHAR}
+    </delete>
+
+</mapper>
