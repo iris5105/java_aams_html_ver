@@ -4,6 +4,114 @@
  */
 window.AamsCalendar = (function() {
     const instances = (window.AamsCalendar && window.AamsCalendar.instances) ? window.AamsCalendar.instances : {};
+    const holidayCache = {};
+    const holidayPromises = {};
+
+    function normalizeHolidayYmd(ymd) {
+        if (!ymd) return '';
+        const digits = String(ymd).replace(/[^0-9]/g, '');
+        if (digits.length < 8) return '';
+        return digits.substring(0, 4) + '-' + digits.substring(4, 6) + '-' + digits.substring(6, 8);
+    }
+
+    function isUsHolidayText(text) {
+        if (!text) return false;
+        const lower = String(text).toLowerCase();
+        return lower.includes('us portfolio model')
+            || lower.includes('외화자산운용')
+            || lower.includes('/usportfoliomodel/')
+            || lower.includes('/foreignassetmanagement/');
+    }
+
+    function resolveNationCd(paneOrEl) {
+        let pane = null;
+        if (paneOrEl && typeof paneOrEl.closest === 'function') {
+            pane = paneOrEl.classList && paneOrEl.classList.contains('tab-pane')
+                ? paneOrEl
+                : (paneOrEl.closest('.tab-pane') || paneOrEl.closest('.view-container'));
+        } else if (paneOrEl && paneOrEl.nodeType === 1) {
+            pane = paneOrEl;
+        }
+
+        if (pane) {
+            const explicitNation = pane.getAttribute('data-nation-cd')
+                || (pane.querySelector('.view-container') && pane.querySelector('.view-container').getAttribute('data-nation-cd'));
+            if (explicitNation && explicitNation.trim()) {
+                return explicitNation.trim().toUpperCase();
+            }
+
+            const breadcrumb = pane.querySelector('.breadcrumb');
+            if (breadcrumb) {
+                const bcText = (breadcrumb.dataset && breadcrumb.dataset.breadcrumbFull)
+                    || breadcrumb.getAttribute('title')
+                    || breadcrumb.textContent
+                    || '';
+                if (isUsHolidayText(bcText)) return 'US';
+            }
+
+            const tabKey = pane.getAttribute('data-tab-key') || pane.getAttribute('data-pgm-no');
+            if (window.AamsTabManager && Array.isArray(window.AamsTabManager.openTabs)) {
+                const tab = window.AamsTabManager.openTabs.find(function(t) {
+                    return t.tabKey === tabKey || t.pgmNo === tabKey;
+                });
+                if (tab) {
+                    if (isUsHolidayText(tab.breadcrumb) || isUsHolidayText(tab.url)) return 'US';
+                    if (tab.topPgmNo) {
+                        const topNavEl = document.querySelector('.top-nav-item[data-pgm-no="' + tab.topPgmNo + '"]');
+                        if (topNavEl && isUsHolidayText(topNavEl.textContent)) return 'US';
+                    }
+                }
+            }
+        }
+
+        const activeTopNav = document.querySelector('.top-nav-item.active');
+        if (activeTopNav && isUsHolidayText(activeTopNav.textContent)) {
+            return 'US';
+        }
+
+        return 'KR';
+    }
+
+    function loadHolidays(nationCd, onLoaded) {
+        const code = (nationCd && String(nationCd).trim().toUpperCase() === 'US') ? 'US' : 'KR';
+        if (holidayCache[code]) {
+            if (typeof onLoaded === 'function') onLoaded(holidayCache[code]);
+            return;
+        }
+        if (!holidayPromises[code]) {
+            holidayPromises[code] = fetch('/api/common/holidays?nationCd=' + encodeURIComponent(code), {
+                credentials: 'same-origin'
+            })
+                .then(function(res) { return res.ok ? res.json() : []; })
+                .then(function(list) {
+                    const set = new Set();
+                    if (Array.isArray(list)) {
+                        list.forEach(function(item) {
+                            const norm = normalizeHolidayYmd(item);
+                            if (norm) set.add(norm);
+                        });
+                    }
+                    holidayCache[code] = set;
+                    return set;
+                })
+                .catch(function(err) {
+                    console.error('AamsCalendar error loading holidays (' + code + '):', err);
+                    delete holidayPromises[code];
+                    return new Set();
+                });
+        }
+        holidayPromises[code].then(function(set) {
+            if (typeof onLoaded === 'function') onLoaded(set);
+        });
+    }
+
+    function isHolidayDate(nationCd, ymd) {
+        const code = (nationCd && String(nationCd).trim().toUpperCase() === 'US') ? 'US' : 'KR';
+        const set = holidayCache[code];
+        if (!set) return false;
+        const norm = normalizeHolidayYmd(ymd);
+        return norm ? set.has(norm) : false;
+    }
 
     return {
         instances: instances,
@@ -353,8 +461,15 @@ window.AamsCalendar = (function() {
                         inst.calMonth = parseInt(parts.substring(4, 6), 10) - 1;
                     }
                 }
+                inst.nationCd = resolveNationCd(inst.pane || eventPane || (e && e.target));
                 this.render(inputId, popover);
                 popover.style.display = "block";
+                const selfCal = this;
+                loadHolidays(inst.nationCd, function() {
+                    if (popover && popover.style.display === "block") {
+                        selfCal.render(inputId, popover);
+                    }
+                });
             } else {
                 popover.style.display = "none";
             }
@@ -646,14 +761,16 @@ window.AamsCalendar = (function() {
             if (isOverflow) {
                 btn.style.color = "#94a3b8";
             } else {
+                const inst = instances[inputId];
+                const isHoliday = isHolidayDate(inst && inst.nationCd, ymd);
                 if (hasHistory) {
                     btn.style.color = "#00cc00"; // Bright vivid green
                     btn.style.fontWeight = "900";
                     btn.style.fontSize = "13px";
-                    const inst = instances[inputId];
                     btn.title = (inst && inst.historyTitle) ? inst.historyTitle : "데이터 존재";
-                } else if (dayOfWeek === 0) {
-                    btn.style.color = "#ef4444"; // Sunday red
+                } else if (dayOfWeek === 0 || isHoliday) {
+                    btn.style.color = "#ef4444"; // Sunday & Holiday red
+                    if (isHoliday) btn.title = "휴무일";
                 } else if (dayOfWeek === 6) {
                     btn.style.color = "#2563eb"; // Saturday blue
                 } else {
@@ -662,8 +779,8 @@ window.AamsCalendar = (function() {
 
                 if (isSelected) {
                     btn.style.fontWeight = "900";
+                    btn.style.fontSize = "14px";
                     btn.style.textDecoration = "underline";
-                    btn.style.color = "#000000";
                     btn.style.backgroundColor = "#e2e8f0";
                 }
             }
@@ -1065,8 +1182,14 @@ window.AamsCalendar = (function() {
             cell.className = 'range-cal-day-cell' + (isOtherMonth ? ' other-month' : '') + (isSelected ? ' selected' : '');
             cell.textContent = dayNum;
 
-            if (!isOtherMonth && !isSelected) {
-                if (dayOfWeek === 0) cell.style.color = '#ef4444'; // 일요일 빨강
+            const inst = this.rangeInstances[rangeId];
+            const isHoliday = isHolidayDate(inst && inst.nationCd, ymdStr);
+
+            if (!isOtherMonth) {
+                if (dayOfWeek === 0 || isHoliday) {
+                    cell.style.color = '#ef4444'; // 일요일 및 휴무일 빨강
+                    if (isHoliday) cell.title = '휴무일';
+                }
                 else if (dayOfWeek === 6) cell.style.color = '#2563eb'; // 토요일 파랑
                 else cell.style.color = '#1e293b';
             }
@@ -1287,8 +1410,15 @@ window.AamsCalendar = (function() {
                 inst.backupFYmd = inst.curFYmd;
                 inst.backupTYmd = inst.curTYmd;
 
+                inst.nationCd = resolveNationCd(inst.pane || targetPane || triggerEl);
                 this.renderRange(rangeId);
                 popover.style.display = 'block';
+                const selfRangeCal = this;
+                loadHolidays(inst.nationCd, function() {
+                    if (popover && popover.style.display === 'block') {
+                        selfRangeCal.renderRange(rangeId);
+                    }
+                });
 
                 // 모바일/좁은 화면에서 팝오버가 화면 우측을 벗어나지 않도록 자동 보정
                 try {
@@ -1552,20 +1682,23 @@ window.AamsCalendar = (function() {
                 btn.style.cssText = "background: none; border: none; padding: 3px 0; cursor: pointer; border-radius: 2px; font-size: 12px; width: 100%;";
 
                 const dayOfWeek = new Date(y, m, d).getDay();
+                const rawYmd = `${y}${String(m + 1).padStart(2, '0')}${String(d).padStart(2, '0')}`;
+                const isHoliday = isCurrentMonth && isHolidayDate(gridNationCd, rawYmd);
                 if (!isCurrentMonth) {
                     btn.style.color = "#94a3b8";
-                } else if (dayOfWeek === 0) {
+                } else if (dayOfWeek === 0 || isHoliday) {
                     btn.style.color = "#ef4444";
+                    if (isHoliday) btn.title = "휴무일";
                 } else if (dayOfWeek === 6) {
                     btn.style.color = "#2563eb";
                 } else {
                     btn.style.color = "#1e293b";
                 }
 
-                const rawYmd = `${y}${String(m + 1).padStart(2, '0')}${String(d).padStart(2, '0')}`;
                 if (cleanYmd && rawYmd === cleanYmd) {
                     btn.style.backgroundColor = "#bfdbfe";
                     btn.style.fontWeight = "bold";
+                    btn.style.fontSize = "14px";
                 }
 
                 btn.onmouseover = () => { if (btn.style.backgroundColor !== "rgb(191, 219, 254)") btn.style.backgroundColor = "#f1f5f9"; };
@@ -1603,8 +1736,14 @@ window.AamsCalendar = (function() {
                 }
             }
 
+            const gridNationCd = resolveNationCd(anchorEl);
             document.body.appendChild(popover);
             renderPicker();
+            loadHolidays(gridNationCd, function() {
+                if (popover && popover.parentElement) {
+                    renderPicker();
+                }
+            });
             setTimeout(() => {
                 document.addEventListener("click", onDocClick, true);
             }, 50);

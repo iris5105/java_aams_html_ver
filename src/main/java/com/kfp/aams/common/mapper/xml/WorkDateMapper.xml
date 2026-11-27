@@ -27,4 +27,12 @@
          WHERE corp_gr = #{corpGr}
     </select>
 
+    <!-- 국가코드별 휴무일 조회 (SZX0HL) -->
+    <select id="selectHolidays" resultType="java.lang.String">
+        SELECT DISTINCT TO_CHAR(HOLI_YMD, 'YYYY-MM-DD')
+          FROM SZX0HL
+         WHERE NATION_CD = #{nationCd}
+         ORDER BY 1 ASC
+    </select>
+
 </mapper>

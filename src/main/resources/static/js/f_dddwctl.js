@@ -553,6 +553,37 @@
             }
         }
 
+        function positionPopup() {
+            const rect = btn.getBoundingClientRect();
+            const margin = 8;
+            const spaceBelow = Math.max(80, window.innerHeight - rect.bottom - margin);
+            const spaceAbove = Math.max(80, rect.top - margin);
+            const naturalHeight = Math.min(280, popup.scrollHeight || 280);
+
+            popup.style.position = "fixed";
+            popup.style.zIndex = "10050";
+
+            if (spaceBelow < naturalHeight && spaceAbove > spaceBelow) {
+                const maxH = Math.min(280, spaceAbove);
+                popup.style.maxHeight = maxH + "px";
+                popup.style.top = "auto";
+                popup.style.bottom = (window.innerHeight - rect.top + 4) + "px";
+            } else {
+                const maxH = Math.min(280, spaceBelow);
+                popup.style.maxHeight = maxH + "px";
+                popup.style.bottom = "auto";
+                popup.style.top = (rect.bottom + 4) + "px";
+            }
+
+            const popupW = popup.offsetWidth || rect.width;
+            let left = rect.left;
+            if (left + popupW > window.innerWidth - margin) {
+                left = Math.max(margin, window.innerWidth - popupW - margin);
+            }
+            popup.style.left = left + "px";
+            popup.style.minWidth = Math.max(rect.width, 120) + "px";
+        }
+
         function openPopup() {
             document.querySelectorAll(".dddw-select-custom.open").forEach(w => {
                 if (w !== wrapper) {
@@ -567,6 +598,7 @@
             popup.style.width = "max-content";
             popup.style.minWidth = "0px";
             apply2ColAutoFit(popup, manualWidth);
+            positionPopup();
             if (activeItemEl) {
                 activeItemEl.scrollIntoView({ block: "nearest" });
             }
@@ -595,6 +627,14 @@
             }
         };
         document.addEventListener("click", outsideListener);
+
+        const scrollCloseListener = function (e) {
+            if (wrapper.classList.contains("open") && e.target !== popup && !popup.contains(e.target)) {
+                closePopup();
+            }
+        };
+        window.addEventListener("scroll", scrollCloseListener, true);
+        window.addEventListener("resize", scrollCloseListener);
 
         const initialCode = (defaultVal != null && defaultVal !== '') ? defaultVal : el.value;
         const found = optList.find(o => {

@@ -3,6 +3,8 @@ package com.kfp.aams.common.mapper;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
+import java.util.List;
+
 @Mapper
 public interface WorkDateMapper {
 
@@ -21,4 +23,9 @@ public interface WorkDateMapper {
      * 회사그룹별 전영업일 조회 (SZX0AA.JUNYONG_YMD)
      */
     String selectJunyongDate(@Param("corpGr") String corpGr);
+
+    /**
+     * 국가코드(NATION_CD)별 휴무일 목록 조회 (SZX0HL.HOLI_YMD, YYYY-MM-DD)
+     */
+    List<String> selectHolidays(@Param("nationCd") String nationCd);
 }

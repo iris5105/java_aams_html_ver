@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.kfp.aams.domain.foreignassetmanagement.mapper.Ja035aMapper">
+
+    <select id="selectList" resultType="com.kfp.aams.domain.foreignassetmanagement.dto.Ja035aDto">
+        SELECT ya.CORP_GR
+             , ya.JM_CD
+             , ya.JM_NM
+             , ya.JASAN_GB
+             , ya.SEQ_NO
+             , ya.BALH_NATION
+             , ya.CURRENCY
+             , ya.IJA_PER
+             , TO_CHAR(ya.BALH_YMD, 'YYYY-MM-DD')   AS balh_ymd
+             , TO_CHAR(ya.SANGHW_YMD, 'YYYY-MM-DD') AS sanghw_ymd
+             , ya.GYULJE_JM
+             , ya.JASAN_ATTR
+             , ya.SEDOL
+             , 1                                    AS p_visible
+          FROM SYM0YA ya
+         WHERE ya.CORP_GR  = #{corpGr}
+           AND ya.JASAN_GB = '5'
+         ORDER BY ya.JM_CD ASC
+    </select>
+
+    <insert id="insertItem" parameterType="com.kfp.aams.domain.foreignassetmanagement.dto.Ja035aDto">
+        INSERT INTO SYM0YA (
+            CORP_GR,
+            JM_CD,
+            JM_NM,
+            JASAN_GB,
+            SEQ_NO,
+            BALH_NATION,
+            CURRENCY,
+            IJA_PER,
+            BALH_YMD,
+            SANGHW_YMD,
+            GYULJE_JM,
+            JASAN_ATTR,
+            SEDOL
+        ) VALUES (
+            #{corpGr},
+            #{jmCd},
+            #{jmNm, jdbcType=VARCHAR},
+            COALESCE(#{jasanGb, jdbcType=VARCHAR}, '5'),
+            #{seqNo, jdbcType=NUMERIC},
+            #{balhNation, jdbcType=VARCHAR},
+            #{currency, jdbcType=VARCHAR},
+            #{ijaPer, jdbcType=NUMERIC},
+            CASE WHEN #{balhYmd, jdbcType=VARCHAR} IS NOT NULL AND TRIM(#{balhYmd, jdbcType=VARCHAR}) != ''
+                 THEN TO_DATE(SUBSTR(REGEXP_REPLACE(#{balhYmd, jdbcType=VARCHAR}, '[^0-9]', ''), 1, 8), 'YYYYMMDD')
+                 ELSE NULL END,
+            CASE WHEN #{sanghwYmd, jdbcType=VARCHAR} IS NOT NULL AND TRIM(#{sanghwYmd, jdbcType=VARCHAR}) != ''
+                 THEN TO_DATE(SUBSTR(REGEXP_REPLACE(#{sanghwYmd, jdbcType=VARCHAR}, '[^0-9]', ''), 1, 8), 'YYYYMMDD')
+                 ELSE NULL END,
+            COALESCE(#{gyuljeJm, jdbcType=VARCHAR}, 'N'),
+            #{jasanAttr, jdbcType=VARCHAR},
+            #{sedol, jdbcType=VARCHAR}
+        )
+    </insert>
+
+    <update id="updateItem" parameterType="com.kfp.aams.domain.foreignassetmanagement.dto.Ja035aDto">
+        UPDATE SYM0YA
+           SET JM_NM       = #{jmNm, jdbcType=VARCHAR}
+             , SEQ_NO      = #{seqNo, jdbcType=NUMERIC}
+             , BALH_NATION = #{balhNation, jdbcType=VARCHAR}
+             , CURRENCY    = #{currency, jdbcType=VARCHAR}
+             , IJA_PER     = #{ijaPer, jdbcType=NUMERIC}
+             , BALH_YMD    = CASE WHEN #{balhYmd, jdbcType=VARCHAR} IS NOT NULL AND TRIM(#{balhYmd, jdbcType=VARCHAR}) != ''
+                                  THEN TO_DATE(SUBSTR(REGEXP_REPLACE(#{balhYmd, jdbcType=VARCHAR}, '[^0-9]', ''), 1, 8), 'YYYYMMDD')
+                                  ELSE NULL END
+             , SANGHW_YMD  = CASE WHEN #{sanghwYmd, jdbcType=VARCHAR} IS NOT NULL AND TRIM(#{sanghwYmd, jdbcType=VARCHAR}) != ''
+                                  THEN TO_DATE(SUBSTR(REGEXP_REPLACE(#{sanghwYmd, jdbcType=VARCHAR}, '[^0-9]', ''), 1, 8), 'YYYYMMDD')
+                                  ELSE NULL END
+             , GYULJE_JM   = COALESCE(#{gyuljeJm, jdbcType=VARCHAR}, 'N')
+             , JASAN_ATTR  = #{jasanAttr, jdbcType=VARCHAR}
+             , SEDOL       = #{sedol, jdbcType=VARCHAR}
+         WHERE CORP_GR  = #{corpGr}
+           AND JM_CD    = #{jmCd}
+           AND JASAN_GB = COALESCE(#{jasanGb, jdbcType=VARCHAR}, '5')
+    </update>
+
+    <delete id="deleteItem">
+        DELETE FROM SYM0YA
+         WHERE CORP_GR  = #{corpGr}
+           AND JM_CD    = #{jmCd}
+           AND JASAN_GB = COALESCE(#{jasanGb, jdbcType=VARCHAR}, '5')
+    </delete>
+
+    <select id="selectCurrencyByNation" resultType="java.lang.String">
+        SELECT CURRENCY
+          FROM SZX0WA
+         WHERE NATION_CD = #{nationCd}
+    </select>
+
+    <select id="selectIdDaeCd" resultType="java.lang.String">
+        SELECT ID_DAE_CD
+          FROM SZX0YM
+         WHERE YMD_GB = #{ymdGb}
+           AND YMD_ID = #{ymdId}
+    </select>
+
+</mapper>

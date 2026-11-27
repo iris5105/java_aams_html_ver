@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<!--
+    W_JA035A: 단기유동자산 종목 등록 (wt_list)
+    DataWindow:
+      - dw_c: visible=false, enabled=false
+      - dw_list: d_ja035a (SYM0YA, JASAN_GB='5')
+      - eb_direct_retrieve = true, is_date_nation = "US"
+-->
+<div class="view-container layout-single ja035a-container layout-mobile-stack-container"
+     th:fragment="ja035aView"
+     th:data-work-date="${workDate}"
+     data-nation-cd="US">
+
+    <div class="view-toolbar">
+        <div class="toolbar-left">
+            <div th:replace="~{fragments/tab_header :: toolbarButtons}"></div>
+        </div>
+        <div th:replace="~{fragments/tab_header :: toolbarBreadcrumb}"></div>
+    </div>
+
+    <section class="grid-section" aria-label="단기유동자산 종목 등록">
+        <div class="grid-table-wrapper">
+            <div id="gridJa035a" class="tabulator-aams-grid"></div>
+        </div>
+    </section>
+
+    <script>
+    (function () {
+        const script = document.currentScript;
+        const pane = script && (script.closest('.tab-pane') || script.closest('.view-container'));
+        if (!pane) return;
+
+        const viewEl = pane.classList.contains('ja035a-container')
+            ? pane
+            : pane.querySelector('.ja035a-container');
+        if (!viewEl) return;
+
+        const api = '/api/foreignassetmanagement/ja035a';
+        const workDate = viewEl.dataset.workDate || '';
+
+        let initialized = false;
+        let grid = null;
+        let gridBuilt = false;
+        let hasSucceededSearch = false;
+        let deletedRows = [];
+
+        let nationOptions = {};
+        let currencyOptions = {};
+        let jasanAttrOptions = {};
+        let nationList = [];
+        let currencyList = [];
+        let jasanAttrList = [];
+
+        function getCorpGr() {
+            if (typeof resolveCorpGr === 'function') {
+                return resolveCorpGr(pane);
+            }
+            return '';
+        }
+
+        function updateToolbarState() {
+            if (window.ButtonRole && typeof window.ButtonRole.setSearchState === 'function') {
+                window.ButtonRole.setSearchState(pane, hasSucceededSearch);
+            }
+        }
+
+        function formatNum(val, decimals) {
+            if (val === null || val === undefined || val === '') return '';
+            const num = Number(val);
+            if (!Number.isFinite(num)) return '';
+            if (typeof window.formatNumber === 'function') {
+                return window.formatNumber(num, decimals);
+            }
+            return num.toLocaleString('ko-KR', {
+                minimumFractionDigits: decimals,
+                maximumFractionDigits: decimals
+            });
+        }
+
+        async function loadDddwOptions(dddwId, seq, addWhere, filterFkey) {
+            try {
+                const corpGr = getCorpGr();
+                let list = [];
+                if (!filterFkey && typeof window.f_dddwctl === 'function') {
+                    list = await window.f_dddwctl(dddwId, corpGr, '', seq, addWhere || '');
+                } else {
+                    const params = new URLSearchParams({
+                        dddwId: dddwId,
+                        seq: String(seq)
+                    });
+                    if (corpGr) params.set('corpGr', corpGr);
+                    if (addWhere) params.set('addWhere', addWhere);
+                    const res = await fetch('/api/common/dddw?' + params.toString(), {
+                        credentials: 'same-origin'
+                    });
+                    if (!res.ok) return {};
+                    list = await res.json();
+                }
+                const map = {};
+                const normalizedList = [];
+                if (Array.isArray(list)) {
+                    list.forEach(function (item) {
+                        if (filterFkey) {
+                            const fkey = item.fkey != null ? String(item.fkey).trim() : '';
+                            if (fkey !== filterFkey) return;
+                        }
+                        const rawCode = item.code != null ? item.code : (item.cd != null ? item.cd : '');
+                        const code = String(rawCode).trim();
+                        const rawName = item.name != null ? item.name : (item.dscr != null ? item.dscr : code);
+                        const name = String(rawName).trim() || code;
+                        if (code) {
+                            map[code] = name;
+                            normalizedList.push({ code: code, name: name });
+                        }
+                    });
+                }
+                return { map: map, list: normalizedList };
+            } catch (_e) {
+                return { map: {}, list: [] };
+            }
+        }
+
+        async function fetchCurrencyByNation(nationCd) {
+            if (!nationCd) return '';
+            try {
+                const res = await fetch(api + '/nation-currency?nationCd=' + encodeURIComponent(nationCd), {
+                    credentials: 'same-origin'
+                });
+                if (!res.ok) return '';
+                const data = await res.json();
+                return data && data.currency ? data.currency : '';
+            } catch (_e) {
+                return '';
+            }
+        }
+
+        async function refreshGeneratedJmCd(row) {
+            if (!row) return;
+            const d = row.getData();
+            if (!d || !d.isNew) return;
+            if (!d.balhNation || !d.balhYmd) return;
+
+            try {
+                const params = new URLSearchParams({
+                    balhNation: d.balhNation,
+                    balhYmd: d.balhYmd,
+                    jasanGb: d.jasanGb || '5',
+                    seqNo: String(d.seqNo != null ? d.seqNo : 1)
+                });
+                const res = await fetch(api + '/generate-jm-cd?' + params.toString(), {
+                    credentials: 'same-origin'
+                });
+                if (!res.ok) return;
+                const data = await res.json();
+                if (data && data.jmCd) {
+                    row.update({
+                        jmCd: data.jmCd,
+                        sedol: data.sedol || data.jmCd
+                    });
+                }
+            } catch (_e) {
+                // ignore
+            }
+        }
+
+        function markRowUpdated(row) {
+            const d = row.getData();
+            if (!d) return;
+            if (!d.isNew) {
+                row.update({ isUpdated: true, rowStatus: 'U' });
+            } else if (d.rowStatus !== 'C') {
+                row.update({ rowStatus: 'C' });
+            }
+        }
+
+        function buildColumns() {
+            return [
+                {
+                    title: 'No.',
+                    formatter: 'rownum',
+                    width: 55,
+                    hozAlign: 'center',
+                    headerHozAlign: 'center',
+                    headerSort: false
+                },
+                {
+                    title: '발행국가',
+                    field: 'balhNation',
+                    width: 130,
+                    hozAlign: 'left',
+                    headerHozAlign: 'center',
+                    editor: 'list',
+                    editorParams: function () {
+                        return {
+                            values: (window.f_dddwctl && typeof window.f_dddwctl.getOptions === 'function')
+                                ? window.f_dddwctl.getOptions(nationList)
+                                : nationOptions,
+                            itemFormatter: (window.f_dddwctl && typeof window.f_dddwctl.get2ColItemFormatter === 'function')
+                                ? window.f_dddwctl.get2ColItemFormatter('코드', '명칭')
+                                : undefined,
+                            autocomplete: true,
+                            listOnEmpty: true,
+                            clearable: false
+                        };
+                    },
+                    formatter: function (cell) {
+                        const v = cell.getValue();
+                        return nationOptions[v] || v || '';
+                    }
+                },
+                {
+                    title: '종목명',
+                    field: 'jmNm',
+                    width: 260,
+                    hozAlign: 'left',
+                    headerHozAlign: 'center',
+                    editor: 'input'
+                },
+                {
+                    title: '발행일자',
+                    field: 'balhYmd',
+                    width: 110,
+                    hozAlign: 'center',
+                    headerHozAlign: 'center',
+                    editor: 'input'
+                },
+                {
+                    title: '',
+                    field: 'pDdBalhYmd',
+                    width: 34,
+                    hozAlign: 'center',
+                    headerSort: false,
+                    formatter: function () {
+                        return '<button type="button" class="btn-grid-addon btn-calendar" title="발행일자 선택"><i class="fa-regular fa-calendar-days"></i></button>';
+                    },
+                    cellClick: function (e, cell) {
+                        e.stopPropagation();
+                        const row = cell.getRow();
+                        const d = row.getData() || {};
+                        if (window.AamsCalendar && typeof window.AamsCalendar.openGridCell === 'function') {
+                            window.AamsCalendar.openGridCell(cell.getElement(), {
+                                initialYmd: d.balhYmd || workDate,
+                                format: 'dash',
+                                onSelect: function (dashYmd) {
+                                    row.update({
+                                        balhYmd: dashYmd,
+                                        isUpdated: d.isNew ? d.isUpdated : true,
+                                        rowStatus: d.isNew ? 'C' : 'U'
+                                    });
+                                    refreshGeneratedJmCd(row);
+                                }
+                            });
+                        }
+                    }
+                },
+                {
+                    title: '순번',
+                    field: 'seqNo',
+                    width: 65,
+                    hozAlign: 'center',
+                    headerHozAlign: 'center',
+                    editor: 'number'
+                },
+                {
+                    title: '종목코드',
+                    field: 'jmCd',
+                    width: 135,
+                    hozAlign: 'center',
+                    headerHozAlign: 'center'
+                },
+                {
+                    title: '통화',
+                    field: 'currency',
+                    width: 100,
+                    hozAlign: 'center',
+                    headerHozAlign: 'center',
+                    editor: 'list',
+                    editorParams: function () {
+                        return {
+                            values: (window.f_dddwctl && typeof window.f_dddwctl.getOptions === 'function')
+                                ? window.f_dddwctl.getOptions(currencyList)
+                                : currencyOptions,
+                            itemFormatter: (window.f_dddwctl && typeof window.f_dddwctl.get2ColItemFormatter === 'function')
+                                ? window.f_dddwctl.get2ColItemFormatter('코드', '명칭')
+                                : undefined,
+                            autocomplete: true,
+                            listOnEmpty: true,
+                            clearable: false
+                        };
+                    },
+                    formatter: function (cell) {
+                        const v = cell.getValue();
+                        return currencyOptions[v] || v || '';
+                    }
+                },
+                {
+                    title: '이자율(%)',
+                    field: 'ijaPer',
+                    width: 95,
+                    hozAlign: 'right',
+                    headerHozAlign: 'center',
+                    editor: 'number',
+                    formatter: function (cell) {
+                        return formatNum(cell.getValue(), 2);
+                    }
+                },
+                {
+                    title: '상환일자',
+                    field: 'sanghwYmd',
+                    width: 110,
+                    hozAlign: 'center',
+                    headerHozAlign: 'center',
+                    editor: 'input'
+                },
+                {
+                    title: '',
+                    field: 'pDdSanghwYmd',
+                    width: 34,
+                    hozAlign: 'center',
+                    headerSort: false,
+                    formatter: function () {
+                        return '<button type="button" class="btn-grid-addon btn-calendar" title="상환일자 선택"><i class="fa-regular fa-calendar-days"></i></button>';
+                    },
+                    cellClick: function (e, cell) {
+                        e.stopPropagation();
+                        const row = cell.getRow();
+                        const d = row.getData() || {};
+                        if (window.AamsCalendar && typeof window.AamsCalendar.openGridCell === 'function') {
+                            window.AamsCalendar.openGridCell(cell.getElement(), {
+                                initialYmd: d.sanghwYmd || workDate,
+                                format: 'dash',
+                                onSelect: function (dashYmd) {
+                                    row.update({
+                                        sanghwYmd: dashYmd,
+                                        isUpdated: d.isNew ? d.isUpdated : true,
+                                        rowStatus: d.isNew ? 'C' : 'U'
+                                    });
+                                }
+                            });
+                        }
+                    }
+                },
+                {
+                    title: '통화결제종목',
+                    field: 'gyuljeJm',
+                    width: 105,
+                    hozAlign: 'center',
+                    headerHozAlign: 'center',
+                    formatter: function (cell) {
+                        const checked = String(cell.getValue() || '').toUpperCase() === 'Y';
+                        return '<input type="checkbox" ' + (checked ? 'checked' : '') + ' style="cursor:pointer;" />';
+                    },
+                    cellClick: function (e, cell) {
+                        e.stopPropagation();
+                        const row = cell.getRow();
+                        const d = row.getData() || {};
+                        const nextVal = String(cell.getValue() || '').toUpperCase() === 'Y' ? 'N' : 'Y';
+                        row.update({
+                            gyuljeJm: nextVal,
+                            isUpdated: d.isNew ? d.isUpdated : true,
+                            rowStatus: d.isNew ? 'C' : 'U'
+                        });
+                    }
+                },
+                {
+                    title: '자산분류',
+                    field: 'jasanAttr',
+                    width: 170,
+                    hozAlign: 'left',
+                    headerHozAlign: 'center',
+                    editor: 'list',
+                    editorParams: function () {
+                        return {
+                            values: (window.f_dddwctl && typeof window.f_dddwctl.getOptions === 'function')
+                                ? window.f_dddwctl.getOptions(jasanAttrList)
+                                : jasanAttrOptions,
+                            itemFormatter: (window.f_dddwctl && typeof window.f_dddwctl.get2ColItemFormatter === 'function')
+                                ? window.f_dddwctl.get2ColItemFormatter('코드', '명칭')
+                                : undefined,
+                            autocomplete: true,
+                            listOnEmpty: true,
+                            clearable: false
+                        };
+                    },
+                    formatter: function (cell) {
+                        const v = cell.getValue();
+                        return jasanAttrOptions[v] || v || '';
+                    }
+                }
+            ];
+        }
+
+        function ensureGrid() {
+            if (gridBuilt && grid) return grid;
+            const el = pane.querySelector('#gridJa035a');
+            if (!el || typeof Tabulator === 'undefined') return null;
+
+            grid = new Tabulator(el, {
+                layout: 'fitDataFill',
+                height: '100%',
+                placeholder: '조회된 데이터가 없습니다.',
+                selectableRows: 1,
+                columns: buildColumns()
+            });
+
+            grid.on('rowClick', function (_e, row) {
+                if (row) row.select();
+            });
+
+            grid.on('cellClick', function (e, cell) {
+                if (typeof window.aamsCellEdit === 'function') {
+                    window.aamsCellEdit(e, cell);
+                }
+            });
+
+            grid.on('cellEdited', async function (cell) {
+                const row = cell.getRow();
+                const field = cell.getField();
+                markRowUpdated(row);
+
+                if (field === 'balhNation') {
+                    const cur = await fetchCurrencyByNation(cell.getValue());
+                    if (cur) {
+                        row.update({ currency: cur });
+                    }
+                    await refreshGeneratedJmCd(row);
+                } else if (field === 'balhYmd' || field === 'seqNo') {
+                    await refreshGeneratedJmCd(row);
+                }
+            });
+
+            gridBuilt = true;
+            return grid;
+        }
+
+        async function loadList() {
+            const g = ensureGrid();
+            if (!g) return;
+
+            deletedRows = [];
+            const params = new URLSearchParams();
+            const corpGr = getCorpGr();
+            if (corpGr) params.set('corpGr', corpGr);
+
+            try {
+                const res = await fetch(api + '/list' + (params.toString() ? '?' + params.toString() : ''), {
+                    credentials: 'same-origin'
+                });
+                if (!res.ok) throw new Error('HTTP ' + res.status);
+                const rows = await res.json();
+                const list = Array.isArray(rows) ? rows : [];
+                await g.setData(list);
+
+                const firstRow = g.getRows()[0];
+                if (firstRow) firstRow.select();
+
+                hasSucceededSearch = true;
+                updateToolbarState();
+            } catch (err) {
+                console.error('w_ja035a loadList error:', err);
+                if (typeof showToast === 'function') {
+                    showToast('단기유동자산 종목 조회 중 오류가 발생했습니다.', 'error');
+                }
+            }
+        }
+
+        async function addNewRow() {
+            const g = ensureGrid();
+            if (!g) return;
+
+            const selected = g.getSelectedData()[0] || {};
+            const newRowData = {
+                isNew: true,
+                isUpdated: false,
+                isDeleted: false,
+                rowStatus: 'C',
+                jasanGb: '5',
+                balhYmd: workDate || '',
+                seqNo: 1,
+                jasanAttr: '100',
+                gyuljeJm: 'N',
+                balhNation: selected.balhNation || '',
+                currency: selected.currency || '',
+                ijaPer: 0,
+                jmCd: '',
+                jmNm: '',
+                sanghwYmd: '',
+                sedol: '',
+                pVisible: 1
+            };
+
+            const addedRow = await g.addRow(newRowData, false);
+            if (addedRow) {
+                addedRow.select();
+                await refreshGeneratedJmCd(addedRow);
+            }
+        }
+
+        async function copySelectedRow() {
+            const g = ensureGrid();
+            if (!g) return;
+            const selected = g.getSelectedData()[0];
+            if (!selected) {
+                if (typeof showToast === 'function') {
+                    showToast('복사할 행을 선택해 주세요.', 'warning');
+                }
+                return;
+            }
+
+            const copied = Object.assign({}, selected, {
+                isNew: true,
+                isUpdated: false,
+                isDeleted: false,
+                rowStatus: 'C',
+                seqNo: (Number(selected.seqNo) || 1) + 1,
+                jmCd: '',
+                sedol: ''
+            });
+            const addedRow = await g.addRow(copied, false);
+            if (addedRow) {
+                addedRow.select();
+                await refreshGeneratedJmCd(addedRow);
+            }
+        }
+
+        function deleteSelectedRow() {
+            const g = ensureGrid();
+            if (!g) return;
+            const selectedRows = g.getSelectedRows();
+            if (!selectedRows || selectedRows.length === 0) {
+                if (typeof showToast === 'function') {
+                    showToast('삭제할 행을 선택해 주세요.', 'warning');
+                }
+                return;
+            }
+
+            selectedRows.forEach(function (row) {
+                const d = row.getData();
+                if (!d) return;
+                if (!d.isNew) {
+                    deletedRows.push(Object.assign({}, d, { isDeleted: true, rowStatus: 'D' }));
+                }
+                row.delete();
+            });
+        }
+
+        async function saveData() {
+            const g = ensureGrid();
+            if (!g) return;
+
+            const changed = [];
+            g.getData().forEach(function (d) {
+                if (d && (d.isNew || d.isUpdated || d.rowStatus === 'C' || d.rowStatus === 'U')) {
+                    changed.push(d);
+                }
+            });
+            deletedRows.forEach(function (d) {
+                changed.push(d);
+            });
+
+            if (changed.length === 0) {
+                if (typeof showToast === 'function') {
+                    showToast('저장할 변경 내역이 없습니다.', 'info');
+                }
+                return;
+            }
+
+            const params = new URLSearchParams();
+            const corpGr = getCorpGr();
+            if (corpGr) params.set('corpGr', corpGr);
+
+            try {
+                const res = await fetch(api + '/save' + (params.toString() ? '?' + params.toString() : ''), {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'same-origin',
+                    body: JSON.stringify(changed)
+                });
+                if (!res.ok) throw new Error('HTTP ' + res.status);
+                if (typeof showToast === 'function') {
+                    showToast('저장되었습니다.', 'success');
+                }
+                await loadList();
+            } catch (err) {
+                console.error('w_ja035a saveData error:', err);
+                if (typeof showToast === 'function') {
+                    showToast('저장 중 오류가 발생했습니다.', 'error');
+                }
+            }
+        }
+
+        pane.onSearch = loadList;
+        pane.onInput = addNewRow;
+        pane.onCopy = copySelectedRow;
+        pane.onDelete = deleteSelectedRow;
+        pane.onSave = saveData;
+
+        pane.onRefresh = pane.onClear = function () {
+            deletedRows = [];
+            if (grid) grid.clearData();
+            hasSucceededSearch = false;
+            updateToolbarState();
+            if (typeof showToast === 'function') {
+                showToast('화면이 초기화되었습니다.', 'info');
+            }
+        };
+
+        pane.onExcel = function () {
+            if (!grid) return;
+            const dateStr = (workDate || '').replace(/-/g, '');
+            grid.download('xlsx', '단기유동자산종목_' + dateStr + '.xlsx', { sheetName: '단기유동자산종목' });
+        };
+
+        pane.onCorpGrChange = async function () {
+            deletedRows = [];
+            if (grid) grid.clearData();
+            hasSucceededSearch = false;
+            updateToolbarState();
+            await loadAllDddws();
+            await loadList();
+        };
+
+        async function loadAllDddws() {
+            const results = await Promise.all([
+                loadDddwOptions('nation_cd', 1, '', ''),
+                loadDddwOptions('currency', 1, '', ''),
+                loadDddwOptions('jasan_attr', 1, '', '유동자산')
+            ]);
+            nationOptions = (results[0] && results[0].map) || {};
+            nationList = (results[0] && results[0].list) || [];
+            currencyOptions = (results[1] && results[1].map) || {};
+            currencyList = (results[1] && results[1].list) || [];
+            jasanAttrOptions = (results[2] && results[2].map) || {};
+            jasanAttrList = (results[2] && results[2].list) || [];
+            if (grid) {
+                grid.setColumns(buildColumns());
+            }
+        }
+
+        async function init() {
+            if (initialized) return;
+            initialized = true;
+
+            ensureGrid();
+            updateToolbarState();
+            await loadAllDddws();
+            await loadList();
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', init);
+        } else {
+            init();
+        }
+    })();
+    </script>
+</div>
+</html>

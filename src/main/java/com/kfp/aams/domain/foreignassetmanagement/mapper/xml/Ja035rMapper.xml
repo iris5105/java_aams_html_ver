@@ -1,0 +1,147 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.kfp.aams.domain.foreignassetmanagement.mapper.Ja035rMapper">
+
+    <select id="selectList" resultType="com.kfp.aams.domain.foreignassetmanagement.dto.Ja035rDto">
+        SELECT t1.CORP_GR
+             , t1.JM_CD
+             , t1.JM_NM
+             , t1.JASAN_GB
+             , t1.BALH_NATION
+             , t1.CURRENCY
+             , t1.AEKM
+             , TO_CHAR(t1.SANGJ_YMD, 'YYYY-MM-DD') AS sangj_ymd
+             , t1.SANGJ_JUSU
+             , t1.BLBG_TCKR
+             , t1.BLBG_TCKR_TEXT
+             , t1.ISIN_CD
+             , t1.SIGA_AGENT
+             , t1.JASAN_ATTR
+             , t1.SJ_GB
+             , t1.SEDOL
+             , t1.FEN0055
+             , t1.BALH_NM
+             , t1.JASAN
+             , t1.GBX
+             , t1.STOCK_GB
+             , t1.SRS_CD
+             , 1                                   AS p_visible
+          FROM SYM0YA t1
+         WHERE t1.CORP_GR  = #{corpGr}
+           AND t1.JASAN_GB = '1'
+         ORDER BY t1.BALH_NATION ASC
+                , t1.JM_CD ASC
+    </select>
+
+    <insert id="insertItem" parameterType="com.kfp.aams.domain.foreignassetmanagement.dto.Ja035rDto">
+        INSERT INTO SYM0YA (
+            CORP_GR,
+            JM_CD,
+            JM_NM,
+            JASAN_GB,
+            JS_JONGRYU,
+            BALH_NATION,
+            CURRENCY,
+            AEKM,
+            SANGJ_YMD,
+            SANGJ_JUSU,
+            BLBG_TCKR,
+            BLBG_TCKR_TEXT,
+            ISIN_CD,
+            SIGA_AGENT,
+            JASAN_ATTR,
+            SJ_GB,
+            SEDOL,
+            FEN0055,
+            BALH_NM,
+            JASAN,
+            GBX,
+            STOCK_GB,
+            SRS_CD
+        ) VALUES (
+            #{corpGr},
+            #{jmCd},
+            #{jmNm, jdbcType=VARCHAR},
+            COALESCE(#{jasanGb, jdbcType=VARCHAR}, '1'),
+            COALESCE(#{jsJongryu, jdbcType=VARCHAR}, '1'),
+            #{balhNation, jdbcType=VARCHAR},
+            #{currency, jdbcType=VARCHAR},
+            #{aekm, jdbcType=NUMERIC},
+            CASE WHEN #{sangjYmd, jdbcType=VARCHAR} IS NOT NULL AND TRIM(#{sangjYmd, jdbcType=VARCHAR}) != ''
+                 THEN TO_DATE(SUBSTR(REGEXP_REPLACE(#{sangjYmd, jdbcType=VARCHAR}, '[^0-9]', ''), 1, 8), 'YYYYMMDD')
+                 ELSE NULL END,
+            #{sangjJusu, jdbcType=NUMERIC},
+            #{blbgTckr, jdbcType=VARCHAR},
+            #{blbgTckrText, jdbcType=VARCHAR},
+            #{isinCd, jdbcType=VARCHAR},
+            #{sigaAgent, jdbcType=VARCHAR},
+            #{jasanAttr, jdbcType=VARCHAR},
+            #{sjGb, jdbcType=VARCHAR},
+            #{sedol, jdbcType=VARCHAR},
+            #{fen0055, jdbcType=VARCHAR},
+            #{balhNm, jdbcType=VARCHAR},
+            #{jasan, jdbcType=VARCHAR},
+            COALESCE(#{gbx, jdbcType=VARCHAR}, 'N'),
+            #{stockGb, jdbcType=VARCHAR},
+            #{srsCd, jdbcType=VARCHAR}
+        )
+    </insert>
+
+    <update id="updateItem" parameterType="com.kfp.aams.domain.foreignassetmanagement.dto.Ja035rDto">
+        UPDATE SYM0YA
+           SET JM_NM          = #{jmNm, jdbcType=VARCHAR}
+             , BALH_NATION    = #{balhNation, jdbcType=VARCHAR}
+             , CURRENCY       = #{currency, jdbcType=VARCHAR}
+             , AEKM           = #{aekm, jdbcType=NUMERIC}
+             , SANGJ_YMD      = CASE WHEN #{sangjYmd, jdbcType=VARCHAR} IS NOT NULL AND TRIM(#{sangjYmd, jdbcType=VARCHAR}) != ''
+                                     THEN TO_DATE(SUBSTR(REGEXP_REPLACE(#{sangjYmd, jdbcType=VARCHAR}, '[^0-9]', ''), 1, 8), 'YYYYMMDD')
+                                     ELSE NULL END
+             , SANGJ_JUSU     = #{sangjJusu, jdbcType=NUMERIC}
+             , BLBG_TCKR      = #{blbgTckr, jdbcType=VARCHAR}
+             , BLBG_TCKR_TEXT = #{blbgTckrText, jdbcType=VARCHAR}
+             , ISIN_CD        = #{isinCd, jdbcType=VARCHAR}
+             , SIGA_AGENT     = #{sigaAgent, jdbcType=VARCHAR}
+             , JASAN_ATTR     = #{jasanAttr, jdbcType=VARCHAR}
+             , SJ_GB          = #{sjGb, jdbcType=VARCHAR}
+             , SEDOL          = #{sedol, jdbcType=VARCHAR}
+             , FEN0055        = #{fen0055, jdbcType=VARCHAR}
+             , BALH_NM        = #{balhNm, jdbcType=VARCHAR}
+             , JASAN          = #{jasan, jdbcType=VARCHAR}
+             , GBX            = COALESCE(#{gbx, jdbcType=VARCHAR}, 'N')
+             , STOCK_GB       = #{stockGb, jdbcType=VARCHAR}
+             , SRS_CD         = #{srsCd, jdbcType=VARCHAR}
+         WHERE CORP_GR  = #{corpGr}
+           AND JM_CD    = #{jmCd}
+           AND JASAN_GB = COALESCE(#{jasanGb, jdbcType=VARCHAR}, '1')
+    </update>
+
+    <delete id="deleteItem">
+        DELETE FROM SYM0YA
+         WHERE CORP_GR  = #{corpGr}
+           AND JM_CD    = #{jmCd}
+           AND JASAN_GB = COALESCE(#{jasanGb, jdbcType=VARCHAR}, '1')
+    </delete>
+
+    <select id="selectCurrencyByNation" resultType="java.lang.String">
+        SELECT CURRENCY
+          FROM SZX0WA
+         WHERE NATION_CD = #{nationCd}
+           AND ROWNUM    = 1
+    </select>
+
+    <select id="selectNationByCurrency" resultType="java.lang.String">
+        SELECT NATION_CD
+          FROM SZX0WA
+         WHERE CURRENCY = #{currency}
+           AND ROWNUM   = 1
+    </select>
+
+    <select id="selectNationByStockGb" resultType="java.lang.String">
+        SELECT SEBU_CD_EFNM
+          FROM SZX0GR
+         WHERE GR_CD   = 'Q0'
+           AND SEBU_CD = #{sebuCd}
+           AND ROWNUM  = 1
+    </select>
+
+</mapper>

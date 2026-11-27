@@ -7,6 +7,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.util.List;
 
 /**
  * 회사그룹별 기준 작업일자 공통 서비스
@@ -52,6 +53,14 @@ public class WorkDateService {
             return null;
         }
         return workDateMapper.selectWorkDateFor2402Junyong(corpGr.trim());
+    }
+
+    /**
+     * 국가코드별 휴무일 목록 조회 (SZX0HL.HOLI_YMD, YYYY-MM-DD)
+     */
+    public List<String> getHolidays(String nationCd) {
+        String resolvedNation = (nationCd != null && !nationCd.isBlank()) ? nationCd.trim().toUpperCase() : "KR";
+        return workDateMapper.selectHolidays(resolvedNation);
     }
 
     /**

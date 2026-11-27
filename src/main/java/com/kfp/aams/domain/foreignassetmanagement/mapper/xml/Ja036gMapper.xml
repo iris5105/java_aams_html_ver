@@ -2,33 +2,79 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.kfp.aams.domain.foreignassetmanagement.mapper.Ja036gMapper">
 
-  <select id="selectMasterList"
-    resultType="com.kfp.aams.domain.foreignassetmanagement.dto.Ja036gMasterDto"> SELECT DISTINCT
-    ia.FUND_CD , ia.FUND_NM AS xx_fund_cd , ya.JM_CD , ya.JM_NM AS xx_jm_cd , ya.JASAN_GB ,
-    ya.CURRENCY , ia.FUND_CURRENCY FROM SYM0YA ya LEFT OUTER JOIN SYM0YZ yz ON yz.CORP_GR =
-    ya.CORP_GR AND yz.JM_CD = ya.JM_CD INNER JOIN SZM0IA ia ON ia.CORP_GR = yz.CORP_GR AND
-    ia.FUND_CD = yz.FUND_CD WHERE yz.CORP_GR = #{corpGr} AND yz.YMD BETWEEN
-    TO_DATE(SUBSTR(REGEXP_REPLACE(#{fYmd}, '[^0-9]', ''), 1, 8), 'YYYYMMDD') AND
-    TO_DATE(SUBSTR(REGEXP_REPLACE(#{tYmd}, '[^0-9]', ''), 1, 8), 'YYYYMMDD') ORDER BY ya.JASAN_GB
-    ASC , ia.FUND_CD ASC , ya.JM_CD ASC </select>
+    <select id="selectMasterList" resultType="com.kfp.aams.domain.foreignassetmanagement.dto.Ja036gMasterDto">
+        SELECT DISTINCT ia.FUND_CD
+             , ia.FUND_NM AS xx_fund_cd
+             , ya.JM_CD
+             , ya.JM_NM AS xx_jm_cd
+             , ya.JASAN_GB
+             , ya.CURRENCY
+             , ia.FUND_CURRENCY
+          FROM SYM0YA ya
+          LEFT OUTER JOIN SYM0YZ yz
+            ON yz.CORP_GR = ya.CORP_GR
+           AND yz.JM_CD   = ya.JM_CD
+         INNER JOIN SZM0IA ia
+            ON ia.CORP_GR = yz.CORP_GR
+           AND ia.FUND_CD = yz.FUND_CD
+         WHERE yz.CORP_GR = #{corpGr}
+           AND yz.YMD BETWEEN TO_DATE(SUBSTR(REGEXP_REPLACE(#{fYmd}, '[^0-9]', ''), 1, 8), 'YYYYMMDD')
+                          AND TO_DATE(SUBSTR(REGEXP_REPLACE(#{tYmd}, '[^0-9]', ''), 1, 8), 'YYYYMMDD')
+         ORDER BY ya.JASAN_GB ASC
+                , ia.FUND_CD ASC
+                , ya.JM_CD ASC
+    </select>
 
-  <select id="selectDetailList"
-    resultType="com.kfp.aams.domain.foreignassetmanagement.dto.Ja036gDetailDto"> SELECT
-    TO_CHAR(yz.YMD, 'YYYY-MM-DD') AS ymd , yz.TRUSTEE , yz.TR_BFIL_JUSU + COALESCE(yz.RIGHT_JUSU, 0)
-    AS tr_bfil_jusu , yz.TR_UP_JUSU , yz.TR_DW_JUSU , yz.TR_BFIL_CHUI_AEK + COALESCE(yz.RIGHT_AEK,
-    0) AS tr_bfil_chui_aek , yz.TR_UP_CHUI_AEK , yz.TR_DW_CHUI_AEK , yz.TR_PYUNGA_AEK ,
-    yz.FCUR_BFIL_CHUI_AEK + COALESCE(yz.RIGHT_FCUR_AEK, 0) AS fcur_bfil_chui_aek ,
-    yz.FCUR_UP_CHUI_AEK , yz.FCUR_DW_CHUI_AEK , yz.WON_BFIL_CHUI_AEK + COALESCE(yz.RIGHT_WON_AEK, 0)
-    AS won_bfil_chui_aek , yz.WON_UP_CHUI_AEK , yz.WON_DW_CHUI_AEK , yz.BFIL_SUNG_COST ,
-    yz.SUNG_COST , yz.FCUR_BFIL_SUNG_COST , yz.FCUR_SUNG_COST , yz.WON_BFIL_SUNG_COST ,
-    yz.WON_SUNG_COST , yz.BFIL_MISU_IJA , yz.MISU_IJA , yz.FCUR_PYUNGA_AEK , yz.FCUR_PYUNGA_SONIK ,
-    yz.FCUR_HWAN_CHA , yz.FCUR_BFIL_MISU_IJA , yz.FCUR_MISU_IJA , yz.WON_PYUNGA_AEK ,
-    yz.WON_PYUNGA_SONIK , yz.WON_HWAN_CHA , yz.WON_BFIL_MISU_IJA , yz.WON_MISU_IJA ,
-    yz.MSD_MEIB_AEKM , yz.MSD_MEIB_AEK , yz.FCUR_MSD_MEIB_AEK , yz.WON_MSD_MEIB_AEK ,
-    yz.MSD_MEDO_AEKM , yz.MSD_MEDO_AEK , yz.FCUR_MSD_MEDO_AEK , yz.WON_MSD_MEDO_AEK ,
-    F_CURRENCY_RT(yz.CORP_GR, yz.YMD, yz.CURRENCY) AS currency_rt FROM SYM0YZ yz WHERE yz.CORP_GR =
-    #{corpGr} AND yz.YMD BETWEEN TO_DATE(SUBSTR(REGEXP_REPLACE(#{fYmd}, '[^0-9]', ''), 1, 8),
-    'YYYYMMDD') AND TO_DATE(SUBSTR(REGEXP_REPLACE(#{tYmd}, '[^0-9]', ''), 1, 8), 'YYYYMMDD') AND
-    yz.FUND_CD = #{fundCd} AND yz.JM_CD = #{jmCd} ORDER BY yz.YMD ASC </select>
+    <select id="selectDetailList" resultType="com.kfp.aams.domain.foreignassetmanagement.dto.Ja036gDetailDto">
+        SELECT TO_CHAR(yz.YMD, 'YYYY-MM-DD')                         AS ymd
+             , yz.TRUSTEE
+             , yz.TR_BFIL_JUSU + COALESCE(yz.RIGHT_JUSU, 0)          AS tr_bfil_jusu
+             , yz.TR_UP_JUSU
+             , yz.TR_DW_JUSU
+             , yz.TR_BFIL_CHUI_AEK + COALESCE(yz.RIGHT_AEK, 0)       AS tr_bfil_chui_aek
+             , yz.TR_UP_CHUI_AEK
+             , yz.TR_DW_CHUI_AEK
+             , yz.TR_PYUNGA_AEK
+             , yz.FCUR_BFIL_CHUI_AEK + COALESCE(yz.RIGHT_FCUR_AEK, 0) AS fcur_bfil_chui_aek
+             , yz.FCUR_UP_CHUI_AEK
+             , yz.FCUR_DW_CHUI_AEK
+             , yz.WON_BFIL_CHUI_AEK + COALESCE(yz.RIGHT_WON_AEK, 0)  AS won_bfil_chui_aek
+             , yz.WON_UP_CHUI_AEK
+             , yz.WON_DW_CHUI_AEK
+             , yz.BFIL_SUNG_COST
+             , yz.SUNG_COST
+             , yz.FCUR_BFIL_SUNG_COST
+             , yz.FCUR_SUNG_COST
+             , yz.WON_BFIL_SUNG_COST
+             , yz.WON_SUNG_COST
+             , yz.BFIL_MISU_IJA
+             , yz.MISU_IJA
+             , yz.FCUR_PYUNGA_AEK
+             , yz.FCUR_PYUNGA_SONIK
+             , yz.FCUR_HWAN_CHA
+             , yz.FCUR_BFIL_MISU_IJA
+             , yz.FCUR_MISU_IJA
+             , yz.WON_PYUNGA_AEK
+             , yz.WON_PYUNGA_SONIK
+             , yz.WON_HWAN_CHA
+             , yz.WON_BFIL_MISU_IJA
+             , yz.WON_MISU_IJA
+             , yz.MSD_MEIB_AEKM
+             , yz.MSD_MEIB_AEK
+             , yz.FCUR_MSD_MEIB_AEK
+             , yz.WON_MSD_MEIB_AEK
+             , yz.MSD_MEDO_AEKM
+             , yz.MSD_MEDO_AEK
+             , yz.FCUR_MSD_MEDO_AEK
+             , yz.WON_MSD_MEDO_AEK
+             , F_CURRENCY_RT(yz.CORP_GR, yz.YMD, yz.CURRENCY)        AS currency_rt
+          FROM SYM0YZ yz
+         WHERE yz.CORP_GR = #{corpGr}
+           AND yz.YMD BETWEEN TO_DATE(SUBSTR(REGEXP_REPLACE(#{fYmd}, '[^0-9]', ''), 1, 8), 'YYYYMMDD')
+                          AND TO_DATE(SUBSTR(REGEXP_REPLACE(#{tYmd}, '[^0-9]', ''), 1, 8), 'YYYYMMDD')
+           AND yz.FUND_CD = #{fundCd}
+           AND yz.JM_CD   = #{jmCd}
+         ORDER BY yz.YMD ASC
+    </select>
 
 </mapper>

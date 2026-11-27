@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -29,5 +30,14 @@ public class WorkDateController {
                 "workYmd", workDate,
                 "junyongYmd", junyongDate
         ));
+    }
+
+    /**
+     * 국가코드(nationCd)별 휴무일 목록 조회 API (SZX0HL)
+     * GET /api/common/holidays?nationCd=US
+     */
+    @GetMapping("/api/common/holidays")
+    public ResponseEntity<List<String>> getHolidays(@RequestParam(name = "nationCd", defaultValue = "KR") String nationCd) {
+        return ResponseEntity.ok(workDateService.getHolidays(nationCd));
     }
 }
